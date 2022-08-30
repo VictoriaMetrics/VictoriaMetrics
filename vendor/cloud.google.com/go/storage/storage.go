@@ -1875,8 +1875,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 
 // WithErrorFunc allows users to pass a custom function to the retryer. Errors
 // will be retried if and only if `shouldRetry(err)` returns true.
-// By default, the following errors are retried (see invoke.go for the default
-// shouldRetry function):
+// By default, the following errors are retried (see ShouldRetry for the default
+// function):
 //
 // - HTTP responses with codes 408, 429, 502, 503, and 504.
 //
@@ -1887,7 +1887,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 // - Wrapped versions of these errors.
 //
 // This option can be used to retry on a different set of errors than the
-// default.
+// default. Users can use the default ShouldRetry function inside their custom
+// function if they only want to make minor modifications to default behavior.
 func WithErrorFunc(shouldRetry func(err error) bool) RetryOption {
 	return &withErrorFunc{
 		shouldRetry: shouldRetry,

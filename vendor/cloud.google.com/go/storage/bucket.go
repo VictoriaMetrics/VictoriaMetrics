@@ -610,7 +610,12 @@ const (
 //
 // All configured conditions must be met for the associated action to be taken.
 type LifecycleCondition struct {
+	// AllObjects is used to select all objects in a bucket by
+	// setting AgeInDays to 0.
+	AllObjects bool
+
 	// AgeInDays is the age of the object in days.
+	// If you want to set AgeInDays to `0` use AllObjects set to `true`.
 	AgeInDays int64
 
 	// CreatedBefore is the time the object was created.
@@ -628,10 +633,12 @@ type LifecycleCondition struct {
 
 	// DaysSinceCustomTime is the days elapsed since the CustomTime date of the
 	// object. This condition can only be satisfied if CustomTime has been set.
+	// Note: Using `0` as the value will be ignored by the library and not sent to the API.
 	DaysSinceCustomTime int64
 
 	// DaysSinceNoncurrentTime is the days elapsed since the noncurrent timestamp
 	// of the object. This condition is relevant only for versioned objects.
+	// Note: Using `0` as the value will be ignored by the library and not sent to the API.
 	DaysSinceNoncurrentTime int64
 
 	// Liveness specifies the object's liveness. Relevant only for versioned objects
@@ -663,6 +670,7 @@ type LifecycleCondition struct {
 	// If the value is N, this condition is satisfied when there are at least N
 	// versions (including the live version) newer than this version of the
 	// object.
+	// Note: Using `0` as the value will be ignored by the library and not sent to the API.
 	NumNewerVersions int64
 }
 
@@ -1421,19 +1429,6 @@ func toCORSFromProto(rc []*storagepb.Bucket_Cors) []CORS {
 	return out
 }
 
-// Used to handle breaking change in Autogen Storage client OLM Age field
-// from int64 to *int64 gracefully in the manual client
-// TODO(#6240): Method should be removed once breaking change is made and introduced to this client
-func setAgeCondition(age int64, ageField interface{}) {
-	c := reflect.ValueOf(ageField).Elem()
-	switch c.Kind() {
-	case reflect.Int64:
-		c.SetInt(age)
-	case reflect.Ptr:
-		c.Set(reflect.ValueOf(&age))
-	}
-}
-
 func toRawLifecycle(l Lifecycle) *raw.BucketLifecycle {
 	var rl raw.BucketLifecycle
 	if len(l.Rules) == 0 {
@@ -1455,7 +1450,15 @@ func toRawLifecycle(l Lifecycle) *raw.BucketLifecycle {
 			},
 		}
 
-		setAgeCondition(r.Condition.AgeInDays, &rr.Condition.Age)
+		// AllObjects takes precedent when both AllObjects and AgeInDays are set
+		// Rationale: If you've opted into using AllObjects, it makes sense that you
+		// understand the implications of how this option works with AgeInDays.
+		if r.Condition.AllObjects {
+			rr.Condition.Age = googleapi.Int64(0)
+			rr.Condition.ForceSendFields = []string{"Age"}
+		} else if r.Condition.AgeInDays > 0 {
+			rr.Condition.Age = googleapi.Int64(r.Condition.AgeInDays)
+		}
 
 		switch r.Condition.Liveness {
 		case LiveAndArchived:
@@ -1504,6 +1507,11 @@ func toProtoLifecycle(l Lifecycle) *storagepb.Bucket_Lifecycle {
 			},
 		}
 
+		// TODO(#6205): This may not be needed for gRPC
+		if r.Condition.AllObjects {
+			rr.Condition.AgeDays = proto.Int32(0)
+		}
+
 		switch r.Condition.Liveness {
 		case LiveAndArchived:
 			rr.Condition.IsLive = nil
@@ -1527,21 +1535,6 @@ func toProtoLifecycle(l Lifecycle) *storagepb.Bucket_Lifecycle {
 	return &rl
 }
 
-// Used to handle breaking change in Autogen Storage client OLM Age field
-// from int64 to *int64 gracefully in the manual client
-// TODO(#6240): Method should be removed once breaking change is made and introduced to this client
-func getAgeCondition(ageField interface{}) int64 {
-	v := reflect.ValueOf(ageField)
-	if v.Kind() == reflect.Int64 {
-		return v.Interface().(int64)
-	} else if v.Kind() == reflect.Ptr {
-		if val, ok := v.Interface().(*int64); ok {
-			return *val
-		}
-	}
-	return 0
-}
-
 func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 	var l Lifecycle
 	if rl == nil {
@@ -1562,7 +1555,12 @@ func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 				NumNewerVersions:        rr.Condition.NumNewerVersions,
 			},
 		}
-		r.Condition.AgeInDays = getAgeCondition(rr.Condition.Age)
+		if rr.Condition.Age != nil {
+			r.Condition.AgeInDays = *rr.Condition.Age
+			if *rr.Condition.Age == 0 {
+				r.Condition.AllObjects = true
+			}
+		}
 
 		if rr.Condition.IsLive == nil {
 			r.Condition.Liveness = LiveAndArchived
@@ -1606,6 +1604,11 @@ func toLifecycleFromProto(rl *storagepb.Bucket_Lifecycle) Lifecycle {
 				MatchesSuffix:           rr.GetCondition().GetMatchesSuffix(),
 				NumNewerVersions:        int64(rr.GetCondition().GetNumNewerVersions()),
 			},
+		}
+
+		// TODO(#6205): This may not be needed for gRPC
+		if rr.GetCondition().GetAgeDays() == 0 {
+			r.Condition.AllObjects = true
 		}
 
 		if rr.GetCondition().IsLive == nil {

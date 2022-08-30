@@ -114,10 +114,12 @@ func main() {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
 	}
 	if len(*opentsdbListenAddr) > 0 {
-		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, opentsdb.InsertHandler, opentsdbhttp.InsertHandler)
+		httpInsertHandler := getOpenTSDBHTTPInsertHandler()
+		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, opentsdb.InsertHandler, httpInsertHandler)
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
-		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, opentsdbhttp.InsertHandler)
+		httpInsertHandler := getOpenTSDBHTTPInsertHandler()
+		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, httpInsertHandler)
 	}
 
 	promscrape.Init(remotewrite.Push)
@@ -157,6 +159,40 @@ func main() {
 	remotewrite.Stop()
 
 	logger.Infof("successfully stopped vmagent in %.3f seconds", time.Since(startTime).Seconds())
+}
+
+func getOpenTSDBHTTPInsertHandler() func(req *http.Request) error {
+	if !remotewrite.MultitenancyEnabled() {
+		return func(req *http.Request) error {
+			path := strings.Replace(req.URL.Path, "//", "/", -1)
+			if path != "/api/put" {
+				return fmt.Errorf("unsupported path requested: %q; expecting '/api/put'", path)
+			}
+			return opentsdbhttp.InsertHandler(nil, req)
+		}
+	}
+	return func(req *http.Request) error {
+		path := strings.Replace(req.URL.Path, "//", "/", -1)
+		at, err := getAuthTokenFromPath(path)
+		if err != nil {
+			return fmt.Errorf("cannot obtain auth token from path %q: %w", path, err)
+		}
+		return opentsdbhttp.InsertHandler(at, req)
+	}
+}
+
+func getAuthTokenFromPath(path string) (*auth.Token, error) {
+	p, err := httpserver.ParsePath(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse multitenant path: %w", err)
+	}
+	if p.Prefix != "insert" {
+		return nil, fmt.Errorf(`unsupported multitenant prefix: %q; expected "insert"`, p.Prefix)
+	}
+	if p.Suffix != "opentsdb/api/put" {
+		return nil, fmt.Errorf("unsupported path requested: %q; expecting 'opentsdb/api/put'", p.Suffix)
+	}
+	return auth.NewToken(p.AuthToken)
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {

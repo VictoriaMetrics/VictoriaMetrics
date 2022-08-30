@@ -1,6 +1,18 @@
 # Changes
 
 
+## [1.26.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.25.0...storage/v1.26.0) (2022-08-29)
+
+
+### Features
+
+* **storage:** export ShouldRetry ([#6370](https://github.com/googleapis/google-cloud-go/issues/6370)) ([0da9ab0](https://github.com/googleapis/google-cloud-go/commit/0da9ab0831540569dc04c0a23437b084b1564e15)), refs [#6362](https://github.com/googleapis/google-cloud-go/issues/6362)
+
+
+### Bug Fixes
+
+* **storage:** allow to use age=0 in OLM conditions ([#6204](https://github.com/googleapis/google-cloud-go/issues/6204)) ([c85704f](https://github.com/googleapis/google-cloud-go/commit/c85704f4284626ce728cb48f3b130f2ce2a0165e))
+
 ## [1.25.0](https://github.com/googleapis/google-cloud-go/compare/storage/v1.24.0...storage/v1.25.0) (2022-08-11)
 
 

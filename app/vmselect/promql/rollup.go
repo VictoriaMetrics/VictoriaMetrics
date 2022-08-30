@@ -248,7 +248,7 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	return aggrFuncNames, nil
 }
 
-func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
+func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int, window, lookbackDelta int64, sharedTimestamps []int64) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(values []float64, timestamps []int64) {}
 	if rollupFuncsRemoveCounterResets[name] {
@@ -258,12 +258,15 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 	}
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:        tagValue,
-			Func:            rf,
-			Start:           start,
-			End:             end,
-			Step:            step,
-			Window:          window,
+			TagValue: tagValue,
+			Func:     rf,
+			Start:    start,
+			End:      end,
+			Step:     step,
+			Window:   window,
+
+			MaxPointsPerSeries: maxPointsPerSeries,
+
 			MayAdjustWindow: rollupFuncsCanAdjustWindow[name],
 			LookbackDelta:   lookbackDelta,
 			Timestamps:      sharedTimestamps,
@@ -400,6 +403,9 @@ type rollupConfig struct {
 	Step   int64
 	Window int64
 
+	// The maximum number of points, which can be generated per each series.
+	MaxPointsPerSeries int
+
 	// Whether window may be adjusted to 2 x interval between data points.
 	// This is needed for functions which have dt in the denominator
 	// such as rate, deriv, etc.
@@ -414,6 +420,10 @@ type rollupConfig struct {
 
 	// Whether default_rollup is used.
 	isDefaultRollup bool
+}
+
+func (rc *rollupConfig) getTimestamps() []int64 {
+	return getTimestamps(rc.Start, rc.End, rc.Step, rc.MaxPointsPerSeries)
 }
 
 func (rc *rollupConfig) String() string {
@@ -513,7 +523,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	if rc.Window < 0 {
 		logger.Panicf("BUG: Window must be non-negative; got %d", rc.Window)
 	}
-	if err := ValidateMaxPointsPerTimeseries(rc.Start, rc.End, rc.Step); err != nil {
+	if err := ValidateMaxPointsPerSeries(rc.Start, rc.End, rc.Step, rc.MaxPointsPerSeries); err != nil {
 		logger.Panicf("BUG: %s; this must be validated before the call to rollupConfig.Do", err)
 	}
 

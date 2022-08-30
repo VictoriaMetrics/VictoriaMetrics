@@ -51,7 +51,7 @@ func addInstanceLabels(instances []instance) []map[string]string {
 			"__meta_yandexcloud_folder_id":                        server.FolderID,
 		}
 		for k, v := range server.Labels {
-			m["__meta_yandexcloud_instance_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			m[discoveryutils.SanitizeLabelName("__meta_yandexcloud_instance_label_"+k)] = v
 		}
 
 		for _, ni := range server.NetworkInterfaces {

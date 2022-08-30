@@ -89,6 +89,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		log.Printf("error start process bars pool: %s", err)
 		return err
 	}
+	defer barpool.Stop()
 
 	w := io.Writer(pw)
 	if p.rateLimit > 0 {
@@ -106,7 +107,6 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	}
 	<-sync
 
-	barpool.Stop()
 	log.Println("Import finished!")
 	return nil
 }
