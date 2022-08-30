@@ -6,9 +6,9 @@ sort: 22
 
 ## Data model
 
-### What is a metric?
+### What is a metric
 
-Simply put, the `metric` is a numeric measure or observation of something.
+Simply put, `metric` is a numeric measure or observation of something.
 
 The most common use-cases for metrics are:
 
@@ -91,7 +91,7 @@ It cannot decrease in general case. The only exception is e.g. `counter reset`,
 when the metric resets to zero. The `counter reset` can occur when the service, which exposes the counter, restarts.
 So, the `counter` metric shows the number of observed events since the service start.
 
-In programming, the `counter` is a variable that you **increment** each time something happens.
+In programming, `counter` is a variable that you **increment** each time something happens.
 
 {% include img.html href="keyConcepts_counter.png" %}
 
