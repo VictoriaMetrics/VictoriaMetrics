@@ -35,22 +35,17 @@ git remote add enterprise <url>
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
-4. Run `TAG=v1.xx.y make github-create-release github-upload-assets` for creating a draft release at GitHub
-   with the `TAG` name and uploading all the assets created during step 3 at `bin` folder.
-   This command performs the following tasks:
-   a) Create draft GitHub release with the name `TAG`. This step can be run manually
+   c) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
-   b) Upload all the binaries and checksums created at step 3 to that release.
+   d) Upload all the binaries and checksums created at step `a` to that release.
       This step can be run manually with the command `make github-upload-assets`.
       It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
-      which must be created at the step `a`.
-      It is expected that all the assets, which are needed to be uploaded to GitHub release
-      are available at `bin` directory. These assets are created at step 3 above.
+      which must be created at the step `c`.
       If the upload process is interrupted by any reason, then the following recovery steps must be performed:
       - To delete the created draft release by running the command `make github-delete-release`.
         This command expects that the id of the release to delete is located at `/tmp/vm-github-release`
-        file created at the step `a`.
+        file created at the step `c`.
       - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
 5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
