@@ -4,22 +4,56 @@ sort: 18
 
 # Release process guidance
 
+## Prereqs
+1. Make sure you have enterprise remote configured
+```
+git remote add enterprise <url>
+```
+2. Make sure you have singing key configured
+3. Make sure you have github token with at least `read:org, repo, write:packages` permissions exported under `GITHUB_TOKEN` env variable.
+   You can create token [here](https://github.com/settings/tokens)
+
 ## Release version and Docker images
 
 0. Make sure that the release commits have no security issues.
 1a. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md).
-1b. Add `(available in v1.xx.y)` line to feature docs introduced in the upcoming release.
+1b. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
 2. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
    * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
-3. Run `TAG=v1.xx.y make publish-release`. It will create `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory and publish Docker images for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
-4. Push release tags to <https://github.com/VictoriaMetrics/VictoriaMetrics> : `git push origin v1.xx.y` and `git push origin v1.xx.y-cluster`. Do not push `-enterprise` tags to public repository.
-5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> , create new release from the pushed tag on step 4 and upload `*.tar.gz` archive with the corresponding `_checksums.txt` from step 3.
-6. Copy the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release to [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page.
-7. Bump version of the VictoriaMetrics cluster setup in for [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
-by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
+3. Run `TAG=v1.xx.y make publish-release`. This command performs the following tasks:
+   a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
+      This step can be run manually with the command `make release` from the needed git tag.
+   b) Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
+      for the given `TAG`, `TAG-cluster`, `TAG-enterprise` and `TAG-enterprise-cluster`.
+      The multi-platform Docker image is built for the following platforms:
+      * linux/amd64
+      * linux/arm64
+      * linux/arm
+      * linux/ppc64le
+      * linux/386
+      This step can be run manually with the command `make publish` from the needed git tag.
+   c) Create draft GitHub release with the name `TAG`. This step can be run manually
+      with the command `TAG=v1.xx.y make github-create-release`.
+      The release id is stored at `/tmp/vm-github-release` file.
+   d) Upload all the binaries and checksums created at step `a` to that release.
+      This step can be run manually with the command `make github-upload-assets`.
+      It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
+      which must be created at the step `c`.
+      If the upload process is interrupted by any reason, then the following recovery steps must be performed:
+      - To delete the created draft release by running the command `make github-delete-release`.
+        This command expects that the id of the release to delete is located at `/tmp/vm-github-release`
+        file created at the step `c`.
+      - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
+        and all the needed assets are re-uploaded to it.
+5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
+   and this release contains all the needed binaries and checksums.
+6. Update the release description with the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
+7. Remove the `draft` checkbox for the `TAG` release and manually publish it.
+8. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
+   by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
 
 ## Building snap package
 
