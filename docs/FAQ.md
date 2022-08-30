@@ -327,7 +327,8 @@ Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMet
   via [vmauth](https://docs.victoriametrics.com/vmauth.html).
 
 - If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
-  at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics.
+  at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics,
+  since its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-resizing-and-scalability).
 
 ## How to migrate data from single-node VictoriaMetrics to cluster version?
 
