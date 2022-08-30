@@ -169,9 +169,7 @@ publish-release:
 	git checkout $(TAG) && $(MAKE) release publish && \
 		git checkout $(TAG)-cluster && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish && \
-		$(MAKE) github-create-release && \
-		$(MAKE) github-upload-assets
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
 
 release: \
 	release-victoria-metrics \
