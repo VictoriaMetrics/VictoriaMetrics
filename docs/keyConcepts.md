@@ -368,7 +368,7 @@ The cons of push protocol:
 * Increased configuration complexity for monitored applications.
   Every application needs to be individually configured with the address of the monitoring system
   for metrics delivery. It also needs to be configured with the interval between metric pushes
-  and the strategy for metric delivery failure.
+  and the strategy in case of metric delivery failure.
 * Non-trivial setup for metrics' delivery into multiple monitoring systems.
 * It may be hard to tell whether the application went down or just stopped sending metrics for a different reason.
 * Applications can overload the monitoring system by pushing metrics at too short intervals.
