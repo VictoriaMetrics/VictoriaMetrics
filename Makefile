@@ -1,8 +1,3 @@
-BOLD=$(shell tput bold)
-RED=$(shell tput setaf 1)
-BLUE=$(shell tput setaf 4)
-RESET=$(shell tput sgr0)
-
 PKG_PREFIX := github.com/VictoriaMetrics/VictoriaMetrics
 
 DATEINFO_TAG ?= $(shell date -u +'%Y%m%d-%H%M%S')
