@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/time_stepper"
 	"github.com/dmitryk-dk/pb/v3"
 	"io"
 	"log"
@@ -73,22 +74,24 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		endOfRange = time.Now()
 	}
 
-	ranges, err := splitDateRange(startOfRange, endOfRange, p.filter.chunk)
+	ranges, err := time_stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}
 
 	for rangeIdx, r := range ranges {
-		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), r.start.Format(time.RFC3339), r.end.Format(time.RFC3339))
+		formattedStartTime := r.Start()
+		formattedEndTime := r.End()
+		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
 		f := filter{
 			match:     p.filter.match,
-			timeStart: r.start.Format(time.RFC3339),
-			timeEnd:   r.end.Format(time.RFC3339),
+			timeStart: formattedStartTime,
+			timeEnd:   formattedEndTime,
 		}
 		err := p.runSingle(ctx, f)
 
 		if err != nil {
-			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), r.start.Format(time.RFC3339), r.end.Format(time.RFC3339))
+			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
 			return err
 		}
 	}

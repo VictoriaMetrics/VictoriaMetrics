@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/time_stepper"
 	"testing"
 	"time"
 )
@@ -82,7 +83,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 					match:     matchFilter,
 					timeStart: timeStartFilter,
 					timeEnd:   timeEndFilter,
-					chunk:     string(GranularityMonth),
+					chunk:     time_stepper.GranularityMonth,
 				},
 				rateLimit: 0,
 				dst: &vmNativeClient{

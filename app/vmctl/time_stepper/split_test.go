@@ -1,4 +1,4 @@
-package main
+package time_stepper
 
 import (
 	"reflect"
@@ -130,17 +130,17 @@ func Test_splitDateRange(t *testing.T) {
 			start := mustParseDatetime(tt.args.start)
 			end := mustParseDatetime(tt.args.end)
 
-			got, err := splitDateRange(start, end, tt.args.granularity)
+			got, err := SplitDateRange(start, end, tt.args.granularity)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("splitDateRange() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			var testExpectedResults []timeRange
+			var testExpectedResults []TimeRange
 			if tt.want != nil {
-				testExpectedResults = make([]timeRange, 0)
+				testExpectedResults = make([]TimeRange, 0)
 				for _, dr := range tt.want {
-					testExpectedResults = append(testExpectedResults, timeRange{
+					testExpectedResults = append(testExpectedResults, TimeRange{
 						start: mustParseDatetime(dr.start),
 						end:   mustParseDatetime(dr.end),
 					})

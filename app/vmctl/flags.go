@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/time_stepper"
 
 	"github.com/urfave/cli/v2"
 )
@@ -348,7 +349,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterChunk,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s'.", vmNativeFilterTimeStart, GranularityMonth, GranularityDay, GranularityHour),
+			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s'.", vmNativeFilterTimeStart, time_stepper.GranularityMonth, time_stepper.GranularityDay, time_stepper.GranularityHour),
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,

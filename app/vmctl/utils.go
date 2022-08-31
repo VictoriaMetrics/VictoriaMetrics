@@ -3,25 +3,12 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"os"
 	"strings"
-	"time"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
 const barTpl = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
-
-type timeRange struct {
-	start time.Time
-	end   time.Time
-}
-
-const (
-	GranularityMonth string = "month"
-	GranularityDay   string = "day"
-	GranularityHour  string = "hour"
-)
 
 func prompt(question string) bool {
 	reader := bufio.NewReader(os.Stdin)
@@ -62,78 +49,4 @@ func wrapErr(vmErr *vm.ImportError, verbose bool) error {
 	}
 	return fmt.Errorf("%s\n\tImporting batch failed for timestamps range %d - %d %s\n%s",
 		vmErr.Err, minTS, maxTS, verboseMsg, errTS)
-}
-
-type stepper interface {
-	next(t time.Time) (time.Time, time.Time)
-}
-
-type monthStepper struct {
-	generatedFirst bool
-}
-
-func (ms *monthStepper) next(t time.Time) (time.Time, time.Time) {
-	if !ms.generatedFirst {
-		ms.generatedFirst = true
-		endOfCurrentMonth := time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
-
-		return t, endOfCurrentMonth
-	}
-
-	endOfNextMonth := time.Date(t.Year(), t.Month()+2, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
-	startOfNextMonth := time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location())
-
-	return startOfNextMonth, endOfNextMonth
-}
-
-type dayStepper struct{}
-
-func (dayStepper) next(t time.Time) (time.Time, time.Time) {
-	return t, t.AddDate(0, 0, 1)
-}
-
-type hourStepper struct{}
-
-func (hourStepper) next(t time.Time) (time.Time, time.Time) {
-	return t, t.Add(time.Hour * 1)
-}
-
-// splitDateRange splits range of dates in subset of ranges.
-// Ranges with granularity of GranularityMonth are aligned to 1st of each month in order to improve export efficiency at block transfer level
-func splitDateRange(start, end time.Time, granularity string) ([]timeRange, error) {
-
-	if start.After(end) {
-		return nil, fmt.Errorf("start time should be after end: start - %s, end - %s", start.Format(time.RFC3339), end.Format(time.RFC3339))
-	}
-
-	var st stepper
-
-	switch granularity {
-	case GranularityMonth:
-		st = &monthStepper{}
-	case GranularityDay:
-		st = &dayStepper{}
-	case GranularityHour:
-		st = &hourStepper{}
-	default:
-		return nil, fmt.Errorf("failed to parse %s, valid values are: '%s', '%s', '%s'. provided: '%s'", GranularityMonth, GranularityDay, GranularityHour, vmNativeFilterChunk, granularity)
-	}
-
-	currentStep := start
-
-	ranges := make([]timeRange, 0)
-
-	for end.After(currentStep) {
-		startOfStep, endOfStep := st.next(currentStep)
-		if endOfStep.After(end) {
-			endOfStep = end
-		}
-		ranges = append(ranges, timeRange{
-			start: startOfStep,
-			end:   endOfStep,
-		})
-		currentStep = endOfStep
-	}
-
-	return ranges, nil
 }
