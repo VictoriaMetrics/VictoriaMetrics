@@ -101,6 +101,7 @@ Additional information:
 
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
 * [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+* [How to export data in JSON line format](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ## /api/v1/export/csv
