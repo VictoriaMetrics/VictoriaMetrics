@@ -317,6 +317,8 @@ between [cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMe
 The performance of a single-node VictoriaMetrics scales almost perfectly with the available CPU, RAM and disk IO resources on the host where it runs -
 see [this article](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
 
+Single-node VictoriaMetrics is easier to setup and operate comparing to cluster version of VictoriaMetrics.
+
 Given the facts above **it is recommended to use single-node VictoriaMetrics in the majority of cases**.
 
 Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMetrics in the following relatively rare cases:
