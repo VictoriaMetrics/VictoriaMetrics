@@ -42,7 +42,7 @@ func ValidateMaxPointsPerSeries(start, end, step int64, maxPoints int) error {
 	}
 	points := (end-start)/step + 1
 	if points > int64(maxPoints) {
-		return fmt.Errorf("too many points for the given start=%d, end=%d and step=%d: %d; the maximum number of points is %d (see -search.maxPoints* command-line flags)",
+		return fmt.Errorf("too many points for the given start=%d, end=%d and step=%d: %d; the maximum number of points is %d",
 			start, end, step, points, maxPoints)
 	}
 	return nil
@@ -813,7 +813,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
 	if err := ValidateMaxPointsPerSeries(ecSQ.Start, ecSQ.End, ecSQ.Step, ecSQ.MaxPointsPerSeries); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w; (see -search.maxPointsSubqueryPerTimeseries command-line flags)", err)
 	}
 	// unconditionally align start and end args to step for subquery as Prometheus does.
 	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
