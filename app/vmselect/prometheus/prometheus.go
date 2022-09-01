@@ -1147,12 +1147,13 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 // - extra_filters[]
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	start, err := searchutils.GetTime(r, "start", 0)
+	ct := startTime.UnixNano() / 1e6
+	start, err := searchutils.GetTime(r, "start", ct-3*defaultStep)
 	if err != nil {
 		return nil, err
 	}
-	ct := startTime.UnixNano() / 1e6
 	end, err := searchutils.GetTime(r, "end", ct)
+
 	if err != nil {
 		return nil, err
 	}
