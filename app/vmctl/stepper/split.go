@@ -16,17 +16,17 @@ const (
 
 // SplitDateRange splits range of dates in subset of ranges.
 // Ranges with granularity of StepMonth are aligned to 1st of each month in order to improve export efficiency at block transfer level
-func SplitDateRange(start, end time.Time, granularity string) ([][]time.Time, error) {
+func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 
 	if start.After(end) {
 		return nil, fmt.Errorf("start time %q should come before end time %q", start.Format(time.RFC3339), end.Format(time.RFC3339))
 	}
 
-	var step func(time.Time) (time.Time, time.Time)
+	var nextStep func(time.Time) (time.Time, time.Time)
 
-	switch granularity {
+	switch step {
 	case StepMonth:
-		step = func() func(time.Time) (time.Time, time.Time) {
+		nextStep = func() func(time.Time) (time.Time, time.Time) {
 			generatedFirst := false
 			return func(t time.Time) (time.Time, time.Time) {
 				if !generatedFirst {
@@ -43,15 +43,15 @@ func SplitDateRange(start, end time.Time, granularity string) ([][]time.Time, er
 			}
 		}()
 	case StepDay:
-		step = func(t time.Time) (time.Time, time.Time) {
+		nextStep = func(t time.Time) (time.Time, time.Time) {
 			return t, t.AddDate(0, 0, 1)
 		}
 	case StepHour:
-		step = func(t time.Time) (time.Time, time.Time) {
+		nextStep = func(t time.Time) (time.Time, time.Time) {
 			return t, t.Add(time.Hour * 1)
 		}
 	default:
-		return nil, fmt.Errorf("failed to parse '--vm-native-filter-chunk', valid values are: '%s', '%s', '%s'. provided: '%s'", StepMonth, StepDay, StepHour, granularity)
+		return nil, fmt.Errorf("failed to parse step value, valid values are: '%s', '%s', '%s'. provided: '%s'", StepMonth, StepDay, StepHour, step)
 	}
 
 	currentStep := start
@@ -59,7 +59,7 @@ func SplitDateRange(start, end time.Time, granularity string) ([][]time.Time, er
 	ranges := make([][]time.Time, 0)
 
 	for end.After(currentStep) {
-		s, e := step(currentStep)
+		s, e := nextStep(currentStep)
 		if e.After(end) {
 			e = end
 		}
