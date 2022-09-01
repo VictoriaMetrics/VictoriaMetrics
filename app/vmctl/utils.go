@@ -3,9 +3,10 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"os"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
 const barTpl = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`

@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/urfave/cli/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
@@ -18,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
-	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -161,7 +162,7 @@ func main() {
 							match:     c.String(vmNativeFilterMatch),
 							timeStart: c.String(vmNativeFilterTimeStart),
 							timeEnd:   c.String(vmNativeFilterTimeEnd),
-							chunk:     c.String(vmNativeFilterChunk),
+							chunk:     c.String(vmNativeStepInterval),
 						},
 						src: &vmNativeClient{
 							addr:     strings.Trim(c.String(vmNativeSrcAddr), "/"),

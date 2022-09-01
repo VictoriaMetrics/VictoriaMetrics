@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/time_stepper"
-	"github.com/dmitryk-dk/pb/v3"
 	"io"
 	"log"
 	"net/http"
 	"time"
 
+	"github.com/dmitryk-dk/pb/v3"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
@@ -74,14 +75,14 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 		endOfRange = time.Now()
 	}
 
-	ranges, err := time_stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
+	ranges, err := stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}
 
 	for rangeIdx, r := range ranges {
-		formattedStartTime := r.Start()
-		formattedEndTime := r.End()
+		formattedStartTime := r[0].Format(time.RFC3339)
+		formattedEndTime := r[1].Format(time.RFC3339)
 		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
 		f := filter{
 			match:     p.filter.match,

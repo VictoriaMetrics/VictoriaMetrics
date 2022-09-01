@@ -1,4 +1,4 @@
-package time_stepper
+package stepper
 
 import (
 	"reflect"
@@ -6,10 +6,7 @@ import (
 	"time"
 )
 
-type testTimeRange struct {
-	start string
-	end   string
-}
+type testTimeRange []string
 
 func mustParseDatetime(t string) time.Time {
 	result, err := time.Parse(time.RFC3339, t)
@@ -36,7 +33,7 @@ func Test_splitDateRange(t *testing.T) {
 			args: args{
 				start:       "2022-02-01T00:00:00Z",
 				end:         "2022-01-01T00:00:00Z",
-				granularity: GranularityMonth,
+				granularity: StepMonth,
 			},
 			want:    nil,
 			wantErr: true,
@@ -56,20 +53,20 @@ func Test_splitDateRange(t *testing.T) {
 			args: args{
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-03-03T12:12:12Z",
-				granularity: GranularityMonth,
+				granularity: StepMonth,
 			},
 			want: []testTimeRange{
 				{
-					start: "2022-01-03T11:11:11Z",
-					end:   "2022-01-31T23:59:59.999999999Z",
+					"2022-01-03T11:11:11Z",
+					"2022-01-31T23:59:59.999999999Z",
 				},
 				{
-					start: "2022-02-01T00:00:00Z",
-					end:   "2022-02-28T23:59:59.999999999Z",
+					"2022-02-01T00:00:00Z",
+					"2022-02-28T23:59:59.999999999Z",
 				},
 				{
-					start: "2022-03-01T00:00:00Z",
-					end:   "2022-03-03T12:12:12Z",
+					"2022-03-01T00:00:00Z",
+					"2022-03-03T12:12:12Z",
 				},
 			},
 			wantErr: false,
@@ -79,20 +76,20 @@ func Test_splitDateRange(t *testing.T) {
 			args: args{
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-01-05T12:12:12Z",
-				granularity: GranularityDay,
+				granularity: StepDay,
 			},
 			want: []testTimeRange{
 				{
-					start: "2022-01-03T11:11:11Z",
-					end:   "2022-01-04T11:11:11Z",
+					"2022-01-03T11:11:11Z",
+					"2022-01-04T11:11:11Z",
 				},
 				{
-					start: "2022-01-04T11:11:11Z",
-					end:   "2022-01-05T11:11:11Z",
+					"2022-01-04T11:11:11Z",
+					"2022-01-05T11:11:11Z",
 				},
 				{
-					start: "2022-01-05T11:11:11Z",
-					end:   "2022-01-05T12:12:12Z",
+					"2022-01-05T11:11:11Z",
+					"2022-01-05T12:12:12Z",
 				},
 			},
 			wantErr: false,
@@ -102,24 +99,24 @@ func Test_splitDateRange(t *testing.T) {
 			args: args{
 				start:       "2022-01-03T11:11:11Z",
 				end:         "2022-01-03T14:14:14Z",
-				granularity: GranularityHour,
+				granularity: StepHour,
 			},
 			want: []testTimeRange{
 				{
-					start: "2022-01-03T11:11:11Z",
-					end:   "2022-01-03T12:11:11Z",
+					"2022-01-03T11:11:11Z",
+					"2022-01-03T12:11:11Z",
 				},
 				{
-					start: "2022-01-03T12:11:11Z",
-					end:   "2022-01-03T13:11:11Z",
+					"2022-01-03T12:11:11Z",
+					"2022-01-03T13:11:11Z",
 				},
 				{
-					start: "2022-01-03T13:11:11Z",
-					end:   "2022-01-03T14:11:11Z",
+					"2022-01-03T13:11:11Z",
+					"2022-01-03T14:11:11Z",
 				},
 				{
-					start: "2022-01-03T14:11:11Z",
-					end:   "2022-01-03T14:14:14Z",
+					"2022-01-03T14:11:11Z",
+					"2022-01-03T14:14:14Z",
 				},
 			},
 			wantErr: false,
@@ -136,13 +133,13 @@ func Test_splitDateRange(t *testing.T) {
 				return
 			}
 
-			var testExpectedResults []TimeRange
+			var testExpectedResults [][]time.Time
 			if tt.want != nil {
-				testExpectedResults = make([]TimeRange, 0)
+				testExpectedResults = make([][]time.Time, 0)
 				for _, dr := range tt.want {
-					testExpectedResults = append(testExpectedResults, TimeRange{
-						start: mustParseDatetime(dr.start),
-						end:   mustParseDatetime(dr.end),
+					testExpectedResults = append(testExpectedResults, []time.Time{
+						mustParseDatetime(dr[0]),
+						mustParseDatetime(dr[1]),
 					})
 				}
 			}
