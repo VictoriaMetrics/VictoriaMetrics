@@ -19,7 +19,7 @@ const (
 func SplitDateRange(start, end time.Time, granularity string) ([][]time.Time, error) {
 
 	if start.After(end) {
-		return nil, fmt.Errorf("start time should be after end: start - %s, end - %s", start.Format(time.RFC3339), end.Format(time.RFC3339))
+		return nil, fmt.Errorf("start time %q should come before end time %q", start.Format(time.RFC3339), end.Format(time.RFC3339))
 	}
 
 	var step func(time.Time) (time.Time, time.Time)
