@@ -1,15 +1,23 @@
 # NOTE: this file is used by the tool defined in
-# ./internal/genflags/cmd/genflags/main.go which uses the
-# `genflags.Spec` type that maps to this file structure.
+# ./cmd/urfave-cli-genflags/main.go which uses the
+# `Spec` type that maps to this file structure.
 
 flag_types:
   bool: {}
   float64: {}
-  int64: {}
-  int: {}
+  int64:
+    struct_fields:
+      - { name: Base, type: int }
+  int:
+    struct_fields:
+      - { name: Base, type: int }
   time.Duration: {}
-  uint64: {}
-  uint: {}
+  uint64:
+    struct_fields:
+      - { name: Base, type: int }
+  uint:
+    struct_fields:
+      - { name: Base, type: int }
 
   string:
     struct_fields:

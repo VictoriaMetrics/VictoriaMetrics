@@ -15,7 +15,14 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): evaluate `q1`, ..., `qN` in parallel when calculating `union(q1, .., qN)`. Previously [union](https://docs.victoriametrics.com/MetricsQL.html#union) args were evaluated sequentially. This could result in lower than expected performance.
+
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix potential panic at `vmselect` under high load, which has been introduced in [v1.81.0](https://docs.victoriametrics.com/CHANGELOG.html#v1810). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3058).
+
+
 ## [v1.81.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.0)
+
+**It isn't recommended to update cluster version of VictoriaMetrics to v1.81.0 because of [the bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3058), which may result in `vmselect` crashes under high load**
 
 Released at 31-08-2022
 

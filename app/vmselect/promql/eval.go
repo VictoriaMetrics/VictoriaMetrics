@@ -301,7 +301,14 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 			Err: fmt.Errorf(`unknown func %q`, fe.Name),
 		}
 	}
-	args, err := evalExprs(qt, ec, fe.Args)
+	var args [][]*timeseries
+	var err error
+	switch fe.Name {
+	case "", "union":
+		args, err = evalExprsInParallel(qt, ec, fe.Args)
+	default:
+		args, err = evalExprsSequentially(qt, ec, fe.Args)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +344,7 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 			return evalRollupFunc(qt, ec, fe.Name, rf, ae, re, iafc)
 		}
 	}
-	args, err := evalExprs(qt, ec, ae.Args)
+	args, err := evalExprsInParallel(qt, ec, ae.Args)
 	if err != nil {
 		return nil, err
 	}
@@ -616,7 +623,7 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 	return nil, nil
 }
 
-func evalExprs(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
+func evalExprsSequentially(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
 	var rvs [][]*timeseries
 	for _, e := range es {
 		rv, err := evalExpr(qt, ec, e)
@@ -624,6 +631,36 @@ func evalExprs(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][
 			return nil, err
 		}
 		rvs = append(rvs, rv)
+	}
+	return rvs, nil
+}
+
+func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
+	if len(es) < 2 {
+		return evalExprsSequentially(qt, ec, es)
+	}
+	rvs := make([][]*timeseries, len(es))
+	errs := make([]error, len(es))
+	var wg sync.WaitGroup
+	for i, e := range es {
+		qt.Printf("eval function args in parallel")
+		wg.Add(1)
+		qtChild := qt.NewChild("eval arg %d", i)
+		go func(e metricsql.Expr, i int) {
+			defer func() {
+				qtChild.Done()
+				wg.Done()
+			}()
+			rv, err := evalExpr(qtChild, ec, e)
+			rvs[i] = rv
+			errs[i] = err
+		}(e, i)
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
+			return nil, err
+		}
 	}
 	return rvs, nil
 }
