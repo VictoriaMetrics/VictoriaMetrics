@@ -89,6 +89,7 @@ publish-release:
 		git checkout $(TAG)-cluster && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish && \
+		git checkout $(TAG) && git push $(TAG) && git push $(TAG)-cluster && \
 		$(MAKE) github-create-release && \
 		$(MAKE) github-upload-assets
 
