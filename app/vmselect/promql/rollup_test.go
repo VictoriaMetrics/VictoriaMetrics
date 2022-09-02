@@ -1267,7 +1267,7 @@ func TestRollupFuncsNoWindow(t *testing.T) {
 		if samplesScanned == 0 {
 			t.Fatalf("expecting non-zero samplesScanned from rollupConfig.Do")
 		}
-		valuesExpected := []float64{nan, 2775, 5262.5, 3678.5714285714284, 2880}
+		valuesExpected := []float64{nan, 2775, 5262.5, 3862.5, 1800}
 		timestampsExpected := []int64{0, 40, 80, 120, 160}
 		testRowsEqual(t, values, rc.Timestamps, valuesExpected, timestampsExpected)
 	})
