@@ -1363,12 +1363,12 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 	wgs := make([]wgWithPadding, len(storageNodes))
 	var stopped uint32
 	f := func(mb *storage.MetricBlock, workerIdx int) error {
-		wg := &wgs[workerIdx].wg
-		wg.Add(1)
-		defer wg.Done()
 		if atomic.LoadUint32(&stopped) != 0 {
 			return nil
 		}
+		wg := &wgs[workerIdx].wg
+		wg.Add(1)
+		defer wg.Done()
 		return processBlock(mb, workerIdx)
 	}
 
