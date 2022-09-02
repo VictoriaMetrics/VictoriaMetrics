@@ -1339,15 +1339,11 @@ func rollupRateOverSum(rfa *rollupFuncArg) float64 {
 		// Assume that the value didn't change since rfa.prevValue.
 		return 0
 	}
-	dt := rfa.window
-	if !math.IsNaN(rfa.prevValue) {
-		dt = timestamps[len(timestamps)-1] - rfa.prevTimestamp
-	}
 	sum := float64(0)
 	for _, v := range rfa.values {
 		sum += v
 	}
-	return sum / (float64(dt) / 1e3)
+	return sum / (float64(rfa.window) / 1e3)
 }
 
 func rollupRange(rfa *rollupFuncArg) float64 {
