@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.22.2
 	github.com/VictoriaMetrics/metricsql v0.44.1
-	github.com/aws/aws-sdk-go v1.44.87
+	github.com/aws/aws-sdk-go v1.44.91
 	github.com/cespare/xxhash/v2 v2.1.2
 
 	// TODO: switch back to https://github.com/cheggaaa/pb/v3 when v3-pooling branch
@@ -22,7 +22,7 @@ require (
 	github.com/influxdata/influxdb v1.10.0
 	github.com/klauspost/compress v1.15.9
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
-	github.com/urfave/cli/v2 v2.11.2
+	github.com/urfave/cli/v2 v2.14.0
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.1
@@ -75,7 +75,7 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/xerrors v0.0.0-20220609144429-65e65417b02f // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20220829175752-36a9c930ecbf // indirect
+	google.golang.org/genproto v0.0.0-20220902135211-223410557253 // indirect
 	google.golang.org/grpc v1.49.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )
