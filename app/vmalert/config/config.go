@@ -113,6 +113,7 @@ type Rule struct {
 	For         *promutils.Duration `yaml:"for,omitempty"`
 	Labels      map[string]string   `yaml:"labels,omitempty"`
 	Annotations map[string]string   `yaml:"annotations,omitempty"`
+	Debug       bool                `yaml:"debug,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
