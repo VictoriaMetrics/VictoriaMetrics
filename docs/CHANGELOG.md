@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): evaluate `q1`, ..., `qN` in parallel when calculating `union(q1, .., qN)`. Previously [union](https://docs.victoriametrics.com/MetricsQL.html#union) args were evaluated sequentially. This could result in lower than expected performance.
+
 ## [v1.81.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.0)
 
 Released at 31-08-2022
