@@ -1354,22 +1354,35 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
 	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
-	type wgWithPadding struct {
+	type wgStruct struct {
+		// mu prevents from calling processBlock when stop is set to true
+		mu sync.Mutex
+
+		// wg is used for waiting until currently executed processBlock calls are finished.
 		wg sync.WaitGroup
+
+		// stop must be set to true when no more processBlocks calls should be made.
+		stop bool
+	}
+	type wgWithPadding struct {
+		wgStruct
 		// The padding prevents false sharing on widespread platforms with
 		// 128 mod (cache line size) = 0 .
-		_ [128 - unsafe.Sizeof(sync.WaitGroup{})%128]byte
+		_ [128 - unsafe.Sizeof(wgStruct{})%128]byte
 	}
 	wgs := make([]wgWithPadding, len(storageNodes))
-	var stopped uint32
 	f := func(mb *storage.MetricBlock, workerIdx int) error {
-		wg := &wgs[workerIdx].wg
-		wg.Add(1)
-		defer wg.Done()
-		if atomic.LoadUint32(&stopped) != 0 {
+		muwg := &wgs[workerIdx]
+		muwg.mu.Lock()
+		if muwg.stop {
+			muwg.mu.Unlock()
 			return nil
 		}
-		return processBlock(mb, workerIdx)
+		muwg.wg.Add(1)
+		muwg.mu.Unlock()
+		err := processBlock(mb, workerIdx)
+		muwg.wg.Done()
+		return err
 	}
 
 	// Send the query to all the storage nodes in parallel.
@@ -1389,7 +1402,12 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 		return *errP
 	})
 	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
-	atomic.StoreUint32(&stopped, 1)
+	for i := range wgs {
+		muwg := &wgs[i]
+		muwg.mu.Lock()
+		muwg.stop = true
+		muwg.mu.Unlock()
+	}
 	for i := range wgs {
 		wgs[i].wg.Wait()
 	}
