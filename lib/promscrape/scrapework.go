@@ -808,7 +808,7 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, tags [
 	sw.tmpRow.Tags = tags
 	sw.tmpRow.Value = value
 	sw.tmpRow.Timestamp = timestamp
-	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, false)
+	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, true)
 }
 
 func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, timestamp int64, needRelabel bool) {
