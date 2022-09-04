@@ -777,30 +777,35 @@ type autoMetrics struct {
 }
 
 func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, timestamp int64) {
-	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_scraped", float64(am.samplesScraped), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", float64(am.samplesPostRelabeling), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_series_added", float64(am.seriesAdded), timestamp)
-	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", sw.Config.ScrapeTimeout.Seconds(), timestamp)
+	var tags []parser.Tag
+	for _, row := range wc.rows.Rows {
+		tags = append(tags, row.Tags...)
+	}
+
+	sw.addAutoTimeseries(wc, "up", tags, float64(am.up), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_duration_seconds", tags, am.scrapeDurationSeconds, timestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_scraped", tags, float64(am.samplesScraped), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_samples_post_metric_relabeling", tags, float64(am.samplesPostRelabeling), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_series_added", tags, float64(am.seriesAdded), timestamp)
+	sw.addAutoTimeseries(wc, "scrape_timeout_seconds", tags, sw.Config.ScrapeTimeout.Seconds(), timestamp)
 	if sampleLimit := sw.Config.SampleLimit; sampleLimit > 0 {
 		// Expose scrape_samples_limit metric if sample_limt config is set for the target.
 		// See https://github.com/VictoriaMetrics/operator/issues/497
-		sw.addAutoTimeseries(wc, "scrape_samples_limit", float64(sampleLimit), timestamp)
+		sw.addAutoTimeseries(wc, "scrape_samples_limit", tags, float64(sampleLimit), timestamp)
 	}
 	if sl := sw.seriesLimiter; sl != nil {
-		sw.addAutoTimeseries(wc, "scrape_series_limit_samples_dropped", float64(am.seriesLimitSamplesDropped), timestamp)
-		sw.addAutoTimeseries(wc, "scrape_series_limit", float64(sl.MaxItems()), timestamp)
-		sw.addAutoTimeseries(wc, "scrape_series_current", float64(sl.CurrentItems()), timestamp)
+		sw.addAutoTimeseries(wc, "scrape_series_limit_samples_dropped", tags, float64(am.seriesLimitSamplesDropped), timestamp)
+		sw.addAutoTimeseries(wc, "scrape_series_limit", tags, float64(sl.MaxItems()), timestamp)
+		sw.addAutoTimeseries(wc, "scrape_series_current", tags, float64(sl.CurrentItems()), timestamp)
 	}
 }
 
 // addAutoTimeseries adds automatically generated time series with the given name, value and timestamp.
 //
 // See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
-func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value float64, timestamp int64) {
+func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, tags []parser.Tag, value float64, timestamp int64) {
 	sw.tmpRow.Metric = name
-	sw.tmpRow.Tags = nil
+	sw.tmpRow.Tags = tags
 	sw.tmpRow.Value = value
 	sw.tmpRow.Timestamp = timestamp
 	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, false)
