@@ -815,11 +815,21 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	labelsLen := len(wc.labels)
 	wc.labels = appendLabels(wc.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
 	if needRelabel {
-		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, true)
-	} else {
-		wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
-		promrelabel.SortLabels(wc.labels[labelsLen:])
+		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, false)
 	}
+
+	if sw.Config.AuthToken == nil {
+		tenant := promrelabel.GetLabelValueByName(wc.labels,"__tenant_id__")
+		newToken, err := auth.NewToken(tenant)
+		if err != nil {
+			logger.Warnf("NewToken: new token error: %s", err)
+		}
+		sw.Config.AuthToken = newToken
+	}
+
+	wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
+	promrelabel.SortLabels(wc.labels[labelsLen:])
+
 	if len(wc.labels) == labelsLen {
 		// Skip row without labels.
 		return
