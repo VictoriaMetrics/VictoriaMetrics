@@ -63,7 +63,7 @@ const TopQueries: FC = () => {
           <Box mr={2} flexGrow={1}>
             <TextField
               fullWidth
-              label="During the last time"
+              label="Max lifetime"
               size="medium"
               variant="outlined"
               value={maxLifetime}
