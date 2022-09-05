@@ -292,6 +292,7 @@ func (a *ArrayBytes) String() string {
 	return strings.Join(formattedBytes, ",")
 }
 
+// Set implements flag.Value interface
 func (a *ArrayBytes) Set(value string) error {
 	values := parseArrayValues(value)
 	for _, v := range values {
