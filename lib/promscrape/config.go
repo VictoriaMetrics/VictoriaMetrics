@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -1229,16 +1228,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		metricsPathRelabeled = "/metrics"
 	}
 
-	var at *auth.Token
-	tenantID := promrelabel.GetLabelValueByName(labels, "__tenant_id__")
-	if tenantID != "" {
-		newToken, err := auth.NewToken(tenantID)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse __tenant_id__=%q for job=%s, err: %w", tenantID, swc.jobName, err)
-		}
-		at = newToken
-	}
-
 	if !strings.HasPrefix(metricsPathRelabeled, "/") {
 		metricsPathRelabeled = "/" + metricsPathRelabeled
 	}
@@ -1320,7 +1309,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
 		SeriesLimit:          seriesLimit,
-		AuthToken:            at,
 
 		jobNameOriginal: swc.jobName,
 	}
