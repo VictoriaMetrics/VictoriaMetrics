@@ -6,15 +6,15 @@ import (
 )
 
 const (
-	// StepMonth is representing month value for flag
+	// StepMonth represents a one month interval
 	StepMonth string = "month"
-	// StepDay is representing day value for flag
+	// StepDay represents a one day interval
 	StepDay string = "day"
-	// StepHour is representing hour value for flag
+	// StepHour represents a one hour interval
 	StepHour string = "hour"
 )
 
-// SplitDateRange splits range of dates in subset of ranges.
+// SplitDateRange splits start-end range in a subset of ranges respecting the given step
 // Ranges with granularity of StepMonth are aligned to 1st of each month in order to improve export efficiency at block transfer level
 func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 
@@ -26,22 +26,14 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 
 	switch step {
 	case StepMonth:
-		nextStep = func() func(time.Time) (time.Time, time.Time) {
-			generatedFirst := false
-			return func(t time.Time) (time.Time, time.Time) {
-				if !generatedFirst {
-					generatedFirst = true
-					endOfCurrentMonth := time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
-
-					return t, endOfCurrentMonth
-				}
-
-				endOfNextMonth := time.Date(t.Year(), t.Month()+2, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
-				startOfNextMonth := time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location())
-
-				return startOfNextMonth, endOfNextMonth
+		nextStep = func(t time.Time) (time.Time, time.Time) {
+			endOfMonth := time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
+			if t == endOfMonth {
+				endOfMonth = time.Date(t.Year(), t.Month()+2, 1, 0, 0, 0, 0, t.Location()).Add(-1 * time.Nanosecond)
+				t = time.Date(t.Year(), t.Month()+1, 1, 0, 0, 0, 0, t.Location())
 			}
-		}()
+			return t, endOfMonth
+		}
 	case StepDay:
 		nextStep = func(t time.Time) (time.Time, time.Time) {
 			return t, t.AddDate(0, 0, 1)
@@ -63,10 +55,7 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 		if e.After(end) {
 			e = end
 		}
-		ranges = append(ranges, []time.Time{
-			s,
-			e,
-		})
+		ranges = append(ranges, []time.Time{s, e})
 		currentStep = e
 	}
 
