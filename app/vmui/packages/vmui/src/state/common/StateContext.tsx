@@ -19,14 +19,14 @@ export const initialPrepopulatedState = Object.entries(initialState)
   }), {}) as AppState;
 
 export const StateProvider: FC = ({children}) => {
-  const location = useLocation();
+  const {pathname} = useLocation();
 
   const [state, dispatch] = useReducer(reducer, initialPrepopulatedState);
 
   useEffect(() => {
-    if (location.pathname === router.cardinality) return;
+    if (pathname !== router.dashboards || pathname !== router.home) return;
     setQueryStringValue(state as unknown as Record<string, unknown>);
-  }, [state, location]);
+  }, [state, pathname]);
 
   const contextValue = useMemo(() => {
     return { state, dispatch };
