@@ -450,7 +450,7 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -547,7 +547,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -600,17 +600,14 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, true)
-	if err != nil {
-		return err
-	}
 	// Do not set start to searchutils.minTimeMsecs by default as Prometheus does,
 	// since this leads to fetching and scanning all the data from the storage,
 	// which can take a lot of time for big storages.
 	// It is better setting start as end-defaultStep by default.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	if cp.start == 0 {
-		cp.start = cp.end - defaultStep
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, true)
+	if err != nil {
+		return err
 	}
 	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
@@ -1062,6 +1059,17 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 	return cp, nil
 }
 
+func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
+	cp, err := getCommonParams(r, startTime, requireNonEmptyMatch)
+	if err != nil {
+		return nil, err
+	}
+	if cp.start == 0 {
+		cp.start = cp.end - defaultStep
+	}
+	return cp, nil
+}
+
 // getCommonParams obtains common params from r, which are used in /api/v1/* handlers:
 //
 // - timeout
@@ -1072,13 +1080,12 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 // - extra_filters[]
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	ct := startTime.UnixNano() / 1e6
-	start, err := searchutils.GetTime(r, "start", ct-3*defaultStep)
+	start, err := searchutils.GetTime(r, "start", 0)
 	if err != nil {
 		return nil, err
 	}
+	ct := startTime.UnixNano() / 1e6
 	end, err := searchutils.GetTime(r, "end", ct)
-
 	if err != nil {
 		return nil, err
 	}
