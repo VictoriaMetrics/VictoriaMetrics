@@ -267,7 +267,7 @@ Additional information:
 
 ## /api/v1/labels
 
-**Get a list of label names**
+**Get a list of label names at the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -287,6 +287,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
+By default VictoriaMetrics returns labels seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
+
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
@@ -294,7 +296,7 @@ Additional information:
 
 ## /api/v1/label/.../values
 
-**Get a list of values for a particular label**
+**Get a list of values for a particular label on the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -313,6 +315,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 ```
 
 </div>
+
+By default VictoriaMetrics returns label values seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -377,7 +381,7 @@ Additional information:
 
 ## /api/v1/series
 
-**Returns series names with their labels**
+**Returns series names with their labels on the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -396,6 +400,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_htt
 ```
 
 </div>
+
+By default VictoriaMetrics returns time series seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
