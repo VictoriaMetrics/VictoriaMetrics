@@ -303,6 +303,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
+		fmt.Println(tssBlock)
 		pushBlockToRemoteStorages(rwctxs, tssBlock)
 		if rctx != nil {
 			rctx.reset()
