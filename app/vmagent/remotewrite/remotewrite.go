@@ -38,7 +38,7 @@ var (
 		"isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
-	maxPendingBytesPerURL = flagutil.NewBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
@@ -103,6 +103,13 @@ func Init() {
 	if len(*remoteWriteURLs) > 0 && len(*remoteWriteMultitenantURLs) > 0 {
 		logger.Fatalf("cannot set both `-remoteWrite.url` and `-remoteWrite.multitenantURL` command-line flags")
 	}
+	if len(*remoteWriteURLs) > 0 && len(*maxPendingBytesPerURL) > 1 && len(*remoteWriteURLs) != len(*maxPendingBytesPerURL) {
+		logger.Fatalf("either set maxPendingBytesPerURL once one once for each remoteWriteURL")
+	}
+	if len(*remoteWriteMultitenantURLs) > 0 && len(*maxPendingBytesPerURL) > 1 && len(*remoteWriteMultitenantURLs) != len(*maxPendingBytesPerURL) {
+		logger.Fatalf("either set maxPendingBytesPerURL once one once for each remoteWriteMultitenantURLs")
+	}
+
 	if *maxHourlySeries > 0 {
 		hourlySeriesLimiter = bloomfilter.NewLimiter(*maxHourlySeries, time.Hour)
 		_ = metrics.NewGauge(`vmagent_hourly_series_limit_max_series`, func() float64 {
@@ -196,7 +203,17 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
-		rwctxs[i] = newRemoteWriteCtx(i, at, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+
+		var maxPendingBytes int
+		switch len(*maxPendingBytesPerURL) {
+		case 0:
+			maxPendingBytes = 0
+		case 1:
+			maxPendingBytes = (*maxPendingBytesPerURL)[0].N
+		_:
+			maxPendingBytes = (*maxPendingBytesPerURL)[i].N
+		}
+		rwctxs[i] = newRemoteWriteCtx(i, at, remoteWriteURL, maxInmemoryBlocks, sanitizedURL, maxPendingBytes)
 	}
 	return rwctxs
 }
@@ -429,14 +446,14 @@ type remoteWriteCtx struct {
 	rowsDroppedByRelabel   *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
+func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string, maxPendingBytes int) *remoteWriteCtx {
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
 	pqURL.Fragment = ""
 	h := xxhash.Sum64([]byte(pqURL.String()))
 	queuePath := fmt.Sprintf("%s/persistent-queue/%d_%016X", *tmpDataPath, argIdx+1, h)
-	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})

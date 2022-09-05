@@ -44,6 +44,15 @@ func NewArrayInt(name string, description string) *ArrayInt {
 	return &a
 }
 
+// NewArrayBytes returns new ArrayInt with the given name and description.
+func NewArrayBytes(name string, description string) *ArrayBytes {
+	description += "\nSupports `array` of values separated by comma" +
+		" or specified via multiple flags."
+	var a ArrayBytes
+	flag.Var(&a, name, description)
+	return &a
+}
+
 // Array is a flag that holds an array of values.
 //
 // It may be set either by specifying multiple flags with the given name
@@ -268,4 +277,30 @@ func (a *ArrayInt) GetOptionalArgOrDefault(argIdx int, defaultValue int) int {
 		return x[0]
 	}
 	return defaultValue
+}
+
+// ArrayBytes is flag that holds an array of ints.
+type ArrayBytes []Bytes
+
+// String implements flag.Value interface
+func (a *ArrayBytes) String() string {
+	x := *a
+	formattedBytes := make([]string, len(x))
+	for i, v := range x {
+		formattedBytes[i] = v.String()
+	}
+	return strings.Join(formattedBytes, ",")
+}
+
+func (a *ArrayBytes) Set(value string) error {
+	values := parseArrayValues(value)
+	for _, v := range values {
+		b := Bytes{}
+		err := b.Set(v)
+		if err != nil {
+			return err
+		}
+		*a = append(*a, b)
+	}
+	return nil
 }
