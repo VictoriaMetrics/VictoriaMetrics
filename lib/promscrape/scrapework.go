@@ -819,10 +819,10 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	}
 
 	if sw.Config.AuthToken == nil {
-		tenant := promrelabel.GetLabelValueByName(wc.labels,"__tenant_id__")
+		tenant := promrelabel.GetLabelValueByName(wc.labels, "__tenant_id__")
 		newToken, err := auth.NewToken(tenant)
 		if err != nil {
-			logger.Warnf("NewToken: new token error: %s", err)
+			logger.Warnf("NewToken: new token error: %s", err.Error())
 		}
 		sw.Config.AuthToken = newToken
 	}
