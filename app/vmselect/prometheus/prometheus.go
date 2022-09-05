@@ -450,7 +450,7 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -547,7 +547,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -600,17 +600,14 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, true)
-	if err != nil {
-		return err
-	}
 	// Do not set start to searchutils.minTimeMsecs by default as Prometheus does,
 	// since this leads to fetching and scanning all the data from the storage,
 	// which can take a lot of time for big storages.
 	// It is better setting start as end-defaultStep by default.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	if cp.start == 0 {
-		cp.start = cp.end - defaultStep
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, true)
+	if err != nil {
+		return err
 	}
 	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
@@ -1059,6 +1056,17 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 		return nil, err
 	}
 	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
+	return cp, nil
+}
+
+func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
+	cp, err := getCommonParams(r, startTime, requireNonEmptyMatch)
+	if err != nil {
+		return nil, err
+	}
+	if cp.start == 0 {
+		cp.start = cp.end - defaultStep
+	}
 	return cp, nil
 }
 
