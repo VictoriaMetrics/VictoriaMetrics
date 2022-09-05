@@ -275,12 +275,17 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 
 ## Tenant routing with labels
 
- It's possible to define tenant id with metric labels. Meta labels - `vm_project_id` and `vm_account_id` are used for this case. Such labels must have numeric value. 
-For instance, `my_metric_name{vm_project_id="5",vm_account_id="15",job="special"}` will be routed to the `15:5` tenant.
- Meta labels will be stripped and result metric will be `my_metric_name{job="special"}`. It's also possible to use `extra_label` or metric `relabeling` for tenant routing.
+### Via meta labels
 
-This functional could be enabled with `vminsert` flag `-parseTenantIDFromLabels=true`. By default, it's disabled for security purpose.
+_Multitenancy via meta labels can be enabled by passing flag `-parseTenantIDFromLabels=true` to `vminsert` component. By default, it's disabled for security reasons._
 
+When URL-based multitenancy isn't an option, try using meta labels `vm_project_id` and `vm_account_id` attached to time series.
+
+For example, `my_metric{vm_project_id="5",vm_account_id="15"}` is parsed and routed by vminsert component to the tenant `15:5`. Meta labels are stripped from the original time series once written to the vmstorage.
+
+One write request or scrape target can contain time series with different tenants. It's also possible to use `extra_label` or [relabeling](https://docs.victoriametrics.com/#relabeling) for modifying or adding multitenancy meta labels.
+
+Prefer meta labels for multitenancy in cases when you need to have hundreds and thousands of tenants.
 ## Cluster resizing and scalability
 
 Cluster performance and capacity can be scaled up in two ways:
