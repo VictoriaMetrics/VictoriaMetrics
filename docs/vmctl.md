@@ -534,9 +534,9 @@ It is possible to split migration process by time intervals. This is especially 
 To split migration process by time, specify `--vm-native-step-interval` flag to one of the supported values: `month`, `day` or `hour`.
 Please note, command-line flag `--vm-native-filter-time-start` is required when using `--vm-native-step-interval`.
 
-Every range is being processed independently, which means that:
-- after range processing is finished all data within range is migrated
-- if process fails on one of stages it is guaranteed that data of prior stages is already written, so it is possible to restart process starting from failed range
+Every time range (step) is processed independently, which means the following:
+- if specific time range (step) is finished, then all the data within the range has been successfully migrated;
+- if process fails on one of steps, then it is recommend to restart the process from the failed step. As all previous steps were successfully completed.
 
 Usage example:
 ```console
