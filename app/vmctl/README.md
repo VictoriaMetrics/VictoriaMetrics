@@ -525,7 +525,7 @@ and specify `accountID` param.
 
 #### Using time-based chunking of migration
 
-It is possible split migration process into set of smaller batches based on time. This is especially useful when migrating large volumes of data as this adds indication of progress and ability to restore process from certain point in case of failure. 
+It is possible split migration process into set of smaller batches based on time. This is especially useful when migrating large volumes of data as this adds indication of progress and ability to restore process from certain point in case of failure.
 
 To use this you need to specify `--vm-native-step-interval` flag. Supported values are: `month`, `day`, `hour`.
 Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for export process.
@@ -533,6 +533,9 @@ Note that in order to use this it is required `--vm-native-filter-time-start` to
 Every range is being processed independently, which means that:
 - after range processing is finished all data within range is migrated
 - if process fails on one of stages it is guaranteed that data of prior stages is already written, so it is possible to restart process starting from failed range
+
+It is recommended using the `month` step when migrating the data over multiple months, since the migration with `day` and `hour` steps may take longer time to complete
+because of additional overhead.
 
 Usage example:
 ```console
