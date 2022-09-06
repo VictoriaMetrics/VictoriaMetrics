@@ -12,8 +12,8 @@ import {formatPrettyNumber} from "../../utils/uplot/helpers";
 import {isSupportedDuration} from "../../utils/time";
 import IconButton from "@mui/material/IconButton";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import dayjs from "dayjs";
+import {TopQueryStats} from "../../types";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -21,6 +21,8 @@ const TopQueries: FC = () => {
   const {data, error, loading} = useFetchTopQueries();
   const {topN, maxLifetime} = useTopQueriesState();
   const topQueriesDispatch = useTopQueriesDispatch();
+
+  const invalidTopN = useMemo(() => !!topN && topN < 1, [topN]);
 
   const maxLifetimeValid = useMemo(() => {
     const durItems = maxLifetime.trim().split(" ");
@@ -31,6 +33,13 @@ const TopQueries: FC = () => {
     const delta = dayjs.duration(durObject).asMilliseconds();
     return !!delta;
   }, [maxLifetime]);
+
+  const getQueryStatsTitle = (key: keyof TopQueryStats) => {
+    if (!data) return key;
+    const value = data[key];
+    if (typeof value === "number") return formatPrettyNumber(value);
+    return value || key;
+  };
 
   const onTopNChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
     topQueriesDispatch({type: "SET_TOP_N", payload: +e.target.value});
@@ -80,9 +89,9 @@ const TopQueries: FC = () => {
               type="number"
               size="medium"
               variant="outlined"
-              value={topN}
-              error={!!(topN && topN < 1)}
-              helperText={topN && topN < 1 ? "Number must be bigger than zero" : " "}
+              value={topN || ""}
+              error={invalidTopN}
+              helperText={invalidTopN ? "Number must be bigger than zero" : " "}
               onChange={onTopNChange}
               onKeyDown={onKeyDown}
             />
@@ -99,13 +108,13 @@ const TopQueries: FC = () => {
             VictoriaMetrics tracks the last&nbsp;
           <Tooltip arrow title={<Typography>search.queryStats.lastQueriesCount</Typography>}>
             <b style={{cursor: "default"}}>
-              {data ? formatPrettyNumber(data["search.queryStats.lastQueriesCount"]) : "search.queryStats.lastQueriesCount"}
+              {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
             </b>
           </Tooltip>
             &nbsp;queries with durations at least&nbsp;
           <Tooltip arrow title={<Typography>search.queryStats.minQueryDuration</Typography>}>
             <b style={{cursor: "default"}}>
-              {data ? data["search.queryStats.minQueryDuration"] : "search.queryStats.minQueryDuration"}
+              {getQueryStatsTitle("search.queryStats.minQueryDuration")}
             </b>
           </Tooltip>
         </Typography>

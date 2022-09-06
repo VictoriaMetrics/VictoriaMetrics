@@ -26,6 +26,10 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({rows, title, description}) => {
 
   const [activeTab, setActiveTab] = useState(0);
 
+  const onChangeTab = (e: React.SyntheticEvent, val: number) => {
+    setActiveTab(val);
+  };
+
   return (
     <Accordion
       defaultExpanded={true}
@@ -60,7 +64,7 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({rows, title, description}) => {
           <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
             <Tabs
               value={activeTab}
-              onChange={(e, val) => setActiveTab(val)}
+              onChange={onChangeTab}
               sx={{minHeight: "0", marginBottom: "-1px"}}
             >
               {tabs.map((title: string, i: number) =>

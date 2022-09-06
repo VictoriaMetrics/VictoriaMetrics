@@ -23,9 +23,13 @@ const TopQueryTable:FC<TopQueryTableProps> = ({rows}) => {
   const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
     [rows, orderBy, orderDir]);
 
-  const sortHandler = (key: string) => {
+  const onSortHandler = (key: string) => {
     setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");
     setOrderBy(key);
+  };
+
+  const createSortHandler = (col: string) => () => {
+    onSortHandler(col);
   };
 
   return <TableContainer>
@@ -40,7 +44,8 @@ const TopQueryTable:FC<TopQueryTableProps> = ({rows}) => {
               <TableSortLabel
                 active={orderBy === col}
                 direction={orderDir}
-                onClick={() => sortHandler(col)}
+                id={col}
+                onClick={createSortHandler(col)}
               >
                 {col}
               </TableSortLabel>

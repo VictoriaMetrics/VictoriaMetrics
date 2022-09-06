@@ -79,10 +79,13 @@ export interface TopQuery {
   timeRangeSeconds: number
 }
 
-export interface TopQueriesData {
-  maxLifetime: string
+export interface TopQueryStats {
   "search.queryStats.lastQueriesCount": number
   "search.queryStats.minQueryDuration": string
+}
+
+export interface TopQueriesData extends TopQueryStats{
+  maxLifetime: string
   topN: string
   topByAvgDuration: TopQuery[]
   topByCount: TopQuery[]
