@@ -290,6 +290,9 @@ VictoriaMetrics provides an ability to explore time series cardinality at `cardi
 - To identify values with the highest number of series for the selected label (aka `focusLabel`).
 - To identify label=name pairs with the highest number of series.
 - To identify labels with the highest number of unique values.
+  Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+  may show lower than expected number of unique label values for labels with small number of unique values.
+  This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
 
 By default cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
 By default all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
@@ -1622,7 +1625,8 @@ The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
 These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
 
-See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
+See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter)
+and [cardinality explorer docs](#cardinality-explorer).
 
 ## Troubleshooting
 
