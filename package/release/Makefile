@@ -1,5 +1,6 @@
 GITHUB_RELEASE_SPEC_FILE="/tmp/vm-github-release"
 GITHUB_DEBUG_FILE="/tmp/vm-github-debug"
+ENTERPRISE_REMOTE_EXISTS=$(shell grep -Fx '[remote "enterprise"]' .git/config > /dev/null && echo 1 || echo 0)
 
 github-token-check:
 ifndef GITHUB_TOKEN
@@ -11,7 +12,18 @@ ifndef TAG
 	$(error missing TAG env var. It must contain github release tag to create)
 endif
 
-github-create-release: github-token-check github-tag-check
+enterprise-remote-check:
+ifeq ($(ENTERPRISE_REMOTE_EXISTS), 0)
+	$(error enterprise remote is missing)
+endif
+
+push-tags: enterprise-remote-check
+	git push origin $(TAG)
+	git push origin $(TAG)-cluster
+	git push enterprise $(TAG)-enterprise
+	git push enterprise $(TAG)-enterprise-cluster
+
+github-create-release: github-token-check github-tag-check push-tags
 	@result=$$(curl -o $(GITHUB_RELEASE_SPEC_FILE) -s -w "%{http_code}" \
 		-X POST \
 		-H "Accept: application/vnd.github+json" \
