@@ -26,7 +26,7 @@ services:
     volumes:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
-      - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
 
