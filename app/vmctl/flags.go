@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"github.com/urfave/cli/v2"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 )
 
 const (
@@ -318,6 +320,7 @@ const (
 	vmNativeFilterMatch     = "vm-native-filter-match"
 	vmNativeFilterTimeStart = "vm-native-filter-time-start"
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
+	vmNativeStepInterval    = "vm-native-step-interval"
 
 	vmNativeSrcAddr     = "vm-native-src-addr"
 	vmNativeSrcUser     = "vm-native-src-user"
@@ -344,6 +347,10 @@ var (
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
 			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeStepInterval,
+			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour),
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,
