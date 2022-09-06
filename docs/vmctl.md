@@ -525,6 +525,71 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
 5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 and specify `accountID` param.
+6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
+
+#### Using time-based chunking of migration
+
+It is possible to split migration process by time intervals. This is especially useful when migrating large volumes of data with high churn rate, adds better indication of a progress and ability to restore process from certain point of time in case of failure. 
+
+To split migration process by time, specify `--vm-native-step-interval` flag to one of the supported values: `month`, `day` or `hour`.
+Please note, command-line flag `--vm-native-filter-time-start` is required when using `--vm-native-step-interval`.
+
+Every time range (step) is processed independently, which means the following:
+- if specific time range (step) is finished, then all the data within the range has been successfully migrated;
+- if process fails on one of steps, then it is recommend to restart the process from the failed step. As all previous steps were successfully completed.
+
+Usage example:
+```console
+./vmctl vm-native 
+    --vm-native-filter-time-start 2022-06-17T00:07:00Z \
+    --vm-native-filter-time-end 2022-10-03T00:07:00Z \
+    --vm-native-src-addr http://localhost:8428 \
+    --vm-native-dst-addr http://localhost:8528 \
+    --vm-native-step-interval=month
+VictoriaMetrics Native import mode
+2022/08/30 19:48:24 Processing range 1/5: 2022-06-17T00:07:00Z - 2022-06-30T23:59:59Z 
+2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
+        filter: match[]={__name__!=""}
+        start: 2022-06-17T00:07:00Z
+        end: 2022-06-30T23:59:59Z
+Initing import process to "http://localhost:8428":
+2022/08/30 19:48:24 Import finished!
+Total: 16 B ↗ Speed: 28.89 KiB p/s 
+2022/08/30 19:48:24 Processing range 2/5: 2022-07-01T00:00:00Z - 2022-07-31T23:59:59Z 
+2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
+        filter: match[]={__name__!=""}
+        start: 2022-07-01T00:00:00Z
+        end: 2022-07-31T23:59:59Z
+Initing import process to "http://localhost:8428":
+2022/08/30 19:48:24 Import finished!
+Total: 16 B ↗ Speed: 164.35 KiB p/s 
+2022/08/30 19:48:24 Processing range 3/5: 2022-08-01T00:00:00Z - 2022-08-31T23:59:59Z 
+2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
+        filter: match[]={__name__!=""}
+        start: 2022-08-01T00:00:00Z
+        end: 2022-08-31T23:59:59Z
+Initing import process to "http://localhost:8428":
+2022/08/30 19:48:24 Import finished!
+Total: 16 B ↗ Speed: 191.42 KiB p/s 
+2022/08/30 19:48:24 Processing range 4/5: 2022-09-01T00:00:00Z - 2022-09-30T23:59:59Z 
+2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
+        filter: match[]={__name__!=""}
+        start: 2022-09-01T00:00:00Z
+        end: 2022-09-30T23:59:59Z
+Initing import process to "http://localhost:8428":
+2022/08/30 19:48:24 Import finished!
+Total: 16 B ↗ Speed: 141.04 KiB p/s 
+2022/08/30 19:48:24 Processing range 5/5: 2022-10-01T00:00:00Z - 2022-10-03T00:07:00Z 
+2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
+        filter: match[]={__name__!=""}
+        start: 2022-10-01T00:00:00Z
+        end: 2022-10-03T00:07:00Z
+Initing import process to "http://localhost:8428":
+2022/08/30 19:48:24 Import finished!
+Total: 16 B ↗ Speed: 186.32 KiB p/s 
+2022/08/30 19:48:24 Total time: 12.680582ms
+```
+
 
 ## Verifying exported blocks from VictoriaMetrics
 
