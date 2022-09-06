@@ -532,7 +532,7 @@ and specify `accountID` param.
 It is possible to split migration process by time intervals. This is especially useful when migrating large volumes of data with high churn rate, adds better indication of a progress and ability to restore process from certain point of time in case of failure. 
 
 To split migration process by time, specify `--vm-native-step-interval` flag to one of the supported values: `month`, `day` or `hour`.
-Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for export process.
+Please note, command-line flag `--vm-native-filter-time-start` is required when using `--vm-native-step-interval`.
 
 Every range is being processed independently, which means that:
 - after range processing is finished all data within range is migrated
