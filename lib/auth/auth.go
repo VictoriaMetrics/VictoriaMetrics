@@ -59,6 +59,8 @@ func NewToken(authToken string) (*Token, error) {
 	return &at, nil
 }
 
+// NewTokenFromByteArray deserializes a byte array into a Token
+// This is useful with vmagent spooling with multitenancy enabled
 func NewTokenFromByteArray(array []byte) *Token {
 	return &Token{
 		binary.BigEndian.Uint32(array[:4]),

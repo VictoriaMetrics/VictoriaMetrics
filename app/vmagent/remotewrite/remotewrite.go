@@ -504,7 +504,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries, at *auth.Token
 			rwctx.pssNextIdxByTenant[*at] = new(uint64)
 		}
 		rwctx.pssByTenantLock.Unlock()
-		pss, _ := rwctx.pssByTenant[*at]
+		pss := rwctx.pssByTenant[*at]
 		idx := atomic.AddUint64(rwctx.pssNextIdxByTenant[*at], 1) % uint64(len(pss))
 		pss[idx].Push(tss)
 	} else {
