@@ -85,6 +85,10 @@ func main() {
 	if len(*storageNodes) == 0 {
 		logger.Fatalf("missing -storageNode arg")
 	}
+	if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
+		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
+	}
+
 	netstorage.InitStorageNodes(*storageNodes)
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -770,4 +774,15 @@ func initVMAlertProxy() {
 	}
 	vmalertProxyHost = proxyURL.Host
 	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+}
+
+func checkDuplicates(arr []string) string {
+	visited := make(map[string]struct{})
+	for _, s := range arr {
+		if _, ok := visited[s]; ok {
+			return s
+		}
+		visited[s] = struct{}{}
+	}
+	return ""
 }
