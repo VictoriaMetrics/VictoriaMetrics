@@ -74,3 +74,16 @@ func TestNewTokenFailure(t *testing.T) {
 	// many int parts in the token"
 	f("1:2:3")
 }
+
+func TestToByteArray(t *testing.T) {
+	token, _ := NewToken("2:100")
+	b := token.ToByteArray()
+	token = NewTokenFromByteArray(b)
+	if token.AccountID != 2 {
+		t.Fatalf("expecting token.AccountID=2 got %d", token.AccountID)
+	}
+	if token.ProjectID != 100 {
+		t.Fatalf("expecting token.ProjectID=100 got %d", token.ProjectID)
+	}
+
+}

@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"bytes"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"net/http"
 	"net/url"
@@ -294,6 +295,14 @@ func (c *client) runWorker() {
 // sendBlockHTTP returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
+	url := c.remoteWriteURL
+	if MultitenancyEnabled() {
+		// We prepend every block in the queue with the auth.Token to target correct tennant
+		at := auth.NewTokenFromByteArray(block[:8])
+		block = block[8:]
+		url = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", url, at.AccountID, at.ProjectID)
+	}
+
 	c.rl.register(len(block), c.stopCh)
 	retryDuration := time.Second
 	retriesCount := 0
@@ -305,7 +314,7 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	}
 
 again:
-	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(block))
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}

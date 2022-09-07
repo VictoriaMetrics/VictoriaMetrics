@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
 )
@@ -60,12 +59,8 @@ var (
 )
 
 var (
-	// rwctxsDefault contains statically populated entries when -remoteWrite.url is specified.
-	rwctxsDefault []*remoteWriteCtx
-
-	// rwctxsMap contains dynamically populated entries when -remoteWrite.multitenantURL is specified.
-	rwctxsMap     = make(map[tenantmetrics.TenantID][]*remoteWriteCtx)
-	rwctxsMapLock sync.Mutex
+	// rwctxs contains statically populated entries when -remoteWrite.url is specified.
+	rwctxs []*remoteWriteCtx
 
 	// Data without tenant id is written to defaultAuthToken if -remoteWrite.multitenantURL is specified.
 	defaultAuthToken = &auth.Token{}
@@ -141,7 +136,10 @@ func Init() {
 	allRelabelConfigs.Store(rcs)
 
 	if len(*remoteWriteURLs) > 0 {
-		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
+		rwctxs = newRemoteWriteCtxs(*remoteWriteURLs)
+	}
+	if len(*remoteWriteMultitenantURLs) > 0 {
+		rwctxs = newRemoteWriteCtxs(*remoteWriteMultitenantURLs)
 	}
 
 	// Start config reloader.
@@ -166,7 +164,7 @@ func Init() {
 	}()
 }
 
-func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
+func newRemoteWriteCtxs(urls []string) []*remoteWriteCtx {
 	if len(urls) == 0 {
 		logger.Panicf("BUG: urls must be non-empty")
 	}
@@ -188,15 +186,10 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 			logger.Fatalf("invalid -remoteWrite.url=%q: %s", remoteWriteURL, err)
 		}
 		sanitizedURL := fmt.Sprintf("%d:secret-url", i+1)
-		if at != nil {
-			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
-			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
-			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
-		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
 		}
-		rwctxs[i] = newRemoteWriteCtx(i, at, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
+		rwctxs[i] = newRemoteWriteCtx(i, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 	}
 	return rwctxs
 }
@@ -211,18 +204,10 @@ func Stop() {
 	close(stopCh)
 	configReloaderWG.Wait()
 
-	for _, rwctx := range rwctxsDefault {
+	for _, rwctx := range rwctxs {
 		rwctx.MustStop()
 	}
-	rwctxsDefault = nil
-
-	// There is no need in locking rwctxsMapLock here, since nobody should call Push during the Stop call.
-	for _, rwctxs := range rwctxsMap {
-		for _, rwctx := range rwctxs {
-			rwctx.MustStop()
-		}
-	}
-	rwctxsMap = nil
+	rwctxs = nil
 
 	if sl := hourlySeriesLimiter; sl != nil {
 		sl.MustStop()
@@ -243,25 +228,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
 		at = defaultAuthToken
 	}
-	var rwctxs []*remoteWriteCtx
-	if at == nil {
-		rwctxs = rwctxsDefault
-	} else {
-		if len(*remoteWriteMultitenantURLs) == 0 {
-			logger.Panicf("BUG: -remoteWrite.multitenantURL command-line flag must be set when __tenant_id__=%q label is set", at)
-		}
-		rwctxsMapLock.Lock()
-		tenantID := tenantmetrics.TenantID{
-			AccountID: at.AccountID,
-			ProjectID: at.ProjectID,
-		}
-		rwctxs = rwctxsMap[tenantID]
-		if rwctxs == nil {
-			rwctxs = newRemoteWriteCtxs(at, *remoteWriteMultitenantURLs)
-			rwctxsMap[tenantID] = rwctxs
-		}
-		rwctxsMapLock.Unlock()
-	}
+	rwctxs := rwctxs
 
 	var rctx *relabelCtx
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
@@ -303,7 +270,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 		}
 		sortLabelsIfNeeded(tssBlock)
 		tssBlock = limitSeriesCardinality(tssBlock)
-		pushBlockToRemoteStorages(rwctxs, tssBlock)
+		pushBlockToRemoteStorages(rwctxs, tssBlock, at)
 		if rctx != nil {
 			rctx.reset()
 		}
@@ -313,7 +280,7 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	}
 }
 
-func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries) {
+func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarshal.TimeSeries, at *auth.Token) {
 	if len(tssBlock) == 0 {
 		// Nothing to push
 		return
@@ -324,7 +291,7 @@ func pushBlockToRemoteStorages(rwctxs []*remoteWriteCtx, tssBlock []prompbmarsha
 		wg.Add(1)
 		go func(rwctx *remoteWriteCtx) {
 			defer wg.Done()
-			rwctx.Push(tssBlock)
+			rwctx.Push(tssBlock, at)
 		}(rwctx)
 	}
 	wg.Wait()
@@ -425,11 +392,31 @@ type remoteWriteCtx struct {
 	pss        []*pendingSeries
 	pssNextIdx uint64
 
+	pssByTenant        map[auth.Token][]*pendingSeries
+	pssNextIdxByTenant map[auth.Token]*uint64
+	pssByTenantLock    *sync.Mutex
+
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
 }
 
-func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
+func newPssForContext(argIdx int, fq *persistentqueue.FastQueue, at *auth.Token) []*pendingSeries {
+	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
+	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
+	pssLen := *queues
+	if n := cgroup.AvailableCPUs(); pssLen > n {
+		// There is no sense in running more than availableCPUs concurrent pendingSeries,
+		// since every pendingSeries can saturate up to a single CPU.
+		pssLen = n
+	}
+	pss := make([]*pendingSeries, pssLen)
+	for i := range pss {
+		pss[i] = newPendingSeries(fq.MustWriteBlock, at, rd, sf)
+	}
+	return pss
+}
+
+func newRemoteWriteCtx(argIdx int, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
 	// strip query params, otherwise changing params resets pq
 	pqURL := *remoteWriteURL
 	pqURL.RawQuery = ""
@@ -452,24 +439,24 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	}
 	c.init(argIdx, *queues, sanitizedURL)
 
-	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
-	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
-	pssLen := *queues
-	if n := cgroup.AvailableCPUs(); pssLen > n {
-		// There is no sense in running more than availableCPUs concurrent pendingSeries,
-		// since every pendingSeries can saturate up to a single CPU.
-		pssLen = n
-	}
-	pss := make([]*pendingSeries, pssLen)
-	for i := range pss {
-		pss[i] = newPendingSeries(fq.MustWriteBlock, sf, rd)
-	}
-	return &remoteWriteCtx{
-		idx: argIdx,
-		fq:  fq,
-		c:   c,
-		pss: pss,
+	pss := newPssForContext(argIdx, fq, nil)
 
+	var pssByTenant map[auth.Token][]*pendingSeries
+	var pssNextIdxByTenant map[auth.Token]*uint64
+
+	if MultitenancyEnabled() {
+		pssByTenant = make(map[auth.Token][]*pendingSeries)
+		pssNextIdxByTenant = make(map[auth.Token]*uint64)
+	}
+
+	return &remoteWriteCtx{
+		idx:                    argIdx,
+		fq:                     fq,
+		c:                      c,
+		pss:                    pss,
+		pssByTenant:            pssByTenant,
+		pssNextIdxByTenant:     pssNextIdxByTenant,
+		pssByTenantLock:        new(sync.Mutex),
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 	}
@@ -491,7 +478,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.rowsDroppedByRelabel = nil
 }
 
-func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
+func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries, at *auth.Token) {
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
@@ -509,11 +496,24 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		rowsCountAfterRelabel := getRowsCount(tss)
 		rwctx.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 	}
-	pss := rwctx.pss
-	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
-	rowsCount := getRowsCount(tss)
-	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
-	pss[idx].Push(tss)
+
+	if MultitenancyEnabled() {
+		rwctx.pssByTenantLock.Lock()
+		if _, ok := rwctx.pssByTenant[*at]; !ok {
+			rwctx.pssByTenant[*at] = newPssForContext(rwctx.idx, rwctx.fq, at)
+			rwctx.pssNextIdxByTenant[*at] = new(uint64)
+		}
+		rwctx.pssByTenantLock.Unlock()
+		pss, _ := rwctx.pssByTenant[*at]
+		idx := atomic.AddUint64(rwctx.pssNextIdxByTenant[*at], 1) % uint64(len(pss))
+		pss[idx].Push(tss)
+	} else {
+		pss := rwctx.pss
+		idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
+		rowsCount := getRowsCount(tss)
+		rwctx.rowsPushedAfterRelabel.Add(rowsCount)
+		pss[idx].Push(tss)
+	}
 	if rctx != nil {
 		*v = prompbmarshal.ResetTimeSeries(tss)
 		tssRelabelPool.Put(v)

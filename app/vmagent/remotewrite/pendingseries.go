@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"flag"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,11 +34,13 @@ type pendingSeries struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingSeries(pushBlock func(block []byte), significantFigures, roundDigits int) *pendingSeries {
+func newPendingSeries(pushBlock func(block []byte), at *auth.Token, significantFigures, roundDigits int) *pendingSeries {
 	var ps pendingSeries
 	ps.wr.pushBlock = pushBlock
 	ps.wr.significantFigures = significantFigures
 	ps.wr.roundDigits = roundDigits
+	ps.wr.at = at
+
 	ps.stopCh = make(chan struct{})
 	ps.periodicFlusherWG.Add(1)
 	go func() {
@@ -100,7 +103,11 @@ type writeRequest struct {
 
 	labels  []prompbmarshal.Label
 	samples []prompbmarshal.Sample
-	buf     []byte
+
+	// if not nul, the tenant will be prepended to each block
+	at *auth.Token
+
+	buf []byte
 }
 
 func (wr *writeRequest) reset() {
@@ -126,7 +133,7 @@ func (wr *writeRequest) flush() {
 	wr.wr.Timeseries = wr.tss
 	wr.adjustSampleValues()
 	atomic.StoreUint64(&wr.lastFlushTime, fasttime.UnixTimestamp())
-	pushWriteRequest(&wr.wr, wr.pushBlock)
+	pushWriteRequest(&wr.wr, wr.at, wr.pushBlock)
 	wr.reset()
 }
 
@@ -188,7 +195,10 @@ func (wr *writeRequest) copyTimeSeries(dst, src *prompbmarshal.TimeSeries) {
 	wr.buf = buf
 }
 
-func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byte)) {
+// pushWriteRequest calls pushBlock with the provided wr compressed with snappy or split it in smaller wr
+// If we are in multitenancy, the tenant is prepended to the block to be extracted by the HTTPClient
+// to assemble the correct url to send the data to
+func pushWriteRequest(wr *prompbmarshal.WriteRequest, at *auth.Token, pushBlock func(block []byte)) {
 	if len(wr.Timeseries) == 0 {
 		// Nothing to push
 		return
@@ -200,7 +210,13 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
 		writeRequestBufPool.Put(bb)
 		if len(zb.B) <= persistentqueue.MaxBlockSize {
-			pushBlock(zb.B)
+			var block []byte
+			if MultitenancyEnabled() {
+				block = append(at.ToByteArray(), zb.B...)
+			} else {
+				block = zb.B
+			}
+			pushBlock(block)
 			blockSizeRows.Update(float64(len(wr.Timeseries)))
 			blockSizeBytes.Update(float64(len(zb.B)))
 			snappyBufPool.Put(zb)
@@ -221,18 +237,18 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 		}
 		n := len(samples) / 2
 		wr.Timeseries[0].Samples = samples[:n]
-		pushWriteRequest(wr, pushBlock)
+		pushWriteRequest(wr, at, pushBlock)
 		wr.Timeseries[0].Samples = samples[n:]
-		pushWriteRequest(wr, pushBlock)
+		pushWriteRequest(wr, at, pushBlock)
 		wr.Timeseries[0].Samples = samples
 		return
 	}
 	timeseries := wr.Timeseries
 	n := len(timeseries) / 2
 	wr.Timeseries = timeseries[:n]
-	pushWriteRequest(wr, pushBlock)
+	pushWriteRequest(wr, at, pushBlock)
 	wr.Timeseries = timeseries[n:]
-	pushWriteRequest(wr, pushBlock)
+	pushWriteRequest(wr, at, pushBlock)
 	wr.Timeseries = timeseries
 }
 

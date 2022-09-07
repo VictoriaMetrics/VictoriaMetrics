@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"bytes"
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -18,6 +20,21 @@ func (t *Token) String() string {
 		return fmt.Sprintf("%d", t.AccountID)
 	}
 	return fmt.Sprintf("%d:%d", t.AccountID, t.ProjectID)
+}
+
+// ToByteArray dumps a Token to a byte array of 8 bytes
+// This is useful with vmagent spooling with multitenancy enabled
+func (t *Token) ToByteArray() []byte {
+	buff := new(bytes.Buffer)
+	err := binary.Write(buff, binary.BigEndian, t.AccountID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = binary.Write(buff, binary.BigEndian, t.ProjectID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return buff.Bytes()
 }
 
 // NewToken returns new Token for the given authToken
@@ -40,4 +57,12 @@ func NewToken(authToken string) (*Token, error) {
 		at.ProjectID = uint32(projectID)
 	}
 	return &at, nil
+}
+
+func NewTokenFromByteArray(array []byte) *Token {
+	return &Token{
+		binary.BigEndian.Uint32(array[:4]),
+		binary.BigEndian.Uint32(array[4:]),
+	}
+
 }
