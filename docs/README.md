@@ -260,7 +260,10 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
 The UI allows exploring query results via graphs and tables.
-It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query traces](#query-tracing).
+It also provides the following features:
+- [cardinality explorer](#cardinality-explorer)
+- [query tracer](#query-tracing)
+- [top queries explorer](#top-queries)
 
 Graphs in vmui support scrolling and zooming:
 
@@ -280,6 +283,13 @@ VMUI allows investigating correlations between two queries on the same graph. Ju
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
+## Top queries
+
+[VMUI](#vmui) provides `top queries` tab, which can help determining the following query types:
+
+* the most frequently executed queries;
+* queries with the biggest average execution duration;
+* queries that took the most summary time for execution.
 
 ## Cardinality explorer
 
