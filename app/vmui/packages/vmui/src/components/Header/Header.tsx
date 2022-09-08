@@ -61,8 +61,26 @@ const Header: FC = () => {
   const {date} = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
 
-  const {search, pathname} = useLocation();
   const navigate = useNavigate();
+  const {search, pathname} = useLocation();
+  const routes = [
+    {
+      label: "Custom panel",
+      value: router.home,
+    },
+    {
+      label: "Dashboards",
+      value: router.dashboards,
+    },
+    {
+      label: "Cardinality",
+      value: router.cardinality,
+    },
+    {
+      label: "Top queries",
+      value: router.topQueries,
+    }
+  ];
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
@@ -102,13 +120,15 @@ const Header: FC = () => {
       <Box sx={{ml: 8}}>
         <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
           onChange={(e, val) => setActiveMenu(val)}>
-          <Tab label="Custom panel" value={router.home} component={RouterLink} to={`${router.home}${search}`}/>
-          <Tab label="Dashboards" value={router.dashboards} component={RouterLink} to={`${router.dashboards}${search}`}/>
-          <Tab
-            label="Cardinality"
-            value={router.cardinality}
-            component={RouterLink}
-            to={`${router.cardinality}${search}`}/>
+          {routes.map(r => (
+            <Tab
+              key={`${r.label}_${r.value}`}
+              label={r.label}
+              value={r.value}
+              component={RouterLink}
+              to={`${r.value}${search}`}
+            />
+          ))}
         </Tabs>
       </Box>
       <Box display="flex" gap={1} alignItems="center" ml="auto" mr={0}>

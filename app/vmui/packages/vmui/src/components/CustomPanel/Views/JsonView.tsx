@@ -3,9 +3,10 @@ import {InstantMetricResult} from "../../../api/types";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import {useSnack} from "../../../contexts/Snackbar";
+import {TopQuery} from "../../../types";
 
 export interface JsonViewProps {
-  data: InstantMetricResult[];
+  data: InstantMetricResult[] | TopQuery[];
 }
 
 const JsonView: FC<JsonViewProps> = ({data}) => {

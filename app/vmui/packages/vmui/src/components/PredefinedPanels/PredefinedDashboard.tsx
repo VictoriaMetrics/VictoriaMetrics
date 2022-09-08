@@ -78,7 +78,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({index, title, panels
 
   return <Accordion defaultExpanded={!index} sx={{boxShadow: "none"}}>
     <AccordionSummary
-      sx={{px: 3, bgcolor: "rgba(227, 242, 253, 0.6)"}}
+      sx={{px: 3, bgcolor: "primary.light"}}
       aria-controls={`panel${index}-content`}
       id={`panel${index}-header`}
       expandIcon={<ExpandMoreIcon />}
