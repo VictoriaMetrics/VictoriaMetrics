@@ -170,7 +170,6 @@ publish-release:
 		git checkout $(TAG)-cluster && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish && \
-		git checkout $(TAG) && git push $(TAG) && git push $(TAG)-cluster && \
 		$(MAKE) github-create-release && \
 		$(MAKE) github-upload-assets
 
@@ -322,7 +321,7 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go get golang.org/x/lint/golint
+	which golint || go install golang.org/x/lint/golint@latest
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
@@ -337,9 +336,9 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
 
 install-errcheck:
-	which errcheck || GO111MODULE=off go get github.com/kisielk/errcheck
+	which errcheck || go install github.com/kisielk/errcheck@latest
 
-check-all: fmt vet lint errcheck golangci-lint
+check-all: fmt vet lint errcheck golangci-lint govulncheck
 
 test:
 	go test ./lib/... ./app/...
@@ -386,7 +385,7 @@ quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || GO111MODULE=off go get github.com/valyala/quicktemplate/qtc
+	which qtc || go install github.com/valyala/quicktemplate/qtc@latest
 
 
 golangci-lint: install-golangci-lint
@@ -395,8 +394,14 @@ golangci-lint: install-golangci-lint
 install-golangci-lint:
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.48.0
 
+govulncheck: install-govulncheck
+	govulncheck ./...
+
+install-govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
+
 install-wwhrd:
-	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd
+	which wwhrd || go install github.com/frapposelli/wwhrd@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml

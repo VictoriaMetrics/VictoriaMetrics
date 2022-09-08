@@ -294,6 +294,9 @@ VictoriaMetrics provides an ability to explore time series cardinality at `cardi
 - To identify values with the highest number of series for the selected label (aka `focusLabel`).
 - To identify label=name pairs with the highest number of series.
 - To identify labels with the highest number of unique values.
+  Note that [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+  may show lower than expected number of unique label values for labels with small number of unique values.
+  This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
 
 By default cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
 By default all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
@@ -330,11 +333,19 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v1/series` path.
 
-Run DataDog agent with `DD_DD_URL=http://victoriametrics-host:8428/datadog` environment variable in order to write data to VictoriaMetrics at `victoriametrics-host` host. Another option is to set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
+Single-node VictoriaMetrics:
+
+Run DataDog agent with environment variable `DD_DD_URL=http://victoriametrics-host:8428/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
+
+Cluster version of VictoriaMetrics:
+
+Run DataDog agent with environment variable `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`.
 
 VictoriaMetrics doesn't check `DD_API_KEY` param, so it can be set to arbitrary value.
 
-Example on how to send data to VictoriaMetrics via DataDog "submit metrics" API from command line:
+Example of how to send data to VictoriaMetrics via [DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line:
+
+Single-node VictoriaMetrics:
 
 ```console
 echo '
@@ -355,15 +366,56 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series
+' | curl -X POST --data-binary @- http://victoriametrics-host:8428/datadog/api/v1/series
 ```
 
-The imported data can be read via [export API](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
+Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
 ```console
-curl http://localhost:8428/api/v1/export -d 'match[]=system.load.1'
+echo '
+{
+  "series": [
+    {
+      "host": "test.example.com",
+      "interval": 20,
+      "metric": "system.load.1",
+      "points": [[
+        0,
+        0.5
+      ]],
+      "tags": [
+        "environment:test"
+      ],
+      "type": "rate"
+    }
+  ]
+}
+' | curl -X POST --data-binary @- http://vminsert-host:8480/insert/0/datadog/api/v1/series
+```
+
+</div>
+
+
+The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export):
+
+Single-node VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl http://victoriametrics-host:8428/api/v1/export -d 'match[]=system.load.1'
+```
+
+</div>
+
+Cluster version of VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl http://vmselect-host:8481/select/0/prometheus/api/v1/export -d 'match[]=system.load.1'
 ```
 
 </div>
@@ -642,7 +694,7 @@ VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v
 
 VictoriaMetrics accepts `limit` query arg for `/api/v1/labels` and `/api/v1/label/<labelName>/values` handlers for limiting the number of returned entries. For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels. If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values, then limits specified in the command-line flags are used.
 
-By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, while the Prometheus API defaults to all time.  Use `start` and `end` to select a different time range.
+By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, `/api/v1/labels` and `/api/v1/label/<labelName>/values` while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
 VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 Additionally, VictoriaMetrics provides the following handlers:
@@ -1577,7 +1629,8 @@ The exceeded limits can be [monitored](#monitoring) with the following metrics:
 
 These limits are approximate, so VictoriaMetrics can underflow/overflow the limit by a small percentage (usually less than 1%).
 
-See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
+See also more advanced [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter)
+and [cardinality explorer docs](#cardinality-explorer).
 
 ## Troubleshooting
 
