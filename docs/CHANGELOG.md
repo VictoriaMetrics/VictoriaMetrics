@@ -15,10 +15,17 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.81.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.2)
+
+Released at 08-09-2022
+
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly calculate query results at `vmselect`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3067). The issue has been introduced in [v1.81.0](https://docs.victoriametrics.com/CHANGELOG.html#v1810).
 
 ## [v1.81.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.1)
 
 Released at 02-09-2022
+
+**It isn't recommended to use VictoriaMetrics cluster v1.81.1 because of [the bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3067), which may result in incorrect query results. Upgrade to [v1.81.2](https://docs.victoriametrics.com/CHANGELOG.html#v1812) instead.**
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): evaluate `q1`, ..., `qN` in parallel when calculating `union(q1, .., qN)`. Previously [union](https://docs.victoriametrics.com/MetricsQL.html#union) args were evaluated sequentially. This could result in lower than expected performance.
 
@@ -27,7 +34,7 @@ Released at 02-09-2022
 
 ## [v1.81.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.0)
 
-**It isn't recommended to use VictoriaMetrics cluster v1.81.0 because of [the bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3058), which may result in `vmselect` crashes under high load. Upgrade to [v1.81.1](https://docs.victoriametrics.com/CHANGELOG.html#v1811) instead.**
+**It isn't recommended to use VictoriaMetrics cluster v1.81.0 because of [the bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3058), which may result in `vmselect` crashes under high load. Upgrade to [v1.81.2](https://docs.victoriametrics.com/CHANGELOG.html#v1812) instead.**
 
 Released at 31-08-2022
 

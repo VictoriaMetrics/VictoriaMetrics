@@ -1177,7 +1177,7 @@ func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string][]tmpBlockAdd
 	orderedMetricNames := tbfw.orderedMetricNamess[0]
 	addrsByMetricName := tbfw.ms[0]
 	for i, m := range tbfw.ms[1:] {
-		for _, metricName := range tbfw.orderedMetricNamess[i] {
+		for _, metricName := range tbfw.orderedMetricNamess[i+1] {
 			dstAddrs, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
