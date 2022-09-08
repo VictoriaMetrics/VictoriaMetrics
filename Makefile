@@ -338,7 +338,7 @@ errcheck: install-errcheck
 install-errcheck:
 	which errcheck || GO111MODULE=off go get github.com/kisielk/errcheck
 
-check-all: fmt vet lint errcheck golangci-lint
+check-all: fmt vet lint errcheck golangci-lint govulncheck
 
 test:
 	go test ./lib/... ./app/...
@@ -393,6 +393,12 @@ golangci-lint: install-golangci-lint
 
 install-golangci-lint:
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.48.0
+
+govulncheck: install-govulncheck
+	govulncheck ./...
+
+install-govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 
 install-wwhrd:
 	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd
