@@ -343,11 +343,11 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v1/series` path.
 
-Single-node VictoriaMetrics:
+### Single-node VictoriaMetrics:
 
 Run DataDog agent with environment variable `DD_DD_URL=http://victoriametrics-host:8428/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
 
-Cluster version of VictoriaMetrics:
+### Cluster version of VictoriaMetrics:
 
 Run DataDog agent with environment variable `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`.
 
@@ -355,7 +355,7 @@ VictoriaMetrics doesn't check `DD_API_KEY` param, so it can be set to arbitrary 
 
 Example of how to send data to VictoriaMetrics via [DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line:
 
-Single-node VictoriaMetrics:
+### Single-node VictoriaMetrics:
 
 ```console
 echo '
@@ -379,7 +379,7 @@ echo '
 ' | curl -X POST --data-binary @- http://victoriametrics-host:8428/datadog/api/v1/series
 ```
 
-Cluster version of VictoriaMetrics:
+### Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
@@ -410,7 +410,7 @@ echo '
 
 The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export):
 
-Single-node VictoriaMetrics:
+### Single-node VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
@@ -420,7 +420,7 @@ curl http://victoriametrics-host:8428/api/v1/export -d 'match[]=system.load.1'
 
 </div>
 
-Cluster version of VictoriaMetrics:
+### Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
