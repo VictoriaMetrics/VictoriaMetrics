@@ -19,6 +19,10 @@ const stateToUrlParams = {
     "match": "match[]",
     "extraLabel": "extra_label",
     "focusLabel": "focusLabel"
+  },
+  [router.topQueries]: {
+    "topN": "topN",
+    "maxLifetime": "maxLifetime",
   }
 };
 
