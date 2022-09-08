@@ -1,5 +1,12 @@
 # Changes
 
+## [0.4.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.3.0...iam/v0.4.0) (2022-09-06)
+
+
+### Features
+
+* **iam:** start generating apiv2 ([#6605](https://github.com/googleapis/google-cloud-go/issues/6605)) ([a6004e7](https://github.com/googleapis/google-cloud-go/commit/a6004e762f782869cd85688937475744f7b17e50))
+
 ## [0.3.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.2.0...iam/v0.3.0) (2022-02-23)
 
 

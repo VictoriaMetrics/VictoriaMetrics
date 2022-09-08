@@ -240,7 +240,7 @@ var bbPool bytesutil.ByteBufferPool
 // EnsureNonDecreasingSequence makes sure the first item in a is vMin, the last
 // item in a is vMax and all the items in a are non-decreasing.
 //
-// If this isn't the case the a is fixed accordingly.
+// If this isn't the case then a is fixed accordingly.
 func EnsureNonDecreasingSequence(a []int64, vMin, vMax int64) {
 	if vMax < vMin {
 		logger.Panicf("BUG: vMax cannot be smaller than vMin; got %d vs %d", vMax, vMin)

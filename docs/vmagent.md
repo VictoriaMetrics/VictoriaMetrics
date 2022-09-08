@@ -629,6 +629,8 @@ Both limits can be set simultaneously. If any of these limits is reached, then s
 
 These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
 
+See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinality-explorer).
+
 ## Monitoring
 
 `vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. We recommend setting up regular scraping of this page
