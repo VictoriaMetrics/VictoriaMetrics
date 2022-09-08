@@ -35,24 +35,27 @@ git remote add enterprise <url>
       * linux/ppc64le
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
-   c) Create draft GitHub release with the name `TAG`. This step can be run manually
+4. Push the tags created `v1.xx.y` and `v1.xx.y-cluster` at step 2 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics .
+   **Important note:** do not push enteprise tags to public GitHub repository - they must be pushed only to private repository.
+5. Run `TAG=v1.xx.yy make github-create-release github-upload-assets`. This command performs the following tasks:
+   a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
-   d) Upload all the binaries and checksums created at step `a` to that release.
+   b) Upload all the binaries and checksums created at step `3a` to that release.
       This step can be run manually with the command `make github-upload-assets`.
       It is expected that the needed release id is stored at `/tmp/vm-github-release` file,
-      which must be created at the step `c`.
+      which must be created at the step `a`.
       If the upload process is interrupted by any reason, then the following recovery steps must be performed:
       - To delete the created draft release by running the command `make github-delete-release`.
         This command expects that the id of the release to delete is located at `/tmp/vm-github-release`
-        file created at the step `c`.
+        file created at the step `a`.
       - To run the command `TAG=v1.xx.y make github-create-release github-upload-assets`, so new release is created
         and all the needed assets are re-uploaded to it.
-5. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
+6. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
-6. Update the release description with the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
-7. Remove the `draft` checkbox for the `TAG` release and manually publish it.
-8. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
+7. Update the release description with the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
+8. Remove the `draft` checkbox for the `TAG` release and manually publish it.
+9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
    by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
 
 ## Building snap package
@@ -109,7 +112,3 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 5. Commit changes
 6. Create a new tag
 7. Create a new release. This automatically publishes the new versions to galaxy.ansible.com 
-
-## Github pages
-
-All changes in `README.md`, `docs` folder and `.md` extension automatically push to Wiki
