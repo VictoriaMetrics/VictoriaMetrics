@@ -321,7 +321,7 @@ lint: install-golint
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go get golang.org/x/lint/golint
+	which golint || go install golang.org/x/lint/golint@latest
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
@@ -336,7 +336,7 @@ errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
 
 install-errcheck:
-	which errcheck || GO111MODULE=off go get github.com/kisielk/errcheck
+	which errcheck || go install github.com/kisielk/errcheck@latest
 
 check-all: fmt vet lint errcheck golangci-lint govulncheck
 
@@ -385,7 +385,7 @@ quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || GO111MODULE=off go get github.com/valyala/quicktemplate/qtc
+	which qtc || go install github.com/valyala/quicktemplate/qtc@latest
 
 
 golangci-lint: install-golangci-lint
@@ -401,7 +401,7 @@ install-govulncheck:
 	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 
 install-wwhrd:
-	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd
+	which wwhrd || go install github.com/frapposelli/wwhrd@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
