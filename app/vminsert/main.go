@@ -83,6 +83,9 @@ func main() {
 	if len(*storageNodes) == 0 {
 		logger.Fatalf("missing -storageNode arg")
 	}
+	if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
+		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
+	}
 	hashSeed := uint64(0)
 	if *clusternativeListenAddr != "" {
 		// Use different hash seed for the second level of vminsert nodes in multi-level cluster setup.
@@ -354,4 +357,15 @@ vminsert accepts data via popular data ingestion protocols and routes it to vmst
 See the docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html .
 `
 	flagutil.Usage(s)
+}
+
+func checkDuplicates(arr []string) string {
+	visited := make(map[string]struct{})
+	for _, s := range arr {
+		if _, ok := visited[s]; ok {
+			return s
+		}
+		visited[s] = struct{}{}
+	}
+	return ""
 }
