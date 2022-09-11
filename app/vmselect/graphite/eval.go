@@ -38,8 +38,21 @@ type evalConfig struct {
 	originalQuery string
 }
 
+func (ec *evalConfig) Clone() *evalConfig {
+	ecCopy := *ec
+	return &ecCopy
+}
+
+func (ec *evalConfig) pointsLenWithDefaultStep() int {
+	return ec.pointsLen(ec.storageStep)
+}
+
 func (ec *evalConfig) pointsLen(step int64) int {
 	return int((ec.endTime - ec.startTime) / step)
+}
+
+func (ec *evalConfig) newTimestampsWithDefaultStep() []int64 {
+	return ec.newTimestamps(ec.storageStep)
 }
 
 func (ec *evalConfig) newTimestamps(step int64) []int64 {
@@ -75,6 +88,10 @@ type series struct {
 	xFilesFactor float64
 
 	step int64
+}
+
+func (s *series) consolidateWithDefaultStep(ec *evalConfig) {
+	s.consolidate(ec, ec.storageStep)
 }
 
 func (s *series) consolidate(ec *evalConfig, step int64) {

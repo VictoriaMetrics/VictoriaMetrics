@@ -31,10 +31,10 @@ func TestExecExprSuccess(t *testing.T) {
 		}
 		expr, err := graphiteql.Parse(query)
 		if err != nil {
-			t.Fatalf("cannot parse query %q: %s", query, err)
+			t.Fatalf("cannot parse query\n%s: %s", query, err)
 		}
 		if err := compareSeries(ss, expectedSeries, expr); err != nil {
-			t.Fatalf("series mismatch for query %q: %s\ngot series\n%s\nexpected series\n%s", query, err, printSeriess(ss), printSeriess(expectedSeries))
+			t.Fatalf("series mismatch for query\n%s\n%s\ngot series\n%s\nexpected series\n%s", query, err, printSeriess(ss), printSeriess(expectedSeries))
 		}
 		// make sure ec isn't changed during query exection.
 		if !reflect.DeepEqual(ec, &ecCopy) {
@@ -378,16 +378,20 @@ func TestExecExprSuccess(t *testing.T) {
 		},
 	})
 	f(`aliasByMetric(
-                 summarize(
+                summarize(
                   exclude(
                     groupByNode(
                       time("svc.default.first.prod.srv.1.http.returned-codes.500"),
                       8,
-                      'sum'), 
-                 '200'),
-                '5min',
-                'sum',
-                false))`, []*series{
+                      'sum'
+	            ), 
+                    '200'
+	          ),
+                  '5min',
+                  'sum',
+                  false
+	        )
+	)`, []*series{
 		{
 			Timestamps: []int64{0},
 			Values:     []float64{600},
@@ -1840,14 +1844,14 @@ func TestExecExprSuccess(t *testing.T) {
 		2
 	)`, []*series{
 		{
-			Timestamps: []int64{120000, 180000},
-			Values:     []float64{330, 690},
+			Timestamps: []int64{60000, 120000, 180000},
+			Values:     []float64{-30, 330, 690},
 			Name:       "movingAverage(summarize(foo,'1m','sum'),2)",
 			Tags:       map[string]string{"name": "foo", "movingAverage": "2", "summarize": "1m", "summarizeFunction": "sum"},
 		},
 		{
-			Timestamps: []int64{120000, 180000},
-			Values:     []float64{150, 330},
+			Timestamps: []int64{60000, 120000, 180000},
+			Values:     []float64{-30, 150, 330},
 			Name:       "movingAverage(summarize(bar,'1m','sum'),2)",
 			Tags:       map[string]string{"name": "bar", "movingAverage": "2", "summarize": "1m", "summarizeFunction": "sum"},
 		},
@@ -2518,8 +2522,8 @@ func TestExecExprSuccess(t *testing.T) {
 		{
 			Timestamps:     []int64{120000, 145000, 170000, 195000},
 			Values:         []float64{60, 85, 110, 135},
-			Name:           `timeShift(foo.bar;baz=1,'1min')`,
-			Tags:           map[string]string{"name": "foo.bar", "baz": "1", "timeShift": "1min"},
+			Name:           `timeShift(foo.bar;baz=1,'-1min')`,
+			Tags:           map[string]string{"name": "foo.bar", "baz": "1", "timeShift": "-1min"},
 			pathExpression: "foo.bar;baz=1",
 		},
 	})
@@ -3222,15 +3226,15 @@ func TestExecExprSuccess(t *testing.T) {
                '45s'
        ),1)`, []*series{
 		{
-			Timestamps:     []int64{120000, 165000},
-			Values:         []float64{325, 400},
+			Timestamps:     []int64{90000, 135000},
+			Values:         []float64{330, 320},
 			Name:           `foo`,
 			Tags:           map[string]string{"aggregatedBy": "average", "name": "bar.foo.bad", "summarize": "45s", "summarizeFunction": "sum"},
 			pathExpression: "bar.foo.bad",
 		},
 		{
-			Timestamps:     []int64{120000, 165000},
-			Values:         []float64{325, 400},
+			Timestamps:     []int64{90000, 135000},
+			Values:         []float64{330, 320},
 			Name:           `bar`,
 			Tags:           map[string]string{"aggregatedBy": "average", "name": "foo.bar.baz", "summarize": "45s", "summarizeFunction": "sum"},
 			pathExpression: "foo.bar.baz",
@@ -3251,13 +3255,13 @@ func TestExecExprSuccess(t *testing.T) {
                '45s'
        ))`, []*series{
 		{
-			Timestamps: []int64{120000, 165000},
+			Timestamps: []int64{90000, 135000},
 			Values:     []float64{1, 1},
 			Name:       `divideSeries(summarize(foo.bar.baz,'45s','sum'),summarize(foo.bar.baz,'45s','sum'))`,
 			Tags:       map[string]string{"name": "foo.bar.baz", "summarize": "45s", "summarizeFunction": "sum"},
 		},
 		{
-			Timestamps: []int64{120000, 165000},
+			Timestamps: []int64{90000, 135000},
 			Values:     []float64{1, 1},
 			Name:       `divideSeries(summarize(bar.foo.bad,'45s','sum'),summarize(foo.bar.baz,'45s','sum'))`,
 			Tags:       map[string]string{"name": "bar.foo.bad", "summarize": "45s", "summarizeFunction": "sum"},
@@ -3273,7 +3277,7 @@ func TestExecExprSuccess(t *testing.T) {
                '45s'
        ))`, []*series{
 		{
-			Timestamps: []int64{120000, 165000},
+			Timestamps: []int64{90000, 135000},
 			Values:     []float64{1, 1},
 			Name:       `divideSeries(summarize(foo.bar.baz,'45s','sum'),summarize(bar.foo.bad,'45s','sum'))`,
 			Tags:       map[string]string{"name": "foo.bar.baz", "summarize": "45s", "summarizeFunction": "sum"},
@@ -3295,8 +3299,8 @@ func TestExecExprSuccess(t *testing.T) {
                '45s'
        ))`, []*series{
 		{
-			Timestamps: []int64{120000, 165000},
-			Values:     []float64{292.5, 500},
+			Timestamps: []int64{90000, 135000},
+			Values:     []float64{275, 310},
 			Name:       `weightedAverage(summarize(bar.foo.bad,'45s','sum'),summarize(foo.bar.baz,'45s','sum'),summarize(bar.foo.bad,'45s','sum'),summarize(foo.bar.baz,'45s','sum'),)`,
 			Tags:       map[string]string{"name": "weightedAverage(summarize(bar.foo.bad,'45s','sum'),summarize(foo.bar.baz,'45s','sum'),summarize(bar.foo.bad,'45s','sum'),summarize(foo.bar.baz,'45s','sum'),)"},
 		},

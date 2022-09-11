@@ -269,11 +269,11 @@ func transformAggregate(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 }
 
 func aggregateSeries(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesFunc, funcName string, xFilesFactor float64) (nextSeriesFunc, error) {
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
-	as, err := newAggrState(ec.pointsLen(step), funcName)
+	as, err := newAggrState(ecCopy.pointsLenWithDefaultStep(), funcName)
 	if err != nil {
 		_, _ = drainAllSeries(nextSeries)
 		return nil, err
@@ -283,7 +283,7 @@ func aggregateSeries(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeries
 	var seriesExpressions []string
 	var mu sync.Mutex
 	f := nextSeriesWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		mu.Lock()
 		as.Update(s.Values)
 		seriesTags = append(seriesTags, s.Tags)
@@ -313,11 +313,11 @@ func aggregateSeries(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeries
 	s := &series{
 		Name:           name,
 		Tags:           tags,
-		Timestamps:     ec.newTimestamps(step),
+		Timestamps:     ecCopy.newTimestampsWithDefaultStep(),
 		Values:         as.Finalize(xFilesFactor),
 		pathExpression: name,
 		expr:           expr,
-		step:           step,
+		step:           ecCopy.storageStep,
 	}
 	return singleSeriesFunc(s), nil
 }
@@ -701,11 +701,11 @@ func transformAsPercent(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	switch t := totalArg.Expr.(type) {
 	case *graphiteql.NoneExpr:
 		if len(nodes) == 0 {
-			ss, step, err := fetchNormalizedSeries(ec, nextSeries, true)
+			ss, ssEc, err := fetchNormalizedSeries(ec, nextSeries, true)
 			if err != nil {
 				return nil, err
 			}
-			inplacePercentForMultiSeries(ec, fe, ss, step)
+			inplacePercentForMultiSeries(ssEc, fe, ss, ssEc.storageStep)
 			return multiSeriesFunc(ss), nil
 		}
 		m, step, err := fetchNormalizedSeriesByNodes(ec, nextSeries, nodes)
@@ -744,7 +744,7 @@ func transformAsPercent(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 		if len(nodes) == 0 {
 			// Fetch series serially in order to preserve the original order of series returned by nextTotal,
 			// so the returned series could be matched against series returned by nextSeries.
-			ssTotal, stepTotal, err := fetchNormalizedSeries(ec, nextTotal, false)
+			ssTotal, ssTotalEc, err := fetchNormalizedSeries(ec, nextTotal, false)
 			if err != nil {
 				_, _ = drainAllSeries(nextSeries)
 				return nil, err
@@ -757,7 +757,7 @@ func transformAsPercent(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 			if len(ssTotal) == 1 {
 				sTotal := ssTotal[0]
 				f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-					s.consolidate(ec, stepTotal)
+					s.consolidateWithDefaultStep(ssTotalEc)
 					inplacePercentForSingleSeries(fe, s, sTotal)
 					return s, nil
 				})
@@ -765,15 +765,15 @@ func transformAsPercent(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 			}
 			// Fetch series serially in order to preserve the original order of series returned by nextSeries
 			// and match these series to ssTotal
-			ss, step, err := fetchNormalizedSeries(ec, nextSeries, false)
+			ss, ssEc, err := fetchNormalizedSeries(ec, nextSeries, false)
 			if err != nil {
 				return nil, err
 			}
 			if len(ss) != len(ssTotal) {
 				return nil, fmt.Errorf("unexpected number of series returned by total expression; got %d; want %d", len(ssTotal), len(ss))
 			}
-			if step != stepTotal {
-				return nil, fmt.Errorf("step mismatch for series and total series: %d vs %d", step, stepTotal)
+			if ssEc.storageStep != ssTotalEc.storageStep {
+				return nil, fmt.Errorf("step mismatch for series and total series: %d vs %d", ssEc.storageStep, ssTotalEc.storageStep)
 			}
 			for i, s := range ss {
 				inplacePercentForSingleSeries(fe, s, ssTotal[i])
@@ -1275,7 +1275,7 @@ func transformDivideSeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	if err != nil {
 		return nil, err
 	}
-	ssDivisors, stepDivisor, err := fetchNormalizedSeries(ec, nextDivisor, false)
+	ssDivisors, ecDivisor, err := fetchNormalizedSeries(ec, nextDivisor, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1303,7 +1303,7 @@ func transformDivideSeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesF
 	divisorName := sDivisor.Name
 	divisorValues := sDivisor.Values
 	f := nextSeriesSerialWrapper(nextDividend, func(s *series) (*series, error) {
-		s.consolidate(ec, stepDivisor)
+		s.consolidateWithDefaultStep(ecDivisor)
 		values := s.Values
 		for i, v := range values {
 			values[i] = v / divisorValues[i]
@@ -1326,7 +1326,7 @@ func transformDivideSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSe
 	if err != nil {
 		return nil, err
 	}
-	ssDividend, stepDivident, err := fetchNormalizedSeries(ec, nextDividend, false)
+	ssDividend, dividendEc, err := fetchNormalizedSeries(ec, nextDividend, false)
 	if err != nil {
 		return nil, err
 	}
@@ -1334,15 +1334,15 @@ func transformDivideSeriesLists(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSe
 	if err != nil {
 		return nil, err
 	}
-	ssDivisor, stepDivisor, err := fetchNormalizedSeries(ec, nextDivisor, false)
+	ssDivisor, divisorEc, err := fetchNormalizedSeries(ec, nextDivisor, false)
 	if err != nil {
 		return nil, err
 	}
 	if len(ssDividend) != len(ssDivisor) {
 		return nil, fmt.Errorf("divident and divisor must have equal number of series; got %d vs %d series", len(ssDividend), len(ssDivisor))
 	}
-	if stepDivident != stepDivisor {
-		return nil, fmt.Errorf("step mismatch for divident and divisor: %d vs %d", stepDivident, stepDivisor)
+	if dividendEc.storageStep != divisorEc.storageStep {
+		return nil, fmt.Errorf("step mismatch for divident and divisor: %d vs %d", dividendEc.storageStep, divisorEc.storageStep)
 	}
 	for i, s := range ssDividend {
 		sDivisor := ssDivisor[i]
@@ -1476,9 +1476,9 @@ func transformExponentialMovingAverage(ec *evalConfig, fe *graphiteql.FuncExpr) 
 		windowSize = -windowSize
 	}
 
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	ecCopy.startTime -= windowSize
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -1733,7 +1733,7 @@ func groupByNodesGeneric(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSe
 
 func groupByKeyFunc(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesFunc, aggrFuncName string,
 	keyFunc func(name string, tags map[string]string) string) (nextSeriesFunc, error) {
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
@@ -1746,13 +1746,13 @@ func groupByKeyFunc(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesF
 	m := make(map[string]*x)
 	var mLock sync.Mutex
 	f := nextSeriesWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		key := keyFunc(s.Name, s.Tags)
 		mLock.Lock()
 		defer mLock.Unlock()
 		e := m[key]
 		if e == nil {
-			as, err := newAggrState(ec.pointsLen(step), aggrFuncName)
+			as, err := newAggrState(ecCopy.pointsLenWithDefaultStep(), aggrFuncName)
 			if err != nil {
 				return nil, err
 			}
@@ -1786,11 +1786,11 @@ func groupByKeyFunc(ec *evalConfig, expr graphiteql.Expr, nextSeries nextSeriesF
 		s := &series{
 			Name:           key,
 			Tags:           tags,
-			Timestamps:     ec.newTimestamps(step),
-			Values:         e.as.Finalize(ec.xFilesFactor),
+			Timestamps:     ecCopy.newTimestampsWithDefaultStep(),
+			Values:         e.as.Finalize(ecCopy.xFilesFactor),
 			expr:           expr,
 			pathExpression: tags["name"],
-			step:           step,
+			step:           ecCopy.storageStep,
 		}
 		ss = append(ss, s)
 	}
@@ -1986,7 +1986,7 @@ func transformHitcount(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc,
 	if err != nil {
 		return nil, err
 	}
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	if alignToInterval {
 		startTime := ecCopy.startTime
 		tz := ecCopy.currentTime.Location()
@@ -2000,7 +2000,7 @@ func transformHitcount(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc,
 		}
 		ecCopy.startTime = t.UnixNano() / 1e6
 	}
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -2690,26 +2690,25 @@ func movingWindow(ec *evalConfig, fe *graphiteql.FuncExpr, seriesListArg, window
 	if err != nil {
 		return nil, err
 	}
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	ecCopy.startTime -= windowSize
-	nextSeries, err := evalExpr(&ecCopy, seriesListArg.Expr)
+	nextSeries, err := evalExpr(ecCopy, seriesListArg.Expr)
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err = nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
-	if stepsCount > 0 && step != ec.storageStep {
+	if stepsCount > 0 && ecCopy.storageStep != ec.storageStep {
 		// The inner function call changes the step and the moving* function refers to it.
 		// Adjust the startTime and re-calculate the inner function on the adjusted time range.
 		if _, err := drainAllSeries(nextSeries); err != nil {
 			return nil, err
 		}
-		windowSize = int64(stepsCount * float64(step))
-		ecCopy = *ec
+		windowSize = int64(stepsCount * float64(ecCopy.storageStep))
 		ecCopy.startTime -= windowSize
-		nextSeries, err = evalExpr(&ecCopy, seriesListArg.Expr)
+		nextSeries, err = evalExpr(ecCopy, seriesListArg.Expr)
 		if err != nil {
 			return nil, err
 		}
@@ -2737,7 +2736,7 @@ func movingWindow(ec *evalConfig, fe *graphiteql.FuncExpr, seriesListArg, window
 			v := aggrFunc.apply(xFilesFactor, values[i:j])
 			dstTimestamps = append(dstTimestamps, tsEnd)
 			dstValues = append(dstValues, v)
-			tsEnd += step
+			tsEnd += ecCopy.storageStep
 		}
 		s.Timestamps = dstTimestamps
 		s.Values = dstValues
@@ -2778,15 +2777,15 @@ func transformPercentileOfSeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextS
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
-	as := newAggrStatePercentile(ec.pointsLen(step), n)
+	as := newAggrStatePercentile(ecCopy.pointsLenWithDefaultStep(), n)
 	var lock sync.Mutex
 	var seriesExpressions []string
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		lock.Lock()
 		as.Update(s.Values)
 
@@ -2806,11 +2805,11 @@ func transformPercentileOfSeries(ec *evalConfig, fe *graphiteql.FuncExpr) (nextS
 	s := &series{
 		Name:           name,
 		Tags:           map[string]string{"name": name},
-		Timestamps:     ec.newTimestamps(step),
-		Values:         as.Finalize(ec.xFilesFactor),
+		Timestamps:     ecCopy.newTimestampsWithDefaultStep(),
+		Values:         as.Finalize(ecCopy.xFilesFactor),
 		expr:           fe,
 		pathExpression: name,
-		step:           step,
+		step:           ecCopy.storageStep,
 	}
 	return singleSeriesFunc(s), nil
 }
@@ -3031,16 +3030,16 @@ func transformRemoveBetweenPercentile(ec *evalConfig, fe *graphiteql.FuncExpr) (
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
 	var ss []*series
-	asLow := newAggrStatePercentile(ec.pointsLen(step), n)
-	asHigh := newAggrStatePercentile(ec.pointsLen(step), 100-n)
+	asLow := newAggrStatePercentile(ecCopy.pointsLenWithDefaultStep(), n)
+	asHigh := newAggrStatePercentile(ecCopy.pointsLenWithDefaultStep(), 100-n)
 	var lock sync.Mutex
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		lock.Lock()
 		asLow.Update(s.Values)
 		asHigh.Update(s.Values)
@@ -3051,8 +3050,8 @@ func transformRemoveBetweenPercentile(ec *evalConfig, fe *graphiteql.FuncExpr) (
 	if _, err := drainAllSeries(f); err != nil {
 		return nil, err
 	}
-	lows := asLow.Finalize(ec.xFilesFactor)
-	highs := asHigh.Finalize(ec.xFilesFactor)
+	lows := asLow.Finalize(ecCopy.xFilesFactor)
+	highs := asHigh.Finalize(ecCopy.xFilesFactor)
 	var ssDst []*series
 	for _, s := range ss {
 		values := s.Values
@@ -3188,9 +3187,9 @@ func transformSetXFilesFactor(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 	if err != nil {
 		return nil, err
 	}
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	ecCopy.xFilesFactor = xFilesFactor
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -3238,12 +3237,12 @@ func transformSummarize(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	if err != nil {
 		return nil, err
 	}
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	if !alignToFrom {
 		ecCopy.startTime -= ecCopy.startTime % interval
 		ecCopy.endTime += interval - ecCopy.endTime%interval
 	}
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -3277,7 +3276,7 @@ func transformWeightedAverage(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 	if err != nil {
 		return nil, err
 	}
-	ss, stepAvg, err := fetchNormalizedSeries(ec, avgSeries, false)
+	ss, ssAvgEc, err := fetchNormalizedSeries(ec, avgSeries, false)
 	if err != nil {
 		return nil, err
 	}
@@ -3285,15 +3284,15 @@ func transformWeightedAverage(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 	if err != nil {
 		return nil, err
 	}
-	ssWeight, stepWeight, err := fetchNormalizedSeries(ec, weightSeries, false)
+	ssWeight, weightEc, err := fetchNormalizedSeries(ec, weightSeries, false)
 	if err != nil {
 		return nil, err
 	}
 	if len(ss) != len(ssWeight) {
 		return nil, fmt.Errorf("series len mismatch, got seriesListAvg: %d,seriesListWeight: %d ", len(ss), len(ssWeight))
 	}
-	if stepAvg != stepWeight {
-		return nil, fmt.Errorf("step mismatch for seriesListAvg and seriesListWeight: %d vs %d", stepAvg, stepWeight)
+	if ssAvgEc.storageStep != weightEc.storageStep {
+		return nil, fmt.Errorf("step mismatch for seriesListAvg and seriesListWeight: %d vs %d", ssAvgEc.storageStep, weightEc.storageStep)
 	}
 	mAvg := groupSeriesByNodes(ss, nodes)
 	mWeight := groupSeriesByNodes(ssWeight, nodes)
@@ -3316,14 +3315,13 @@ func transformWeightedAverage(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 		return multiSeriesFunc(nil), nil
 	}
 
-	step := stepAvg
-	as := newAggrStateSum(ec.pointsLen(step))
+	as := newAggrStateSum(ssAvgEc.pointsLenWithDefaultStep())
 	for _, s := range ssProduct {
 		as.Update(s.Values)
 	}
 	values := as.Finalize(ec.xFilesFactor)
 
-	asWeight := newAggrStateSum(ec.pointsLen(step))
+	asWeight := newAggrStateSum(ssAvgEc.pointsLenWithDefaultStep())
 	for _, s := range ssWeight {
 		asWeight.Update(s.Values)
 	}
@@ -3345,11 +3343,11 @@ func transformWeightedAverage(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeri
 	sResult := &series{
 		Name:           name,
 		Tags:           map[string]string{"name": name},
-		Timestamps:     ec.newTimestamps(step),
+		Timestamps:     ssAvgEc.newTimestampsWithDefaultStep(),
 		Values:         values,
 		expr:           fe,
 		pathExpression: name,
-		step:           step,
+		step:           ssAvgEc.storageStep,
 	}
 	return singleSeriesFunc(sResult), nil
 }
@@ -3575,19 +3573,19 @@ func getNodes(args []*graphiteql.ArgExpr) ([]graphiteql.Expr, error) {
 }
 
 func fetchNormalizedSeriesByNodes(ec *evalConfig, nextSeries nextSeriesFunc, nodes []graphiteql.Expr) (map[string][]*series, int64, error) {
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, 0, err
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		return s, nil
 	})
 	ss, err := fetchAllSeries(f)
 	if err != nil {
 		return nil, 0, err
 	}
-	return groupSeriesByNodes(ss, nodes), step, nil
+	return groupSeriesByNodes(ss, nodes), ecCopy.storageStep, nil
 }
 
 func groupSeriesByNodes(ss []*series, nodes []graphiteql.Expr) map[string][]*series {
@@ -3652,21 +3650,21 @@ func getPathFromName(s string) string {
 	}
 }
 
-func fetchNormalizedSeries(ec *evalConfig, nextSeries nextSeriesFunc, isConcurrent bool) ([]*series, int64, error) {
-	step, err := nextSeries.peekStep(ec.storageStep)
+func fetchNormalizedSeries(ec *evalConfig, nextSeries nextSeriesFunc, isConcurrent bool) ([]*series, *evalConfig, error) {
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
 	nextSeriesWrapper := getNextSeriesWrapper(isConcurrent)
 	f := nextSeriesWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		return s, nil
 	})
 	ss, err := fetchAllSeries(f)
 	if err != nil {
-		return nil, 0, err
+		return nil, nil, err
 	}
-	return ss, step, nil
+	return ss, ecCopy, nil
 }
 
 func fetchAllSeries(nextSeries nextSeriesFunc) ([]*series, error) {
@@ -4129,11 +4127,11 @@ func transformTransformNull(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeries
 	if err != nil {
 		return nil, fmt.Errorf("cannot evaluate referenceSeries: %w", err)
 	}
-	ssRef, step, err := fetchNormalizedSeries(ec, nextRefSeries, true)
+	ssRef, refSeriesEc, err := fetchNormalizedSeries(ec, nextRefSeries, true)
 	if err != nil {
 		return nil, err
 	}
-	replaceNan := make([]bool, ec.pointsLen(step))
+	replaceNan := make([]bool, refSeriesEc.pointsLenWithDefaultStep())
 	for i := range replaceNan {
 		for _, sRef := range ssRef {
 			if !math.IsNaN(sRef.Values[i]) {
@@ -4147,7 +4145,7 @@ func transformTransformNull(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeries
 		return nil, err
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(refSeriesEc)
 		values := s.Values
 		for i, v := range values {
 			if replaceNan[i] && math.IsNaN(v) {
@@ -4195,10 +4193,10 @@ func transformTimeStack(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	var allSeries []nextSeriesFunc
 	for shift := int64(start); shift <= int64(end); shift++ {
 		innerDelta := delta * shift
-		ecCopy := *ec
+		ecCopy := ec.Clone()
 		ecCopy.startTime = ecCopy.startTime + innerDelta
 		ecCopy.endTime = ecCopy.endTime + innerDelta
-		nextSS, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+		nextSS, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 		if err != nil {
 			for _, f := range allSeries {
 				_, _ = drainAllSeries(f)
@@ -4286,6 +4284,7 @@ func transformTimeShift(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	}
 	if timeShift > 0 && !strings.HasPrefix(timeShiftStr, "+") {
 		timeShift = -timeShift
+		timeShiftStr = "-" + timeShiftStr
 	}
 	resetEnd, err := getOptionalBool(args, "resetEnd", 2, true)
 	if err != nil {
@@ -4297,10 +4296,10 @@ func transformTimeShift(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc
 	}
 	// TODO: properly use alignDST
 
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	ecCopy.startTime += timeShift
 	ecCopy.endTime += timeShift
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -4672,15 +4671,15 @@ func transformStacked(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSeriesFunc, 
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
-	totalStack := make([]float64, ec.pointsLen(step))
+	totalStack := make([]float64, ecCopy.pointsLenWithDefaultStep())
 	// Use nextSeriesSerialWrapper instead of nextSeriesConcurrentWrapper for preserving the original order of series.
 	f := nextSeriesSerialWrapper(nextSeries, func(s *series) (*series, error) {
 		// Consolidation is needed in order to align points in time. Otherwise stacking has little sense.
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		values := s.Values
 		for i, v := range values {
 			if !math.IsNaN(v) {
@@ -4913,14 +4912,14 @@ func transformSmartSummarize(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSerie
 	if err != nil {
 		return nil, err
 	}
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	if alignTo != "" {
 		ecCopy.startTime, err = alignTimeUnit(ecCopy.startTime, alignTo, ec.currentTime.Location())
 		if err != nil {
 			return nil, err
 		}
 	}
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
@@ -5144,7 +5143,7 @@ func transformLinearRegression(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSer
 		// fast path, calculate for series with the same time range.
 		return linearRegressionForSeries(ec, fe, ss, ss)
 	}
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	ecCopy.startTime, err = getTimeFromArgExpr(ecCopy.startTime, ecCopy.currentTime, startSourceAt)
 	if err != nil {
 		return nil, err
@@ -5153,15 +5152,15 @@ func transformLinearRegression(ec *evalConfig, fe *graphiteql.FuncExpr) (nextSer
 	if err != nil {
 		return nil, err
 	}
-	nextSourceSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSourceSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
-	sourceSeries, _, err := fetchNormalizedSeries(&ecCopy, nextSourceSeries, false)
+	sourceSeries, _, err := fetchNormalizedSeries(ecCopy, nextSourceSeries, false)
 	if err != nil {
 		return nil, err
 	}
-	return linearRegressionForSeries(&ecCopy, fe, ss, sourceSeries)
+	return linearRegressionForSeries(ecCopy, fe, ss, sourceSeries)
 }
 
 func linearRegressionForSeries(ec *evalConfig, fe *graphiteql.FuncExpr, ss, sourceSeries []*series) (nextSeriesFunc, error) {
@@ -5270,23 +5269,23 @@ func holtWinterConfidenceBands(ec *evalConfig, fe *graphiteql.FuncExpr, args []*
 	if err != nil {
 		return nil, err
 	}
-	ecCopy := *ec
-	ecCopy.startTime = ecCopy.startTime - bootstrapMs
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	ecCopy := ec.Clone()
+	ecCopy.startTime -= bootstrapMs
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err = nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
-	trimWindowPoints := ecCopy.pointsLen(step) - ec.pointsLen(step)
+	trimWindowPoints := ecCopy.pointsLenWithDefaultStep() - ec.pointsLen(ecCopy.storageStep)
 	var resultSeries []*series
 	var resultSeriesLock sync.Mutex
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(&ecCopy, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		timeStamps := s.Timestamps[trimWindowPoints:]
-		analysis := holtWintersAnalysis(&ecCopy, s, seasonalityMs)
+		analysis := holtWintersAnalysis(ecCopy, s, seasonalityMs)
 		forecastValues := analysis.predictions.Values[trimWindowPoints:]
 		deviationValues := analysis.deviations.Values[trimWindowPoints:]
 		valuesLen := len(forecastValues)
@@ -5312,7 +5311,7 @@ func holtWinterConfidenceBands(ec *evalConfig, fe *graphiteql.FuncExpr, args []*
 			Tags:           map[string]string{"holtWintersConfidenceUpper": "1", "name": s.Name},
 			expr:           fe,
 			pathExpression: name,
-			step:           step,
+			step:           ecCopy.storageStep,
 		}
 		name = fmt.Sprintf("holtWintersConfidenceLower(%s)", s.Name)
 		lowerSeries := &series{
@@ -5322,7 +5321,7 @@ func holtWinterConfidenceBands(ec *evalConfig, fe *graphiteql.FuncExpr, args []*
 			Tags:           map[string]string{"holtWintersConfidenceLower": "1", "name": s.Name},
 			expr:           fe,
 			pathExpression: name,
-			step:           step,
+			step:           ecCopy.storageStep,
 		}
 		resultSeriesLock.Lock()
 		resultSeries = append(resultSeries, upperSeries, lowerSeries)
@@ -5373,12 +5372,12 @@ func transformHoltWintersAberration(ec *evalConfig, fe *graphiteql.FuncExpr) (ne
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err := nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(ec, step)
+		s.consolidateWithDefaultStep(ecCopy)
 		values := s.Values
 		lowerBand := confidenceBands[fmt.Sprintf("holtWintersConfidenceLower(%s)", s.Name)]
 		upperBand := confidenceBands[fmt.Sprintf("holtWintersConfidenceUpper(%s)", s.Name)]
@@ -5437,20 +5436,20 @@ func transformHoltWintersForecast(ec *evalConfig, fe *graphiteql.FuncExpr) (next
 		return nil, err
 	}
 
-	ecCopy := *ec
+	ecCopy := ec.Clone()
 	ecCopy.startTime = ecCopy.startTime - bootstrapMs
-	nextSeries, err := evalSeriesList(&ecCopy, args, "seriesList", 0)
+	nextSeries, err := evalSeriesList(ecCopy, args, "seriesList", 0)
 	if err != nil {
 		return nil, err
 	}
-	step, err := nextSeries.peekStep(ec.storageStep)
+	ecCopy, err = nextSeries.peekStartEndStep(ec)
 	if err != nil {
 		return nil, err
 	}
-	trimWindowPoints := ecCopy.pointsLen(step) - ec.pointsLen(step)
+	trimWindowPoints := ecCopy.pointsLenWithDefaultStep() - ec.pointsLen(ecCopy.storageStep)
 	f := nextSeriesConcurrentWrapper(nextSeries, func(s *series) (*series, error) {
-		s.consolidate(&ecCopy, step)
-		analysis := holtWintersAnalysis(&ecCopy, s, seasonalityMs)
+		s.consolidateWithDefaultStep(ecCopy)
+		analysis := holtWintersAnalysis(ecCopy, s, seasonalityMs)
 		predictions := analysis.predictions
 
 		s.Tags["holtWintersForecast"] = "1"
@@ -5585,14 +5584,19 @@ func holtWintersDeviation(gamma, actual, prediction, lastSeasonalDev float64) fl
 	return gamma*math.Abs(actual-prediction) + (1-gamma)*lastSeasonalDev
 }
 
-func (nsf *nextSeriesFunc) peekStep(step int64) (int64, error) {
+func (nsf *nextSeriesFunc) peekStartEndStep(ec *evalConfig) (*evalConfig, error) {
+	ecCopy := ec.Clone()
 	nextSeries := *nsf
 	s, err := nextSeries()
 	if err != nil {
-		return 0, err
+		return ecCopy, err
 	}
 	if s != nil {
-		step = s.step
+		ecCopy.storageStep = s.step
+		if len(s.Timestamps) > 0 {
+			ecCopy.startTime = s.Timestamps[0]
+			ecCopy.endTime = s.Timestamps[len(s.Timestamps)-1]
+		}
 	}
 	calls := uint64(0)
 	*nsf = func() (*series, error) {
@@ -5601,5 +5605,5 @@ func (nsf *nextSeriesFunc) peekStep(step int64) (int64, error) {
 		}
 		return nextSeries()
 	}
-	return step, nil
+	return ecCopy, nil
 }
