@@ -2,8 +2,6 @@ import React, {FC, useState} from "react";
 import Box from "@mui/material/Box";
 import {TopQuery} from "../../../types";
 import Typography from "@mui/material/Typography";
-import Tooltip from "@mui/material/Tooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
@@ -15,14 +13,15 @@ import CodeIcon from "@mui/icons-material/Code";
 import TopQueryTable from "../TopQueryTable/TopQueryTable";
 import JsonView from "../../CustomPanel/Views/JsonView";
 
-interface TopQueryPanelProps {
+export interface TopQueryPanelProps {
   rows: TopQuery[],
-  title: string,
-  description: string
+  title?: string,
+  columns: {title?: string, key: (keyof TopQuery)}[],
+  defaultOrderBy?: keyof TopQuery,
 }
 const tabs = ["table", "JSON"];
 
-const TopQueryPanel: FC<TopQueryPanelProps> = ({rows, title, description}) => {
+const TopQueryPanel: FC<TopQueryPanelProps> = ({rows, title, columns, defaultOrderBy}) => {
 
   const [activeTab, setActiveTab] = useState(0);
 
@@ -52,9 +51,6 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({rows, title, description}) => {
         }}
         expandIcon={<ExpandMoreIcon />}
       >
-        <Tooltip arrow title={description}>
-          <InfoIcon color="info" sx={{mr: 1}}/>
-        </Tooltip>
         <Typography variant="h6" component="h6">
           {title}
         </Typography>
@@ -79,7 +75,7 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({rows, title, description}) => {
               )}
             </Tabs>
           </Box>
-          {activeTab === 0 && <TopQueryTable rows={rows}/>}
+          {activeTab === 0 && <TopQueryTable rows={rows} columns={columns} defaultOrderBy={defaultOrderBy}/>}
           {activeTab === 1 && <Box m={2}><JsonView data={rows} /></Box>}
         </Box>
       </AccordionDetails>
