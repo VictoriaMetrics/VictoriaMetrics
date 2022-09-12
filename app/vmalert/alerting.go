@@ -170,7 +170,7 @@ func (ar *AlertingRule) logDebug(at time.Time, a *notifier.Alert, msg string) {
 		labels = strings.TrimRight(labels, ",")
 		prefix += fmt.Sprintf("alert %d (%s) ", a.ID, labels)
 	}
-	logger.Infof(prefix + msg)
+	logger.Infof("%s", prefix + msg)
 }
 
 type labelSet struct {
