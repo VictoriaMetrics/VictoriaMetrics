@@ -50,9 +50,10 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
+    const isDisplayChart = displayType === "chart";
     try {
       const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
-      const tempData = [];
+      const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
       for await (const response of responses) {
@@ -63,16 +64,16 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
             const trace = new Trace(resp.trace, query[counter-1]);
             tempTraces.push(trace);
           }
-          tempData.push(...resp.data.result.map((d: MetricBase) => {
+          resp.data.result.forEach((d: MetricBase) => {
             d.group = counter;
-            return d;
-          }));
+            tempData.push(d);
+          });
           counter++;
         } else {
           setError(`${resp.errorType}\r\n${resp?.error}`);
         }
       }
-      displayType === "chart" ? setGraphData(tempData) : setLiveData(tempData);
+      isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
