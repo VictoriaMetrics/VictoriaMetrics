@@ -26,6 +26,16 @@ export const useFetchTopQueries = () => {
     try {
       const response = await fetch(fetchUrl);
       const resp = await response.json();
+      if (response.ok) {
+        const list = ["topByAvgDuration", "topByCount", "topBySumDuration"] as (keyof TopQueriesData)[];
+        list.forEach(key => {
+          const target = resp[key];
+          if (Array.isArray(target)) {
+            target.forEach(t => t.timeRangeHours = +(t.timeRangeSeconds/3600).toFixed(2));
+          }
+        });
+      }
+
       setData(response.ok ? resp : null);
       setError(String(resp.error || ""));
     } catch (e) {

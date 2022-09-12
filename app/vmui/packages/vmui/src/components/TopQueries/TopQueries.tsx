@@ -126,18 +126,35 @@ const TopQueries: FC = () => {
         <Box>
           <TopQueryPanel
             rows={data.topByCount}
-            title={"Top by count"}
-            description={"The most frequently executed queries"}
+            title={"Most frequently executed queries"}
+            columns={[
+              {key: "query"},
+              {key: "timeRangeHours", title: "time range, hours"},
+              {key: "count"}
+            ]}
           />
           <TopQueryPanel
             rows={data.topByAvgDuration}
-            title={"Top by avg duration"}
-            description={"Queries that took the most average execution time"}
+            title={"Most heavy queries"}
+            // columns={["query", "avgDurationSeconds", "timeRangeHours", "count"]}
+            columns={[
+              {key: "query"},
+              {key: "avgDurationSeconds", title: "avg duration, seconds"},
+              {key: "timeRangeHours", title: "time range, hours"},
+              {key: "count"}
+            ]}
+            defaultOrderBy={"avgDurationSeconds"}
           />
           <TopQueryPanel
             rows={data.topBySumDuration}
-            title={"Top by sum duration"}
-            description={"Queries that took the highest summary execution time"}
+            title={"Queries with most summary time to execute"}
+            columns={[
+              {key: "query"},
+              {key: "sumDurationSeconds", title: "sum duration, seconds"},
+              {key: "timeRangeHours", title: "time range, hours"},
+              {key: "count"}
+            ]}
+            defaultOrderBy={"sumDurationSeconds"}
           />
         </Box>
       </>)}
