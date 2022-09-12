@@ -77,6 +77,8 @@ export interface TopQuery {
   projectID: number
   query: string
   timeRangeSeconds: number
+  sumDurationSeconds: number
+  timeRangeHours: number
 }
 
 export interface TopQueryStats {
