@@ -2,8 +2,10 @@ package datadog
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
+	"regexp"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -16,6 +18,18 @@ import (
 
 // The maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 var maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v1/series")
+
+// If all metrics in Datadog have the same naming schema as custom metrics, then the following rules apply: https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
+// But there's some hidden behaviour. In addition to what it states in the docs, the following is also done:
+// - Consecutive underscores are replaced with just one underscore
+// - Underscore immediately before or after a dot are removed
+var sanitizeMetricName = flag.Bool("datadog.sanitizeMetricName", true, "If enable, will sanitize the metric name to comply with Datadog behaviour describe here: https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics Some additional clean up is done by Datadog that is not documented.")
+
+var (
+	invalidMetricNameCharRE     = regexp.MustCompile(`[^a-zA-Z0-9_.]`)
+	consecutiveUnderscores      = regexp.MustCompile(`_+`)
+	underscoresBeforeOrAfterDot = regexp.MustCompile(`_?\._?`)
+)
 
 // ParseStream parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
@@ -52,6 +66,9 @@ func ParseStream(r io.Reader, contentEncoding string, callback func(series []Ser
 	series := req.Series
 	for i := range series {
 		rows += len(series[i].Points)
+		if *sanitizeMetricName {
+			series[i].Metric = sanitizeName(series[i].Metric)
+		}
 	}
 	rowsRead.Add(rows)
 
@@ -136,3 +153,7 @@ func putRequest(req *Request) {
 }
 
 var requestPool sync.Pool
+
+func sanitizeName(metric string) string {
+	return underscoresBeforeOrAfterDot.ReplaceAllString(consecutiveUnderscores.ReplaceAllString(invalidMetricNameCharRE.ReplaceAllString(metric, "_"), "_"), ".")
+}
