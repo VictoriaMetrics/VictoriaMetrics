@@ -248,27 +248,6 @@ func MustRemoveTemporaryDirs(dir string) {
 	MustSyncPath(dir)
 }
 
-// MustRemoveAll removes path with all the contents.
-//
-// It properly fsyncs the parent directory after path removal.
-//
-// It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-func MustRemoveAll(path string) {
-	mustRemoveAll(path, func() {})
-}
-
-// MustRemoveAllWithDoneCallback removes path with all the contents.
-//
-// It properly fsyncs the parent directory after path removal.
-//
-// done is called after the path is successfully removed.
-//
-// done may be called after the function returns for NFS path.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61.
-func MustRemoveAllWithDoneCallback(path string, done func()) {
-	mustRemoveAll(path, done)
-}
-
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.
 func HardLinkFiles(srcDir, dstDir string) error {
 	if err := mkdirSync(dstDir); err != nil {
