@@ -24,7 +24,7 @@ export const StateProvider: FC = ({children}) => {
   const [state, dispatch] = useReducer(reducer, initialPrepopulatedState);
 
   useEffect(() => {
-    if (pathname !== router.dashboards || pathname !== router.home) return;
+    if (pathname !== router.dashboards && pathname !== router.home) return;
     setQueryStringValue(state as unknown as Record<string, unknown>);
   }, [state, pathname]);
 
