@@ -184,6 +184,13 @@ expr: <string>
 # as firing once they return.
 [ for: <duration> | default = 0s ]
 
+# Whether to print debug information into logs.
+# Information includes alerts state changes and requests sent to the datasource. 
+# Please note, that if rule's query params contain sensitive 
+# information - it will be printed to logs.
+# Is applicable to alerting rules only.
+[ debug: <bool> | default = false ]
+
 # Labels to add or overwrite for each alert.
 labels:
   [ <labelname>: <tmpl_string> ]

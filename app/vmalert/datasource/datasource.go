@@ -23,6 +23,7 @@ type QuerierParams struct {
 	EvaluationInterval time.Duration
 	QueryParams        url.Values
 	Headers            map[string]string
+	Debug              bool
 }
 
 // Metric is the basic entity which should be return by datasource
