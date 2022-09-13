@@ -236,8 +236,8 @@ func (pt *partition) Drop() {
 	// Wait until all the pending transaction deletions are finished before removing partition directories.
 	pendingTxnDeletionsWG.Wait()
 
-	fs.MustRemoveAll(pt.smallPartsPath)
-	fs.MustRemoveAll(pt.bigPartsPath)
+	fs.MustRemoveDirAtomic(pt.smallPartsPath)
+	fs.MustRemoveDirAtomic(pt.bigPartsPath)
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
