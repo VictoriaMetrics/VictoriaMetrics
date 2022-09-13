@@ -147,11 +147,10 @@ func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
 }
 
-func (ar *AlertingRule) logDebug(at time.Time, a *notifier.Alert, msg string) {
+func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...interface{}) {
 	if !ar.Debug {
 		return
 	}
-
 	prefix := fmt.Sprintf("DEBUG rule %q:%q (%d) at %v: ",
 		ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
 
@@ -163,13 +162,14 @@ func (ar *AlertingRule) logDebug(at time.Time, a *notifier.Alert, msg string) {
 			i++
 		}
 		sort.Strings(labelKeys)
-		var labels string
-		for _, l := range labelKeys {
-			labels += fmt.Sprintf("%s=%s,", l, a.Labels[l])
+		labels := make([]string, len(labelKeys))
+		for i, l := range labelKeys {
+			labels[i] = fmt.Sprintf("%s=%q", l, a.Labels[l])
 		}
-		labels = strings.TrimRight(labels, ",")
-		prefix += fmt.Sprintf("alert %d (%s) ", a.ID, labels)
+		labelsStr := strings.Join(labels, ",")
+		prefix += fmt.Sprintf("alert %d {%s} ", a.ID, labelsStr)
 	}
+	msg := fmt.Sprintf(format, args...)
 	logger.Infof("%s", prefix+msg)
 }
 
@@ -285,13 +285,12 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
-	ar.logDebug(ts, nil, fmt.Sprintf("query returned %d samples (elapsed: %s)",
-		ar.lastExecSamples, ar.lastExecDuration))
+	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", ar.lastExecSamples, ar.lastExecDuration)
 
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
 		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > resolvedRetention {
-			ar.logDebug(ts, a, "deleted as inactive")
+			ar.logDebugf(ts, a, "deleted as inactive")
 			delete(ar.alerts, h)
 		}
 	}
@@ -319,7 +318,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				// back to notifier.StatePending
 				a.State = notifier.StatePending
 				a.ActiveAt = ts
-				ar.logDebug(ts, a, "INACTIVE => PENDING")
+				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			if a.Value != m.Values[0] {
 				// update Value field with the latest value
@@ -342,7 +341,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		a.State = notifier.StatePending
 		a.ActiveAt = ts
 		ar.alerts[h] = a
-		ar.logDebug(ts, a, "created in state PENDING")
+		ar.logDebugf(ts, a, "created in state PENDING")
 	}
 	var numActivePending int
 	for h, a := range ar.alerts {
@@ -353,13 +352,13 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				// alert was in Pending state - it is not
 				// active anymore
 				delete(ar.alerts, h)
-				ar.logDebug(ts, a, "PENDING => DELETED: is absent in current evaluation round")
+				ar.logDebugf(ts, a, "PENDING => DELETED: is absent in current evaluation round")
 				continue
 			}
 			if a.State == notifier.StateFiring {
 				a.State = notifier.StateInactive
 				a.ResolvedAt = ts
-				ar.logDebug(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
+				ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
 			}
 			continue
 		}
@@ -368,8 +367,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			a.State = notifier.StateFiring
 			a.Start = ts
 			alertsFired.Inc()
-			ar.logDebug(ts, a, fmt.Sprintf("PENDING => FIRING: %s since becoming active at %v",
-				ts.Sub(a.ActiveAt), a.ActiveAt))
+			ar.logDebugf(ts, a, "PENDING => FIRING: %s since becoming active at %v", ts.Sub(a.ActiveAt), a.ActiveAt)
 		}
 	}
 	if limit > 0 && numActivePending > limit {
