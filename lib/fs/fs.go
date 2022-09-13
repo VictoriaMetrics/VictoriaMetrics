@@ -204,22 +204,26 @@ func IsEmptyDir(path string) bool {
 //  2. Remove the "<dir>.must-remove.XYZ" in background.
 //
 // If the process crashes after the step 1, then the directory must be removed
-// on the next process start by calling MustRemoveTemporaryDirs.
+// on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
 func MustRemoveDirAtomic(dir string) {
+	if !IsPathExist(dir) {
+		return
+	}
 	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
 	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
 	if err := os.Rename(dir, tmpDir); err != nil {
 		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
 	}
-	MustSyncPath(dir)
 	MustRemoveAll(tmpDir)
+	parentDir := filepath.Dir(dir)
+	MustSyncPath(parentDir)
 }
 
 var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
 
 // MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
 //
-// Such directories may be left on unclean shutdown during MustRemoveDirAtomic.
+// Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
 func MustRemoveTemporaryDirs(dir string) {
 	d, err := os.Open(dir)
 	if err != nil {
