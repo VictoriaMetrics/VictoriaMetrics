@@ -169,11 +169,10 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
 	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
 		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
-		wg := getWaitGroup()
-		wg.Add(1)
-		fs.MustRemoveAllWithDoneCallback(s.cachePath, wg.Done)
-		wg.Wait()
-		putWaitGroup(wg)
+		// Do not use fs.MustRemoveDirAtomic() here, since the cache directory may be mounted
+		// to a separate filesystem. In this case the fs.MustRemoveDirAtomic() will fail while
+		// trying to remove the mount root.
+		fs.RemoveDirContents(s.cachePath)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
 	}
 
