@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -191,6 +193,54 @@ func IsEmptyDir(path string) bool {
 		logger.Panicf("FATAL: unexpected error when reading directory %q: %s", path, err)
 	}
 	return false
+}
+
+// MustRemoveDirAtomic removes the given dir atomically.
+//
+// It uses the following algorithm:
+//
+//  1. Atomically rename the "<dir>" to "<dir>.must-remove.<XYZ>",
+//     where <XYZ> is an unique number.
+//  2. Remove the "<dir>.must-remove.XYZ" in background.
+//
+// If the process crashes after the step 1, then the directory must be removed
+// on the next process start by calling MustRemoveTemporaryDirs.
+func MustRemoveDirAtomic(dir string) {
+	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
+	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
+	if err := os.Rename(dir, tmpDir); err != nil {
+		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
+	}
+	MustRemoveAll(tmpDir)
+}
+
+var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
+
+// MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
+//
+// Such directories may be left on unclean shutdown during MustRemoveDirAtomic.
+func MustRemoveTemporaryDirs(dir string) {
+	d, err := os.Open(dir)
+	if err != nil {
+		logger.Panicf("FATAL: cannot open dir %q: %s", dir, err)
+	}
+	defer MustClose(d)
+	fis, err := d.Readdir(-1)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read dir %q: %s", dir, err)
+	}
+	for _, fi := range fis {
+		if !IsDirOrSymlink(fi) {
+			// Skip non-directories
+			continue
+		}
+		dirName := fi.Name()
+		if strings.Contains(dirName, ".must-remove.") {
+			fullPath := dir + "/" + dirName
+			MustRemoveAll(fullPath)
+		}
+	}
+	MustSyncPath(dir)
 }
 
 // MustRemoveAll removes path with all the contents.
