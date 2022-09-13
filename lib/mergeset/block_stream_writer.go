@@ -94,7 +94,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	metaindexPath := path + "/metaindex.bin"
 	metaindexFile, err := filestream.Create(metaindexPath, false)
 	if err != nil {
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDirAtomic(path)
 		return fmt.Errorf("cannot create metaindex file: %w", err)
 	}
 
@@ -102,7 +102,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	indexFile, err := filestream.Create(indexPath, nocache)
 	if err != nil {
 		metaindexFile.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDirAtomic(path)
 		return fmt.Errorf("cannot create index file: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	if err != nil {
 		metaindexFile.MustClose()
 		indexFile.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDirAtomic(path)
 		return fmt.Errorf("cannot create items file: %w", err)
 	}
 
@@ -121,7 +121,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		metaindexFile.MustClose()
 		indexFile.MustClose()
 		itemsFile.MustClose()
-		fs.MustRemoveAll(path)
+		fs.MustRemoveDirAtomic(path)
 		return fmt.Errorf("cannot create lens file: %w", err)
 	}
 

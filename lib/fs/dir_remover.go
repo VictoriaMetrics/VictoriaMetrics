@@ -10,9 +10,13 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-func mustRemoveAll(path string, done func()) {
+// MustRemoveAll removes path with all the contents.
+//
+// It properly fsyncs the parent directory after path removal.
+//
+// It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
+func MustRemoveAll(path string) {
 	if tryRemoveAll(path) {
-		done()
 		return
 	}
 	select {
@@ -29,7 +33,6 @@ func mustRemoveAll(path string, done func()) {
 		for {
 			time.Sleep(time.Second)
 			if tryRemoveAll(path) {
-				done()
 				return
 			}
 		}
