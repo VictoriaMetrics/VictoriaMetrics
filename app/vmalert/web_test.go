@@ -17,6 +17,7 @@ func TestHandler(t *testing.T) {
 		alerts: map[uint64]*notifier.Alert{
 			0: {State: notifier.StateFiring},
 		},
+		state: newRuleState(),
 	}
 	g := &Group{
 		Name:  "group",
@@ -52,6 +53,22 @@ func TestHandler(t *testing.T) {
 	t.Run("/", func(t *testing.T) {
 		getResp(ts.URL, nil, 200)
 		getResp(ts.URL+"/vmalert", nil, 200)
+		getResp(ts.URL+"/vmalert/alerts", nil, 200)
+		getResp(ts.URL+"/vmalert/groups", nil, 200)
+		getResp(ts.URL+"/vmalert/notifiers", nil, 200)
+		getResp(ts.URL+"/rules", nil, 200)
+	})
+
+	t.Run("/vmalert/rule", func(t *testing.T) {
+		a := ar.ToAPI()
+		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
+	})
+	t.Run("/vmalert/rule?badParam", func(t *testing.T) {
+		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramRuleID)
+		getResp(ts.URL+"/vmalert/rule"+params, nil, 404)
+
+		params = fmt.Sprintf("?%s=1&%s=0", paramGroupID, paramRuleID)
+		getResp(ts.URL+"/vmalert/rule"+params, nil, 404)
 	})
 
 	t.Run("/api/v1/alerts", func(t *testing.T) {
