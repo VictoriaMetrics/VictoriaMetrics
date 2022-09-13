@@ -103,6 +103,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 	if err := fs.MkdirAllIfNotExist(smallPartitionsPath); err != nil {
 		return nil, fmt.Errorf("cannot create directory for small partitions %q: %w", smallPartitionsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(smallPartitionsPath)
 	smallSnapshotsPath := smallPartitionsPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(smallSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", smallSnapshotsPath, err)
@@ -113,6 +114,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 	if err := fs.MkdirAllIfNotExist(bigPartitionsPath); err != nil {
 		return nil, fmt.Errorf("cannot create directory for big partitions %q: %w", bigPartitionsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(bigPartitionsPath)
 	bigSnapshotsPath := bigPartitionsPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(bigSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", bigSnapshotsPath, err)

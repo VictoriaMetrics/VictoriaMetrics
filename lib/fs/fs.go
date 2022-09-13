@@ -211,6 +211,7 @@ func MustRemoveDirAtomic(dir string) {
 	if err := os.Rename(dir, tmpDir); err != nil {
 		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
 	}
+	MustSyncPath(dir)
 	MustRemoveAll(tmpDir)
 }
 
