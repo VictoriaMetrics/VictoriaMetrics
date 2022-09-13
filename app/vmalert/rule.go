@@ -59,7 +59,7 @@ const defaultStateEntriesLimit = 20
 
 func newRuleState() *ruleState {
 	return &ruleState{
-		entries: make([]ruleStateEntry, defaultStateEntriesLimit, defaultStateEntriesLimit),
+		entries: make([]ruleStateEntry, defaultStateEntriesLimit),
 	}
 }
 
