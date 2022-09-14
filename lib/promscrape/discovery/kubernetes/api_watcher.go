@@ -702,7 +702,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 	var we WatchEvent
 	for {
 		if err := d.Decode(&we); err != nil {
-			return err
+			return fmt.Errorf("cannot parse WatchEvent json response: %s", err)
 		}
 		switch we.Type {
 		case "ADDED", "MODIFIED":

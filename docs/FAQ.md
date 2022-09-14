@@ -109,6 +109,8 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 Grafana Mimir is a [Cortex](https://github.com/cortexproject/cortex) fork, so it has the same differences
 as Cortex. See [what is the difference between VictoriaMetrics and Cortex](#what-is-the-difference-between-victoriametrics-and-cortex).
 
+See also [Grafana Mimir vs VictoriaMetrics benchmark](https://victoriametrics.com/blog/mimir-benchmark/).
+
 ## What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)?
 
 VictoriaMetrics is similar to Cortex in the following aspects:

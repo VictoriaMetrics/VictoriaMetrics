@@ -169,9 +169,7 @@ publish-release:
 	git checkout $(TAG) && $(MAKE) release publish && \
 		git checkout $(TAG)-cluster && $(MAKE) release publish && \
 		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish && \
-		$(MAKE) github-create-release && \
-		$(MAKE) github-upload-assets
+		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
 
 release: \
 	release-victoria-metrics \
@@ -366,7 +364,7 @@ benchmark-pure:
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.18
+	go mod tidy -compat=1.19.1
 	go mod vendor
 
 app-local:

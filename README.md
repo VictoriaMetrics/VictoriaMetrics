@@ -260,7 +260,10 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
 The UI allows exploring query results via graphs and tables.
-It also provides the ability to [explore cardinality](#cardinality-explorer) and to [investigate query traces](#query-tracing).
+It also provides the following features:
+- [cardinality explorer](#cardinality-explorer)
+- [query tracer](#query-tracing)
+- [top queries explorer](#top-queries)
 
 Graphs in vmui support scrolling and zooming:
 
@@ -280,6 +283,13 @@ VMUI allows investigating correlations between two queries on the same graph. Ju
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
+## Top queries
+
+[VMUI](#vmui) provides `top queries` tab, which can help determining the following query types:
+
+* the most frequently executed queries;
+* queries with the biggest average execution duration;
+* queries that took the most summary time for execution.
 
 ## Cardinality explorer
 
@@ -329,11 +339,11 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v1/series` path.
 
-Single-node VictoriaMetrics:
+### Single-node VictoriaMetrics:
 
 Run DataDog agent with environment variable `DD_DD_URL=http://victoriametrics-host:8428/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
 
-Cluster version of VictoriaMetrics:
+### Cluster version of VictoriaMetrics:
 
 Run DataDog agent with environment variable `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`.
 
@@ -341,7 +351,7 @@ VictoriaMetrics doesn't check `DD_API_KEY` param, so it can be set to arbitrary 
 
 Example of how to send data to VictoriaMetrics via [DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line:
 
-Single-node VictoriaMetrics:
+### Single-node VictoriaMetrics:
 
 ```console
 echo '
@@ -365,7 +375,7 @@ echo '
 ' | curl -X POST --data-binary @- http://victoriametrics-host:8428/datadog/api/v1/series
 ```
 
-Cluster version of VictoriaMetrics:
+### Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
@@ -396,7 +406,7 @@ echo '
 
 The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export):
 
-Single-node VictoriaMetrics:
+### Single-node VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
@@ -406,7 +416,7 @@ curl http://victoriametrics-host:8428/api/v1/export -d 'match[]=system.load.1'
 
 </div>
 
-Cluster version of VictoriaMetrics:
+### Cluster version of VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
@@ -769,7 +779,7 @@ to your needs or when testing bugfixes.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1
 2. Run `make victoria-metrics` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics` binary and puts it into the `bin` folder.
 
@@ -785,7 +795,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1
 2. Run `make victoria-metrics-linux-arm` or `make victoria-metrics-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-linux-arm` or `victoria-metrics-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -799,7 +809,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 `Pure Go` mode builds only Go code without [cgo](https://golang.org/cmd/cgo/) dependencies.
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.18.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1
 2. Run `make victoria-metrics-pure` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `victoria-metrics-pure` binary and puts it into the `bin` folder.
 

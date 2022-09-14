@@ -21,7 +21,7 @@ The following functionality is implemented differently in MetricsQL compared to 
 * MetricsQL removes all the `NaN` values from the output, so some queries like `(-1)^0.5` return empty results in VictoriaMetrics, while returning a series of `NaN` values in Prometheus. Note that Grafana doesn't draw any lines or dots for `NaN` values, so the end result looks the same for both VictoriaMetrics and Prometheus.
 * MetricsQL keeps metric names after applying functions, which don't change the meaning of the original time series. For example, [min_over_time(foo)](#min_over_time) or [round(foo)](#round) leaves `foo` metric name in the result. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/674) for details.
 
-Read more about the diffferences between PromQL and MetricsQL in [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e).
+Read more about the differences between PromQL and MetricsQL in [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e).
 
 Other PromQL functionality should work the same in MetricsQL. [File an issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you notice discrepancies between PromQL and MetricsQL results other than mentioned above.
 
@@ -37,7 +37,7 @@ This functionality can be evaluated at [an editable Grafana dashboard](https://p
 * [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query. For example, `sum(foo) @ end()` calculates `sum(foo)` at the `end` timestamp of the selected time range `[start ... end]`.
 * Arbitrary subexpression can be used as [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier). For example, `foo @ (end() - 1h)` calculates `foo` at the `end - 1 hour` timestamp on the selected time range `[start ... end]`.
 * [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier), lookbehind window in square brackets and `step` value for [subquery](#subqueries) may refer to the current step aka `$__interval` value from Grafana with `[Ni]` syntax. For instance, `rate(metric[10i] offset 5i)` would return per-second rate over a range covering 10 previous steps with the offset of 5 steps.
-* [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier) may be put anywere in the query. For instance, `sum(foo) offset 24h`.
+* [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier) may be put anywhere in the query. For instance, `sum(foo) offset 24h`.
 * Lookbehind window in square brackets and [offset](https://prometheus.io/docs/prometheus/latest/querying/basics/#offset-modifier) may be fractional. For instance, `rate(node_network_receive_bytes_total[1.5m] offset 0.5d)`.
 * The duration suffix is optional. The duration is in seconds if the suffix is missing. For example, `rate(m[300] offset 1800)` is equivalent to `rate(m[5m]) offset 30m`.
 * The duration can be placed anywhere in the query. For example, `sum_over_time(m[1h]) / 1h` is equivalent to `sum_over_time(m[1h]) / 3600`.
@@ -88,7 +88,7 @@ The list of supported rollup functions:
 
 #### aggr_over_time
 
-`aggr_over_time(("rollup_func1", "rollup_func2", ...), series_selector[d])` calculates all the listed `rollup_func*` for raw samples on the given lookbehind window `d`. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). `rollup_func*` can contain any rollup function. For instance, `aggr_over_time(("min_over_time", "max_over_time", "rate"), m[d])` would calculate [min_over_time](#min_over_time), [max_over_time](#max_over_time) and [rate](#rate) for `m[d]`.
+`aggr_over_time(("rollup_func1", "rollup_func2", ...), series_selector[d])` calculates all the listed `rollup_func*` for raw samples on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). `rollup_func*` can contain any rollup function. For instance, `aggr_over_time(("min_over_time", "max_over_time", "rate"), m[d])` would calculate [min_over_time](#min_over_time), [max_over_time](#max_over_time) and [rate](#rate) for `m[d]`.
 
 #### ascent_over_time
 
@@ -136,7 +136,7 @@ The list of supported rollup functions:
 
 #### delta
 
-`delta(series_selector[d])` calculates the difference between the last sample before the given lookbehind window `d` and the last sample at the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The behaviour of `delta()` function in MetricsQL is slighly different to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
+`delta(series_selector[d])` calculates the difference between the last sample before the given lookbehind window `d` and the last sample at the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). The behaviour of `delta()` function in MetricsQL is slightly different to the behaviour of `delta()` function in Prometheus. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details. Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [increase](#increase) and [delta_prometheus](#delta_prometheus).
 
 #### delta_prometheus
 
@@ -272,7 +272,7 @@ The list of supported rollup functions:
 
 #### rate_over_sum
 
-`rate_over_sum(series_selector[d])` calculates per-second rate over the sum of raw samples on the given lookbehind window `d`. The calculations are performed indiviually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`rate_over_sum(series_selector[d])` calculates per-second rate over the sum of raw samples on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### resets
 
@@ -284,27 +284,27 @@ The list of supported rollup functions:
 
 #### rollup_candlestick
 
-`rollup_candlestick(series_selector[d])` calculates `open`, `high`, `low` and `close` values (aka OHLC) over raw samples on the given lookbehind window `d`. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
+`rollup_candlestick(series_selector[d])` calculates `open`, `high`, `low` and `close` values (aka OHLC) over raw samples on the given lookbehind window `d`. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
 
 #### rollup_delta
 
-`rollup_delta(series_selector[d])` calculates differences between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_increase](#rollup_increase).
+`rollup_delta(series_selector[d])` calculates differences between adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_increase](#rollup_increase).
 
 #### rollup_deriv
 
-`rollup_deriv(series_selector[d])` calculates per-second derivatives for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second derivatives. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`rollup_deriv(series_selector[d])` calculates per-second derivatives for adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second derivatives. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### rollup_increase
 
-`rollup_increase(series_selector[d])` calculates increases for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated increases. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
+`rollup_increase(series_selector[d])` calculates increases for adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated increases. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
 #### rollup_rate
 
-`rollup_rate(series_selector[d])` calculates per-second change rates for adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+`rollup_rate(series_selector[d])` calculates per-second change rates for adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### rollup_scrape_interval
 
-`rollup_scrape_interval(series_selector[d])` calculates the interval in seconds between adjancent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval. The calculations are perfomed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
+`rollup_scrape_interval(series_selector[d])` calculates the interval in seconds between adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval. The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
 
 #### scrape_interval
 
@@ -328,7 +328,7 @@ The list of supported rollup functions:
 
 #### stdvar_over_time
 
-`stdvar_over_time(series_selector[d])` calculates stadnard variance over raw samples on the given lookbheind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
+`stdvar_over_time(series_selector[d])` calculates standard variance over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. This function is supported by PromQL. See also [stddev_over_time](#stddev_over_time).
 
 #### sum_over_time
 
@@ -443,7 +443,7 @@ The list of supported transform functions:
 
 #### clamp_min
 
-`clamp_min(q, min)` clamps every pount for every time series returned by `q` with the given `min` value. This function is supported by PromQL. See also [clamp](#clamp) and [clamp_max](#clamp_max).
+`clamp_min(q, min)` clamps every point for every time series returned by `q` with the given `min` value. This function is supported by PromQL. See also [clamp](#clamp) and [clamp_max](#clamp_max).
 
 #### cos
 
@@ -483,7 +483,7 @@ The list of supported transform functions:
 
 #### histogram_avg
 
-`histogram_avg(buckets)` calculates the average value for the given `buckets`. It can be used for calculating the average over the given time range across multiple time series. For exmple, `histogram_avg(sum(histogram_over_time(response_time_duration_seconds[5m])) by (vmrange,job))` would return the average response time per each `job` over the last 5 minutes.
+`histogram_avg(buckets)` calculates the average value for the given `buckets`. It can be used for calculating the average over the given time range across multiple time series. For example, `histogram_avg(sum(histogram_over_time(response_time_duration_seconds[5m])) by (vmrange,job))` would return the average response time per each `job` over the last 5 minutes.
 
 #### histogram_quantile
 
@@ -571,7 +571,7 @@ The list of supported transform functions:
 
 #### rand_normal
 
-`rand_normal(seed)` returns pesudo-random numbers with [normal distribution](https://en.wikipedia.org/wiki/Normal_distribution). Optional `seed` can be used as a seed for pseudo-random number generator. See also [rand](#rand) and [rand_exponential](#rand_exponential).
+`rand_normal(seed)` returns pseudo-random numbers with [normal distribution](https://en.wikipedia.org/wiki/Normal_distribution). Optional `seed` can be used as a seed for pseudo-random number generator. See also [rand](#rand) and [rand_exponential](#rand_exponential).
 
 #### range_avg
 
@@ -673,6 +673,16 @@ The list of supported transform functions:
 
 `sort_by_label_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels. For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series. See also [sort_by_label](#sort_by_label).
 
+#### sort_by_label_numeric
+
+`sort_by_label_numeric(q, label1, ... labelN)` sorts series in ascending order by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).  For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series in the following order of `bar` label values: `1`, `2`, `15` and `101`.
+See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_label](#sort_by_label).
+
+#### sort_by_label_numeric_desc
+
+`sort_by_label_numeric_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).  For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
+See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc](#sort_by_label_desc).
+
 #### sort_desc
 
 `sort_desc(q)` sorts series in descending order by the last point in every time series returned by `q`. This function is supported by PromQL. See also [sort](#sort).
@@ -703,7 +713,7 @@ The list of supported transform functions:
 
 #### union
 
-`union(q1, ..., qN)` returns a union of time series returned from `q1`, ..., `qN`. The `union` function name can be skipped - the following queries are quivalent: `union(q1, q2)` and `(q1, q2)`. It is expected that each `q*` query returns time series with unique sets of labels. Otherwise only the first time series out of series with identical set of labels is returned. Use [alias](#alias) and [label_set](#label_set) functions for giving unique labelsets per each `q*` query:
+`union(q1, ..., qN)` returns a union of time series returned from `q1`, ..., `qN`. The `union` function name can be skipped - the following queries are equivalent: `union(q1, q2)` and `(q1, q2)`. It is expected that each `q*` query returns time series with unique sets of labels. Otherwise only the first time series out of series with identical set of labels is returned. Use [alias](#alias) and [label_set](#label_set) functions for giving unique labelsets per each `q*` query:
 
 #### vector
 
@@ -764,7 +774,7 @@ sum by (__name__) (
 
 #### label_map
 
-`label_map(q, "label", "src_value1", "dst_value1", ..., "src_valueN", "dst_valueN")` maps `label` values from `src_*` to `dst*` for all the time seires returned by `q`.
+`label_map(q, "label", "src_value1", "dst_value1", ..., "src_valueN", "dst_valueN")` maps `label` values from `src_*` to `dst*` for all the time series returned by `q`.
 
 #### label_match
 
@@ -803,7 +813,7 @@ sum by (__name__) (
 **Aggregate functions** calculate aggregates over groups of rollup results. Additional details:
 
 * By default a single group is used for aggregation. Multiple independent groups can be set up by specifying grouping labels in `by` and `without` modifiers. For example, `count(up) by (job)` would group rollup results by `job` label value and calculate the [count](#count) aggregate function independently per each group, while `count(up) without (instance)` would group rollup results by all the labels except `instance` before calculating [count](#count) aggregate function independently per each group. Multiple labels can be put in `by` and `without` modifiers.
-* If the aggregate function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering), then the [default_rollup()](#default_rollup) function is automatically applied before cacluating the aggregate. For example, `count(up)` is implicitly transformed to `count(default_rollup(up[1i]))`.
+* If the aggregate function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering), then the [default_rollup()](#default_rollup) function is automatically applied before calculating the aggregate. For example, `count(up)` is implicitly transformed to `count(default_rollup(up[1i]))`.
 * Aggregate functions accept arbitrary number of args. For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * Aggregate functions support optional `limit N` suffix, which can be used for limiting the number of output groups. For example, `sum(x) by (y) limit 3` limits the number of groups for the aggregation to 3. All the other groups are ignored.
 
@@ -849,7 +859,7 @@ The list of supported aggregate functions:
 
 #### count_values
 
-`count_values("label", q)` counts the number of points with the same value and stores the counts in a time series with an additional `label`, wich contains each initial value. The aggregate is calculated individually per each group of points with the same timestamp. This function is supported by PromQL.
+`count_values("label", q)` counts the number of points with the same value and stores the counts in a time series with an additional `label`, which contains each initial value. The aggregate is calculated individually per each group of points with the same timestamp. This function is supported by PromQL.
 
 #### distinct
 
@@ -933,11 +943,11 @@ The list of supported aggregate functions:
 
 #### topk_last
 
-`topk_last(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest last values. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest amaximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_last](#bottomk_last).
+`topk_last(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest last values. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest maximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_last](#bottomk_last).
 
 #### topk_max
 
-`topk_max(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest maximums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest amaximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_max](#bottomk_max).
+`topk_max(k, q, "other_label=other_value")` returns up to `k` time series from `q` with the biggest maximums. If an optional `other_label=other_value` arg is set, then the sum of the remaining time series is returned with the given label. For example, `topk_max(3, sum(process_resident_memory_bytes) by (job), "job=other")` would return up to 3 time series with the biggest maximums plus a time series with `{job="other"}` label with the sum of the remaining series if any. See also [bottomk_max](#bottomk_max).
 
 #### topk_median
 

@@ -516,19 +516,35 @@ func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 }
 
 type streamBodyReader struct {
-	sr          *streamReader
-	body        []byte
-	bodyLen     int
-	captureBody bool
+	body       []byte
+	bodyLen    int
+	readOffset int
+}
+
+func (sbr *streamBodyReader) Init(sr *streamReader) error {
+	sbr.body = nil
+	sbr.bodyLen = 0
+	sbr.readOffset = 0
+	// Read the whole response body in memory before parsing it in stream mode.
+	// This minimizes the time needed for reading response body from scrape target.
+	startTime := fasttime.UnixTimestamp()
+	body, err := io.ReadAll(sr)
+	if err != nil {
+		d := fasttime.UnixTimestamp() - startTime
+		return fmt.Errorf("cannot read stream body in %d seconds: %w", d, err)
+	}
+	sbr.body = body
+	sbr.bodyLen = len(body)
+	return nil
 }
 
 func (sbr *streamBodyReader) Read(b []byte) (int, error) {
-	n, err := sbr.sr.Read(b)
-	sbr.bodyLen += n
-	if sbr.captureBody {
-		sbr.body = append(sbr.body, b[:n]...)
+	if sbr.readOffset >= len(sbr.body) {
+		return 0, io.EOF
 	}
-	return n, err
+	n := copy(b, sbr.body[sbr.readOffset:])
+	sbr.readOffset += n
+	return n, nil
 }
 
 func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
@@ -536,37 +552,37 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesPostRelabeling := 0
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	// Do not pool sbr and do not pre-allocate sbr.body in order to reduce memory usage when scraping big responses.
-	sbr := &streamBodyReader{
-		captureBody: !*noStaleMarkers,
-	}
+	var sbr streamBodyReader
 
 	sr, err := sw.GetStreamReader()
 	if err != nil {
 		err = fmt.Errorf("cannot read data: %s", err)
 	} else {
 		var mu sync.Mutex
-		sbr.sr = sr
-		err = parser.ParseStream(sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
-			mu.Lock()
-			defer mu.Unlock()
-			samplesScraped += len(rows)
-			for i := range rows {
-				sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
-			}
-			// Push the collected rows to sw before returning from the callback, since they cannot be held
-			// after returning from the callback - this will result in data race.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
-			samplesPostRelabeling += len(wc.writeRequest.Timeseries)
-			if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
+		err = sbr.Init(sr)
+		if err == nil {
+			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
+				mu.Lock()
+				defer mu.Unlock()
+				samplesScraped += len(rows)
+				for i := range rows {
+					sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
+				}
+				// Push the collected rows to sw before returning from the callback, since they cannot be held
+				// after returning from the callback - this will result in data race.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
+				samplesPostRelabeling += len(wc.writeRequest.Timeseries)
+				if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
+					wc.resetNoRows()
+					scrapesSkippedBySampleLimit.Inc()
+					return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
+						"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
+				}
+				sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 				wc.resetNoRows()
-				scrapesSkippedBySampleLimit.Inc()
-				return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
-					"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
-			}
-			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-			wc.resetNoRows()
-			return nil
-		}, sw.logError)
+				return nil
+			}, sw.logError)
+		}
 		sr.MustClose()
 	}
 	lastScrape := sw.loadLastScrape()
