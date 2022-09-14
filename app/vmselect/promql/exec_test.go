@@ -7816,6 +7816,45 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`sort_by_label_numeric_desc(multiple_labels_numbers_special_chars)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric_desc((
+			label_set(1, "x", "1:0:2", "y", "1:0:1"),
+			label_set(2, "x", "1:0:15", "y", "1:0:1"),
+		), "x", "y")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:15"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:2"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`sort_by_label_numeric(alias_numbers_with_special_chars)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label_numeric((
@@ -8068,6 +8107,7 @@ func TestExecError(t *testing.T) {
 	f(`round(1, 1 or label_set(2, "xx", "foo"))`)
 	f(`histogram_quantile(1 or label_set(2, "xx", "foo"), 1)`)
 	f(`histogram_quantiles("foo", 1 or label_set(2, "xxx", "foo"), 2)`)
+	f(`sort_by_label_numeric(1, 2)`)
 	f(`label_set(1, 2, 3)`)
 	f(`label_set(1, "foo", (label_set(1, "foo", bar") or label_set(2, "xxx", "yy")))`)
 	f(`label_set(1, "foo", 3)`)

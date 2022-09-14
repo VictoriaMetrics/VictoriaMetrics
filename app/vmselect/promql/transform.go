@@ -10,11 +10,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metricsql"
 )
@@ -106,8 +106,8 @@ var transformFuncs = map[string]transformFunc{
 	"sort":                       newTransformFuncSort(false),
 	"sort_by_label":              newTransformFuncSortByLabel(false),
 	"sort_by_label_desc":         newTransformFuncSortByLabel(true),
-	"sort_by_label_numeric":      newTransformFuncAlphaNumericSort(false),
-	"sort_by_label_numeric_desc": newTransformFuncAlphaNumericSort(true),
+	"sort_by_label_numeric":      newTransformFuncNumericSort(false),
+	"sort_by_label_numeric_desc": newTransformFuncNumericSort(true),
 	"sort_desc":                  newTransformFuncSort(true),
 	"sqrt":                       newTransformFuncOneArg(transformSqrt),
 	"start":                      newTransformFuncZeroArgs(transformStart),
@@ -1995,7 +1995,7 @@ func newTransformFuncSortByLabel(isDesc bool) transformFunc {
 	}
 }
 
-func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
+func newTransformFuncNumericSort(isDesc bool) transformFunc {
 	return func(tfa *transformFuncArg) ([]*timeseries, error) {
 		args := tfa.args
 		if len(args) < 2 {
@@ -2003,7 +2003,7 @@ func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
 		}
 		var labels []string
 		for i, arg := range args[1:] {
-			label, err := getString(arg, 1)
+			label, err := getString(arg, i+1)
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse label #%d for sorting: %w", i+1, err)
 			}
@@ -2014,15 +2014,15 @@ func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
 			for _, label := range labels {
 				a := rvs[i].MetricName.GetTagValue(label)
 				b := rvs[j].MetricName.GetTagValue(label)
-				unsafeA := bytesutil.ToUnsafeString(a)
-				unsafeB := bytesutil.ToUnsafeString(b)
-				if unsafeA == unsafeB {
+				if string(a) == string(b) {
 					continue
 				}
+				aStr := bytesutil.ToUnsafeString(a)
+				bStr := bytesutil.ToUnsafeString(b)
 				if isDesc {
-					return alphanumericLess(unsafeB, unsafeA)
+					return numericLess(bStr, aStr)
 				}
-				return alphanumericLess(unsafeA, unsafeB)
+				return numericLess(aStr, bStr)
 			}
 			return false
 		})
@@ -2030,75 +2030,93 @@ func newTransformFuncAlphaNumericSort(isDesc bool) transformFunc {
 	}
 }
 
-func alphanumericLess(a, b string) bool {
-	// short path to check strings
-	if a == "" && b != "" {
-		return true
-	}
-	if a != "" && b == "" {
-		return false
-	}
-	if a == b {
-		return false
-	}
-
-	idxA, idxB := 0, 0
-	numPrefixA, numPrefixB := "", ""
-	for a != "" && b != "" {
-		numPrefixA, idxA = prefixes(a, true)
-		numPrefixB, idxB = prefixes(b, true)
-		// if we have numbers in prefixes we are trying to check them
-		if numPrefixA != "" && numPrefixB != "" {
-			numberA := toNumber(numPrefixA)
-			numberB := toNumber(numPrefixB)
-			// if numbers are equal we skip this action and try to find only non-numeric prefixes
-			if numberA == numberB {
-				idxA++
-				idxB++
-				goto nonNumeric
+func numericLess(a, b string) bool {
+	for {
+		if len(b) == 0 {
+			return false
+		}
+		if len(a) == 0 {
+			return true
+		}
+		aPrefix := getNumPrefix(a)
+		bPrefix := getNumPrefix(b)
+		a = a[len(aPrefix):]
+		b = b[len(bPrefix):]
+		if len(aPrefix) > 0 || len(bPrefix) > 0 {
+			if len(aPrefix) == 0 {
+				return false
 			}
-			return numberA < numberB
+			if len(bPrefix) == 0 {
+				return true
+			}
+			aNum := mustParseNum(aPrefix)
+			bNum := mustParseNum(bPrefix)
+			if aNum != bNum {
+				return aNum < bNum
+			}
 		}
-		// here we are trying to get only non-numeric prefixes
-	nonNumeric:
-		var nonNumberPrefixA, nonNumberPrefixB string
-		suffixA := a[idxA:]
-		suffixB := b[idxB:]
-		nonNumberPrefixA, idxA = prefixes(suffixA, false)
-		nonNumberPrefixB, idxB = prefixes(suffixB, false)
-		// if non-numeric prefixes are equal we are trying to find next numerical prefixes
-		if nonNumberPrefixA == nonNumberPrefixB {
-			a = suffixA[idxA:]
-			b = suffixB[idxB:]
-			continue
+		aPrefix = getNonNumPrefix(a)
+		bPrefix = getNonNumPrefix(b)
+		a = a[len(aPrefix):]
+		b = b[len(bPrefix):]
+		if aPrefix != bPrefix {
+			return aPrefix < bPrefix
 		}
-		return nonNumberPrefixA < nonNumberPrefixB
 	}
-	return false
 }
 
-func toNumber(str string) int64 {
-	i, err := strconv.ParseInt(str, 10, 64)
+func getNumPrefix(s string) string {
+	i := 0
+	if len(s) > 0 {
+		switch s[0] {
+		case '-', '+':
+			i++
+		}
+	}
+	hasNum := false
+	hasDot := false
+	for i < len(s) {
+		if !isDecimalChar(s[i]) {
+			if !hasDot && s[i] == '.' {
+				hasDot = true
+				i++
+				continue
+			}
+			if !hasNum {
+				return ""
+			}
+			return s[:i]
+		}
+		hasNum = true
+		i++
+	}
+	if !hasNum {
+		return ""
+	}
+	return s
+}
+
+func getNonNumPrefix(s string) string {
+	i := 0
+	for i < len(s) {
+		if isDecimalChar(s[i]) {
+			return s[:i]
+		}
+		i++
+	}
+	return s
+}
+
+func isDecimalChar(ch byte) bool {
+	return ch >= '0' && ch <= '9'
+}
+
+func mustParseNum(s string) float64 {
+	f, err := strconv.ParseFloat(s, 64)
 	if err != nil {
-		return 0
+		logger.Panicf("BUG: unexpected error when parsing the number %q: %s", s, err)
 	}
-	return i
-}
-
-func prefixes(str string, isNumeric bool) (string, int) {
-	n := make([]byte, 0, len(str))
-	for idx, r := range str {
-		if unicode.IsDigit(r) && isNumeric {
-			n = append(n, byte(r))
-			continue
-		}
-		if !unicode.IsDigit(r) && !isNumeric {
-			n = append(n, byte(r))
-			continue
-		}
-		return string(n), idx
-	}
-	return string(n), 0
+	return f
 }
 
 func newTransformFuncSort(isDesc bool) transformFunc {

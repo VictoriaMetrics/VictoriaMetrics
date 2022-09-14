@@ -3,6 +3,7 @@ package promql
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -221,69 +222,109 @@ func timeseriesToPromMetrics(tss []*timeseries) string {
 	return strings.Join(a, "\n")
 }
 
-func TestAlphanumericLess(t *testing.T) {
-	f := func(name, str, nextStr string, want bool) {
+func TestGetNumPrefix(t *testing.T) {
+	f := func(s, prefixExpected string) {
 		t.Helper()
-		t.Run(name, func(t *testing.T) {
-			if got := alphanumericLess(str, nextStr); got != want {
-				t.Errorf("alphanumericLess() = %v, want %v", got, want)
+		prefix := getNumPrefix(s)
+		if prefix != prefixExpected {
+			t.Fatalf("unexpected getNumPrefix(%q): got %q; want %q", s, prefix, prefixExpected)
+		}
+		if len(prefix) > 0 {
+			if _, err := strconv.ParseFloat(prefix, 64); err != nil {
+				t.Fatalf("cannot parse num %q: %s", prefix, err)
 			}
-		})
+		}
 	}
-	f("empty strings", "", "", false)
-	f("same length", "123", "321", true)
-	f("same length", "321", "123", false)
-	f("empty first string", "", "321", true)
-	f("empty second string", "213", "", false)
-	f("check that a bigger than b", "a", "b", true)
-	f("check that b lower than a", "b", "a", false)
-	f("numbers with special chars", "1:0:0", "1:0:2", true)
-	f("numbers with special chars and different number rank", "1:0:15", "1:0:2", false)
-	f("has two zeroes", "0", "00", false)
-	f("reverse two zeroes", "00", "0", false)
-	f("only chars", "aa", "ab", true)
-	f("not equal strings", "ab", "abc", true)
-	f("char with a smaller number", "a0001", "a0000001", false)
-	f("short first string with numbers and highest rank", "a10", "abcdefgh2", true)
-	f("less as second string", "a1b", "a01b", false)
-	f("equal strings by length with different number rank", "a001b01", "a01b001", false)
-	f("different numbers rank", "a01b001", "a001b01", false)
-	f("different numbers rank", "a01b001", "a001b01", false)
-	f("highest char and number", "a1", "a1x", false)
-	f("highest number revers chars", "1b", "1ax", true)
-	f("numbers with leading zero", "082", "83", true)
-	f("numbers with leading zero and chars", "083a", "9a", false)
-	f("same numbers", "123", "123", false)
-	f("same strings", "a", "a", false)
+
+	f("", "")
+	f("foo", "")
+	f("-", "")
+	f(".", "")
+	f("-.", "")
+	f("+..", "")
+	f("1", "1")
+	f("12", "12")
+	f("1foo", "1")
+	f("-123", "-123")
+	f("-123bar", "-123")
+	f("+123", "+123")
+	f("+123.", "+123.")
+	f("+123..", "+123.")
+	f("+123.-", "+123.")
+	f("12.34..", "12.34")
+	f("-12.34..", "-12.34")
+	f("-12.-34..", "-12.")
 }
 
-func Test_prefixes(t *testing.T) {
-	f := func(name, str string, isNumeric bool, want string, wantIdx int) {
+func TestNumericLess(t *testing.T) {
+	f := func(a, b string, want bool) {
 		t.Helper()
-		t.Run(name, func(t *testing.T) {
-			got, got1 := prefixes(str, isNumeric)
-			if got != want {
-				t.Errorf("prefixes() got = %v, want %v", got, want)
-			}
-			if got1 != wantIdx {
-				t.Errorf("prefixes() got1 = %v, want %v", got1, wantIdx)
-			}
-		})
+		if got := numericLess(a, b); got != want {
+			t.Fatalf("unexpected numericLess(%q, %q): got %v; want %v", a, b, got, want)
+		}
 	}
-	// isNumeric false, we are trying to find non-numeric strings from the start of the string
-	// and index of the first numeric value
-	f("empty string and non numeric", "", false, "", 0)
-	f("only numbers and non numeric", "123", false, "", 0)
-	f("just chars numbers and non numeric", "abc", false, "abc", 0)
-	f("chars with numbers and non numeric", "ab123c", false, "ab", 2)
-	f("chars with numbers at the end of the string", "abc123", false, "abc", 3)
-	f("chars with numbers at the start of the string", "123abc", false, "", 0)
-	// isNumeric true, we are trying to find numeric strings from the start of the string
-	// and index of the first non-numeric value
-	f("empty string and numeric", "", true, "", 0)
-	f("only numbers and numeric", "123", true, "123", 0)
-	f("just chars numbers and non numeric", "abc", true, "", 0)
-	f("chars with numbers and non numeric", "ab123c", true, "", 0)
-	f("chars with numbers at the end of the string", "abc123", true, "", 0)
-	f("chars with numbers at the start of the string", "123abc", true, "123", 3)
+	// empty strings
+	f("", "", false)
+	f("", "321", true)
+	f("321", "", false)
+	f("", "abc", true)
+	f("abc", "", false)
+	f("foo", "123", false)
+	f("123", "foo", true)
+	// same length numbers
+	f("123", "321", true)
+	f("321", "123", false)
+	f("123", "123", false)
+	// same length strings
+	f("a", "b", true)
+	f("b", "a", false)
+	f("a", "a", false)
+	// identical string prefix
+	f("foo123", "foo", false)
+	f("foo", "foo123", true)
+	f("foo", "foo", false)
+	// identical num prefix
+	f("123foo", "123bar", false)
+	f("123bar", "123foo", true)
+	f("123bar", "123bar", false)
+	// numbers with special chars
+	f("1:0:0", "1:0:2", true)
+	// numbers with special chars and different number rank
+	f("1:0:15", "1:0:2", false)
+	// multiple zeroes"
+	f("0", "00", false)
+	// only chars
+	f("aa", "ab", true)
+	// strings with different lengths
+	f("ab", "abc", true)
+	// multiple zeroes after equal char
+	f("a0001", "a0000001", false)
+	// short first string with numbers and highest rank
+	f("a10", "abcdefgh2", true)
+	// less as second string
+	f("a1b", "a01b", false)
+	// equal strings by length with different number rank
+	f("a001b01", "a01b001", false)
+	// different numbers rank
+	f("a01b001", "a001b01", false)
+	// different numbers rank
+	f("a01b001", "a001b01", false)
+	// highest char and number
+	f("a1", "a1x", true)
+	// highest number reverse chars
+	f("1b", "1ax", false)
+	// numbers with leading zero
+	f("082", "83", true)
+	// numbers with leading zero and chars
+	f("083a", "9a", false)
+	f("083a", "94a", true)
+	// negative number
+	f("-123", "123", true)
+	f("-123", "+123", true)
+	f("-123", "-123", false)
+	f("123", "-123", false)
+	// fractional number
+	f("12.9", "12.56", false)
+	f("12.56", "12.9", true)
+	f("12.9", "12.9", false)
 }
