@@ -19,7 +19,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 		expTS   []prompbmarshal.TimeSeries
 	}{
 		{
-			&RecordingRule{Name: "foo"},
+			&RecordingRule{Name: "foo", state: newRuleState()},
 			[]datasource.Metric{metricWithValueAndLabels(t, 10,
 				"__name__", "bar",
 			)},
@@ -30,7 +30,7 @@ func TestRecordingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			&RecordingRule{Name: "foobarbaz"},
+			&RecordingRule{Name: "foobarbaz", state: newRuleState()},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "foo"),
 				metricWithValueAndLabels(t, 2, "__name__", "bar", "job", "bar"),
@@ -52,9 +52,12 @@ func TestRecordingRule_Exec(t *testing.T) {
 			},
 		},
 		{
-			&RecordingRule{Name: "job:foo", Labels: map[string]string{
-				"source": "test",
-			}},
+			&RecordingRule{
+				Name:  "job:foo",
+				state: newRuleState(),
+				Labels: map[string]string{
+					"source": "test",
+				}},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "foo", "job", "foo"),
 				metricWithValueAndLabels(t, 1, "__name__", "bar", "job", "bar")},
@@ -195,7 +198,7 @@ func TestRecordingRuleLimit(t *testing.T) {
 		metricWithValuesAndLabels(t, []float64{2, 3}, "__name__", "bar", "job", "bar"),
 		metricWithValuesAndLabels(t, []float64{4, 5, 6}, "__name__", "baz", "job", "baz"),
 	}
-	rule := &RecordingRule{Name: "job:foo", Labels: map[string]string{
+	rule := &RecordingRule{Name: "job:foo", state: newRuleState(), Labels: map[string]string{
 		"source": "test_limit",
 	}}
 	var err error
@@ -211,9 +214,13 @@ func TestRecordingRuleLimit(t *testing.T) {
 }
 
 func TestRecordingRule_ExecNegative(t *testing.T) {
-	rr := &RecordingRule{Name: "job:foo", Labels: map[string]string{
-		"job": "test",
-	}}
+	rr := &RecordingRule{
+		Name:  "job:foo",
+		state: newRuleState(),
+		Labels: map[string]string{
+			"job": "test",
+		},
+	}
 
 	fq := &fakeQuerier{}
 	expErr := "connection reset by peer"

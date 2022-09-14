@@ -85,6 +85,14 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		WriteAlert(w, r, alert)
 		return true
+	case "/vmalert/rule":
+		rule, err := rh.getRule(r)
+		if err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		WriteRuleDetails(w, r, rule)
+		return true
 	case "/vmalert/groups":
 		WriteListGroups(w, r, rh.groups())
 		return true
@@ -168,7 +176,24 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 const (
 	paramGroupID = "group_id"
 	paramAlertID = "alert_id"
+	paramRuleID  = "rule_id"
 )
+
+func (rh *requestHandler) getRule(r *http.Request) (APIRule, error) {
+	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
+	if err != nil {
+		return APIRule{}, fmt.Errorf("failed to read %q param: %s", paramGroupID, err)
+	}
+	ruleID, err := strconv.ParseUint(r.FormValue(paramRuleID), 10, 0)
+	if err != nil {
+		return APIRule{}, fmt.Errorf("failed to read %q param: %s", paramRuleID, err)
+	}
+	rule, err := rh.m.RuleAPI(groupID, ruleID)
+	if err != nil {
+		return APIRule{}, errResponse(err, http.StatusNotFound)
+	}
+	return rule, nil
+}
 
 func (rh *requestHandler) getAlert(r *http.Request) (*APIAlert, error) {
 	groupID, err := strconv.ParseUint(r.FormValue(paramGroupID), 10, 0)
