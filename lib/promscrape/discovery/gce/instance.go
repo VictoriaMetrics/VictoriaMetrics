@@ -150,8 +150,7 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, project, tagSep
 		"__meta_gce_zone":            inst.Zone,
 	}
 	for _, iface := range inst.NetworkInterfaces {
-		ifaceName := discoveryutils.SanitizeLabelName(iface.Name)
-		m["__meta_gce_interface_ipv4_"+ifaceName] = iface.NetworkIP
+		m[discoveryutils.SanitizeLabelName("__meta_gce_interface_ipv4_"+iface.Name)] = iface.NetworkIP
 	}
 	if len(inst.Tags.Items) > 0 {
 		// We surround the separated list with the separator as well. This way regular expressions
@@ -159,12 +158,10 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, project, tagSep
 		m["__meta_gce_tags"] = tagSeparator + strings.Join(inst.Tags.Items, tagSeparator) + tagSeparator
 	}
 	for _, item := range inst.Metadata.Items {
-		key := discoveryutils.SanitizeLabelName(item.Key)
-		m["__meta_gce_metadata_"+key] = item.Value
+		m[discoveryutils.SanitizeLabelName("__meta_gce_metadata_"+item.Key)] = item.Value
 	}
 	for _, label := range inst.Labels {
-		name := discoveryutils.SanitizeLabelName(label.Name)
-		m["__meta_gce_label_"+name] = label.Value
+		m[discoveryutils.SanitizeLabelName("__meta_gce_label_"+label.Name)] = label.Value
 	}
 	if len(iface.AccessConfigs) > 0 {
 		ac := iface.AccessConfigs[0]

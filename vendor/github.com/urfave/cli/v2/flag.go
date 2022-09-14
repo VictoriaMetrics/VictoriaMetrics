@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -138,6 +137,12 @@ type CategorizableFlag interface {
 	VisibleFlag
 
 	GetCategory() string
+}
+
+// Countable is an interface to enable detection of flag values which support
+// repetitive flags
+type Countable interface {
+	Count() int
 }
 
 func flagSet(name string, flags []Flag) (*flag.FlagSet, error) {
@@ -318,53 +323,6 @@ func stringifyFlag(f Flag) string {
 		fmt.Sprintf("%s\t%s", prefixedNames(df.Names(), placeholder), usageWithDefault))
 }
 
-func stringifyIntSliceFlag(f *IntSliceFlag) string {
-	var defaultVals []string
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, i := range f.Value.Value() {
-			defaultVals = append(defaultVals, strconv.Itoa(i))
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifyInt64SliceFlag(f *Int64SliceFlag) string {
-	var defaultVals []string
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, i := range f.Value.Value() {
-			defaultVals = append(defaultVals, strconv.FormatInt(i, 10))
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifyFloat64SliceFlag(f *Float64SliceFlag) string {
-	var defaultVals []string
-
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, i := range f.Value.Value() {
-			defaultVals = append(defaultVals, strings.TrimRight(strings.TrimRight(fmt.Sprintf("%f", i), "0"), "."))
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifyStringSliceFlag(f *StringSliceFlag) string {
-	var defaultVals []string
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, s := range f.Value.Value() {
-			if len(s) > 0 {
-				defaultVals = append(defaultVals, strconv.Quote(s))
-			}
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
 func stringifySliceFlag(usage string, names, defaultVals []string) string {
 	placeholder, usage := unquoteUsage(usage)
 	if placeholder == "" {
@@ -377,11 +335,8 @@ func stringifySliceFlag(usage string, names, defaultVals []string) string {
 	}
 
 	usageWithDefault := strings.TrimSpace(fmt.Sprintf("%s%s", usage, defaultVal))
-	multiInputString := "(accepts multiple inputs)"
-	if usageWithDefault != "" {
-		multiInputString = "\t" + multiInputString
-	}
-	return fmt.Sprintf("%s\t%s%s", prefixedNames(names, placeholder), usageWithDefault, multiInputString)
+	pn := prefixedNames(names, placeholder)
+	return fmt.Sprintf("%s [ %s ]\t%s", pn, pn, usageWithDefault)
 }
 
 func hasFlag(flags []Flag, fl Flag) bool {

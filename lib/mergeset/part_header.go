@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -124,7 +124,7 @@ func (ph *partHeader) ParseFromPath(partPath string) error {
 
 	// Read other ph fields from metadata.
 	metadataPath := partPath + "/metadata.json"
-	metadata, err := ioutil.ReadFile(metadataPath)
+	metadata, err := os.ReadFile(metadataPath)
 	if err != nil {
 		return fmt.Errorf("cannot read %q: %w", metadataPath, err)
 	}

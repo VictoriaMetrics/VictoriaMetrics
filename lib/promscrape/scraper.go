@@ -38,8 +38,8 @@ var (
 		"The path can point to local file and to http url. "+
 		"See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 
-	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 5*time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
+	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
+		"See https://docs.victoriametrics.com/sd_configs.html#file_sd_configs for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.

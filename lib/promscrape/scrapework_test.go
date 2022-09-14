@@ -352,6 +352,25 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_series_added{job="xx",instance="foo.com"} 4 123
 		scrape_timeout_seconds{job="xx",instance="foo.com"} 42 123
 	`)
+	// Scrape success with the given SampleLimit.
+	f(`
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		SampleLimit:   2,
+	}, `
+		foo{bar="baz"} 34.44 123
+		bar{a="b",c="d"} -3e4 123
+		up 1 123
+		scrape_samples_limit 2 123
+		scrape_samples_scraped 2 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 2 123
+		scrape_series_added 2 123
+		scrape_timeout_seconds 42 123
+	`)
+	// Scrape failure because of the exceeded SampleLimit
 	f(`
 		foo{bar="baz"} 34.44
 		bar{a="b",c="d"} -3e4
@@ -367,6 +386,48 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_post_metric_relabeling 2 123
 		scrape_samples_limit 1 123
 		scrape_series_added 0 123
+		scrape_series_current 0 123
+		scrape_series_limit 123 123
+		scrape_series_limit_samples_dropped 0 123
+		scrape_timeout_seconds 42 123
+	`)
+	// Scrape success with the given SeriesLimit.
+	f(`
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		SeriesLimit:   123,
+	}, `
+		foo{bar="baz"} 34.44 123
+		bar{a="b",c="d"} -3e4 123
+		up 1 123
+		scrape_samples_scraped 2 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 2 123
+		scrape_series_added 2 123
+		scrape_series_current 2 123
+		scrape_series_limit 123 123
+		scrape_series_limit_samples_dropped 0 123
+		scrape_timeout_seconds 42 123
+	`)
+	// Exceed SeriesLimit.
+	f(`
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		SeriesLimit:   1,
+	}, `
+		foo{bar="baz"} 34.44 123
+		up 1 123
+		scrape_samples_scraped 2 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 2 123
+		scrape_series_added 2 123
+		scrape_series_current 1 123
+		scrape_series_limit 1 123
+		scrape_series_limit_samples_dropped 1 123
 		scrape_timeout_seconds 42 123
 	`)
 }

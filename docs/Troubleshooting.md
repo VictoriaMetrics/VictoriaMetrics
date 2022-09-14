@@ -45,8 +45,8 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
    ```
 
-   Note that responses returned from [/api/v1/query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries)
-   and from [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) contain **evaluated** data
+   Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+   and from [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) contain **evaluated** data
    instead of raw samples stored in VictoriaMetrics. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness)
    for details.
 

@@ -6,9 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -66,7 +66,7 @@ func newAPIWatcher(apiServer string, ac *promauth.Config, sdc *SDConfig, swcFunc
 	namespaces := sdc.Namespaces.Names
 	if len(namespaces) == 0 {
 		if sdc.Namespaces.OwnNamespace {
-			namespace, err := ioutil.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
+			namespace, err := os.ReadFile("/var/run/secrets/kubernetes.io/serviceaccount/namespace")
 			if err != nil {
 				logger.Fatalf("cannot determine namespace for the current pod according to `own_namespace: true` option in kubernetes_sd_config: %s", err)
 			}
@@ -579,7 +579,7 @@ func (uw *urlWatcher) reloadObjects() string {
 		return ""
 	}
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 		return ""
@@ -675,7 +675,7 @@ func (uw *urlWatcher) watchForUpdates() {
 				uw.staleResourceVersions.Inc()
 				uw.resourceVersion = ""
 			} else {
-				body, _ := ioutil.ReadAll(resp.Body)
+				body, _ := io.ReadAll(resp.Body)
 				_ = resp.Body.Close()
 				logger.Errorf("unexpected status code for request to %q: %d; want %d; response: %q", requestURL, resp.StatusCode, http.StatusOK, body)
 				backoffSleep()
@@ -702,7 +702,7 @@ func (uw *urlWatcher) readObjectUpdateStream(r io.Reader) error {
 	var we WatchEvent
 	for {
 		if err := d.Decode(&we); err != nil {
-			return err
+			return fmt.Errorf("cannot parse WatchEvent json response: %s", err)
 		}
 		switch we.Type {
 		case "ADDED", "MODIFIED":

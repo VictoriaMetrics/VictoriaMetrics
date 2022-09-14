@@ -8,6 +8,9 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ## Third-party articles and slides about VictoriaMetrics
 
+* [The (Almost) Infinitely Scalable Open Source Monitoring Dream](https://www.forbes.com/sites/adrianbridgwater/2022/08/16/the-almost-infinitely-scalable-open-source-monitoring-dream/)
+* [Monitoring at scale with Victoria Metrics](https://tech.bedrockstreaming.com/2022/09/06/monitoring-at-scale-with-victoriametrics.html)
+* [Optimizing Linkerd metrics in Prometheus](https://aatarasoff.medium.com/optimizing-linkerd-metrics-in-prometheus-de607ec10f6b)
 * [Optimizing the Storage of Large Volumes of Metrics for a Long Time in VictoriaMetrics](https://percona.community/blog/2022/06/02/long-time-keeping-metrics-victoriametrics/)
 * [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
 * [Announcing Asserts](https://www.asserts.ai/blog/announcing-asserts/)
@@ -65,6 +68,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Benchmarks
 
+* [Grafana Mimir and VictoriaMetrics: performance tests](https://victoriametrics.com/blog/mimir-benchmark/)
 * [When size matters — benchmarking VictoriaMetrics vs Timescale and InfluxDB](https://valyala.medium.com/when-size-matters-benchmarking-victoriametrics-vs-timescale-and-influxdb-6035811952d4)
 * [High-cardinality TSDB benchmarks: VictoriaMetrics vs TimescaleDB vs InfluxDB](https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b)
 * [Insert benchmarks with inch: InfluxDB vs VictoriaMetrics](https://valyala.medium.com/insert-benchmarks-with-inch-influxdb-vs-victoriametrics-e31a41ae2893)

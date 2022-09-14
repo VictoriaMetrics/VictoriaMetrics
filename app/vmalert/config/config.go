@@ -4,8 +4,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -113,6 +113,7 @@ type Rule struct {
 	For         *promutils.Duration `yaml:"for,omitempty"`
 	Labels      map[string]string   `yaml:"labels,omitempty"`
 	Annotations map[string]string   `yaml:"annotations,omitempty"`
+	Debug       bool                `yaml:"debug,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -214,7 +215,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parseFile(path string) ([]Group, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading alert rule file: %w", err)
 	}

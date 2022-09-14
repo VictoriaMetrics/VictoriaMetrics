@@ -44,11 +44,14 @@ var (
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 
-	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
-	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
-	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
-	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
-	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxUniqueTimeseries    = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxFederateSeries      = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
+	maxExportSeries        = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
+	maxTSDBStatusSeries    = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
+	maxSeriesLimit         = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
+		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
+		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
 )
 
 // Default step used if not set.
@@ -447,7 +450,7 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -544,7 +547,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -597,23 +600,25 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, true)
-	if err != nil {
-		return err
-	}
 	// Do not set start to searchutils.minTimeMsecs by default as Prometheus does,
 	// since this leads to fetching and scanning all the data from the storage,
 	// which can take a lot of time for big storages.
 	// It is better setting start as end-defaultStep by default.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	if cp.start == 0 {
-		cp.start = cp.end - defaultStep
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, true)
+	if err != nil {
+		return err
 	}
 	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
+
+	minLimit := *maxSeriesLimit
+	if limit > 0 && limit < *maxSeriesLimit {
+		minLimit = limit
+	}
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, minLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
@@ -733,6 +738,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		Start:               start,
 		End:                 start,
 		Step:                step,
+		MaxPointsPerSeries:  *maxPointsPerTimeseries,
 		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
@@ -818,8 +824,8 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if start > end {
 		end = start + defaultStep
 	}
-	if err := promql.ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
-		return err
+	if err := promql.ValidateMaxPointsPerSeries(start, end, step, *maxPointsPerTimeseries); err != nil {
+		return fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
 	}
 	if mayCache {
 		start, end = promql.AdjustStartEnd(start, end, step)
@@ -829,6 +835,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		Start:               start,
 		End:                 end,
 		Step:                step,
+		MaxPointsPerSeries:  *maxPointsPerTimeseries,
 		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
@@ -839,7 +846,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
-		return fmt.Errorf("cannot execute query: %w", err)
+		return err
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
 		queryOffset := getLatencyOffsetMilliseconds()
@@ -1049,6 +1056,17 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 		return nil, err
 	}
 	cp.deadline = searchutils.GetDeadlineForExport(r, startTime)
+	return cp, nil
+}
+
+func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
+	cp, err := getCommonParams(r, startTime, requireNonEmptyMatch)
+	if err != nil {
+		return nil, err
+	}
+	if cp.start == 0 {
+		cp.start = cp.end - defaultStep
+	}
 	return cp, nil
 }
 

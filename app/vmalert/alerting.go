@@ -6,6 +6,7 @@ import (
 	"hash/fnv"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ type AlertingRule struct {
 	GroupID      uint64
 	GroupName    string
 	EvalInterval time.Duration
+	Debug        bool
 
 	q datasource.Querier
 
@@ -71,11 +73,13 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 		GroupID:      group.ID(),
 		GroupName:    group.Name,
 		EvalInterval: group.Interval,
+		Debug:        cfg.Debug,
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
 			QueryParams:        group.Params,
 			Headers:            group.Headers,
+			Debug:              cfg.Debug,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
 		metrics: &alertingRuleMetrics{},
@@ -141,6 +145,32 @@ func (ar *AlertingRule) String() string {
 // within the parent Group.
 func (ar *AlertingRule) ID() uint64 {
 	return ar.RuleID
+}
+
+func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string, args ...interface{}) {
+	if !ar.Debug {
+		return
+	}
+	prefix := fmt.Sprintf("DEBUG rule %q:%q (%d) at %v: ",
+		ar.GroupName, ar.Name, ar.RuleID, at.Format(time.RFC3339))
+
+	if a != nil {
+		labelKeys := make([]string, len(a.Labels))
+		var i int
+		for k := range a.Labels {
+			labelKeys[i] = k
+			i++
+		}
+		sort.Strings(labelKeys)
+		labels := make([]string, len(labelKeys))
+		for i, l := range labelKeys {
+			labels[i] = fmt.Sprintf("%s=%q", l, a.Labels[l])
+		}
+		labelsStr := strings.Join(labels, ",")
+		prefix += fmt.Sprintf("alert %d {%s} ", a.ID, labelsStr)
+	}
+	msg := fmt.Sprintf(format, args...)
+	logger.Infof("%s", prefix+msg)
 }
 
 type labelSet struct {
@@ -255,9 +285,12 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
+	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", ar.lastExecSamples, ar.lastExecDuration)
+
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
 		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > resolvedRetention {
+			ar.logDebugf(ts, a, "deleted as inactive")
 			delete(ar.alerts, h)
 		}
 	}
@@ -285,9 +318,10 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				// back to notifier.StatePending
 				a.State = notifier.StatePending
 				a.ActiveAt = ts
+				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
 			if a.Value != m.Values[0] {
-				// update Value field with latest value
+				// update Value field with the latest value
 				a.Value = m.Values[0]
 				// and re-exec template since Value can be used
 				// in annotations
@@ -307,6 +341,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		a.State = notifier.StatePending
 		a.ActiveAt = ts
 		ar.alerts[h] = a
+		ar.logDebugf(ts, a, "created in state PENDING")
 	}
 	var numActivePending int
 	for h, a := range ar.alerts {
@@ -317,11 +352,13 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				// alert was in Pending state - it is not
 				// active anymore
 				delete(ar.alerts, h)
+				ar.logDebugf(ts, a, "PENDING => DELETED: is absent in current evaluation round")
 				continue
 			}
 			if a.State == notifier.StateFiring {
 				a.State = notifier.StateInactive
 				a.ResolvedAt = ts
+				ar.logDebugf(ts, a, "FIRING => INACTIVE: is absent in current evaluation round")
 			}
 			continue
 		}
@@ -330,6 +367,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 			a.State = notifier.StateFiring
 			a.Start = ts
 			alertsFired.Inc()
+			ar.logDebugf(ts, a, "PENDING => FIRING: %s since becoming active at %v", ts.Sub(a.ActiveAt), a.ActiveAt)
 		}
 	}
 	if limit > 0 && numActivePending > limit {

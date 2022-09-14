@@ -3,7 +3,6 @@ package mergeset
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1060,6 +1059,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, err
 	}
+	fs.MustRemoveTemporaryDirs(path)
 	d, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open difrectory: %w", err)
@@ -1074,13 +1074,13 @@ func openParts(path string) ([]*partWrapper, error) {
 	}
 
 	txnDir := path + "/txn"
-	fs.MustRemoveAll(txnDir)
+	fs.MustRemoveDirAtomic(txnDir)
 	if err := fs.MkdirAllFailIfExist(txnDir); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", txnDir, err)
 	}
 
 	tmpDir := path + "/tmp"
-	fs.MustRemoveAll(tmpDir)
+	fs.MustRemoveDirAtomic(tmpDir)
 	if err := fs.MkdirAllFailIfExist(tmpDir); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", tmpDir, err)
 	}
@@ -1107,7 +1107,7 @@ func openParts(path string) ([]*partWrapper, error) {
 		if fs.IsEmptyDir(partPath) {
 			// Remove empty directory, which can be left after unclean shutdown on NFS.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1142
-			fs.MustRemoveAll(partPath)
+			fs.MustRemoveDirAtomic(partPath)
 			continue
 		}
 		p, err := openFilePart(partPath)
@@ -1259,7 +1259,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	txnLock.RLock()
 	defer txnLock.RUnlock()
 
-	data, err := ioutil.ReadFile(txnPath)
+	data, err := os.ReadFile(txnPath)
 	if err != nil {
 		return fmt.Errorf("cannot read transaction file: %w", err)
 	}
@@ -1278,14 +1278,12 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	}
 
 	// Remove old paths. It is OK if certain paths don't exist.
-	var removeWG sync.WaitGroup
 	for _, path := range rmPaths {
 		path, err := validatePath(pathPrefix, path)
 		if err != nil {
 			return fmt.Errorf("invalid path to remove: %w", err)
 		}
-		removeWG.Add(1)
-		fs.MustRemoveAllWithDoneCallback(path, removeWG.Done)
+		fs.MustRemoveDirAtomic(path)
 	}
 
 	// Move the new part to new directory.
@@ -1317,9 +1315,6 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 	pendingTxnDeletionsWG.Add(1)
 	go func() {
 		defer pendingTxnDeletionsWG.Done()
-		// Remove the transaction file only after all the source paths are deleted.
-		// This is required for NFS mounts. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-		removeWG.Wait()
 		if err := os.Remove(txnPath); err != nil {
 			logger.Errorf("cannot remove transaction file %q: %s", txnPath, err)
 		}

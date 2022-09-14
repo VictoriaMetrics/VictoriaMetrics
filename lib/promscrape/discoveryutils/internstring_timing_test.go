@@ -1,4 +1,4 @@
-package promscrape
+package discoveryutils
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ func BenchmarkInternString(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			for _, s := range a {
-				sResult := internString(s)
+				sResult := InternString(s)
 				if sResult != s {
 					panic(fmt.Sprintf("unexpected string obtained; got %q; want %q", sResult, s))
 				}

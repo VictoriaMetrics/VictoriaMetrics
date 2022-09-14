@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 )
@@ -79,6 +80,7 @@ func (s *Service) getTargetLabels(gw *groupWatcher) []map[string]string {
 		m := map[string]string{
 			"__address__":                             addr,
 			"__meta_kubernetes_service_port_name":     sp.Name,
+			"__meta_kubernetes_service_port_number":   strconv.Itoa(sp.Port),
 			"__meta_kubernetes_service_port_protocol": sp.Protocol,
 		}
 		s.appendCommonLabels(m)

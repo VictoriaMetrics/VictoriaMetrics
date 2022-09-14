@@ -87,7 +87,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []map[string]strin
 			"__meta_dockerswarm_task_state":         task.Status.State,
 		}
 		for k, v := range task.Spec.ContainerSpec.Labels {
-			commonLabels["__meta_dockerswarm_container_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			commonLabels[discoveryutils.SanitizeLabelName("__meta_dockerswarm_container_label_"+k)] = v
 		}
 		var svcPorts []portConfig
 		for i, v := range services {

@@ -115,6 +115,10 @@ type Client struct {
 
 	// tc is the transport-agnostic client implemented with either gRPC or HTTP.
 	tc storageClient
+	// useGRPC flags whether the client uses gRPC. This is needed while the
+	// integration piece is only partially complete.
+	// TODO: remove before merging to main.
+	useGRPC bool
 }
 
 // NewClient creates a new Google Cloud Storage client.
@@ -195,12 +199,18 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		return nil, fmt.Errorf("supplied endpoint %q is not valid: %v", ep, err)
 	}
 
+	tc, err := newHTTPStorageClient(ctx, withClientOptions(opts...))
+	if err != nil {
+		return nil, fmt.Errorf("storage: %v", err)
+	}
+
 	return &Client{
 		hc:       hc,
 		raw:      rawService,
 		scheme:   u.Scheme,
 		readHost: u.Host,
 		creds:    creds,
+		tc:       tc,
 	}, nil
 }
 
@@ -215,7 +225,7 @@ func newGRPCClient(ctx context.Context, opts ...option.ClientOption) (*Client, e
 		return nil, err
 	}
 
-	return &Client{tc: tc}, nil
+	return &Client{tc: tc, useGRPC: true}, nil
 }
 
 // Close closes the Client.
@@ -509,13 +519,13 @@ func v2SanitizeHeaders(hdrs []string) []string {
 // at https://cloud.google.com/storage/docs/authentication/canonical-requests#about-headers.
 //
 // V4 does a couple things differently from V2:
-// - Headers get sorted by key, instead of by key:value. We do this in
-//   signedURLV4.
-// - There's no canonical regexp: we simply split headers on :.
-// - We don't exclude canonical headers.
-// - We replace leading and trailing spaces in header values, like v2, but also
-//   all intermediate space duplicates get stripped. That is, there's only ever
-//   a single consecutive space.
+//   - Headers get sorted by key, instead of by key:value. We do this in
+//     signedURLV4.
+//   - There's no canonical regexp: we simply split headers on :.
+//   - We don't exclude canonical headers.
+//   - We replace leading and trailing spaces in header values, like v2, but also
+//     all intermediate space duplicates get stripped. That is, there's only ever
+//     a single consecutive space.
 func v4SanitizeHeaders(hdrs []string) []string {
 	headerMap := map[string][]string{}
 	for _, hdr := range hdrs {
@@ -907,27 +917,8 @@ func (o *ObjectHandle) Attrs(ctx context.Context) (attrs *ObjectAttrs, err error
 	if err := o.validate(); err != nil {
 		return nil, err
 	}
-	call := o.c.raw.Objects.Get(o.bucket, o.object).Projection("full").Context(ctx)
-	if err := applyConds("Attrs", o.gen, o.conds, call); err != nil {
-		return nil, err
-	}
-	if o.userProject != "" {
-		call.UserProject(o.userProject)
-	}
-	if err := setEncryptionHeaders(call.Header(), o.encryptionKey, false); err != nil {
-		return nil, err
-	}
-	var obj *raw.Object
-	setClientHeader(call.Header())
-	err = run(ctx, func() error { obj, err = call.Do(); return err }, o.retry, true, setRetryHeaderHTTP(call))
-	var e *googleapi.Error
-	if errors.As(err, &e) && e.Code == http.StatusNotFound {
-		return nil, ErrObjectNotExist
-	}
-	if err != nil {
-		return nil, err
-	}
-	return newObject(obj), nil
+	opts := makeStorageOpts(true, o.retry, o.userProject)
+	return o.c.tc.GetObject(ctx, o.bucket, o.object, o.gen, o.encryptionKey, o.conds, opts...)
 }
 
 // Update updates an object with the provided attributes. See
@@ -940,99 +931,9 @@ func (o *ObjectHandle) Update(ctx context.Context, uattrs ObjectAttrsToUpdate) (
 	if err := o.validate(); err != nil {
 		return nil, err
 	}
-	var attrs ObjectAttrs
-	// Lists of fields to send, and set to null, in the JSON.
-	var forceSendFields, nullFields []string
-	if uattrs.ContentType != nil {
-		attrs.ContentType = optional.ToString(uattrs.ContentType)
-		// For ContentType, sending the empty string is a no-op.
-		// Instead we send a null.
-		if attrs.ContentType == "" {
-			nullFields = append(nullFields, "ContentType")
-		} else {
-			forceSendFields = append(forceSendFields, "ContentType")
-		}
-	}
-	if uattrs.ContentLanguage != nil {
-		attrs.ContentLanguage = optional.ToString(uattrs.ContentLanguage)
-		// For ContentLanguage it's an error to send the empty string.
-		// Instead we send a null.
-		if attrs.ContentLanguage == "" {
-			nullFields = append(nullFields, "ContentLanguage")
-		} else {
-			forceSendFields = append(forceSendFields, "ContentLanguage")
-		}
-	}
-	if uattrs.ContentEncoding != nil {
-		attrs.ContentEncoding = optional.ToString(uattrs.ContentEncoding)
-		forceSendFields = append(forceSendFields, "ContentEncoding")
-	}
-	if uattrs.ContentDisposition != nil {
-		attrs.ContentDisposition = optional.ToString(uattrs.ContentDisposition)
-		forceSendFields = append(forceSendFields, "ContentDisposition")
-	}
-	if uattrs.CacheControl != nil {
-		attrs.CacheControl = optional.ToString(uattrs.CacheControl)
-		forceSendFields = append(forceSendFields, "CacheControl")
-	}
-	if uattrs.EventBasedHold != nil {
-		attrs.EventBasedHold = optional.ToBool(uattrs.EventBasedHold)
-		forceSendFields = append(forceSendFields, "EventBasedHold")
-	}
-	if uattrs.TemporaryHold != nil {
-		attrs.TemporaryHold = optional.ToBool(uattrs.TemporaryHold)
-		forceSendFields = append(forceSendFields, "TemporaryHold")
-	}
-	if !uattrs.CustomTime.IsZero() {
-		attrs.CustomTime = uattrs.CustomTime
-		forceSendFields = append(forceSendFields, "CustomTime")
-	}
-	if uattrs.Metadata != nil {
-		attrs.Metadata = uattrs.Metadata
-		if len(attrs.Metadata) == 0 {
-			// Sending the empty map is a no-op. We send null instead.
-			nullFields = append(nullFields, "Metadata")
-		} else {
-			forceSendFields = append(forceSendFields, "Metadata")
-		}
-	}
-	if uattrs.ACL != nil {
-		attrs.ACL = uattrs.ACL
-		// It's an error to attempt to delete the ACL, so
-		// we don't append to nullFields here.
-		forceSendFields = append(forceSendFields, "Acl")
-	}
-	rawObj := attrs.toRawObject(o.bucket)
-	rawObj.ForceSendFields = forceSendFields
-	rawObj.NullFields = nullFields
-	call := o.c.raw.Objects.Patch(o.bucket, o.object, rawObj).Projection("full").Context(ctx)
-	if err := applyConds("Update", o.gen, o.conds, call); err != nil {
-		return nil, err
-	}
-	if o.userProject != "" {
-		call.UserProject(o.userProject)
-	}
-	if uattrs.PredefinedACL != "" {
-		call.PredefinedAcl(uattrs.PredefinedACL)
-	}
-	if err := setEncryptionHeaders(call.Header(), o.encryptionKey, false); err != nil {
-		return nil, err
-	}
-	var obj *raw.Object
-	setClientHeader(call.Header())
-	var isIdempotent bool
-	if o.conds != nil && o.conds.MetagenerationMatch != 0 {
-		isIdempotent = true
-	}
-	err = run(ctx, func() error { obj, err = call.Do(); return err }, o.retry, isIdempotent, setRetryHeaderHTTP(call))
-	var e *googleapi.Error
-	if errors.As(err, &e) && e.Code == http.StatusNotFound {
-		return nil, ErrObjectNotExist
-	}
-	if err != nil {
-		return nil, err
-	}
-	return newObject(obj), nil
+	isIdempotent := o.conds != nil && o.conds.MetagenerationMatch != 0
+	opts := makeStorageOpts(isIdempotent, o.retry, o.userProject)
+	return o.c.tc.UpdateObject(ctx, o.bucket, o.object, &uattrs, o.gen, o.encryptionKey, o.conds, opts...)
 }
 
 // BucketName returns the name of the bucket.
@@ -1052,11 +953,12 @@ func (o *ObjectHandle) ObjectName() string {
 //
 // For example, to change ContentType and delete ContentEncoding and
 // Metadata, use
-//    ObjectAttrsToUpdate{
-//        ContentType: "text/html",
-//        ContentEncoding: "",
-//        Metadata: map[string]string{},
-//    }
+//
+//	ObjectAttrsToUpdate{
+//	    ContentType: "text/html",
+//	    ContentEncoding: "",
+//	    Metadata: map[string]string{},
+//	}
 type ObjectAttrsToUpdate struct {
 	EventBasedHold     optional.Bool
 	TemporaryHold      optional.Bool
@@ -1079,27 +981,11 @@ func (o *ObjectHandle) Delete(ctx context.Context) error {
 	if err := o.validate(); err != nil {
 		return err
 	}
-	call := o.c.raw.Objects.Delete(o.bucket, o.object).Context(ctx)
-	if err := applyConds("Delete", o.gen, o.conds, call); err != nil {
-		return err
-	}
-	if o.userProject != "" {
-		call.UserProject(o.userProject)
-	}
-	// Encryption doesn't apply to Delete.
-	setClientHeader(call.Header())
-	var isIdempotent bool
 	// Delete is idempotent if GenerationMatch or Generation have been passed in.
 	// The default generation is negative to get the latest version of the object.
-	if (o.conds != nil && o.conds.GenerationMatch != 0) || o.gen >= 0 {
-		isIdempotent = true
-	}
-	err := run(ctx, func() error { return call.Do() }, o.retry, isIdempotent, setRetryHeaderHTTP(call))
-	var e *googleapi.Error
-	if errors.As(err, &e) && e.Code == http.StatusNotFound {
-		return ErrObjectNotExist
-	}
-	return err
+	isIdempotent := (o.conds != nil && o.conds.GenerationMatch != 0) || o.gen >= 0
+	opts := makeStorageOpts(isIdempotent, o.retry, o.userProject)
+	return o.c.tc.DeleteObject(ctx, o.bucket, o.object, o.gen, o.conds, opts...)
 }
 
 // ReadCompressed when true causes the read to happen without decompressing.
@@ -1989,8 +1875,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 
 // WithErrorFunc allows users to pass a custom function to the retryer. Errors
 // will be retried if and only if `shouldRetry(err)` returns true.
-// By default, the following errors are retried (see invoke.go for the default
-// shouldRetry function):
+// By default, the following errors are retried (see ShouldRetry for the default
+// function):
 //
 // - HTTP responses with codes 408, 429, 502, 503, and 504.
 //
@@ -2001,7 +1887,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 // - Wrapped versions of these errors.
 //
 // This option can be used to retry on a different set of errors than the
-// default.
+// default. Users can use the default ShouldRetry function inside their custom
+// function if they only want to make minor modifications to default behavior.
 func WithErrorFunc(shouldRetry func(err error) bool) RetryOption {
 	return &withErrorFunc{
 		shouldRetry: shouldRetry,
@@ -2096,17 +1983,9 @@ func toProtoCommonObjectRequestParams(key []byte) *storagepb.CommonObjectRequest
 
 // ServiceAccount fetches the email address of the given project's Google Cloud Storage service account.
 func (c *Client) ServiceAccount(ctx context.Context, projectID string) (string, error) {
-	r := c.raw.Projects.ServiceAccount.Get(projectID)
-	var res *raw.ServiceAccount
-	var err error
-	err = run(ctx, func() error {
-		res, err = r.Context(ctx).Do()
-		return err
-	}, c.retry, true, setRetryHeaderHTTP(r))
-	if err != nil {
-		return "", err
-	}
-	return res.EmailAddress, nil
+	o := makeStorageOpts(true, c.retry, "")
+	return c.tc.GetServiceAccount(ctx, projectID, o...)
+
 }
 
 // bucketResourceName formats the given project ID and bucketResourceName ID

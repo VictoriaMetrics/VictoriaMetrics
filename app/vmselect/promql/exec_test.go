@@ -58,12 +58,13 @@ func TestExecSuccess(t *testing.T) {
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:       start,
-			End:         end,
-			Step:        step,
-			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
-			RoundDigits: 100,
+			Start:              start,
+			End:                end,
+			Step:               step,
+			MaxPointsPerSeries: 1e4,
+			MaxSeries:          1000,
+			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits:        100,
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(nil, ec, q, false)
@@ -7915,12 +7916,13 @@ func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:       1000,
-			End:         2000,
-			Step:        100,
-			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
-			RoundDigits: 100,
+			Start:              1000,
+			End:                2000,
+			Step:               100,
+			MaxPointsPerSeries: 1e4,
+			MaxSeries:          1000,
+			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits:        100,
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(nil, ec, q, false)
@@ -8104,6 +8106,7 @@ func TestExecError(t *testing.T) {
 	f(`limit_offet(1, (alias(1,"foo"),alias(2,"bar")), 10)`)
 	f(`round(1, 1 or label_set(2, "xx", "foo"))`)
 	f(`histogram_quantile(1 or label_set(2, "xx", "foo"), 1)`)
+	f(`histogram_quantiles("foo", 1 or label_set(2, "xxx", "foo"), 2)`)
 	f(`label_set(1, 2, 3)`)
 	f(`label_set(1, "foo", (label_set(1, "foo", bar") or label_set(2, "xxx", "yy")))`)
 	f(`label_set(1, "foo", 3)`)

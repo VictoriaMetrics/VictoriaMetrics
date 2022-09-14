@@ -204,7 +204,7 @@ behavior by adding `fill(previous)` to the query.
 VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
 To limit the interval on which VictoriaMetrics will try to fill the gaps, set `-search.setLookbackToStep`
 command-line flag. This limits the gap filling to a single `step` interval passed to
-[/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+[/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
 This behavior is close to InfluxDB data model.
 
 
@@ -239,7 +239,7 @@ But migration from InfluxDB might get easier when using [vmctl](https://docs.vic
 VictoriaMetrics command-line tool. See more about
 migrating [from InfluxDB v1.x versions](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-1x).
 Migrating data from InfluxDB v2.x is not supported yet. But there is
-useful [3rd party solution]((https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-2x)) for this.
+useful [3rd party solution](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-influxdb-2x) for this.
 
 Please note, that data migration is a backfilling process. So, please
 consider [backfilling tips](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backfilling).

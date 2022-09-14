@@ -537,6 +537,21 @@ rules:
     expr: sum by(job) (up == 1)
 `)
 	})
+
+	t.Run("`debug` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+    debug: true
+`)
+	})
 }
 
 func TestGroupParams(t *testing.T) {

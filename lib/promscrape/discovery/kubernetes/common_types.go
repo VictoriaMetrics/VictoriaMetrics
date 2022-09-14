@@ -28,14 +28,12 @@ type ListMeta struct {
 
 func (om *ObjectMeta) registerLabelsAndAnnotations(prefix string, m map[string]string) {
 	for _, lb := range om.Labels {
-		ln := discoveryutils.SanitizeLabelName(lb.Name)
-		m[prefix+"_label_"+ln] = lb.Value
-		m[prefix+"_labelpresent_"+ln] = "true"
+		m[discoveryutils.SanitizeLabelName(prefix+"_label_"+lb.Name)] = lb.Value
+		m[discoveryutils.SanitizeLabelName(prefix+"_labelpresent_"+lb.Name)] = "true"
 	}
 	for _, a := range om.Annotations {
-		an := discoveryutils.SanitizeLabelName(a.Name)
-		m[prefix+"_annotation_"+an] = a.Value
-		m[prefix+"_annotationpresent_"+an] = "true"
+		m[discoveryutils.SanitizeLabelName(prefix+"_annotation_"+a.Name)] = a.Value
+		m[discoveryutils.SanitizeLabelName(prefix+"_annotationpresent_"+a.Name)] = "true"
 	}
 }
 

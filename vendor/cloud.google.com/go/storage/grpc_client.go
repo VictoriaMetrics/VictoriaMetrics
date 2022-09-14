@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 
 	"cloud.google.com/go/internal/trace"
@@ -26,6 +27,7 @@ import (
 	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"google.golang.org/api/option/internaloption"
 	iampb "google.golang.org/genproto/googleapis/iam/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -43,6 +45,12 @@ const (
 	//
 	// This is only used for the gRPC client.
 	defaultConnPoolSize = 4
+
+	// maxPerMessageWriteSize is the maximum amount of content that can be sent
+	// per WriteObjectRequest message. A buffer reaching this amount will
+	// precipitate a flush of the buffer. It is only used by the gRPC Writer
+	// implementation.
+	maxPerMessageWriteSize int = int(storagepb.ServiceConstants_MAX_WRITE_CHUNK_BYTES)
 
 	// globalProjectAlias is the project ID alias used for global buckets.
 	//
@@ -81,6 +89,9 @@ func defaultGRPCOptions() []option.ClientOption {
 			option.WithGRPCDialOption(grpc.WithInsecure()),
 			option.WithoutAuthentication(),
 		)
+	} else {
+		// Only enable DirectPath when the emulator is not being targeted.
+		defaults = append(defaults, internaloption.EnableDirectPath(true))
 	}
 
 	return defaults
@@ -133,10 +144,10 @@ func (c *grpcStorageClient) GetServiceAccount(ctx context.Context, project strin
 	return resp.EmailAddress, err
 }
 
-func (c *grpcStorageClient) CreateBucket(ctx context.Context, project string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error) {
+func (c *grpcStorageClient) CreateBucket(ctx context.Context, project, bucket string, attrs *BucketAttrs, opts ...storageOption) (*BucketAttrs, error) {
 	s := callSettings(c.settings, opts...)
 	b := attrs.toProtoBucket()
-
+	b.Name = bucket
 	// If there is lifecycle information but no location, explicitly set
 	// the location. This is a GCS quirk/bug.
 	if b.GetLocation() == "" && b.GetLifecycle() != nil {
@@ -727,7 +738,7 @@ func (c *grpcStorageClient) ComposeObject(ctx context.Context, req *composeObjec
 
 	dstObjPb := req.dstObject.attrs.toProtoObject(req.dstBucket)
 	dstObjPb.Name = req.dstObject.name
-	if err := applyCondsProto("ComposeObject destination", -1, req.dstObject.conds, dstObjPb); err != nil {
+	if err := applyCondsProto("ComposeObject destination", defaultGen, req.dstObject.conds, dstObjPb); err != nil {
 		return nil, err
 	}
 	if req.sendCRC32C {
@@ -750,8 +761,8 @@ func (c *grpcStorageClient) ComposeObject(ctx context.Context, req *composeObjec
 	if req.predefinedACL != "" {
 		rawReq.DestinationPredefinedAcl = req.predefinedACL
 	}
-	if req.encryptionKey != nil {
-		rawReq.CommonObjectRequestParams = toProtoCommonObjectRequestParams(req.encryptionKey)
+	if req.dstObject.encryptionKey != nil {
+		rawReq.CommonObjectRequestParams = toProtoCommonObjectRequestParams(req.dstObject.encryptionKey)
 	}
 
 	var obj *storagepb.Object
@@ -811,6 +822,7 @@ func (c *grpcStorageClient) RewriteObject(ctx context.Context, req *rewriteObjec
 	r := &rewriteObjectResponse{
 		done:     res.GetDone(),
 		written:  res.GetTotalBytesRewritten(),
+		size:     res.GetObjectSize(),
 		token:    res.GetRewriteToken(),
 		resource: newObjectFromProto(res.GetResource()),
 	}
@@ -822,13 +834,11 @@ func (c *grpcStorageClient) NewRangeReader(ctx context.Context, params *newRange
 	ctx = trace.StartSpan(ctx, "cloud.google.com/go/storage.grpcStorageClient.NewRangeReader")
 	defer func() { trace.EndSpan(ctx, err) }()
 
-	if params.conds != nil {
-		if err := params.conds.validate("grpcStorageClient.NewRangeReader"); err != nil {
-			return nil, err
-		}
-	}
-
 	s := callSettings(c.settings, opts...)
+
+	if s.userProject != "" {
+		ctx = setUserProjectMetadata(ctx, s.userProject)
+	}
 
 	// A negative length means "read to the end of the object", but the
 	// read_limit field it corresponds to uses zero to mean the same thing. Thus
@@ -1373,7 +1383,7 @@ func (r *gRPCReader) Close() error {
 // an attempt to reopen the stream.
 func (r *gRPCReader) recv() (*storagepb.ReadObjectResponse, error) {
 	msg, err := r.stream.Recv()
-	if err != nil && shouldRetry(err) {
+	if err != nil && ShouldRetry(err) {
 		// This will "close" the existing stream and immediately attempt to
 		// reopen the stream, but will backoff if further attempts are necessary.
 		// Reopening the stream Recvs the first message, so if retrying is
@@ -1513,7 +1523,8 @@ func (w *gRPCWriter) uploadBuffer(recvd int, start int64, doneReading bool) (*st
 		// The first message on the WriteObject stream must either be the
 		// Object or the Resumable Upload ID.
 		if first {
-			w.stream, err = w.c.raw.WriteObject(w.ctx)
+			ctx := gapic.InsertMetadata(w.ctx, metadata.Pairs("x-goog-request-params", "bucket="+url.QueryEscape(w.bucket)))
+			w.stream, err = w.c.raw.WriteObject(ctx)
 			if err != nil {
 				return nil, 0, false, err
 			}
@@ -1552,7 +1563,7 @@ func (w *gRPCWriter) uploadBuffer(recvd int, start int64, doneReading bool) (*st
 			// resend the entire buffer via a new stream.
 			// If not retriable, falling through will return the error received
 			// from closing the stream.
-			if shouldRetry(err) {
+			if ShouldRetry(err) {
 				sent = 0
 				finishWrite = false
 				// TODO: Add test case for failure modes of querying progress.
@@ -1583,7 +1594,7 @@ func (w *gRPCWriter) uploadBuffer(recvd int, start int64, doneReading bool) (*st
 		// resend the entire buffer via a new stream.
 		// If not retriable, falling through will return the error received
 		// from closing the stream.
-		if shouldRetry(err) {
+		if ShouldRetry(err) {
 			sent = 0
 			finishWrite = false
 			offset, err = w.determineOffset(start)
@@ -1646,8 +1657,8 @@ func (w *gRPCWriter) writeObjectSpec() (*storagepb.WriteObjectSpec, error) {
 	spec := &storagepb.WriteObjectSpec{
 		Resource: attrs.toProtoObject(w.bucket),
 	}
-	// WriteObject doesn't support the generation condition, so use -1.
-	if err := applyCondsProto("WriteObject", -1, w.conds, spec); err != nil {
+	// WriteObject doesn't support the generation condition, so use default.
+	if err := applyCondsProto("WriteObject", defaultGen, w.conds, spec); err != nil {
 		return nil, err
 	}
 	return spec, nil

@@ -13,6 +13,7 @@ for ingestion rates lower than a million data points per second.
 The single-node version [scales perfectly](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
 with the number of CPU cores, RAM and available storage space.
 The single-node version is easier to configure and operate compared to the cluster version, so think twice before choosing the cluster version.
+See [this question](https://docs.victoriametrics.com/FAQ.html#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster) for more details.
 
 Join [our Slack](https://slack.victoriametrics.com/) or [contact us](mailto:info@victoriametrics.com) with consulting and support questions.
 
@@ -193,6 +194,17 @@ or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/gr
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
 
+## Cardinality limiter
+
+`vmstorage` nodes can be configured with limits on the number of unique time series across all the tenants with the following command-line flags:
+
+- `-storage.maxHourlySeries` is the limit on the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) during the last hour.
+- `-storage.maxDailySeries` is the limit on the number of unique time series during the day. This limit can be used for limiting daily [time series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+
+Note that these limits are set and applied individually per each `vmstorage` node in the cluster. So, if the cluster has `N` `vmstorage` nodes, then the cluster-level limits will be `N` times bigger than the per-`vmstorage` limits.
+
+See more details about cardinality limiter in [these docs](https://docs.victoriametrics.com/#cardinality-limiter).
+
 ## Troubleshooting
 
 See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
@@ -219,8 +231,8 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 - URLs for [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/): `http://<vmselect>:8481/select/<accountID>/prometheus/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for the query (aka tenant)
   - `<suffix>` may have the following values:
-    - `api/v1/query` - performs [PromQL instant query](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
-    - `api/v1/query_range` - performs [PromQL range query](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries).
+    - `api/v1/query` - performs [PromQL instant query](https://docs.victoriametrics.com/keyConcepts.html#instant-query).
+    - `api/v1/query_range` - performs [PromQL range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
     - `api/v1/series` - performs [series query](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers).
     - `api/v1/labels` - returns a [list of label names](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names).
     - `api/v1/label/<label_name>/values` - returns values for the given `<label_name>` according [to API](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values).
@@ -300,16 +312,96 @@ All the node types - `vminsert`, `vmselect` and `vmstorage` - may be updated via
 Send `SIGINT` signal to the corresponding process, wait until it finishes and then start new version
 with new configs.
 
-Cluster should remain in working state if at least a single node of each type remains available during
-the update process. See [cluster availability](#cluster-availability) section for details.
+There are the following cluster update / upgrade approaches exist:
+
+### No downtime strategy
+
+Gracefully restart every node in the cluster one-by-one with the updated config / upgraded binary.
+
+It is recommended restarting the nodes in the following order:
+
+1. Restart `vmstorage` nodes.
+2. Restart `vminsert` nodes.
+3. Restart `vmselect` nodes.
+
+This strategy allows upgrading the cluster without downtime if the following conditions are met:
+
+- The cluster has at least a pair of nodes of each type - `vminsert`, `vmselect` and `vmstorage`,
+  so it can continue accept new data and serve incoming requests when a single node is temporary unavailable
+  during its restart. See [cluster availability docs](#cluster-availability) for details.
+- The cluster has enough compute resources (CPU, RAM, network bandwidth, disk IO) for processing
+  the current workload when a single node of any type (`vminsert`, `vmselect` or `vmstorage`)
+  is temporarily unavailable during its restart.
+- The updated config / upgraded binary is compatible with the remaining components in the cluster.
+  See the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) for compatibility notes between different releases.
+
+  If at least a single condition isn't met, then the rolling restart may result in cluster unavailability
+  during the config update / version upgrade. In this case the following strategy is recommended.
+
+### Minimum downtime strategy
+
+1. Gracefully stop all the `vminsert` and `vmselect` nodes in parallel.
+2. Gracefully restart all the `vmstorage` nodes in parallel.
+3. Start all the `vminsert` and `vmselect` nodes in parallel.
+
+The cluster is unavailable for data ingestion and querying when performing the steps above.
+The downtime is minimized by restarting cluster nodes in parallel at every step above.
+The `minimum downtime` strategy has the following benefits comparing to `no downtime` startegy:
+
+- It allows performing config update / version upgrade with minimum disruption
+  when the previous config / version is incompatible with the new config / version.
+- It allows perorming config update / version upgrade with minimum disruption
+  when the cluster has no enough compute resources (CPU, RAM, disk IO, network bandwidth)
+  for rolling upgrade.
+- It allows minimizing the duration of config update / version ugprade for clusters with big number of nodes
+  of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
 
 ## Cluster availability
 
-- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
-- The cluster remains available if at least a single `vmstorage` node exists:
+VictoriaMetrics cluster architecture prioritizes availability over data consistency.
+This means that the cluster remains available for data ingestion and data querying
+if some of its components are temporarily unavailable.
 
-  - `vminsert` re-routes incoming data from unavailable `vmstorage` nodes to healthy `vmstorage` nodes
-  - `vmselect` continues serving partial responses if at least a single `vmstorage` node is available. If consistency over availability is preferred, then either pass `-search.denyPartialResponse` command-line flag to `vmselect` or pass `deny_partial_response=1` query arg in requests to `vmselect`.
+VictoriaMetrics cluster remains available if the following conditions are met:
+
+- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
+
+- At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
+  The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)
+  for handling the current data ingestion workload.
+  If the remaining active `vminsert` nodes have no enough resources for processing the data ingestion workload,
+  then arbitrary delays may occur during data ingestion.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+- At least a single `vmselect` node must remain available in the cluster for processing query workload.
+  The remaining active `vmselect` nodes must have enough compute capacity (CPU, RAM, network bandwidth, disk IO)
+  for handling the current query workload.
+  If the remaining active `vmselect` nodes have no enough resources for processing query workload,
+  then arbitrary failures and delays may occur during query processing.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+- At least a single `vmstorage` node must remain available in the cluster for accepting newly ingested data
+  and for processing incoming queries. The remaining active `vmstorage` nodes must have enough compute capacity
+  (CPU, RAM, network bandwidth, disk IO, free disk space) for  handling the current workload.
+  If the remaining active `vmstorage` nodes have no enough resources for processing query workload,
+  then arbitrary failures and delay may occur during data ingestion and query processing.
+  See [capacity planning](#capacity-planning) and [cluster resizing](#cluster-resizing-and-scalability) docs for more details.
+
+The cluster works in the following way when some of `vmstorage` nodes are unavailable:
+
+- `vminsert` re-routes newly ingested data from unavailable `vmstorage` nodes to remaining healthy `vmstorage` nodes.
+  This guarantees that the newly ingested data is properly saved if the healthy `vmstorage` nodes have enough CPU, RAM, disk IO and network bandwidth
+  for processing the increased data ingestion workload.
+  `vminsert` spreads evenly the additional data among the healthy `vmstorage` nodes in order to spread evenly
+  the increased load on these nodes.
+
+- `vmselect` continues serving queries if at least a single `vmstorage` nodes is available.
+  It marks responses as partial for queries served from the remaining healthy `vmstorage` nodes,
+  since such responses may miss historical data stored on the temporarily unavailable `vmstorage` nodes.
+  Every partial JSON response contains `"isPartial": true` option.
+  If you prefer consistency over availability, then run `vmselect` nodes with `-search.denyPartialResponse` command-line flag.
+  In this case `vmselect` returns an error if at least a single `vmstorage` node is unavailable.
+  Another option is to pass `deny_partial_response=1` query arg to requests to `vmselect` nodes.
 
 `vmselect` doesn't serve partial responses for API handlers returning raw datapoints - [`/api/v1/export*` endpoints](https://docs.victoriametrics.com/#how-to-export-time-series), since users usually expect this data is always complete.
 
@@ -351,11 +443,13 @@ By default cluster components of VictoriaMetrics are tuned for an optimal resour
 - `-search.maxConcurrentRequests` at `vmselect` limits the number of concurrent requests a single `vmselect` node can process. Bigger number of concurrent requests usually means bigger memory usage at both `vmselect` and `vmstorage`. For example, if a single query needs 100 MiB of additional memory during its execution, then 100 concurrent queries may need `100 * 100 MiB = 10 GiB` of additional memory. So it is better to limit the number of concurrent queries, while suspending additional incoming queries if the concurrency limit is reached. `vmselect` provides `-search.maxQueueDuration` command-line flag for limiting the max wait time for suspended queries.
 - `-search.maxSamplesPerSeries` at `vmselect` limits the number of raw samples the query can process per each time series. `vmselect` sequentially processes raw samples per each found time series during the query. It unpacks raw samples on the selected time range per each time series into memory and then applies the given [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). The `-search.maxSamplesPerSeries` command-line flag allows limiting memory usage at `vmselect` in the case when the query is executed on a time range, which contains hundreds of millions of raw samples per each located time series.
 - `-search.maxSamplesPerQuery` at `vmselect` limits the number of raw samples a single query can process. This allows limiting CPU usage at `vmselect` for heavy queries.
+- `-search.maxPointsPerTimeseries` limits the number of calculated points, which can be returned per each matching time series from [range query](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+- `-search.maxPointsSubqueryPerTimeseries` limits the number of calculated points, which can be generated per each matching time series during [subquery](https://docs.victoriametrics.com/MetricsQL.html#subqueries) evaluation.
 - `-search.maxSeries` at `vmselect` limits the number of time series, which may be returned from [/api/v1/series](https://prometheus.io/docs/prometheus/latest/querying/api/#finding-series-by-label-matchers). This endpoint is used mostly by Grafana for auto-completion of metric names, label names and label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxSeries` to quite low value in order limit CPU and memory usage.
-- `-search.maxTagKeys` at `vmselect` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
-- `-search.maxTagValues` at `vmselect` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
-- `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day.
-- `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series).
+- `-search.maxTagKeys` at `vmstorage` limits the number of items, which may be returned from [/api/v1/labels](https://prometheus.io/docs/prometheus/latest/querying/api/#getting-label-names). This endpoint is used mostly by Grafana for auto-completion of label names. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagKeys` to quite low value in order to limit CPU and memory usage.
+- `-search.maxTagValues` at `vmstorage` limits the number of items, which may be returned from [/api/v1/label/.../values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values). This endpoint is used mostly by Grafana for auto-completion of label values. Queries to this endpoint may take big amounts of CPU time and memory at `vmstorage` and `vmselect` when the database contains big number of unique time series because of [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). In this case it might be useful to set the `-search.maxTagValues` to quite low value in order to limit CPU and memory usage.
+- `-storage.maxDailySeries` at `vmstorage` can be used for limiting the number of time series seen per day aka [time series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). See [cardinality limiter docs](#cardinality-limiter).
+- `-storage.maxHourlySeries` at `vmstorage` can be used for limiting the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series). See [cardinality limiter docs](#cardinality-limiter).
 
 See also [capacity planning docs](#capacity-planning) and [cardinality limiter in vmagent](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter).
 
@@ -473,6 +567,8 @@ Example command for collecting memory profile from `vminsert` (replace `0.0.0.0`
 ```console
 curl http://0.0.0.0:8480/debug/pprof/heap > mem.pprof
 ```
+
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
 </div>
 
@@ -823,7 +919,9 @@ Below is the output for `/path/to/vmselect -help`:
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxPointsPerTimeseries int
-     The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph (default 30000)
+     The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph (default 30000)
+  -search.maxPointsSubqueryPerTimeseries int
+     The maximum number of points per series, which can be generated by subquery. See https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3 (default 100000)
   -search.maxQueryDuration duration
      The maximum duration for query execution (default 30s)
   -search.maxQueryLen size
@@ -1021,9 +1119,9 @@ Below is the output for `/path/to/vmstorage -help`:
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.maxDailySeries int
-     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See also -storage.maxHourlySeries
+     The maximum number of unique series can be added to the storage during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/#cardinality-limiter . See also -storage.maxHourlySeries
   -storage.maxHourlySeries int
-     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See also -storage.maxDailySeries
+     The maximum number of unique series can be added to the storage during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/#cardinality-limiter . See also -storage.maxDailySeries
   -storage.minFreeDiskSpaceBytes size
      The minimum free disk space at -storageDataPath after which the storage stops accepting new data
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 10000000)

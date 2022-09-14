@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"sync"
@@ -235,7 +235,7 @@ func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
 
 // readResponseBody reads body from http.Response.
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)

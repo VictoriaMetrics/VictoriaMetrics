@@ -182,7 +182,7 @@ See [the list of supported service discovery types for Prometheus scrape targets
 
 ## scrape_config enhancements
 
-`vmagent` supports the following additional options in `scrape_configs` section:
+`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section:
 
 * `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target needs custom authorization and authentication. For example:
 
@@ -203,9 +203,12 @@ scrape_configs:
 * `relabel_debug: true` for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
 * `metric_relabel_debug: true` for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
+See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
+
+
 ## Loading scrape configs from multiple files
 
-`vmagent` supports loading scrape configs from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file and from `https://config-server/scrape_config.yml` url:
+`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file and from `https://config-server/scrape_config.yml` url:
 
 ```yml
 scrape_config_files:
@@ -214,7 +217,7 @@ scrape_config_files:
 - https://config-server/scrape_config.yml
 ```
 
-Every referred file can contain arbitrary number of [supported scrape configs](#how-to-collect-metrics-in-prometheus-format). There is no need in specifying top-level `scrape_configs` section in these files. For example:
+Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
 ```yml
 - job_name: foo
@@ -263,37 +266,37 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   up == 0
   ```
 
-* `scrape_duration_seconds` - this metric exposes scrape duration. This allows monitoring slow scrapes. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes, which take more than 1.5 seconds to complete:
+* `scrape_duration_seconds` - the duration of the scrape for the given target. This allows monitoring slow scrapes. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes, which take more than 1.5 seconds to complete:
 
   ```metricsql
   scrape_duration_seconds > 1.5
   ```
 
-* `scrape_timeout_seconds` - this metric exposes the configured timeout for the current scrape target (aka `scrape_timeout`). This allows detecting targets with scrape durations close to the configured scrape timeout. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label), which take more than 80% of the configured `scrape_timeout` during scrapes:
+* `scrape_timeout_seconds` - the configured timeout for the current scrape target (aka `scrape_timeout`). This allows detecting targets with scrape durations close to the configured scrape timeout. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label), which take more than 80% of the configured `scrape_timeout` during scrapes:
 
   ```metricsql
   scrape_duration_seconds / scrape_timeout_seconds > 0.8
   ```
 
-* `scrape_samples_scraped` - this metric exposes the number of samples (aka metrics) parsed per each scrape. This allows detecting targets, which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which expose more than 10000 metrics:
+* `scrape_samples_scraped` - the number of samples (aka metrics) parsed per each scrape. This allows detecting targets, which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which expose more than 10000 metrics:
 
   ```metricsql
   scrape_samples_scraped > 10000
   ```
 
-* `scrape_samples_limit` - this metric exposes the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
+* `scrape_samples_limit` - the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs). This metric is exposed only if the `sample_limit` is set. This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
 
   ```metricsql
   scrape_samples_scraped / scrape_samples_limit > 0.8
   ```
 
-* `scrape_samples_post_metric_relabeling` - this metric exposes the number of samples (aka metrics) left after applying metric-level relabeling from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details). This allows detecting targets with too many metrics after the relabeling. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets with more than 10000 metrics after the relabeling:
+* `scrape_samples_post_metric_relabeling` - the number of samples (aka metrics) left after applying metric-level relabeling from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details). This allows detecting targets with too many metrics after the relabeling. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets with more than 10000 metrics after the relabeling:
 
   ```metricsql
   scrape_samples_post_metric_relabeling > 10000
   ```
 
-* `scrape_series_added` - this metric exposes **an approximate** number of new series the given target generates during the current scrape. This metric allows detecting targets (identified by `instance` label), which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which generate more than 1000 new series during the last hour:
+* `scrape_series_added` - **an approximate** number of new series the given target generates during the current scrape. This metric allows detecting targets (identified by `instance` label), which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which generate more than 1000 new series during the last hour:
 
   ```metricsql
   sum_over_time(scrape_series_added[1h]) > 1000
@@ -301,10 +304,24 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option (e.g. when [staleness markers](#prometheus-staleness-markers) are disabled).
 
+* `scrape_series_limit` - the limit on the number of unique time series the given target can expose according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This metric is exposed only if the series limit is set.
+
+* `scrape_series_current` - the number of unique series the given target exposed so far. This metric is exposed only if the series limit is set according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This metric allows alerting when the number of exposed series by the given target reaches the limit. For example, the following query would alert when the target exposes more than 90% of unique series compared to the configured limit.
+
+  ```metricsql
+  scrape_series_current / scrape_series_limit > 0.9
+  ```
+
+* `scrape_series_limit_samples_dropped` - exposes the number of dropped samples during the scrape because of the exceeded limit on the number of unique series. This metric is exposed only if the series limit is set according to [these docs](https://docs.victoriametrics.com/vmagent.html#cardinality-limiter). This metric allows alerting when scraped samples are dropped because of the exceeded limit. For example, the following query alerts when at least a single sample is dropped because of the exceeded limit during the last hour:
+
+  ```metricsql
+  sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0
+  ```
+
 
 ## Relabeling
 
-VictoriaMetrics components (including `vmagent`) support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) with [additional enhancements](#relabeling-enhancements) at various stages of data processing. The relabeling can be defined in the following places processed by `vmagent`:
+VictoriaMetrics components support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) with [additional enhancements](#relabeling-enhancements) at various stages of data processing. The relabeling can be defined in the following places processed by `vmagent`:
 
 * At the `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is used for modifying labels in discovered targets and for dropping unneded targets. This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics. This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
@@ -315,6 +332,7 @@ All the files with relabeling configs can contain special placeholders in the fo
 
 The following articles contain useful information about Prometheus relabeling:
 
+* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling.html)
 * [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
@@ -327,85 +345,94 @@ The following articles contain useful information about Prometheus relabeling:
 
 ## Relabeling enhancements
 
-VictoriaMetrics provides the following additional relabeling actions on top of standard actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
+* The `replacement` option can refer arbitrary labels via {% raw %}`{{label_name}}`{% endraw %} placeholders. Such placeholders are substituted with the corresponding label value. For example, the following relabeling rule sets `instance-job` label value to `host123-foo` when applied to the metric with `{instance="host123",job="foo"}` labels:
 
-* `replace_all` replaces all of the occurrences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
+  {% raw %}
+  ```yaml
+  - target_label: "instance-job"
+    replacement: "{{instance}}-{{job}}"
+  ```
+  {% endraw %}
+
+* An optional `if` filter can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
 
   ```yaml
-  - action: replace_all
-    source_labels: ["__name__"]
-    target_label: "__name__"
-    regex: "-"
-    replacement: "_"
+  - action: keep
+    if: 'foo{bar="baz"}'
   ```
 
-* `labelmap_all` replaces all of the occurrences of `regex` in all the label names with the `replacement`. For example, the following relabeling config replaces all the occurrences of `-` char in all the label names with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
+  This is equivalent to less clear Prometheus-compatible relabeling rule:
 
   ```yaml
-  - action: labelmap_all
-    regex: "-"
-    replacement: "_"
+  - action: keep
+    source_labels: [__name__, bar]
+    regex: 'foo;baz'
   ```
 
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal, while dropping all the other entries. For example, the following relabeling config keeps targets if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
-
-  ```yaml
-  - action: keep_if_equal
-    source_labels: ["instance", "host"]
-  ```
-
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal, while keeping all the other entries. For example, the following relabeling config drops targets if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
-
-  ```yaml
-  - action: drop_if_equal
-    source_labels: ["instance", "host"]
-  ```
-
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`, while dropping all the other metrics. For example, the following relabeling config keeps metrics with `fo` and `bar` names, while dropping all the other metrics:
+* The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
   ```yaml
   - action: keep_metrics
-    regex: "foo|bar"
+    regex: "metric_a|metric_b|foo_.+"
   ```
-
-* `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics. For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
 
   ```yaml
-  - action: drop_metrics
-    regex: "foo|bar"
+  - action: keep_metrics
+    regex:
+    - "metric_a"
+    - "metric_b"
+    - "foo_.+"
   ```
 
-* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
+* VictoriaMetrics provides the following additional relabeling actions on top of standard actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
-The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
+  * `replace_all` replaces all of the occurrences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
 
-```yaml
-- action: keep_metrics
-  regex: "metric_a|metric_b|foo_.+"
-```
+    ```yaml
+    - action: replace_all
+      source_labels: ["__name__"]
+      target_label: "__name__"
+      regex: "-"
+      replacement: "_"
+    ```
 
-```yaml
-- action: keep_metrics
-  regex:
-  - "metric_a"
-  - "metric_b"
-  - "foo_.+"
-```
+  * `labelmap_all` replaces all of the occurrences of `regex` in all the label names with the `replacement`. For example, the following relabeling config replaces all the occurrences of `-` char in all the label names with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
 
-VictoriaMetrics components support an optional `if` filter in relabeling configs, which can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
+    ```yaml
+    - action: labelmap_all
+      regex: "-"
+      replacement: "_"
+    ```
 
-```yaml
-- action: keep
-  if: 'foo{bar="baz"}'
-```
+  * `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal, while dropping all the other entries. For example, the following relabeling config keeps targets if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
 
-This is equivalent to less clear Prometheus-compatible relabeling rule:
+    ```yaml
+    - action: keep_if_equal
+      source_labels: ["instance", "host"]
+    ```
 
-```yaml
-- action: keep
-  source_labels: [__name__, bar]
-  regex: 'foo;baz'
-```
+  * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal, while keeping all the other entries. For example, the following relabeling config drops targets if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
+
+    ```yaml
+    - action: drop_if_equal
+      source_labels: ["instance", "host"]
+    ```
+
+  * `keep_metrics`: keeps all the metrics with names matching the given `regex`, while dropping all the other metrics. For example, the following relabeling config keeps metrics with `fo` and `bar` names, while dropping all the other metrics:
+
+    ```yaml
+    - action: keep_metrics
+      regex: "foo|bar"
+    ```
+
+  * `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics. For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
+
+    ```yaml
+    - action: drop_metrics
+      regex: "foo|bar"
+    ```
+
+  * `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
 
 ## Graphite relabeling
 
@@ -566,9 +593,23 @@ By default `vmagent` doesn't limit the number of time series each scrape target 
 * Via `series_limit` config option at `scrape_config` section. This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
 * Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section. This limit is applied to the corresponding scrape targets. Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets, which may expose too high number of time series.
 
-All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric.
-
 See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+
+Scraped metrics are dropped for time series exceeding the given limit.
+
+`vmagent` creates the following additional per-target metrics for targets with non-zero series limit:
+
+- `scrape_series_limit_samples_dropped` - the number of dropped samples during the scrape when the unique series limit is exceeded.
+- `scrape_series_limit` - the series limit for the given target.
+- `scrape_series_current` - the current number of series for the given target.
+
+These metrics are automatically sent to the configured `-remoteWrite.url` alongside with the scraped per-target metrics.
+
+These metrics allow building the following alerting rules:
+
+- `scrape_series_current / scrape_series_limit > 0.9` - alerts when the number of series exposed by the target reaches 90% of the limit.
+- `sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
+
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
 
@@ -577,12 +618,18 @@ By default `vmagent` doesn't limit the number of time series written to remote s
 
 Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
 
-The exceeded limits can be [monitored](#monitoring) with the following metrics:
+`vmagent` exposes the following metrics at `http://vmagent:8429/metrics` page (see [monitoring docs](#monitoring) for details):
 
 * `vmagent_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vmagent_hourly_series_limit_max_series` - the hourly series limit set via `-remoteWrite.maxHourlySeries`.
+* `vmagent_hourly_series_limit_current_series` - the current number of unique series registered during the last hour.
 * `vmagent_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
+* `vmagent_daily_series_limit_max_series` - the daily series limit set via `-remoteWrite.maxDailySeries`.
+* `vmagent_daily_series_limit_current_series` - the current number of unique series registered during the last day.
 
 These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
+
+See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinality-explorer).
 
 ## Monitoring
 
@@ -852,6 +899,7 @@ curl http://0.0.0.0:8429/debug/pprof/profile > cpu.pprof
 The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
 
 ## Advanced usage
 
@@ -998,7 +1046,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.azureSDCheckInterval duration
-     Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config for details (default 1m0s)
+     Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
@@ -1018,9 +1066,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
-     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
   -promscrape.digitaloceanSDCheckInterval duration
-     Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config for details (default 1m0s)
+     Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details (default 1m0s)
   -promscrape.disableCompression
      Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.disableKeepAlive
@@ -1030,27 +1078,27 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
-     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details (default 30s)
   -promscrape.dockerSDCheckInterval duration
-     Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config for details (default 30s)
+     Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#docker_sd_configs for details (default 30s)
   -promscrape.dockerswarmSDCheckInterval duration
-     Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details (default 30s)
+     Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs for details (default 30s)
   -promscrape.dropOriginalLabels
      Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
   -promscrape.ec2SDCheckInterval duration
-     Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details (default 1m0s)
+     Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#ec2_sd_configs for details (default 1m0s)
   -promscrape.eurekaSDCheckInterval duration
-     Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
+     Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#eureka_sd_configs for details (default 30s)
   -promscrape.fileSDCheckInterval duration
-     Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 5m0s)
+     Interval for checking for changes in 'file_sd_config'. See https://docs.victoriametrics.com/sd_configs.html#file_sd_configs for details (default 1m0s)
   -promscrape.gceSDCheckInterval duration
-     Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
+     Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#gce_sd_configs for details (default 1m0s)
   -promscrape.httpSDCheckInterval duration
-     Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details (default 1m0s)
+     Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#http_sd_configs for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
      How frequently to reload the full state from Kubernetes API server (default 30m0s)
   -promscrape.kubernetesSDCheckInterval duration
-     Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
+     Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxResponseHeadersSize size
@@ -1065,7 +1113,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.noStaleMarkers
      Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
-     Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
+     Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#openstack_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info
   -promscrape.streamParse

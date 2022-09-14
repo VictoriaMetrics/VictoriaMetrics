@@ -3,7 +3,6 @@ package storage
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sort"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -128,7 +127,7 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 }
 
 func unmarshalMetaindexRows(dst []metaindexRow, r io.Reader) ([]metaindexRow, error) {
-	compressedData, err := ioutil.ReadAll(r)
+	compressedData, err := io.ReadAll(r)
 	if err != nil {
 		return dst, fmt.Errorf("cannot read metaindex rows: %w", err)
 	}

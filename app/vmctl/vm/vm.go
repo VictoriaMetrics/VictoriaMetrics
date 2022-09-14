@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"strings"
@@ -394,7 +393,7 @@ func do(req *http.Request) error {
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusNoContent {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
 		}

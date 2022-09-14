@@ -3,7 +3,6 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"strconv"
@@ -145,7 +144,7 @@ func getCloudEnvByName(name string) (*cloudEnvironmentEndpoints, error) {
 }
 
 func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, error) {
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot file %q: %w", filePath, err)
 	}

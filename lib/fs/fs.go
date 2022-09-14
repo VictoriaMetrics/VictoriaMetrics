@@ -3,14 +3,15 @@ package fs
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
@@ -194,25 +195,57 @@ func IsEmptyDir(path string) bool {
 	return false
 }
 
-// MustRemoveAll removes path with all the contents.
+// MustRemoveDirAtomic removes the given dir atomically.
 //
-// It properly fsyncs the parent directory after path removal.
+// It uses the following algorithm:
 //
-// It properly handles NFS issue https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-func MustRemoveAll(path string) {
-	mustRemoveAll(path, func() {})
+//  1. Atomically rename the "<dir>" to "<dir>.must-remove.<XYZ>",
+//     where <XYZ> is an unique number.
+//  2. Remove the "<dir>.must-remove.XYZ" in background.
+//
+// If the process crashes after the step 1, then the directory must be removed
+// on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
+func MustRemoveDirAtomic(dir string) {
+	if !IsPathExist(dir) {
+		return
+	}
+	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
+	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
+	if err := os.Rename(dir, tmpDir); err != nil {
+		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
+	}
+	MustRemoveAll(tmpDir)
+	parentDir := filepath.Dir(dir)
+	MustSyncPath(parentDir)
 }
 
-// MustRemoveAllWithDoneCallback removes path with all the contents.
+var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
+
+// MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
 //
-// It properly fsyncs the parent directory after path removal.
-//
-// done is called after the path is successfully removed.
-//
-// done may be called after the function returns for NFS path.
-// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61.
-func MustRemoveAllWithDoneCallback(path string, done func()) {
-	mustRemoveAll(path, done)
+// Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
+func MustRemoveTemporaryDirs(dir string) {
+	d, err := os.Open(dir)
+	if err != nil {
+		logger.Panicf("FATAL: cannot open dir %q: %s", dir, err)
+	}
+	defer MustClose(d)
+	fis, err := d.Readdir(-1)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read dir %q: %s", dir, err)
+	}
+	for _, fi := range fis {
+		if !IsDirOrSymlink(fi) {
+			// Skip non-directories
+			continue
+		}
+		dirName := fi.Name()
+		if strings.Contains(dirName, ".must-remove.") {
+			fullPath := dir + "/" + dirName
+			MustRemoveAll(fullPath)
+		}
+	}
+	MustSyncPath(dir)
 }
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.
@@ -269,20 +302,20 @@ func SymlinkRelative(srcPath, dstPath string) error {
 
 // CopyDirectory copies all the files in srcPath to dstPath.
 func CopyDirectory(srcPath, dstPath string) error {
-	fis, err := ioutil.ReadDir(srcPath)
+	des, err := os.ReadDir(srcPath)
 	if err != nil {
 		return err
 	}
 	if err := MkdirAllIfNotExist(dstPath); err != nil {
 		return err
 	}
-	for _, fi := range fis {
-		if !fi.Mode().IsRegular() {
+	for _, de := range des {
+		if !de.Type().IsRegular() {
 			// Skip non-files
 			continue
 		}
-		src := filepath.Join(srcPath, fi.Name())
-		dst := filepath.Join(dstPath, fi.Name())
+		src := filepath.Join(srcPath, de.Name())
+		dst := filepath.Join(dstPath, de.Name())
 		if err := copyFile(src, dst); err != nil {
 			return err
 		}
@@ -383,14 +416,14 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch %q: %w", path, err)
 		}
-		data, err := ioutil.ReadAll(resp.Body)
+		data, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %s", path, err)
 		}
 		return data, nil
 	}
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read %q: %w", path, err)
 	}
