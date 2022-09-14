@@ -560,7 +560,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	} else {
 		var mu sync.Mutex
 		err = sbr.Init(sr)
-		if err != nil {
+		if err == nil {
 			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
