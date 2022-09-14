@@ -312,6 +312,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     The minimum TLS version that is acceptable
+  -tlsMaxVersion string
+     The maximum TLS version that is acceptable
   -version
      Show VictoriaMetrics version
 ```

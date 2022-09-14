@@ -9,8 +9,15 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
+var tlsMap = map[string]uint16{
+	"TLS10": tls.VersionTLS10,
+	"TLS11": tls.VersionTLS11,
+	"TLS12": tls.VersionTLS12,
+	"TLS13": tls.VersionTLS13,
+}
+
 // GetServerTLSConfig returns TLS config for the server.
-func GetServerTLSConfig(tlsCertFile, tlsKeyFile string, tlsCipherSuites []string) (*tls.Config, error) {
+func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion, maxTLSVersion string, tlsCipherSuites []string) (*tls.Config, error) {
 	var certLock sync.Mutex
 	var certDeadline uint64
 	var cert *tls.Certificate
@@ -22,10 +29,18 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile string, tlsCipherSuites []string
 	if err != nil {
 		return nil, fmt.Errorf("cannot use TLS cipher suites from tlsCipherSuites=%q: %w", tlsCipherSuites, err)
 	}
+	minVersion, err := tlsVersionFromName(minTLSVersion)
+	if err != nil {
+		return nil, fmt.Errorf("cannnot use TLS min version from minTLSVersion=%q: %w", minTLSVersion, err)
+	}
+	maxVersion, err := tlsVersionFromName(maxTLSVersion)
+	if err != nil {
+		return nil, fmt.Errorf("cannnot use TLS max version from maxTLSVersion=%q: %w", minTLSVersion, err)
+	}
 	cert = &c
 	cfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		PreferServerCipherSuites: true,
+		MinVersion: minVersion,
+		MaxVersion: maxVersion,
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			certLock.Lock()
 			defer certLock.Unlock()
@@ -62,4 +77,13 @@ func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
 		cipherSuites = append(cipherSuites, id)
 	}
 	return cipherSuites, nil
+}
+
+func tlsVersionFromName(tlsName string) (uint16, error) {
+	name := strings.ToUpper(tlsName)
+	tlsVersion, ok := tlsMap[name]
+	if !ok {
+		return 0, fmt.Errorf("provided incorrect tls version: %q", tlsName)
+	}
+	return tlsVersion, nil
 }

@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"crypto/tls"
 	"reflect"
 	"testing"
 )
@@ -75,4 +76,25 @@ func TestCipherSuitesFromNames(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_tlsVersionFromName(t *testing.T) {
+	f := func(name, tlsName string, want uint16, wantErr bool) {
+		t.Run(name, func(t *testing.T) {
+			got, err := tlsVersionFromName(tlsName)
+			if (err != nil) != wantErr {
+				t.Errorf("tlsVersionFromName() error = %v, wantErr %v", err, wantErr)
+				return
+			}
+			if got != want {
+				t.Errorf("tlsVersionFromName() got = %v, want %v", got, want)
+			}
+		})
+	}
+	f("empty tlsName", "", 0, true)
+	f("incorrect tlsName", "123", 0, true)
+	f("incorrect tlsName with correct prefix", "TLS1", 0, true)
+	f("incorrect tls version in tlsName", "TLS14", 0, true)
+	f("lowercase tlsName", "tls10", tls.VersionTLS10, false)
+	f("uppercase tlsName", "TLS13", tls.VersionTLS13, false)
 }

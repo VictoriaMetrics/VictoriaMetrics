@@ -72,14 +72,14 @@ Backup manager launched with the following configuration:
 ```console
 export NODE_IP=192.168.0.10
 export VMSTORAGE_ENDPOINT=http://127.0.0.1:8428
-./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula 
+./vmbackupmanager -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data -snapshot.createURL=$VMSTORAGE_ENDPOINT/snapshot/create -eula
 ```
 
 Expected logs in vmbackupmanager:
 
 ```console
 info    lib/backup/actions/backup.go:131    server-side copied 81 out of 81 parts from GCS{bucket: "vmstorage-data", dir: "192.168.0.10//latest/"} to GCS{bucket: "vmstorage-data", dir: "192.168.0.10//weekly/2020-34/"} in 2.549833008s
-info    lib/backup/actions/backup.go:169    backed up 853315 bytes in 2.882 seconds; deleted 0 bytes; server-side copied 853315 bytes; uploaded 0 bytes 
+info    lib/backup/actions/backup.go:169    backed up 853315 bytes in 2.882 seconds; deleted 0 bytes; server-side copied 853315 bytes; uploaded 0 bytes
 ```
 
 Expected logs in vmstorage:
@@ -93,7 +93,7 @@ info    VictoriaMetrics/lib/storage/storage.go:319    deleted snapshot "/vmstora
 The result on the GCS bucket
 
 * The root folder
-  
+
   ![root](vmbackupmanager_root_folder.png)
 
 * The latest folder
@@ -265,6 +265,10 @@ vmbackupmanager performs regular backups according to the provided configs.
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     The minimum TLS version that is acceptable
+  -tlsMaxVersion string
+     The maximum TLS version that is acceptable
   -version
      Show VictoriaMetrics version
 ```
