@@ -284,7 +284,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
-	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", ar.lastExecSamples, ar.lastExecDuration)
+	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.samples, curState.duration)
 
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
