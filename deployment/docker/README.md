@@ -9,8 +9,8 @@ For single version check [docker compose in master branch](https://github.com/Vi
 ## VictoriaMetrics
 
 VictoriaMetrics cluster in this environment consists of 
-vminsert, vmstorage and vmselect components. Only vmselect
-has exposed port `:8481` and the rest of components are available
+vminsert, vmstorage and vmselect components. vmselect
+has exposed port `:8481`, vminsert has exposed port `:8480` and the rest of components are available
 only inside of environment. 
 The communication scheme between components is the following:
 * [vmagent](#vmagent) sends scraped metrics to vminsert;

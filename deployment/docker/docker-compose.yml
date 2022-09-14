@@ -64,7 +64,7 @@ services:
       - '--storageNode=vmstorage-1:8400'
       - '--storageNode=vmstorage-2:8400'
     ports:
-      - 8480
+      - 8480:8480
     restart: always
   vmselect:
     container_name: vmselect
