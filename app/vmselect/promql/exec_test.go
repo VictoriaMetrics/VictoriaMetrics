@@ -7780,7 +7780,7 @@ func TestExecSuccess(t *testing.T) {
 	t.Run(`sort_by_label_numeric(multiple_labels_numbers_special_chars)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label_numeric((
-			label_set(1, "x", "1:0:0", "y", "1:0:1"),
+			label_set(1, "x", "1:0:2", "y", "1:0:1"),
 			label_set(2, "x", "1:0:15", "y", "1:0:1"),
 		), "x", "y")`
 		r1 := netstorage.Result{
@@ -7791,7 +7791,7 @@ func TestExecSuccess(t *testing.T) {
 		r1.MetricName.Tags = []storage.Tag{
 			{
 				Key:   []byte("x"),
-				Value: []byte("1:0:0"),
+				Value: []byte("1:0:2"),
 			},
 			{
 				Key:   []byte("y"),
@@ -7869,45 +7869,6 @@ func TestExecSuccess(t *testing.T) {
 			},
 		}
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
-		f(q, resultExpected)
-	})
-	t.Run(`sort_by_label_numeric(multiple_labels)`, func(t *testing.T) {
-		t.Parallel()
-		q := `sort_by_label_numeric((
-			label_set(1, "x", "1:0:0", "y", "1:0:1"),
-			label_set(2, "x", "1:0:15", "y", "1:0:2"),
-		), "x", "y")`
-		r1 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{1, 1, 1, 1, 1, 1},
-			Timestamps: timestampsExpected,
-		}
-		r1.MetricName.Tags = []storage.Tag{
-			{
-				Key:   []byte("x"),
-				Value: []byte("1:0:0"),
-			},
-			{
-				Key:   []byte("y"),
-				Value: []byte("1:0:1"),
-			},
-		}
-		r2 := netstorage.Result{
-			MetricName: metricNameExpected,
-			Values:     []float64{2, 2, 2, 2, 2, 2},
-			Timestamps: timestampsExpected,
-		}
-		r2.MetricName.Tags = []storage.Tag{
-			{
-				Key:   []byte("x"),
-				Value: []byte("1:0:15"),
-			},
-			{
-				Key:   []byte("y"),
-				Value: []byte("1:0:2"),
-			},
-		}
-		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 }

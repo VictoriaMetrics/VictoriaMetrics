@@ -675,11 +675,13 @@ The list of supported transform functions:
 
 #### sort_by_label_numeric
 
-`sort_by_label_numeric(q, label1, ... labelN)` sorts series in ascending order by the given set of labels. It uses alphanumeric algorithm so that can sort numbers with chars.  For example, `sort_by_label_numeric(foo, "bar")` would sort `foo` series by values which can have value like `1:0:2`, `1:0:15`, `a1`, `ab1`  of the label `bar` in these series. See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc).
+`sort_by_label_numeric(q, label1, ... labelN)` sorts series in ascending order by the given set of labels using numeric sort.  For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series in the following order of `bar` label values: `1`, `2`, `15` and `101`.
+See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_label](#sort_by_label).
 
 #### sort_by_label_numeric_desc
 
-`sort_by_label_numeric_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels. For example, `sort_by_label_numeric_desc(foo, "bar")` would sort `foo` series by values which can have value like `1:0:2`, `1:0:15`, `a1`, `ab1`  of the label `bar` in these series. See also [sort_by_label](#sort_by_label).
+`sort_by_label_numeric_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels using numeric sort.  For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
+See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc](#sort_by_label_desc).
 
 #### sort_desc
 
