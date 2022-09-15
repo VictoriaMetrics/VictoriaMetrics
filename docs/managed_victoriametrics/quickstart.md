@@ -11,6 +11,47 @@ To start using the service, one should have already registered AWS account
 and visit [VictoriaMetrics product page](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc).
 See more details [here](https://dbaas.victoriametrics.com/howToRegister).
 
+## How to restore password
+
+If you forgot your password you can restore it by single steps:
+1. Click on `forgot password` https://dbaas.victoriametrics.com/signIn
+
+<p>
+  <img src="restore-password.png" width="800" alt="">
+</p>
+
+2. Enter your email in the field and pres button `Send Email`
+
+<p>
+  <img src="restore-password-email.png" width="800" alt="">
+</p>
+
+Email will be sent to you email address, so you should follow the instructions from that email
+In this email you will get next message with link which login you: 
+```
+Victoria Metrics Cloud password restore
+Follow https://dbaas.victoriametrics.com/login_by_link/{id} the link in order to restore access to Victoria Metrics Cloud.
+Access link expires once you login successfully or after 30min.
+You can change your password after login https://dbaas.victoriametrics.com/profile profile
+Please, ignore this email if you didn't init this action on Victoria Metrics Cloud.<br>
+
+In case of questions contact our support support@victoriametrics.com
+```
+
+3. To change you password visit Profile page in the top right corner of the web page
+
+<p>
+  <img src="restore-password-profile.png" width="800" alt="">
+</p>
+
+4. In the Profile page enter new password and repeat it in the next field and press `Save` button.
+Both passwords should be equal.
+
+<p>
+  <img src="restore-password-save-password.png" width="800" alt="">
+</p>
+
+
 ## Creating instance
 
 Instances is a page where user can list and manage VictoriaMetrics single-node instances. 
