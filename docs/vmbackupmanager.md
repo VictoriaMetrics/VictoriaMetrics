@@ -186,7 +186,7 @@ vmbackupmanager performs regular backups according to the provided configs.
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
