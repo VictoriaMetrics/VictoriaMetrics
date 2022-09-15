@@ -435,10 +435,11 @@
         <table class="table table-striped table-hover table-sm">
             <thead>
                 <tr>
-                    <th scope="col" style="width: 20%" title="The time when event was created">Updated at</th>
-                    <th scope="col" style="width: 20%" class="text-center" title="How many samples were returned">Samples</th>
-                    <th scope="col" style="width: 20%" class="text-center" title="How many seconds request took">Duration</th>
-                    <th scope="col" style="width: 20%" class="text-center" title="Time used for rule execution">Executed at</th>
+                    <th scope="col" title="The time when event was created">Updated at</th>
+                    <th scope="col" style="width: 10%" class="text-center" title="How many samples were returned">Samples</th>
+                    <th scope="col" style="width: 10%" class="text-center" title="How many seconds request took">Duration</th>
+                    <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
+                    <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>
             </thead>
             <tbody>
@@ -448,14 +449,17 @@
                  <td>
                     <span class="badge bg-primary rounded-pill me-3" title="Updated at">{%s u.time.Format(time.RFC3339) %}</span>
                  </td>
-                 <td class="text-center">{%d u.samples %}</td>
+                 <td class="text-center" wi>{%d u.samples %}</td>
                  <td class="text-center">{%f.3 u.duration.Seconds() %}s</td>
                  <td class="text-center">{%s u.at.Format(time.RFC3339) %}</td>
+                 <td>
+                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s requestToCurl(u.req) %}</textarea>
+                </td>
              </tr>
           </li>
           {% if u.err != nil %}
              <tr{% if u.err != nil %} class="alert-danger"{% endif %}>
-               <td colspan="4">
+               <td colspan="5">
                    <span class="alert-danger">{%v u.err %}</span>
                </td>
              </tr>
