@@ -384,6 +384,7 @@
         </div>
       </div>
     </div>
+    {% if rule.Type == "alerting" %}
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -394,6 +395,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -406,6 +408,7 @@
         </div>
       </div>
     </div>
+    {% if rule.Type == "alerting" %}
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -419,6 +422,7 @@
         </div>
       </div>
     </div>
+    {% endif %}
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
