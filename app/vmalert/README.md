@@ -638,6 +638,61 @@ Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/1495
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
+## Troubleshooting
+
+vmalert executes configured rules within certain intervals. It is expected that at the moment when rule is executed,
+the data is already present in configured `-datasource.url`:
+
+<img alt="vmalert expected evaluation" src="vmalert_ts_normal.gif">
+
+Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
+may get empty response from datasource and produce empty recording rules or reset alerts state:
+
+<img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
+
+Try the following recommendations in such cases:
+
+* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics 
+are delivered to the datasource;
+* If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
+command-line flag to add a time shift for evaluations;
+* If time intervals between datapoints in datasource are irregular - try changing vmalert's `-datasource.queryStep`
+command-line flag to specify how far search query can lookback for the recent datapoint. By default, this value
+is equal to group's `evaluationInterval`.
+
+Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
+alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
+after multiple consecutive evaluations, and at each evaluation their expression must be true. If at least one evaluation
+becomes false, then alert's state resets to the initial state.
+
+If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
+`ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via 
+[vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
+changed in time.
+
+vmalert also stores last N state updates for each rule. To check updates, click on `Details` link next to rule's name
+on `/vmalert/groups` page and check the `Last updates` section:
+
+<img alt="vmalert state" src="vmalert_state.png">
+
+Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of 
+HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
+no samples returned and curl command returns data - then it is very likely there was no data in datasource on the 
+moment when rule was evaluated.
+
+vmalert also alows configuring more detailed logging for specific rule. Just set `debug: true` in rule's configuration
+and vmalert will start printing additional log messages:
+```terminal
+2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
+2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
+2022-09-15T13:35:56.178Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms)
+2022-09-15T13:35:56.178Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29&step=15s&time=1663248945"
+2022-09-15T13:35:56.179Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} created in state PENDING
+...
+2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
+```
+
+
 ## Profiling
 
 `vmalert` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
