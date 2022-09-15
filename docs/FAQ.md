@@ -235,6 +235,30 @@ It supports [high cardinality data](https://medium.com/@valyala/high-cardinality
 perfectly [scales up on a single node](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
 and scales horizontally to multiple nodes.
 
+## What is the difference between single-node and cluster versions of VictoriaMetrics?
+
+Both [single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) and
+[cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) versions of VictoriaMetrics
+share the core source code, so they have many common features. They have the following differences though:
+
+* [Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) runs on a single host,
+  while [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can scale to many hosts.
+  Single-node VictoriaMetrics scales vertically though, e.g. its capacity and performance scales almost linearly when increasing
+  available CPU, RAM, disk IO and disk space. See [an article about vertical scalability of a single-node VictoriaMetrics](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+
+* Cluster version of VictoriaMetrics supports [multitenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy),
+  while single-node VictoriaMetrics doesn't support it.
+
+* Cluster version of VictoriaMetrics supports data replication, while single-node VictoriaMetrics relies on the durability
+  of the persistent storage pointed by `-storageDataPath` command-line flag.
+  See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
+
+* Single-node VictoriaMetrics provides higher capacity and performance comparing to cluster version of VictoriaMetrics
+  when running on the same hardware with the same amounts of CPU and RAM, since it has no overhead on data transfer
+  between cluster components over the network.
+
+See also [which type of VictoriaMetrics is recommended to use](#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
+
 ## Where can I ask questions about VictoriaMetrics?
 
 Questions about VictoriaMetrics can be asked via the following channels:
@@ -302,6 +326,11 @@ VictoriaMetrics maintains in-memory cache for mapping of [active time series](#w
 ## How to optimize MetricsQL query?
 
 See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
+
+VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing) and [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
+which can help during query optimization.
+
+See also [troubleshooting slow queries](https://docs.victoriametrics.com/Troubleshooting.html#slow-queries).
 
 ## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
 
