@@ -1,7 +1,10 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -46,4 +49,63 @@ func newTimeSeriesPB(values []float64, timestamps []int64, labels []prompbmarsha
 	}
 	ts.Labels = labels
 	return ts
+}
+
+type curlWriter struct {
+	b strings.Builder
+}
+
+func (cw *curlWriter) string() string {
+	res := "curl " + cw.b.String()
+	cw.b.Reset()
+	return strings.TrimSpace(res)
+}
+
+func (cw *curlWriter) addWithEsc(str string) {
+	escStr := `'` + strings.Replace(str, `'`, `'\''`, -1) + `'`
+	cw.add(escStr)
+}
+
+func (cw *curlWriter) add(str string) {
+	cw.b.WriteString(str)
+	cw.b.WriteString(" ")
+}
+
+func requestToCurl(req *http.Request) string {
+	if req.URL == nil {
+		return ""
+	}
+
+	cw := &curlWriter{}
+
+	schema := req.URL.Scheme
+	requestURL := req.URL.String()
+	if schema == "" {
+		schema = "http"
+		if req.TLS != nil {
+			schema = "https"
+		}
+		requestURL = schema + "://" + req.Host + requestURL
+	}
+
+	if schema == "https" {
+		cw.add("-k")
+	}
+
+	cw.add("-X")
+	cw.add(req.Method)
+
+	var keys []string
+	for k := range req.Header {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		cw.add("-H")
+		cw.addWithEsc(fmt.Sprintf("%s: %s", k, strings.Join(req.Header[k], " ")))
+	}
+
+	cw.addWithEsc(requestURL)
+	return cw.string()
 }

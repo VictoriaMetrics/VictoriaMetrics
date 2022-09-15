@@ -264,13 +264,14 @@ const resolvedRetention = 15 * time.Minute
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
-	qMetrics, err := ar.q.Query(ctx, ar.Expr, ts)
+	qMetrics, req, err := ar.q.Query(ctx, ar.Expr, ts)
 	curState := ruleStateEntry{
 		time:     start,
 		at:       ts,
 		duration: time.Since(start),
 		samples:  len(qMetrics),
 		err:      err,
+		req:      req,
 	}
 
 	defer func() {
@@ -294,7 +295,10 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 	}
 
-	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query, ts) }
+	qFn := func(query string) ([]datasource.Metric, error) {
+		res, _, err := ar.q.Query(ctx, query, ts)
+		return res, err
+	}
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
 	for _, m := range qMetrics {
@@ -595,7 +599,10 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 	}
 
 	ts := time.Now()
-	qFn := func(query string) ([]datasource.Metric, error) { return ar.q.Query(ctx, query, ts) }
+	qFn := func(query string) ([]datasource.Metric, error) {
+		res, _, err := ar.q.Query(ctx, query, ts)
+		return res, err
+	}
 
 	// account for external labels in filter
 	var labelsFilter string
@@ -605,7 +612,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookb
 
 	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
 		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, err := q.Query(ctx, expr, ts)
+	qMetrics, _, err := q.Query(ctx, expr, ts)
 	if err != nil {
 		return err
 	}
