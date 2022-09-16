@@ -324,16 +324,11 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				a.ActiveAt = ts
 				ar.logDebugf(ts, a, "INACTIVE => PENDING")
 			}
-			if a.Value != m.Values[0] {
-				// update Value field with the latest value
-				a.Value = m.Values[0]
-				// and re-exec template since Value can be used
-				// in annotations
-				a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
-				if err != nil {
-					curState.err = err
-					return nil, curState.err
-				}
+			a.Value = m.Values[0]
+			// re-exec template since Value or query can be used in annotations
+			a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
+			if err != nil {
+				return nil, err
 			}
 			continue
 		}
