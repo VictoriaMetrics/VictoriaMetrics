@@ -24,6 +24,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate `increase(m[d])` over slow-changing counters with values smaller than 100. Previously [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) could return unexpectedly big results in this case. See [the related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3163).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): ignore empty series when applying [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset). It should improve queries with additional filters by value in expressions like `limit_offset(1,1, foo > 1)`.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `RangeError: Maximum call stack size exceeded` error when the query returns too many data points at `Table` view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3092/files).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): re-evaluate annotations per each alert evaluation. Previously, annotations were evaluated only on alert's value ch
+ange. This could result in stale annotations in some cases described in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3119).
 
 
 ## [v1.79.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.3)
