@@ -7,7 +7,7 @@ import (
 func TestSanitizeNameSuccess(t *testing.T) {
 	f := func(metricName, expected string) {
 		t.Helper()
-		result := sanitizeName(metricName)
+		result, _ := sanitizeName(metricName)
 		if result != expected {
 			t.Fatalf("unexpected metric name; got %s; want %s", result, expected)
 		}
@@ -25,7 +25,7 @@ func TestSanitizeNameSuccess(t *testing.T) {
 func TestSanitizeNameVerifyReplacements(t *testing.T) {
 	f := func(metricName, error string) {
 		t.Helper()
-		result := sanitizeName(metricName)
+		result, _ := sanitizeName(metricName)
 		if result == metricName {
 			t.Fatalf(error)
 		}

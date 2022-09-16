@@ -5,15 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"regexp"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/metrics"
+
+	"github.com/DataDog/datadog-agent/pkg/trace/traceutil"
 )
 
 // The maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
@@ -24,12 +26,6 @@ var maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*
 // - Consecutive underscores are replaced with just one underscore
 // - Underscore immediately before or after a dot are removed
 var sanitizeMetricName = flag.Bool("datadog.sanitizeMetricName", true, "If enable, will sanitize the metric name to comply with Datadog behaviour describe here: https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics Some additional clean up is done by Datadog that is not documented.")
-
-var (
-	invalidMetricNameCharRE     = regexp.MustCompile(`[^a-zA-Z0-9_.]`)
-	consecutiveUnderscores      = regexp.MustCompile(`_+`)
-	underscoresBeforeOrAfterDot = regexp.MustCompile(`_?\._?`)
-)
 
 // ParseStream parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
@@ -67,7 +63,17 @@ func ParseStream(r io.Reader, contentEncoding string, callback func(series []Ser
 	for i := range series {
 		rows += len(series[i].Points)
 		if *sanitizeMetricName {
-			series[i].Metric = sanitizeName(series[i].Metric)
+			var err error
+			originalValue := series[i].Metric
+			series[i].Metric, err = sanitizeName(series[i].Metric)
+			switch err {
+			case traceutil.ErrEmpty:
+				logger.Warnf("Fixing malformed trace. Name is empty (reason:span_name_empty), setting span.name=%s: %s", series[i].Metric, originalValue)
+			case traceutil.ErrTooLong:
+				logger.Warnf("Fixing malformed trace. Name is too long (reason:span_name_truncate), truncating span.name to length=%d: %s", traceutil.MaxServiceLen, originalValue)
+			case traceutil.ErrInvalid:
+				logger.Warnf("Fixing malformed trace. Name is invalid (reason:span_name_invalid), setting span.name=%s: %s", series[i].Metric, originalValue)
+			}
 		}
 	}
 	rowsRead.Add(rows)
@@ -154,6 +160,6 @@ func putRequest(req *Request) {
 
 var requestPool sync.Pool
 
-func sanitizeName(metric string) string {
-	return underscoresBeforeOrAfterDot.ReplaceAllString(consecutiveUnderscores.ReplaceAllString(invalidMetricNameCharRE.ReplaceAllString(metric, "_"), "_"), ".")
+func sanitizeName(metric string) (string, error) {
+	return traceutil.NormalizeName(metric)
 }

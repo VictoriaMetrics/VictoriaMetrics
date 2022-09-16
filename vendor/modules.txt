@@ -16,6 +16,12 @@ cloud.google.com/go/storage
 cloud.google.com/go/storage/internal
 cloud.google.com/go/storage/internal/apiv2
 cloud.google.com/go/storage/internal/apiv2/stubs
+# github.com/DataDog/datadog-agent/pkg/trace v0.39.0
+## explicit; go 1.17
+github.com/DataDog/datadog-agent/pkg/trace/config/features
+github.com/DataDog/datadog-agent/pkg/trace/log
+github.com/DataDog/datadog-agent/pkg/trace/pb
+github.com/DataDog/datadog-agent/pkg/trace/traceutil
 # github.com/VictoriaMetrics/fastcache v1.10.0
 ## explicit; go 1.13
 github.com/VictoriaMetrics/fastcache
@@ -114,6 +120,11 @@ github.com/go-kit/log/level
 # github.com/go-logfmt/logfmt v0.5.1
 ## explicit; go 1.17
 github.com/go-logfmt/logfmt
+# github.com/gogo/protobuf v1.3.2
+## explicit; go 1.15
+github.com/gogo/protobuf/gogoproto
+github.com/gogo/protobuf/proto
+github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 # github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da
 ## explicit
 github.com/golang/groupcache/lru
@@ -184,6 +195,9 @@ github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/oklog/ulid v1.3.1
 ## explicit
 github.com/oklog/ulid
+# github.com/philhofer/fwd v1.1.1
+## explicit
+github.com/philhofer/fwd
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
@@ -228,6 +242,9 @@ github.com/rivo/uniseg
 ## explicit
 github.com/russross/blackfriday/v2
 # github.com/urfave/cli/v2 v2.16.3
+# github.com/tinylib/msgp v1.1.6
+## explicit; go 1.14
+github.com/tinylib/msgp/msgp
 ## explicit; go 1.18
 github.com/urfave/cli/v2
 # github.com/valyala/bytebufferpool v1.0.0

@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package pb;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "span.proto";
+
+// TraceChunk represents a list of spans with the same trace ID. In other words, a chunk of a trace.
+message TraceChunk {
+	// priority specifies sampling priority of the trace.
+	int32 priority = 1 [(gogoproto.jsontag) = "priority", (gogoproto.moretags) = "msg:\"priority\""];
+	// origin specifies origin product ("lambda", "rum", etc.) of the trace.
+	string origin = 2 [(gogoproto.jsontag) = "origin", (gogoproto.moretags) = "msg:\"origin\""];
+	// spans specifies list of containing spans.
+	repeated Span spans = 3 [(gogoproto.jsontag) = "spans", (gogoproto.moretags) = "msg:\"spans\""];
+	// tags specifies tags common in all `spans`.
+	map<string, string> tags = 4 [(gogoproto.jsontag) = "tags", (gogoproto.moretags) = "msg:\"tags\""];
+	// droppedTrace specifies whether the trace was dropped by samplers or not.
+	bool droppedTrace = 5 [(gogoproto.jsontag) = "dropped_trace", (gogoproto.moretags) = "msg:\"dropped_trace\""];
+}
+
+// TracerPayload represents a payload the trace agent receives from tracers.
+message TracerPayload {
+	// containerID specifies the ID of the container where the tracer is running on.
+	string containerID = 1 [(gogoproto.jsontag) = "container_id", (gogoproto.moretags) = "msg:\"container_id\""];
+	// languageName specifies language of the tracer.
+	string languageName = 2 [(gogoproto.jsontag) = "language_name", (gogoproto.moretags) = "msg:\"language_name\""];
+	// languageVersion specifies language version of the tracer.
+	string languageVersion = 3 [(gogoproto.jsontag) = "language_version", (gogoproto.moretags) = "msg:\"language_version\""];
+	// tracerVersion specifies version of the tracer.
+	string tracerVersion = 4 [(gogoproto.jsontag) = "tracer_version", (gogoproto.moretags) = "msg:\"tracer_version\""];
+	// runtimeID specifies V4 UUID representation of a tracer session.
+	string runtimeID = 5 [(gogoproto.jsontag) = "runtime_id", (gogoproto.moretags) = "msg:\"runtime_id\""];
+	// chunks specifies list of containing trace chunks.
+	repeated TraceChunk chunks = 6 [(gogoproto.jsontag) = "chunks", (gogoproto.moretags) = "msg:\"chunks\""];
+	// tags specifies tags common in all `chunks`.
+	map<string, string> tags = 7 [(gogoproto.jsontag) = "tags", (gogoproto.moretags) = "msg:\"tags\""];
+	// env specifies `env` tag that set with the tracer.
+	string env = 8 [(gogoproto.jsontag) = "env", (gogoproto.moretags) = "msg:\"env\""];
+	// hostname specifies hostname of where the tracer is running.
+	string hostname = 9 [(gogoproto.jsontag) = "hostname", (gogoproto.moretags) = "msg:\"hostname\""];
+	// version specifies `version` tag that set with the tracer.
+	string appVersion = 10 [(gogoproto.jsontag) = "app_version", (gogoproto.moretags) = "msg:\"app_version\""];
+}
