@@ -31,6 +31,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly calculate query results at `vmselect`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3067). The issue has been introduced in [v1.81.0](https://docs.victoriametrics.com/CHANGELOG.html#v1810).
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): log clear error when multiple identical `-storageNode` command-line flags are passed to `vmselect` or to `vminsert`. Previously these components were crashed with cryptic panic `metric ... is already registered` in this case. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3076).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `RangeError: Maximum call stack size exceeded` error when the query returns too many data points at `Table` view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3092/files).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): re-evaluate alert's annotations on each execution. Previously, annotations were evaluated only on alert's value change. See [this PR](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3119) for details. 
 
 ## [v1.81.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.2)
 
