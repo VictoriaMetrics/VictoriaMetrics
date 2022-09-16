@@ -2333,9 +2333,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
   -tlsMinVersion string
-     The minimum TLS version that is acceptable
+     The minimum TLS version that is acceptable. Supported TLS versions (TLS10, TLS11, TLS12, TLS13).
   -tlsMaxVersion string
-     The maximum TLS version that is acceptable
+     The maximum TLS version that is acceptable. Supported TLS versions (TLS10, TLS11, TLS12, TLS13).
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string
