@@ -31,11 +31,14 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion, maxTLSVersion st
 	}
 	minVersion, err := tlsVersionFromName(minTLSVersion)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS min version from minTLSVersion=%q: %w", minTLSVersion, err)
+		return nil, fmt.Errorf("cannnot use TLS min version from minTLSVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", minTLSVersion, err)
 	}
 	maxVersion, err := tlsVersionFromName(maxTLSVersion)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS max version from maxTLSVersion=%q: %w", minTLSVersion, err)
+		return nil, fmt.Errorf("cannnot use TLS max version from maxTLSVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", minTLSVersion, err)
+	}
+	if minTLSVersion > maxTLSVersion {
+		maxTLSVersion = minTLSVersion
 	}
 	cert = &c
 	cfg := &tls.Config{
