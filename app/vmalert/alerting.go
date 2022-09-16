@@ -285,15 +285,11 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 				a.State = notifier.StatePending
 				a.ActiveAt = ts
 			}
-			if a.Value != m.Values[0] {
-				// update Value field with latest value
-				a.Value = m.Values[0]
-				// and re-exec template since Value can be used
-				// in annotations
-				a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
-				if err != nil {
-					return nil, err
-				}
+			a.Value = m.Values[0]
+			// re-exec template since Value or query can be used in annotations
+			a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
+			if err != nil {
+				return nil, err
 			}
 			continue
 		}
