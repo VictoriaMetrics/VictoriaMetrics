@@ -5,7 +5,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "8.3.5"
+      "version": "9.0.3"
     },
     {
       "type": "panel",
@@ -27,8 +27,8 @@
     },
     {
       "type": "panel",
-      "id": "table-old",
-      "name": "Table (old)",
+      "id": "table",
+      "name": "Table",
       "version": ""
     },
     {
@@ -42,7 +42,10 @@
     "list": [
       {
         "builtIn": 1,
-        "datasource": "-- Grafana --",
+        "datasource": {
+          "type": "datasource",
+          "uid": "grafana"
+        },
         "enable": true,
         "hide": true,
         "iconColor": "rgba(0, 211, 255, 1)",
@@ -62,7 +65,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1644909221704,
+  "iteration": 1663341746917,
   "links": [
     {
       "asDropdown": false,
@@ -105,6 +108,10 @@
   "panels": [
     {
       "collapsed": false,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -113,6 +120,15 @@
       },
       "id": 11,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "General ($instance)",
       "type": "row"
     },
@@ -181,9 +197,12 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "count(vmalert_config_last_reload_successful{job=~\"$job\", instance=~\"$instance\"} < 1 ) or 0",
           "interval": "",
@@ -220,7 +239,7 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 5,
+        "w": 4,
         "x": 3,
         "y": 1
       },
@@ -240,9 +259,12 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "(sum(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) or vector(0)) + \n(sum(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) or vector(0))",
           "interval": "",
@@ -275,8 +297,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 5,
-        "x": 8,
+        "w": 4,
+        "x": 7,
         "y": 1
       },
       "id": 9,
@@ -295,9 +317,12 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "count(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
           "interval": "",
@@ -330,8 +355,8 @@
       },
       "gridPos": {
         "h": 3,
-        "w": 5,
-        "x": 13,
+        "w": 4,
+        "x": 11,
         "y": 1
       },
       "id": 7,
@@ -350,9 +375,12 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "count(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"})",
           "interval": "",
@@ -364,93 +392,97 @@
       "type": "stat"
     },
     {
-      "columns": [],
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
-      "fontSize": "100%",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "displayMode": "auto",
+            "inspect": false,
+            "minWidth": 50
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Time"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Value"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Count"
+              }
+            ]
+          }
+        ]
+      },
       "gridPos": {
-        "h": 7,
-        "w": 6,
-        "x": 18,
-        "y": 1
+        "h": 4,
+        "w": 9,
+        "x": 0,
+        "y": 4
       },
-      "id": 2,
-      "scroll": true,
-      "showHeader": true,
-      "sort": {
-        "col": 3,
-        "desc": false
+      "id": 45,
+      "options": {
+        "footer": {
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true
       },
-      "styles": [
-        {
-          "alias": "uptime",
-          "align": "auto",
-          "colorMode": "cell",
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "Value",
-          "thresholds": [
-            "1800",
-            "3600"
-          ],
-          "type": "number",
-          "unit": "s"
-        },
-        {
-          "alias": "",
-          "align": "auto",
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "instance",
-          "thresholds": [],
-          "type": "string",
-          "unit": "short"
-        },
-        {
-          "alias": "",
-          "align": "auto",
-          "colors": [
-            "rgba(245, 54, 54, 0.9)",
-            "rgba(237, 129, 40, 0.89)",
-            "rgba(50, 172, 45, 0.97)"
-          ],
-          "dateFormat": "YYYY-MM-DD HH:mm:ss",
-          "decimals": 2,
-          "mappingType": 1,
-          "pattern": "/.*/",
-          "thresholds": [],
-          "type": "hidden",
-          "unit": "short"
-        }
-      ],
+      "pluginVersion": "9.0.3",
       "targets": [
         {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "editorMode": "code",
           "exemplar": false,
-          "expr": "sort((time() - vm_app_start_timestamp{job=~\"$job\", instance=~\"$instance\"}) or (up{job=~\"$job\", instance=~\"$instance\"}))",
+          "expr": "sum(vm_app_version{job=~\"$job\", instance=~\"$instance\"}) by(job, short_version)",
           "format": "table",
-          "hide": false,
           "instant": true,
-          "interval": "",
-          "legendFormat": "{{instance}}",
+          "range": false,
           "refId": "A"
         }
       ],
-      "title": "Uptime",
-      "transform": "table",
-      "type": "table-old"
+      "type": "table"
     },
     {
       "aliasColors": {},
@@ -470,8 +502,8 @@
       "fillGradient": 0,
       "gridPos": {
         "h": 4,
-        "w": 18,
-        "x": 0,
+        "w": 15,
+        "x": 9,
         "y": 4
       },
       "hiddenSeries": false,
@@ -498,7 +530,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -508,6 +540,9 @@
       "steppedLine": true,
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "sort(sum(up{job=~\"$job\", instance=~\"$instance\"}) by (job, instance))",
           "format": "time_series",
@@ -562,7 +597,7 @@
         "uid": "$ds"
       },
       "description": "Shows the number of fired alerts by instance.",
-      "fill": 1,
+      "fill": 0,
       "fillGradient": 0,
       "gridPos": {
         "h": 8,
@@ -591,7 +626,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -601,6 +636,9 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "sum(increase(vmalert_alerts_fired_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
           "interval": "",
@@ -613,7 +651,7 @@
       "title": "Alerts fired total",
       "tooltip": {
         "shared": true,
-        "sort": 0,
+        "sort": 2,
         "value_type": "individual"
       },
       "type": "graph",
@@ -624,11 +662,13 @@
       },
       "yaxes": [
         {
+          "$$hashKey": "object:62",
           "format": "short",
           "logBase": 1,
           "show": true
         },
         {
+          "$$hashKey": "object:63",
           "format": "short",
           "logBase": 1,
           "show": true
@@ -682,7 +722,7 @@
         "alertThreshold": false
       },
       "percentage": false,
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -692,6 +732,9 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "sum(rate(vmalert_iteration_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(group) / \nsum(rate(vmalert_iteration_duration_seconds_count{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(group)",
           "interval": "",
@@ -767,7 +810,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -777,6 +820,9 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
           "expr": "sum(rate(vmalert_execution_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (instance)",
           "interval": "",
@@ -800,11 +846,13 @@
       },
       "yaxes": [
         {
+          "$$hashKey": "object:182",
           "format": "short",
           "logBase": 1,
           "show": true
         },
         {
+          "$$hashKey": "object:183",
           "format": "short",
           "logBase": 1,
           "show": true
@@ -820,6 +868,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the error rate while executing configured rules. Non-zero value means there are some issues with existing rules. Check the logs to get more details.",
@@ -852,7 +901,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.5",
+      "pluginVersion": "9.0.3",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -862,8 +911,11 @@
       "steppedLine": false,
       "targets": [
         {
+          "datasource": {
+            "uid": "$ds"
+          },
           "exemplar": false,
-          "expr": "sum(increase(vmalert_execution_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
+          "expr": "sum(increase(vmalert_execution_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance) > 0",
           "interval": "",
           "legendFormat": "{{instance}}",
           "refId": "A"
@@ -885,11 +937,13 @@
       },
       "yaxes": [
         {
+          "$$hashKey": "object:244",
           "format": "short",
           "logBase": 1,
           "show": true
         },
         {
+          "$$hashKey": "object:245",
           "format": "short",
           "logBase": 1,
           "show": true
@@ -901,6 +955,10 @@
     },
     {
       "collapsed": true,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -947,7 +1005,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -957,6 +1015,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(vmalert_alerts_firing{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(group, alertname) > 0",
               "interval": "",
@@ -1032,7 +1093,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1042,6 +1103,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(vmalert_alerting_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(group, alertname) > 0",
               "interval": "",
@@ -1117,7 +1181,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1127,6 +1191,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(vmalert_alerts_pending{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(group, alertname) > 0",
               "interval": "",
@@ -1170,6 +1237,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows how many alerts are sent to Alertmanager per second. Only active alerts are sent.",
@@ -1202,7 +1270,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1212,8 +1280,11 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
-              "expr": "sum(rate(vmalert_alerts_sent_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, addr)",
+              "expr": "sum(rate(vmalert_alerts_sent_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance, addr) > 0",
               "interval": "",
               "legendFormat": "{{instance}} => {{addr}}",
               "refId": "A"
@@ -1224,7 +1295,7 @@
           "title": "Requests rate to Alertmanager ($group)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -1259,6 +1330,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the error rate for the attempts to send alerts to Alertmanager. If not zero it means there issues on attempt to send notification to Alertmanager and some alerts may be not delivered properly. Check the logs for more details.",
@@ -1291,7 +1363,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1301,8 +1373,11 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
-              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(instance, addr)",
+              "expr": "sum(rate(vmalert_alerts_send_errors_total{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}[$__rate_interval])) by(instance, addr) > 0",
               "interval": "",
               "legendFormat": "{{instance}} => {{addr}}",
               "refId": "A"
@@ -1343,11 +1418,24 @@
           }
         }
       ],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Alerting rules ($instance)",
       "type": "row"
     },
     {
       "collapsed": true,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1371,7 +1459,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 26
+            "y": 50
           },
           "hiddenSeries": false,
           "id": 31,
@@ -1394,7 +1482,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1404,6 +1492,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "topk(10, sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(group, recording) > 0)",
               "interval": "",
@@ -1500,7 +1591,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 26
+            "y": 50
           },
           "id": 33,
           "options": {
@@ -1514,12 +1605,16 @@
               "placement": "bottom"
             },
             "tooltip": {
-              "mode": "single"
+              "mode": "single",
+              "sort": "none"
             }
           },
           "pluginVersion": "8.0.3",
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(vmalert_recording_rules_last_evaluation_samples{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(group, recording) < 1",
               "interval": "",
@@ -1544,7 +1639,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 58
           },
           "hiddenSeries": false,
           "id": 30,
@@ -1567,7 +1662,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.0.3",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1577,6 +1672,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(vmalert_recording_rules_error{job=~\"$job\", instance=~\"$instance\", group=~\"$group\"}) by(group, recording) > 0",
               "interval": "",
@@ -1615,11 +1713,24 @@
           }
         }
       ],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Recording rules ($instance)",
       "type": "row"
     },
     {
       "collapsed": true,
+      "datasource": {
+        "type": "datasource",
+        "uid": "grafana"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -1637,7 +1748,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the CPU usage per vmalert instance. \nIf you think that usage is abnormal or unexpected pls file an issue and attach CPU profile if possible.",
+          "description": "Shows the CPU usage percentage per vmalert instance. \nIf you think that usage is abnormal or unexpected pls file an issue and attach CPU profile if possible.",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -1650,7 +1761,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 67
           },
           "hiddenSeries": false,
           "id": 35,
@@ -1680,17 +1791,11 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.5",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "$$hashKey": "object:61",
-              "alias": "/Limit .*/",
-              "color": "#F2495C"
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
@@ -1701,26 +1806,12 @@
                 "uid": "$ds"
               },
               "exemplar": false,
-              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance)",
+              "expr": "sum(rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(instance) / min(process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
               "legendFormat": "{{instance}}",
               "refId": "A"
-            },
-            {
-              "datasource": {
-                "type": "prometheus",
-                "uid": "$ds"
-              },
-              "exemplar": false,
-              "expr": "process_cpu_cores_available{job=~\"$job\", instance=~\"$instance\"}",
-              "format": "time_series",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 1,
-              "legendFormat": "Limit ({{instance}})",
-              "refId": "B"
             }
           ],
           "thresholds": [],
@@ -1728,7 +1819,7 @@
           "title": "CPU ($instance)",
           "tooltip": {
             "shared": true,
-            "sort": 0,
+            "sort": 2,
             "value_type": "individual"
           },
           "type": "graph",
@@ -1739,12 +1830,14 @@
           },
           "yaxes": [
             {
-              "format": "short",
+              "$$hashKey": "object:473",
+              "format": "percentunit",
               "logBase": 1,
               "min": "0",
               "show": true
             },
             {
+              "$$hashKey": "object:474",
               "format": "short",
               "logBase": 1,
               "show": true
@@ -1775,7 +1868,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 67
           },
           "hiddenSeries": false,
           "id": 37,
@@ -1805,7 +1898,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.5",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1815,6 +1908,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "interval": "",
@@ -1822,6 +1918,9 @@
               "refId": "A"
             },
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "exemplar": false,
               "expr": "sum(process_resident_memory_anon_bytes{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
               "hide": false,
@@ -1867,9 +1966,10 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Panel shows the number of open file descriptors in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
+          "description": "Panel shows the percentage of open file descriptors in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
           "fieldConfig": {
             "defaults": {
               "links": []
@@ -1882,7 +1982,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 75
           },
           "hiddenSeries": false,
           "id": 39,
@@ -1906,37 +2006,28 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.5",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "$$hashKey": "object:1161",
-              "alias": "max",
-              "color": "#C4162A"
-            }
-          ],
+          "seriesOverrides": [],
           "spaceLength": 10,
           "stack": false,
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
+              "editorMode": "code",
               "exemplar": false,
-              "expr": "sum(process_open_fds{job=~\"$job\", instance=~\"$instance\"}) by (instance)",
+              "expr": "sum(process_open_fds{job=~\"$job\", instance=~\"$instance\"}) by (instance) \n/\nmin(process_max_fds{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 2,
               "legendFormat": "open {{instance}}",
+              "range": true,
               "refId": "A"
-            },
-            {
-              "expr": "min(process_max_fds{job=~\"$job\", instance=~\"$instance\"})",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "max",
-              "refId": "B"
             }
           ],
           "thresholds": [],
@@ -1955,13 +2046,15 @@
           },
           "yaxes": [
             {
-              "decimals": 0,
-              "format": "short",
-              "logBase": 2,
+              "$$hashKey": "object:540",
+              "decimals": 3,
+              "format": "percentunit",
+              "logBase": 1,
               "min": "0",
               "show": true
             },
             {
+              "$$hashKey": "object:541",
               "format": "short",
               "logBase": 1,
               "min": "0",
@@ -1992,7 +2085,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 75
           },
           "hiddenSeries": false,
           "id": 41,
@@ -2016,7 +2109,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "8.3.5",
+          "pluginVersion": "9.0.3",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2026,6 +2119,9 @@
           "steppedLine": false,
           "targets": [
             {
+              "datasource": {
+                "uid": "$ds"
+              },
               "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
               "format": "time_series",
               "interval": "",
@@ -2067,12 +2163,21 @@
           }
         }
       ],
+      "targets": [
+        {
+          "datasource": {
+            "type": "datasource",
+            "uid": "grafana"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Resource usage",
       "type": "row"
     }
   ],
   "refresh": false,
-  "schemaVersion": 34,
+  "schemaVersion": 36,
   "style": "dark",
   "tags": [
     "victoriametrics",
@@ -2162,6 +2267,17 @@
         "skipUrlSync": false,
         "sort": 0,
         "type": "query"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${ds}"
+        },
+        "filters": [],
+        "hide": 0,
+        "name": "adhoc",
+        "skipUrlSync": false,
+        "type": "adhoc"
       }
     ]
   },
@@ -2171,7 +2287,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "vmalert",
+  "title": "VictoriaMetrics - vmalert",
   "uid": "LzldHAVnz",
   "version": 1,
   "weekStart": ""
