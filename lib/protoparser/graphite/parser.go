@@ -12,6 +12,8 @@ import (
 // graphite text line protocol may use white space or tab as separator
 // See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
 const graphiteSeparators = " \t"
+const tagQuotes = "\"'"
+const tagEscapeChar = "\\"
 
 // Rows contains parsed graphite rows.
 type Rows struct {
@@ -61,9 +63,9 @@ func (r *Row) reset() {
 
 // UnmarshalMetricAndTags unmarshals metric and optional tags from s.
 func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
-	if strings.Contains(s, " ") {
-		return tagsPool, fmt.Errorf("unexpected whitespace found in %q", s)
-	}
+//	if strings.Contains(s, " ") {
+//		return tagsPool, fmt.Errorf("unexpected whitespace found in %q", s)
+//	}
 	n := strings.IndexByte(s, ';')
 	if n < 0 {
 		// No tags
@@ -88,11 +90,21 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
+        q := strings.LastIndexAny(s, tagQuotes)
+        e := strings.LastIndexAny(s, tagEscapeChar)
 	n := strings.IndexAny(s, graphiteSeparators)
 	if n < 0 {
 		return tagsPool, fmt.Errorf("cannot find separator between metric and value in %q", s)
 	}
+        if n > q || n > e {
+		if q > e {
+			n = q + strings.IndexAny(s[q:], graphiteSeparators)
+		} else {
+			n = e + 2 + strings.IndexAny(s[e+2:], graphiteSeparators)
+		}
+	}
 	metricAndTags := s[:n]
+
 	tail := stripLeadingWhitespace(s[n+1:])
 
 	tagsPool, err := r.UnmarshalMetricAndTags(metricAndTags, tagsPool)
@@ -214,7 +226,7 @@ func (t *Tag) unmarshal(s string) {
 		t.Value = s[len(s):]
 	} else {
 		t.Key = s[:n]
-		t.Value = s[n+1:]
+		t.Value = trimQuote(fixEscapedSpace(s[n+1:]))
 	}
 }
 
@@ -243,4 +255,18 @@ func stripLeadingWhitespace(s string) string {
 		s = s[1:]
 	}
 	return ""
+}
+
+func trimQuote(s string) string {
+	if len(s) > 1 && s[0] == "\""[0] && s[len(s)-1] == "\""[0] {
+		s = s[1:len(s)-1]
+	}
+	if len(s) > 1 && s[0] == "'"[0] && s[len(s)-1] == "'"[0] {
+		s = s[1:len(s)-1]
+	}
+	return s
+}
+
+func fixEscapedSpace(s string) string {
+	return strings.ReplaceAll(s,"\\ ", " ")
 }
