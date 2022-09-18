@@ -118,6 +118,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// invalid timestamp
 	f("aa 123 bar")
+
+	f("foo_bar_baz;tag1='value1 with spaces';tag2=value2 123 1663080043")
 }
 
 func TestRowsUnmarshalSuccess(t *testing.T) {
@@ -413,6 +415,23 @@ func TestRowsUnmarshalWithGraphiteHasTimestampSuccess(t *testing.T) {
 	f("\n\n", &Rows{})
 	f("\n\r\n", &Rows{})
 
+	f("foo_bar_baz;tag1='value1 with spaces';tag2=value2 123 1663080043", &Rows{
+		Rows: []Row{{
+			Metric: "foo_bar_baz",
+			Value:  123,
+			Tags: []Tag{
+				{
+					Key:   "tag1",
+					Value: "'value1 with spaces'",
+				},
+				{
+					Key:   "tag2",
+					Value: "value2",
+				},
+			},
+			Timestamp: 1663080043,
+		}},
+	})
 	// Single line
 	f("foobar -123.456 789", &Rows{
 		Rows: []Row{{
