@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 
@@ -12,6 +13,8 @@ import (
 // graphite text line protocol may use white space or tab as separator
 // See https://github.com/grobian/carbon-c-relay/commit/f3ffe6cc2b52b07d14acbda649ad3fd6babdd528
 const graphiteSeparators = " \t"
+
+var metricHasTimestamp = flag.Bool("graphiteHasTimestamp", false, "Parse whitespaces in metrics")
 
 // Rows contains parsed graphite rows.
 type Rows struct {
@@ -61,10 +64,17 @@ func (r *Row) reset() {
 
 // UnmarshalMetricAndTags unmarshals metric and optional tags from s.
 func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
-	if strings.Contains(s, " ") {
-		return tagsPool, fmt.Errorf("unexpected whitespace found in %q", s)
-	}
 	n := strings.IndexByte(s, ';')
+	if n < 0 {
+		if m := strings.IndexAny(s, graphiteSeparators); m >= 0 {
+			return tagsPool, fmt.Errorf("cannot unmarshal line as it contains separator but no colon: %q", s)
+		}
+	} else {
+		if m := strings.IndexAny(s[:n], graphiteSeparators); m >= 0 {
+			return tagsPool, fmt.Errorf("cannot unmarshal line as it contains separator before colon: %q", s)
+		}
+	}
+
 	if n < 0 {
 		// No tags
 		r.Metric = s
@@ -88,40 +98,64 @@ func (r *Row) UnmarshalMetricAndTags(s string, tagsPool []Tag) ([]Tag, error) {
 
 func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	r.reset()
-	n := strings.IndexAny(s, graphiteSeparators)
-	if n < 0 {
+	n := strings.LastIndexAny(stripTrailingWhitespace(s), graphiteSeparators)
+	// last possible metrics should be 'm 1'
+	if n < 2 {
 		return tagsPool, fmt.Errorf("cannot find separator between metric and value in %q", s)
 	}
-	metricAndTags := s[:n]
-	tail := stripLeadingWhitespace(s[n+1:])
 
-	tagsPool, err := r.UnmarshalMetricAndTags(metricAndTags, tagsPool)
+	var value, timestamp string
+	// timestamp or value
+	last := stripLeadingWhitespace(stripTrailingWhitespace(s[n:]))
+	// metric value or metric
+	head := stripTrailingWhitespace(s[:n+1])
+
+	if *metricHasTimestamp {
+		n = strings.LastIndexAny(head, graphiteSeparators)
+		if n < 0 {
+			return tagsPool, fmt.Errorf("cannot find separator between metric and value in %q", head)
+		}
+
+		value = stripLeadingWhitespace(head[n:])
+		timestamp = last
+		head = stripTrailingWhitespace(head[:n])
+	} else {
+		n = strings.LastIndexAny(head, graphiteSeparators)
+		if n < 0 {
+			value = last
+			// use default timestamp
+		} else {
+			str := stripTrailingWhitespace(head[:n])
+			if strings.LastIndexAny(str, graphiteSeparators) >= 0 {
+				return tagsPool, fmt.Errorf("whitespaces not allowed in tags (%q), use --graphiteHasTimestamp", str)
+			}
+			value = stripLeadingWhitespace(stripTrailingWhitespace(head[n:]))
+			timestamp = last
+			head = stripTrailingWhitespace(head[:n])
+		}
+	}
+
+	v, err := fastfloat.Parse(value)
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", head, err)
+	}
+
+	r.Value = v
+
+	if timestamp != "" {
+		ts, err := fastfloat.Parse(timestamp)
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", head, err)
+		}
+
+		r.Timestamp = int64(ts)
+	}
+
+	tagsPool, err = r.UnmarshalMetricAndTags(head, tagsPool)
 	if err != nil {
 		return tagsPool, err
 	}
 
-	n = strings.IndexAny(tail, graphiteSeparators)
-	if n < 0 {
-		// There is no timestamp. Use default timestamp instead.
-		v, err := fastfloat.Parse(tail)
-		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail, err)
-		}
-		r.Value = v
-		return tagsPool, nil
-	}
-	v, err := fastfloat.Parse(tail[:n])
-	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal value from %q: %w", tail[:n], err)
-	}
-	tail = stripLeadingWhitespace(tail[n+1:])
-	tail = stripTrailingWhitespace(tail)
-	ts, err := fastfloat.Parse(tail)
-	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal timestamp from %q: %w", tail, err)
-	}
-	r.Value = v
-	r.Timestamp = int64(ts)
 	return tagsPool, nil
 }
 
