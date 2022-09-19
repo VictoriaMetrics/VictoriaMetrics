@@ -13,40 +13,42 @@ See more details [here](https://dbaas.victoriametrics.com/howToRegister).
 
 ## How to restore password
 
-If you forgot your password you can restore it the following steps:
-1. Click on `Forgot your password?` link at https://dbaas.victoriametrics.com/signIn
+If you forgot password, it can be restored in the following way:
+
+1. Click `Forgot your password?` link at [this page](https://dbaas.victoriametrics.com/signIn):
 
 <p>
-  <img src="restore-password.png" width="800" alt="">
+  <img src="restore-password.png" width="800">
 </p>
 
-2. Enter your email in the field and press button `Send Email`
+2. Enter your email in the field and click `Send Email` button:
 
 <p>
-  <img src="restore-password-email.png" width="800" alt="">
+  <img src="restore-password-email.png" width="800">
 </p>
 
-Follow the instruction sent to the specified email address:
+3. Follow the instruction sent to your email in order to gain access to your VictoriaMetrics cloud account:
+
 ```
 Victoria Metrics Cloud password restore
 Follow https://dbaas.victoriametrics.com/login_by_link/{id} the link in order to restore access to Victoria Metrics Cloud.
 Access link expires once you login successfully or after 30min.
 You can change your password after login https://dbaas.victoriametrics.com/profile profile
-Please, ignore this email if you didn't init this action on Victoria Metrics Cloud.<br>
+Please, ignore this email if you didn't init this action on Victoria Metrics Cloud.
 
 In case of questions contact our support support@victoriametrics.com
 ```
 
-3. To change you password visit Profile page in the top right corner of the web page
+4. Navigate to the Profile page by clicking the corresponding link at the top right corner:
 
 <p>
-  <img src="restore-password-profile.png" width="800" alt="">
+  <img src="restore-password-profile.png" width="800">
 </p>
 
-4. At the Profile page, enter new password and repeat it in the next field and press `Save` button.
+5. Enter new password at the Profile page and press `Save` button:
 
 <p>
-  <img src="restore-password-save-password.png" width="800" alt="">
+  <img src="restore-password-save-password.png" width="800">
 </p>
 
 
@@ -56,7 +58,7 @@ Instances is a page where user can list and manage VictoriaMetrics single-node i
 To create an instance click on the button `Create`:
 
 <p>
-  <img src="quickstart-instances.png" width="800" alt="">
+  <img src="quickstart-instances.png" width="800">
 </p>
 
 In the opened form, choose parameters of the new instance such as:
@@ -67,7 +69,7 @@ In the opened form, choose parameters of the new instance such as:
 * `Retention` period for stored metrics.
 
 <p>
-  <img src="quickstart-instance-create.png" width="800" alt="">
+  <img src="quickstart-instance-create.png" width="800">
 </p>
 
 Once created, instance will remain for a short period of time in `PROVISIONING` status 
@@ -75,7 +77,7 @@ while the hardware spins-up, just wait for a couple of minutes and reload the pa
 You'll also be notified via email once provisioning is finished:
 
 <p>
-  <img src="quickstart-instance-provisioning.png" width="800" alt="">
+  <img src="quickstart-instance-provisioning.png" width="800">
 </p>
 
 ## Access
@@ -84,7 +86,7 @@ After transition from `PROVISIONING` to `RUNNING` state, VictoriaMetrics is full
 and ready to accept write or read requests. But first, click on instance name to get the access token:
 
 <p>
-  <img src="quickstart-tokens.png" width="800" alt="">
+  <img src="quickstart-tokens.png" width="800">
 </p>
 
 Access tokens are used in token-based authentication to allow an application to access the VictoriaMetrics API. 
@@ -92,7 +94,7 @@ Supported token types are `Read-Only`, `Write-Only` and `Read-Write`. Click on t
 to see usage examples:
 
 <p>
-  <img src="quickstart-tokens-usage.png" width="800" alt="">
+  <img src="quickstart-tokens-usage.png" width="800">
 </p>
 
 Follow usage example in order to configure access to VictoriaMetrics for your Prometheus, 
