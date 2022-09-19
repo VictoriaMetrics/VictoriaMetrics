@@ -835,6 +835,13 @@ This is done using the regular "Skip" function:
 
 This will ensure that we are at exactly the offset we want, and reading from `dec` will start at the requested offset.
 
+# Compact storage
+
+For compact storage [RemoveIndexHeaders](https://pkg.go.dev/github.com/klauspost/compress/s2#RemoveIndexHeaders) can be used to remove any redundant info from 
+a serialized index. If you remove the header it must be restored before [Loading](https://pkg.go.dev/github.com/klauspost/compress/s2#Index.Load).
+
+This is expected to save 20 bytes. These can be restored using [RestoreIndexHeaders](https://pkg.go.dev/github.com/klauspost/compress/s2#RestoreIndexHeaders). This removes a layer of security, but is the most compact representation. Returns nil if headers contains errors.
+
 ## Index Format:
 
 Each block is structured as a snappy skippable block, with the chunk ID 0x99.
@@ -929,6 +936,7 @@ To decode from any given uncompressed offset `(wantOffset)`:
 
 See [using indexes](https://github.com/klauspost/compress/tree/master/s2#using-indexes) for functions that perform the operations with a simpler interface.
 
+
 # Format Extensions
 
 * Frame [Stream identifier](https://github.com/google/snappy/blob/master/framing_format.txt#L68) changed from `sNaPpY` to `S2sTwO`.
@@ -951,10 +959,11 @@ The length is specified by reading the 3-bit length specified in the tag and dec
 | 7      | 65540 + read 3 bytes |
 
 This allows any repeat offset + length to be represented by 2 to 5 bytes.
+It also allows to emit matches longer than 64 bytes with one copy + one repeat instead of several 64 byte copies.
 
 Lengths are stored as little endian values.
 
-The first copy of a block cannot be a repeat offset and the offset is not carried across blocks in streams.
+The first copy of a block cannot be a repeat offset and the offset is reset on every block in streams.
 
 Default streaming block size is 1MB.
 
