@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/s2"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
 func BenchmarkCompressWriteRequestSnappy(b *testing.B) {
