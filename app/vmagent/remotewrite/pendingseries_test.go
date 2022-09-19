@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/golang/snappy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/golang/snappy"
 )
 
 func TestPushWriteRequest(t *testing.T) {
@@ -44,7 +44,7 @@ func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteReque
 		var labels []prompbmarshal.Label
 		for j := 0; j < labelsCount; j++ {
 			labels = append(labels, prompbmarshal.Label{
-				Name: fmt.Sprintf("label_%d_%d", i, j),
+				Name:  fmt.Sprintf("label_%d_%d", i, j),
 				Value: fmt.Sprintf("value_%d_%d", i, j),
 			})
 		}
@@ -52,8 +52,8 @@ func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteReque
 			Labels: labels,
 			Samples: []prompbmarshal.Sample{
 				{
-					Value: float64(i),
-					Timestamp: 1000*int64(i),
+					Value:     float64(i),
+					Timestamp: 1000 * int64(i),
 				},
 			},
 		})
