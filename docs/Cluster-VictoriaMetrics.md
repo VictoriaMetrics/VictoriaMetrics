@@ -494,17 +494,50 @@ It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-cha
 
 ## Replication and data safety
 
-By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs), which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
+VictoriaMetrics supports application-level replication to provide availability and prevent from data loss when one
+or more vmstorage nodes are unavailable. When replication is enabled, `vminsert` replicates every incoming sample 
+to `-replicationFactor` distinct `vmstorage` nodes. For example, with `-replicationFactor=2` it is safe to drop 
+an arbitrary `vmstorage` from the cluster without any data loss.
 
-The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
+When some of `vmstorage` nodes are temporarily unavailable, VictoriaMetrics cluster continues accepting incoming samples
+and replicating them among the remaining `vmstorage` nodes according to the given `-replicationFactor`.
+VictoriaMetrics cluster continues serving incoming read queries by fetching the needed data from the remaining 
+`vmstorage` nodes. Some queries may return incomplete results if they rely on the historical data stored 
+at unavailable `vmstorage` nodes. Responses for such queries are marked as `incomplete`. 
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability) for details.
 
-The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain the given replication factor for newly ingested data when `N-1` of storage nodes are unavailable.
+VictoriaMetrics cluster architecture allows upgrading and reconfiguring cluster components without interruptions 
+on data ingestion path and with minimal interruptions on query path even if cluster-level replication is disabled.
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes)
+for details.
 
-VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag must be passed to `vmselect` nodes when the replication is enabled, so they could de-duplicate replicated samples obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics from identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, then the `-dedup.minScrapeInterval` must be set to `scrape_interval` from scrape configs according to [deduplication docs](#deduplication).
+The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert` components. 
+The setting instructs `vminsert` to store `N` copies for every ingested sample on `N` distinct `vmstorage` nodes. 
+Replication guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes 
+are unavailable.
 
-Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883), so it is recommended performing regular backups. See [these docs](#backups) for details.
+The cluster must contain at least `2*N-1` `vmstorage` nodes, where `N` is replication factor, in order to maintain 
+the given replication factor for newly ingested data when `N-1` of storage nodes are unavailable.
 
-Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up to `-replicationFactor=N` times, because `vminsert` stores `N` copies of incoming data to distinct `vmstorage` nodes and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying. So it is more cost-effective to offload the replication to underlying replicated durable storage pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), which is protected from data loss and data corruption. It also provides consistently high performance and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime. HDD-based persistent disks should be enough for the majority of use cases. It is recommended using durable replicated persistent volumes in Kubernetes.
+VictoriaMetrics stores timestamps with millisecond precision, so `-dedup.minScrapeInterval=1ms` command-line flag 
+must be passed to `vmselect` nodes when the replication is enabled, so they could de-duplicate replicated samples 
+obtained from distinct `vmstorage` nodes during querying. If duplicate data is pushed to VictoriaMetrics from 
+identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) instances or Prometheus instances, 
+then the `-dedup.minScrapeInterval` must be set to `scrape_interval` from scrape configs according 
+to [deduplication docs](#deduplication).
+
+Note that [replication doesn't save from disaster](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883), 
+so it is recommended performing regular backups. See [these docs](#backups) for details.
+
+Note that the replication increases resource usage - CPU, RAM, disk space, network bandwidth - by up 
+to `-replicationFactor=N` times, because `vminsert` stores `N` copies of incoming data to distinct `vmstorage` nodes,
+and `vmselect` needs to de-duplicate the replicated data obtained from `vmstorage` nodes during querying. 
+So it is more cost-effective to offload the replication to underlying replicated durable storage 
+pointed by `-storageDataPath` such as [Google Compute Engine persistent disk](https://cloud.google.com/compute/docs/disks/#pdspecs), 
+which is protected from data loss and data corruption. It also provides consistently high performance 
+and [may be resized](https://cloud.google.com/compute/docs/disks/add-persistent-disk) without downtime. 
+HDD-based persistent disks should be enough for the majority of use cases. 
+It is recommended using durable replicated persistent volumes in Kubernetes.
 
 ## Deduplication
 
