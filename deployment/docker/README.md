@@ -1,18 +1,62 @@
 # Docker compose environment for VictoriaMetrics
 
-To spin-up VictoriaMetrics, vmagent, vmalert, Alertmanager and Grafana run the following command:
+Docker compose environment for VictoriaMetrics includes VictoriaMetrics components,
+[Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) 
+and [Grafana](https://grafana.com/).
 
-`docker-compose up`
+For starting the docker-compose environment ensure you have docker installed and running and access to the Internet.
+All commands should be executed from the root directory of this repo.
 
-For clustered version check [docker compose in cluster branch](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster/deployment/docker).
+To spin-up environment for single server VictoriaMetrics run the following command :
+```
+make docker-single-up
+```
 
-## VictoriaMetrics
+To shutdown the docker compose environment for single server run the following command:
+```
+make docker-single-down
+```
+
+For cluster version the command will be the following:
+```
+make docker-cluster-up
+```
+
+To shutdown the docker compose environment for cluster version run the following command:
+```
+make docker-cluster-down
+```
+
+## VictoriaMetrics single server
 
 VictoriaMetrics will be accessible on the following ports:
 
 * `--graphiteListenAddr=:2003`
 * `--opentsdbListenAddr=:4242`
 * `--httpListenAddr=:8428`
+
+The communication scheme between components is the following:
+* [vmagent](#vmagent) sends scraped metrics to VictoriaMetrics;
+* [grafana](#grafana) is configured with datasource pointing to VictoriaMetrics;
+* [vmalert](#vmalert) is configured to query VictoriaMetrics and send alerts state
+  and recording rules back to it;
+* [alertmanager](#alertmanager) is configured to receive notifications from vmalert.
+
+
+## VictoriaMetrics cluster
+
+VictoriaMetrics cluster environemnt consists of vminsert, vmstorage and vmselect components. vmselect
+has exposed port `:8481`, vminsert has exposed port `:8480` and the rest of components are available
+only inside of environment.
+
+The communication scheme between components is the following:
+* [vmagent](#vmagent) sends scraped metrics to vminsert;
+* vminsert forwards data to vmstorage;
+* vmselect is connected to vmstorage for querying data;
+* [grafana](#grafana) is configured with datasource pointing to vmselect;
+* [vmalert](#vmalert) is configured to query vmselect and send alerts state
+  and recording rules to vminsert;
+* [alertmanager](#alertmanager) is configured to receive notifications from vmalert.
 
 ## vmagent
 
@@ -48,6 +92,11 @@ Default credential:
 
 Grafana is provisioned by default with following entities:
 
-* VictoriaMetrics datasource
-* Prometheus datasource
-* VictoriaMetrics overview dashboard
+* `VictoriaMetrics` datasource
+* `VictoriaMetrics - cluster` datasource
+* `VictoriaMetrics overview` dashboard
+* `VictoriaMetrics - cluster` dashboard
+* `VictoriaMetrics - vmagent` dashboard
+* `VictoriaMetrics - vmalert` dashboard
+
+Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMetrics - cluster` dashboard.
