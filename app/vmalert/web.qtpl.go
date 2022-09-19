@@ -1187,6 +1187,11 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
         </div>
       </div>
     </div>
+    `)
+//line app/vmalert/web.qtpl:387
+	if rule.Type == "alerting" {
+//line app/vmalert/web.qtpl:387
+		qw422016.N().S(`
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -1194,13 +1199,18 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
         </div>
         <div class="col">
          `)
-//line app/vmalert/web.qtpl:393
-	qw422016.E().V(rule.Duration)
-//line app/vmalert/web.qtpl:393
-	qw422016.N().S(` seconds
+//line app/vmalert/web.qtpl:394
+		qw422016.E().V(rule.Duration)
+//line app/vmalert/web.qtpl:394
+		qw422016.N().S(` seconds
         </div>
       </div>
     </div>
+    `)
+//line app/vmalert/web.qtpl:398
+	}
+//line app/vmalert/web.qtpl:398
+	qw422016.N().S(`
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -1208,27 +1218,32 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
         </div>
         <div class="col">
           `)
-//line app/vmalert/web.qtpl:403
+//line app/vmalert/web.qtpl:405
 	for _, k := range labelKeys {
-//line app/vmalert/web.qtpl:403
+//line app/vmalert/web.qtpl:405
 		qw422016.N().S(`
                 <span class="m-1 badge bg-primary">`)
-//line app/vmalert/web.qtpl:404
+//line app/vmalert/web.qtpl:406
 		qw422016.E().S(k)
-//line app/vmalert/web.qtpl:404
+//line app/vmalert/web.qtpl:406
 		qw422016.N().S(`=`)
-//line app/vmalert/web.qtpl:404
+//line app/vmalert/web.qtpl:406
 		qw422016.E().S(rule.Labels[k])
-//line app/vmalert/web.qtpl:404
+//line app/vmalert/web.qtpl:406
 		qw422016.N().S(`</span>
           `)
-//line app/vmalert/web.qtpl:405
+//line app/vmalert/web.qtpl:407
 	}
-//line app/vmalert/web.qtpl:405
+//line app/vmalert/web.qtpl:407
 	qw422016.N().S(`
         </div>
       </div>
     </div>
+    `)
+//line app/vmalert/web.qtpl:411
+	if rule.Type == "alerting" {
+//line app/vmalert/web.qtpl:411
+		qw422016.N().S(`
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -1236,28 +1251,33 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
         </div>
         <div class="col">
           `)
-//line app/vmalert/web.qtpl:415
-	for _, k := range annotationKeys {
-//line app/vmalert/web.qtpl:415
-		qw422016.N().S(`
+//line app/vmalert/web.qtpl:418
+		for _, k := range annotationKeys {
+//line app/vmalert/web.qtpl:418
+			qw422016.N().S(`
                 <b>`)
-//line app/vmalert/web.qtpl:416
-		qw422016.E().S(k)
-//line app/vmalert/web.qtpl:416
-		qw422016.N().S(`:</b><br>
+//line app/vmalert/web.qtpl:419
+			qw422016.E().S(k)
+//line app/vmalert/web.qtpl:419
+			qw422016.N().S(`:</b><br>
                 <p>`)
-//line app/vmalert/web.qtpl:417
-		qw422016.E().S(rule.Annotations[k])
-//line app/vmalert/web.qtpl:417
-		qw422016.N().S(`</p>
+//line app/vmalert/web.qtpl:420
+			qw422016.E().S(rule.Annotations[k])
+//line app/vmalert/web.qtpl:420
+			qw422016.N().S(`</p>
           `)
-//line app/vmalert/web.qtpl:418
-	}
-//line app/vmalert/web.qtpl:418
-	qw422016.N().S(`
+//line app/vmalert/web.qtpl:421
+		}
+//line app/vmalert/web.qtpl:421
+		qw422016.N().S(`
         </div>
       </div>
     </div>
+    `)
+//line app/vmalert/web.qtpl:425
+	}
+//line app/vmalert/web.qtpl:425
+	qw422016.N().S(`
     <div class="container border-bottom p-2">
       <div class="row">
         <div class="col-2">
@@ -1265,17 +1285,17 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
         </div>
         <div class="col">
            <a target="_blank" href="`)
-//line app/vmalert/web.qtpl:428
+//line app/vmalert/web.qtpl:432
 	qw422016.E().S(prefix)
-//line app/vmalert/web.qtpl:428
+//line app/vmalert/web.qtpl:432
 	qw422016.N().S(`groups#group-`)
-//line app/vmalert/web.qtpl:428
+//line app/vmalert/web.qtpl:432
 	qw422016.E().S(rule.GroupID)
-//line app/vmalert/web.qtpl:428
+//line app/vmalert/web.qtpl:432
 	qw422016.N().S(`">`)
-//line app/vmalert/web.qtpl:428
+//line app/vmalert/web.qtpl:432
 	qw422016.E().S(rule.GroupID)
-//line app/vmalert/web.qtpl:428
+//line app/vmalert/web.qtpl:432
 	qw422016.N().S(`</a>
         </div>
       </div>
@@ -1283,210 +1303,218 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 
     <br>
     <div class="display-6 pb-3">Last `)
-//line app/vmalert/web.qtpl:434
+//line app/vmalert/web.qtpl:438
 	qw422016.N().D(len(rule.Updates))
-//line app/vmalert/web.qtpl:434
+//line app/vmalert/web.qtpl:438
 	qw422016.N().S(` updates</span>:</div>
         <table class="table table-striped table-hover table-sm">
             <thead>
                 <tr>
-                    <th scope="col" style="width: 20%" title="The time when event was created">Updated at</th>
-                    <th scope="col" style="width: 20%" class="text-center" title="How many samples were returned">Samples</th>
-                    <th scope="col" style="width: 20%" class="text-center" title="How many seconds request took">Duration</th>
-                    <th scope="col" style="width: 20%" class="text-center" title="Time used for rule execution">Executed at</th>
+                    <th scope="col" title="The time when event was created">Updated at</th>
+                    <th scope="col" style="width: 10%" class="text-center" title="How many samples were returned">Samples</th>
+                    <th scope="col" style="width: 10%" class="text-center" title="How many seconds request took">Duration</th>
+                    <th scope="col" class="text-center" title="Time used for rule execution">Executed at</th>
+                    <th scope="col" class="text-center" title="cURL command with request example">cURL</th>
                 </tr>
             </thead>
             <tbody>
 
      `)
-//line app/vmalert/web.qtpl:446
+//line app/vmalert/web.qtpl:451
 	for _, u := range rule.Updates {
-//line app/vmalert/web.qtpl:446
+//line app/vmalert/web.qtpl:451
 		qw422016.N().S(`
              <tr`)
-//line app/vmalert/web.qtpl:447
+//line app/vmalert/web.qtpl:452
 		if u.err != nil {
-//line app/vmalert/web.qtpl:447
+//line app/vmalert/web.qtpl:452
 			qw422016.N().S(` class="alert-danger"`)
-//line app/vmalert/web.qtpl:447
+//line app/vmalert/web.qtpl:452
 		}
-//line app/vmalert/web.qtpl:447
+//line app/vmalert/web.qtpl:452
 		qw422016.N().S(`>
                  <td>
                     <span class="badge bg-primary rounded-pill me-3" title="Updated at">`)
-//line app/vmalert/web.qtpl:449
+//line app/vmalert/web.qtpl:454
 		qw422016.E().S(u.time.Format(time.RFC3339))
-//line app/vmalert/web.qtpl:449
+//line app/vmalert/web.qtpl:454
 		qw422016.N().S(`</span>
                  </td>
-                 <td class="text-center">`)
-//line app/vmalert/web.qtpl:451
+                 <td class="text-center" wi>`)
+//line app/vmalert/web.qtpl:456
 		qw422016.N().D(u.samples)
-//line app/vmalert/web.qtpl:451
+//line app/vmalert/web.qtpl:456
 		qw422016.N().S(`</td>
                  <td class="text-center">`)
-//line app/vmalert/web.qtpl:452
+//line app/vmalert/web.qtpl:457
 		qw422016.N().FPrec(u.duration.Seconds(), 3)
-//line app/vmalert/web.qtpl:452
+//line app/vmalert/web.qtpl:457
 		qw422016.N().S(`s</td>
                  <td class="text-center">`)
-//line app/vmalert/web.qtpl:453
+//line app/vmalert/web.qtpl:458
 		qw422016.E().S(u.at.Format(time.RFC3339))
-//line app/vmalert/web.qtpl:453
+//line app/vmalert/web.qtpl:458
 		qw422016.N().S(`</td>
+                 <td>
+                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">`)
+//line app/vmalert/web.qtpl:460
+		qw422016.E().S(requestToCurl(u.req))
+//line app/vmalert/web.qtpl:460
+		qw422016.N().S(`</textarea>
+                </td>
              </tr>
           </li>
           `)
-//line app/vmalert/web.qtpl:456
+//line app/vmalert/web.qtpl:464
 		if u.err != nil {
-//line app/vmalert/web.qtpl:456
+//line app/vmalert/web.qtpl:464
 			qw422016.N().S(`
              <tr`)
-//line app/vmalert/web.qtpl:457
+//line app/vmalert/web.qtpl:465
 			if u.err != nil {
-//line app/vmalert/web.qtpl:457
+//line app/vmalert/web.qtpl:465
 				qw422016.N().S(` class="alert-danger"`)
-//line app/vmalert/web.qtpl:457
+//line app/vmalert/web.qtpl:465
 			}
-//line app/vmalert/web.qtpl:457
+//line app/vmalert/web.qtpl:465
 			qw422016.N().S(`>
-               <td colspan="4">
+               <td colspan="5">
                    <span class="alert-danger">`)
-//line app/vmalert/web.qtpl:459
+//line app/vmalert/web.qtpl:467
 			qw422016.E().V(u.err)
-//line app/vmalert/web.qtpl:459
+//line app/vmalert/web.qtpl:467
 			qw422016.N().S(`</span>
                </td>
              </tr>
           `)
-//line app/vmalert/web.qtpl:462
+//line app/vmalert/web.qtpl:470
 		}
-//line app/vmalert/web.qtpl:462
+//line app/vmalert/web.qtpl:470
 		qw422016.N().S(`
      `)
-//line app/vmalert/web.qtpl:463
+//line app/vmalert/web.qtpl:471
 	}
-//line app/vmalert/web.qtpl:463
+//line app/vmalert/web.qtpl:471
 	qw422016.N().S(`
 
     `)
-//line app/vmalert/web.qtpl:465
+//line app/vmalert/web.qtpl:473
 	tpl.StreamFooter(qw422016, r)
-//line app/vmalert/web.qtpl:465
+//line app/vmalert/web.qtpl:473
 	qw422016.N().S(`
 `)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 }
 
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 func WriteRuleDetails(qq422016 qtio422016.Writer, r *http.Request, rule APIRule) {
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	StreamRuleDetails(qw422016, r, rule)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 }
 
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 func RuleDetails(r *http.Request, rule APIRule) string {
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	WriteRuleDetails(qb422016, r, rule)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	qs422016 := string(qb422016.B)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 	return qs422016
-//line app/vmalert/web.qtpl:466
+//line app/vmalert/web.qtpl:474
 }
 
-//line app/vmalert/web.qtpl:470
+//line app/vmalert/web.qtpl:478
 func streambadgeState(qw422016 *qt422016.Writer, state string) {
-//line app/vmalert/web.qtpl:470
+//line app/vmalert/web.qtpl:478
 	qw422016.N().S(`
 `)
-//line app/vmalert/web.qtpl:472
+//line app/vmalert/web.qtpl:480
 	badgeClass := "bg-warning text-dark"
 	if state == "firing" {
 		badgeClass = "bg-danger"
 	}
 
-//line app/vmalert/web.qtpl:476
+//line app/vmalert/web.qtpl:484
 	qw422016.N().S(`
 <span class="badge `)
-//line app/vmalert/web.qtpl:477
+//line app/vmalert/web.qtpl:485
 	qw422016.E().S(badgeClass)
-//line app/vmalert/web.qtpl:477
+//line app/vmalert/web.qtpl:485
 	qw422016.N().S(`">`)
-//line app/vmalert/web.qtpl:477
+//line app/vmalert/web.qtpl:485
 	qw422016.E().S(state)
-//line app/vmalert/web.qtpl:477
+//line app/vmalert/web.qtpl:485
 	qw422016.N().S(`</span>
 `)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 }
 
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 func writebadgeState(qq422016 qtio422016.Writer, state string) {
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	streambadgeState(qw422016, state)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 }
 
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 func badgeState(state string) string {
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	writebadgeState(qb422016, state)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	qs422016 := string(qb422016.B)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 	return qs422016
-//line app/vmalert/web.qtpl:478
+//line app/vmalert/web.qtpl:486
 }
 
-//line app/vmalert/web.qtpl:480
+//line app/vmalert/web.qtpl:488
 func streambadgeRestored(qw422016 *qt422016.Writer) {
-//line app/vmalert/web.qtpl:480
+//line app/vmalert/web.qtpl:488
 	qw422016.N().S(`
 <span class="badge bg-warning text-dark" title="Alert state was restored after the service restart from remote storage">restored</span>
 `)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 }
 
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 func writebadgeRestored(qq422016 qtio422016.Writer) {
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	streambadgeRestored(qw422016)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 }
 
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 func badgeRestored() string {
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	writebadgeRestored(qb422016)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	qs422016 := string(qb422016.B)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 	return qs422016
-//line app/vmalert/web.qtpl:482
+//line app/vmalert/web.qtpl:490
 }

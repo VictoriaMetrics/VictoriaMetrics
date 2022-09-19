@@ -98,10 +98,10 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 }
 
 // Query executes the given query and returns parsed response
-func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Metric, error) {
+func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Metric, *http.Request, error) {
 	req, err := s.newRequestPOST()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	switch s.dataSourceType {
@@ -110,12 +110,12 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 	case datasourceGraphite:
 		s.setGraphiteReqParams(req, query, ts)
 	default:
-		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType)
+		return nil, nil, fmt.Errorf("engine not found: %q", s.dataSourceType)
 	}
 
 	resp, err := s.do(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, req, err
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -125,7 +125,8 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 	if s.dataSourceType != datasourcePrometheus {
 		parseFn = parseGraphiteResponse
 	}
-	return parseFn(req, resp)
+	result, err := parseFn(req, resp)
+	return result, req, err
 }
 
 // QueryRange executes the given query on the given time range.

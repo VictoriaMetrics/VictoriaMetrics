@@ -642,6 +642,61 @@ Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/1495
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
+## Troubleshooting
+
+vmalert executes configured rules within certain intervals. It is expected that at the moment when rule is executed,
+the data is already present in configured `-datasource.url`:
+
+<img alt="vmalert expected evaluation" src="vmalert_ts_normal.gif">
+
+Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
+may get empty response from datasource and produce empty recording rules or reset alerts state:
+
+<img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
+
+Try the following recommendations in such cases:
+
+* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics 
+are delivered to the datasource;
+* If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
+command-line flag to add a time shift for evaluations;
+* If time intervals between datapoints in datasource are irregular - try changing vmalert's `-datasource.queryStep`
+command-line flag to specify how far search query can lookback for the recent datapoint. By default, this value
+is equal to group's `evaluationInterval`.
+
+Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
+alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
+after multiple consecutive evaluations, and at each evaluation their expression must be true. If at least one evaluation
+becomes false, then alert's state resets to the initial state.
+
+If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
+`ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via 
+[vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
+changed in time.
+
+vmalert also stores last N state updates for each rule. To check updates, click on `Details` link next to rule's name
+on `/vmalert/groups` page and check the `Last updates` section:
+
+<img alt="vmalert state" src="vmalert_state.png">
+
+Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of 
+HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
+no samples returned and curl command returns data - then it is very likely there was no data in datasource on the 
+moment when rule was evaluated.
+
+vmalert also alows configuring more detailed logging for specific rule. Just set `debug: true` in rule's configuration
+and vmalert will start printing additional log messages:
+```terminal
+2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
+2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
+2022-09-15T13:35:56.178Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms)
+2022-09-15T13:35:56.178Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29&step=15s&time=1663248945"
+2022-09-15T13:35:56.179Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} created in state PENDING
+...
+2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
+```
+
+
 ## Profiling
 
 `vmalert` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
@@ -682,7 +737,7 @@ The shortlist of configuration flags is the following:
 {% raw  %}
 ```
   -clusterMode
-     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in enterprise version of VictoriaMetrics
   -configCheckInterval duration
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
@@ -736,12 +791,12 @@ The shortlist of configuration flags is the following:
   -datasource.url string
      Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also '-datasource.disablePathAppend', '-datasource.showURL'.
   -defaultTenant.graphite string
-     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in enterprise version of VictoriaMetrics
   -defaultTenant.prometheus string
-     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in enterprise version of VictoriaMetrics
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
-  -dryRun -rule
+  -dryRun
      Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
@@ -750,12 +805,13 @@ The shortlist of configuration flags is the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-        External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-        Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'. (default "{{.ExternalURL}}/vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}")
+     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
+     Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.
+     If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
@@ -861,13 +917,13 @@ The shortlist of configuration flags is the following:
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
-     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
   -promscrape.discovery.concurrency int
      The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
-     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details (default 30s)
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.

@@ -59,6 +59,15 @@
           background-color: rgba(0,0,0,.5);
           -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
         }
+        textarea.curl-area{
+            width: 100%;
+            line-height: 1;
+            font-size: 12px;
+            border: none;
+            margin: 0;
+            padding: 0;
+            overflow: scroll;
+        }
     </style>
 </head>
 <body>
