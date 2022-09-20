@@ -1,12 +1,12 @@
 # How to delete or replace metrics in VictoriaMetrics 
 
-## Scenario
+**Scenario**
 
 Today there are a lot of monitoring software (Enterprise SaaS or self-hosted services) that help users and companies to stay informed and watch what's going on with their servers, devices, machines, applications, etc. Some of this software can collect many different metrics out-of-the-box. Some of these metrics are useful, but some could be unneeded or mistakenly recorded in the database. In such cases, you may need to remove junky metrics or clear up all space after tests. As a time series database, VictoriaMetrics also provides a mechanism for deleting metrics, but for architecture reasons, it is not suitable for frequent use.
 
 This guide will cover deletion and replacing metrics in the [Single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) and [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) versions of [VictoriaMetrics](https://victoriametrics.com).
 
-### Precondition
+**Precondition**
 
 We will use:
 - [Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html);
