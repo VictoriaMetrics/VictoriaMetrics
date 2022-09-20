@@ -176,6 +176,8 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 The shortlist of configuration flags include the following:
 
 ```console
+  -auth.httpHeader
+    HTTP header name to look for JWT authorization token
   -clusterMode
      enable this for the cluster version
   -datasource.appendTypePrefix
