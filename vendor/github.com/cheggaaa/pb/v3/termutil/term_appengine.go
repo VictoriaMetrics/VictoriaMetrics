@@ -1,4 +1,5 @@
 //go:build appengine
+// +build appengine
 
 package termutil
 

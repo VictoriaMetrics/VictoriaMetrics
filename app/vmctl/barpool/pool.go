@@ -3,7 +3,7 @@
 // altogether.
 package barpool
 
-import "github.com/dmitryk-dk/pb/v3"
+import "github.com/cheggaaa/pb/v3"
 
 var pool = pb.NewPool()
 

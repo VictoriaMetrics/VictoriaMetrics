@@ -10571,22 +10571,7 @@ var awsPartition = partition{
 		"fsx": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
-					Region: "af-south-1",
-				}: endpoint{},
-				endpointKey{
-					Region: "ap-east-1",
-				}: endpoint{},
-				endpointKey{
 					Region: "ap-northeast-1",
-				}: endpoint{},
-				endpointKey{
-					Region: "ap-northeast-2",
-				}: endpoint{},
-				endpointKey{
-					Region: "ap-northeast-3",
-				}: endpoint{},
-				endpointKey{
-					Region: "ap-south-1",
 				}: endpoint{},
 				endpointKey{
 					Region: "ap-southeast-1",
@@ -10607,19 +10592,10 @@ var awsPartition = partition{
 					Region: "eu-central-1",
 				}: endpoint{},
 				endpointKey{
-					Region: "eu-north-1",
-				}: endpoint{},
-				endpointKey{
-					Region: "eu-south-1",
-				}: endpoint{},
-				endpointKey{
 					Region: "eu-west-1",
 				}: endpoint{},
 				endpointKey{
 					Region: "eu-west-2",
-				}: endpoint{},
-				endpointKey{
-					Region: "eu-west-3",
 				}: endpoint{},
 				endpointKey{
 					Region: "fips-ca-central-1",
@@ -10658,15 +10634,6 @@ var awsPartition = partition{
 					Deprecated: boxedTrue,
 				},
 				endpointKey{
-					Region: "fips-prod-us-west-1",
-				}: endpoint{
-					Hostname: "fsx-fips.us-west-1.amazonaws.com",
-					CredentialScope: credentialScope{
-						Region: "us-west-1",
-					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
 					Region: "fips-prod-us-west-2",
 				}: endpoint{
 					Hostname: "fsx-fips.us-west-2.amazonaws.com",
@@ -10694,15 +10661,6 @@ var awsPartition = partition{
 					Deprecated: boxedTrue,
 				},
 				endpointKey{
-					Region: "fips-us-west-1",
-				}: endpoint{
-					Hostname: "fsx-fips.us-west-1.amazonaws.com",
-					CredentialScope: credentialScope{
-						Region: "us-west-1",
-					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
 					Region: "fips-us-west-2",
 				}: endpoint{
 					Hostname: "fsx-fips.us-west-2.amazonaws.com",
@@ -10711,9 +10669,6 @@ var awsPartition = partition{
 					},
 					Deprecated: boxedTrue,
 				},
-				endpointKey{
-					Region: "me-south-1",
-				}: endpoint{},
 				endpointKey{
 					Region: "prod-ca-central-1",
 				}: endpoint{
@@ -10769,24 +10724,6 @@ var awsPartition = partition{
 					Deprecated: boxedTrue,
 				},
 				endpointKey{
-					Region: "prod-us-west-1",
-				}: endpoint{
-					CredentialScope: credentialScope{
-						Region: "us-west-1",
-					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
-					Region:  "prod-us-west-1",
-					Variant: fipsVariant,
-				}: endpoint{
-					Hostname: "fsx-fips.us-west-1.amazonaws.com",
-					CredentialScope: credentialScope{
-						Region: "us-west-1",
-					},
-					Deprecated: boxedTrue,
-				},
-				endpointKey{
 					Region: "prod-us-west-2",
 				}: endpoint{
 					CredentialScope: credentialScope{
@@ -10805,9 +10742,6 @@ var awsPartition = partition{
 					Deprecated: boxedTrue,
 				},
 				endpointKey{
-					Region: "sa-east-1",
-				}: endpoint{},
-				endpointKey{
 					Region: "us-east-1",
 				}: endpoint{},
 				endpointKey{
@@ -10824,15 +10758,6 @@ var awsPartition = partition{
 					Variant: fipsVariant,
 				}: endpoint{
 					Hostname: "fsx-fips.us-east-2.amazonaws.com",
-				},
-				endpointKey{
-					Region: "us-west-1",
-				}: endpoint{},
-				endpointKey{
-					Region:  "us-west-1",
-					Variant: fipsVariant,
-				}: endpoint{
-					Hostname: "fsx-fips.us-west-1.amazonaws.com",
 				},
 				endpointKey{
 					Region: "us-west-2",
