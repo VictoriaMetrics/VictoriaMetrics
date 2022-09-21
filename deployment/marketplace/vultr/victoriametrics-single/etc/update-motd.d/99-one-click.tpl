@@ -19,7 +19,7 @@ On the server:
   * VictoriaMetrics is running on ports: 8428, 8089, 4242, 2003 and they are bound to the local interface.
 
 ********************************************************************************
-  # This image includes version VM_VERSION of VictoriaMetrics. 
+  # This image includes version VM_VERSION of VictoriaMetrics.
   # See Release notes https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/VM_VERSION
 
   # Website:       https://victoriametrics.com
@@ -28,7 +28,7 @@ On the server:
   # VictoriaMetrics Slack Community: https://slack.victoriametrics.com
   # VictoriaMetrics Telegram Community: https://t.me/VictoriaMetrics_en
   # VictoriaMetrics in Twitter: https://twitter.com/VictoriaMetrics
-  
+
   # VictoriaMetrics config:   /etc/victoriametrics/single/victoriametrics.conf
 
 ********************************************************************************
