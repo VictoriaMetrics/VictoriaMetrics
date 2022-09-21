@@ -42,6 +42,11 @@ The communication scheme between components is the following:
   and recording rules back to it;
 * [alertmanager](#alertmanager) is configured to receive notifications from vmalert.
 
+To access `vmalert` via `vmselect`
+use link [http://localhost:8428/vmalert](http://localhost:8428/vmalert/).
+
+To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui)
+use link [http://localhost:8428/vmui](http://localhost:8428/vmui).
 
 ## VictoriaMetrics cluster
 
@@ -57,6 +62,12 @@ The communication scheme between components is the following:
 * [vmalert](#vmalert) is configured to query vmselect and send alerts state
   and recording rules to vminsert;
 * [alertmanager](#alertmanager) is configured to receive notifications from vmalert.
+
+To access `vmalert` via `vmselect` 
+use link [http://localhost:8481/select/0/prometheus/vmalert](http://localhost:8481/select/0/prometheus/vmalert/).
+
+To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) 
+use link [http://localhost:8481/select/0/prometheus/vmui](http://localhost:8481/select/0/prometheus/vmui).
 
 ## vmagent
 
