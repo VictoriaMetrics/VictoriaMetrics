@@ -1,4 +1,4 @@
-//go:build windows
+// +build windows
 
 package pb
 
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/dmitryk-dk/pb/v3/termutil"
+	"github.com/cheggaaa/pb/v3/termutil"
 )
 
 func (p *Pool) print(first bool) bool {
@@ -24,7 +24,7 @@ func (p *Pool) print(first bool) bool {
 		}
 		coords.X = 0
 
-		err = termutil.SetCursorPos(coords)
+		err =  termutil.SetCursorPos(coords)
 		if err != nil {
 			log.Panic(err)
 		}
