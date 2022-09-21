@@ -2513,6 +2513,10 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 		rws.writeHeader(200)
 	}
 
+	if rws.handlerDone {
+		rws.promoteUndeclaredTrailers()
+	}
+
 	isHeadResp := rws.req.Method == "HEAD"
 	if !rws.sentHeader {
 		rws.sentHeader = true
@@ -2582,10 +2586,6 @@ func (rws *responseWriterState) writeChunk(p []byte) (n int, err error) {
 	}
 	if len(p) == 0 && !rws.handlerDone {
 		return 0, nil
-	}
-
-	if rws.handlerDone {
-		rws.promoteUndeclaredTrailers()
 	}
 
 	// only send trailers if they have actually been defined by the
