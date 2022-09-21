@@ -144,7 +144,7 @@ Ports may be altered by setting `-httpListenAddr` on the corresponding nodes.
 It is recommended setting up [monitoring](#monitoring) for the cluster.
 
 The following tools can simplify cluster setup:
-- [An example docker-compose config for VictoriaMetrics cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/docker-compose.yml)
+- [An example docker-compose config for VictoriaMetrics cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
 - [Helm charts for VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts)
 - [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator)
 
