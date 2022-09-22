@@ -709,7 +709,7 @@ func (tb *Table) mergeRawItemsBlocks(ibs []*inmemoryBlock, isFinal bool) {
 			atomic.AddUint64(&tb.assistedMerges, 1)
 			continue
 		}
-		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
 			return
 		}
 		logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -788,12 +788,14 @@ func (tb *Table) canBackgroundMerge() bool {
 	return atomic.LoadUint32(tb.isReadOnly) == 0
 }
 
+var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
+
 func (tb *Table) mergeExistingParts(isFinal bool) error {
 	if !tb.canBackgroundMerge() {
 		// Do not perform background merge in read-only mode
 		// in order to prevent from disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	n := fs.MustGetFreeSpace(tb.path)
 	// Divide free space by the max number of concurrent merges.
@@ -832,7 +834,7 @@ func (tb *Table) partMerger() error {
 			// The merger has been stopped.
 			return nil
 		}
-		if !errors.Is(err, errNothingToMerge) {
+		if !errors.Is(err, errNothingToMerge) && !errors.Is(err, errReadOnlyMode) {
 			return err
 		}
 		if fasttime.UnixTimestamp()-lastMergeTime > 30 {
