@@ -4,6 +4,7 @@ import (
 	"flag"
 	"io"
 	"net/http"
+	"regexp"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
@@ -91,7 +92,7 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 		}
 		for j := range extraLabels {
 			label := &extraLabels[j]
-			ic.AddLabel(label.Name, label.Value)
+			ic.AddLabel(sanitize(label.Name), label.Value)
 		}
 		ctx.metricGroupBuf = ctx.metricGroupBuf[:0]
 		if !*skipMeasurement {
@@ -148,6 +149,12 @@ func insertRows(db string, rows []parser.Row, extraLabels []prompbmarshal.Label)
 	rowsInserted.Add(rowsTotal)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
+}
+
+var invalidNameCharRE = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
+
+func sanitize(value string) string {
+	return invalidNameCharRE.ReplaceAllString(value, "_")
 }
 
 type pushCtx struct {
