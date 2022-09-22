@@ -94,6 +94,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Tutorials, guides and how-to articles
 
+* [Monitoring VictoriaMetrics](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 * [PromQL tutorial for beginners and humans](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
 * [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986)
 * [Analyzing Prometheus data with external tools](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
