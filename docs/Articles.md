@@ -57,6 +57,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
 * [How we tried using VictoriaMetrics and Thanos at the same time](https://habr.com/ru/company/sravni/blog/672908/)
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
+* [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
 
 ## Our articles
 
