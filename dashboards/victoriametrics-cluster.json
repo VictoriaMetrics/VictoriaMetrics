@@ -60,7 +60,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
   "id": null,
-  "iteration": 1663336027743,
+  "iteration": 1663928613745,
   "links": [
     {
       "icon": "doc",
@@ -118,7 +118,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -185,7 +186,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -253,7 +255,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -320,7 +323,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -376,7 +380,7 @@
           "datasource": {
             "uid": "$ds"
           },
-          "description": "How many entries inverted index contains. This value is proportional to the number of unique timeseries in storage(cardinality).",
+          "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee more details here https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -387,7 +391,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -427,7 +432,7 @@
                 "uid": "$ds"
               },
               "exemplar": true,
-              "expr": "sum(vm_rows{job=~\"$job_storage\", type=\"indexdb\"})",
+              "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance.*\", type=\"storage/hour_metric_ids\"})",
               "format": "time_series",
               "instant": true,
               "interval": "",
@@ -436,7 +441,7 @@
               "refId": "A"
             }
           ],
-          "title": "Index size",
+          "title": "Active series",
           "type": "stat"
         },
         {
@@ -455,7 +460,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -522,7 +528,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -590,7 +597,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               },
@@ -663,7 +671,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -8067,8 +8076,8 @@
       {
         "current": {
           "selected": false,
-          "text": "VictoriaMetrics",
-          "value": "VictoriaMetrics"
+          "text": "VictoriaMetrics - cluster",
+          "value": "VictoriaMetrics - cluster"
         },
         "hide": 0,
         "includeAll": false,
