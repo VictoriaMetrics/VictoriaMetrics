@@ -1520,7 +1520,8 @@ VictoriaMetrics exposes currently running queries and their execution times at `
 
 VictoriaMetrics exposes queries, which take the most time to execute, at `/api/v1/status/top_queries` page.
 
-See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/) 
+adn [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## TSDB stats
 
