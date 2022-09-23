@@ -32,7 +32,7 @@ services:
 
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.81.2
+    image: victoriametrics/vmstorage:v1.81.2-cluster
     ports:
       - 8482
       - 8400
@@ -44,7 +44,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.81.2
+    image: victoriametrics/vmstorage:v1.81.2-cluster
     ports:
       - 8482
       - 8400
@@ -56,7 +56,7 @@ services:
     restart: always
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.81.2
+    image: victoriametrics/vminsert:v1.81.2-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -68,7 +68,7 @@ services:
     restart: always
   vmselect:
     container_name: vmselect
-    image: victoriametrics/vmselect:v1.81.2
+    image: victoriametrics/vmselect:v1.81.2-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
