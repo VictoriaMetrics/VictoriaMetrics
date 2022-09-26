@@ -3,6 +3,7 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -25,6 +26,10 @@ var (
 	relabelDebug = flagutil.NewArrayBool("remoteWrite.urlRelabelDebug", "Whether to log metrics before and after relabeling with -remoteWrite.urlRelabelConfig. "+
 		"If the -remoteWrite.urlRelabelDebug is enabled, then the metrics aren't sent to the corresponding -remoteWrite.url. "+
 		"This is useful for debugging the relabeling configs")
+
+	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
+		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
+		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
 )
 
 var labelsGlobal []prompbmarshal.Label
@@ -107,6 +112,18 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 				labels = append(labels, *extraLabel)
 			}
 		}
+		if *usePromCompatibleNaming {
+			// Replace unsupported Prometheus chars in label names and metric names with underscores.
+			tmpLabels := labels[labelsLen:]
+			for j := range tmpLabels {
+				label := &tmpLabels[j]
+				if label.Name == "__name__" {
+					label.Value = unsupportedPromChars.ReplaceAllString(label.Value, "_")
+				} else {
+					label.Name = unsupportedPromChars.ReplaceAllString(label.Name, "_")
+				}
+			}
+		}
 		labels = pcs.Apply(labels, labelsLen, true)
 		if len(labels) == labelsLen {
 			// Drop the current time series, since relabeling removed all the labels.
@@ -120,6 +137,9 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 	rctx.labels = labels
 	return tssDst
 }
+
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
 
 type relabelCtx struct {
 	// pool for labels, which are used during the relabeling.

@@ -3,6 +3,7 @@ package relabel
 import (
 	"flag"
 	"fmt"
+	"regexp"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -20,6 +21,10 @@ var (
 		"See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal")
 	relabelDebug = flag.Bool("relabelDebug", false, "Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, "+
 		"then the metrics aren't sent to storage. This is useful for debugging the relabeling configs")
+
+	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
+		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
+		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
 )
 
 // Init must be called after flag.Parse and before using the relabel package.
@@ -67,7 +72,7 @@ func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 // HasRelabeling returns true if there is global relabeling.
 func HasRelabeling() bool {
 	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
-	return pcs.Len() > 0
+	return pcs.Len() > 0 || *usePromCompatibleNaming
 }
 
 // Ctx holds relabeling context.
@@ -87,11 +92,11 @@ func (ctx *Ctx) Reset() {
 // The returned labels are valid until the next call to ApplyRelabeling.
 func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 	pcs := pcsGlobal.Load().(*promrelabel.ParsedConfigs)
-	if pcs.Len() == 0 {
+	if pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// There are no relabeling rules.
 		return labels
 	}
-	// Convert src to prompbmarshal.Label format suitable for relabeling.
+	// Convert labels to prompbmarshal.Label format suitable for relabeling.
 	tmpLabels := ctx.tmpLabels[:0]
 	for _, label := range labels {
 		name := bytesutil.ToUnsafeString(label.Name)
@@ -105,12 +110,27 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 		})
 	}
 
-	// Apply relabeling
-	tmpLabels = pcs.Apply(tmpLabels, 0, true)
-	ctx.tmpLabels = tmpLabels
-	if len(tmpLabels) == 0 {
-		metricsDropped.Inc()
+	if *usePromCompatibleNaming {
+		// Replace unsupported Prometheus chars in label names and metric names with underscores.
+		for i := range tmpLabels {
+			label := &tmpLabels[i]
+			if label.Name == "__name__" {
+				label.Value = unsupportedPromChars.ReplaceAllString(label.Value, "_")
+			} else {
+				label.Name = unsupportedPromChars.ReplaceAllString(label.Name, "_")
+			}
+		}
 	}
+
+	if pcs.Len() > 0 {
+		// Apply relabeling
+		tmpLabels = pcs.Apply(tmpLabels, 0, true)
+		if len(tmpLabels) == 0 {
+			metricsDropped.Inc()
+		}
+	}
+
+	ctx.tmpLabels = tmpLabels
 
 	// Return back labels to the desired format.
 	dst := labels[:0]
@@ -129,3 +149,6 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 }
 
 var metricsDropped = metrics.NewCounter(`vm_relabel_metrics_dropped_total`)
+
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
