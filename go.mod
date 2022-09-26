@@ -22,7 +22,7 @@ require (
 	github.com/influxdata/influxdb v1.10.0
 	github.com/klauspost/compress v1.15.11
 	github.com/mattn/go-colorable v0.1.13 // indirect
-	github.com/mattn/go-runewidth v0.0.13 // indirect
+	github.com/mattn/go-runewidth v0.0.14 // indirect
 	github.com/oklog/ulid v1.3.1
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
