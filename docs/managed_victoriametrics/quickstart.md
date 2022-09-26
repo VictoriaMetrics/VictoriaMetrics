@@ -94,7 +94,7 @@ Supported token types are `Read-Only`, `Write-Only` and `Read-Write`. Click on t
 to see usage examples:
 
 <p>
-  <img src="quickstart-tokens-usage.png" width="800">
+  <img src="quickstart-token-usage.png" width="800">
 </p>
 
 Follow usage example in order to configure access to VictoriaMetrics for your Prometheus, 
