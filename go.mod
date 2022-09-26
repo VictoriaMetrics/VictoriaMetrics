@@ -11,7 +11,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.22.2
 	github.com/VictoriaMetrics/metricsql v0.45.0
-	github.com/aws/aws-sdk-go v1.44.102
+	github.com/aws/aws-sdk-go v1.44.105
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/golang/snappy v0.0.4
