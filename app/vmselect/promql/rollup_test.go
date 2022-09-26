@@ -1383,19 +1383,16 @@ func TestRollupDelta(t *testing.T) {
 
 	// Small initial value
 	f(nan, nan, nan, []float64{1}, 1)
-	f(nan, nan, nan, []float64{10}, 10)
-	f(nan, nan, nan, []float64{100}, 100)
+	f(nan, nan, nan, []float64{10}, 0)
+	f(nan, nan, nan, []float64{100}, 0)
 	f(nan, nan, nan, []float64{1, 2, 3}, 3)
 	f(1, nan, nan, []float64{1, 2, 3}, 2)
 	f(nan, nan, nan, []float64{5, 6, 8}, 8)
 	f(2, nan, nan, []float64{5, 6, 8}, 6)
 
-	// Moderate initial value with zero delta after that.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962
-	f(nan, nan, nan, []float64{100}, 100)
-	f(nan, nan, nan, []float64{100, 100}, 100)
+	f(nan, nan, nan, []float64{100, 100}, 0)
 
-	// Big initial value with with zero delta after that.
+	// Big initial value with zero delta after that.
 	f(nan, nan, nan, []float64{1000}, 0)
 	f(nan, nan, nan, []float64{1000, 1000}, 0)
 

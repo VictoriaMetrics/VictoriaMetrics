@@ -1485,11 +1485,8 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/894
 			return values[len(values)-1] - rfa.realPrevValue
 		}
-		// Assume that the previous non-existing value was 0 only in the following cases:
-		//
-		// - If the delta with the next value equals to 0.
-		//   This is the case for slow-changing counter - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962
-		// - If the first value doesn't exceed too much the delta with the next value.
+		// Assume that the previous non-existing value was 0
+		// only if the first value doesn't exceed too much the delta with the next value.
 		//
 		// This should prevent from improper increase() results for os-level counters
 		// such as cpu time or bytes sent over the network interface.
@@ -1502,9 +1499,6 @@ func rollupDelta(rfa *rollupFuncArg) float64 {
 			d = values[1] - values[0]
 		} else if !math.IsNaN(rfa.realNextValue) {
 			d = rfa.realNextValue - values[0]
-		}
-		if d == 0 {
-			d = 10
 		}
 		if math.Abs(values[0]) < 10*(math.Abs(d)+1) {
 			prevValue = 0
