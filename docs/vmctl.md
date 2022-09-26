@@ -246,6 +246,7 @@ Found 40000 timeseries to import. Continue? [Y/n] y
 Vmctl maps InfluxDB data the same way as VictoriaMetrics does by using the following rules:
 
 - `influx-database` arg is mapped into `db` label value unless `db` tag exists in the InfluxDB line.
+If you want to skip this mapping just enable flag `influx-skip-database-label`.
 - Field names are mapped to time series names prefixed with {measurement}{separator} value,
 where {separator} equals to _ by default.
 It can be changed with `--influx-measurement-field-separator` command-line flag.

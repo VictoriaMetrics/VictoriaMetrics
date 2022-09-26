@@ -225,7 +225,7 @@ func (t *Tracer) getLastChildDoneTime(defaultTime time.Time) time.Time {
 
 // span represents a single trace span
 type span struct {
-	// DurationMsec is the duration for the current trace span in microseconds.
+	// DurationMsec is the duration for the current trace span in milliseconds.
 	DurationMsec float64 `json:"duration_msec"`
 	// Message is a trace message
 	Message string `json:"message"`

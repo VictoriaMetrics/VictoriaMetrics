@@ -673,6 +673,16 @@ The list of supported transform functions:
 
 `sort_by_label_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels. For example, `sort_by_label(foo, "bar")` would sort `foo` series by values of the label `bar` in these series. See also [sort_by_label](#sort_by_label).
 
+#### sort_by_label_numeric
+
+`sort_by_label_numeric(q, label1, ... labelN)` sorts series in ascending order by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).  For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series in the following order of `bar` label values: `1`, `2`, `15` and `101`.
+See also [sort_by_label_numeric_desc](#sort_by_label_numeric_desc) and [sort_by_label](#sort_by_label).
+
+#### sort_by_label_numeric_desc
+
+`sort_by_label_numeric_desc(q, label1, ... labelN)` sorts series in descending order by the given set of labels using [numeric sort](https://www.gnu.org/software/coreutils/manual/html_node/Version-sort-is-not-the-same-as-numeric-sort.html).  For example, if `foo` series have `bar` label with values `1`, `101`, `15` and `2`, then `sort_by_label_numeric(foo, "bar")` would return series in the following order of `bar` label values: `101`, `15`, `2` and `1`.
+See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc](#sort_by_label_desc).
+
 #### sort_desc
 
 `sort_desc(q)` sorts series in descending order by the last point in every time series returned by `q`. This function is supported by PromQL. See also [sort](#sort).
@@ -796,7 +806,9 @@ sum by (__name__) (
 
 #### label_value
 
-`label_value(q, "label")` returns number values for the given `label` for every time series returned by `q`. For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series `foo{bar="1.234"}` with `1.234` value.
+`label_value(q, "label")` returns numeric values for the given `label` for every time series returned by `q`. 
+For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series 
+`foo{bar="1.234"}` with `1.234` value. Function will return no data for non-numeric label values.
 
 ### Aggregate functions
 

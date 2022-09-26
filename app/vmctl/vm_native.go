@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dmitryk-dk/pb/v3"
+	"github.com/cheggaaa/pb/v3"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"

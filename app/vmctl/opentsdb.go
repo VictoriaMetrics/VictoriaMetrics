@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/dmitryk-dk/pb/v3"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type otsdbProcessor struct {

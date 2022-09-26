@@ -30,6 +30,23 @@ type manager struct {
 	groups   map[uint64]*Group
 }
 
+// RuleAPI generates APIRule object from alert by its ID(hash)
+func (m *manager) RuleAPI(gID, rID uint64) (APIRule, error) {
+	m.groupsMu.RLock()
+	defer m.groupsMu.RUnlock()
+
+	g, ok := m.groups[gID]
+	if !ok {
+		return APIRule{}, fmt.Errorf("can't find group with id %d", gID)
+	}
+	for _, rule := range g.Rules {
+		if rule.ID() == rID {
+			return rule.ToAPI(), nil
+		}
+	}
+	return APIRule{}, fmt.Errorf("can't find rule with id %d in group %q", rID, g.Name)
+}
+
 // AlertAPI generates APIAlert object from alert by its ID(hash)
 func (m *manager) AlertAPI(gID, aID uint64) (*APIAlert, error) {
 	m.groupsMu.RLock()
@@ -70,9 +87,9 @@ func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) er
 		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
 		if err != nil {
 			if !*remoteReadIgnoreRestoreErrors {
-				return fmt.Errorf("failed to restore state for group %q: %w", group.Name, err)
+				return fmt.Errorf("failed to restore ruleState for group %q: %w", group.Name, err)
 			}
-			logger.Errorf("error while restoring state for group %q: %s", group.Name, err)
+			logger.Errorf("error while restoring ruleState for group %q: %s", group.Name, err)
 		}
 	}
 
