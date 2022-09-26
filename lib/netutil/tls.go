@@ -10,7 +10,7 @@ import (
 )
 
 // GetServerTLSConfig returns TLS config for the server.
-func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion string, tlsCipherSuites []string) (*tls.Config, error) {
+func GetServerTLSConfig(tlsCertFile, tlsKeyFile, tlsMinVersion string, tlsCipherSuites []string) (*tls.Config, error) {
 	var certLock sync.Mutex
 	var certDeadline uint64
 	var cert *tls.Certificate
@@ -22,9 +22,9 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion string, tlsCipher
 	if err != nil {
 		return nil, fmt.Errorf("cannot use TLS cipher suites from tlsCipherSuites=%q: %w", tlsCipherSuites, err)
 	}
-	minVersion, err := ParseTLSVersion(minTLSVersion)
+	minVersion, err := ParseTLSVersion(tlsMinVersion)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS min version from minTLSVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", minTLSVersion, err)
+		return nil, fmt.Errorf("cannnot use TLS min version from tlsMinVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", tlsMinVersion, err)
 	}
 	cert = &c
 	cfg := &tls.Config{
