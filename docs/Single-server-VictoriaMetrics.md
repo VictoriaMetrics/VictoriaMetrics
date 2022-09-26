@@ -347,7 +347,9 @@ VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/age
 
 DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-{% include img.html href="Sending_DD_metrics_to_VM.png" %}
+<p align="center">
+  <img src="Sending_DD_metrics_to_VM.png" width="800">
+</p>
 
 Depending on where you want to send metrics, the URL for VictoriaMetrics will be different:
 1. Run DataDog using ENV variable `DD_DD_URL=http://victoriametrics-host:8428/datadog` for sending metrics to single-node VictoriaMetrics. Alternatively add `dd_url: http://victoriametrics-host:8428/datadog` to DataDog yaml configuration file.
@@ -359,7 +361,9 @@ Depending on where you want to send metrics, the URL for VictoriaMetrics will be
  
 DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints` described in section YAML configuration.
  
-{% include img.html href="Sending_DD_metrics_to_VM_and_DDhq.png" %}
+<p align="center">
+  <img src="Sending_DD_metrics_to_VM_and_DDhq.png" width="800">
+</p>
  
 1. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"yourAPIkey\"]}'` variable for sending metrics to the single-node VictoriaMetrics on top of DataDoghq.
 Alternatively add
