@@ -9,15 +9,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
-var tlsMap = map[string]uint16{
-	"TLS10": tls.VersionTLS10,
-	"TLS11": tls.VersionTLS11,
-	"TLS12": tls.VersionTLS12,
-	"TLS13": tls.VersionTLS13,
-}
-
 // GetServerTLSConfig returns TLS config for the server.
-func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion, maxTLSVersion string, tlsCipherSuites []string) (*tls.Config, error) {
+func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion string, tlsCipherSuites []string) (*tls.Config, error) {
 	var certLock sync.Mutex
 	var certDeadline uint64
 	var cert *tls.Certificate
@@ -29,21 +22,15 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion, maxTLSVersion st
 	if err != nil {
 		return nil, fmt.Errorf("cannot use TLS cipher suites from tlsCipherSuites=%q: %w", tlsCipherSuites, err)
 	}
-	minVersion, err := tlsVersionFromName(minTLSVersion)
+	minVersion, err := ParseTLSVersion(minTLSVersion)
 	if err != nil {
 		return nil, fmt.Errorf("cannnot use TLS min version from minTLSVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", minTLSVersion, err)
-	}
-	maxVersion, err := tlsVersionFromName(maxTLSVersion)
-	if err != nil {
-		return nil, fmt.Errorf("cannnot use TLS max version from maxTLSVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", minTLSVersion, err)
-	}
-	if minTLSVersion > maxTLSVersion {
-		maxTLSVersion = minTLSVersion
 	}
 	cert = &c
 	cfg := &tls.Config{
 		MinVersion: minVersion,
-		MaxVersion: maxVersion,
+		// Do not set MaxVersion, since this has no sense from security PoV.
+		// This can only result in lower security level if improperly set.
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			certLock.Lock()
 			defer certLock.Unlock()
@@ -82,11 +69,21 @@ func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
 	return cipherSuites, nil
 }
 
-func tlsVersionFromName(tlsName string) (uint16, error) {
-	name := strings.ToUpper(tlsName)
-	tlsVersion, ok := tlsMap[name]
-	if !ok {
-		return 0, fmt.Errorf("provided incorrect tls version: %q", tlsName)
+// ParseTLSVersion returns tls version from the given string s.
+func ParseTLSVersion(s string) (uint16, error) {
+	switch strings.ToUpper(s) {
+	case "":
+		// Special case - use default TLS version provided by tls package.
+		return 0, nil
+	case "TLS13":
+		return tls.VersionTLS13, nil
+	case "TLS12":
+		return tls.VersionTLS12, nil
+	case "TLS11":
+		return tls.VersionTLS11, nil
+	case "TLS10":
+		return tls.VersionTLS10, nil
+	default:
+		return 0, fmt.Errorf("unsupported TLS version %q", s)
 	}
-	return tlsVersion, nil
 }

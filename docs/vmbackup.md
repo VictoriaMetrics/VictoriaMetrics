@@ -268,12 +268,10 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -tlsCipherSuites array
      Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
      Supports an array of values separated by comma or specified via multiple flags.
-  -tlsMinVersion string
-     The minimum TLS version that is acceptable. Supported TLS versions (TLS10, TLS11, TLS12, TLS13).
-  -tlsMaxVersion string
-     The maximum TLS version that is acceptable. Supported TLS versions (TLS10, TLS11, TLS12, TLS13).
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
 ```
