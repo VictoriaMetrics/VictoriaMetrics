@@ -465,6 +465,9 @@ VictoriaMetrics performs the following transformations to the ingested InfluxDB 
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
+* If `-usePromCompatibleNaming` command-line flag is set, then all the metric names and label names
+  are normalized to [Prometheus-compatible naming](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels) by replacing unsupported chars with `_`.
+  For example, `foo.bar-baz/1` metric name or label name is substituted with `foo_bar_baz_1`.
 
 For example, the following InfluxDB line:
 
@@ -2333,6 +2336,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -usePromCompatibleNaming
+     Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string

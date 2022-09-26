@@ -189,6 +189,7 @@ with [the official Grafana dashboard for VictoriaMetrics cluster](https://grafan
 or [an alternative dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11831). Graphs on these dashboards contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 
 It is recommended setting up alerts in [vmalert](https://docs.victoriametrics.com/vmalert.html) or in Prometheus from [this config](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml).
+See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
 ## Cardinality limiter
 
@@ -770,6 +771,8 @@ Below is the output for `/path/to/vminsert -help`:
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -usePromCompatibleNaming
+     Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version
      Show VictoriaMetrics version
   -vmstorageDialTimeout duration
