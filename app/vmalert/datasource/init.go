@@ -39,9 +39,9 @@ var (
 	oauth2Scopes           = flag.String("datasource.oauth2.scopes", "", "Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'")
 
 	lookBack  = flag.Duration("datasource.lookback", 0, `Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.`)
-	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "queryStep defines how far a value can fallback to when evaluating queries. "+
-		"For example, if datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query."+
-		"If queryStep is set to 0, rule's evaluationInterval will be used instead.")
+	queryStep = flag.Duration("datasource.queryStep", 5*time.Minute, "How far a value can fallback to when evaluating queries. "+
+		"For example, if -datasource.queryStep=15s then param \"step\" with value \"15s\" will be added to every query. "+
+		"If set to 0, rule's evaluation interval will be used instead.")
 	queryTimeAlignment = flag.Bool("datasource.queryTimeAlignment", true, `Whether to align "time" parameter with evaluation interval.`+
 		"Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257")
 	maxIdleConnections = flag.Int("datasource.maxIdleConnections", 100, `Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state.`)
