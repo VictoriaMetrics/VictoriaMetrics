@@ -806,7 +806,9 @@ sum by (__name__) (
 
 #### label_value
 
-`label_value(q, "label")` returns number values for the given `label` for every time series returned by `q`. For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series `foo{bar="1.234"}` with `1.234` value.
+`label_value(q, "label")` returns numeric values for the given `label` for every time series returned by `q`. 
+For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series 
+`foo{bar="1.234"}` with `1.234` value. Function will return no data for non-numeric label values.
 
 ### Aggregate functions
 
