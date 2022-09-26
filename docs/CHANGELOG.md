@@ -26,6 +26,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `RangeError: Maximum call stack size exceeded` error when the query returns too many data points at `Table` view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3092/files).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): re-evaluate annotations per each alert evaluation. Previously, annotations were evaluated only on alert's value ch
 ange. This could result in stale annotations in some cases described in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3119).
+* BUGFIX: prevent from excessive CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode). The previous fix in [v1.79.3](https://docs.victoriametrics.com/CHANGELOG.html#v1793) wasn't complete.
 
 
 ## [v1.79.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.3)
