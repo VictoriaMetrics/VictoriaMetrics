@@ -2001,6 +2001,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+  -datadog.sanitizeMetricName
+     Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
   -deleteAuthKey string
