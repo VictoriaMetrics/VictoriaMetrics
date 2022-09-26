@@ -61,7 +61,7 @@
   "gnetId": 10229,
   "graphTooltip": 0,
   "id": null,
-  "iteration": 1663338736864,
+  "iteration": 1663928777219,
   "links": [
     {
       "icon": "doc",
@@ -484,7 +484,7 @@
       "datasource": {
         "uid": "$ds"
       },
-      "description": "How many entries inverted index contains. This value is proportional to the number of unique timeseries in storage(cardinality).",
+      "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee more details here https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -535,7 +535,7 @@
             "uid": "$ds"
           },
           "exemplar": true,
-          "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type=\"indexdb\"})",
+          "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -544,7 +544,7 @@
           "refId": "A"
         }
       ],
-      "title": "Index size",
+      "title": "Active series",
       "type": "stat"
     },
     {
