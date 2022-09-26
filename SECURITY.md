@@ -5,7 +5,7 @@
 | Version | Supported          |
 |---------|--------------------|
 | 1.81.x  | :white_check_mark: |
-| 1.80.x  |  :x:               |
+| 1.80.x  | :x:                |
 | 1.79.x  | :white_check_mark: |
 | < 1.78  | :x:                |
 
