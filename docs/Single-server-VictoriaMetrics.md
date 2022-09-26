@@ -366,7 +366,7 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
 </p>
  
 1. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"yourAPIkey\"]}'` variable for sending metrics to the single-node VictoriaMetrics on top of DataDoghq.
-Alternatively add
+Alternatively add the following to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/)
 
 <div class="with-copy" markdown="1">
 
@@ -377,9 +377,7 @@ Alternatively add
 
 </div>
 
-to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/). 
-
-2. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert-host:8480/insert/0/datadog\": [\"yourAPIkey\"]}'` variable for sending metrics to vminsert component of the cluster version of VictoriaMetrics on top of DataDoghq. Alternatively add
+2. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert-host:8480/insert/0/datadog\": [\"yourAPIkey\"]}'` variable for sending metrics to vminsert component of the cluster version of VictoriaMetrics on top of DataDoghq. Alternatively add the following to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) 
 
 <div class="with-copy" markdown="1">
 
@@ -389,8 +387,6 @@ to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/age
 ``` 
 
 </div>
-
- to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) 
 
 ### Send via cURL
 
