@@ -153,7 +153,7 @@ cat << EOF > limit.yaml
 limits:
   - type: queries
     value: 100
-  - type: rows_inserted 
+  - type: rows_inserted
     value: 100000
   - type: new_series
     value: 1000
@@ -172,7 +172,7 @@ curl 'http://localhost:8431/api/v1/import/prometheus' -X POST  -d 'foo{bar="baz1
 # read metric from tenant 1:5
 curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjAxNjIwMDAwMDAsInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsiYWNjb3VudF9pZCI6MTV9fX0.PB1_KXDKPUp-40pxOGk6lt_jt9Yq80PIMpWVJqSForQ'
 
-# check rate limit 
+# check rate limit
 ```
 
 ## Configuration
@@ -203,11 +203,11 @@ The shortlist of configuration flags include the following:
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url.
   -datasource.oauth2.clientSecret string
      Optional OAuth2 clientSecret to use for -datasource.url.
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url.
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -319,6 +319,8 @@ The shortlist of configuration flags include the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
   -write.url string

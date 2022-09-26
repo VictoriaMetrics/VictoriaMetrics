@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/cespare/xxhash/v2"
 	"golang.org/x/oauth2"
@@ -79,6 +80,8 @@ type TLSConfig struct {
 	ServerName         string `yaml:"server_name,omitempty"`
 	InsecureSkipVerify bool   `yaml:"insecure_skip_verify,omitempty"`
 	MinVersion         string `yaml:"min_version,omitempty"`
+	// Do not define MaxVersion field (max_version), since this has no sense from security PoV.
+	// This can only result in lower security level if improperly set.
 }
 
 // String returns human-readable representation of tc
@@ -399,6 +402,8 @@ func (ac *Config) NewTLSConfig() *tls.Config {
 	tlsCfg.ServerName = ac.TLSServerName
 	tlsCfg.InsecureSkipVerify = ac.TLSInsecureSkipVerify
 	tlsCfg.MinVersion = ac.TLSMinVersion
+	// Do not set tlsCfg.MaxVersion, since this has no sense from security PoV.
+	// This can only result in lower security level if improperly set.
 	return tlsCfg
 }
 
@@ -713,27 +718,10 @@ func (tctx *tlsContext) initFromTLSConfig(baseDir string, tc *TLSConfig) error {
 			return fmt.Errorf("cannot parse data from `ca_file` %q", tc.CAFile)
 		}
 	}
-	if tc.MinVersion != "" {
-		v, err := parseTLSVersion(tc.MinVersion)
-		if err != nil {
-			return fmt.Errorf("cannot parse `min_version`: %w", err)
-		}
-		tctx.minVersion = v
+	v, err := netutil.ParseTLSVersion(tc.MinVersion)
+	if err != nil {
+		return fmt.Errorf("cannot parse `min_version`: %w", err)
 	}
+	tctx.minVersion = v
 	return nil
-}
-
-func parseTLSVersion(s string) (uint16, error) {
-	switch strings.ToUpper(s) {
-	case "TLS13":
-		return tls.VersionTLS13, nil
-	case "TLS12":
-		return tls.VersionTLS12, nil
-	case "TLS11":
-		return tls.VersionTLS11, nil
-	case "TLS10":
-		return tls.VersionTLS10, nil
-	default:
-		return 0, fmt.Errorf("unsupported TLS version %q", s)
-	}
 }

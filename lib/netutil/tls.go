@@ -10,7 +10,7 @@ import (
 )
 
 // GetServerTLSConfig returns TLS config for the server.
-func GetServerTLSConfig(tlsCertFile, tlsKeyFile string, tlsCipherSuites []string) (*tls.Config, error) {
+func GetServerTLSConfig(tlsCertFile, tlsKeyFile, minTLSVersion string, tlsCipherSuites []string) (*tls.Config, error) {
 	var certLock sync.Mutex
 	var certDeadline uint64
 	var cert *tls.Certificate
@@ -22,10 +22,15 @@ func GetServerTLSConfig(tlsCertFile, tlsKeyFile string, tlsCipherSuites []string
 	if err != nil {
 		return nil, fmt.Errorf("cannot use TLS cipher suites from tlsCipherSuites=%q: %w", tlsCipherSuites, err)
 	}
+	minVersion, err := ParseTLSVersion(minTLSVersion)
+	if err != nil {
+		return nil, fmt.Errorf("cannnot use TLS min version from minTLSVersion=%q. Supported TLS versions (TLS10, TLS11, TLS12, TLS13): %w", minTLSVersion, err)
+	}
 	cert = &c
 	cfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		PreferServerCipherSuites: true,
+		MinVersion: minVersion,
+		// Do not set MaxVersion, since this has no sense from security PoV.
+		// This can only result in lower security level if improperly set.
 		GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
 			certLock.Lock()
 			defer certLock.Unlock()
@@ -62,4 +67,23 @@ func cipherSuitesFromNames(cipherSuiteNames []string) ([]uint16, error) {
 		cipherSuites = append(cipherSuites, id)
 	}
 	return cipherSuites, nil
+}
+
+// ParseTLSVersion returns tls version from the given string s.
+func ParseTLSVersion(s string) (uint16, error) {
+	switch strings.ToUpper(s) {
+	case "":
+		// Special case - use default TLS version provided by tls package.
+		return 0, nil
+	case "TLS13":
+		return tls.VersionTLS13, nil
+	case "TLS12":
+		return tls.VersionTLS12, nil
+	case "TLS11":
+		return tls.VersionTLS11, nil
+	case "TLS10":
+		return tls.VersionTLS10, nil
+	default:
+		return 0, fmt.Errorf("unsupported TLS version %q", s)
+	}
 }
