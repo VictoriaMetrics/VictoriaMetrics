@@ -10,7 +10,7 @@ cloud.google.com/go/compute/metadata
 # cloud.google.com/go/iam v0.4.0
 ## explicit; go 1.17
 cloud.google.com/go/iam
-# cloud.google.com/go/storage v1.26.0
+# cloud.google.com/go/storage v1.27.0
 ## explicit; go 1.17
 cloud.google.com/go/storage
 cloud.google.com/go/storage/internal
@@ -34,7 +34,7 @@ github.com/VictoriaMetrics/metricsql/binaryop
 # github.com/VividCortex/ewma v1.2.0
 ## explicit; go 1.12
 github.com/VividCortex/ewma
-# github.com/aws/aws-sdk-go v1.44.101
+# github.com/aws/aws-sdk-go v1.44.105
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/arn
@@ -157,7 +157,7 @@ github.com/influxdata/influxdb/pkg/escape
 # github.com/jmespath/go-jmespath v0.4.0
 ## explicit; go 1.14
 github.com/jmespath/go-jmespath
-# github.com/klauspost/compress v1.15.10
+# github.com/klauspost/compress v1.15.11
 ## explicit; go 1.17
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
@@ -179,8 +179,8 @@ github.com/mattn/go-isatty
 # github.com/mattn/go-runewidth v0.0.13
 ## explicit; go 1.9
 github.com/mattn/go-runewidth
-# github.com/matttproud/golang_protobuf_extensions v1.0.1
-## explicit
+# github.com/matttproud/golang_protobuf_extensions v1.0.2
+## explicit; go 1.9
 github.com/matttproud/golang_protobuf_extensions/pbutil
 # github.com/oklog/ulid v1.3.1
 ## explicit
@@ -280,7 +280,7 @@ go.opencensus.io/trace/tracestate
 go.uber.org/atomic
 # go.uber.org/goleak v1.1.11-0.20210813005559-691160354723
 ## explicit; go 1.13
-# golang.org/x/net v0.0.0-20220919232410-f2f64ebce3c1
+# golang.org/x/net v0.0.0-20220923203811-8be639271d50
 ## explicit; go 1.17
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
@@ -302,7 +302,7 @@ golang.org/x/oauth2/google/internal/externalaccount
 golang.org/x/oauth2/internal
 golang.org/x/oauth2/jws
 golang.org/x/oauth2/jwt
-# golang.org/x/sync v0.0.0-20220907140024-f12130a52804
+# golang.org/x/sync v0.0.0-20220923202941-7f9b1623fab7
 ## explicit
 golang.org/x/sync/errgroup
 # golang.org/x/sys v0.0.0-20220919091848-fb04ddd9f9c8
@@ -320,7 +320,7 @@ golang.org/x/text/unicode/norm
 ## explicit; go 1.17
 golang.org/x/xerrors
 golang.org/x/xerrors/internal
-# google.golang.org/api v0.96.0
+# google.golang.org/api v0.97.0
 ## explicit; go 1.15
 google.golang.org/api/googleapi
 google.golang.org/api/googleapi/transport
@@ -353,7 +353,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20220919141832-68c03719ef51
+# google.golang.org/genproto v0.0.0-20220923205249-dd2d53f1fffc
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1

@@ -24,7 +24,7 @@ connection pooling and similar aspects of this package.
 
 # Creating a Client
 
-To start working with this package, create a client:
+To start working with this package, create a [Client]:
 
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
@@ -33,7 +33,7 @@ To start working with this package, create a client:
 	}
 
 The client will use your default application credentials. Clients should be
-reused instead of created as needed. The methods of Client are safe for
+reused instead of created as needed. The methods of [Client] are safe for
 concurrent use by multiple goroutines.
 
 If you only wish to access public data, you can create
@@ -75,7 +75,7 @@ bucket, make a bucket handle:
 
 A handle is a reference to a bucket. You can have a handle even if the
 bucket doesn't exist yet. To create a bucket in Google Cloud Storage,
-call Create on the handle:
+call [BucketHandle.Create]:
 
 	if err := bkt.Create(ctx, projectID, nil); err != nil {
 	    // TODO: Handle error.
@@ -85,9 +85,9 @@ Note that although buckets are associated with projects, bucket names are
 global across all projects.
 
 Each bucket has associated metadata, represented in this package by
-BucketAttrs. The third argument to BucketHandle.Create allows you to set
-the initial BucketAttrs of a bucket. To retrieve a bucket's attributes, use
-Attrs:
+[BucketAttrs]. The third argument to [BucketHandle.Create] allows you to set
+the initial [BucketAttrs] of a bucket. To retrieve a bucket's attributes, use
+[BucketHandle.Attrs]:
 
 	attrs, err := bkt.Attrs(ctx)
 	if err != nil {
@@ -101,8 +101,8 @@ Attrs:
 An object holds arbitrary data as a sequence of bytes, like a file. You
 refer to objects using a handle, just as with buckets, but unlike buckets
 you don't explicitly create an object. Instead, the first time you write
-to an object it will be created. You can use the standard Go io.Reader
-and io.Writer interfaces to read and write object data:
+to an object it will be created. You can use the standard Go [io.Reader]
+and [io.Writer] interfaces to read and write object data:
 
 	obj := bkt.Object("data")
 	// Write something to obj.
@@ -128,7 +128,7 @@ and io.Writer interfaces to read and write object data:
 	}
 	// Prints "This object contains text."
 
-Objects also have attributes, which you can fetch with Attrs:
+Objects also have attributes, which you can fetch with [ObjectHandle.Attrs]:
 
 	objAttrs, err := obj.Attrs(ctx)
 	if err != nil {
@@ -139,7 +139,7 @@ Objects also have attributes, which you can fetch with Attrs:
 
 # Listing objects
 
-Listing objects in a bucket is done with the Bucket.Objects method:
+Listing objects in a bucket is done with the [BucketHandle.Objects] method:
 
 	query := &storage.Query{Prefix: ""}
 
@@ -157,7 +157,7 @@ Listing objects in a bucket is done with the Bucket.Objects method:
 	}
 
 Objects are listed lexicographically by name. To filter objects
-lexicographically, Query.StartOffset and/or Query.EndOffset can be used:
+lexicographically, [Query.StartOffset] and/or [Query.EndOffset] can be used:
 
 	query := &storage.Query{
 	    Prefix: "",
@@ -168,7 +168,7 @@ lexicographically, Query.StartOffset and/or Query.EndOffset can be used:
 	// ... as before
 
 If only a subset of object attributes is needed when listing, specifying this
-subset using Query.SetAttrSelection may speed up the listing process:
+subset using [Query.SetAttrSelection] may speed up the listing process:
 
 	query := &storage.Query{Prefix: ""}
 	query.SetAttrSelection([]string{"Name"})
@@ -180,10 +180,9 @@ subset using Query.SetAttrSelection may speed up the listing process:
 Both objects and buckets have ACLs (Access Control Lists). An ACL is a list of
 ACLRules, each of which specifies the role of a user, group or project. ACLs
 are suitable for fine-grained control, but you may prefer using IAM to control
-access at the project level (see
-https://cloud.google.com/storage/docs/access-control/iam).
+access at the project level (see [Cloud Storage IAM docs].
 
-To list the ACLs of a bucket or object, obtain an ACLHandle and call its List method:
+To list the ACLs of a bucket or object, obtain an [ACLHandle] and call [ACLHandle.List]:
 
 	acls, err := obj.ACL().List(ctx)
 	if err != nil {
@@ -199,7 +198,7 @@ You can also set and delete ACLs.
 
 Every object has a generation and a metageneration. The generation changes
 whenever the content changes, and the metageneration changes whenever the
-metadata changes. Conditions let you check these values before an operation;
+metadata changes. [Conditions] let you check these values before an operation;
 the operation only executes if the conditions match. You can use conditions to
 prevent race conditions in read-modify-write operations.
 
@@ -214,8 +213,8 @@ since you read it. Here is how to express that:
 
 You can obtain a URL that lets anyone read or write an object for a limited time.
 Signing a URL requires credentials authorized to sign a URL. To use the same
-authentication that was used when instantiating the Storage client, use the
-BucketHandle.SignedURL method.
+authentication that was used when instantiating the Storage client, use
+[BucketHandle.SignedURL].
 
 	url, err := client.Bucket(bucketName).SignedURL(objectName, opts)
 	if err != nil {
@@ -223,8 +222,8 @@ BucketHandle.SignedURL method.
 	}
 	fmt.Println(url)
 
-You can also sign a URL wihout creating a client. See the documentation of
-SignedURL for details.
+You can also sign a URL without creating a client. See the documentation of
+[SignedURL] for details.
 
 	url, err := storage.SignedURL(bucketName, "shared-object", opts)
 	if err != nil {
@@ -238,8 +237,8 @@ A type of signed request that allows uploads through HTML forms directly to Clou
 temporary permission. Conditions can be applied to restrict how the HTML form is used and exercised
 by a user.
 
-For more information, please see https://cloud.google.com/storage/docs/xml-api/post-object as well
-as the documentation of BucketHandle.GenerateSignedPostPolicyV4.
+For more information, please see the [XML POST Object docs] as well
+as the documentation of [BucketHandle.GenerateSignedPostPolicyV4].
 
 	pv4, err := client.Bucket(bucketName).GenerateSignedPostPolicyV4(objectName, opts)
 	if err != nil {
@@ -247,18 +246,39 @@ as the documentation of BucketHandle.GenerateSignedPostPolicyV4.
 	}
 	fmt.Printf("URL: %s\nFields; %v\n", pv4.URL, pv4.Fields)
 
+# Credential requirements for signing
+
+If the GoogleAccessID and PrivateKey option fields are not provided, they will
+be automatically detected by [BucketHandle.SignedURL] and
+[BucketHandle.GenerateSignedPostPolicyV4] if any of the following are true:
+  - you are authenticated to the Storage Client with a service account's
+    downloaded private key, either directly in code or by setting the
+    GOOGLE_APPLICATION_CREDENTIALS environment variable (see [Other Environments]),
+  - your application is running on Google Compute Engine (GCE), or
+  - you are logged into [gcloud using application default credentials]
+    with [impersonation enabled].
+
+Detecting GoogleAccessID may not be possible if you are authenticated using a
+token source or using [option.WithHTTPClient]. In this case, you can provide a
+service account email for GoogleAccessID and the client will attempt to sign
+the URL or Post Policy using that service account.
+
+To generate the signature, you must have:
+  - iam.serviceAccounts.signBlob permissions on the GoogleAccessID service
+    account, and
+  - the [IAM Service Account Credentials API] enabled (unless authenticating
+    with a downloaded private key).
+
 # Errors
 
-Errors returned by this client are often of the type googleapi.Error.
-These errors can be introspected for more information by using errors.As
-with the richer googleapi.Error type. For example:
+Errors returned by this client are often of the type [googleapi.Error].
+These errors can be introspected for more information by using [errors.As]
+with the richer [googleapi.Error] type. For example:
 
 	var e *googleapi.Error
 	if ok := errors.As(err, &e); ok {
 		  if e.Code == 409 { ... }
 	}
-
-See https://pkg.go.dev/google.golang.org/api/googleapi#Error for more information.
 
 # Retrying failed requests
 
@@ -270,12 +290,12 @@ continuing, use context timeouts or cancellation.
 The retry strategy in this library follows best practices for Cloud Storage. By
 default, operations are retried only if they are idempotent, and exponential
 backoff with jitter is employed. In addition, errors are only retried if they
-are defined as transient by the service. See
-https://cloud.google.com/storage/docs/retry-strategy for more information.
+are defined as transient by the service. See the [Cloud Storage retry docs]
+for more information.
 
 Users can configure non-default retry behavior for a single library call (using
-BucketHandle.Retryer and ObjectHandle.Retryer) or for all calls made by a
-client (using Client.SetRetry). For example:
+[BucketHandle.Retryer] and [ObjectHandle.Retryer]) or for all calls made by a
+client (using [Client.SetRetry]). For example:
 
 	o := client.Bucket(bucket).Object(object).Retryer(
 		// Use WithBackoff to change the timing of the exponential backoff.
@@ -296,5 +316,13 @@ client (using Client.SetRetry). For example:
 	if err := o.Delete(ctx); err != nil {
 		// Handle err.
 	}
+
+[Cloud Storage IAM docs]: https://cloud.google.com/storage/docs/access-control/iam
+[XML POST Object docs]: https://cloud.google.com/storage/docs/xml-api/post-object
+[Cloud Storage retry docs]: https://cloud.google.com/storage/docs/retry-strategy
+[Other Environments]: https://cloud.google.com/storage/docs/authentication#libauth
+[gcloud using application default credentials]: https://cloud.google.com/sdk/gcloud/reference/auth/application-default/login
+[impersonation enabled]: https://cloud.google.com/sdk/gcloud/reference#--impersonate-service-account
+[IAM Service Account Credentials API]: https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview
 */
 package storage // import "cloud.google.com/go/storage"

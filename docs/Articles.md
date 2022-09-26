@@ -57,6 +57,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
 * [How we tried using VictoriaMetrics and Thanos at the same time](https://habr.com/ru/company/sravni/blog/672908/)
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
+* [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
 
 ## Our articles
 
@@ -93,6 +94,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Tutorials, guides and how-to articles
 
+* [Monitoring VictoriaMetrics](https://victoriametrics.com/blog/victoriametrics-monitoring/)
 * [PromQL tutorial for beginners and humans](https://valyala.medium.com/promql-tutorial-for-beginners-9ab455142085)
 * [How to optimize PromQL and MetricsQL queries](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986)
 * [Analyzing Prometheus data with external tools](https://valyala.medium.com/analyzing-prometheus-data-with-external-tools-5f3e5e147639)
