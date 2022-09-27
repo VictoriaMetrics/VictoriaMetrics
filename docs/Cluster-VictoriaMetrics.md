@@ -78,7 +78,7 @@ http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
 ```
 
 Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
-while the `http_requests_total{path="/bar"}` 34 would be stored in the tenant `accountID=7, projectID=9`.
+while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `accountID=7, projectID=9`.
 
 The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling.html)
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
