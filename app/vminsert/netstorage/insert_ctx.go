@@ -213,6 +213,12 @@ func (ctx *InsertCtx) parseAuthTokenFromLabels() *auth.Token {
 		}
 		tmpLabels = append(tmpLabels, label)
 	}
+	cleanLabels := ctx.Labels[len(tmpLabels):]
+	for i := range cleanLabels {
+		label := &cleanLabels[i]
+		label.Name = nil
+		label.Value = nil
+	}
 	ctx.Labels = tmpLabels
 	ctx.at.Set(accountID, projectID)
 	return &ctx.at
