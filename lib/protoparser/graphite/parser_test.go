@@ -19,13 +19,6 @@ func TestUnmarshalMetricAndTagsFailure(t *testing.T) {
 	}
 	f("")
 	f(";foo=bar")
-	f(" ")
-	f("foo ;bar=baz")
-	f("f oo;bar=baz")
-	f("foo;bar=baz   ")
-	f("foo;bar= baz")
-	f("foo;bar=b az")
-	f("foo;b ar=baz")
 }
 
 func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
@@ -40,10 +33,67 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 			t.Fatalf("unexpected row;\ngot\n%+v\nwant\n%+v", &r, rExpected)
 		}
 	}
+	f(" ", &Row{
+		Metric: " ",
+	})
+	f("foo ;bar=baz", &Row{
+		Metric: "foo ",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "baz",
+			},
+		},
+	})
+	f("f oo;bar=baz", &Row{
+		Metric: "f oo",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "baz",
+			},
+		},
+	})
+	f("foo;bar=baz   ", &Row{
+		Metric: "foo",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "baz   ",
+			},
+		},
+	})
+	f("foo;bar= baz", &Row{
+		Metric: "foo",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: " baz",
+			},
+		},
+	})
+	f("foo;bar=b az", &Row{
+		Metric: "foo",
+		Tags: []Tag{
+			{
+				Key:   "bar",
+				Value: "b az",
+			},
+		},
+	})
+	f("foo;b ar=baz", &Row{
+		Metric: "foo",
+		Tags: []Tag{
+			{
+				Key:   "b ar",
+				Value: "baz",
+			},
+		},
+	})
 	f("foo", &Row{
 		Metric: "foo",
 	})
-	f("foo;bar=123;baz=aabb", &Row{
+	f("foo;bar=123;baz=aa=bb", &Row{
 		Metric: "foo",
 		Tags: []Tag{
 			{
@@ -52,7 +102,7 @@ func TestUnmarshalMetricAndTagsSuccess(t *testing.T) {
 			},
 			{
 				Key:   "baz",
-				Value: "aabb",
+				Value: "aa=bb",
 			},
 		},
 	})
@@ -74,15 +124,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 		}
 	}
 
-	// Missing metric
-	f(" 123 455")
-
 	// Missing value
 	f("aaa")
-
-	// unexpected space in tag value
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/99
-	f("s;tag1=aaa1;tag2=bb b2;tag3=ccc3 1")
 
 	// invalid value
 	f("aa bb")
@@ -103,7 +146,7 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		// Try unmarshaling again
 		rows.Unmarshal(s)
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
-			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+			t.Fatalf("unexpected rows on second unmarshal;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
 
 		rows.Reset()
@@ -119,6 +162,12 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	f("\n\r\n", &Rows{})
 
 	// Single line
+	f(" 123 455", &Rows{
+		Rows: []Row{{
+			Metric: "123",
+			Value:  455,
+		}},
+	})
 	f("foobar -123.456 789", &Rows{
 		Rows: []Row{{
 			Metric:    "foobar",
@@ -131,6 +180,26 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Metric:    "foo.bar",
 			Value:     123.456,
 			Timestamp: 789,
+		}},
+	})
+
+	// Whitespace in metric name, tag name and tag value
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3102
+	f("s a;ta g1=aaa1;tag2=bb b2;tag3 1 23", &Rows{
+		Rows: []Row{{
+			Metric:    "s a",
+			Value:     1,
+			Timestamp: 23,
+			Tags: []Tag{
+				{
+					Key:   "ta g1",
+					Value: "aaa1",
+				},
+				{
+					Key:   "tag2",
+					Value: "bb b2",
+				},
+			},
 		}},
 	})
 

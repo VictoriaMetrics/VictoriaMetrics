@@ -1,4 +1,4 @@
-//go:build linux || darwin || freebsd || netbsd || openbsd || solaris || dragonfly || plan9 || aix
+// +build linux darwin freebsd netbsd openbsd solaris dragonfly plan9 aix
 
 package pb
 
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/dmitryk-dk/pb/v3/termutil"
+	"github.com/cheggaaa/pb/v3/termutil"
 )
 
 func (p *Pool) print(first bool) bool {

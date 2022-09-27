@@ -432,6 +432,10 @@ This command should return the following output if everything is OK:
 {"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
 ```
 
+VictoriaMetrics automatically sanitizes metric names for the data ingested via DataDog protocol
+according to [DataDog metric naming recommendations](https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics).
+If you need accepting metric names as is without sanitizing, then pass `-datadog.sanitizeMetricName=false` command-line flag to VictoriaMetrics.
+
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/datadog/api/v1/series?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
 
@@ -465,6 +469,9 @@ VictoriaMetrics performs the following transformations to the ingested InfluxDB 
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
+* If `-usePromCompatibleNaming` command-line flag is set, then all the metric names and label names
+  are normalized to [Prometheus-compatible naming](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels) by replacing unsupported chars with `_`.
+  For example, `foo.bar-baz/1` metric name or label name is substituted with `foo_bar_baz_1`.
 
 For example, the following InfluxDB line:
 
@@ -1520,7 +1527,8 @@ VictoriaMetrics exposes currently running queries and their execution times at `
 
 VictoriaMetrics exposes queries, which take the most time to execute, at `/api/v1/status/top_queries` page.
 
-See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See also [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/)
+and [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## TSDB stats
 
@@ -1993,6 +2001,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+  -datadog.sanitizeMetricName
+     Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -dedup.minScrapeInterval duration
      Leave only the last sample in every time series per each discrete interval equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling
   -deleteAuthKey string
@@ -2332,6 +2342,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -usePromCompatibleNaming
+     Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version
      Show VictoriaMetrics version
   -vmalert.proxyURL string

@@ -177,3 +177,16 @@ package-via-docker-386:
 
 remove-docker-images:
 	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f
+
+
+docker-single-up:
+	docker-compose -f deployment/docker/docker-compose.yml up
+
+docker-single-down:
+	docker-compose -f deployment/docker/docker-compose.yml down -v
+
+docker-cluster-up:
+	docker-compose -f deployment/docker/docker-compose-cluster.yml up
+
+docker-cluster-down:
+	docker-compose -f deployment/docker/docker-compose-cluster.yml down -v

@@ -77,7 +77,7 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			ruleName = r.Alert
 		}
 		if _, ok := uniqueRules[r.ID]; ok {
-			return fmt.Errorf("rule %q duplicate", ruleName)
+			return fmt.Errorf("%q is a duplicate within the group %q", r.String(), g.Name)
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
@@ -135,6 +135,32 @@ func (r *Rule) Name() string {
 		return r.Record
 	}
 	return r.Alert
+}
+
+// String implements Stringer interface
+func (r *Rule) String() string {
+	ruleType := "recording"
+	if r.Alert != "" {
+		ruleType = "alerting"
+	}
+	b := strings.Builder{}
+	b.WriteString(fmt.Sprintf("%s rule %q", ruleType, r.Name()))
+	b.WriteString(fmt.Sprintf("; expr: %q", r.Expr))
+
+	kv := sortMap(r.Labels)
+	for i := range kv {
+		if i == 0 {
+			b.WriteString("; labels:")
+		}
+		b.WriteString(" ")
+		b.WriteString(kv[i].key)
+		b.WriteString("=")
+		b.WriteString(kv[i].value)
+		if i < len(kv)-1 {
+			b.WriteString(",")
+		}
+	}
+	return b.String()
 }
 
 // HashRule hashes significant Rule fields into

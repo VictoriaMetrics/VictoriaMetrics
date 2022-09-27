@@ -620,7 +620,7 @@ There are following non-required `replay` flags:
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
 
-See full description for these flags in `./vmalert --help`.
+See full description for these flags in `./vmalert -help`.
 
 ### Limitations
 
@@ -650,6 +650,11 @@ may get empty response from datasource and produce empty recording rules or rese
 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
+_By default recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
+This behavior is controlled by `-search.latencyOffset` command-line flag on vmselect. Usually, this results into
+a 30s shift for recording rules results.
+Note that too small value passed to `-search.latencyOffset` may lead to incomplete query results._
+
 Try the following recommendations in such cases:
 
 * Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics 
@@ -658,7 +663,7 @@ are delivered to the datasource;
 command-line flag to add a time shift for evaluations;
 * If time intervals between datapoints in datasource are irregular - try changing vmalert's `-datasource.queryStep`
 command-line flag to specify how far search query can lookback for the recent datapoint. By default, this value
-is equal to group's `evaluationInterval`.
+is equal to group's evaluation interval.
 
 Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
 alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
@@ -767,7 +772,7 @@ The shortlist of configuration flags is the following:
   -datasource.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -datasource.url.
   -datasource.queryStep duration
-     queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+     How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
      Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
@@ -1064,6 +1069,8 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
 ```

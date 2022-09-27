@@ -1,4 +1,6 @@
 //go:build (linux || darwin || freebsd || netbsd || openbsd || solaris || dragonfly) && !appengine
+// +build linux darwin freebsd netbsd openbsd solaris dragonfly
+// +build !appengine
 
 package termutil
 
@@ -57,7 +59,7 @@ func lockEcho() error {
 	fd := tty.Fd()
 
 	if _, _, err := syscall.Syscall(sysIoctl, fd, ioctlReadTermios, uintptr(unsafe.Pointer(&oldState))); err != 0 {
-		return fmt.Errorf("error when puts the terminal connected to the given file descriptor: %v", err)
+		return fmt.Errorf("error when puts the terminal connected to the given file descriptor: %w", err)
 	}
 
 	newState := oldState
@@ -65,7 +67,7 @@ func lockEcho() error {
 	newState.Lflag |= syscall.ICANON | syscall.ISIG
 	newState.Iflag |= syscall.ICRNL
 	if _, _, e := syscall.Syscall(sysIoctl, fd, ioctlWriteTermios, uintptr(unsafe.Pointer(&newState))); e != 0 {
-		return fmt.Errorf("error update terminal settings: %v", e)
+		return fmt.Errorf("error update terminal settings: %w", e)
 	}
 	return nil
 }
