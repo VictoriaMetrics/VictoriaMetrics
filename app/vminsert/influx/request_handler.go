@@ -73,8 +73,11 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 	ic := &ctx.Common
 	ic.Reset() // This line is required for initializing ic internals.
 	rowsTotal := 0
-	atCopy := *at
-	ats := make(map[*auth.Token]int)
+	var atCopy auth.Token
+	if at != nil {
+		atCopy = *at
+	}
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -116,8 +119,6 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 		metricGroupPrefixLen := len(ctx.metricGroupBuf)
 		if hasRelabeling {
 			ctx.originLabels = append(ctx.originLabels[:0], ic.Labels...)
-			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, nil)
-			metricNameBufLen := len(ic.MetricNameBuf)
 			for j := range r.Fields {
 				f := &r.Fields[j]
 				if !skipFieldKey {
@@ -131,24 +132,22 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					// Skip metric without labels.
 					continue
 				}
-				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
 				ic.SortLabelsIfNeeded()
-				atCopy, err := ic.MaybeParseAuthTokenFromLabels(&atCopy)
-				if err != nil {
-					return err
-				}
+				atLocal := ic.GetLocalAuthToken(&atCopy)
+				ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, nil)
 				for i := range ic.Labels {
 					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
 				}
-				storageNodeIdx := ic.GetStorageNodeIdx(atCopy, ic.Labels)
-				if err := ic.WriteDataPointExt(atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
-				ats[atCopy]++
+				perTenantRows[*atLocal]++
 			}
 		} else {
 			ic.SortLabelsIfNeeded()
-			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atCopy.AccountID, atCopy.ProjectID, ic.Labels)
+			atLocal := ic.GetLocalAuthToken(&atCopy)
+			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
 			metricNameBufLen := len(ic.MetricNameBuf)
 			labelsLen := len(ic.Labels)
 			for j := range r.Fields {
@@ -164,21 +163,17 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					continue
 				}
 				ic.MetricNameBuf = ic.MetricNameBuf[:metricNameBufLen]
-				atCopy, err := ic.MaybeParseAuthTokenFromLabels(&atCopy)
-				if err != nil {
-					return err
-				}
 				ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[len(ic.Labels)-1])
-				storageNodeIdx := ic.GetStorageNodeIdx(atCopy, ic.Labels)
-				if err := ic.WriteDataPointExt(atCopy, storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
+				storageNodeIdx := ic.GetStorageNodeIdx(atLocal, ic.Labels)
+				if err := ic.WriteDataPointExt(storageNodeIdx, ic.MetricNameBuf, r.Timestamp, f.Value); err != nil {
 					return err
 				}
-				ats[atCopy]++
+				perTenantRows[*atLocal]++
 			}
 		}
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.MultiAdd(ats)
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ic.FlushBufs()
 }

@@ -44,7 +44,7 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 
 	ctx.Reset() // This line is required for initializing ctx internals.
 	rowsTotal := 0
-	ats := make(map[*auth.Token]int)
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -66,12 +66,9 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		at, err := ctx.MaybeParseAuthTokenFromLabels(at)
-		if err != nil {
-			return err
-		}
-		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, ctx.Labels)
-		storageNodeIdx := ctx.GetStorageNodeIdx(at, ctx.Labels)
+		atLocal := ctx.GetLocalAuthToken(at)
+		ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ctx.Labels)
+		storageNodeIdx := ctx.GetStorageNodeIdx(atLocal, ctx.Labels)
 		values := r.Values
 		timestamps := r.Timestamps
 		if len(timestamps) != len(values) {
@@ -79,14 +76,14 @@ func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.L
 		}
 		for j, value := range values {
 			timestamp := timestamps[j]
-			if err := ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
+			if err := ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value); err != nil {
 				return err
 			}
 		}
-		ats[at] += len(r.Values)
+		perTenantRows[*atLocal] += len(r.Values)
 	}
 	rowsInserted.Add(rowsTotal)
-	rowsTenantInserted.MultiAdd(ats)
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(rowsTotal))
 	return ctx.FlushBufs()
 }

@@ -39,10 +39,10 @@ func (cm *CounterMap) Get(at *auth.Token) *metrics.Counter {
 	return cm.GetByTenant(key)
 }
 
-// MultiAdd adds multiple values grouped by auth token
-func (cm *CounterMap) MultiAdd(ats map[*auth.Token]int) {
-	for token, value := range ats {
-		cm.GetByTenant(TenantID{AccountID: token.AccountID, ProjectID: token.ProjectID}).Add(value)
+// MultiAdd adds multiple values grouped by auth.Token
+func (cm *CounterMap) MultiAdd(perTenantValues map[auth.Token]int) {
+	for token, value := range perTenantValues {
+		cm.Get(&token).Add(value)
 	}
 }
 

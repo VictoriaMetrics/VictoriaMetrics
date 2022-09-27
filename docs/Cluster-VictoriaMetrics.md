@@ -43,7 +43,9 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
 Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request urls.
-See [these docs](#url-format) for details. Some facts about tenants in VictoriaMetrics:
+See [these docs](#url-format) for details.
+
+Some facts about tenants in VictoriaMetrics:
 
 - Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
@@ -58,6 +60,29 @@ when different tenants have different amounts of data and different query load.
 - The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of active time series in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 
 - VictoriaMetrics doesn't support querying multiple tenants in a single request.
+
+See also [multitenancy via labels](#multitenancy-via-labels).
+
+
+## Multitenancy via labels
+
+`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoint such as `http://vminsert:8480/insert/multitenant/...`.
+In this case the account id and project id are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
+If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` or `projectID` is set to 0.
+These labels are automatically removed from samples before forwarding them to `vmstorage`.
+For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
+
+```
+http_requests_total{path="/foo",vm_account_id="42"} 12
+http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
+```
+
+Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
+while the `http_requests_total{path="/bar"}` 34 would be stored in the tenant `accountID=7, projectID=9`.
+
+The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling.html)
+set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
+
 
 ## Binaries
 
@@ -218,7 +243,10 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
-    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`.
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
+    The `<accountID>` can be set to `multitenant` string, e.g. `http://<vminsert>:8480/insert/multitenant/<suffix>`. Such urls accept data from multiple tenants
+    specified via `vm_account_id` and `vm_project_id` labels.
+    See [multitenancy via labels](#multitenancy-via-labels) for more details.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `datadog/api/v1/series` - for inserting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent) for details.
@@ -286,19 +314,6 @@ See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
   Snapshots may be created independently on each `vmstorage` node. There is no need in synchronizing snapshots' creation
   across `vmstorage` nodes.
 
-## Tenant routing with labels
-
-### Via meta labels
-
-_Multitenancy via meta labels can be enabled by passing flag `-parseTenantIDFromLabels=true` to `vminsert` component. By default, it's disabled for security reasons._
-
-When URL-based multitenancy isn't an option, try using meta labels `vm_project_id` and `vm_account_id` attached to time series.
-
-For example, `my_metric{vm_project_id="5",vm_account_id="15"}` is parsed and routed by vminsert component to the tenant `15:5`. Meta labels are stripped from the original time series once written to the vmstorage.
-
-One write request or scrape target can contain time series with different tenants. It's also possible to use `extra_label` or [relabeling](https://docs.victoriametrics.com/#relabeling) for modifying or adding multitenancy meta labels.
-
-Prefer meta labels for multitenancy in cases when you need to have hundreds and thousands of tenants.
 ## Cluster resizing and scalability
 
 Cluster performance and capacity can be scaled up in two ways:
@@ -758,8 +773,6 @@ Below is the output for `/path/to/vminsert -help`:
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
-  -parseTenantIDFromLabels
-        allows to obtain tenant id with vm_project_id and vm_account_id labels. Label values must be in numeric format. E.g. {vm_project_id="5",vm_account_id="0"} converted into "0:5" tenant id.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -pushmetrics.extraLabel array

@@ -35,7 +35,11 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
-	atCopy := *at
+	var atCopy auth.Token
+	if at != nil {
+		atCopy = *at
+	}
+	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
 		r := &rows[i]
@@ -63,13 +67,14 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		if err := ctx.WriteDataPoint(&atCopy, ctx.Labels, r.Timestamp, r.Value); err != nil {
+		atLocal := ctx.GetLocalAuthToken(&atCopy)
+		if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
+		perTenantRows[*atLocal]++
 	}
-	// Assume that all the rows for a single connection belong to the same (AccountID, ProjectID).
 	rowsInserted.Add(len(rows))
-	rowsTenantInserted.Get(&atCopy).Add(len(rows))
+	rowsTenantInserted.MultiAdd(perTenantRows)
 	rowsPerInsert.Update(float64(len(rows)))
 	return ctx.FlushBufs()
 }

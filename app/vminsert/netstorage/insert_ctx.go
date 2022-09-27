@@ -1,9 +1,9 @@
 package netstorage
 
 import (
-	"flag"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -14,9 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/cespare/xxhash/v2"
 )
-
-var mustGetTenantFromLabels = flag.Bool("parseTenantIDFromLabels", false, "allows to obtain tenant id with vm_project_id and vm_account_id labels. Label values must be in numeric format."+
-	` E.g. {vm_project_id="5",vm_account_id="0"} converted into "0:5" tenant id.`)
 
 // InsertCtx is a generic context for inserting data.
 //
@@ -29,6 +26,8 @@ type InsertCtx struct {
 	labelsBuf []byte
 
 	relabelCtx relabel.Ctx
+
+	at auth.Token
 }
 
 type bufRows struct {
@@ -72,6 +71,7 @@ func (ctx *InsertCtx) Reset() {
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
 	ctx.relabelCtx.Reset()
+	ctx.at.Set(0, 0)
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -119,11 +119,11 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
-	return ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
+	return ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
 }
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
-func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
+func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	sn := storageNodes[storageNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
@@ -186,42 +186,43 @@ func marshalBytesFast(dst []byte, s []byte) []byte {
 	return dst
 }
 
-// MaybeParseAuthTokenFromLabels parses auth Token from context labels
-// return fallback token if no labels were found or parsing is disabled
-// token labels removed from timeseries
-//go:inline
-func (ctx *InsertCtx) MaybeParseAuthTokenFromLabels(fallbackAt *auth.Token) (*auth.Token, error) {
-	if !*mustGetTenantFromLabels {
-		return fallbackAt, nil
+// GetLocalAuthToken obtains auth.Token from context labels vm_account_id and vm_project_id if at is nil.
+//
+// At is returned as is if it isn't nil.
+//
+// The vm_account_id and vm_project_id labels are automatically removed from the ctx.
+func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
+	if at != nil {
+		return at
 	}
-	return ctx.parseAuthTokenFromLabels(fallbackAt)
+	return ctx.parseAuthTokenFromLabels()
 }
 
-func (ctx *InsertCtx) parseAuthTokenFromLabels(fallbackAt *auth.Token) (*auth.Token, error) {
-	accountID := "0"
-	projectID := "0"
+func (ctx *InsertCtx) parseAuthTokenFromLabels() *auth.Token {
+	accountID := uint32(0)
+	projectID := uint32(0)
 	tmpLabels := ctx.Labels[:0]
-	var isTenantLabelFound bool
 	for _, label := range ctx.Labels {
-		if string(label.Name) == `vm_project_id` {
-			projectID = string(label.Value)
-			isTenantLabelFound = true
+		if string(label.Name) == "vm_account_id" {
+			accountID = parseUint32(label.Value)
 			continue
 		}
-		if string(label.Name) == `vm_account_id` {
-			isTenantLabelFound = true
-			accountID = string(label.Value)
+		if string(label.Name) == "vm_project_id" {
+			projectID = parseUint32(label.Value)
 			continue
 		}
 		tmpLabels = append(tmpLabels, label)
 	}
-	if !isTenantLabelFound {
-		return fallbackAt, nil
-	}
 	ctx.Labels = tmpLabels
-	at, err := auth.NewToken(accountID + ":" + projectID)
+	ctx.at.Set(accountID, projectID)
+	return &ctx.at
+}
+
+func parseUint32(b []byte) uint32 {
+	s := bytesutil.ToUnsafeString(b)
+	n, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
-		return nil, err
+		return 0
 	}
-	return at, nil
+	return uint32(n)
 }
