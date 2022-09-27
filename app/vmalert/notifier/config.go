@@ -4,8 +4,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -104,7 +104,7 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func parseConfig(path string) (*Config, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading config file: %w", err)
 	}

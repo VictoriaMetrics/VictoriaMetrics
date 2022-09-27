@@ -43,6 +43,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	if err := barpool.Start(); err != nil {
 		return err
 	}
+	defer barpool.Stop()
 
 	blockReadersCh := make(chan tsdb.BlockReader)
 	errCh := make(chan error, pp.cc)
@@ -89,7 +90,7 @@ func (pp *prometheusProcessor) run(silent, verbose bool) error {
 	for err := range errCh {
 		return fmt.Errorf("import process failed: %s", err)
 	}
-	barpool.Stop()
+
 	log.Println("Import finished!")
 	log.Print(pp.im.Stats())
 	return nil

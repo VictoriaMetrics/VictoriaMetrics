@@ -34,9 +34,10 @@ func TestRollupResultCache(t *testing.T) {
 	ResetRollupResultCache()
 	window := int64(456)
 	ec := &EvalConfig{
-		Start: 1000,
-		End:   2000,
-		Step:  200,
+		Start:              1000,
+		End:                2000,
+		Step:               200,
+		MaxPointsPerSeries: 1e4,
 
 		AuthToken: &auth.Token{
 			AccountID: 333,
@@ -297,9 +298,10 @@ func TestRollupResultCache(t *testing.T) {
 
 func TestMergeTimeseries(t *testing.T) {
 	ec := &EvalConfig{
-		Start: 1000,
-		End:   2000,
-		Step:  200,
+		Start:              1000,
+		End:                2000,
+		Step:               200,
+		MaxPointsPerSeries: 1e4,
 	}
 	bStart := int64(1400)
 

@@ -3,7 +3,7 @@ package remotewrite
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -96,7 +96,7 @@ func (rw *rwServer) handler(w http.ResponseWriter, r *http.Request) {
 		rw.err(w, fmt.Errorf("header read error: X-Prometheus-Remote-Write-Version is not 0.1.0 (%q)", h))
 	}
 
-	data, err := ioutil.ReadAll(r.Body)
+	data, err := io.ReadAll(r.Body)
 	if err != nil {
 		rw.err(w, fmt.Errorf("body read err: %w", err))
 		return

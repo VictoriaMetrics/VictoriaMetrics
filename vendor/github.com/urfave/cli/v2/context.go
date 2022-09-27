@@ -46,6 +46,9 @@ func (cCtx *Context) NumFlags() int {
 
 // Set sets a context flag to a value.
 func (cCtx *Context) Set(name, value string) error {
+	if cCtx.flagSet.Lookup(name) == nil {
+		cCtx.onInvalidFlag(name)
+	}
 	return cCtx.flagSet.Set(name, value)
 }
 
@@ -100,6 +103,16 @@ func (cCtx *Context) Lineage() []*Context {
 	}
 
 	return lineage
+}
+
+// Count returns the num of occurences of this flag
+func (cCtx *Context) Count(name string) int {
+	if fs := cCtx.lookupFlagSet(name); fs != nil {
+		if cf, ok := fs.Lookup(name).Value.(Countable); ok {
+			return cf.Count()
+		}
+	}
+	return 0
 }
 
 // Value returns the value of the flag corresponding to `name`
@@ -158,7 +171,7 @@ func (cCtx *Context) lookupFlagSet(name string) *flag.FlagSet {
 			return c.flagSet
 		}
 	}
-
+	cCtx.onInvalidFlag(name)
 	return nil
 }
 
@@ -170,9 +183,7 @@ func (cCtx *Context) checkRequiredFlags(flags []Flag) requiredFlagsErr {
 			var flagName string
 
 			for _, key := range f.Names() {
-				if len(key) > 1 {
-					flagName = key
-				}
+				flagName = key
 
 				if cCtx.IsSet(strings.TrimSpace(key)) {
 					flagPresent = true
@@ -190,6 +201,16 @@ func (cCtx *Context) checkRequiredFlags(flags []Flag) requiredFlagsErr {
 	}
 
 	return nil
+}
+
+func (cCtx *Context) onInvalidFlag(name string) {
+	for cCtx != nil {
+		if cCtx.App != nil && cCtx.App.InvalidFlagAccessHandler != nil {
+			cCtx.App.InvalidFlagAccessHandler(cCtx, name)
+			break
+		}
+		cCtx = cCtx.parentContext
+	}
 }
 
 func makeFlagNameVisitor(names *[]string) func(*flag.Flag) {

@@ -101,143 +101,152 @@ func StreamHeader(qw422016 *qt422016.Writer, r *http.Request, navItems []NavItem
           background-color: rgba(0,0,0,.5);
           -webkit-box-shadow: 0 0 1px rgba(255,255,255,.5);
         }
+        textarea.curl-area{
+            width: 100%;
+            line-height: 1;
+            font-size: 12px;
+            border: none;
+            margin: 0;
+            padding: 0;
+            overflow: scroll;
+        }
     </style>
 </head>
 <body>
     `)
-//line app/vmalert/tpl/header.qtpl:65
+//line app/vmalert/tpl/header.qtpl:74
 	streamprintNavItems(qw422016, r, title, navItems)
-//line app/vmalert/tpl/header.qtpl:65
+//line app/vmalert/tpl/header.qtpl:74
 	qw422016.N().S(`
     <main class="px-2">
 `)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 }
 
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 func WriteHeader(qq422016 qtio422016.Writer, r *http.Request, navItems []NavItem, title string) {
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	StreamHeader(qw422016, r, navItems, title)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 }
 
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 func Header(r *http.Request, navItems []NavItem, title string) string {
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	WriteHeader(qb422016, r, navItems, title)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:67
+//line app/vmalert/tpl/header.qtpl:76
 }
 
-//line app/vmalert/tpl/header.qtpl:71
+//line app/vmalert/tpl/header.qtpl:80
 type NavItem struct {
 	Name string
 	Url  string
 }
 
-//line app/vmalert/tpl/header.qtpl:77
+//line app/vmalert/tpl/header.qtpl:86
 func streamprintNavItems(qw422016 *qt422016.Writer, r *http.Request, current string, items []NavItem) {
-//line app/vmalert/tpl/header.qtpl:77
+//line app/vmalert/tpl/header.qtpl:86
 	qw422016.N().S(`
 `)
-//line app/vmalert/tpl/header.qtpl:79
+//line app/vmalert/tpl/header.qtpl:88
 	prefix := "/vmalert/"
 	if strings.HasPrefix(r.URL.Path, prefix) {
 		prefix = ""
 	}
 
-//line app/vmalert/tpl/header.qtpl:83
+//line app/vmalert/tpl/header.qtpl:92
 	qw422016.N().S(`
 <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
   <div class="container-fluid">
     <div class="collapse navbar-collapse" id="navbarCollapse">
         <ul class="navbar-nav me-auto mb-2 mb-md-0">
             `)
-//line app/vmalert/tpl/header.qtpl:88
+//line app/vmalert/tpl/header.qtpl:97
 	for _, item := range items {
-//line app/vmalert/tpl/header.qtpl:88
+//line app/vmalert/tpl/header.qtpl:97
 		qw422016.N().S(`
                 <li class="nav-item">
                     `)
-//line app/vmalert/tpl/header.qtpl:91
+//line app/vmalert/tpl/header.qtpl:100
 		u, _ := url.Parse(item.Url)
 
-//line app/vmalert/tpl/header.qtpl:92
+//line app/vmalert/tpl/header.qtpl:101
 		qw422016.N().S(`
                     <a class="nav-link`)
-//line app/vmalert/tpl/header.qtpl:93
+//line app/vmalert/tpl/header.qtpl:102
 		if current == item.Name {
-//line app/vmalert/tpl/header.qtpl:93
+//line app/vmalert/tpl/header.qtpl:102
 			qw422016.N().S(` active`)
-//line app/vmalert/tpl/header.qtpl:93
+//line app/vmalert/tpl/header.qtpl:102
 		}
-//line app/vmalert/tpl/header.qtpl:93
+//line app/vmalert/tpl/header.qtpl:102
 		qw422016.N().S(`"
                        href="`)
-//line app/vmalert/tpl/header.qtpl:94
+//line app/vmalert/tpl/header.qtpl:103
 		if u.IsAbs() {
-//line app/vmalert/tpl/header.qtpl:94
+//line app/vmalert/tpl/header.qtpl:103
 			qw422016.E().S(item.Url)
-//line app/vmalert/tpl/header.qtpl:94
+//line app/vmalert/tpl/header.qtpl:103
 		} else {
-//line app/vmalert/tpl/header.qtpl:94
+//line app/vmalert/tpl/header.qtpl:103
 			qw422016.E().S(path.Join(prefix, item.Url))
-//line app/vmalert/tpl/header.qtpl:94
+//line app/vmalert/tpl/header.qtpl:103
 		}
-//line app/vmalert/tpl/header.qtpl:94
+//line app/vmalert/tpl/header.qtpl:103
 		qw422016.N().S(`">
                         `)
-//line app/vmalert/tpl/header.qtpl:95
+//line app/vmalert/tpl/header.qtpl:104
 		qw422016.E().S(item.Name)
-//line app/vmalert/tpl/header.qtpl:95
+//line app/vmalert/tpl/header.qtpl:104
 		qw422016.N().S(`
                     </a>
                 </li>
             `)
-//line app/vmalert/tpl/header.qtpl:98
+//line app/vmalert/tpl/header.qtpl:107
 	}
-//line app/vmalert/tpl/header.qtpl:98
+//line app/vmalert/tpl/header.qtpl:107
 	qw422016.N().S(`
         </ul>
   </div>
 </nav>
 `)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 }
 
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 func writeprintNavItems(qq422016 qtio422016.Writer, r *http.Request, current string, items []NavItem) {
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	streamprintNavItems(qw422016, r, current, items)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 }
 
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 func printNavItems(r *http.Request, current string, items []NavItem) string {
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	writeprintNavItems(qb422016, r, current, items)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:102
+//line app/vmalert/tpl/header.qtpl:111
 }

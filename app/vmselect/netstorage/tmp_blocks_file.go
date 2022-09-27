@@ -2,7 +2,6 @@ package netstorage
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"sync"
 
@@ -111,7 +110,7 @@ func (tbf *tmpBlocksFile) WriteBlockData(b []byte, tbfIdx int) (tmpBlockAddr, er
 
 	// Slow path: flush the data from tbf.buf to file.
 	if tbf.f == nil {
-		f, err := ioutil.TempFile(tmpBlocksDir, "")
+		f, err := os.CreateTemp(tmpBlocksDir, "")
 		if err != nil {
 			return addr, err
 		}

@@ -153,7 +153,7 @@ cat << EOF > limit.yaml
 limits:
   - type: queries
     value: 100
-  - type: rows_inserted 
+  - type: rows_inserted
     value: 100000
   - type: new_series
     value: 1000
@@ -172,7 +172,7 @@ curl 'http://localhost:8431/api/v1/import/prometheus' -X POST  -d 'foo{bar="baz1
 # read metric from tenant 1:5
 curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE2MjAxNjIwMDAwMDAsInZtX2FjY2VzcyI6eyJ0ZW5hbnRfaWQiOnsiYWNjb3VudF9pZCI6MTV9fX0.PB1_KXDKPUp-40pxOGk6lt_jt9Yq80PIMpWVJqSForQ'
 
-# check rate limit 
+# check rate limit
 ```
 
 ## Configuration
@@ -196,16 +196,18 @@ The shortlist of configuration flags include the following:
      Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+  -datasource.headers string
+     Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
      Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url.
   -datasource.oauth2.clientSecret string
      Optional OAuth2 clientSecret to use for -datasource.url.
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url.
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -216,6 +218,8 @@ The shortlist of configuration flags include the following:
      Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
+  -datasource.showURL
+     Whether to show -datasource.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -227,7 +231,7 @@ The shortlist of configuration flags include the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
+     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also '-datasource.disablePathAppend', '-datasource.showURL'.
   -enable.auth
      enables auth with jwt token
   -enable.rateLimit
@@ -239,7 +243,7 @@ The shortlist of configuration flags include the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -315,6 +319,8 @@ The shortlist of configuration flags include the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
   -write.url string

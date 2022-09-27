@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/compute/metadata"
@@ -159,22 +160,17 @@ func (b *BucketHandle) Update(ctx context.Context, uattrs BucketAttrsToUpdate) (
 }
 
 // SignedURL returns a URL for the specified object. Signed URLs allow anyone
-// access to a restricted resource for a limited time without needing a
-// Google account or signing in. For more information about signed URLs, see
-// https://cloud.google.com/storage/docs/accesscontrol#signed_urls_query_string_authentication
+// access to a restricted resource for a limited time without needing a Google
+// account or signing in.
+// For more information about signed URLs, see "[Overview of access control]."
 //
-// This method only requires the Method and Expires fields in the specified
-// SignedURLOptions opts to be non-nil. If not provided, it attempts to fill the
-// GoogleAccessID and PrivateKey from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-// If you are authenticating with a custom HTTP client, Service Account based
-// auto-detection will be hindered.
+// This method requires the Method and Expires fields in the specified
+// SignedURLOptions to be non-nil. You may need to set the GoogleAccessID and
+// PrivateKey fields in some cases. Read more on the [automatic detection of credentials]
+// for this method.
 //
-// If no private key is found, it attempts to use the GoogleAccessID to sign the URL.
-// This requires the IAM Service Account Credentials API to be enabled
-// (https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview)
-// and iam.serviceAccounts.signBlob permissions on the GoogleAccessID service account.
-// If you do not want these fields set for you, you may pass them in through opts or use
-// SignedURL(bucket, name string, opts *SignedURLOptions) instead.
+// [Overview of access control]: https://cloud.google.com/storage/docs/accesscontrol#signed_urls_query_string_authentication
+// [automatic detection of credentials]: https://pkg.go.dev/cloud.google.com/go/storage#hdr-Credential_requirements_for_[BucketHandle.SignedURL]_and_[BucketHandle.GenerateSignedPostPolicyV4]
 func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string, error) {
 	if opts.GoogleAccessID != "" && (opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
 		return SignedURL(b.name, object, opts)
@@ -212,18 +208,11 @@ func (b *BucketHandle) SignedURL(object string, opts *SignedURLOptions) (string,
 // GenerateSignedPostPolicyV4 generates a PostPolicyV4 value from bucket, object and opts.
 // The generated URL and fields will then allow an unauthenticated client to perform multipart uploads.
 //
-// This method only requires the Expires field in the specified PostPolicyV4Options
-// to be non-nil. If not provided, it attempts to fill the GoogleAccessID and PrivateKey
-// from the GOOGLE_APPLICATION_CREDENTIALS environment variable.
-// If you are authenticating with a custom HTTP client, Service Account based
-// auto-detection will be hindered.
+// This method requires the Expires field in the specified PostPolicyV4Options
+// to be non-nil. You may need to set the GoogleAccessID and PrivateKey fields
+// in some cases. Read more on the [automatic detection of credentials] for this method.
 //
-// If no private key is found, it attempts to use the GoogleAccessID to sign the URL.
-// This requires the IAM Service Account Credentials API to be enabled
-// (https://console.developers.google.com/apis/api/iamcredentials.googleapis.com/overview)
-// and iam.serviceAccounts.signBlob permissions on the GoogleAccessID service account.
-// If you do not want these fields set for you, you may pass them in through opts or use
-// GenerateSignedPostPolicyV4(bucket, name string, opts *PostPolicyV4Options) instead.
+// [automatic detection of credentials]: https://pkg.go.dev/cloud.google.com/go/storage#hdr-Credential_requirements_for_[BucketHandle.SignedURL]_and_[BucketHandle.GenerateSignedPostPolicyV4]
 func (b *BucketHandle) GenerateSignedPostPolicyV4(object string, opts *PostPolicyV4Options) (*PostPolicyV4, error) {
 	if opts.GoogleAccessID != "" && (opts.SignRawBytes != nil || opts.SignBytes != nil || len(opts.PrivateKey) > 0) {
 		return GenerateSignedPostPolicyV4(b.name, object, opts)
@@ -263,17 +252,27 @@ func (b *BucketHandle) detectDefaultGoogleAccessID() (string, error) {
 
 	if b.c.creds != nil && len(b.c.creds.JSON) > 0 {
 		var sa struct {
-			ClientEmail string `json:"client_email"`
-		}
-		err := json.Unmarshal(b.c.creds.JSON, &sa)
-		if err == nil && sa.ClientEmail != "" {
-			return sa.ClientEmail, nil
-		} else if err != nil {
-			returnErr = err
-		} else {
-			returnErr = errors.New("storage: empty client email in credentials")
+			ClientEmail        string `json:"client_email"`
+			SAImpersonationURL string `json:"service_account_impersonation_url"`
+			CredType           string `json:"type"`
 		}
 
+		err := json.Unmarshal(b.c.creds.JSON, &sa)
+		if err != nil {
+			returnErr = err
+		} else if sa.CredType == "impersonated_service_account" {
+			start, end := strings.LastIndex(sa.SAImpersonationURL, "/"), strings.LastIndex(sa.SAImpersonationURL, ":")
+
+			if end <= start {
+				returnErr = errors.New("error parsing impersonated service account credentials")
+			} else {
+				return sa.SAImpersonationURL[start+1 : end], nil
+			}
+		} else if sa.CredType == "service_account" && sa.ClientEmail != "" {
+			return sa.ClientEmail, nil
+		} else {
+			returnErr = errors.New("unable to parse credentials; only service_account and impersonated_service_account credentials are supported")
+		}
 	}
 
 	// Don't error out if we can't unmarshal, fallback to GCE check.
@@ -284,11 +283,11 @@ func (b *BucketHandle) detectDefaultGoogleAccessID() (string, error) {
 		} else if err != nil {
 			returnErr = err
 		} else {
-			returnErr = errors.New("got empty email from GCE metadata service")
+			returnErr = errors.New("empty email from GCE metadata service")
 		}
 
 	}
-	return "", fmt.Errorf("storage: unable to detect default GoogleAccessID: %v", returnErr)
+	return "", fmt.Errorf("storage: unable to detect default GoogleAccessID: %w. Please provide the GoogleAccessID or use a supported means for autodetecting it (see https://pkg.go.dev/cloud.google.com/go/storage#hdr-Credential_requirements_for_[BucketHandle.SignedURL]_and_[BucketHandle.GenerateSignedPostPolicyV4])", returnErr)
 }
 
 func (b *BucketHandle) defaultSignBytesFunc(email string) func([]byte) ([]byte, error) {
@@ -610,7 +609,12 @@ const (
 //
 // All configured conditions must be met for the associated action to be taken.
 type LifecycleCondition struct {
+	// AllObjects is used to select all objects in a bucket by
+	// setting AgeInDays to 0.
+	AllObjects bool
+
 	// AgeInDays is the age of the object in days.
+	// If you want to set AgeInDays to `0` use AllObjects set to `true`.
 	AgeInDays int64
 
 	// CreatedBefore is the time the object was created.
@@ -628,10 +632,12 @@ type LifecycleCondition struct {
 
 	// DaysSinceCustomTime is the days elapsed since the CustomTime date of the
 	// object. This condition can only be satisfied if CustomTime has been set.
+	// Note: Using `0` as the value will be ignored by the library and not sent to the API.
 	DaysSinceCustomTime int64
 
 	// DaysSinceNoncurrentTime is the days elapsed since the noncurrent timestamp
 	// of the object. This condition is relevant only for versioned objects.
+	// Note: Using `0` as the value will be ignored by the library and not sent to the API.
 	DaysSinceNoncurrentTime int64
 
 	// Liveness specifies the object's liveness. Relevant only for versioned objects
@@ -663,6 +669,7 @@ type LifecycleCondition struct {
 	// If the value is N, this condition is satisfied when there are at least N
 	// versions (including the live version) newer than this version of the
 	// object.
+	// Note: Using `0` as the value will be ignored by the library and not sent to the API.
 	NumNewerVersions int64
 }
 
@@ -768,6 +775,7 @@ func newBucketFromProto(b *storagepb.Bucket) *BucketAttrs {
 		LocationType:             b.GetLocationType(),
 		RPO:                      toRPOFromProto(b),
 		CustomPlacementConfig:    customPlacementFromProto(b.GetCustomPlacementConfig()),
+		ProjectNumber:            parseProjectNumber(b.GetProject()), // this can return 0 the project resource name is ID based
 	}
 }
 
@@ -1421,19 +1429,6 @@ func toCORSFromProto(rc []*storagepb.Bucket_Cors) []CORS {
 	return out
 }
 
-// Used to handle breaking change in Autogen Storage client OLM Age field
-// from int64 to *int64 gracefully in the manual client
-// TODO(#6240): Method should be removed once breaking change is made and introduced to this client
-func setAgeCondition(age int64, ageField interface{}) {
-	c := reflect.ValueOf(ageField).Elem()
-	switch c.Kind() {
-	case reflect.Int64:
-		c.SetInt(age)
-	case reflect.Ptr:
-		c.Set(reflect.ValueOf(&age))
-	}
-}
-
 func toRawLifecycle(l Lifecycle) *raw.BucketLifecycle {
 	var rl raw.BucketLifecycle
 	if len(l.Rules) == 0 {
@@ -1455,7 +1450,15 @@ func toRawLifecycle(l Lifecycle) *raw.BucketLifecycle {
 			},
 		}
 
-		setAgeCondition(r.Condition.AgeInDays, &rr.Condition.Age)
+		// AllObjects takes precedent when both AllObjects and AgeInDays are set
+		// Rationale: If you've opted into using AllObjects, it makes sense that you
+		// understand the implications of how this option works with AgeInDays.
+		if r.Condition.AllObjects {
+			rr.Condition.Age = googleapi.Int64(0)
+			rr.Condition.ForceSendFields = []string{"Age"}
+		} else if r.Condition.AgeInDays > 0 {
+			rr.Condition.Age = googleapi.Int64(r.Condition.AgeInDays)
+		}
 
 		switch r.Condition.Liveness {
 		case LiveAndArchived:
@@ -1504,6 +1507,11 @@ func toProtoLifecycle(l Lifecycle) *storagepb.Bucket_Lifecycle {
 			},
 		}
 
+		// TODO(#6205): This may not be needed for gRPC
+		if r.Condition.AllObjects {
+			rr.Condition.AgeDays = proto.Int32(0)
+		}
+
 		switch r.Condition.Liveness {
 		case LiveAndArchived:
 			rr.Condition.IsLive = nil
@@ -1527,21 +1535,6 @@ func toProtoLifecycle(l Lifecycle) *storagepb.Bucket_Lifecycle {
 	return &rl
 }
 
-// Used to handle breaking change in Autogen Storage client OLM Age field
-// from int64 to *int64 gracefully in the manual client
-// TODO(#6240): Method should be removed once breaking change is made and introduced to this client
-func getAgeCondition(ageField interface{}) int64 {
-	v := reflect.ValueOf(ageField)
-	if v.Kind() == reflect.Int64 {
-		return v.Interface().(int64)
-	} else if v.Kind() == reflect.Ptr {
-		if val, ok := v.Interface().(*int64); ok {
-			return *val
-		}
-	}
-	return 0
-}
-
 func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 	var l Lifecycle
 	if rl == nil {
@@ -1562,7 +1555,12 @@ func toLifecycle(rl *raw.BucketLifecycle) Lifecycle {
 				NumNewerVersions:        rr.Condition.NumNewerVersions,
 			},
 		}
-		r.Condition.AgeInDays = getAgeCondition(rr.Condition.Age)
+		if rr.Condition.Age != nil {
+			r.Condition.AgeInDays = *rr.Condition.Age
+			if *rr.Condition.Age == 0 {
+				r.Condition.AllObjects = true
+			}
+		}
 
 		if rr.Condition.IsLive == nil {
 			r.Condition.Liveness = LiveAndArchived
@@ -1606,6 +1604,11 @@ func toLifecycleFromProto(rl *storagepb.Bucket_Lifecycle) Lifecycle {
 				MatchesSuffix:           rr.GetCondition().GetMatchesSuffix(),
 				NumNewerVersions:        int64(rr.GetCondition().GetNumNewerVersions()),
 			},
+		}
+
+		// TODO(#6205): This may not be needed for gRPC
+		if rr.GetCondition().GetAgeDays() == 0 {
+			r.Condition.AllObjects = true
 		}
 
 		if rr.GetCondition().IsLive == nil {

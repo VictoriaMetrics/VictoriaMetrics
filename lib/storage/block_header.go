@@ -2,6 +2,7 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -152,6 +153,69 @@ func (bh *blockHeader) Unmarshal(src []byte) ([]byte, error) {
 
 	err = bh.validate()
 	return src, err
+}
+
+func (bh *blockHeader) marshalPortable(dst []byte) []byte {
+	dst = encoding.MarshalVarInt64(dst, bh.MinTimestamp)
+	dst = encoding.MarshalVarInt64(dst, bh.MaxTimestamp)
+	dst = encoding.MarshalVarInt64(dst, bh.FirstValue)
+	dst = encoding.MarshalVarUint64(dst, uint64(bh.RowsCount))
+	dst = encoding.MarshalVarInt64(dst, int64(bh.Scale))
+	dst = append(dst, byte(bh.TimestampsMarshalType), byte(bh.ValuesMarshalType), byte(bh.PrecisionBits))
+	return dst
+}
+
+func (bh *blockHeader) unmarshalPortable(src []byte) ([]byte, error) {
+	src, minTimestamp, err := encoding.UnmarshalVarInt64(src)
+	if err != nil {
+		return src, fmt.Errorf("cannot unmarshal firstTimestamp: %w", err)
+	}
+	bh.MinTimestamp = minTimestamp
+	src, maxTimestamp, err := encoding.UnmarshalVarInt64(src)
+	if err != nil {
+		return src, fmt.Errorf("cannot unmarshal firstTimestamp: %w", err)
+	}
+	bh.MaxTimestamp = maxTimestamp
+	src, firstValue, err := encoding.UnmarshalVarInt64(src)
+	if err != nil {
+		return src, fmt.Errorf("cannot unmarshal firstValue: %w", err)
+	}
+	bh.FirstValue = firstValue
+	src, rowsCount, err := encoding.UnmarshalVarUint64(src)
+	if err != nil {
+		return src, fmt.Errorf("cannot unmarshal rowsCount: %w", err)
+	}
+	if rowsCount > math.MaxUint32 {
+		return src, fmt.Errorf("got too big rowsCount=%d; it mustn't exceed %d", rowsCount, uint32(math.MaxUint32))
+	}
+	bh.RowsCount = uint32(rowsCount)
+	src, scale, err := encoding.UnmarshalVarInt64(src)
+	if err != nil {
+		return src, fmt.Errorf("cannot unmarshal scale: %w", err)
+	}
+	if scale < math.MinInt16 {
+		return src, fmt.Errorf("got too small scale=%d; it mustn't be smaller than %d", scale, math.MinInt16)
+	}
+	if scale > math.MaxInt16 {
+		return src, fmt.Errorf("got too big scale=%d; it mustn't exceeed %d", scale, math.MaxInt16)
+	}
+	bh.Scale = int16(scale)
+	if len(src) < 1 {
+		return src, fmt.Errorf("cannot unmarshal marshalType for timestamps from %d bytes; need at least %d bytes", len(src), 1)
+	}
+	bh.TimestampsMarshalType = encoding.MarshalType(src[0])
+	src = src[1:]
+	if len(src) < 1 {
+		return src, fmt.Errorf("cannot unmarshal marshalType for values from %d bytes; need at least %d bytes", len(src), 1)
+	}
+	bh.ValuesMarshalType = encoding.MarshalType(src[0])
+	src = src[1:]
+	if len(src) < 1 {
+		return src, fmt.Errorf("cannot unmarshal precisionBits for values from %d bytes; need at least %d bytes", len(src), 1)
+	}
+	bh.PrecisionBits = uint8(src[0])
+	src = src[1:]
+	return src, nil
 }
 
 func (bh *blockHeader) validate() error {

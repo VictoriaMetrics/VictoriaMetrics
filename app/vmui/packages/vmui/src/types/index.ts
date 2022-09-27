@@ -69,3 +69,27 @@ export interface RelativeTimeOption {
   title: string,
   isDefault?: boolean,
 }
+
+export interface TopQuery {
+  accountID: number
+  avgDurationSeconds: number
+  count: number
+  projectID: number
+  query: string
+  timeRangeSeconds: number
+  sumDurationSeconds: number
+  timeRangeHours: number
+}
+
+export interface TopQueryStats {
+  "search.queryStats.lastQueriesCount": number
+  "search.queryStats.minQueryDuration": string
+}
+
+export interface TopQueriesData extends TopQueryStats{
+  maxLifetime: string
+  topN: string
+  topByAvgDuration: TopQuery[]
+  topByCount: TopQuery[]
+  topBySumDuration: TopQuery[]
+}

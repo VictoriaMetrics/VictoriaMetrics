@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -188,6 +189,12 @@ func TestIfExpressionMismatch(t *testing.T) {
 }
 
 func parseMetricWithLabels(metricWithLabels string) ([]prompbmarshal.Label, error) {
+	stripDummyMetric := false
+	if strings.HasPrefix(metricWithLabels, "{") {
+		// Add a dummy metric name, since the parser needs it
+		metricWithLabels = "dummy_metric" + metricWithLabels
+		stripDummyMetric = true
+	}
 	// add a value to metricWithLabels, so it could be parsed by prometheus protocol parser.
 	s := metricWithLabels + " 123"
 	var rows prometheus.Rows
@@ -203,7 +210,7 @@ func parseMetricWithLabels(metricWithLabels string) ([]prompbmarshal.Label, erro
 	}
 	r := rows.Rows[0]
 	var lfs []prompbmarshal.Label
-	if r.Metric != "" {
+	if !stripDummyMetric {
 		lfs = append(lfs, prompbmarshal.Label{
 			Name:  "__name__",
 			Value: r.Metric,

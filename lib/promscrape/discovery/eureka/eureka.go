@@ -139,11 +139,11 @@ func addInstanceLabels(apps *applications) []map[string]string {
 			if len(instance.DataCenterInfo.Name) > 0 {
 				m["__meta_eureka_app_instance_datacenterinfo_name"] = instance.DataCenterInfo.Name
 				for _, tag := range instance.DataCenterInfo.Metadata.Items {
-					m["__meta_eureka_app_instance_datacenterinfo_metadata_"+discoveryutils.SanitizeLabelName(tag.XMLName.Local)] = tag.Content
+					m[discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_datacenterinfo_metadata_"+tag.XMLName.Local)] = tag.Content
 				}
 			}
 			for _, tag := range instance.Metadata.Items {
-				m["__meta_eureka_app_instance_metadata_"+discoveryutils.SanitizeLabelName(tag.XMLName.Local)] = tag.Content
+				m[discoveryutils.SanitizeLabelName("__meta_eureka_app_instance_metadata_"+tag.XMLName.Local)] = tag.Content
 			}
 			ms = append(ms, m)
 		}

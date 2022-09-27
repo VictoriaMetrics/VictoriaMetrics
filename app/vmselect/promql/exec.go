@@ -100,7 +100,8 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 	case *metricsql.FuncExpr:
 		switch strings.ToLower(v.Name) {
 		case "sort", "sort_desc",
-			"sort_by_label", "sort_by_label_desc":
+			"sort_by_label", "sort_by_label_desc",
+			"sort_by_label_numeric", "sort_by_label_numeric_desc":
 			return false
 		}
 	case *metricsql.AggrFuncExpr:

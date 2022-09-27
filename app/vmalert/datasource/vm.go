@@ -3,12 +3,13 @@ package datasource
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
@@ -39,6 +40,10 @@ type VMStorage struct {
 	evaluationInterval time.Duration
 	extraParams        url.Values
 	extraHeaders       []keyValue
+
+	// whether to print additional log messages
+	// for each sent request
+	debug bool
 }
 
 type keyValue struct {
@@ -64,6 +69,7 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
 	s.extraParams = params.QueryParams
+	s.debug = params.Debug
 	if params.Headers != nil {
 		for key, value := range params.Headers {
 			kv := keyValue{key: key, value: value}
@@ -92,10 +98,10 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 }
 
 // Query executes the given query and returns parsed response
-func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Metric, error) {
+func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Metric, *http.Request, error) {
 	req, err := s.newRequestPOST()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	switch s.dataSourceType {
@@ -104,12 +110,12 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 	case datasourceGraphite:
 		s.setGraphiteReqParams(req, query, ts)
 	default:
-		return nil, fmt.Errorf("engine not found: %q", s.dataSourceType)
+		return nil, nil, fmt.Errorf("engine not found: %q", s.dataSourceType)
 	}
 
 	resp, err := s.do(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, req, err
 	}
 	defer func() {
 		_ = resp.Body.Close()
@@ -119,7 +125,8 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) ([]Me
 	if s.dataSourceType != datasourcePrometheus {
 		parseFn = parseGraphiteResponse
 	}
-	return parseFn(req, resp)
+	result, err := parseFn(req, resp)
+	return result, req, err
 }
 
 // QueryRange executes the given query on the given time range.
@@ -151,12 +158,15 @@ func (s *VMStorage) QueryRange(ctx context.Context, query string, start, end tim
 }
 
 func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, error) {
+	if s.debug {
+		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, req.URL.RawQuery)
+	}
 	resp, err := s.c.Do(req.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
 	}
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %s", resp.StatusCode, req.URL.Redacted(), body)
 	}

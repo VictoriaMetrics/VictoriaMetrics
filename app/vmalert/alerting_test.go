@@ -735,6 +735,7 @@ func TestAlertingRule_Template(t *testing.T) {
 					"description": `{{ $labels.alertname}}: It is {{ $value }} connections for "{{ $labels.instance }}"`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
+				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "first", "instance", "foo", alertNameLabel, "override"),
@@ -774,6 +775,7 @@ func TestAlertingRule_Template(t *testing.T) {
 					"summary": `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
+				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1,
@@ -915,5 +917,11 @@ func newTestRuleWithLabels(name string, labels ...string) *AlertingRule {
 }
 
 func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
-	return &AlertingRule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor, EvalInterval: waitFor}
+	return &AlertingRule{
+		Name:         name,
+		For:          waitFor,
+		EvalInterval: waitFor,
+		alerts:       make(map[uint64]*notifier.Alert),
+		state:        newRuleState(),
+	}
 }

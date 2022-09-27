@@ -33,6 +33,7 @@ import (
 	"reflect"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -1875,8 +1876,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 
 // WithErrorFunc allows users to pass a custom function to the retryer. Errors
 // will be retried if and only if `shouldRetry(err)` returns true.
-// By default, the following errors are retried (see invoke.go for the default
-// shouldRetry function):
+// By default, the following errors are retried (see ShouldRetry for the default
+// function):
 //
 // - HTTP responses with codes 408, 429, 502, 503, and 504.
 //
@@ -1887,7 +1888,8 @@ func (ws *withPolicy) apply(config *retryConfig) {
 // - Wrapped versions of these errors.
 //
 // This option can be used to retry on a different set of errors than the
-// default.
+// default. Users can use the default ShouldRetry function inside their custom
+// function if they only want to make minor modifications to default behavior.
 func WithErrorFunc(shouldRetry func(err error) bool) RetryOption {
 	return &withErrorFunc{
 		shouldRetry: shouldRetry,
@@ -1999,6 +2001,24 @@ func bucketResourceName(p, b string) string {
 func parseBucketName(b string) string {
 	sep := strings.LastIndex(b, "/")
 	return b[sep+1:]
+}
+
+// parseProjectNumber consume the given resource name and parses out the project
+// number if one is present i.e. it is not a project ID.
+func parseProjectNumber(r string) uint64 {
+	projectID := regexp.MustCompile(`projects\/([0-9]+)\/?`)
+	if matches := projectID.FindStringSubmatch(r); len(matches) > 0 {
+		// Capture group follows the matched segment. For example:
+		// input: projects/123/bars/456
+		// output: [projects/123/, 123]
+		number, err := strconv.ParseUint(matches[1], 10, 64)
+		if err != nil {
+			return 0
+		}
+		return number
+	}
+
+	return 0
 }
 
 // toProjectResource accepts a project ID and formats it as a Project resource

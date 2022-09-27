@@ -103,18 +103,23 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 	if err := fs.MkdirAllIfNotExist(smallPartitionsPath); err != nil {
 		return nil, fmt.Errorf("cannot create directory for small partitions %q: %w", smallPartitionsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(smallPartitionsPath)
 	smallSnapshotsPath := smallPartitionsPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(smallSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", smallSnapshotsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(smallSnapshotsPath)
+
 	bigPartitionsPath := path + "/big"
 	if err := fs.MkdirAllIfNotExist(bigPartitionsPath); err != nil {
 		return nil, fmt.Errorf("cannot create directory for big partitions %q: %w", bigPartitionsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(bigPartitionsPath)
 	bigSnapshotsPath := bigPartitionsPath + "/snapshots"
 	if err := fs.MkdirAllIfNotExist(bigSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", bigSnapshotsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	// Open partitions.
 	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
@@ -179,9 +184,9 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
 func (tb *table) MustDeleteSnapshot(snapshotName string) {
 	smallDir := fmt.Sprintf("%s/small/snapshots/%s", tb.path, snapshotName)
-	fs.MustRemoveAll(smallDir)
+	fs.MustRemoveDirAtomic(smallDir)
 	bigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
-	fs.MustRemoveAll(bigDir)
+	fs.MustRemoveDirAtomic(bigDir)
 }
 
 func (tb *table) addPartitionNolock(pt *partition) {

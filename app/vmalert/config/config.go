@@ -4,8 +4,8 @@ import (
 	"crypto/md5"
 	"fmt"
 	"hash/fnv"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -77,7 +77,7 @@ func (g *Group) Validate(validateTplFn ValidateTplFn, validateExpressions bool) 
 			ruleName = r.Alert
 		}
 		if _, ok := uniqueRules[r.ID]; ok {
-			return fmt.Errorf("rule %q duplicate", ruleName)
+			return fmt.Errorf("%q is a duplicate within the group %q", r.String(), g.Name)
 		}
 		uniqueRules[r.ID] = struct{}{}
 		if err := r.Validate(); err != nil {
@@ -113,6 +113,7 @@ type Rule struct {
 	For         *promutils.Duration `yaml:"for,omitempty"`
 	Labels      map[string]string   `yaml:"labels,omitempty"`
 	Annotations map[string]string   `yaml:"annotations,omitempty"`
+	Debug       bool                `yaml:"debug,omitempty"`
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
@@ -134,6 +135,32 @@ func (r *Rule) Name() string {
 		return r.Record
 	}
 	return r.Alert
+}
+
+// String implements Stringer interface
+func (r *Rule) String() string {
+	ruleType := "recording"
+	if r.Alert != "" {
+		ruleType = "alerting"
+	}
+	b := strings.Builder{}
+	b.WriteString(fmt.Sprintf("%s rule %q", ruleType, r.Name()))
+	b.WriteString(fmt.Sprintf("; expr: %q", r.Expr))
+
+	kv := sortMap(r.Labels)
+	for i := range kv {
+		if i == 0 {
+			b.WriteString("; labels:")
+		}
+		b.WriteString(" ")
+		b.WriteString(kv[i].key)
+		b.WriteString("=")
+		b.WriteString(kv[i].value)
+		if i < len(kv)-1 {
+			b.WriteString(",")
+		}
+	}
+	return b.String()
 }
 
 // HashRule hashes significant Rule fields into
@@ -214,7 +241,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 }
 
 func parseFile(path string) ([]Group, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("error reading alert rule file: %w", err)
 	}

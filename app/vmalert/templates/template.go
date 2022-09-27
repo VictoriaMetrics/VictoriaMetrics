@@ -17,7 +17,7 @@ import (
 	"errors"
 	"fmt"
 	htmlTpl "html/template"
-	"io/ioutil"
+	"io"
 	"math"
 	"net"
 	"net/url"
@@ -71,7 +71,7 @@ func Load(pathPatterns []string, overwrite bool) error {
 		}
 	}
 	if len(tmpl.Templates()) > 0 {
-		err := tmpl.Execute(ioutil.Discard, nil)
+		err := tmpl.Execute(io.Discard, nil)
 		if err != nil {
 			return fmt.Errorf("failed to execute template: %w", err)
 		}
@@ -253,6 +253,15 @@ func templateFuncs() textTpl.FuncMap {
 				return 0, err
 			}
 			return d.Seconds(), nil
+		},
+
+		// same with parseDuration but returns a time.Duration
+		"parseDurationTime": func(s string) (time.Duration, error) {
+			d, err := promutils.ParseDuration(s)
+			if err != nil {
+				return 0, err
+			}
+			return d, nil
 		},
 
 		/* Numbers */

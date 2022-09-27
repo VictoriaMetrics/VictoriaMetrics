@@ -4,16 +4,15 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"net/url"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -35,6 +34,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
@@ -904,7 +904,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if metricsPath == "" {
 		metricsPath = "/metrics"
 	}
-	scheme := sc.Scheme
+	scheme := strings.ToLower(sc.Scheme)
 	if scheme == "" {
 		scheme = "http"
 	}
@@ -1330,35 +1330,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 func internLabelStrings(labels []prompbmarshal.Label) {
 	for i := range labels {
 		label := &labels[i]
-		label.Name = internString(label.Name)
-		label.Value = internString(label.Value)
+		label.Name = discoveryutils.InternString(label.Name)
+		label.Value = discoveryutils.InternString(label.Value)
 	}
-}
-
-func internString(s string) string {
-	m := internStringsMap.Load().(*sync.Map)
-	if v, ok := m.Load(s); ok {
-		sp := v.(*string)
-		return *sp
-	}
-	// Make a new copy for s in order to remove references from possible bigger string s refers to.
-	sCopy := string(append([]byte{}, s...))
-	m.Store(sCopy, &sCopy)
-	n := atomic.AddUint64(&internStringsMapLen, 1)
-	if n > 100e3 {
-		atomic.StoreUint64(&internStringsMapLen, 0)
-		internStringsMap.Store(&sync.Map{})
-	}
-	return sCopy
-}
-
-var (
-	internStringsMap    atomic.Value
-	internStringsMapLen uint64
-)
-
-func init() {
-	internStringsMap.Store(&sync.Map{})
 }
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {

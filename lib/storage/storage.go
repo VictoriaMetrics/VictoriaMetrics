@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"os"
 	"path/filepath"
@@ -181,11 +180,10 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
 	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
 		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
-		wg := getWaitGroup()
-		wg.Add(1)
-		fs.MustRemoveAllWithDoneCallback(s.cachePath, wg.Done)
-		wg.Wait()
-		putWaitGroup(wg)
+		// Do not use fs.MustRemoveDirAtomic() here, since the cache directory may be mounted
+		// to a separate filesystem. In this case the fs.MustRemoveDirAtomic() will fail while
+		// trying to remove the mount root.
+		fs.RemoveDirContents(s.cachePath)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
 	}
 
@@ -207,6 +205,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
 	if maxHourlySeries > 0 {
@@ -250,6 +249,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
+	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
 	idbCurr, idbPrev, err := s.openIndexDBTables(idbPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
@@ -427,8 +427,8 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 
 	s.tb.MustDeleteSnapshot(snapshotName)
 	idbPath := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
-	fs.MustRemoveAll(idbPath)
-	fs.MustRemoveAll(snapshotPath)
+	fs.MustRemoveDirAtomic(idbPath)
+	fs.MustRemoveDirAtomic(snapshotPath)
 
 	logger.Infof("deleted snapshot %q in %.3f seconds", snapshotPath, time.Since(startTime).Seconds())
 
@@ -485,8 +485,13 @@ type Metrics struct {
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
 
-	HourlySeriesLimitRowsDropped uint64
-	DailySeriesLimitRowsDropped  uint64
+	HourlySeriesLimitRowsDropped   uint64
+	HourlySeriesLimitMaxSeries     uint64
+	HourlySeriesLimitCurrentSeries uint64
+
+	DailySeriesLimitRowsDropped   uint64
+	DailySeriesLimitMaxSeries     uint64
+	DailySeriesLimitCurrentSeries uint64
 
 	TimestampsBlocksMerged uint64
 	TimestampsBytesSaved   uint64
@@ -562,8 +567,17 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
 	m.SlowMetricNameLoads += atomic.LoadUint64(&s.slowMetricNameLoads)
 
-	m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
-	m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
+	if sl := s.hourlySeriesLimiter; sl != nil {
+		m.HourlySeriesLimitRowsDropped += atomic.LoadUint64(&s.hourlySeriesLimitRowsDropped)
+		m.HourlySeriesLimitMaxSeries += uint64(sl.MaxItems())
+		m.HourlySeriesLimitCurrentSeries += uint64(sl.CurrentItems())
+	}
+
+	if sl := s.dailySeriesLimiter; sl != nil {
+		m.DailySeriesLimitRowsDropped += atomic.LoadUint64(&s.dailySeriesLimitRowsDropped)
+		m.DailySeriesLimitMaxSeries += uint64(sl.MaxItems())
+		m.DailySeriesLimitCurrentSeries += uint64(sl.CurrentItems())
+	}
 
 	m.TimestampsBlocksMerged = atomic.LoadUint64(&timestampsBlocksMerged)
 	m.TimestampsBytesSaved = atomic.LoadUint64(&timestampsBytesSaved)
@@ -860,7 +874,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 		logger.Infof("nothing to load from %q", path)
 		return e
 	}
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
@@ -904,7 +918,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		logger.Infof("nothing to load from %q", path)
 		return hm
 	}
-	src, err := ioutil.ReadFile(path)
+	src, err := os.ReadFile(path)
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
@@ -988,7 +1002,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	// Marshal e.v
 	dst = marshalUint64Set(dst, &e.v)
 
-	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
+	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
 	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), e.v.Len(), len(dst))
@@ -1024,7 +1038,7 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 		}
 	}
 
-	if err := ioutil.WriteFile(path, dst, 0644); err != nil {
+	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
 	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), hm.m.Len(), len(dst))
@@ -1085,7 +1099,7 @@ func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) in
 }
 
 func loadMinTimestampForCompositeIndex(path string) (int64, error) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return 0, err
 	}
@@ -2584,6 +2598,7 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
+	fs.MustRemoveTemporaryDirs(path)
 
 	d, err := os.Open(path)
 	if err != nil {
@@ -2629,7 +2644,7 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	for _, tn := range tableNames[:len(tableNames)-2] {
 		pathToRemove := path + "/" + tn
 		logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-		fs.MustRemoveAll(pathToRemove)
+		fs.MustRemoveDirAtomic(pathToRemove)
 		logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 	}
 

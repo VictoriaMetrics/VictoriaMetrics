@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -107,6 +108,65 @@ func TestAlert_ExecTemplate(t *testing.T) {
 				"url":         extURL,
 				"summary":     fmt.Sprintf("Issues with localhost (dc-%s) for job staging", extDC),
 				"description": fmt.Sprintf("It is 10000 connections for localhost (cluster-%s)", extCluster),
+			},
+		},
+		{
+			name: "alert and group IDs",
+			alert: &Alert{
+				ID:      42,
+				GroupID: 24,
+			},
+			annotations: map[string]string{
+				"url": "/api/v1/alert?alertID={{$alertID}}&groupID={{$groupID}}",
+			},
+			expTpl: map[string]string{
+				"url": "/api/v1/alert?alertID=42&groupID=24",
+			},
+		},
+		{
+			name: "ActiveAt time",
+			alert: &Alert{
+				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+			},
+			annotations: map[string]string{
+				"diagram": "![](http://example.com?render={{$activeAt.Unix}}",
+			},
+			expTpl: map[string]string{
+				"diagram": "![](http://example.com?render=1660941298",
+			},
+		},
+		{
+			name:  "ActiveAt time is nil",
+			alert: &Alert{},
+			annotations: map[string]string{
+				"default_time": "{{$activeAt}}",
+			},
+			expTpl: map[string]string{
+				"default_time": "0001-01-01 00:00:00 +0000 UTC",
+			},
+		},
+		{
+			name: "ActiveAt custome format",
+			alert: &Alert{
+				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+			},
+			annotations: map[string]string{
+				"fire_time": `{{$activeAt.Format "2006/01/02 15:04:05"}}`,
+			},
+			expTpl: map[string]string{
+				"fire_time": "2022/08/19 20:34:58",
+			},
+		},
+		{
+			name: "ActiveAt query range",
+			alert: &Alert{
+				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
+			},
+			annotations: map[string]string{
+				"grafana_url": `vm-grafana.com?from={{($activeAt.Add (parseDurationTime "1h")).Unix}}&to={{($activeAt.Add (parseDurationTime "-1h")).Unix}}`,
+			},
+			expTpl: map[string]string{
+				"grafana_url": "vm-grafana.com?from=1660944898&to=1660937698",
 			},
 		},
 	}

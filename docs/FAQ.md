@@ -104,6 +104,13 @@ VictoriaMetrics also [uses less RAM than Thanos components](https://github.com/t
 * QuestDB [supports a smaller range of popular data ingestion protocols](https://questdb.io/docs/develop/insert-data) compared to VictoriaMetrics (compare to [the list of supported data ingestion protocols for VictoriaMetrics](https://docs.victoriametrics.com/#how-to-import-time-series-data)).
 * [VictoriaMetrics supports backfilling (e.g. storing historical data) out of the box](https://docs.victoriametrics.com/#backfilling), while QuestDB provides [very limited support for backfilling](https://questdb.io/blog/2021/05/10/questdb-release-6-0-tsbs-benchmark#the-problem-with-out-of-order-data).
 
+## What is the difference between VictoriaMetrics and [Grafana Mimir](https://github.com/grafana/mimir)?
+
+Grafana Mimir is a [Cortex](https://github.com/cortexproject/cortex) fork, so it has the same differences
+as Cortex. See [what is the difference between VictoriaMetrics and Cortex](#what-is-the-difference-between-victoriametrics-and-cortex).
+
+See also [Grafana Mimir vs VictoriaMetrics benchmark](https://victoriametrics.com/blog/mimir-benchmark/).
+
 ## What is the difference between VictoriaMetrics and [Cortex](https://github.com/cortexproject/cortex)?
 
 VictoriaMetrics is similar to Cortex in the following aspects:
@@ -228,6 +235,30 @@ It supports [high cardinality data](https://medium.com/@valyala/high-cardinality
 perfectly [scales up on a single node](https://medium.com/@valyala/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae)
 and scales horizontally to multiple nodes.
 
+## What is the difference between single-node and cluster versions of VictoriaMetrics?
+
+Both [single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) and
+[cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) versions of VictoriaMetrics
+share the core source code, so they have many common features. They have the following differences though:
+
+* [Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) runs on a single host,
+  while [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can scale to many hosts.
+  Single-node VictoriaMetrics scales vertically though, e.g. its capacity and performance scales almost linearly when increasing
+  available CPU, RAM, disk IO and disk space. See [an article about vertical scalability of a single-node VictoriaMetrics](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+
+* Cluster version of VictoriaMetrics supports [multitenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy),
+  while single-node VictoriaMetrics doesn't support it.
+
+* Cluster version of VictoriaMetrics supports data replication, while single-node VictoriaMetrics relies on the durability
+  of the persistent storage pointed by `-storageDataPath` command-line flag.
+  See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety) for details.
+
+* Single-node VictoriaMetrics provides higher capacity and performance comparing to cluster version of VictoriaMetrics
+  when running on the same hardware with the same amounts of CPU and RAM, since it has no overhead on data transfer
+  between cluster components over the network.
+
+See also [which type of VictoriaMetrics is recommended to use](#which-victoriametrics-type-is-recommended-for-use-in-production---single-node-or-cluster).
+
 ## Where can I ask questions about VictoriaMetrics?
 
 Questions about VictoriaMetrics can be asked via the following channels:
@@ -296,6 +327,48 @@ VictoriaMetrics maintains in-memory cache for mapping of [active time series](#w
 
 See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986).
 
+VictoriaMetrics also provides [query tracer](https://docs.victoriametrics.com/#query-tracing) and [cardinality explorer](https://docs.victoriametrics.com/#cardinality-explorer),
+which can help during query optimization.
+
+See also [troubleshooting slow queries](https://docs.victoriametrics.com/Troubleshooting.html#slow-queries).
+
+## Which VictoriaMetrics type is recommended for use in production - single-node or cluster?
+
+Both [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) and
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) are production-ready.
+
+Single-node VictoriaMetrics is able to handle quite big workloads in production
+with tens of millions of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series)
+at the ingestion rate of million of samples per second. See [this case study](https://docs.victoriametrics.com/CaseStudies.html#wixcom).
+
+Single-node VictoriaMetrics requires lower amounts of CPU and RAM for handling the same workload comparing
+to cluster version of VictoriaMetrics, since it doesn't need to pass the encoded data over the network
+between [cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
+
+The performance of a single-node VictoriaMetrics scales almost perfectly with the available CPU, RAM and disk IO resources on the host where it runs -
+see [this article](https://valyala.medium.com/measuring-vertical-scalability-for-time-series-databases-in-google-cloud-92550d78d8ae).
+
+Single-node VictoriaMetrics is easier to setup and operate comparing to cluster version of VictoriaMetrics.
+
+Given the facts above **it is recommended to use single-node VictoriaMetrics in the majority of cases**.
+
+Cluster version of VictoriaMetrics may be preferred over single-node VictoriaMetrics in the following relatively rare cases:
+
+- If [multitenancy support](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) is needed,
+  since single-node VictoriaMetrics doesn't support multitenancy. Though it is possible to run multiple single-node VictoriaMetrics
+  instances - one per each tenant - and route incoming requests from particular tenant to the needed VictoriaMetrics instance
+  via [vmauth](https://docs.victoriametrics.com/vmauth.html).
+
+- If the current workload cannot be handled by a single-node VictoriaMetrics. For example, if you are going to ingest hundreds of millions of active time series
+  at ingestion rates exceeding a million samples per second, then it is better to use cluster version of VictoriaMetrics,
+  since its capacity can [scale horizontally with the number of nodes in the cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-resizing-and-scalability).
+
+## How to migrate data from single-node VictoriaMetrics to cluster version?
+
+Single-node VictoriaMetrics stores data on disk in slightly different format comparing to cluster version of VictoriaMetrics.
+So it is impossible to just copy the on-disk data from `-storageDataPath` directory from single-node VictoriaMetrics to a `vmstorage` node in VictoriaMetrics cluster.
+If you need migrating data from single-node VictoriaMetrics to cluster version, then [follow these instructions](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics).
+
 ## Why isn't MetricsQL 100% compatible with PromQL?
 
 [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) provides better user experience than PromQL. It fixes a few annoying issues in PromQL. This prevents MetricsQL to be 100% compatible with PromQL. See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
@@ -330,10 +403,4 @@ The query engine may behave differently for some functions. Please see [this art
 
 Single-node VictoriaMetrics cannot be restarted / upgraded or downgraded without downtime, since it needs to be gracefully shut down and then started again. See [how to upgrade VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
-[Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can be restarted / upgraded / downgraded without downtime if the following conditions are met:
-
-* If every component of the cluster - `vminsert`, `vmselect` and `vmstorage` - has at least 2 instances.
-* If the cluster has enough compute resources (CPU, RAM, disk IO, network bandwidth) to perform rolling restart of all its components.
-* If the version used for upgrade / downgrade is compatible with the currently running version. The [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) contains compatibility notes for the published releases.
-
-See [updating / reconfiguring cluster nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes) for details on cluster upgrade.
+[Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) can be restarted / upgraded / downgraded without downtime according to [these instructions](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes).
