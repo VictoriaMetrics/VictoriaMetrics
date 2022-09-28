@@ -7,6 +7,7 @@ import (
 	"io"
 	"regexp"
 	"sync"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -155,15 +156,45 @@ var requestPool sync.Pool
 // sanitizeName performs DataDog-compatible santizing for metric names
 //
 // See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
-func sanitizeName(s string) string {
-	s = unsupportedDatadogChars.ReplaceAllString(s, "_")
-	s = multiUnderscores.ReplaceAllString(s, "_")
-	s = underscoresWithDots.ReplaceAllString(s, ".")
-	return s
+func sanitizeName(name string) string {
+	m := sanitizedNames.Load().(*sync.Map)
+	v, ok := m.Load(name)
+	if ok {
+		// Fast path - the sanitized name is found in the cache.
+		sp := v.(*string)
+		return *sp
+	}
+	// Slow path - sanitize name and store it in the cache.
+	sanitizedName := unsupportedDatadogChars.ReplaceAllString(name, "_")
+	sanitizedName = multiUnderscores.ReplaceAllString(sanitizedName, "_")
+	sanitizedName = underscoresWithDots.ReplaceAllString(sanitizedName, ".")
+	// Make a copy of name in order to limit memory usage to the name length,
+	// since the name may point to bigger string.
+	s := string(append([]byte{}, name...))
+	if sanitizedName == name {
+		// point sanitizedName to just allocated s, since it may point to name,
+		// which, in turn, can point to bigger string.
+		sanitizedName = s
+	}
+	sp := &sanitizedName
+	m.Store(s, sp)
+	n := atomic.AddUint64(&sanitizedNamesLen, 1)
+	if n > 100e3 {
+		atomic.StoreUint64(&sanitizedNamesLen, 0)
+		sanitizedNames.Store(&sync.Map{})
+	}
+	return sanitizedName
 }
 
 var (
+	sanitizedNames    atomic.Value
+	sanitizedNamesLen uint64
+
 	unsupportedDatadogChars = regexp.MustCompile(`[^0-9a-zA-Z_\.]+`)
 	multiUnderscores        = regexp.MustCompile(`_+`)
 	underscoresWithDots     = regexp.MustCompile(`_?\._?`)
 )
+
+func init() {
+	sanitizedNames.Store(&sync.Map{})
+}
