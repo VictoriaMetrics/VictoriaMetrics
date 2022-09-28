@@ -474,7 +474,7 @@ DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'
 <div class="with-copy" markdown="1">
 
 ```
-DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert-host:8480/insert/0/datadog\"}'
+DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert:8480/insert/0/datadog\"}'
 ``` 
 
 </div>
