@@ -1,9 +1,12 @@
 package promrelabel
 
 import (
+	"fmt"
 	"reflect"
+	"regexp"
 	"testing"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"gopkg.in/yaml.v2"
 )
 
@@ -186,6 +189,40 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 				hasCaptureGroupInReplacement: true,
 			},
 		},
+	})
+	replacement := "$1"
+	f([]RelabelConfig{
+		{
+			SourceLabels: []string{"__name__"},
+			Regex: &MultiLineRegex{
+				S: "(.*)\\$$",
+			},
+			TargetLabel: "xxx",
+			Replacement: &replacement,
+			Action:      "replace",
+		},
+	}, &ParsedConfigs{
+		prcs: []*parsedRelabelConfig{
+			{
+				SourceLabels:  []string{"__name__"},
+				Separator:     ";",
+				TargetLabel:   "xxx",
+				RegexAnchored: regexp.MustCompile("^(?:(.*)\\$$)$"),
+				Replacement:   "$1",
+				Action:        "replace",
+
+				regex: func() *regexutil.PromRegex {
+					pr, err := regexutil.NewPromRegex(".*\\$")
+					if err != nil {
+						panic(fmt.Errorf("BUG: unexpected error: %s", err))
+					}
+					return pr
+				}(),
+				regexOriginal:                regexp.MustCompile("(.*)\\$$"),
+				hasCaptureGroupInReplacement: true,
+			},
+		},
+		relabelDebug: false,
 	})
 }
 
@@ -460,7 +497,8 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 func TestIsDefaultRegex(t *testing.T) {
 	f := func(s string, resultExpected bool) {
 		t.Helper()
-		result := isDefaultRegex(s)
+		prefix, suffix := regexutil.Simplify(s)
+		result := isDefaultRegex(prefix, suffix)
 		if result != resultExpected {
 			t.Fatalf("unexpected result for isDefaultRegex(%q); got %v; want %v", s, result, resultExpected)
 		}

@@ -110,3 +110,24 @@ func TestSimplify(t *testing.T) {
 	// The transformed regexp mustn't match barx
 	f("(foo|bar$)x*", "", "(?:foo|bar$)x*")
 }
+
+func TestRemoveStartEndAnchors(t *testing.T) {
+	f := func(name, expr string, want string) {
+		t.Run(name, func(t *testing.T) {
+			if got := RemoveStartEndAnchors(expr); got != want {
+				t.Errorf("RemoveStartEndAnchors() = %v, want %v", got, want)
+			}
+		})
+	}
+
+	f("empty expression", "", "")
+	f("simple expression", "foo", "foo")
+	f("with removed values expression ", "^foo$", "foo")
+	f("has vertical line", "|foo", "|foo")
+	f("greedy expression", "(?i)foo", "(?i)foo")
+	f("with removed chars expression", "^foo|bar$", "foo|bar")
+	f("greedy expression in the middle", "^a(foo|b(?:a|r))$", "a(foo|b(?:a|r))")
+	f("has char for remove in the middle", "^a(foo$|b(?:a$|r))$", "a(foo$|b(?:a$|r))")
+	f("doubled special chars for remove", "^a(^foo|bar$)z$", "a(^foo|bar$)z")
+	f("escaped char", "^(?:(.*)\\$)$", "(?:(.*)\\$)")
+}

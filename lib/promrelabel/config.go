@@ -213,27 +213,29 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	regexAnchored := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
 	promRegex := defaultPromRegex
-	if rc.Regex != nil && !isDefaultRegex(rc.Regex.S) {
-		regex := rc.Regex.S
-		regexOrig := regex
-		if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
-			regex = regexutil.RemoveStartEndAnchors(regex)
-			regexOrig = regex
-			regex = "^(?:" + regex + ")$"
-		}
-		re, err := regexp.Compile(regex)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regex, err)
-		}
-		regexAnchored = re
-		reOriginal, err := regexp.Compile(regexOrig)
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse `regex` %q: %w", regexOrig, err)
-		}
-		regexOriginalCompiled = reOriginal
-		promRegex, err = regexutil.NewPromRegex(regexOrig)
-		if err != nil {
-			logger.Panicf("BUG: cannot parse already parsed regex %q: %s", regexOrig, err)
+	var suffix, prefix string
+	if rc.Regex != nil {
+		prefix, suffix = regexutil.Simplify(rc.Regex.S)
+		if !isDefaultRegex(prefix, suffix) {
+			regex := rc.Regex.S
+			regexOrig := regex
+			if rc.Action != "replace_all" && rc.Action != "labelmap_all" {
+				regex = "^(?:" + regex + ")$"
+			}
+			re, err := regexp.Compile(regex)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse `regex` %q: %w", regex, err)
+			}
+			regexAnchored = re
+			reOriginal, err := regexp.Compile(regexOrig)
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse `regex` %q: %w", regexOrig, err)
+			}
+			regexOriginalCompiled = reOriginal
+			promRegex, err = regexutil.NewPromRegex(regexOrig)
+			if err != nil {
+				logger.Panicf("BUG: cannot parse already parsed regex %q: %s", regexOrig, err)
+			}
 		}
 	}
 	modulus := rc.Modulus
@@ -368,8 +370,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	}, nil
 }
 
-func isDefaultRegex(expr string) bool {
-	prefix, suffix := regexutil.Simplify(expr)
+func isDefaultRegex(prefix, suffix string) bool {
 	if prefix != "" {
 		return false
 	}
