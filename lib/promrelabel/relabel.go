@@ -5,8 +5,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
-	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -565,40 +563,11 @@ func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.
 //
 // See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
 func SanitizeName(name string) string {
-	m := sanitizedNames.Load().(*sync.Map)
-	v, ok := m.Load(name)
-	if ok {
-		// Fast path - the sanitized name is found in the cache.
-		sp := v.(*string)
-		return *sp
-	}
-	// Slow path - sanitize name and store it in the cache.
-	sanitizedName := unsupportedPromChars.ReplaceAllString(name, "_")
-	// Make a copy of name in order to limit memory usage to the name length,
-	// since the name may point to bigger string.
-	s := string(append([]byte{}, name...))
-	if sanitizedName == name {
-		// point sanitizedName to just allocated s, since it may point to name,
-		// which, in turn, can point to bigger string.
-		sanitizedName = s
-	}
-	sp := &sanitizedName
-	m.Store(s, sp)
-	n := atomic.AddUint64(&sanitizedNamesLen, 1)
-	if n > 100e3 {
-		atomic.StoreUint64(&sanitizedNamesLen, 0)
-		sanitizedNames.Store(&sync.Map{})
-	}
-	return sanitizedName
+	return promSanitizer.Transform(name)
 }
 
-var (
-	sanitizedNames    atomic.Value
-	sanitizedNamesLen uint64
+var promSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedPromChars.ReplaceAllString(s, "_")
+})
 
-	unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
-)
-
-func init() {
-	sanitizedNames.Store(&sync.Map{})
-}
+var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
