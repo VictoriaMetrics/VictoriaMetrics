@@ -503,7 +503,8 @@ dd_url: http://vminsert:8480/insert/0/datadog
 
 <div class="with-copy" markdown="1">
 
-```additional_endpoints:
+```
+additional_endpoints:
   'http://victoriametrics:8428/datadog'
 ```
 
@@ -513,7 +514,8 @@ dd_url: http://vminsert:8480/insert/0/datadog
 
 <div class="with-copy" markdown="1">
 
-```additional_endpoints:
+```
+additional_endpoints:
   'http://vminsert:8480/insert/0/datadog'
 ``` 
 
