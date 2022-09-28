@@ -1854,6 +1854,8 @@ func transformLimitOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain offset arg: %w", err)
 	}
+	// removeEmptySeries so offset will be calculated after empty series
+	// were filtered out.
 	rvs := removeEmptySeries(args[2])
 	if len(rvs) >= offset {
 		rvs = rvs[offset:]
