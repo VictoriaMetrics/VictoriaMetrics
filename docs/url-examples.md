@@ -439,6 +439,86 @@ Additional information:
 
 ## /datadog/api/v1/series
 
+### DataDog ENV variable URL for Single-node VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```
+DD_DD_URL=http://victoriametrics:8428/datadog
+```
+
+</div>
+
+### DataDog ENV variable URL for Cluster version of VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```
+DD_DD_URL=http://vminsert:8480/insert/0/datadog
+```
+
+</div>
+
+### DataDog ENV variable URL for additional endpoints Single-node VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```
+DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'
+```
+
+</div>
+
+### DataDog ENV variable URL for additional endpoints Cluster version of VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```
+DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert-host:8480/insert/0/datadog\"}'
+``` 
+
+</div>
+
+### DataDog YAML configuration file URL for Single-node VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```
+dd_url: http://victoriametrics:8428/datadog
+```
+
+</div>
+
+### DataDog YAML configuration file URL for Cluster version of VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```
+dd_url: http://vminsert:8480/insert/0/datadog
+```
+
+</div>
+
+### DataDog YAML configuration file URL for additional endpoints Single-node VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```additional_endpoints:
+  'http://victoriametrics:8428/datadog'
+```
+
+</div>
+
+### DataDog YAML configuration file URL for additional endpoints Cluster version of VictoriaMetrics:
+
+<div class="with-copy" markdown="1">
+
+```additional_endpoints:
+  'http://vminsert:8480/insert/0/datadog'
+``` 
+
+</div>
+
 **Imports data in DataDog format into VictoriaMetrics**
 
 Single-node VictoriaMetrics:
