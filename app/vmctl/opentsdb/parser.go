@@ -6,13 +6,12 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
 var (
-	allowedNames     = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_:]*$")
 	allowedFirstChar = regexp.MustCompile("^[a-zA-Z]")
-	replaceChars     = regexp.MustCompile("[^a-zA-Z0-9_:]")
-	allowedTagKeys   = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_]*$")
 )
 
 func convertDuration(duration string) (time.Duration, error) {
@@ -180,13 +179,8 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 	}
 	/*
 		replace bad characters in metric name with _ per the data model
-		only replace if needed to reduce string processing time
 	*/
-	if !allowedNames.MatchString(name) {
-		finalMsg.Metric = replaceChars.ReplaceAllString(name, "_")
-	} else {
-		finalMsg.Metric = name
-	}
+	finalMsg.Metric = promrelabel.SanitizeName(name)
 	// replace bad characters in tag keys with _ per the data model
 	for key, value := range msg.Tags {
 		// if normalization requested, lowercase the key and value
@@ -196,11 +190,8 @@ func modifyData(msg Metric, normalize bool) (Metric, error) {
 		}
 		/*
 			replace all explicitly bad characters with _
-			only replace if needed to reduce string processing time
 		*/
-		if !allowedTagKeys.MatchString(key) {
-			key = replaceChars.ReplaceAllString(key, "_")
-		}
+		key = promrelabel.SanitizeName(key)
 		// tags that start with __ are considered custom stats for internal prometheus stuff, we should drop them
 		if !strings.HasPrefix(key, "__") {
 			finalMsg.Tags[key] = value

@@ -7,6 +7,22 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+func TestSanitizeName(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		for i := 0; i < 5; i++ {
+			result := SanitizeName(s)
+			if result != resultExpected {
+				t.Fatalf("unexpected result for SanitizeName(%q) at iteration %d; got %q; want %q", s, i, result, resultExpected)
+			}
+		}
+	}
+	f("", "")
+	f("a", "a")
+	f("foo.bar/baz:a", "foo_bar_baz:a")
+	f("foo...bar", "foo___bar")
+}
+
 func TestLabelsToString(t *testing.T) {
 	f := func(labels []prompbmarshal.Label, sExpected string) {
 		t.Helper()

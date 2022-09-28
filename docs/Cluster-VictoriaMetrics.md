@@ -233,7 +233,7 @@ See more details about cardinality limiter in [these docs](https://docs.victoria
 
 ## Troubleshooting
 
-See [trobuleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+See [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 ## Readonly mode
 

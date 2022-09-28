@@ -120,7 +120,7 @@ name: <string>
 #  params:
 #    nocache: ["1"]                # disable caching for vmselect
 #    denyPartialResponse: ["true"] # fail if one or more vmstorage nodes returned an error
-#    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests 
+#    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests
 # see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
 params:
   [ <string>: [<string>, ...]]
@@ -131,7 +131,7 @@ params:
 #  headers:
 #    - "CustomHeader: foo"
 #    - "CustomHeader2: bar"
-# Headers set via this param have priority over headers set via `-datasource.headers` flag. 
+# Headers set via this param have priority over headers set via `-datasource.headers` flag.
 headers:
   [ <string>, ...]
 
@@ -185,8 +185,8 @@ expr: <string>
 [ for: <duration> | default = 0s ]
 
 # Whether to print debug information into logs.
-# Information includes alerts state changes and requests sent to the datasource. 
-# Please note, that if rule's query params contain sensitive 
+# Information includes alerts state changes and requests sent to the datasource.
+# Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
 # Is applicable to alerting rules only.
 [ debug: <bool> | default = false ]
@@ -200,9 +200,9 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
-#### Templating 
+#### Templating
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over 
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over
 or execute expressions.
 The following variables are available in templating:
 
@@ -224,7 +224,7 @@ and [reusable templates](#reusable-templates).
 #### Reusable templates
 
 Like in Alertmanager you can define [reusable templates](https://prometheus.io/docs/prometheus/latest/configuration/template_examples/#defining-reusable-templates)
-to share same templates across annotations. Just define the templates in a file and 
+to share same templates across annotations. Just define the templates in a file and
 set the path via `-rule.templates` flag.
 
 For example, template `grafana.filter` can be defined as following:
@@ -418,8 +418,8 @@ To avoid recording rules results and alerts state duplication in VictoriaMetrics
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
 The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
 If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
-command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps. 
-But due of backfilling (data delivered to the datasource with some delay) values of such results may differ, 
+command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
+But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
 which would affect deduplication logic and result into "jumping" datapoints.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
@@ -439,8 +439,8 @@ This ability allows to aggregate data. For example, the following rule will calc
 metric `http_requests` on the `5m` interval:
 
 ```yaml
-  - record: http_requests:avg5m   
-    expr: avg_over_time(http_requests[5m])   
+  - record: http_requests:avg5m
+    expr: avg_over_time(http_requests[5m])
 ```
 
 Every time this rule will be evaluated, `vmalert` will backfill its results as a new time series `http_requests:avg5m`
@@ -454,9 +454,9 @@ This ability allows to downsample data. For example, the following config will e
 groups:
   - name: my_group
     interval: 5m
-    rules:  
+    rules:
     - record: http_requests:avg5m
-      expr: avg_over_time(http_requests[5m])   
+      expr: avg_over_time(http_requests[5m])
 ```
 
 Ability of `vmalert` to be configured with different `datasource.url` and `remoteWrite.url` allows
@@ -474,7 +474,7 @@ or reducing resolution) and push results to "cold" cluster.
 
 ```
 ./bin/vmalert -rule=downsampling-rules.yml \                                        # Path to the file with rules configuration. Supports wildcard
-    -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recordi ng rules expressions
+    -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recording rules expressions
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
@@ -496,7 +496,7 @@ we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as f
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
-Using `vmagent` as a proxy provides additional benefits such as 
+Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability),
 or time series modification via [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
@@ -657,7 +657,7 @@ Note that too small value passed to `-search.latencyOffset` may lead to incomple
 
 Try the following recommendations in such cases:
 
-* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics 
+* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics
 are delivered to the datasource;
 * If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
 command-line flag to add a time shift for evaluations;
@@ -671,7 +671,7 @@ after multiple consecutive evaluations, and at each evaluation their expression 
 becomes false, then alert's state resets to the initial state.
 
 If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
-`ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via 
+`ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
 [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
 changed in time.
 
@@ -680,9 +680,9 @@ on `/vmalert/groups` page and check the `Last updates` section:
 
 <img alt="vmalert state" src="vmalert_state.png">
 
-Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of 
+Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
-no samples returned and curl command returns data - then it is very likely there was no data in datasource on the 
+no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
 moment when rule was evaluated.
 
 vmalert also alows configuring more detailed logging for specific rule. Just set `debug: true` in rule's configuration
@@ -762,11 +762,11 @@ The shortlist of configuration flags is the following:
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url.
   -datasource.oauth2.clientSecret string
      Optional OAuth2 clientSecret to use for -datasource.url.
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url.
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -960,7 +960,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.oauth2.scopes string
      Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
-     Optional OAuth2 tokenURL to use for -remoteRead.url. 
+     Optional OAuth2 tokenURL to use for -remoteRead.url.
   -remoteRead.showURL
      Whether to show -remoteRead.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteRead.tlsCAFile string
@@ -1121,7 +1121,7 @@ and [DNS](https://prometheus.io/docs/prometheus/latest/configuration/configurati
 For example:
 
 ```
-static_configs: 
+static_configs:
   - targets:
       - localhost:9093
       - localhost:9095
@@ -1130,7 +1130,7 @@ consul_sd_configs:
   - server: localhost:8500
     services:
       - alertmanager
-      
+
 dns_sd_configs:
   - names:
       - my.domain.com

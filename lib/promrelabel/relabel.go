@@ -558,3 +558,16 @@ func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.
 	}
 	return dst
 }
+
+// SanitizeName replaces unsupported by Prometheus chars in metric names and label names with _.
+//
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+func SanitizeName(name string) string {
+	return promSanitizer.Transform(name)
+}
+
+var promSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedPromChars.ReplaceAllString(s, "_")
+})
+
+var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
