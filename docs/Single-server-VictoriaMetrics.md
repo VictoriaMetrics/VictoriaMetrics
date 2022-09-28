@@ -365,25 +365,23 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
   <img src="Sending_DD_metrics_to_VM_and_DDhq.png" width="800">
 </p>
  
-1. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\": [\"yourAPIkey\"]}'` variable for sending metrics to the single-node VictoriaMetrics on top of DataDoghq.
+1. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'` variable for sending metrics to the single-node VictoriaMetrics on top of DataDoghq.
 Alternatively add the following to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/)
 
 <div class="with-copy" markdown="1">
 
 ```additional_endpoints:
-  'http://victoriametrics:8428/datadog':
-    - yourAPIkey 
+  'http://victoriametrics:8428/datadog'
 ```
 
 </div>
 
-2. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert-host:8480/insert/0/datadog\": [\"yourAPIkey\"]}'` variable for sending metrics to vminsert component of the cluster version of VictoriaMetrics on top of DataDoghq. Alternatively add the following to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) 
+2. Run DataDog using ENV variable `DD_ADDITIONAL_ENDPOINTS='{\"http://vminsert-host:8480/insert/0/datadog\"}'` variable for sending metrics to vminsert component of the cluster version of VictoriaMetrics on top of DataDoghq. Alternatively add the following to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) 
 
 <div class="with-copy" markdown="1">
 
 ```additional_endpoints:
-  'http://vminsert-host:8480/insert/0/datadog':
-    - yourAPIkey 
+  'http://vminsert-host:8480/insert/0/datadog'
 ``` 
 
 </div>
