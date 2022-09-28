@@ -8,6 +8,27 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+func BenchmarkSanitizeName(b *testing.B) {
+	for _, name := range []string{"", "foo", "foo-bar-baz", "http_requests_total"} {
+		b.Run(name, func(b *testing.B) {
+			benchmarkSanitizeName(b, name)
+		})
+	}
+}
+
+func benchmarkSanitizeName(b *testing.B, name string) {
+	b.ReportAllocs()
+	b.SetBytes(1)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			sanitizedName := SanitizeName(name)
+			GlobalSink += len(sanitizedName)
+		}
+	})
+}
+
+var GlobalSink int
+
 func BenchmarkMatchRegexPrefixDotPlusMatchOptimized(b *testing.B) {
 	const pattern = "^foo.+$"
 	const s = "foobar"
