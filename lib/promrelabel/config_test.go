@@ -195,7 +195,7 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 		{
 			SourceLabels: []string{"__name__"},
 			Regex: &MultiLineRegex{
-				S: "(.*)\\$$",
+				S: `(.*)\$$`,
 			},
 			TargetLabel: "xxx",
 			Replacement: &replacement,
@@ -207,7 +207,7 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 				SourceLabels:  []string{"__name__"},
 				Separator:     ";",
 				TargetLabel:   "xxx",
-				RegexAnchored: regexp.MustCompile("^(?:(.*)\\$$)$"),
+				RegexAnchored: regexp.MustCompile(`^(?:(.*)\$$)$`),
 				Replacement:   "$1",
 				Action:        "replace",
 
@@ -218,7 +218,7 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 					}
 					return pr
 				}(),
-				regexOriginal:                regexp.MustCompile("(.*)\\$$"),
+				regexOriginal:                regexp.MustCompile(`(.*)\$$`),
 				hasCaptureGroupInReplacement: true,
 			},
 		},
