@@ -42,6 +42,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): re-evaluate annotations per each alert evaluation. Previously, annotations were evaluated only on alert's value change. This could result in stale annotations in some cases described in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3119).
 * BUGFIX: prevent from excessive CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode). The previous fix in [v1.81.0](https://docs.victoriametrics.com/CHANGELOG.html#v1810) wasn't complete.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): change default value for command-line flag `-datasource.queryStep` from `0s` to `5m`. Param `step` is added by vmalert to every rule evaluation request sent to datasource. Before this change, `step` was equal to group's evaluation interval by default. Param `step` for instant queries defines how far VM can look back for the last written data point. The change supposed to improve reliability of the rules evaluation when evaluation interval is lower than scraping interval.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): ignore empty series when applying `limit_offset`. It should improve queries with additional filters by value in expressions like `limit_offset(1,1, foo > 1)`. 
 
 ## [v1.81.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.81.2)
 
