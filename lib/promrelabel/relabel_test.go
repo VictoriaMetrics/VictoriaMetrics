@@ -682,6 +682,16 @@ func TestApplyRelabelConfigs(t *testing.T) {
   regex: "a(.+)"
 `, `qwe{foo="bar",baz="aaa"}`, true, `qwe{abc="qwe.bar.aa",baz="aaa",foo="bar"}`)
 	})
+	t.Run("escaped-$symbol-at-the-end", func(t *testing.T) {
+		// with regex
+		f(`
+- source_labels: [__name__]
+  action: replace
+  regex: '(.*)\$$'
+  target_label: "__name__"
+  replacement: "$1"
+`, `qwe{foo="bar",baz="aaa"}`, true, `qwe{baz="aaa",foo="bar"}`)
+	})
 }
 
 func TestFinalizeLabels(t *testing.T) {
