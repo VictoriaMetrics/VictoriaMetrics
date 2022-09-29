@@ -109,6 +109,7 @@ func TestSimplify(t *testing.T) {
 
 	// The transformed regexp mustn't match barx
 	f("(foo|bar$)x*", "", "(?:foo|bar$)x*")
+	f("(.*)\\$$", "", ".*\\$")
 }
 
 func TestRemoveStartEndAnchors(t *testing.T) {
