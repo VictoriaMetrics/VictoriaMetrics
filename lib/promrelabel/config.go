@@ -213,9 +213,8 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 	regexAnchored := defaultRegexForRelabelConfig
 	regexOriginalCompiled := defaultOriginalRegexForRelabelConfig
 	promRegex := defaultPromRegex
-	var suffix, prefix string
 	if rc.Regex != nil {
-		prefix, suffix = regexutil.Simplify(rc.Regex.S)
+		prefix, suffix := regexutil.Simplify(rc.Regex.S)
 		if !isDefaultRegex(prefix, suffix) {
 			regex := rc.Regex.S
 			regexOrig := regex
