@@ -40,7 +40,7 @@ func signRequestWithTime(req *http.Request, service, region, payloadHash string,
 	amzdate := t.Format("20060102T150405Z")
 	datestamp := t.Format("20060102")
 	canonicalURL := uri.Path
-	canonicalQS := uri.Query().Encode()
+	canonicalQS := strings.ReplaceAll(uri.Query().Encode(), "+", "%20")
 
 	canonicalHeaders := fmt.Sprintf("host:%s\nx-amz-date:%s\n", uri.Host, amzdate)
 	signedHeaders := "host;x-amz-date"
