@@ -99,9 +99,11 @@
 		"values":[
 			{% if len(xb.values) > 0 %}
 				{% code values := xb.values %}
-				{%f= values[0] %}
+					{%= convertValueToSpecialJSON(values[0]) %}
 				{% code values = values[1:] %}
-				{% for _, v := range values %},{%= convertValueToSpecialJSON(v) %}{% endfor %}
+				{% for _, v := range values %}
+					,{%= convertValueToSpecialJSON(v) %}
+				{% endfor %}
 			{% endif %}
 		],
 		"timestamps":[
@@ -181,16 +183,17 @@
 	}
 	{% endif %}
 {% endfunc %}
-{% endstripspace %}
 
 {% func convertValueToSpecialJSON(v float64) %}
 	{% if math.IsNaN(v) %}
-		NaN
+		"NaN"
 	{% elseif math.IsInf(v, 1) %}
-		Infinity
+		"Infinity"
 	{% elseif math.IsInf(v, -1) %}
-		-Infinity
+		"-Infinity"
 	{% else %}
 		{%f= v %}
 	{% endif %}
 {% endfunc %}
+{% endstripspace %}
+
