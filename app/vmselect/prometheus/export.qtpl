@@ -101,9 +101,7 @@
 				{% code values := xb.values %}
 				{%f= values[0] %}
 				{% code values = values[1:] %}
-				{% for _, v := range values %}
-				  ,{% if math.IsNaN(v) %}null{% else %}{%f= v %}{% endif %}
-				{% endfor %}
+				{% for _, v := range values %},{%= convertValueToSpecialJSON(v) %}{% endfor %}
 			{% endif %}
 		],
 		"timestamps":[
@@ -184,3 +182,15 @@
 	{% endif %}
 {% endfunc %}
 {% endstripspace %}
+
+{% func convertValueToSpecialJSON(v float64) %}
+	{% if math.IsNaN(v) %}
+		NaN
+	{% elseif math.IsInf(v, 1) %}
+		Infinity
+	{% elseif math.IsInf(v, -1) %}
+		-Infinity
+	{% else %}
+		{%f= v %}
+	{% endif %}
+{% endfunc %}
