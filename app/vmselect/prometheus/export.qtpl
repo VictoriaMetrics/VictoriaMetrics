@@ -186,7 +186,7 @@
 
 {% func convertValueToSpecialJSON(v float64) %}
 	{% if math.IsNaN(v) %}
-		"NaN"
+		null
 	{% elseif math.IsInf(v, 1) %}
 		"Infinity"
 	{% elseif math.IsInf(v, -1) %}
