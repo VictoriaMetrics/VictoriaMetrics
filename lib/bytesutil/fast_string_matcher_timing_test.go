@@ -6,26 +6,28 @@ import (
 	"testing"
 )
 
-func BenchmarkFastStringTransformer(b *testing.B) {
+func BenchmarkFastStringMatcher(b *testing.B) {
 	for _, s := range []string{"", "foo", "foo-bar-baz", "http_requests_total"} {
 		b.Run(s, func(b *testing.B) {
-			benchmarkFastStringTransformer(b, s)
+			benchmarkFastStringMatcher(b, s)
 		})
 	}
 }
 
-func benchmarkFastStringTransformer(b *testing.B, s string) {
-	fst := NewFastStringTransformer(strings.ToUpper)
+func benchmarkFastStringMatcher(b *testing.B, s string) {
+	fsm := NewFastStringMatcher(func(s string) bool {
+		return strings.HasPrefix(s, "foo")
+	})
 	b.ReportAllocs()
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
 		n := uint64(0)
 		for pb.Next() {
-			sTransformed := fst.Transform(s)
-			n += uint64(len(sTransformed))
+			v := fsm.Match(s)
+			if v {
+				n++
+			}
 		}
 		atomic.AddUint64(&GlobalSink, n)
 	})
 }
-
-var GlobalSink uint64
