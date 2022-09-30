@@ -65,14 +65,6 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	return pr, nil
 }
 
-// HasPrefix returns true if pr contains non-empty literal prefix.
-//
-// For example, if pr is "foo(bar|baz)", then the prefix is "foo",
-// so HasPrefix() returns true.
-func (pr *PromRegex) HasPrefix() bool {
-	return len(pr.prefix) > 0
-}
-
 // MatchString retruns true if s matches pr.
 //
 // The pr is automatically anchored to the beginning and to the end
