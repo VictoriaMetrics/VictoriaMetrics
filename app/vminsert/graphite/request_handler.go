@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
@@ -35,10 +34,6 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 	defer netstorage.PutInsertCtx(ctx)
 
 	ctx.Reset() // This line is required for initializing ctx internals.
-	var atCopy auth.Token
-	if at != nil {
-		atCopy = *at
-	}
 	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
@@ -47,16 +42,6 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 		ctx.AddLabel("", r.Metric)
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			if atCopy.AccountID == 0 {
-				// Multi-tenancy support via custom tags.
-				// Do not allow overriding AccountID and ProjectID from atCopy for security reasons.
-				if tag.Key == "VictoriaMetrics_AccountID" {
-					atCopy.AccountID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-				if atCopy.ProjectID == 0 && tag.Key == "VictoriaMetrics_ProjectID" {
-					atCopy.ProjectID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-			}
 			ctx.AddLabel(tag.Key, tag.Value)
 		}
 		if hasRelabeling {
@@ -67,7 +52,7 @@ func insertRows(at *auth.Token, rows []parser.Row) error {
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		atLocal := ctx.GetLocalAuthToken(&atCopy)
+		atLocal := ctx.GetLocalAuthToken(at)
 		if err := ctx.WriteDataPoint(atLocal, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}

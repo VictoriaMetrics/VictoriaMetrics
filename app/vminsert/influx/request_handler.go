@@ -19,7 +19,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson/fastfloat"
 )
 
 var (
@@ -41,7 +40,7 @@ var (
 func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
 	return writeconcurrencylimiter.Do(func() error {
 		return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
-			return insertRows(at, db, rows, nil, true)
+			return insertRows(at, db, rows, nil)
 		})
 	})
 }
@@ -61,22 +60,18 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
 		db := q.Get("db")
 		return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
-			return insertRows(at, db, rows, extraLabels, false)
+			return insertRows(at, db, rows, extraLabels)
 		})
 	})
 }
 
-func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label, mayOverrideAccountProjectID bool) error {
+func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
 	ctx := getPushCtx()
 	defer putPushCtx(ctx)
 
 	ic := &ctx.Common
 	ic.Reset() // This line is required for initializing ic internals.
 	rowsTotal := 0
-	var atCopy auth.Token
-	if at != nil {
-		atCopy = *at
-	}
 	perTenantRows := make(map[auth.Token]int)
 	hasRelabeling := relabel.HasRelabeling()
 	for i := range rows {
@@ -86,15 +81,6 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 		hasDBKey := false
 		for j := range r.Tags {
 			tag := &r.Tags[j]
-			if mayOverrideAccountProjectID {
-				// Multi-tenancy support via custom tags.
-				if tag.Key == "VictoriaMetrics_AccountID" {
-					atCopy.AccountID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-				if tag.Key == "VictoriaMetrics_ProjectID" {
-					atCopy.ProjectID = uint32(fastfloat.ParseUint64BestEffort(tag.Value))
-				}
-			}
 			if tag.Key == *dbLabel {
 				hasDBKey = true
 			}
@@ -133,7 +119,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 					continue
 				}
 				ic.SortLabelsIfNeeded()
-				atLocal := ic.GetLocalAuthToken(&atCopy)
+				atLocal := ic.GetLocalAuthToken(at)
 				ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, nil)
 				for i := range ic.Labels {
 					ic.MetricNameBuf = storage.MarshalMetricLabelRaw(ic.MetricNameBuf, &ic.Labels[i])
@@ -146,7 +132,7 @@ func insertRows(at *auth.Token, db string, rows []parser.Row, extraLabels []prom
 			}
 		} else {
 			ic.SortLabelsIfNeeded()
-			atLocal := ic.GetLocalAuthToken(&atCopy)
+			atLocal := ic.GetLocalAuthToken(at)
 			ic.MetricNameBuf = storage.MarshalMetricNameRaw(ic.MetricNameBuf[:0], atLocal.AccountID, atLocal.ProjectID, ic.Labels)
 			metricNameBufLen := len(ic.MetricNameBuf)
 			labelsLen := len(ic.Labels)
