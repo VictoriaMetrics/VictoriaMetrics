@@ -205,7 +205,8 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 				return labels
 			}
 		}
-		if re := prc.regex; re.HasPrefix() && !re.MatchString(bytesutil.ToUnsafeString(bb.B)) {
+		sourceStr := bytesutil.ToUnsafeString(bb.B)
+		if !prc.regex.MatchString(sourceStr) {
 			// Fast path - regexp mismatch.
 			relabelBufPool.Put(bb)
 			return labels
@@ -216,7 +217,6 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 			relabelBufPool.Put(bb)
 			return labels
 		}
-		sourceStr := bytesutil.ToUnsafeString(bb.B)
 		nameStr := prc.TargetLabel
 		if prc.hasCaptureGroupInTargetLabel {
 			nameStr = prc.expandCaptureGroups(nameStr, sourceStr, match)
@@ -401,6 +401,10 @@ func (prc *parsedRelabelConfig) replaceFullStringFast(s string) string {
 			}
 		}
 	}
+	if !prc.regex.MatchString(s) {
+		// Fast path - regex mismatch
+		return s
+	}
 	// Slow path - handle the rest of cases.
 	return prc.stringReplacer.Transform(s)
 }
@@ -409,10 +413,6 @@ func (prc *parsedRelabelConfig) replaceFullStringFast(s string) string {
 //
 // s is returned as is if it doesn't match '^regex$'.
 func (prc *parsedRelabelConfig) replaceFullStringSlow(s string) string {
-	if re := prc.regex; re.HasPrefix() && !re.MatchString(s) {
-		// Fast path - regex mismatch
-		return s
-	}
 	// Slow path - regexp processing
 	match := prc.RegexAnchored.FindStringSubmatchIndex(s)
 	if match == nil {
