@@ -161,6 +161,11 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		if pcs != nil {
+			for _, prc := range pcs.prcs {
+				prc.stringReplacer = nil
+			}
+		}
 		if !reflect.DeepEqual(pcs, pcsExpected) {
 			t.Fatalf("unexpected pcs; got\n%#v\nwant\n%#v", pcs, pcsExpected)
 		}
