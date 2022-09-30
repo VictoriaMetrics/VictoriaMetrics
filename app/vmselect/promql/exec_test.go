@@ -2290,6 +2290,27 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset NaN`, func(t *testing.T) {
+		t.Parallel()
+		// q returns 3 time series, where foo=3 contains only NaN values
+		// limit_offset suppose to apply offset for non-NaN series only
+		q := `limit_offset(1, 1, sort_by_label_desc((
+			label_set(time()*1, "foo", "1"),
+			label_set(time()*2, "foo", "2"),
+			label_set(time()*3, "foo", "3"),
+		) < 3000, "foo"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("1"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`sum(label_graphite_group)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(sum by (__name__) (
