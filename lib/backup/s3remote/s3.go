@@ -307,8 +307,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 	o, err := fs.s3.GetObject(context.Background(), input)
 	if err != nil {
-		var nsk *types.NoSuchKey
-		if errors.As(err, &nsk) {
+		if errors.Is(err, &types.NoSuchKey{}) {
 			return false, nil
 		}
 		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, path, err)
