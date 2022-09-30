@@ -155,12 +155,16 @@ var requestPool sync.Pool
 // sanitizeName performs DataDog-compatible santizing for metric names
 //
 // See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
-func sanitizeName(s string) string {
+func sanitizeName(name string) string {
+	return namesSanitizer.Transform(name)
+}
+
+var namesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
 	s = unsupportedDatadogChars.ReplaceAllString(s, "_")
 	s = multiUnderscores.ReplaceAllString(s, "_")
 	s = underscoresWithDots.ReplaceAllString(s, ".")
 	return s
-}
+})
 
 var (
 	unsupportedDatadogChars = regexp.MustCompile(`[^0-9a-zA-Z_\.]+`)

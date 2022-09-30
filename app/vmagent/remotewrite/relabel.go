@@ -3,7 +3,6 @@ package remotewrite
 import (
 	"flag"
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 
@@ -118,9 +117,9 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 			for j := range tmpLabels {
 				label := &tmpLabels[j]
 				if label.Name == "__name__" {
-					label.Value = unsupportedPromChars.ReplaceAllString(label.Value, "_")
+					label.Value = promrelabel.SanitizeName(label.Value)
 				} else {
-					label.Name = unsupportedPromChars.ReplaceAllString(label.Name, "_")
+					label.Name = promrelabel.SanitizeName(label.Name)
 				}
 			}
 		}
@@ -137,9 +136,6 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 	rctx.labels = labels
 	return tssDst
 }
-
-// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)
 
 type relabelCtx struct {
 	// pool for labels, which are used during the relabeling.

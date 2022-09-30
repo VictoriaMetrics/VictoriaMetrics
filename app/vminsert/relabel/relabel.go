@@ -3,7 +3,6 @@ package relabel
 import (
 	"flag"
 	"fmt"
-	"regexp"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -115,9 +114,9 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 		for i := range tmpLabels {
 			label := &tmpLabels[i]
 			if label.Name == "__name__" {
-				label.Value = unsupportedPromChars.ReplaceAllString(label.Value, "_")
+				label.Value = promrelabel.SanitizeName(label.Value)
 			} else {
-				label.Name = unsupportedPromChars.ReplaceAllString(label.Name, "_")
+				label.Name = promrelabel.SanitizeName(label.Name)
 			}
 		}
 	}
@@ -149,6 +148,3 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 }
 
 var metricsDropped = metrics.NewCounter(`vm_relabel_metrics_dropped_total`)
-
-// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
-var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)

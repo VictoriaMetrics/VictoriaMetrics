@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -346,7 +347,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("`labels` config cannot be applied to `action=%s`; it is applied only to `action=graphite`", action)
 		}
 	}
-	return &parsedRelabelConfig{
+	prc := &parsedRelabelConfig{
 		SourceLabels:  sourceLabels,
 		Separator:     separator,
 		TargetLabel:   targetLabel,
@@ -365,7 +366,10 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		hasCaptureGroupInTargetLabel:   strings.Contains(targetLabel, "$"),
 		hasCaptureGroupInReplacement:   strings.Contains(replacement, "$"),
 		hasLabelReferenceInReplacement: strings.Contains(replacement, "{{"),
-	}, nil
+	}
+	prc.stringReplacer = bytesutil.NewFastStringTransformer(prc.replaceFullStringSlow)
+	prc.submatchReplacer = bytesutil.NewFastStringTransformer(prc.replaceStringSubmatchesSlow)
+	return prc, nil
 }
 
 func isDefaultRegex(expr string) bool {
