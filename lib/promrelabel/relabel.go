@@ -35,6 +35,8 @@ type parsedRelabelConfig struct {
 	hasCaptureGroupInTargetLabel   bool
 	hasCaptureGroupInReplacement   bool
 	hasLabelReferenceInReplacement bool
+
+	stringReplacer *bytesutil.FastStringTransformer
 }
 
 // String returns human-readable representation for prc.
@@ -305,8 +307,8 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	case "labelmap":
 		// Replace label names with the `replacement` if they match `regex`
 		for _, label := range src {
-			labelName, ok := prc.replaceFullString(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
-			if ok {
+			labelName := prc.replaceFullStringFast(label.Name)
+			if labelName != label.Name {
 				labels = setLabelValue(labels, labelsOffset, labelName, label.Value)
 			}
 		}
@@ -360,16 +362,23 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	}
 }
 
-func (prc *parsedRelabelConfig) replaceFullString(s, replacement string, hasCaptureGroupInReplacement bool) (string, bool) {
+// replaceFullStringFast replaces s with the replacement if s matches '^regex$'.
+//
+// s is returned as is if it doesn't match '^regex$'.
+func (prc *parsedRelabelConfig) replaceFullStringFast(s string) string {
 	prefix, complete := prc.regexOriginal.LiteralPrefix()
-	if complete && !hasCaptureGroupInReplacement {
+	replacement := prc.Replacement
+	if complete && !prc.hasCaptureGroupInReplacement {
 		if s == prefix {
-			return replacement, true
+			// Fast path - s matches literal regex
+			return replacement
 		}
-		return s, false
+		// Fast path - s doesn't match literal regex
+		return s
 	}
 	if !strings.HasPrefix(s, prefix) {
-		return s, false
+		// Fast path - s doesn't match literl prefix from regex
+		return s
 	}
 	if replacement == "$1" {
 		// Fast path for commonly used rule for deleting label prefixes such as:
@@ -383,29 +392,33 @@ func (prc *parsedRelabelConfig) replaceFullString(s, replacement string, hasCapt
 			reSuffix := reStr[len(prefix):]
 			switch reSuffix {
 			case "(.*)":
-				return suffix, true
+				return suffix
 			case "(.+)":
 				if len(suffix) > 0 {
-					return suffix, true
+					return suffix
 				}
-				return s, false
+				return s
 			}
 		}
 	}
+	// Slow path - handle the rest of cases.
+	return prc.stringReplacer.Transform(s)
+}
+
+// replaceFullStringSlow replaces s with the replacement if s matches '^regex$'.
+//
+// s is returned as is if it doesn't match '^regex$'.
+func (prc *parsedRelabelConfig) replaceFullStringSlow(s string) string {
 	if re := prc.regex; re.HasPrefix() && !re.MatchString(s) {
 		// Fast path - regex mismatch
-		return s, false
+		return s
 	}
 	// Slow path - regexp processing
 	match := prc.RegexAnchored.FindStringSubmatchIndex(s)
 	if match == nil {
-		return s, false
+		return s
 	}
-	bb := relabelBufPool.Get()
-	bb.B = prc.RegexAnchored.ExpandString(bb.B[:0], replacement, s, match)
-	result := string(bb.B)
-	relabelBufPool.Put(bb)
-	return result, true
+	return prc.expandCaptureGroups(prc.Replacement, s, match)
 }
 
 func (prc *parsedRelabelConfig) replaceStringSubmatches(s, replacement string, hasCaptureGroupInReplacement bool) (string, bool) {
