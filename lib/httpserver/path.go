@@ -22,6 +22,8 @@ func ParsePath(path string) (*Path, error) {
 	//
 	// - prefix must contain `select`, `insert` or `delete`.
 	// - authToken contains `accountID[:projectID]`, where projectID is optional.
+	//   authToken may also contain `multitenant` string. In this case the accountID and projectID
+	//   are obtained from vm_account_id and vm_project_id labels of the ingested samples.
 	// - suffix contains arbitrary suffix.
 	//
 	// prefix must be used for the routing to the appropriate service
@@ -29,14 +31,14 @@ func ParsePath(path string) (*Path, error) {
 	s := skipPrefixSlashes(path)
 	n := strings.IndexByte(s, '/')
 	if n < 0 {
-		return nil, fmt.Errorf("cannot find {prefix}")
+		return nil, fmt.Errorf("cannot find {prefix} in %q; expecting /{prefix}/{authToken}/{suffix} format", path)
 	}
 	prefix := s[:n]
 
 	s = skipPrefixSlashes(s[n+1:])
 	n = strings.IndexByte(s, '/')
 	if n < 0 {
-		return nil, fmt.Errorf("cannot find {authToken}")
+		return nil, fmt.Errorf("cannot find {authToken} in %q; expecting /{prefix}/{authToken}/{suffix} format", path)
 	}
 	authToken := s[:n]
 
