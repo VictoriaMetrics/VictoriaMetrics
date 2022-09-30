@@ -5511,6 +5511,12 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`any(empty-series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `any(label_set(time()<0, "foo", "bar"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`group() by (test)`, func(t *testing.T) {
 		t.Parallel()
 		q := `group((
