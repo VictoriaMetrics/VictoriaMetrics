@@ -34,7 +34,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
@@ -1330,8 +1329,8 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 func internLabelStrings(labels []prompbmarshal.Label) {
 	for i := range labels {
 		label := &labels[i]
-		label.Name = discoveryutils.InternString(label.Name)
-		label.Value = discoveryutils.InternString(label.Value)
+		label.Name = bytesutil.InternString(label.Name)
+		label.Value = bytesutil.InternString(label.Value)
 	}
 }
 

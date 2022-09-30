@@ -1,4 +1,4 @@
-package discoveryutils
+package bytesutil
 
 import (
 	"fmt"

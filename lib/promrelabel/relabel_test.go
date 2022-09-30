@@ -682,6 +682,15 @@ func TestApplyRelabelConfigs(t *testing.T) {
   regex: "a(.+)"
 `, `qwe{foo="bar",baz="aaa"}`, true, `qwe{abc="qwe.bar.aa",baz="aaa",foo="bar"}`)
 	})
+	// Check $ at the end of regex - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3131
+	t.Run("replacement-with-$-at-the-end-of-regex", func(t *testing.T) {
+		f(`
+- target_label: xyz
+  regex: "foo\\$$"
+  replacement: bar
+  source_labels: [xyz]
+`, `metric{xyz="foo$",a="b"}`, true, `metric{a="b",xyz="bar"}`)
+	})
 }
 
 func TestFinalizeLabels(t *testing.T) {
