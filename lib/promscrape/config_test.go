@@ -674,8 +674,9 @@ scrape_config_files:
 }
 
 func resetNonEssentialFields(sws []*ScrapeWork) {
-	for i := range sws {
-		sws[i].OriginalLabels = nil
+	for _, sw := range sws {
+		sw.OriginalLabels = nil
+		sw.MetricRelabelConfigs = nil
 	}
 }
 
@@ -1446,10 +1447,6 @@ scrape_configs:
 			},
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
-			MetricRelabelConfigs: mustParseRelabelConfigs(`
-- source_labels: [foo]
-  target_label: abc
-`),
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1847,8 +1844,10 @@ func TestScrapeConfigClone(t *testing.T) {
 	f := func(sc *ScrapeConfig) {
 		t.Helper()
 		scCopy := sc.clone()
-		if !reflect.DeepEqual(sc, scCopy) {
-			t.Fatalf("unexpected result after unmarshalJSON() for JSON:\n%s", sc.marshalJSON())
+		scJSON := sc.marshalJSON()
+		scCopyJSON := scCopy.marshalJSON()
+		if !reflect.DeepEqual(scJSON, scCopyJSON) {
+			t.Fatalf("unexpected cloned result:\ngot\n%s\nwant\n%s", scCopyJSON, scJSON)
 		}
 	}
 
