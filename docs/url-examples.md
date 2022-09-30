@@ -604,7 +604,7 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2 VictoriaMetrics_AccountID=0" | nc -N http://<vminsert> 4242
+echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2" | nc -N http://<vminsert> 4242
 ```
 
 </div>
@@ -651,14 +651,12 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date +%s`" | nc -N http://<vminsert> 2003
+echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminsert> 2003
 ```
 
 </div>
 
 Additional information:
-
-`VictoriaMetrics_AccountID=42` - [tenant ID](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) in cluster version of VictoriaMetrics
 
 * [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)

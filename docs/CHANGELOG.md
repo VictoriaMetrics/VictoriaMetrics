@@ -19,6 +19,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 **Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) changes default value for command-line flag `-datasource.queryStep` from `0s` to `5m`. The change supposed to improve reliability of the rules evaluation when evaluation interval is lower than scraping interval.
 
+**Update note 3:** `vm_account_id` and `vm_project_id` labels must be passed to tcp-based `Graphite`, `InfluxDB` and `OpenTSDB` endpoints
+at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) instead of undocumented
+`VictoriaMetrics_AccountID` and `VictoriaMetrics_ProjectID` labels when writing samples to the needed tenant.
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) for details.
+
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): support specifying tenant ids via `vm_account_id` and `vm_project_id` labels. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2970).
 * FEATURE: improve [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling) performance by up to 3x if non-trivial `regex` values are used.
 * FEATURE: sanitize metric names for data ingested via [DataDog protocol](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent) according to [DataDog metric naming](https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics). The behaviour can be disabled by passing `-datadog.sanitizeMetricName=false` command-line flag. Thanks to @PerGon for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3105).
