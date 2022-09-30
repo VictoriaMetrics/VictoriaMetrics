@@ -76,7 +76,7 @@ func (fs *FS) Init() error {
 		configOpts...,
 	)
 	if err != nil {
-		return fmt.Errorf("cannot create S3 session: %w", err)
+		return fmt.Errorf("cannot load S3 config: %w", err)
 	}
 	var outerErr error
 	fs.s3 = s3.NewFromConfig(cfg, func(o *s3.Options) {
