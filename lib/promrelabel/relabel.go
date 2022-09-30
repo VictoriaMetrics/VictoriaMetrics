@@ -36,7 +36,7 @@ type parsedRelabelConfig struct {
 	hasCaptureGroupInReplacement   bool
 	hasLabelReferenceInReplacement bool
 
-	stringReplacer *bytesutil.FastStringTransformer
+	stringReplacer   *bytesutil.FastStringTransformer
 	submatchReplacer *bytesutil.FastStringTransformer
 }
 
