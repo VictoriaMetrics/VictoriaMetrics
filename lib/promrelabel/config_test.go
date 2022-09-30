@@ -164,6 +164,7 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 		if pcs != nil {
 			for _, prc := range pcs.prcs {
 				prc.stringReplacer = nil
+				prc.submatchReplacer = nil
 			}
 		}
 		if !reflect.DeepEqual(pcs, pcsExpected) {
