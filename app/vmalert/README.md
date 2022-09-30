@@ -1158,7 +1158,7 @@ is the following:
 # password and password_file are mutually exclusive.
 basic_auth:
   [ username: <string> ]
-  [ password: <secret> ]
+  [ password: <string> ]
   [ password_file: <string> ]
 
 # Optional `Authorization` header configuration.
@@ -1177,10 +1177,41 @@ authorization:
 tls_config:
   [ <tls_config> ]
 
+# Configures Bearer authentication token via string
+bearer_token: <string>
+# or by passing path to the file with token.
+bearer_token_file: <string>
+
+# Configures OAuth 2.0 authentication
+# see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+oauth2:
+  [ <oauth2_config> ]
+  
+# Optional list of HTTP headers in form `header-name: value`
+# applied for all requests to notifiers
+# For example:
+#  headers:
+#    - "CustomHeader: foo"
+#    - "CustomHeader2: bar"
+headers:
+  [ <string>, ...]
+
 # List of labeled statically configured Notifiers.
+#
+# Each list of targets may be additionally instructed with
+# authorization params. Target's authorization params will
+# inherit params from global authorization params if there
+# are no conflicts.
 static_configs:
-  targets:
-    [ - '<host>' ]
+  [ - targets: ]
+      [ - '<host>' ]
+      [ oauth2 ]
+      [ basic_auth ]
+      [ authorization ]
+      [ tls_config ]
+      [ bearer_token ]
+      [ bearer_token_file ]
+      [ headers ]
 
 # List of Consul service discovery configurations.
 # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
