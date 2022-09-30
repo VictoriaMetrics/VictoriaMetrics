@@ -40,7 +40,10 @@ func signRequestWithTime(req *http.Request, service, region, payloadHash string,
 	amzdate := t.Format("20060102T150405Z")
 	datestamp := t.Format("20060102")
 	canonicalURL := uri.Path
-	canonicalQS := strings.ReplaceAll(uri.Query().Encode(), "+", "%20")
+	canonicalQS := uri.Query().Encode()
+	// Replace "%20" with "+" according to AWS requirements.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3171
+	canonicalQS = strings.ReplaceAll(canonicalQS, "+", "%20")
 
 	canonicalHeaders := fmt.Sprintf("host:%s\nx-amz-date:%s\n", uri.Host, amzdate)
 	signedHeaders := "host;x-amz-date"
