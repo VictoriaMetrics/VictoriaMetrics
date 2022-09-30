@@ -108,20 +108,17 @@ func main() {
 	}
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, func(r io.Reader) error {
-			var at auth.Token // TODO: properly initialize auth token
-			return graphite.InsertHandler(&at, r)
+			return graphite.InsertHandler(nil, r)
 		})
 	}
 	if len(*influxListenAddr) > 0 {
 		influxServer = influxserver.MustStart(*influxListenAddr, func(r io.Reader) error {
-			var at auth.Token // TODO: properly initialize auth token
-			return influx.InsertHandlerForReader(&at, r)
+			return influx.InsertHandlerForReader(nil, r)
 		})
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, func(r io.Reader) error {
-			var at auth.Token // TODO: properly initialize auth token
-			return opentsdb.InsertHandler(&at, r)
+			return opentsdb.InsertHandler(nil, r)
 		}, opentsdbhttp.InsertHandler)
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {

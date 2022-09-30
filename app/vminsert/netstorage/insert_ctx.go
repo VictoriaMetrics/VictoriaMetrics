@@ -3,6 +3,7 @@ package netstorage
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -25,6 +26,8 @@ type InsertCtx struct {
 	labelsBuf []byte
 
 	relabelCtx relabel.Ctx
+
+	at auth.Token
 }
 
 type bufRows struct {
@@ -68,6 +71,7 @@ func (ctx *InsertCtx) Reset() {
 	}
 	ctx.labelsBuf = ctx.labelsBuf[:0]
 	ctx.relabelCtx.Reset()
+	ctx.at.Set(0, 0)
 }
 
 // AddLabelBytes adds (name, value) label to ctx.Labels.
@@ -115,11 +119,11 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, timestamp int64, value float64) error {
 	ctx.MetricNameBuf = storage.MarshalMetricNameRaw(ctx.MetricNameBuf[:0], at.AccountID, at.ProjectID, labels)
 	storageNodeIdx := ctx.GetStorageNodeIdx(at, labels)
-	return ctx.WriteDataPointExt(at, storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
+	return ctx.WriteDataPointExt(storageNodeIdx, ctx.MetricNameBuf, timestamp, value)
 }
 
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
-func (ctx *InsertCtx) WriteDataPointExt(at *auth.Token, storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
+func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
 	sn := storageNodes[storageNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
@@ -180,4 +184,47 @@ func marshalBytesFast(dst []byte, s []byte) []byte {
 	dst = encoding.MarshalUint16(dst, uint16(len(s)))
 	dst = append(dst, s...)
 	return dst
+}
+
+// GetLocalAuthToken obtains auth.Token from context labels vm_account_id and vm_project_id if at is nil.
+//
+// At is returned as is if it isn't nil.
+//
+// The vm_account_id and vm_project_id labels are automatically removed from the ctx.
+func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
+	if at != nil {
+		return at
+	}
+	accountID := uint32(0)
+	projectID := uint32(0)
+	tmpLabels := ctx.Labels[:0]
+	for _, label := range ctx.Labels {
+		if string(label.Name) == "vm_account_id" {
+			accountID = parseUint32(label.Value)
+			continue
+		}
+		if string(label.Name) == "vm_project_id" {
+			projectID = parseUint32(label.Value)
+			continue
+		}
+		tmpLabels = append(tmpLabels, label)
+	}
+	cleanLabels := ctx.Labels[len(tmpLabels):]
+	for i := range cleanLabels {
+		label := &cleanLabels[i]
+		label.Name = nil
+		label.Value = nil
+	}
+	ctx.Labels = tmpLabels
+	ctx.at.Set(accountID, projectID)
+	return &ctx.at
+}
+
+func parseUint32(b []byte) uint32 {
+	s := bytesutil.ToUnsafeString(b)
+	n, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0
+	}
+	return uint32(n)
 }

@@ -43,7 +43,9 @@ It increases cluster availability, and simplifies cluster maintenance as well as
 
 VictoriaMetrics cluster supports multiple isolated tenants (aka namespaces).
 Tenants are identified by `accountID` or `accountID:projectID`, which are put inside request urls.
-See [these docs](#url-format) for details. Some facts about tenants in VictoriaMetrics:
+See [these docs](#url-format) for details.
+
+Some facts about tenants in VictoriaMetrics:
 
 - Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
@@ -58,6 +60,30 @@ when different tenants have different amounts of data and different query load.
 - The database performance and resource usage doesn't depend on the number of tenants. It depends mostly on the total number of active time series in all the tenants. A time series is considered active if it received at least a single sample during the last hour or it has been touched by queries during the last hour.
 
 - VictoriaMetrics doesn't support querying multiple tenants in a single request.
+
+See also [multitenancy via labels](#multitenancy-via-labels).
+
+
+## Multitenancy via labels
+
+`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
+where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
+In this case the account id and project id are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
+If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` or `projectID` is set to 0.
+These labels are automatically removed from samples before forwarding them to `vmstorage`.
+For example, if the following samples are written into `http://vminsert:8480/insert/multitenant/prometheus/api/v1/write`:
+
+```
+http_requests_total{path="/foo",vm_account_id="42"} 12
+http_requests_total{path="/bar",vm_account_id="7",vm_project_id="9"} 34
+```
+
+Then the `http_requests_total{path="/foo"} 12` would be stored in the tenant `accountID=42, projectID=0`,
+while the `http_requests_total{path="/bar"} 34` would be stored in the tenant `accountID=7, projectID=9`.
+
+The `vm_account_id` and `vm_project_id` labels are extracted after applying the [relabeling](https://docs.victoriametrics.com/relabeling.html)
+set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
+
 
 ## Binaries
 
@@ -218,7 +244,9 @@ See [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
-    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`.
+    where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
+    The `<accountID>` can be set to `multitenant` string, e.g. `http://<vminsert>:8480/insert/multitenant/<suffix>`. Such urls accept data from multiple tenants
+    specified via `vm_account_id` and `vm_project_id` labels. See [multitenancy via labels](#multitenancy-via-labels) for more details.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `datadog/api/v1/series` - for inserting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent) for details.
