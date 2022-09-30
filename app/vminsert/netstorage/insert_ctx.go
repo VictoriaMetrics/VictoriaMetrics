@@ -195,10 +195,6 @@ func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
 	if at != nil {
 		return at
 	}
-	return ctx.parseAuthTokenFromLabels()
-}
-
-func (ctx *InsertCtx) parseAuthTokenFromLabels() *auth.Token {
 	accountID := uint32(0)
 	projectID := uint32(0)
 	tmpLabels := ctx.Labels[:0]

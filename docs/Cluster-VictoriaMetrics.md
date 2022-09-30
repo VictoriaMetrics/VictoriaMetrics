@@ -66,7 +66,8 @@ See also [multitenancy via labels](#multitenancy-via-labels).
 
 ## Multitenancy via labels
 
-`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoint such as `http://vminsert:8480/insert/multitenant/...`.
+`vminsert` can accept data from multiple [tenants](#multitenancy) via a special `multitenant` endpoints `http://vminsert:8480/insert/multitenant/<suffix>`,
+where `<suffix>` can be replaced with any supported suffix for data ingestion from [this list](#url-format).
 In this case the account id and project id are obtained from optional `vm_account_id` and `vm_project_id` labels of the incoming samples.
 If `vm_account_id` or `vm_project_id` labels are missing or invalid, then the corresponding `accountID` or `projectID` is set to 0.
 These labels are automatically removed from samples before forwarding them to `vmstorage`.
@@ -245,8 +246,7 @@ See [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
     where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
     The `<accountID>` can be set to `multitenant` string, e.g. `http://<vminsert>:8480/insert/multitenant/<suffix>`. Such urls accept data from multiple tenants
-    specified via `vm_account_id` and `vm_project_id` labels.
-    See [multitenancy via labels](#multitenancy-via-labels) for more details.
+    specified via `vm_account_id` and `vm_project_id` labels. See [multitenancy via labels](#multitenancy-via-labels) for more details.
   - `<suffix>` may have the following values:
     - `prometheus` and `prometheus/api/v1/write` - for inserting data with [Prometheus remote write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
     - `datadog/api/v1/series` - for inserting data with [DataDog submit metrics API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics). See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent) for details.
