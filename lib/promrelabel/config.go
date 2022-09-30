@@ -368,6 +368,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		hasLabelReferenceInReplacement: strings.Contains(replacement, "{{"),
 	}
 	prc.stringReplacer = bytesutil.NewFastStringTransformer(prc.replaceFullStringSlow)
+	prc.submatchReplacer = bytesutil.NewFastStringTransformer(prc.replaceStringSubmatchesSlow)
 	return prc, nil
 }
 
