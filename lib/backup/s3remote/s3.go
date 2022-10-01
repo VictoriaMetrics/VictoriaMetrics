@@ -8,14 +8,15 @@ import (
 	"io"
 	"strings"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 )
 
 // FS represents filesystem for backups in S3.
@@ -43,8 +44,8 @@ type FS struct {
 	// The name of S3 config profile to use.
 	ProfileName string
 
-	s3       *s3.S3
-	uploader *s3manager.Uploader
+	s3       *s3.Client
+	uploader *manager.Uploader
 }
 
 // Init initializes fs.
@@ -60,46 +61,46 @@ func (fs *FS) Init() error {
 	if !strings.HasSuffix(fs.Dir, "/") {
 		fs.Dir += "/"
 	}
-	opts := session.Options{
-		SharedConfigState: session.SharedConfigEnable,
-		Profile:           fs.ProfileName,
+	configOpts := []func(*config.LoadOptions) error{
+		config.WithSharedConfigProfile(fs.ProfileName),
 	}
+
 	if len(fs.CredsFilePath) > 0 {
-		opts.SharedConfigFiles = []string{
+		configOpts = append(configOpts, config.WithSharedConfigFiles([]string{
 			fs.ConfigFilePath,
 			fs.CredsFilePath,
-		}
+		}))
 	}
-	sess, err := session.NewSessionWithOptions(opts)
+
+	cfg, err := config.LoadDefaultConfig(context.TODO(),
+		configOpts...,
+	)
 	if err != nil {
-		return fmt.Errorf("cannot create S3 session: %w", err)
+		return fmt.Errorf("cannot load S3 config: %w", err)
+	}
+	var outerErr error
+	fs.s3 = s3.NewFromConfig(cfg, func(o *s3.Options) {
+		if len(fs.CustomEndpoint) > 0 {
+			logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
+			o.UsePathStyle = fs.S3ForcePathStyle
+			o.EndpointResolver = s3.EndpointResolverFromURL(fs.CustomEndpoint)
+		} else {
+			region, err := manager.GetBucketRegion(context.Background(), s3.NewFromConfig(cfg), fs.Bucket)
+			if err != nil {
+				outerErr = fmt.Errorf("cannot determine region for bucket %q: %w", fs.Bucket, err)
+				return
+			}
+
+			o.Region = region
+			logger.Infof("bucket %q is stored at region %q; switching to this region", fs.Bucket, region)
+		}
+	})
+
+	if outerErr != nil {
+		return outerErr
 	}
 
-	if len(fs.CustomEndpoint) > 0 {
-		// Use provided custom endpoint for S3
-		logger.Infof("Using provided custom S3 endpoint: %q", fs.CustomEndpoint)
-		// hack for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1449
-		if sess.Config.Region == nil || *sess.Config.Region == "" {
-			logger.Infof("Region is not defined for custom S3 endpoint, using `us-east-1` as default")
-			sess.Config.WithRegion("us-east-1")
-		}
-		sess.Config.WithEndpoint(fs.CustomEndpoint)
-
-		// Disable prefixing endpoint with bucket name
-		sess.Config.WithS3ForcePathStyle(fs.S3ForcePathStyle)
-	} else {
-		// Determine bucket region.
-		ctx := context.Background()
-		region, err := s3manager.GetBucketRegion(ctx, sess, fs.Bucket, "us-west-2")
-		if err != nil {
-			return fmt.Errorf("cannot determine region for bucket %q: %w", fs.Bucket, err)
-		}
-		sess.Config.WithRegion(region)
-		logger.Infof("bucket %q is stored at region %q; switching to this region", fs.Bucket, region)
-	}
-
-	fs.s3 = s3.New(sess)
-	fs.uploader = s3manager.NewUploader(sess, func(u *s3manager.Uploader) {
+	fs.uploader = manager.NewUploader(fs.s3, func(u *manager.Uploader) {
 		// We manage upload concurrency by ourselves.
 		u.Concurrency = 1
 	})
@@ -120,18 +121,24 @@ func (fs *FS) String() string {
 // ListParts returns all the parts for fs.
 func (fs *FS) ListParts() ([]common.Part, error) {
 	dir := fs.Dir
-	input := &s3.ListObjectsV2Input{
+
+	var parts []common.Part
+
+	paginator := s3.NewListObjectsV2Paginator(fs.s3, &s3.ListObjectsV2Input{
 		Bucket: aws.String(fs.Bucket),
 		Prefix: aws.String(dir),
-	}
-	var errOuter error
-	var parts []common.Part
-	err := fs.s3.ListObjectsV2Pages(input, func(page *s3.ListObjectsV2Output, lastPage bool) bool {
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.TODO())
+		if err != nil {
+			return nil, fmt.Errorf("unexpected pagination error: %w", err)
+		}
+
 		for _, o := range page.Contents {
 			file := *o.Key
 			if !strings.HasPrefix(file, dir) {
-				errOuter = fmt.Errorf("unexpected prefix for s3 key %q; want %q", file, dir)
-				return false
+				return nil, fmt.Errorf("unexpected prefix for s3 key %q; want %q", file, dir)
 			}
 			if fscommon.IgnorePath(file) {
 				continue
@@ -141,17 +148,13 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 				logger.Infof("skipping unknown object %q", file)
 				continue
 			}
-			p.ActualSize = uint64(*o.Size)
+
+			p.ActualSize = uint64(o.Size)
 			parts = append(parts, p)
 		}
-		return !lastPage
-	})
-	if errOuter != nil && err == nil {
-		err = errOuter
+
 	}
-	if err != nil {
-		return nil, fmt.Errorf("error when listing s3 objects inside dir %q: %w", dir, err)
-	}
+
 	return parts, nil
 }
 
@@ -162,7 +165,7 @@ func (fs *FS) DeletePart(p common.Part) error {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	_, err := fs.s3.DeleteObject(input)
+	_, err := fs.s3.DeleteObject(context.Background(), input)
 	if err != nil {
 		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
@@ -190,7 +193,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		CopySource: aws.String(copySource),
 		Key:        aws.String(dstPath),
 	}
-	_, err := fs.s3.CopyObject(input)
+	_, err := fs.s3.CopyObject(context.Background(), input)
 	if err != nil {
 		return fmt.Errorf("cannot copy %q from %s to %s (copySource %q): %w", p.Path, src, fs, copySource, err)
 	}
@@ -204,7 +207,7 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	o, err := fs.s3.GetObject(input)
+	o, err := fs.s3.GetObject(context.Background(), input)
 	if err != nil {
 		return fmt.Errorf("cannot open %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
@@ -228,12 +231,12 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	sr := &statReader{
 		r: r,
 	}
-	input := &s3manager.UploadInput{
+	input := &s3.PutObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 		Body:   sr,
 	}
-	_, err := fs.uploader.Upload(input)
+	_, err := fs.uploader.Upload(context.Background(), input)
 	if err != nil {
 		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", p.Path, fs, path, err)
 	}
@@ -265,7 +268,7 @@ func (fs *FS) DeleteFile(filePath string) error {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	if _, err := fs.s3.DeleteObject(input); err != nil {
+	if _, err := fs.s3.DeleteObject(context.Background(), input); err != nil {
 		return fmt.Errorf("cannot delete %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
 	return nil
@@ -279,12 +282,12 @@ func (fs *FS) CreateFile(filePath string, data []byte) error {
 	sr := &statReader{
 		r: bytes.NewReader(data),
 	}
-	input := &s3manager.UploadInput{
+	input := &s3.PutObjectInput{
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 		Body:   sr,
 	}
-	_, err := fs.uploader.Upload(input)
+	_, err := fs.uploader.Upload(context.Background(), input)
 	if err != nil {
 		return fmt.Errorf("cannot upoad data to %q at %s (remote path %q): %w", filePath, fs, path, err)
 	}
@@ -302,10 +305,9 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 		Bucket: aws.String(fs.Bucket),
 		Key:    aws.String(path),
 	}
-	o, err := fs.s3.GetObject(input)
+	o, err := fs.s3.GetObject(context.Background(), input)
 	if err != nil {
-		var ae awserr.Error
-		if errors.As(err, &ae) && ae.Code() == s3.ErrCodeNoSuchKey {
+		if errors.Is(err, &types.NoSuchKey{}) {
 			return false, nil
 		}
 		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, path, err)
