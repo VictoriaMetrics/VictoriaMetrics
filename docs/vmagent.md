@@ -177,7 +177,8 @@ By default `vmagent` collects the data without tenant identifiers and routes it 
 
 [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) supports writing data to multiple tenants
 specified via special labels - see [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
-This allows specifying tenant ids via [relabeling](#relabeling) and writing multitenant data to a single `-remoteWrite.url=http://<vminsert-addr>/insert/multitenant/api/v1/write`.
+This allows specifying tenant ids via [relabeling](#relabeling) and writing multitenant data
+to a single `-remoteWrite.url=http://<vminsert-addr>/insert/multitenant/prometheus/api/v1/write`.
 
 `vmagent` can accept data from the same multitenant endpoints as `vminsert` from [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
 does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route the accepted data
