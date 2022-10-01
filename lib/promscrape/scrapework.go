@@ -87,6 +87,12 @@ type ScrapeWork struct {
 	// See also https://prometheus.io/docs/concepts/jobs_instances/
 	Labels []prompbmarshal.Label
 
+	// ExternalLabels contains labels from global->external_labels section of -promscrape.config
+	//
+	// These labels are added to scraped metrics after the relabeling.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3137
+	ExternalLabels []prompbmarshal.Label
+
 	// ProxyURL HTTP proxy url
 	ProxyURL *proxy.URL
 
@@ -140,9 +146,11 @@ func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels, since they can be changed with relabeling.
 	// Take into account JobNameOriginal in order to capture the case when the original job_name is changed via relabeling.
 	key := fmt.Sprintf("JobNameOriginal=%s, ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
+		"ExternalLabels=%s, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
 		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d",
 		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
+		promLabelsString(sw.ExternalLabels),
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
 		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
 		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit)
@@ -835,6 +843,9 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		// Skip row without labels.
 		return
 	}
+	// Add labels from `global->external_labels` section after the relabeling like Prometheus does.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3137
+	wc.labels = appendExtraLabels(wc.labels, sw.Config.ExternalLabels, labelsLen, sw.Config.HonorLabels)
 	sampleTimestamp := r.Timestamp
 	if !sw.Config.HonorTimestamps || sampleTimestamp == 0 {
 		sampleTimestamp = timestamp
@@ -863,36 +874,43 @@ func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, ex
 			Value: tag.Value,
 		})
 	}
-	dst = append(dst, extraLabels...)
-	labels := dst[dstLen:]
-	if len(labels) <= 1 {
-		// Fast path - only a single label.
+	return appendExtraLabels(dst, extraLabels, dstLen, honorLabels)
+}
+
+func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honorLabels bool) []prompbmarshal.Label {
+	// Add extraLabels to labels.
+	// Handle duplicates in the same way as Prometheus does.
+	if len(dst) > offset && dst[offset].Name == "__name__" {
+		offset++
+	}
+	labels := dst[offset:]
+	if len(labels) == 0 {
+		// Fast path - add extraLabels to dst without the need to de-duplicate.
+		dst = append(dst, extraLabels...)
 		return dst
 	}
-
-	// de-duplicate labels
-	dstLabels := labels[:0]
-	for i := range labels {
-		label := &labels[i]
-		prevLabel := promrelabel.GetLabelByName(dstLabels, label.Name)
+	for _, label := range extraLabels {
+		prevLabel := promrelabel.GetLabelByName(labels, label.Name)
 		if prevLabel == nil {
-			dstLabels = append(dstLabels, *label)
+			// Fast path - the label doesn't exist in labels, so just add it to dst.
+			dst = append(dst, label)
 			continue
 		}
 		if honorLabels {
 			// Skip the extra label with the same name.
 			continue
 		}
-		// Rename the prevLabel to "exported_" + label.Name.
+		// Rename the prevLabel to "exported_" + label.Name
 		// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 		exportedName := "exported_" + label.Name
-		if promrelabel.GetLabelByName(dstLabels, exportedName) != nil {
-			// Override duplicate with the current label.
-			*prevLabel = *label
-			continue
+		exportedLabel := promrelabel.GetLabelByName(labels, exportedName)
+		if exportedLabel == nil {
+			prevLabel.Name = exportedName
+			dst = append(dst, label)
+		} else {
+			exportedLabel.Value = prevLabel.Value
+			prevLabel.Value = label.Value
 		}
-		prevLabel.Name = exportedName
-		dstLabels = append(dstLabels, *label)
 	}
-	return dst[:dstLen+len(dstLabels)]
+	return dst
 }
