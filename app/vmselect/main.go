@@ -296,7 +296,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		_ = r.ParseForm()
 		suffix := strings.Replace(p.Suffix, "prometheus/", "../prometheus/", 1)
 		newURL := suffix + "/?" + r.Form.Encode()
-		httpserver.RedirectPermanent(w, newURL)
+		httpserver.Redirect(w, newURL)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
@@ -350,7 +350,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 
 	if p.Suffix == "prometheus/vmalert" {
 		path := "../" + p.Suffix + "/"
-		httpserver.RedirectPermanent(w, path)
+		httpserver.Redirect(w, path)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "prometheus/vmalert/") {
