@@ -662,9 +662,9 @@ func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadli
 	}
 
 	// Push mrs to storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.registerMetricNamesRequests.Inc()
-		err := sn.registerMetricNames(qt, mrsPerNode[workerIdx], deadline)
+		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
 		if err != nil {
 			sn.registerMetricNamesErrors.Inc()
 		}
@@ -693,7 +693,7 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		deletedCount int
 		err          error
 	}
-	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.deleteSeriesRequests.Inc()
 		deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 		if err != nil {
@@ -734,7 +734,7 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		labelNames []string
 		err        error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.labelNamesRequests.Inc()
 		labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 		if err != nil {
@@ -836,7 +836,7 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		labelValues []string
 		err         error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.labelValuesRequests.Inc()
 		labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 		if err != nil {
@@ -918,7 +918,7 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		suffixes []string
 		err      error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
@@ -982,7 +982,7 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		status *storage.TSDBStatus
 		err    error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.tsdbStatusRequests.Inc()
 		status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 		if err != nil {
@@ -1087,7 +1087,7 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		n   uint64
 		err error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
@@ -1139,16 +1139,16 @@ func newTmpBlocksFileWrapper() *tmpBlocksFileWrapper {
 	}
 }
 
-func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerIdx int) error {
+func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock, workerID uint) error {
 	bb := tmpBufPool.Get()
 	bb.B = storage.MarshalBlock(bb.B[:0], &mb.Block)
-	addr, err := tbfw.tbfs[workerIdx].WriteBlockData(bb.B, workerIdx)
+	addr, err := tbfw.tbfs[workerID].WriteBlockData(bb.B, workerID)
 	tmpBufPool.Put(bb)
 	if err != nil {
 		return err
 	}
 	metricName := mb.MetricName
-	m := tbfw.ms[workerIdx]
+	m := tbfw.ms[workerID]
 	addrs := m[string(metricName)]
 	addrs = append(addrs, addr)
 	if len(addrs) > 1 {
@@ -1156,11 +1156,11 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	} else {
 		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 		// in both tbfw.orderedMetricNamess and tbfw.ms.
-		orderedMetricNames := tbfw.orderedMetricNamess[workerIdx]
+		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
 		orderedMetricNames = append(orderedMetricNames, string(metricName))
 		metricNameStr := orderedMetricNames[len(orderedMetricNames)-1]
 		m[metricNameStr] = addrs
-		tbfw.orderedMetricNamess[workerIdx] = orderedMetricNames
+		tbfw.orderedMetricNamess[workerID] = orderedMetricNames
 	}
 	return nil
 }
@@ -1200,7 +1200,7 @@ var metricNamePool = &sync.Pool{
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
 func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline,
-	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
+	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error) error {
 	qt = qt.NewChild("export blocks: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -1212,18 +1212,18 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	}
 	blocksRead := newPerNodeCounter()
 	samples := newPerNodeCounter()
-	processBlock := func(mb *storage.MetricBlock, workerIdx int) error {
+	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
 		mn := metricNamePool.Get().(*storage.MetricName)
 		if err := mn.Unmarshal(mb.MetricName); err != nil {
 			return fmt.Errorf("cannot unmarshal metricName: %w", err)
 		}
-		if err := f(mn, &mb.Block, tr); err != nil {
+		if err := f(mn, &mb.Block, tr, workerID); err != nil {
 			return err
 		}
 		mn.Reset()
 		metricNamePool.Put(mn)
-		blocksRead.Add(workerIdx, 1)
-		samples.Add(workerIdx, uint64(mb.Block.RowsCount()))
+		blocksRead.Add(workerID, 1)
+		samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		return nil
 	}
 	_, err := ProcessBlocks(qt, true, sq, processBlock, deadline)
@@ -1250,7 +1250,7 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		metricNames []string
 		err         error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.searchMetricNamesRequests.Inc()
 		metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 		if err != nil {
@@ -1307,15 +1307,15 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	blocksRead := newPerNodeCounter()
 	samples := newPerNodeCounter()
 	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(len(storageNodes))
-	processBlock := func(mb *storage.MetricBlock, workerIdx int) error {
-		blocksRead.Add(workerIdx, 1)
-		n := samples.Add(workerIdx, uint64(mb.Block.RowsCount()))
+	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
+		blocksRead.Add(workerID, 1)
+		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
 			return fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
 				"to increase the -search.maxSamplesPerQuery; to reduce time range for the query; "+
 				"to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)
 		}
-		if err := tbfw.RegisterAndWriteBlock(mb, workerIdx); err != nil {
+		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
 		}
 		return nil
@@ -1348,7 +1348,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 
 // ProcessBlocks calls processBlock per each block matching the given sq.
 func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
-	processBlock func(mb *storage.MetricBlock, workerIdx int) error, deadline searchutils.Deadline) (bool, error) {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
 	requestData := sq.Marshal(nil)
 
 	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
@@ -1371,8 +1371,8 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 		_ [128 - unsafe.Sizeof(wgStruct{})%128]byte
 	}
 	wgs := make([]wgWithPadding, len(storageNodes))
-	f := func(mb *storage.MetricBlock, workerIdx int) error {
-		muwg := &wgs[workerIdx]
+	f := func(mb *storage.MetricBlock, workerID uint) error {
+		muwg := &wgs[workerID]
 		muwg.mu.Lock()
 		if muwg.stop {
 			muwg.mu.Unlock()
@@ -1380,15 +1380,15 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 		}
 		muwg.wg.Add(1)
 		muwg.mu.Unlock()
-		err := processBlock(mb, workerIdx)
+		err := processBlock(mb, workerID)
 		muwg.wg.Done()
 		return err
 	}
 
 	// Send the query to all the storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.searchRequests.Inc()
-		err := sn.processSearchQuery(qt, requestData, f, workerIdx, deadline)
+		err := sn.processSearchQuery(qt, requestData, f, workerID, deadline)
 		if err != nil {
 			sn.searchErrors.Inc()
 			err = fmt.Errorf("cannot perform search on vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -1422,15 +1422,15 @@ type storageNodesRequest struct {
 	resultsCh           chan interface{}
 }
 
-func startStorageNodesRequest(qt *querytracer.Tracer, denyPartialResponse bool, f func(qt *querytracer.Tracer, workerIdx int, sn *storageNode) interface{}) *storageNodesRequest {
+func startStorageNodesRequest(qt *querytracer.Tracer, denyPartialResponse bool, f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{}) *storageNodesRequest {
 	resultsCh := make(chan interface{}, len(storageNodes))
 	for idx, sn := range storageNodes {
 		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
-		go func(workerIdx int, sn *storageNode) {
-			result := f(qtChild, workerIdx, sn)
+		go func(workerID uint, sn *storageNode) {
+			result := f(qtChild, workerID, sn)
 			resultsCh <- result
 			qtChild.Done()
-		}(idx, sn)
+		}(uint(idx), sn)
 	}
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
@@ -1697,10 +1697,10 @@ func (sn *storageNode) processSearchMetricNames(qt *querytracer.Tracer, requestD
 	return metricNames, nil
 }
 
-func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerIdx int) error,
-	workerIdx int, deadline searchutils.Deadline) error {
+func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []byte, processBlock func(mb *storage.MetricBlock, workerID uint) error,
+	workerID uint, deadline searchutils.Deadline) error {
 	f := func(bc *handshake.BufferedConn) error {
-		if err := sn.processSearchQueryOnConn(bc, requestData, processBlock, workerIdx); err != nil {
+		if err := sn.processSearchQueryOnConn(bc, requestData, processBlock, workerID); err != nil {
 			return err
 		}
 		return nil
@@ -2201,7 +2201,7 @@ func (sn *storageNode) processSearchMetricNamesOnConn(bc *handshake.BufferedConn
 const maxMetricNameSize = 64 * 1024
 
 func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requestData []byte,
-	processBlock func(mb *storage.MetricBlock, workerIdx int) error, workerIdx int) error {
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, workerID uint) error {
 	// Send the request to sn.
 	if err := writeBytes(bc, requestData); err != nil {
 		return fmt.Errorf("cannot write requestData: %w", err)
@@ -2241,7 +2241,7 @@ func (sn *storageNode) processSearchQueryOnConn(bc *handshake.BufferedConn, requ
 		blocksRead++
 		sn.metricBlocksRead.Inc()
 		sn.metricRowsRead.Add(mb.Block.RowsCount())
-		if err := processBlock(&mb, workerIdx); err != nil {
+		if err := processBlock(&mb, workerID); err != nil {
 			return fmt.Errorf("cannot process MetricBlock #%d: %w", blocksRead, err)
 		}
 	}
@@ -2440,7 +2440,7 @@ func newPerNodeCounter() *perNodeCounter {
 	}
 }
 
-func (pnc *perNodeCounter) Add(nodeIdx int, n uint64) uint64 {
+func (pnc *perNodeCounter) Add(nodeIdx uint, n uint64) uint64 {
 	return atomic.AddUint64(&pnc.ns[nodeIdx].n, n)
 }
 
