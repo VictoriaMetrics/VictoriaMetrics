@@ -38,7 +38,7 @@ var (
 		"isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
 		"It is hidden by default, since it can contain sensitive info such as auth key")
-	maxPendingBytesPerURL = flagutil.NewBytes("remoteWrite.maxDiskUsagePerURL", 0, "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
+	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
 		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
@@ -436,7 +436,8 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	pqURL.Fragment = ""
 	h := xxhash.Sum64([]byte(pqURL.String()))
 	queuePath := fmt.Sprintf("%s/persistent-queue/%d_%016X", *tmpDataPath, argIdx+1, h)
-	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytesPerURL.N)
+	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArgOrDefault(argIdx, 0)
+	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
 	})
