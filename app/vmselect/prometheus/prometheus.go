@@ -92,19 +92,33 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
+	var m sync.Map
 	err = rss.RunParallel(nil, func(rs *netstorage.Result, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
-		bb := quicktemplate.AcquireByteBuffer()
+		v, ok := m.Load(workerID)
+		if !ok {
+			v = &bytesutil.ByteBuffer{}
+			m.Store(workerID, v)
+		}
+		bb := v.(*bytesutil.ByteBuffer)
 		WriteFederate(bb, rs)
+		if len(bb.B) < 1024*1024 {
+			return nil
+		}
 		_, err := bw.Write(bb.B)
-		quicktemplate.ReleaseByteBuffer(bb)
+		bb.Reset()
 		return err
 	})
 	if err != nil {
 		return fmt.Errorf("error during sending data to remote client: %w", err)
 	}
+	m.Range(func(k, v interface{}) bool {
+		bb := v.(*bytesutil.ByteBuffer)
+		_, err := bw.Write(bb.B)
+		return err == nil
+	})
 	if err := bw.Flush(); err != nil {
 		return err
 	}
