@@ -64,7 +64,7 @@ import (
 // of the specified bucket, or you do not have the s3:PutInventoryConfiguration
 // bucket permission to set the configuration on the bucket.
 //
-// Related Resources
+// # Related Resources
 //
 // *
 // GetBucketInventoryConfiguration
@@ -110,7 +110,8 @@ type PutBucketInventoryConfigurationInput struct {
 	InventoryConfiguration *types.InventoryConfiguration
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde

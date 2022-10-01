@@ -31,18 +31,22 @@ import (
 // more information, see Configuring Notifications for Amazon S3 Events
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html). You
 // can disable notifications by adding the empty NotificationConfiguration element.
-// By default, only the bucket owner can configure notifications on a bucket.
-// However, bucket owners can use a bucket policy to grant permission to other
-// users to set this configuration with s3:PutBucketNotification permission. The
-// PUT notification is an atomic operation. For example, suppose your notification
-// configuration includes SNS topic, SQS queue, and Lambda function configurations.
-// When you send a PUT request with this configuration, Amazon S3 sends test
-// messages to your SNS topic. If the message fails, the entire PUT action will
-// fail, and Amazon S3 will not add the configuration to your bucket. Responses If
-// the configuration in the request body includes only one TopicConfiguration
-// specifying only the s3:ReducedRedundancyLostObject event type, the response will
-// also include the x-amz-sns-test-message-id header containing the message ID of
-// the test notification sent to the topic. The following action is related to
+// For more information about the number of event notification configurations that
+// you can create per bucket, see Amazon S3 service quotas
+// (https://docs.aws.amazon.com/general/latest/gr/s3.html#limits_s3) in Amazon Web
+// Services General Reference. By default, only the bucket owner can configure
+// notifications on a bucket. However, bucket owners can use a bucket policy to
+// grant permission to other users to set this configuration with
+// s3:PutBucketNotification permission. The PUT notification is an atomic
+// operation. For example, suppose your notification configuration includes SNS
+// topic, SQS queue, and Lambda function configurations. When you send a PUT
+// request with this configuration, Amazon S3 sends test messages to your SNS
+// topic. If the message fails, the entire PUT action will fail, and Amazon S3 will
+// not add the configuration to your bucket. Responses If the configuration in the
+// request body includes only one TopicConfiguration specifying only the
+// s3:ReducedRedundancyLostObject event type, the response will also include the
+// x-amz-sns-test-message-id header containing the message ID of the test
+// notification sent to the topic. The following action is related to
 // PutBucketNotificationConfiguration:
 //
 // * GetBucketNotificationConfiguration
@@ -76,8 +80,13 @@ type PutBucketNotificationConfigurationInput struct {
 	NotificationConfiguration *types.NotificationConfiguration
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
+
+	// Skips validation of Amazon SQS, Amazon SNS, and Lambda destinations. True or
+	// false value.
+	SkipDestinationValidation bool
 
 	noSmithyDocumentSerde
 }

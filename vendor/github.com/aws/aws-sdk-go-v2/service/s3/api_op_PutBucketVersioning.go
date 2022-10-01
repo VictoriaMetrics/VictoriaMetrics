@@ -6,30 +6,31 @@ import (
 	"context"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Sets the versioning state of an existing bucket. To set the versioning state,
-// you must be the bucket owner. You can set the versioning state with one of the
-// following values: Enabled—Enables versioning for the objects in the bucket. All
-// objects added to the bucket receive a unique version ID. Suspended—Disables
-// versioning for the objects in the bucket. All objects added to the bucket
-// receive the version ID null. If the versioning state has never been set on a
-// bucket, it has no versioning state; a GetBucketVersioning
+// Sets the versioning state of an existing bucket. You can set the versioning
+// state with one of the following values: Enabled—Enables versioning for the
+// objects in the bucket. All objects added to the bucket receive a unique version
+// ID. Suspended—Disables versioning for the objects in the bucket. All objects
+// added to the bucket receive the version ID null. If the versioning state has
+// never been set on a bucket, it has no versioning state; a GetBucketVersioning
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)
-// request does not return a versioning state value. If the bucket owner enables
-// MFA Delete in the bucket versioning configuration, the bucket owner must include
-// the x-amz-mfa request header and the Status and the MfaDelete request elements
-// in a request to set the versioning state of the bucket. If you have an object
-// expiration lifecycle policy in your non-versioned bucket and you want to
-// maintain the same permanent delete behavior when you enable versioning, you must
-// add a noncurrent expiration policy. The noncurrent expiration lifecycle policy
-// will manage the deletes of the noncurrent object versions in the version-enabled
-// bucket. (A version-enabled bucket maintains one current and zero or more
-// noncurrent object versions.) For more information, see Lifecycle and Versioning
+// request does not return a versioning state value. In order to enable MFA Delete,
+// you must be the bucket owner. If you are the bucket owner and want to enable MFA
+// Delete in the bucket versioning configuration, you must include the x-amz-mfa
+// request header and the Status and the MfaDelete request elements in a request to
+// set the versioning state of the bucket. If you have an object expiration
+// lifecycle policy in your non-versioned bucket and you want to maintain the same
+// permanent delete behavior when you enable versioning, you must add a noncurrent
+// expiration policy. The noncurrent expiration lifecycle policy will manage the
+// deletes of the noncurrent object versions in the version-enabled bucket. (A
+// version-enabled bucket maintains one current and zero or more noncurrent object
+// versions.) For more information, see Lifecycle and Versioning
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html#lifecycle-and-other-bucket-config).
 // Related Resources
 //
@@ -70,6 +71,17 @@ type PutBucketVersioningInput struct {
 	// This member is required.
 	VersioningConfiguration *types.VersioningConfiguration
 
+	// Indicates the algorithm used to create the checksum for the object when using
+	// the SDK. This header will not provide any additional functionality if not using
+	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
+	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
+	// HTTP status code 400 Bad Request. For more information, see Checking object
+	// integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
+	// ignores any provided ChecksumAlgorithm parameter.
+	ChecksumAlgorithm types.ChecksumAlgorithm
+
 	// >The base64-encoded 128-bit MD5 digest of the data. You must use this header as
 	// a message integrity check to verify that the request body was not corrupted in
 	// transit. For more information, see RFC 1864
@@ -79,7 +91,8 @@ type PutBucketVersioningInput struct {
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// The concatenation of the authentication device's serial number, a space, and the
@@ -144,9 +157,6 @@ func (c *Client) addOperationPutBucketVersioningMiddlewares(stack *middleware.St
 	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddContentChecksumMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addOpPutBucketVersioningValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -154,6 +164,9 @@ func (c *Client) addOperationPutBucketVersioningMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutBucketVersioningInputChecksumMiddlewares(stack, options); err != nil {
 		return err
 	}
 	if err = addPutBucketVersioningUpdateEndpoint(stack, options); err != nil {
@@ -181,6 +194,26 @@ func newServiceMetadataMiddleware_opPutBucketVersioning(region string) *awsmiddl
 		SigningName:   "s3",
 		OperationName: "PutBucketVersioning",
 	}
+}
+
+// getPutBucketVersioningRequestAlgorithmMember gets the request checksum algorithm
+// value provided as input.
+func getPutBucketVersioningRequestAlgorithmMember(input interface{}) (string, bool) {
+	in := input.(*PutBucketVersioningInput)
+	if len(in.ChecksumAlgorithm) == 0 {
+		return "", false
+	}
+	return string(in.ChecksumAlgorithm), true
+}
+
+func addPutBucketVersioningInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+		GetAlgorithm:                     getPutBucketVersioningRequestAlgorithmMember,
+		RequireChecksum:                  true,
+		EnableTrailingChecksum:           false,
+		EnableComputeSHA256PayloadHash:   true,
+		EnableDecodedContentLengthHeader: true,
+	})
 }
 
 // getPutBucketVersioningBucketMember returns a pointer to string denoting a

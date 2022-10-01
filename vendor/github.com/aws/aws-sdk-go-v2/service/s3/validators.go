@@ -870,6 +870,26 @@ func (m *validateOpGetObjectAcl) HandleInitialize(ctx context.Context, in middle
 	return next.HandleInitialize(ctx, in)
 }
 
+type validateOpGetObjectAttributes struct {
+}
+
+func (*validateOpGetObjectAttributes) ID() string {
+	return "OperationInputValidation"
+}
+
+func (m *validateOpGetObjectAttributes) HandleInitialize(ctx context.Context, in middleware.InitializeInput, next middleware.InitializeHandler) (
+	out middleware.InitializeOutput, metadata middleware.Metadata, err error,
+) {
+	input, ok := in.Parameters.(*GetObjectAttributesInput)
+	if !ok {
+		return out, metadata, fmt.Errorf("unknown input parameters type %T", in.Parameters)
+	}
+	if err := validateOpGetObjectAttributesInput(input); err != nil {
+		return out, metadata, err
+	}
+	return next.HandleInitialize(ctx, in)
+}
+
 type validateOpGetObject struct {
 }
 
@@ -2000,6 +2020,10 @@ func addOpGetBucketWebsiteValidationMiddleware(stack *middleware.Stack) error {
 
 func addOpGetObjectAclValidationMiddleware(stack *middleware.Stack) error {
 	return stack.Initialize.Add(&validateOpGetObjectAcl{}, middleware.After)
+}
+
+func addOpGetObjectAttributesValidationMiddleware(stack *middleware.Stack) error {
+	return stack.Initialize.Add(&validateOpGetObjectAttributes{}, middleware.After)
 }
 
 func addOpGetObjectValidationMiddleware(stack *middleware.Stack) error {
@@ -4503,6 +4527,27 @@ func validateOpGetObjectAclInput(v *GetObjectAclInput) error {
 	}
 	if v.Key == nil {
 		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if invalidParams.Len() > 0 {
+		return invalidParams
+	} else {
+		return nil
+	}
+}
+
+func validateOpGetObjectAttributesInput(v *GetObjectAttributesInput) error {
+	if v == nil {
+		return nil
+	}
+	invalidParams := smithy.InvalidParamsError{Context: "GetObjectAttributesInput"}
+	if v.Bucket == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Bucket"))
+	}
+	if v.Key == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("Key"))
+	}
+	if v.ObjectAttributes == nil {
+		invalidParams.Add(smithy.NewErrParamRequired("ObjectAttributes"))
 	}
 	if invalidParams.Len() > 0 {
 		return invalidParams

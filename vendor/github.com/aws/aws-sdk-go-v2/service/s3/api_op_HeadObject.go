@@ -97,10 +97,14 @@ import (
 // Amazon S3 returns an HTTP status code 403 ("access denied") error.
 //
 // The
-// following action is related to HeadObject:
+// following actions are related to HeadObject:
 //
 // * GetObject
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//
+// *
+// GetObjectAttributes
+// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
 func (c *Client) HeadObject(ctx context.Context, params *HeadObjectInput, optFns ...func(*Options)) (*HeadObjectOutput, error) {
 	if params == nil {
 		params = &HeadObjectInput{}
@@ -130,9 +134,9 @@ type HeadObjectInput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -144,24 +148,31 @@ type HeadObjectInput struct {
 	// This member is required.
 	Key *string
 
+	// To retrieve the checksum, this parameter must be enabled. In addition, if you
+	// enable ChecksumMode and the object is encrypted with Amazon Web Services Key
+	// Management Service (Amazon Web Services KMS), you must have permission to use
+	// the kms:Decrypt action for the request to succeed.
+	ChecksumMode types.ChecksumMode
+
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// Return the object only if its entity tag (ETag) is the same as the one
-	// specified, otherwise return a 412 (precondition failed).
+	// specified; otherwise, return a 412 (precondition failed) error.
 	IfMatch *string
 
-	// Return the object only if it has been modified since the specified time,
-	// otherwise return a 304 (not modified).
+	// Return the object only if it has been modified since the specified time;
+	// otherwise, return a 304 (not modified) error.
 	IfModifiedSince *time.Time
 
 	// Return the object only if its entity tag (ETag) is different from the one
-	// specified, otherwise return a 304 (not modified).
+	// specified; otherwise, return a 304 (not modified) error.
 	IfNoneMatch *string
 
-	// Return the object only if it has not been modified since the specified time,
-	// otherwise return a 412 (precondition failed).
+	// Return the object only if it has not been modified since the specified time;
+	// otherwise, return a 412 (precondition failed) error.
 	IfUnmodifiedSince *time.Time
 
 	// Part number of the object being read. This is a positive integer between 1 and
@@ -170,17 +181,14 @@ type HeadObjectInput struct {
 	// object.
 	PartNumber int32
 
-	// Downloads the specified range bytes of an object. For more information about the
-	// HTTP Range header, see
-	// http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-	// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35). Amazon S3
-	// doesn't support retrieving multiple ranges of data per GET request.
+	// Because HeadObject returns only the metadata for an object, this parameter has
+	// no effect.
 	Range *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
@@ -222,6 +230,38 @@ type HeadObjectOutput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
+	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumCRC32 *string
+
+	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumCRC32C *string
+
+	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumSHA1 *string
+
+	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumSHA256 *string
+
 	// Specifies presentational information for the object.
 	ContentDisposition *string
 
@@ -243,14 +283,14 @@ type HeadObjectOutput struct {
 	// Marker. If false, this response header does not appear in the response.
 	DeleteMarker bool
 
-	// An ETag is an opaque identifier assigned by a web server to a specific version
-	// of a resource found at a URL.
+	// An entity tag (ETag) is an opaque identifier assigned by a web server to a
+	// specific version of a resource found at a URL.
 	ETag *string
 
 	// If the object expiration is configured (see PUT Bucket lifecycle), the response
 	// includes this header. It includes the expiry-date and rule-id key-value pairs
-	// providing object expiration information. The value of the rule-id is URL
-	// encoded.
+	// providing object expiration information. The value of the rule-id is
+	// URL-encoded.
 	Expiration *string
 
 	// The date and time at which the object is no longer cacheable.
@@ -287,7 +327,8 @@ type HeadObjectOutput struct {
 	// only returned if the requester has the s3:GetObjectRetention permission.
 	ObjectLockRetainUntilDate *time.Time
 
-	// The count of parts this object has.
+	// The count of parts this object has. This value is only returned if you specify
+	// partNumber in your request and the object was uploaded as a multipart upload.
 	PartsCount int32
 
 	// Amazon S3 can return this header if your request involves a bucket that is
@@ -298,7 +339,7 @@ type HeadObjectOutput struct {
 	// return the x-amz-replication-status header in the response as follows:
 	//
 	// * If
-	// requesting an object from the source bucket — Amazon S3 will return the
+	// requesting an object from the source bucket, Amazon S3 will return the
 	// x-amz-replication-status header if the object in your request is eligible for
 	// replication. For example, suppose that in your replication configuration, you
 	// specify object prefix TaxDocs requesting Amazon S3 to replicate objects with key
@@ -308,13 +349,13 @@ type HeadObjectOutput struct {
 	// with value PENDING, COMPLETED or FAILED indicating object replication status.
 	//
 	// *
-	// If requesting an object from a destination bucket — Amazon S3 will return the
+	// If requesting an object from a destination bucket, Amazon S3 will return the
 	// x-amz-replication-status header with value REPLICA if the object in your request
 	// is a replica that Amazon S3 created and there is no replica modification
 	// replication in progress.
 	//
 	// * When replicating objects to multiple destination
-	// buckets the x-amz-replication-status header acts differently. The header of the
+	// buckets, the x-amz-replication-status header acts differently. The header of the
 	// source object will only return a value of COMPLETED when replication is
 	// successful to all destinations. The header will remain at value PENDING until
 	// replication has completed for all destinations. If one or more destinations

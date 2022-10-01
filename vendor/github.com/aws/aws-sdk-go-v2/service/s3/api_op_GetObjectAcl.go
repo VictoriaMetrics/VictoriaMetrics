@@ -13,14 +13,27 @@ import (
 )
 
 // Returns the access control list (ACL) of an object. To use this operation, you
-// must have READ_ACP access to the object. This action is not supported by Amazon
-// S3 on Outposts. Versioning By default, GET returns ACL information about the
-// current version of an object. To return ACL information about a different
-// version, use the versionId subresource. The following operations are related to
+// must have s3:GetObjectAcl permissions or READ_ACP access to the object. For more
+// information, see Mapping of ACL permissions and access policy permissions
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#acl-access-policy-permission-mapping)
+// in the Amazon S3 User Guide This action is not supported by Amazon S3 on
+// Outposts. Versioning By default, GET returns ACL information about the current
+// version of an object. To return ACL information about a different version, use
+// the versionId subresource. If your bucket uses the bucket owner enforced setting
+// for S3 Object Ownership, requests to read ACLs are still supported and return
+// the bucket-owner-full-control ACL with the owner being the account that created
+// the bucket. For more information, see  Controlling object ownership and
+// disabling ACLs
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide. The following operations are related to
 // GetObjectAcl:
 //
 // * GetObject
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//
+// *
+// GetObjectAttributes
+// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
 //
 // *
 // DeleteObject
@@ -64,13 +77,14 @@ type GetObjectAclInput struct {
 	Key *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer

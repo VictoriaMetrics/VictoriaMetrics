@@ -7,6 +7,7 @@ import (
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
+	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
@@ -60,12 +61,25 @@ import (
 // For more information, see Access Control List (ACL) Overview
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html) and Managing
 // ACLs Using the REST API
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html).
-// Storage Class Options By default, Amazon S3 uses the STANDARD Storage Class to
-// store newly created objects. The STANDARD storage class provides high durability
-// and high availability. Depending on performance needs, you can specify a
-// different Storage Class. Amazon S3 on Outposts only uses the OUTPOSTS Storage
-// Class. For more information, see Storage Classes
+// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html). If
+// the bucket that you're uploading objects to uses the bucket owner enforced
+// setting for S3 Object Ownership, ACLs are disabled and no longer affect
+// permissions. Buckets that use this setting only accept PUT requests that don't
+// specify an ACL or PUT requests that specify bucket owner full control ACLs, such
+// as the bucket-owner-full-control canned ACL or an equivalent form of this ACL
+// expressed in the XML format. PUT requests that contain other ACLs (for example,
+// custom grants to certain Amazon Web Services accounts) fail and return a 400
+// error with the error code AccessControlListNotSupported. For more information,
+// see  Controlling ownership of objects and disabling ACLs
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide. If your bucket uses the bucket owner enforced
+// setting for Object Ownership, all objects written to the bucket by any account
+// will be owned by the bucket owner. Storage Class Options By default, Amazon S3
+// uses the STANDARD Storage Class to store newly created objects. The STANDARD
+// storage class provides high durability and high availability. Depending on
+// performance needs, you can specify a different Storage Class. Amazon S3 on
+// Outposts only uses the OUTPOSTS Storage Class. For more information, see Storage
+// Classes
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html) in
 // the Amazon S3 User Guide. Versioning If you enable versioning for a bucket,
 // Amazon S3 automatically generates a unique version ID for the object being
@@ -114,9 +128,9 @@ type PutObjectInput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -147,6 +161,49 @@ type PutObjectInput struct {
 	// information, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9
 	// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9).
 	CacheControl *string
+
+	// Indicates the algorithm used to create the checksum for the object when using
+	// the SDK. This header will not provide any additional functionality if not using
+	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
+	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
+	// HTTP status code 400 Bad Request. For more information, see Checking object
+	// integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
+	// ignores any provided ChecksumAlgorithm parameter.
+	ChecksumAlgorithm types.ChecksumAlgorithm
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This header specifies the
+	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
+	// Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide.
+	ChecksumCRC32 *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This header specifies the
+	// base64-encoded, 32-bit CRC32C checksum of the object. For more information, see
+	// Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide.
+	ChecksumCRC32C *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This header specifies the
+	// base64-encoded, 160-bit SHA-1 digest of the object. For more information, see
+	// Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide.
+	ChecksumSHA1 *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This header specifies the
+	// base64-encoded, 256-bit SHA-256 digest of the object. For more information, see
+	// Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide.
+	ChecksumSHA256 *string
 
 	// Specifies presentational information for the object. For more information, see
 	// http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html#sec19.5.1
@@ -184,7 +241,8 @@ type PutObjectInput struct {
 	ContentType *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// The date and time at which the object is no longer cacheable. For more
@@ -225,8 +283,8 @@ type PutObjectInput struct {
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
@@ -303,6 +361,38 @@ type PutObjectOutput struct {
 	// encryption with Amazon Web Services KMS (SSE-KMS).
 	BucketKeyEnabled bool
 
+	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumCRC32 *string
+
+	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumCRC32C *string
+
+	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumSHA1 *string
+
+	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
+	// present if it was uploaded with the object. With multipart uploads, this may not
+	// be a checksum value of the object. For more information about how checksums are
+	// calculated with multipart uploads, see  Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// in the Amazon S3 User Guide.
+	ChecksumSHA256 *string
+
 	// Entity tag for the uploaded object.
 	ETag *string
 
@@ -311,7 +401,7 @@ type PutObjectOutput struct {
 	// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html)),
 	// the response includes this header. It includes the expiry-date and rule-id
 	// key-value pairs that provide information about object expiration. The value of
-	// the rule-id is URL encoded.
+	// the rule-id is URL-encoded.
 	Expiration *string
 
 	// If present, indicates that the requester was successfully charged for the
@@ -410,6 +500,9 @@ func (c *Client) addOperationPutObjectMiddlewares(stack *middleware.Stack, optio
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutObjectInputChecksumMiddlewares(stack, options); err != nil {
+		return err
+	}
 	if err = addPutObjectUpdateEndpoint(stack, options); err != nil {
 		return err
 	}
@@ -438,6 +531,26 @@ func newServiceMetadataMiddleware_opPutObject(region string) *awsmiddleware.Regi
 		SigningName:   "s3",
 		OperationName: "PutObject",
 	}
+}
+
+// getPutObjectRequestAlgorithmMember gets the request checksum algorithm value
+// provided as input.
+func getPutObjectRequestAlgorithmMember(input interface{}) (string, bool) {
+	in := input.(*PutObjectInput)
+	if len(in.ChecksumAlgorithm) == 0 {
+		return "", false
+	}
+	return string(in.ChecksumAlgorithm), true
+}
+
+func addPutObjectInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+		GetAlgorithm:                     getPutObjectRequestAlgorithmMember,
+		RequireChecksum:                  false,
+		EnableTrailingChecksum:           true,
+		EnableComputeSHA256PayloadHash:   true,
+		EnableDecodedContentLengthHeader: true,
+	})
 }
 
 // getPutObjectBucketMember returns a pointer to string denoting a provided bucket

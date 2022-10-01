@@ -74,7 +74,8 @@ type ListObjectVersionsInput struct {
 	EncodingType types.EncodingType
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// Specifies the key to start with when listing objects in a bucket.
