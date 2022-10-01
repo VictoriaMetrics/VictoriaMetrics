@@ -76,7 +76,7 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 
 `vmagent` supports multiple approaches for reloading configs from updated config files such as `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
 
-* Sending `SUGHUP` signal to `vmagent` process:
+* Sending `SIGHUP` signal to `vmagent` process:
 
   ```console
   kill -SIGHUP `pidof vmagent`
