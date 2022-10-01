@@ -8,11 +8,11 @@ import (
 	"time"
 )
 
-// NewArray returns new Array with the given name and description.
-func NewArray(name, description string) *Array {
+// NewArrayString returns new ArrayString with the given name and description.
+func NewArrayString(name, description string) *ArrayString {
 	description += "\nSupports an `array` of values separated by comma" +
 		" or specified via multiple flags."
-	var a Array
+	var a ArrayString
 	flag.Var(&a, name, description)
 	return &a
 }
@@ -36,7 +36,7 @@ func NewArrayBool(name, description string) *ArrayBool {
 }
 
 // NewArrayInt returns new ArrayInt with the given name and description.
-func NewArrayInt(name string, description string) *ArrayInt {
+func NewArrayInt(name, description string) *ArrayInt {
 	description += "\nSupports `array` of values separated by comma" +
 		" or specified via multiple flags."
 	var a ArrayInt
@@ -44,7 +44,16 @@ func NewArrayInt(name string, description string) *ArrayInt {
 	return &a
 }
 
-// Array is a flag that holds an array of values.
+// NewArrayBytes returns new ArrayBytes with the given name and description.
+func NewArrayBytes(name, description string) *ArrayBytes {
+	description += "\nSupports `array` of values separated by comma" +
+		" or specified via multiple flags."
+	var a ArrayBytes
+	flag.Var(&a, name, description)
+	return &a
+}
+
+// ArrayString is a flag that holds an array of strings.
 //
 // It may be set either by specifying multiple flags with the given name
 // passed to NewArray or by joining flag values by comma.
@@ -57,10 +66,10 @@ func NewArrayInt(name string, description string) *ArrayInt {
 // Flag values may be quoted. For instance, the following arg creates an array of ("a", "b, c") items:
 //
 //	-foo='a,"b, c"'
-type Array []string
+type ArrayString []string
 
 // String implements flag.Value interface
-func (a *Array) String() string {
+func (a *ArrayString) String() string {
 	aEscaped := make([]string, len(*a))
 	for i, v := range *a {
 		if strings.ContainsAny(v, `", `+"\n") {
@@ -72,7 +81,7 @@ func (a *Array) String() string {
 }
 
 // Set implements flag.Value interface
-func (a *Array) Set(value string) error {
+func (a *ArrayString) Set(value string) error {
 	values := parseArrayValues(value)
 	*a = append(*a, values...)
 	return nil
@@ -141,7 +150,7 @@ func getNextArrayValue(s string) (string, string) {
 }
 
 // GetOptionalArg returns optional arg under the given argIdx.
-func (a *Array) GetOptionalArg(argIdx int) string {
+func (a *ArrayString) GetOptionalArg(argIdx int) string {
 	x := *a
 	if argIdx >= len(x) {
 		if len(x) == 1 {
@@ -153,7 +162,8 @@ func (a *Array) GetOptionalArg(argIdx int) string {
 }
 
 // ArrayBool is a flag that holds an array of booleans values.
-// have the same api as Array.
+//
+// Has the same api as ArrayString.
 type ArrayBool []bool
 
 // IsBoolFlag  implements flag.IsBoolFlag interface
@@ -194,7 +204,8 @@ func (a *ArrayBool) GetOptionalArg(argIdx int) bool {
 }
 
 // ArrayDuration is a flag that holds an array of time.Duration values.
-// have the same api as Array.
+//
+// Has the same api as ArrayString.
 type ArrayDuration []time.Duration
 
 // String implements flag.Value interface
@@ -233,6 +244,8 @@ func (a *ArrayDuration) GetOptionalArgOrDefault(argIdx int, defaultValue time.Du
 }
 
 // ArrayInt is flag that holds an array of ints.
+//
+// Has the same api as ArrayString.
 type ArrayInt []int
 
 // String implements flag.Value interface
@@ -259,13 +272,53 @@ func (a *ArrayInt) Set(value string) error {
 }
 
 // GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayInt) GetOptionalArgOrDefault(argIdx int, defaultValue int) int {
+func (a *ArrayInt) GetOptionalArgOrDefault(argIdx, defaultValue int) int {
 	x := *a
 	if argIdx < len(x) {
 		return x[argIdx]
 	}
 	if len(x) == 1 {
 		return x[0]
+	}
+	return defaultValue
+}
+
+// ArrayBytes is flag that holds an array of Bytes.
+//
+// Has the same api as ArrayString.
+type ArrayBytes []*Bytes
+
+// String implements flag.Value interface
+func (a *ArrayBytes) String() string {
+	x := *a
+	formattedBytes := make([]string, len(x))
+	for i, v := range x {
+		formattedBytes[i] = v.String()
+	}
+	return strings.Join(formattedBytes, ",")
+}
+
+// Set implemented flag.Value interface
+func (a *ArrayBytes) Set(value string) error {
+	values := parseArrayValues(value)
+	for _, v := range values {
+		var b Bytes
+		if err := b.Set(v); err != nil {
+			return err
+		}
+		*a = append(*a, &b)
+	}
+	return nil
+}
+
+// GetOptionalArgOrDefault returns optional arg under the given argIdx.
+func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx, defaultValue int) int {
+	x := *a
+	if argIdx < len(x) {
+		return x[argIdx].N
+	}
+	if len(x) == 1 {
+		return x[0].N
 	}
 	return defaultValue
 }
