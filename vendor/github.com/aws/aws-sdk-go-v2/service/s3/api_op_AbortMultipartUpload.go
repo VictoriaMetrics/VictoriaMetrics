@@ -74,9 +74,9 @@ type AbortMultipartUploadInput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -94,13 +94,14 @@ type AbortMultipartUploadInput struct {
 	UploadId *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer

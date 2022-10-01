@@ -65,9 +65,9 @@ type DeleteObjectInput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -81,11 +81,12 @@ type DeleteObjectInput struct {
 
 	// Indicates whether S3 Object Lock should bypass Governance-mode restrictions to
 	// process this operation. To use this header, you must have the
-	// s3:PutBucketPublicAccessBlock permission.
+	// s3:BypassGovernanceRetention permission.
 	BypassGovernanceRetention bool
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// The concatenation of the authentication device's serial number, a space, and the
@@ -95,8 +96,8 @@ type DeleteObjectInput struct {
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
@@ -235,4 +236,35 @@ func addDeleteObjectUpdateEndpoint(stack *middleware.Stack, options Options) err
 		UseARNRegion:                   options.UseARNRegion,
 		DisableMultiRegionAccessPoints: options.DisableMultiRegionAccessPoints,
 	})
+}
+
+// PresignDeleteObject is used to generate a presigned HTTP Request which contains
+// presigned URL, signed headers and HTTP method used.
+func (c *PresignClient) PresignDeleteObject(ctx context.Context, params *DeleteObjectInput, optFns ...func(*PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+	if params == nil {
+		params = &DeleteObjectInput{}
+	}
+	options := c.options.copy()
+	for _, fn := range optFns {
+		fn(&options)
+	}
+	clientOptFns := append(options.ClientOptions, withNopHTTPClientAPIOption)
+
+	result, _, err := c.client.invokeOperation(ctx, "DeleteObject", params, clientOptFns,
+		c.client.addOperationDeleteObjectMiddlewares,
+		presignConverter(options).convertToPresignMiddleware,
+		addDeleteObjectPayloadAsUnsigned,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	out := result.(*v4.PresignedHTTPRequest)
+	return out, nil
+}
+
+func addDeleteObjectPayloadAsUnsigned(stack *middleware.Stack, options Options) error {
+	v4.RemoveContentSHA256HeaderMiddleware(stack)
+	v4.RemoveComputePayloadSHA256Middleware(stack)
+	return v4.AddUnsignedPayloadMiddleware(stack)
 }

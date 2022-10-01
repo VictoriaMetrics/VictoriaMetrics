@@ -262,9 +262,9 @@ type CreateMultipartUploadInput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -290,6 +290,12 @@ type CreateMultipartUploadInput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
+	// Indicates the algorithm you want Amazon S3 to use to create the checksum for the
+	// object. For more information, see Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide.
+	ChecksumAlgorithm types.ChecksumAlgorithm
+
 	// Specifies presentational information for the object.
 	ContentDisposition *string
 
@@ -305,7 +311,8 @@ type CreateMultipartUploadInput struct {
 	ContentType *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// The date and time at which the object is no longer cacheable.
@@ -330,7 +337,7 @@ type CreateMultipartUploadInput struct {
 	// A map of metadata to store with the object in S3.
 	Metadata map[string]string
 
-	// Specifies whether you want to apply a Legal Hold to the uploaded object.
+	// Specifies whether you want to apply a legal hold to the uploaded object.
 	ObjectLockLegalHoldStatus types.ObjectLockLegalHoldStatus
 
 	// Specifies the Object Lock mode that you want to apply to the uploaded object.
@@ -341,8 +348,8 @@ type CreateMultipartUploadInput struct {
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
@@ -433,9 +440,9 @@ type CreateMultipartUploadOutput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	Bucket *string
@@ -443,6 +450,9 @@ type CreateMultipartUploadOutput struct {
 	// Indicates whether the multipart upload uses an S3 Bucket Key for server-side
 	// encryption with Amazon Web Services KMS (SSE-KMS).
 	BucketKeyEnabled bool
+
+	// The algorithm that was used to create a checksum of the object.
+	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// Object key for which the multipart upload was initiated.
 	Key *string

@@ -28,7 +28,7 @@ type SelectObjectContentEventStreamReader interface {
 	Err() error
 }
 
-type selectObjectContentEventStream struct {
+type selectObjectContentEventStreamReader struct {
 	stream      chan types.SelectObjectContentEventStream
 	decoder     *eventstream.Decoder
 	eventStream io.ReadCloser
@@ -38,8 +38,8 @@ type selectObjectContentEventStream struct {
 	closeOnce   sync.Once
 }
 
-func newSelectObjectContentEventStream(readCloser io.ReadCloser, decoder *eventstream.Decoder) *selectObjectContentEventStream {
-	w := &selectObjectContentEventStream{
+func newSelectObjectContentEventStreamReader(readCloser io.ReadCloser, decoder *eventstream.Decoder) *selectObjectContentEventStreamReader {
+	w := &selectObjectContentEventStreamReader{
 		stream:      make(chan types.SelectObjectContentEventStream),
 		decoder:     decoder,
 		eventStream: readCloser,
@@ -53,11 +53,11 @@ func newSelectObjectContentEventStream(readCloser io.ReadCloser, decoder *events
 	return w
 }
 
-func (r *selectObjectContentEventStream) Events() <-chan types.SelectObjectContentEventStream {
+func (r *selectObjectContentEventStreamReader) Events() <-chan types.SelectObjectContentEventStream {
 	return r.stream
 }
 
-func (r *selectObjectContentEventStream) readEventStream() {
+func (r *selectObjectContentEventStreamReader) readEventStream() {
 	defer r.Close()
 	defer close(r.stream)
 
@@ -92,7 +92,7 @@ func (r *selectObjectContentEventStream) readEventStream() {
 	}
 }
 
-func (r *selectObjectContentEventStream) deserializeEventMessage(msg *eventstream.Message) (types.SelectObjectContentEventStream, error) {
+func (r *selectObjectContentEventStreamReader) deserializeEventMessage(msg *eventstream.Message) (types.SelectObjectContentEventStream, error) {
 	messageType := msg.Headers.Get(eventstreamapi.MessageTypeHeader)
 	if messageType == nil {
 		return nil, fmt.Errorf("%s event header not present", eventstreamapi.MessageTypeHeader)
@@ -133,26 +133,26 @@ func (r *selectObjectContentEventStream) deserializeEventMessage(msg *eventstrea
 	}
 }
 
-func (r *selectObjectContentEventStream) ErrorSet() <-chan struct{} {
+func (r *selectObjectContentEventStreamReader) ErrorSet() <-chan struct{} {
 	return r.err.ErrorSet()
 }
 
-func (r *selectObjectContentEventStream) Close() error {
+func (r *selectObjectContentEventStreamReader) Close() error {
 	r.closeOnce.Do(r.safeClose)
 	return r.Err()
 }
 
-func (r *selectObjectContentEventStream) safeClose() {
+func (r *selectObjectContentEventStreamReader) safeClose() {
 	close(r.done)
 	r.eventStream.Close()
 
 }
 
-func (r *selectObjectContentEventStream) Err() error {
+func (r *selectObjectContentEventStreamReader) Err() error {
 	return r.err.Err()
 }
 
-func (r *selectObjectContentEventStream) Closed() <-chan struct{} {
+func (r *selectObjectContentEventStreamReader) Closed() <-chan struct{} {
 	return r.done
 }
 
@@ -202,7 +202,7 @@ func (m *awsRestxml_deserializeOpEventStreamSelectObjectContent) HandleDeseriali
 		out.Result = output
 	}
 
-	eventReader := newSelectObjectContentEventStream(
+	eventReader := newSelectObjectContentEventStreamReader(
 		deserializeOutput.Body,
 		eventstream.NewDecoder(func(options *eventstream.DecoderOptions) {
 			options.Logger = logger
@@ -234,10 +234,14 @@ func (*awsRestxml_deserializeOpEventStreamSelectObjectContent) closeResponseBody
 }
 
 func addEventStreamSelectObjectContentMiddleware(stack *middleware.Stack, options Options) error {
-	return stack.Deserialize.Insert(&awsRestxml_deserializeOpEventStreamSelectObjectContent{
+	if err := stack.Deserialize.Insert(&awsRestxml_deserializeOpEventStreamSelectObjectContent{
 		LogEventStreamWrites: options.ClientLogMode.IsRequestEventMessage(),
 		LogEventStreamReads:  options.ClientLogMode.IsResponseEventMessage(),
-	}, "OperationDeserializer", middleware.Before)
+	}, "OperationDeserializer", middleware.Before); err != nil {
+		return err
+	}
+	return nil
+
 }
 
 // UnknownEventMessageError provides an error when a message is received from the stream,

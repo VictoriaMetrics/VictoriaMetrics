@@ -1,7 +1,7 @@
 /*
 Package acceptencoding provides customizations associated with Accept Encoding Header.
 
-Accept encoding gzip
+# Accept encoding gzip
 
 The Go HTTP client automatically supports accept-encoding and content-encoding
 gzip by default. This default behavior is not desired by the SDK, and prevents
@@ -18,6 +18,5 @@ client's default behavior.
 An `EnableAcceptEncodingGzip` option may or may not be present depending on the client using
 the below middleware. The option if present can be used to enable auto decompressing
 gzip by the SDK.
-
 */
 package acceptencoding

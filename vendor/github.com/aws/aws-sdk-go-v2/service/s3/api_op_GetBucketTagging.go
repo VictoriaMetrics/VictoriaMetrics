@@ -17,16 +17,15 @@ import (
 // bucket owner has this permission and can grant this permission to others.
 // GetBucketTagging has the following special error:
 //
-// * Error code:
-// NoSuchTagSetError
-//
-// * Description: There is no tag set associated with the
-// bucket.
-//
-// The following operations are related to GetBucketTagging:
+// * Error code: NoSuchTagSet
 //
 // *
-// PutBucketTagging
+// Description: There is no tag set associated with the bucket.
+//
+// The following
+// operations are related to GetBucketTagging:
+//
+// * PutBucketTagging
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketTagging.html)
 //
 // *
@@ -55,7 +54,8 @@ type GetBucketTaggingInput struct {
 	Bucket *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde

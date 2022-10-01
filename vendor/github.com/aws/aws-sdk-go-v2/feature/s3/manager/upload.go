@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"io"
 	"net/http"
 	"sort"
 	"sync"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
 
 	"github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/internal/awsutil"
@@ -49,7 +50,6 @@ const DefaultUploadConcurrency = 5
 //			fmt.Printf("upload failure, %s\n", err.Error())
 //		}
 //	}
-//
 type MultiUploadFailure interface {
 	error
 
@@ -71,7 +71,7 @@ type multiUploadError struct {
 
 // batchItemError returns the string representation of the error.
 //
-// See apierr.BaseError ErrorWithExtra for output format
+// # See apierr.BaseError ErrorWithExtra for output format
 //
 // Satisfies the error interface.
 func (m *multiUploadError) Error() string {
@@ -97,14 +97,62 @@ type UploadOutput struct {
 	// The URL where the object was uploaded to.
 	Location string
 
+	// The ID for a multipart upload to S3. In the case of an error the error
+	// can be cast to the MultiUploadFailure interface to extract the upload ID.
+	// Will be empty string if multipart upload was not used, and the object
+	// was uploaded as a single PutObject call.
+	UploadID string
+
+	// The list of parts that were uploaded and their checksums. Will be empty
+	// if multipart upload was not used, and the object was uploaded as a
+	// single PutObject call.
+	CompletedParts []types.CompletedPart
+
+	// Indicates whether the uploaded object uses an S3 Bucket Key for server-side
+	// encryption with Amazon Web Services KMS (SSE-KMS).
+	BucketKeyEnabled bool
+
+	// The base64-encoded, 32-bit CRC32 checksum of the object.
+	ChecksumCRC32 *string
+
+	// The base64-encoded, 32-bit CRC32C checksum of the object.
+	ChecksumCRC32C *string
+
+	// The base64-encoded, 160-bit SHA-1 digest of the object.
+	ChecksumSHA1 *string
+
+	// The base64-encoded, 256-bit SHA-256 digest of the object.
+	ChecksumSHA256 *string
+
+	// Entity tag for the uploaded object.
+	ETag *string
+
+	// If the object expiration is configured, this will contain the expiration date
+	// (expiry-date) and rule ID (rule-id). The value of rule-id is URL encoded.
+	Expiration *string
+
+	// The object key of the newly created object.
+	Key *string
+
+	// If present, indicates that the requester was successfully charged for the
+	// request.
+	RequestCharged types.RequestCharged
+
+	// If present, specifies the ID of the Amazon Web Services Key Management Service
+	// (Amazon Web Services KMS) symmetric customer managed customer master key (CMK)
+	// that was used for the object.
+	SSEKMSKeyId *string
+
+	// If you specified server-side encryption either with an Amazon S3-managed
+	// encryption key or an Amazon Web Services KMS customer master key (CMK) in your
+	// initiate multipart upload request, the response includes this header. It
+	// confirms the encryption algorithm that Amazon S3 used to encrypt the object.
+	ServerSideEncryption types.ServerSideEncryption
+
 	// The version of the object that was uploaded. Will only be populated if
 	// the S3 Bucket is versioned. If the bucket is not versioned this field
 	// will not be set.
 	VersionID *string
-
-	// The ID for a multipart upload to S3. In the case of an error the error
-	// can be cast to the MultiUploadFailure interface to extract the upload ID.
-	UploadID string
 }
 
 // WithUploaderRequestOptions appends to the Uploader's API client options.
@@ -117,6 +165,35 @@ func WithUploaderRequestOptions(opts ...func(*s3.Options)) func(*Uploader) {
 // The Uploader structure that calls Upload(). It is safe to call Upload()
 // on this structure for multiple objects and across concurrent goroutines.
 // Mutating the Uploader's properties is not safe to be done concurrently.
+//
+// # Pre-computed Checksums
+//
+// Care must be taken when using pre-computed checksums the transfer upload
+// manager. The format and value of the checksum differs based on if the upload
+// will preformed as a single or multipart upload.
+//
+// Uploads that are smaller than the Uploader's PartSize will be uploaded using
+// the PutObject API operation. Pre-computed checksum of the uploaded object's
+// content are valid for these single part uploads. If the checksum provided
+// does not match the uploaded content the upload will fail.
+//
+// Uploads that are larger than the Uploader's PartSize will be uploaded using
+// multi-part upload. The Pre-computed checksums for these uploads are a
+// checksum of checksums of each part. Not a checksum of the full uploaded
+// bytes. With the format of "<checksum of checksum>-<numberParts>", (e.g.
+// "DUoRhQ==-3"). If a pre-computed checksum is provided that does not match
+// this format, as matches the content uploaded, the upload will fail.
+//
+// ContentMD5 for multipart upload is explicitly ignored for multipart upload,
+// and its value is suppressed.
+//
+// # Automatically Computed Checksums
+//
+// When the ChecksumAlgorithm member of Upload's input parameter PutObjectInput
+// is set to a valid value, the SDK will automatically compute the checksum of
+// the individual uploaded parts. The UploadOutput result from Upload will
+// include the checksum of part checksums provided by S3
+// CompleteMultipartUpload API call.
 type Uploader struct {
 	// The buffer size (in bytes) to use when buffering data into chunks and
 	// sending them as parts to S3. The minimum allowed part size is 5MB, and
@@ -172,6 +249,7 @@ type Uploader struct {
 // satisfies the client.ConfigProvider interface.
 //
 // Example:
+//
 //	// Load AWS Config
 //	cfg, err := config.LoadDefaultConfig(context.TODO())
 //	if err != nil {
@@ -220,13 +298,17 @@ func NewUploader(client UploadAPIClient, options ...func(*Uploader)) *Uploader {
 // options that will be applied to all API operations made with this uploader.
 //
 // It is safe to call this method concurrently across goroutines.
-func (u Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*Uploader)) (*UploadOutput, error) {
+func (u Uploader) Upload(ctx context.Context, input *s3.PutObjectInput, opts ...func(*Uploader)) (
+	*UploadOutput, error,
+) {
 	i := uploader{in: input, cfg: u, ctx: ctx}
 
 	// Copy ClientOptions
 	clientOptions := make([]func(*s3.Options), 0, len(i.cfg.ClientOptions)+1)
 	clientOptions = append(clientOptions, func(o *s3.Options) {
-		o.APIOptions = append(o.APIOptions, middleware.AddSDKAgentKey(middleware.FeatureMetadata, userAgentKey))
+		o.APIOptions = append(o.APIOptions,
+			middleware.AddSDKAgentKey(middleware.FeatureMetadata, userAgentKey),
+		)
 	})
 	clientOptions = append(clientOptions, i.cfg.ClientOptions...)
 	i.cfg.ClientOptions = clientOptions
@@ -402,22 +484,35 @@ func readFillBuf(r io.Reader, b []byte) (offset int, err error) {
 func (u *uploader) singlePart(r io.ReadSeeker, cleanup func()) (*UploadOutput, error) {
 	defer cleanup()
 
-	params := &s3.PutObjectInput{}
-	awsutil.Copy(params, u.in)
+	var params s3.PutObjectInput
+	awsutil.Copy(&params, u.in)
 	params.Body = r
 
 	// Need to use request form because URL generated in request is
 	// used in return.
 
 	var locationRecorder recordLocationClient
-	out, err := u.cfg.S3.PutObject(u.ctx, params, append(u.cfg.ClientOptions, locationRecorder.WrapClient())...)
+	out, err := u.cfg.S3.PutObject(u.ctx, &params,
+		append(u.cfg.ClientOptions, locationRecorder.WrapClient())...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &UploadOutput{
-		Location:  locationRecorder.location,
-		VersionID: out.VersionId,
+		Location: locationRecorder.location,
+
+		BucketKeyEnabled:     out.BucketKeyEnabled,
+		ChecksumCRC32:        out.ChecksumCRC32,
+		ChecksumCRC32C:       out.ChecksumCRC32C,
+		ChecksumSHA1:         out.ChecksumSHA1,
+		ChecksumSHA256:       out.ChecksumSHA256,
+		ETag:                 out.ETag,
+		Expiration:           out.Expiration,
+		Key:                  params.Key,
+		RequestCharged:       out.RequestCharged,
+		SSEKMSKeyId:          out.SSEKMSKeyId,
+		ServerSideEncryption: out.ServerSideEncryption,
+		VersionID:            out.VersionId,
 	}, nil
 }
 
@@ -480,12 +575,13 @@ func (a completedParts) Less(i, j int) bool { return a[i].PartNumber < a[j].Part
 // upload will perform a multipart upload using the firstBuf buffer containing
 // the first chunk of data.
 func (u *multiuploader) upload(firstBuf io.ReadSeeker, cleanup func()) (*UploadOutput, error) {
-	params := &s3.CreateMultipartUploadInput{}
-	awsutil.Copy(params, u.in)
+	var params s3.CreateMultipartUploadInput
+	awsutil.Copy(&params, u.in)
 
 	// Create the multipart
 	var locationRecorder recordLocationClient
-	resp, err := u.cfg.S3.CreateMultipartUpload(u.ctx, params, append(u.cfg.ClientOptions, locationRecorder.WrapClient())...)
+	resp, err := u.cfg.S3.CreateMultipartUpload(u.ctx, &params,
+		append(u.cfg.ClientOptions, locationRecorder.WrapClient())...)
 	if err != nil {
 		cleanup()
 		return nil, err
@@ -529,7 +625,7 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker, cleanup func()) (*UploadO
 	// Close the channel, wait for workers, and complete upload
 	close(ch)
 	u.wg.Wait()
-	complete := u.complete()
+	completeOut := u.complete()
 
 	if err := u.geterr(); err != nil {
 		return nil, &multiUploadError{
@@ -539,9 +635,22 @@ func (u *multiuploader) upload(firstBuf io.ReadSeeker, cleanup func()) (*UploadO
 	}
 
 	return &UploadOutput{
-		Location:  locationRecorder.location,
-		VersionID: complete.VersionId,
-		UploadID:  u.uploadID,
+		Location:       locationRecorder.location,
+		UploadID:       u.uploadID,
+		CompletedParts: u.parts,
+
+		BucketKeyEnabled:     completeOut.BucketKeyEnabled,
+		ChecksumCRC32:        completeOut.ChecksumCRC32,
+		ChecksumCRC32C:       completeOut.ChecksumCRC32C,
+		ChecksumSHA1:         completeOut.ChecksumSHA1,
+		ChecksumSHA256:       completeOut.ChecksumSHA256,
+		ETag:                 completeOut.ETag,
+		Expiration:           completeOut.Expiration,
+		Key:                  completeOut.Key,
+		RequestCharged:       completeOut.RequestCharged,
+		SSEKMSKeyId:          completeOut.SSEKMSKeyId,
+		ServerSideEncryption: completeOut.ServerSideEncryption,
+		VersionID:            completeOut.VersionId,
 	}, nil
 }
 
@@ -602,19 +711,30 @@ func (u *multiuploader) send(c chunk) error {
 		Bucket:               u.in.Bucket,
 		Key:                  u.in.Key,
 		Body:                 c.buf,
-		UploadId:             &u.uploadID,
 		SSECustomerAlgorithm: u.in.SSECustomerAlgorithm,
 		SSECustomerKey:       u.in.SSECustomerKey,
-		PartNumber:           c.num,
+		SSECustomerKeyMD5:    u.in.SSECustomerKeyMD5,
+		ExpectedBucketOwner:  u.in.ExpectedBucketOwner,
+		RequestPayer:         u.in.RequestPayer,
+
+		ChecksumAlgorithm: u.in.ChecksumAlgorithm,
+		// Invalid to set any of the individual ChecksumXXX members from
+		// PutObject as they are never valid for individual parts of a
+		// multipart upload.
+
+		PartNumber: c.num,
+		UploadId:   &u.uploadID,
 	}
+	// TODO should do copy then clear?
 
 	resp, err := u.cfg.S3.UploadPart(u.ctx, params, u.cfg.ClientOptions...)
 	if err != nil {
 		return err
 	}
 
-	n := c.num
-	completed := types.CompletedPart{ETag: resp.ETag, PartNumber: n}
+	var completed types.CompletedPart
+	awsutil.Copy(&completed, resp)
+	completed.PartNumber = c.num
 
 	u.m.Lock()
 	u.parts = append(u.parts, completed)
@@ -668,13 +788,12 @@ func (u *multiuploader) complete() *s3.CompleteMultipartUploadOutput {
 	// Parts must be sorted in PartNumber order.
 	sort.Sort(u.parts)
 
-	params := &s3.CompleteMultipartUploadInput{
-		Bucket:          u.in.Bucket,
-		Key:             u.in.Key,
-		UploadId:        &u.uploadID,
-		MultipartUpload: &types.CompletedMultipartUpload{Parts: u.parts},
-	}
-	resp, err := u.cfg.S3.CompleteMultipartUpload(u.ctx, params, u.cfg.ClientOptions...)
+	var params s3.CompleteMultipartUploadInput
+	awsutil.Copy(&params, u.in)
+	params.UploadId = &u.uploadID
+	params.MultipartUpload = &types.CompletedMultipartUpload{Parts: u.parts}
+
+	resp, err := u.cfg.S3.CompleteMultipartUpload(u.ctx, &params, u.cfg.ClientOptions...)
 	if err != nil {
 		u.seterr(err)
 		u.fail()

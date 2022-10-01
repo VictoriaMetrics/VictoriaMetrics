@@ -11,11 +11,11 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/internal/v4a"
 	"github.com/aws/aws-sdk-go-v2/service/internal/s3shared"
 	"github.com/aws/aws-sdk-go-v2/service/internal/s3shared/arn"
 	s3arn "github.com/aws/aws-sdk-go-v2/service/s3/internal/arn"
 	"github.com/aws/aws-sdk-go-v2/service/s3/internal/endpoints"
-	"github.com/aws/aws-sdk-go-v2/service/s3/internal/v4a"
 )
 
 const (

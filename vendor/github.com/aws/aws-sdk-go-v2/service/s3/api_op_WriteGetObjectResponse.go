@@ -96,6 +96,54 @@ type WriteGetObjectResponseInput struct {
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
 
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This specifies the
+	// base64-encoded, 32-bit CRC32 checksum of the object returned by the Object
+	// Lambda function. This may not match the checksum for the object stored in Amazon
+	// S3. Amazon S3 will perform validation of the checksum values only when the
+	// original GetObject request required checksum validation. For more information
+	// about checksums, see Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. Only one checksum header can be specified at a
+	// time. If you supply multiple checksum headers, this request will fail.
+	ChecksumCRC32 *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This specifies the
+	// base64-encoded, 32-bit CRC32C checksum of the object returned by the Object
+	// Lambda function. This may not match the checksum for the object stored in Amazon
+	// S3. Amazon S3 will perform validation of the checksum values only when the
+	// original GetObject request required checksum validation. For more information
+	// about checksums, see Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. Only one checksum header can be specified at a
+	// time. If you supply multiple checksum headers, this request will fail.
+	ChecksumCRC32C *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This specifies the
+	// base64-encoded, 160-bit SHA-1 digest of the object returned by the Object Lambda
+	// function. This may not match the checksum for the object stored in Amazon S3.
+	// Amazon S3 will perform validation of the checksum values only when the original
+	// GetObject request required checksum validation. For more information about
+	// checksums, see Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. Only one checksum header can be specified at a
+	// time. If you supply multiple checksum headers, this request will fail.
+	ChecksumSHA1 *string
+
+	// This header can be used as a data integrity check to verify that the data
+	// received is the same data that was originally sent. This specifies the
+	// base64-encoded, 256-bit SHA-256 digest of the object returned by the Object
+	// Lambda function. This may not match the checksum for the object stored in Amazon
+	// S3. Amazon S3 will perform validation of the checksum values only when the
+	// original GetObject request required checksum validation. For more information
+	// about checksums, see Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. Only one checksum header can be specified at a
+	// time. If you supply multiple checksum headers, this request will fail.
+	ChecksumSHA256 *string
+
 	// Specifies presentational information for the object.
 	ContentDisposition *string
 
@@ -127,8 +175,8 @@ type WriteGetObjectResponseInput struct {
 	// A string that uniquely identifies an error condition. Returned in the  tag of
 	// the error XML response for a corresponding GetObject call. Cannot be used with a
 	// successful StatusCode header or when the transformed object is provided in the
-	// body. All error codes from S3 are sentence-cased. Regex value is
-	// "^[A-Z][a-zA-Z]+$".
+	// body. All error codes from S3 are sentence-cased. The regular expression (regex)
+	// value is "^[A-Z][a-zA-Z]+$".
 	ErrorCode *string
 
 	// Contains a generic description of the error condition. Returned in the tag of
@@ -136,9 +184,10 @@ type WriteGetObjectResponseInput struct {
 	// successful StatusCode header or when the transformed object is provided in body.
 	ErrorMessage *string
 
-	// If object stored in Amazon S3 expiration is configured (see PUT Bucket
-	// lifecycle) it includes expiry-date and rule-id key-value pairs providing object
-	// expiration information. The value of the rule-id is URL encoded.
+	// If the object expiration is configured (see PUT Bucket lifecycle), the response
+	// includes this header. It includes the expiry-date and rule-id key-value pairs
+	// that provide the object expiration information. The value of the rule-id is
+	// URL-encoded.
 	Expiration *string
 
 	// The date and time at which the object is no longer cacheable.
@@ -238,7 +287,10 @@ type WriteGetObjectResponseInput struct {
 	// * 503 - Service Unavailable
 	StatusCode int32
 
-	// The class of storage used to store object in Amazon S3.
+	// Provides storage class information of the object. Amazon S3 returns this header
+	// for all objects except for S3 Standard storage class objects. For more
+	// information, see Storage Classes
+	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html).
 	StorageClass types.StorageClass
 
 	// The number of tags, if any, on the object.

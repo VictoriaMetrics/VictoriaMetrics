@@ -35,7 +35,6 @@ type UpdateEndpointParameterAccessor struct {
 
 // UpdateEndpointOptions provides the options for the UpdateEndpoint middleware setup.
 type UpdateEndpointOptions struct {
-
 	// Accessor are parameter accessors used by the middleware
 	Accessor UpdateEndpointParameterAccessor
 
@@ -256,8 +255,11 @@ func removeBucketFromPath(u *url.URL, bucket string) {
 }
 
 // hostCompatibleBucketName returns true if the request should
-// put the bucket in the host. This is false if S3ForcePathStyle is
-// explicitly set or if the bucket is not DNS compatible.
+// put the bucket in the host. This is false if the bucket is not
+// DNS compatible or the EndpointResolver resolves an aws.Endpoint with
+// HostnameImmutable member set to true.
+//
+// https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/aws#Endpoint.HostnameImmutable
 func hostCompatibleBucketName(u *url.URL, bucket string) bool {
 	// Bucket might be DNS compatible but dots in the hostname will fail
 	// certificate validation, so do not use host-style.

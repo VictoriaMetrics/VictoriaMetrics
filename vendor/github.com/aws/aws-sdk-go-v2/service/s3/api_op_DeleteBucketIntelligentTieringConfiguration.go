@@ -15,16 +15,16 @@ import (
 // S3 Intelligent-Tiering storage class is designed to optimize storage costs by
 // automatically moving data to the most cost-effective storage access tier,
 // without performance impact or operational overhead. S3 Intelligent-Tiering
-// delivers automatic cost savings in two low latency and high throughput access
-// tiers. For data that can be accessed asynchronously, you can choose to activate
-// automatic archiving capabilities within the S3 Intelligent-Tiering storage
-// class. The S3 Intelligent-Tiering storage class is the ideal storage class for
-// data with unknown, changing, or unpredictable access patterns, independent of
-// object size or retention period. If the size of an object is less than 128 KB,
-// it is not eligible for auto-tiering. Smaller objects can be stored, but they are
-// always charged at the Frequent Access tier rates in the S3 Intelligent-Tiering
-// storage class. For more information, see Storage class for automatically
-// optimizing frequently and infrequently accessed objects
+// delivers automatic cost savings in three low latency and high throughput access
+// tiers. To get the lowest storage cost on data that can be accessed in minutes to
+// hours, you can choose to activate additional archiving capabilities. The S3
+// Intelligent-Tiering storage class is the ideal storage class for data with
+// unknown, changing, or unpredictable access patterns, independent of object size
+// or retention period. If the size of an object is less than 128 KB, it is not
+// monitored and not eligible for auto-tiering. Smaller objects can be stored, but
+// they are always charged at the Frequent Access tier rates in the S3
+// Intelligent-Tiering storage class. For more information, see Storage class for
+// automatically optimizing frequently and infrequently accessed objects
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
 // Operations related to DeleteBucketIntelligentTieringConfiguration include:
 //

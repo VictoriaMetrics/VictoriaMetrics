@@ -17,7 +17,8 @@ import (
 // individual objects of up to 5 TB in Amazon S3. You create a copy of your object
 // up to 5 GB in size in a single atomic action using this API. However, to copy an
 // object greater than 5 GB, you must use the multipart upload Upload Part - Copy
-// API. For more information, see Copy Object Using the REST Multipart Upload API
+// (UploadPartCopy) API. For more information, see Copy Object Using the REST
+// Multipart Upload API
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjctsUsingRESTMPUapi.html).
 // All copy requests must be authenticated. Additionally, you must have read access
 // to the source object and write access to the destination bucket. For more
@@ -113,10 +114,24 @@ import (
 // List (ACL) Overview
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html) and Managing
 // ACLs Using the REST API
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html).
-// Storage Class Options You can use the CopyObject action to change the storage
-// class of an object that is already stored in Amazon S3 using the StorageClass
-// parameter. For more information, see Storage Classes
+// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html). If
+// the bucket that you're copying objects to uses the bucket owner enforced setting
+// for S3 Object Ownership, ACLs are disabled and no longer affect permissions.
+// Buckets that use this setting only accept PUT requests that don't specify an ACL
+// or PUT requests that specify bucket owner full control ACLs, such as the
+// bucket-owner-full-control canned ACL or an equivalent form of this ACL expressed
+// in the XML format. For more information, see  Controlling ownership of objects
+// and disabling ACLs
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// in the Amazon S3 User Guide. If your bucket uses the bucket owner enforced
+// setting for Object Ownership, all objects written to the bucket by any account
+// will be owned by the bucket owner. Checksums When copying an object, if it has a
+// checksum, that checksum will be copied to the new object by default. When you
+// copy the object over, you may optionally specify a different checksum algorithm
+// to use with the x-amz-checksum-algorithm header. Storage Class Options You can
+// use the CopyObject action to change the storage class of an object that is
+// already stored in Amazon S3 using the StorageClass parameter. For more
+// information, see Storage Classes
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html) in
 // the Amazon S3 User Guide. Versioning By default, x-amz-copy-source identifies
 // the current version of an object to copy. If the current version is a delete
@@ -171,9 +186,9 @@ type CopyObjectInput struct {
 	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
 	// hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action using S3 on Outposts through the Amazon Web Services SDKs, you
+	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using S3 on Outposts
+	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -189,7 +204,7 @@ type CopyObjectInput struct {
 	// For objects not accessed through an access point, specify the name of the source
 	// bucket and the key of the source object, separated by a slash (/). For example,
 	// to copy the object reports/january.pdf from the bucket awsexamplebucket, use
-	// awsexamplebucket/reports/january.pdf. The value must be URL encoded.
+	// awsexamplebucket/reports/january.pdf. The value must be URL-encoded.
 	//
 	// * For
 	// objects accessed through access points, specify the Amazon Resource Name (ARN)
@@ -206,7 +221,7 @@ type CopyObjectInput struct {
 	// reports/january.pdf through outpost my-outpost owned by account 123456789012 in
 	// Region us-west-2, use the URL encoding of
 	// arn:aws:s3-outposts:us-west-2:123456789012:outpost/my-outpost/object/reports/january.pdf.
-	// The value must be URL encoded.
+	// The value must be URL-encoded.
 	//
 	// To copy a specific version of an object, append
 	// ?versionId= to the value (for example,
@@ -235,6 +250,12 @@ type CopyObjectInput struct {
 
 	// Specifies caching behavior along the request/reply chain.
 	CacheControl *string
+
+	// Indicates the algorithm you want Amazon S3 to use to create the checksum for the
+	// object. For more information, see Checking object integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide.
+	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// Specifies presentational information for the object.
 	ContentDisposition *string
@@ -277,13 +298,13 @@ type CopyObjectInput struct {
 	CopySourceSSECustomerKeyMD5 *string
 
 	// The account ID of the expected destination bucket owner. If the destination
-	// bucket is owned by a different account, the request will fail with an HTTP 403
-	// (Access Denied) error.
+	// bucket is owned by a different account, the request fails with the HTTP status
+	// code 403 Forbidden (access denied).
 	ExpectedBucketOwner *string
 
 	// The account ID of the expected source bucket owner. If the source bucket is
-	// owned by a different account, the request will fail with an HTTP 403 (Access
-	// Denied) error.
+	// owned by a different account, the request fails with the HTTP status code 403
+	// Forbidden (access denied).
 	ExpectedSourceBucketOwner *string
 
 	// The date and time at which the object is no longer cacheable.
@@ -312,7 +333,7 @@ type CopyObjectInput struct {
 	// metadata provided in the request.
 	MetadataDirective types.MetadataDirective
 
-	// Specifies whether you want to apply a Legal Hold to the copied object.
+	// Specifies whether you want to apply a legal hold to the copied object.
 	ObjectLockLegalHoldStatus types.ObjectLockLegalHoldStatus
 
 	// The Object Lock mode that you want to apply to the copied object.
@@ -323,8 +344,8 @@ type CopyObjectInput struct {
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer

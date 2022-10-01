@@ -6,6 +6,7 @@ import (
 	"context"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
@@ -18,10 +19,7 @@ import (
 // accounts require the s3:PutObjectRetention permission in order to place an
 // Object Retention configuration on objects. Bypassing a Governance Retention
 // configuration requires the s3:BypassGovernanceRetention permission. This action
-// is not supported by Amazon S3 on Outposts. Permissions When the Object Lock
-// retention mode is set to compliance, you need s3:PutObjectRetention and
-// s3:BypassGovernanceRetention permissions. For other requests to
-// PutObjectRetention, only s3:PutObjectRetention permissions are required.
+// is not supported by Amazon S3 on Outposts.
 func (c *Client) PutObjectRetention(ctx context.Context, params *PutObjectRetentionInput, optFns ...func(*Options)) (*PutObjectRetentionOutput, error) {
 	if params == nil {
 		params = &PutObjectRetentionInput{}
@@ -61,19 +59,31 @@ type PutObjectRetentionInput struct {
 	// Indicates whether this action should bypass Governance-mode restrictions.
 	BypassGovernanceRetention bool
 
+	// Indicates the algorithm used to create the checksum for the object when using
+	// the SDK. This header will not provide any additional functionality if not using
+	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
+	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
+	// HTTP status code 400 Bad Request. For more information, see Checking object
+	// integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
+	// ignores any provided ChecksumAlgorithm parameter.
+	ChecksumAlgorithm types.ChecksumAlgorithm
+
 	// The MD5 hash for the request body. For requests made using the Amazon Web
 	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
 	// calculated automatically.
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
@@ -148,9 +158,6 @@ func (c *Client) addOperationPutObjectRetentionMiddlewares(stack *middleware.Sta
 	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddContentChecksumMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addOpPutObjectRetentionValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -158,6 +165,9 @@ func (c *Client) addOperationPutObjectRetentionMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutObjectRetentionInputChecksumMiddlewares(stack, options); err != nil {
 		return err
 	}
 	if err = addPutObjectRetentionUpdateEndpoint(stack, options); err != nil {
@@ -185,6 +195,26 @@ func newServiceMetadataMiddleware_opPutObjectRetention(region string) *awsmiddle
 		SigningName:   "s3",
 		OperationName: "PutObjectRetention",
 	}
+}
+
+// getPutObjectRetentionRequestAlgorithmMember gets the request checksum algorithm
+// value provided as input.
+func getPutObjectRetentionRequestAlgorithmMember(input interface{}) (string, bool) {
+	in := input.(*PutObjectRetentionInput)
+	if len(in.ChecksumAlgorithm) == 0 {
+		return "", false
+	}
+	return string(in.ChecksumAlgorithm), true
+}
+
+func addPutObjectRetentionInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+		GetAlgorithm:                     getPutObjectRetentionRequestAlgorithmMember,
+		RequireChecksum:                  true,
+		EnableTrailingChecksum:           false,
+		EnableComputeSHA256PayloadHash:   true,
+		EnableDecodedContentLengthHeader: true,
+	})
 }
 
 // getPutObjectRetentionBucketMember returns a pointer to string denoting a

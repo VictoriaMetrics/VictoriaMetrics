@@ -6,6 +6,7 @@ import (
 	"context"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
@@ -76,8 +77,20 @@ type PutBucketAccelerateConfigurationInput struct {
 	// This member is required.
 	Bucket *string
 
+	// Indicates the algorithm used to create the checksum for the object when using
+	// the SDK. This header will not provide any additional functionality if not using
+	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
+	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
+	// HTTP status code 400 Bad Request. For more information, see Checking object
+	// integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
+	// ignores any provided ChecksumAlgorithm parameter.
+	ChecksumAlgorithm types.ChecksumAlgorithm
+
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde
@@ -147,6 +160,9 @@ func (c *Client) addOperationPutBucketAccelerateConfigurationMiddlewares(stack *
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addPutBucketAccelerateConfigurationInputChecksumMiddlewares(stack, options); err != nil {
+		return err
+	}
 	if err = addPutBucketAccelerateConfigurationUpdateEndpoint(stack, options); err != nil {
 		return err
 	}
@@ -172,6 +188,26 @@ func newServiceMetadataMiddleware_opPutBucketAccelerateConfiguration(region stri
 		SigningName:   "s3",
 		OperationName: "PutBucketAccelerateConfiguration",
 	}
+}
+
+// getPutBucketAccelerateConfigurationRequestAlgorithmMember gets the request
+// checksum algorithm value provided as input.
+func getPutBucketAccelerateConfigurationRequestAlgorithmMember(input interface{}) (string, bool) {
+	in := input.(*PutBucketAccelerateConfigurationInput)
+	if len(in.ChecksumAlgorithm) == 0 {
+		return "", false
+	}
+	return string(in.ChecksumAlgorithm), true
+}
+
+func addPutBucketAccelerateConfigurationInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+		GetAlgorithm:                     getPutBucketAccelerateConfigurationRequestAlgorithmMember,
+		RequireChecksum:                  false,
+		EnableTrailingChecksum:           false,
+		EnableComputeSHA256PayloadHash:   true,
+		EnableDecodedContentLengthHeader: true,
+	})
 }
 
 // getPutBucketAccelerateConfigurationBucketMember returns a pointer to string

@@ -6,13 +6,14 @@ import (
 	"context"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
+	internalChecksum "github.com/aws/aws-sdk-go-v2/service/internal/checksum"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Applies a Legal Hold configuration to the specified object. For more
+// Applies a legal hold configuration to the specified object. For more
 // information, see Locking Objects
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html). This action
 // is not supported by Amazon S3 on Outposts.
@@ -33,7 +34,7 @@ func (c *Client) PutObjectLegalHold(ctx context.Context, params *PutObjectLegalH
 
 type PutObjectLegalHoldInput struct {
 
-	// The bucket name containing the object that you want to place a Legal Hold on.
+	// The bucket name containing the object that you want to place a legal hold on.
 	// When using this action with an access point, you must direct requests to the
 	// access point hostname. The access point hostname takes the form
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
@@ -46,10 +47,21 @@ type PutObjectLegalHoldInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The key name for the object that you want to place a Legal Hold on.
+	// The key name for the object that you want to place a legal hold on.
 	//
 	// This member is required.
 	Key *string
+
+	// Indicates the algorithm used to create the checksum for the object when using
+	// the SDK. This header will not provide any additional functionality if not using
+	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
+	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
+	// HTTP status code 400 Bad Request. For more information, see Checking object
+	// integrity
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
+	// ignores any provided ChecksumAlgorithm parameter.
+	ChecksumAlgorithm types.ChecksumAlgorithm
 
 	// The MD5 hash for the request body. For requests made using the Amazon Web
 	// Services Command Line Interface (CLI) or Amazon Web Services SDKs, this field is
@@ -57,22 +69,23 @@ type PutObjectLegalHoldInput struct {
 	ContentMD5 *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
-	// Container element for the Legal Hold configuration you want to apply to the
+	// Container element for the legal hold configuration you want to apply to the
 	// specified object.
 	LegalHold *types.ObjectLockLegalHold
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
-	// about downloading objects from requester pays buckets, see Downloading Objects
-	// in Requestor Pays Buckets
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
-	// The version ID of the object that you want to place a Legal Hold on.
+	// The version ID of the object that you want to place a legal hold on.
 	VersionId *string
 
 	noSmithyDocumentSerde
@@ -138,9 +151,6 @@ func (c *Client) addOperationPutObjectLegalHoldMiddlewares(stack *middleware.Sta
 	if err = swapWithCustomHTTPSignerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddContentChecksumMiddleware(stack); err != nil {
-		return err
-	}
 	if err = addOpPutObjectLegalHoldValidationMiddleware(stack); err != nil {
 		return err
 	}
@@ -148,6 +158,9 @@ func (c *Client) addOperationPutObjectLegalHoldMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addPutObjectLegalHoldInputChecksumMiddlewares(stack, options); err != nil {
 		return err
 	}
 	if err = addPutObjectLegalHoldUpdateEndpoint(stack, options); err != nil {
@@ -175,6 +188,26 @@ func newServiceMetadataMiddleware_opPutObjectLegalHold(region string) *awsmiddle
 		SigningName:   "s3",
 		OperationName: "PutObjectLegalHold",
 	}
+}
+
+// getPutObjectLegalHoldRequestAlgorithmMember gets the request checksum algorithm
+// value provided as input.
+func getPutObjectLegalHoldRequestAlgorithmMember(input interface{}) (string, bool) {
+	in := input.(*PutObjectLegalHoldInput)
+	if len(in.ChecksumAlgorithm) == 0 {
+		return "", false
+	}
+	return string(in.ChecksumAlgorithm), true
+}
+
+func addPutObjectLegalHoldInputChecksumMiddlewares(stack *middleware.Stack, options Options) error {
+	return internalChecksum.AddInputMiddleware(stack, internalChecksum.InputMiddlewareOptions{
+		GetAlgorithm:                     getPutObjectLegalHoldRequestAlgorithmMember,
+		RequireChecksum:                  true,
+		EnableTrailingChecksum:           false,
+		EnableComputeSHA256PayloadHash:   true,
+		EnableDecodedContentLengthHeader: true,
+	})
 }
 
 // getPutObjectLegalHoldBucketMember returns a pointer to string denoting a

@@ -15,7 +15,12 @@ import (
 // Gets the Object Lock configuration for a bucket. The rule specified in the
 // Object Lock configuration will be applied by default to every new object placed
 // in the specified bucket. For more information, see Locking Objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html).
+// (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html). The
+// following action is related to GetObjectLockConfiguration:
+//
+// *
+// GetObjectAttributes
+// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
 func (c *Client) GetObjectLockConfiguration(ctx context.Context, params *GetObjectLockConfigurationInput, optFns ...func(*Options)) (*GetObjectLockConfigurationOutput, error) {
 	if params == nil {
 		params = &GetObjectLockConfigurationInput{}
@@ -47,7 +52,8 @@ type GetObjectLockConfigurationInput struct {
 	Bucket *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
-	// different account, the request will fail with an HTTP 403 (Access Denied) error.
+	// different account, the request fails with the HTTP status code 403 Forbidden
+	// (access denied).
 	ExpectedBucketOwner *string
 
 	noSmithyDocumentSerde

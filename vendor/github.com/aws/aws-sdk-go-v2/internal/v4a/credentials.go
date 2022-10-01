@@ -51,7 +51,7 @@ type SymmetricCredentialAdaptor struct {
 func (s *SymmetricCredentialAdaptor) Retrieve(ctx context.Context) (aws.Credentials, error) {
 	symCreds, err := s.retrieveFromSymmetricProvider(ctx)
 	if err != nil {
-		return aws.Credentials{}, nil
+		return aws.Credentials{}, err
 	}
 
 	if asymCreds := s.getCreds(); asymCreds == nil {

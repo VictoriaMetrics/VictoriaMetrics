@@ -1,5 +1,3 @@
-// TODO(GOSDK-1220): This signer has removed the conceptual knowledge of UNSIGNED-PAYLOAD and X-Amz-Content-Sha256
-
 package v4a
 
 import (
@@ -22,8 +20,8 @@ import (
 	"strings"
 	"time"
 
-	signerCrypto "github.com/aws/aws-sdk-go-v2/service/s3/internal/v4a/internal/crypto"
-	v4Internal "github.com/aws/aws-sdk-go-v2/service/s3/internal/v4a/internal/v4"
+	signerCrypto "github.com/aws/aws-sdk-go-v2/internal/v4a/internal/crypto"
+	v4Internal "github.com/aws/aws-sdk-go-v2/internal/v4a/internal/v4"
 	"github.com/aws/smithy-go/encoding/httpbinding"
 	"github.com/aws/smithy-go/logging"
 )
@@ -440,7 +438,15 @@ func (s *httpSigner) buildCanonicalHeaders(host string, rule v4Internal.Rule, he
 		} else {
 			canonicalHeaders.WriteString(headers[i])
 			canonicalHeaders.WriteRune(colon)
-			canonicalHeaders.WriteString(strings.Join(signed[headers[i]], ","))
+			// Trim out leading, trailing, and dedup inner spaces from signed header values.
+			values := signed[headers[i]]
+			for j, v := range values {
+				cleanedValue := strings.TrimSpace(v4Internal.StripExcessSpaces(v))
+				canonicalHeaders.WriteString(cleanedValue)
+				if j < len(values)-1 {
+					canonicalHeaders.WriteRune(',')
+				}
+			}
 		}
 		canonicalHeaders.WriteRune('\n')
 	}
