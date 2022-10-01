@@ -351,8 +351,26 @@ DataDog agent allows configuring destinations for metrics sending via ENV variab
   <img src="Sending_DD_metrics_to_VM.png" width="800">
 </p>
 
-Depending on where you want to send metrics, the URL for VictoriaMetrics will be different:
-1. Run DataDog using this [ENV variable](https://docs.victoriametrics.com/url-examples.html#datadog-env-variable-url-for-single-node-victoriametrics) for sending metrics to single-node VictoriaMetrics or this [ENV variable](https://docs.victoriametrics.com/url-examples.html#datadog-env-variable-url-for-cluster-version-of-victoriametrics) for sending metrics to the vminsert component of the cluster version of VictoriaMetrics. Alternatively add this [dd_url](https://docs.victoriametrics.com/url-examples.html#datadog-yaml-configuration-file-url-for-single-node-victoriametrics) or this [dd_url](https://docs.victoriametrics.com/url-examples.html#datadog-yaml-configuration-file-url-for-cluster-version-of-victoriametrics) to DataDog YAML configuration file accordingly.
+Depending on where you want to send metrics, the [URL for VictoriaMetrics](https://docs.victoriametrics.com/url-examples.html#datadog) will be different:
+1. Run DataDog using this ENV variable for sending metrics to VictoriaMetrics
+
+<div class="with-copy" markdown="1">
+
+```
+DD_DD_URL=http://victoriametrics:8428/datadog
+```
+
+</div>
+
+Alternatively add this `dd_url` to DataDog YAML configuration file.
+
+<div class="with-copy" markdown="1">
+
+```
+dd_url: http://victoriametrics:8428/datadog
+```
+
+</div>
 
 2. vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, pick the 1 or 2 URL formats.
 
@@ -364,9 +382,25 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
   <img src="Sending_DD_metrics_to_VM_and_DDhq.png" width="800">
 </p>
  
-Run DataDog using this [ENV variable](https://docs.victoriametrics.com/url-examples.html#datadog-env-variable-url-for-additional-endpoints-single-node-victoriametricss) for sending metrics to the single-node VictoriaMetrics or this [ENV variable](https://docs.victoriametrics.com/url-examples.html#datadog-env-variable-url-for-additional-endpoints-cluster-version-of-victoriametrics) for sending metrics to the vminsert component of the cluster version of VictoriaMetrics on top of DataDoghq.
-Alternatively add this [additional_endpoints](https://docs.victoriametrics.com/url-examples.html#datadog-yaml-configuration-file-url-for-additional-endpoints-single-node-victoriametrics) or this [additional_endpoints](https://docs.victoriametrics.com/url-examples.html#datadog-yaml-configuration-file-url-for-additional-endpoints-cluster-version-of-victoriametrics) to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) accordingly.
+Run DataDog using this ENV variable for sending metrics to the single-node VictoriaMetrics on top of DataDoghq.
 
+<div class="with-copy" markdown="1">
+
+```
+DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'
+```
+
+</div>
+
+Alternatively add an `additional_endpoints` to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/).
+
+<div class="with-copy" markdown="1">
+
+```
+dd_url: http://victoriametrics:8428/datadog
+```
+
+</div>
 
 ### Send via cURL
 
