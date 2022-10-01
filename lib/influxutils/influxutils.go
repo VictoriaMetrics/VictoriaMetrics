@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
-var influxDatabaseNames = flagutil.NewArray("influx.databaseNames", "Comma-separated list of database names to return from /query and /influx/query API. "+
+var influxDatabaseNames = flagutil.NewArrayString("influx.databaseNames", "Comma-separated list of database names to return from /query and /influx/query API. "+
 	"This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb")
 
 // WriteDatabaseNames writes influxDatabaseNames to w.
