@@ -372,7 +372,7 @@ dd_url: http://victoriametrics:8428/datadog
 
 </div>
 
-2. vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, pick the 1 or 2 URL formats.
+2. vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, pick the single-node or cluster URL formats.
 
 ### Sending metrics to Datadog and VictoriaMetrics
  
