@@ -223,7 +223,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		path = strings.TrimSuffix(path, "/")
 	}
 	switch path {
-	case "/api/v1/write":
+	case "/prometheus/api/v1/write", "/api/v1/write":
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(nil, r); err != nil {
 			prometheusWriteErrors.Inc()
@@ -232,7 +232,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import":
+	case "/prometheus/api/v1/import", "/api/v1/import":
 		vmimportRequests.Inc()
 		if err := vmimport.InsertHandler(nil, r); err != nil {
 			vmimportErrors.Inc()
@@ -241,7 +241,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import/csv":
+	case "/prometheus/api/v1/import/csv", "/api/v1/import/csv":
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(nil, r); err != nil {
 			csvimportErrors.Inc()
@@ -250,7 +250,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import/prometheus":
+	case "/prometheus/api/v1/import/prometheus", "/api/v1/import/prometheus":
 		prometheusimportRequests.Inc()
 		if err := prometheusimport.InsertHandler(nil, r); err != nil {
 			prometheusimportErrors.Inc()
@@ -259,7 +259,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/api/v1/import/native":
+	case "/prometheus/api/v1/import/native", "/api/v1/import/native":
 		nativeimportRequests.Inc()
 		if err := native.InsertHandler(nil, r); err != nil {
 			nativeimportErrors.Inc()
@@ -268,7 +268,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/write", "/api/v2/write":
+	case "/influx/write", "/influx/api/v2/write", "/write", "/api/v2/write":
 		influxWriteRequests.Inc()
 		if err := influx.InsertHandlerForHTTP(nil, r); err != nil {
 			influxWriteErrors.Inc()
@@ -277,7 +277,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "/query":
+	case "/influx/query", "/query":
 		influxQueryRequests.Inc()
 		influxutils.WriteDatabaseNames(w)
 		return true
@@ -316,15 +316,21 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
-	case "/targets":
+	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
 		return true
-	case "/service-discovery":
+	case "/prometheus/service-discovery", "/service-discovery":
 		promscrapeServiceDiscoveryRequests.Inc()
 		promscrape.WriteServiceDiscovery(w, r)
 		return true
-	case "/target_response":
+	case "/prometheus/api/v1/targets", "/api/v1/targets":
+		promscrapeAPIV1TargetsRequests.Inc()
+		w.Header().Set("Content-Type", "application/json")
+		state := r.FormValue("state")
+		promscrape.WriteAPIV1Targets(w, state)
+		return true
+	case "/prometheus/target_response", "/target_response":
 		promscrapeTargetResponseRequests.Inc()
 		if err := promscrape.WriteTargetResponse(w, r); err != nil {
 			promscrapeTargetResponseErrors.Inc()
@@ -332,7 +338,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
-	case "/config":
+	case "/prometheus/config", "/config":
 		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
 			err := &httpserver.ErrorWithStatusCode{
 				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
@@ -345,7 +351,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		promscrape.WriteConfigData(w)
 		return true
-	case "/api/v1/status/config":
+	case "/prometheus/api/v1/status/config", "/api/v1/status/config":
 		// See https://prometheus.io/docs/prometheus/latest/querying/api/#config
 		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
 			err := &httpserver.ErrorWithStatusCode{
@@ -361,13 +367,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrape.WriteConfigData(&bb)
 		fmt.Fprintf(w, `{"status":"success","data":{"yaml":%q}}`, bb.B)
 		return true
-	case "/api/v1/targets":
-		promscrapeAPIV1TargetsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		state := r.FormValue("state")
-		promscrape.WriteAPIV1Targets(w, state)
-		return true
-	case "/-/reload":
+	case "/prometheus/-/reload", "/-/reload":
 		promscrapeConfigReloadRequests.Inc()
 		procutil.SelfSIGHUP()
 		w.WriteHeader(http.StatusOK)

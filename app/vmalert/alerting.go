@@ -165,11 +165,15 @@ func (ar *AlertingRule) logDebugf(at time.Time, a *notifier.Alert, format string
 }
 
 type labelSet struct {
-	// origin labels from series
-	// used for templating
+	// origin labels extracted from received time series
+	// plus extra labels (group labels, service labels like alertNameLabel).
+	// in case of conflicts, origin labels from time series preferred.
+	// used for templating annotations
 	origin map[string]string
-	// processed labels with additional data
-	// used as Alert labels
+	// processed labels includes origin labels
+	// plus extra labels (group labels, service labels like alertNameLabel).
+	// in case of conflicts, extra labels are preferred.
+	// used as labels attached to notifier.Alert and ALERTS series written to remote storage.
 	processed map[string]string
 }
 
@@ -177,7 +181,7 @@ type labelSet struct {
 // to labelSet which contains original and processed labels.
 func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*labelSet, error) {
 	ls := &labelSet{
-		origin:    make(map[string]string, len(m.Labels)),
+		origin:    make(map[string]string),
 		processed: make(map[string]string),
 	}
 	for _, l := range m.Labels {
@@ -199,14 +203,23 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 	}
 	for k, v := range extraLabels {
 		ls.processed[k] = v
+		if _, ok := ls.origin[k]; !ok {
+			ls.origin[k] = v
+		}
 	}
 
 	// set additional labels to identify group and rule name
 	if ar.Name != "" {
 		ls.processed[alertNameLabel] = ar.Name
+		if _, ok := ls.origin[alertNameLabel]; !ok {
+			ls.origin[alertNameLabel] = ar.Name
+		}
 	}
 	if !*disableAlertGroupLabel && ar.GroupName != "" {
 		ls.processed[alertGroupNameLabel] = ar.GroupName
+		if _, ok := ls.origin[alertGroupNameLabel]; !ok {
+			ls.origin[alertGroupNameLabel] = ar.GroupName
+		}
 	}
 	return ls, nil
 }

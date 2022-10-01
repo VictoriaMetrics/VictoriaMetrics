@@ -12,7 +12,7 @@ func RemoveStartEndAnchors(expr string) string {
 	for strings.HasPrefix(expr, "^") {
 		expr = expr[1:]
 	}
-	for strings.HasSuffix(expr, "$") {
+	for strings.HasSuffix(expr, "$") && !strings.HasSuffix(expr, "\\$") {
 		expr = expr[:len(expr)-1]
 	}
 	return expr

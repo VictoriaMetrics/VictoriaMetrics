@@ -138,7 +138,7 @@ func setUp() {
 		if err != nil {
 			return false
 		}
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		return resp.StatusCode == 200
 	}
 	if err := waitFor(testStorageInitTimeout, readyStorageCheckFunc); err != nil {
@@ -337,7 +337,9 @@ func tcpWrite(t *testing.T, address string, data string) {
 	s := newSuite(t)
 	conn, err := net.Dial("tcp", address)
 	s.noError(err)
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 	n, err := conn.Write([]byte(data))
 	s.noError(err)
 	s.equalInt(n, len(data))
@@ -348,7 +350,9 @@ func httpReadMetrics(t *testing.T, address, query string) []Metric {
 	s := newSuite(t)
 	resp, err := http.Get(address + query)
 	s.noError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	s.equalInt(resp.StatusCode, 200)
 	var rows []Metric
 	for dec := json.NewDecoder(resp.Body); dec.More(); {
@@ -363,7 +367,9 @@ func httpReadStruct(t *testing.T, address, query string, dst interface{}) {
 	s := newSuite(t)
 	resp, err := http.Get(address + query)
 	s.noError(err)
-	defer resp.Body.Close()
+	defer func() {
+		_ = resp.Body.Close()
+	}()
 	s.equalInt(resp.StatusCode, 200)
 	s.noError(json.NewDecoder(resp.Body).Decode(dst))
 }

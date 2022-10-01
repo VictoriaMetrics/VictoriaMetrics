@@ -238,7 +238,7 @@ func TestParseInstancesResponse(t *testing.T) {
 	ownerID := rs.OwnerID
 	port := 423
 	inst := rs.InstanceSet.Items[0]
-	labelss := inst.appendTargetLabels(nil, ownerID, port, map[string]string{
+	labelss := inst.appendTargetLabels(nil, ownerID, "region-a", port, map[string]string{
 		"eu-west-2c": "foobar-zone",
 	})
 	var sortedLabelss [][]prompbmarshal.Label
@@ -263,6 +263,7 @@ func TestParseInstancesResponse(t *testing.T) {
 			"__meta_ec2_private_ip":           "172.31.11.152",
 			"__meta_ec2_public_dns_name":      "ec2-3-8-232-141.eu-west-2.compute.amazonaws.com",
 			"__meta_ec2_public_ip":            "3.8.232.141",
+			"__meta_ec2_region":               "region-a",
 			"__meta_ec2_subnet_id":            ",subnet-57044c3e,",
 			"__meta_ec2_tag_foo":              "bar",
 			"__meta_ec2_vpc_id":               "vpc-f1eaad99",
