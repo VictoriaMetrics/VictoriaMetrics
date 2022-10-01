@@ -248,7 +248,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			// This is needed for proper handling of relative urls in web browsers.
 			// Intentionally ignore query args, since it is expected that the requested url
 			// is composed by a human, so it doesn't contain query args.
-			RedirectPermanent(w, prefix)
+			Redirect(w, prefix)
 			return
 		}
 		if !strings.HasPrefix(path, prefix) {
@@ -681,11 +681,14 @@ func GetRequestURI(r *http.Request) string {
 	return requestURI + delimiter + queryArgs
 }
 
-// RedirectPermanent redirects to the given url using 301 status code.
-func RedirectPermanent(w http.ResponseWriter, url string) {
+// Redirect redirects to the given url.
+func Redirect(w http.ResponseWriter, url string) {
 	// Do not use http.Redirect, since it breaks relative redirects
 	// if the http.Request.URL contains unexpected url.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918
 	w.Header().Set("Location", url)
-	w.WriteHeader(http.StatusMovedPermanently)
+	// Use http.StatusFound instead of http.StatusMovedPermanently,
+	// since browsers can cache incorrect redirects returned with StatusMovedPermanently.
+	// This may require browser cache cleaning after the incorrect redirect is fixed.
+	w.WriteHeader(http.StatusFound)
 }

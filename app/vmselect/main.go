@@ -168,7 +168,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		_ = r.ParseForm()
 		path = strings.TrimPrefix(path, "/")
 		newURL := path + "/?" + r.Form.Encode()
-		httpserver.RedirectPermanent(w, newURL)
+		httpserver.Redirect(w, newURL)
 		return true
 	}
 	if strings.HasPrefix(path, "/vmui/") {
@@ -217,7 +217,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// vmalert access via incomplete url without `/` in the end. Redirecto to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
-		httpserver.RedirectPermanent(w, "vmalert/")
+		httpserver.Redirect(w, "vmalert/")
 		return true
 	}
 	if strings.HasPrefix(path, "/vmalert/") {
