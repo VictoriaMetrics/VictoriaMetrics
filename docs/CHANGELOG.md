@@ -18,6 +18,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: expose `vmagent_remotewrite_queues` metric and use it in alerting rules in order to improve the detection of remote storage connection saturation. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2871).
 
 * BUGFIX: do not export stale metrics via [/federate api](https://docs.victoriametrics.com/#federation) after the staleness markers. Previously such metrics were exported with `NaN` values. this could break some setups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3185).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): properly handle request paths ending with `/` such as `/vmui/`. Previously `vmui` was dropping the traling `/`, which could prevent from using `vmui` via `vmauth`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1752).
 
 
 ## [v1.79.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.3)
