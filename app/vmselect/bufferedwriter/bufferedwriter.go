@@ -54,6 +54,9 @@ func (bw *Writer) reset() {
 
 // Write writes p to bw.
 func (bw *Writer) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
 	bw.lock.Lock()
 	defer bw.lock.Unlock()
 	if bw.err != nil {
