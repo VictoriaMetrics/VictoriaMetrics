@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/azremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
@@ -183,7 +184,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 	}
 	n := strings.Index(path, "://")
 	if n < 0 {
-		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `fs://`", path)
+		return nil, fmt.Errorf("Missing scheme in path %q. Supported schemes: `gs://`, `s3://`, `azblob://`, `fs://`", path)
 	}
 	scheme := path[:n]
 	dir := path[n+len("://"):]
@@ -210,6 +211,21 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		}
 		if err := fs.Init(); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to gcs: %w", err)
+		}
+		return fs, nil
+	case "azblob":
+		n := strings.Index(dir, "/")
+		if n < 0 {
+			return nil, fmt.Errorf("missing directory on the AZBlob container %q", dir)
+		}
+		bucket := dir[:n]
+		dir = dir[n:]
+		fs := &azremote.FS{
+			Container: bucket,
+			Dir:       dir,
+		}
+		if err := fs.Init(); err != nil {
+			return nil, fmt.Errorf("cannot initialize connection to AZBlob: %w", err)
 		}
 		return fs, nil
 	case "s3":
