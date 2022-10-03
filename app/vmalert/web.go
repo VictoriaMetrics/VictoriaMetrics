@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -67,6 +68,24 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	switch r.URL.Path {
+	case "health":
+		if !rh.m.querierBuilder.BuildWithParams(datasource.QuerierParams{}).Health() {
+			return true
+		}
+		var remoteAvailable bool
+		for _, targets := range notifier.GetTargets() {
+			for _, target := range targets {
+				if target.Health() {
+					remoteAvailable = true
+					break
+				}
+			}
+		}
+		if !remoteAvailable {
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
+		return true
 	case "/", "/vmalert", "/vmalert/":
 		if r.Method != "GET" {
 			httpserver.Errorf(w, r, "path %q supports only GET method", r.URL.Path)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -89,6 +90,14 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 		queryStep:        queryStep,
 		dataSourceType:   datasourcePrometheus,
 	}
+}
+
+func (s *VMStorage) Health() bool {
+	if s.datasourceURL == "" {
+		return false
+	}
+	_, err := net.DialTimeout("tcp", s.datasourceURL, 1*time.Second)
+	return err == nil
 }
 
 // Query executes the given query and returns parsed response

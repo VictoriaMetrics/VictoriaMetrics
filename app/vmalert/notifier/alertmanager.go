@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -39,6 +40,14 @@ func newMetrics(addr string) *metrics {
 		alertsSent:       utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
 		alertsSendErrors: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_send_errors_total{addr=%q}", addr)),
 	}
+}
+
+func (am *AlertManager) Health() bool {
+	if am.addr == "" {
+		return false
+	}
+	_, err := net.DialTimeout("tcp", am.addr, 1*time.Second)
+	return err == nil
 }
 
 // Close is a destructor method for AlertManager

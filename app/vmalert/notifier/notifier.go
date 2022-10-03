@@ -12,4 +12,6 @@ type Notifier interface {
 	Addr() string
 	// Close is a destructor for the Notifier
 	Close()
+	// Health returns at least configured addresses available or not.
+	Health() bool
 }

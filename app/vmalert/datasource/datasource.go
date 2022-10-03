@@ -10,6 +10,7 @@ import (
 type Querier interface {
 	Query(ctx context.Context, query string, ts time.Time) ([]Metric, error)
 	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
+	Health() bool
 }
 
 // QuerierBuilder builds Querier with given params.

@@ -56,6 +56,10 @@ type Param struct {
 	Key, Value string
 }
 
+func Addr() string {
+	return *addr
+}
+
 // Init creates a Querier from provided flag values.
 // Provided extraParams will be added as GET params for
 // each request.
