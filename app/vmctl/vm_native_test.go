@@ -4,6 +4,8 @@ import (
 	"context"
 	"testing"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 )
 
 // If you want to run this test:
@@ -16,6 +18,7 @@ import (
 const (
 	matchFilter     = `{job="avalanche"}`
 	timeStartFilter = "2020-01-01T20:07:00Z"
+	timeEndFilter   = "2020-08-01T20:07:00Z"
 	srcAddr         = "http://127.0.0.1:8428"
 	dstAddr         = "http://127.0.0.1:8528"
 )
@@ -62,6 +65,26 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				filter: filter{
 					match:     matchFilter,
 					timeStart: timeStartFilter,
+				},
+				rateLimit: 0,
+				dst: &vmNativeClient{
+					addr: dstAddr,
+				},
+				src: &vmNativeClient{
+					addr: srcAddr,
+				},
+			},
+			closer:  func(cancelFunc context.CancelFunc) {},
+			wantErr: false,
+		},
+		{
+			name: "simulate correct work with chunking",
+			fields: fields{
+				filter: filter{
+					match:     matchFilter,
+					timeStart: timeStartFilter,
+					timeEnd:   timeEndFilter,
+					chunk:     stepper.StepMonth,
 				},
 				rateLimit: 0,
 				dst: &vmNativeClient{

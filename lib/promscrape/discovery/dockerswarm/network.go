@@ -53,7 +53,7 @@ func getNetworkLabelsByNetworkID(networks []network) map[string]map[string]strin
 			"__meta_dockerswarm_network_scope":    network.Scope,
 		}
 		for k, v := range network.Labels {
-			m["__meta_dockerswarm_network_label_"+discoveryutils.SanitizeLabelName(k)] = v
+			m[discoveryutils.SanitizeLabelName("__meta_dockerswarm_network_label_"+k)] = v
 		}
 		ms[network.ID] = m
 	}

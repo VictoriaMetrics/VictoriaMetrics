@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
@@ -33,6 +33,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/metrics"
@@ -228,6 +229,22 @@ type GlobalConfig struct {
 	ExternalLabels map[string]string   `yaml:"external_labels,omitempty"`
 }
 
+func (gc *GlobalConfig) getExternalLabels() []prompbmarshal.Label {
+	externalLabels := gc.ExternalLabels
+	if len(externalLabels) == 0 {
+		return nil
+	}
+	labels := make([]prompbmarshal.Label, 0, len(externalLabels))
+	for name, value := range externalLabels {
+		labels = append(labels, prompbmarshal.Label{
+			Name:  name,
+			Value: value,
+		})
+	}
+	promrelabel.SortLabels(labels)
+	return labels
+}
+
 // ScrapeConfig represents essential parts for `scrape_config` section of Prometheus config.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
@@ -261,6 +278,7 @@ type ScrapeConfig struct {
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
+	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
 	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`
@@ -824,6 +842,33 @@ func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return dst
 }
 
+// getYandexCloudSDScrapeWork returns `yandexcloud_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getYandexCloudSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for _, sc := range cfg.ScrapeConfigs {
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.YandexCloudSDConfigs {
+			sdc := &sc.YandexCloudSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "yandexcloud_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering yandexcloud targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
 // getStaticScrapeWork returns `static_configs` ScrapeWork from from cfg.
 func (cfg *Config) getStaticScrapeWork() []*ScrapeWork {
 	var dst []*ScrapeWork
@@ -874,7 +919,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if metricsPath == "" {
 		metricsPath = "/metrics"
 	}
-	scheme := sc.Scheme
+	scheme := strings.ToLower(sc.Scheme)
 	if scheme == "" {
 		scheme = "http"
 	}
@@ -904,6 +949,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if (*streamParse || sc.StreamParse) && sc.SeriesLimit > 0 {
 		return nil, fmt.Errorf("cannot use stream parsing mode when `series_limit` is set for `job_name` %q", jobName)
 	}
+	externalLabels := globalCfg.getExternalLabels()
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeIntervalString: scrapeInterval.String(),
@@ -919,7 +965,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
 		denyRedirects:        denyRedirects,
-		externalLabels:       globalCfg.ExternalLabels,
+		externalLabels:       externalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
 		sampleLimit:          sc.SampleLimit,
@@ -948,7 +994,7 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
-	externalLabels       map[string]string
+	externalLabels       []prompbmarshal.Label
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
 	sampleLimit          int
@@ -1198,6 +1244,17 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	if metricsPathRelabeled == "" {
 		metricsPathRelabeled = "/metrics"
 	}
+
+	var at *auth.Token
+	tenantID := promrelabel.GetLabelValueByName(labels, "__tenant_id__")
+	if tenantID != "" {
+		newToken, err := auth.NewToken(tenantID)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse __tenant_id__=%q for job=%s, err: %w", tenantID, swc.jobName, err)
+		}
+		at = newToken
+	}
+
 	if !strings.HasPrefix(metricsPathRelabeled, "/") {
 		metricsPathRelabeled = "/" + metricsPathRelabeled
 	}
@@ -1268,6 +1325,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		DenyRedirects:        swc.denyRedirects,
 		OriginalLabels:       originalLabels,
 		Labels:               labels,
+		ExternalLabels:       swc.externalLabels,
 		ProxyURL:             swc.proxyURL,
 		ProxyAuthConfig:      swc.proxyAuthConfig,
 		AuthConfig:           swc.authConfig,
@@ -1279,6 +1337,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
 		SeriesLimit:          seriesLimit,
+		AuthToken:            at,
 
 		jobNameOriginal: swc.jobName,
 	}
@@ -1288,35 +1347,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 func internLabelStrings(labels []prompbmarshal.Label) {
 	for i := range labels {
 		label := &labels[i]
-		label.Name = internString(label.Name)
-		label.Value = internString(label.Value)
+		label.Name = bytesutil.InternString(label.Name)
+		label.Value = bytesutil.InternString(label.Value)
 	}
-}
-
-func internString(s string) string {
-	m := internStringsMap.Load().(*sync.Map)
-	if v, ok := m.Load(s); ok {
-		sp := v.(*string)
-		return *sp
-	}
-	// Make a new copy for s in order to remove references from possible bigger string s refers to.
-	sCopy := string(append([]byte{}, s...))
-	m.Store(sCopy, &sCopy)
-	n := atomic.AddUint64(&internStringsMapLen, 1)
-	if n > 100e3 {
-		atomic.StoreUint64(&internStringsMapLen, 0)
-		internStringsMap.Store(&sync.Map{})
-	}
-	return sCopy
-}
-
-var (
-	internStringsMap    atomic.Value
-	internStringsMapLen uint64
-)
-
-func init() {
-	internStringsMap.Store(&sync.Map{})
 }
 
 func getParamsFromLabels(labels []prompbmarshal.Label, paramsOrig map[string][]string) map[string][]string {
@@ -1342,9 +1375,6 @@ func mergeLabels(dst []prompbmarshal.Label, swc *scrapeWorkConfig, target string
 		logger.Panicf("BUG: len(dst) must be 0; got %d", len(dst))
 	}
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	for k, v := range swc.externalLabels {
-		dst = appendLabel(dst, k, v)
-	}
 	dst = appendLabel(dst, "job", swc.jobName)
 	dst = appendLabel(dst, "__address__", target)
 	dst = appendLabel(dst, "__scheme__", swc.scheme)

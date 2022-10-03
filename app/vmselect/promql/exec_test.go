@@ -58,12 +58,13 @@ func TestExecSuccess(t *testing.T) {
 	f := func(q string, resultExpected []netstorage.Result) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:       start,
-			End:         end,
-			Step:        step,
-			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
-			RoundDigits: 100,
+			Start:              start,
+			End:                end,
+			Step:               step,
+			MaxPointsPerSeries: 1e4,
+			MaxSeries:          1000,
+			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits:        100,
 		}
 		for i := 0; i < 5; i++ {
 			result, err := Exec(nil, ec, q, false)
@@ -2276,6 +2277,27 @@ func TestExecSuccess(t *testing.T) {
 		r.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("foo"),
 			Value: []byte("x"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`limit_offset NaN`, func(t *testing.T) {
+		t.Parallel()
+		// q returns 3 time series, where foo=3 contains only NaN values
+		// limit_offset suppose to apply offset for non-NaN series only
+		q := `limit_offset(1, 1, sort_by_label_desc((
+			label_set(time()*1, "foo", "1"),
+			label_set(time()*2, "foo", "2"),
+			label_set(time()*3, "foo", "3"),
+		) < 3000, "foo"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("1"),
 		}}
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
@@ -5479,6 +5501,12 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`any(empty-series)`, func(t *testing.T) {
+		t.Parallel()
+		q := `any(label_set(time()<0, "foo", "bar"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`group() by (test)`, func(t *testing.T) {
 		t.Parallel()
 		q := `group((
@@ -7737,18 +7765,191 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+	t.Run(`sort_by_label_numeric(multiple_labels_only_string)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric((
+			label_set(1, "x", "b", "y", "aa"),
+			label_set(2, "x", "a", "y", "aa"),
+		), "y", "x")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("a"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("aa"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("b"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("aa"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_numeric(multiple_labels_numbers_special_chars)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric((
+			label_set(1, "x", "1:0:2", "y", "1:0:1"),
+			label_set(2, "x", "1:0:15", "y", "1:0:1"),
+		), "x", "y")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:2"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:15"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_numeric_desc(multiple_labels_numbers_special_chars)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric_desc((
+			label_set(1, "x", "1:0:2", "y", "1:0:1"),
+			label_set(2, "x", "1:0:15", "y", "1:0:1"),
+		), "x", "y")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:15"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("x"),
+				Value: []byte("1:0:2"),
+			},
+			{
+				Key:   []byte("y"),
+				Value: []byte("1:0:1"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`sort_by_label_numeric(alias_numbers_with_special_chars)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label_numeric((
+			label_set(4, "a", "DS50:1/0/15"),
+			label_set(1, "a", "DS50:1/0/0"),
+			label_set(2, "a", "DS50:1/0/1"),
+			label_set(3, "a", "DS50:1/0/2"),
+		), "a")`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("a"),
+				Value: []byte("DS50:1/0/0"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2, 2, 2, 2, 2, 2},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("a"),
+				Value: []byte("DS50:1/0/1"),
+			},
+		}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{3, 3, 3, 3, 3, 3},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("a"),
+				Value: []byte("DS50:1/0/2"),
+			},
+		}
+		r4 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 4, 4, 4, 4, 4},
+			Timestamps: timestampsExpected,
+		}
+		r4.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("a"),
+				Value: []byte("DS50:1/0/15"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2, r3, r4}
+		f(q, resultExpected)
+	})
 }
 
 func TestExecError(t *testing.T) {
 	f := func(q string) {
 		t.Helper()
 		ec := &EvalConfig{
-			Start:       1000,
-			End:         2000,
-			Step:        100,
-			MaxSeries:   1000,
-			Deadline:    searchutils.NewDeadline(time.Now(), time.Minute, ""),
-			RoundDigits: 100,
+			Start:              1000,
+			End:                2000,
+			Step:               100,
+			MaxPointsPerSeries: 1e4,
+			MaxSeries:          1000,
+			Deadline:           searchutils.NewDeadline(time.Now(), time.Minute, ""),
+			RoundDigits:        100,
 		}
 		for i := 0; i < 4; i++ {
 			rv, err := Exec(nil, ec, q, false)
@@ -7809,6 +8010,8 @@ func TestExecError(t *testing.T) {
 	f(`sort_desc()`)
 	f(`sort_by_label()`)
 	f(`sort_by_label_desc()`)
+	f(`sort_by_label_numeric()`)
+	f(`sort_by_label_numeric_desc()`)
 	f(`timestamp()`)
 	f(`timestamp_with_name()`)
 	f(`vector()`)
@@ -7930,6 +8133,8 @@ func TestExecError(t *testing.T) {
 	f(`limit_offet(1, (alias(1,"foo"),alias(2,"bar")), 10)`)
 	f(`round(1, 1 or label_set(2, "xx", "foo"))`)
 	f(`histogram_quantile(1 or label_set(2, "xx", "foo"), 1)`)
+	f(`histogram_quantiles("foo", 1 or label_set(2, "xxx", "foo"), 2)`)
+	f(`sort_by_label_numeric(1, 2)`)
 	f(`label_set(1, 2, 3)`)
 	f(`label_set(1, "foo", (label_set(1, "foo", bar") or label_set(2, "xxx", "yy")))`)
 	f(`label_set(1, "foo", 3)`)

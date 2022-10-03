@@ -308,7 +308,7 @@ func (db *indexDB) decRef() {
 	}
 
 	logger.Infof("dropping indexDB %q", tbPath)
-	fs.MustRemoveAll(tbPath)
+	fs.MustRemoveDirAtomic(tbPath)
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
@@ -554,11 +554,19 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	if is.tsidByNameMisses < 100 {
 		err := is.getTSIDByMetricName(dst, metricName)
 		if err == nil {
+			// Fast path - the TSID for the given metricName has been found in the index.
 			is.tsidByNameMisses = 0
-			return is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw)
+			if err = is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw); err != nil {
+				return err
+			}
+			// There is no need in checking whether the TSID is present in the per-day index for the given date,
+			// since this check must be performed by the caller in an optimized way.
+			// See storage.updatePerDateData() function.
+			return nil
 		}
 		if err != io.EOF {
-			return fmt.Errorf("cannot search TSID by MetricName %q: %w", metricName, err)
+			userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+			return fmt.Errorf("cannot search TSID by MetricName %s: %w", userReadableMetricName, err)
 		}
 		is.tsidByNameMisses++
 	} else {
@@ -573,7 +581,8 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	// It is OK if duplicate TSID for mn is created by concurrent goroutines.
 	// Metric results will be merged by mn after TableSearch.
 	if err := is.createTSIDByName(dst, metricName, metricNameRaw, date); err != nil {
-		return fmt.Errorf("cannot create TSID by MetricName %q: %w", metricName, err)
+		userReadableMetricName := getUserReadableMetricName(metricNameRaw)
+		return fmt.Errorf("cannot create TSID by MetricName %s: %w", userReadableMetricName, err)
 	}
 	return nil
 }
@@ -841,9 +850,13 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if err != nil {
 		return err
 	}
-	if filter != nil && filter.Len() == 0 {
-		qt.Printf("found zero label names for filter=%s", tfss)
-		return nil
+	if filter != nil && filter.Len() <= 100e3 {
+		// It is faster to obtain label names by metricIDs from the filter
+		// instead of scanning the inverted index for the matching filters.
+		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		metricIDs := filter.AppendTo(nil)
+		qt.Printf("sort %d metricIDs", len(metricIDs))
+		return is.getLabelNamesForMetricIDs(qt, metricIDs, lns, maxLabelNames)
 	}
 	var prevLabelName []byte
 	ts := &is.ts
@@ -900,6 +913,41 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error during search for prefix %q: %w", prefix, err)
 	}
+	return nil
+}
+
+func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, lns map[string]struct{}, maxLabelNames int) error {
+	lns["__name__"] = struct{}{}
+	var mn MetricName
+	foundLabelNames := 0
+	var buf []byte
+	for _, metricID := range metricIDs {
+		var err error
+		buf, err = is.searchMetricNameWithCache(buf[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			return fmt.Errorf("cannot find metricName by metricID %d: %w", metricID, err)
+		}
+		if err := mn.Unmarshal(buf); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName %q: %w", buf, err)
+		}
+		for _, tag := range mn.Tags {
+			_, ok := lns[string(tag.Key)]
+			if !ok {
+				foundLabelNames++
+				lns[string(tag.Key)] = struct{}{}
+				if len(lns) >= maxLabelNames {
+					qt.Printf("hit the limit on the number of unique label names: %d", maxLabelNames)
+					return nil
+				}
+			}
+		}
+	}
+	qt.Printf("get %d distinct label names from %d metricIDs", foundLabelNames, len(metricIDs))
 	return nil
 }
 
@@ -998,9 +1046,13 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if err != nil {
 		return err
 	}
-	if filter != nil && filter.Len() == 0 {
-		qt.Printf("found zero label values for filter=%s", tfss)
-		return nil
+	if filter != nil && filter.Len() < 100e3 {
+		// It is faster to obtain label values by metricIDs from the filter
+		// instead of scanning the inverted index for the matching filters.
+		// This would help https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2978
+		metricIDs := filter.AppendTo(nil)
+		qt.Printf("sort %d metricIDs", len(metricIDs))
+		return is.getLabelValuesForMetricIDs(qt, lvs, labelName, metricIDs, maxLabelValues)
 	}
 	if labelName == "__name__" {
 		// __name__ label is encoded as empty string in indexdb.
@@ -1056,6 +1108,42 @@ func (is *indexSearch) searchLabelValuesWithFiltersOnDate(qt *querytracer.Tracer
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error when searching for tag name prefix %q: %w", prefix, err)
 	}
+	return nil
+}
+
+func (is *indexSearch) getLabelValuesForMetricIDs(qt *querytracer.Tracer, lvs map[string]struct{}, labelName string, metricIDs []uint64, maxLabelValues int) error {
+	if labelName == "" {
+		labelName = "__name__"
+	}
+	var mn MetricName
+	foundLabelValues := 0
+	var buf []byte
+	for _, metricID := range metricIDs {
+		var err error
+		buf, err = is.searchMetricNameWithCache(buf[:0], metricID)
+		if err != nil {
+			if err == io.EOF {
+				// It is likely the metricID->metricName entry didn't propagate to inverted index yet.
+				// Skip this metricID for now.
+				continue
+			}
+			return fmt.Errorf("cannot find metricName by metricID %d: %w", metricID, err)
+		}
+		if err := mn.Unmarshal(buf); err != nil {
+			return fmt.Errorf("cannot unmarshal metricName %q: %w", buf, err)
+		}
+		tagValue := mn.GetTagValue(labelName)
+		_, ok := lvs[string(tagValue)]
+		if !ok {
+			foundLabelValues++
+			lvs[string(tagValue)] = struct{}{}
+			if len(lvs) >= maxLabelValues {
+				qt.Printf("hit the limit on the number of unique label values for label %q: %d", labelName, maxLabelValues)
+				return nil
+			}
+		}
+	}
+	qt.Printf("get %d distinct values for label %q from %d metricIDs", foundLabelValues, labelName, len(metricIDs))
 	return nil
 }
 

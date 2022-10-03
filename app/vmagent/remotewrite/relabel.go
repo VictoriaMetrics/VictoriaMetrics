@@ -13,18 +13,22 @@ import (
 )
 
 var (
-	unparsedLabelsGlobal = flagutil.NewArray("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
+	unparsedLabelsGlobal = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
 		"Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. "+
 		"The path can point either to local file or to http url. These entries are applied to all the metrics "+
 		"before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details")
 	relabelDebugGlobal = flag.Bool("remoteWrite.relabelDebug", false, "Whether to log metrics before and after relabeling with -remoteWrite.relabelConfig. "+
 		"If the -remoteWrite.relabelDebug is enabled, then the metrics aren't sent to remote storage. This is useful for debugging the relabeling configs")
-	relabelConfigPaths = flagutil.NewArray("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url. "+
+	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url. "+
 		"The path can point either to local file or to http url")
 	relabelDebug = flagutil.NewArrayBool("remoteWrite.urlRelabelDebug", "Whether to log metrics before and after relabeling with -remoteWrite.urlRelabelConfig. "+
 		"If the -remoteWrite.urlRelabelDebug is enabled, then the metrics aren't sent to the corresponding -remoteWrite.url. "+
 		"This is useful for debugging the relabeling configs")
+
+	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
+		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
+		"See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels")
 )
 
 var labelsGlobal []prompbmarshal.Label
@@ -105,6 +109,18 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 				tmp.Value = extraLabel.Value
 			} else {
 				labels = append(labels, *extraLabel)
+			}
+		}
+		if *usePromCompatibleNaming {
+			// Replace unsupported Prometheus chars in label names and metric names with underscores.
+			tmpLabels := labels[labelsLen:]
+			for j := range tmpLabels {
+				label := &tmpLabels[j]
+				if label.Name == "__name__" {
+					label.Value = promrelabel.SanitizeName(label.Value)
+				} else {
+					label.Name = promrelabel.SanitizeName(label.Name)
+				}
 			}
 		}
 		labels = pcs.Apply(labels, labelsLen, true)

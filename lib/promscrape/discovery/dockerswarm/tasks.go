@@ -15,7 +15,6 @@ type task struct {
 	ID                  string
 	ServiceID           string
 	NodeID              string
-	Labels              map[string]string
 	DesiredState        string
 	NetworksAttachments []struct {
 		Addresses []string
@@ -30,6 +29,11 @@ type task struct {
 		}
 		PortStatus struct {
 			Ports []portConfig
+		}
+	}
+	Spec struct {
+		ContainerSpec struct {
+			Labels map[string]string
 		}
 	}
 	Slot int
@@ -82,8 +86,8 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []map[string]strin
 			"__meta_dockerswarm_task_slot":          strconv.Itoa(task.Slot),
 			"__meta_dockerswarm_task_state":         task.Status.State,
 		}
-		for k, v := range task.Labels {
-			commonLabels["__meta_dockerswarm_task_label_"+discoveryutils.SanitizeLabelName(k)] = v
+		for k, v := range task.Spec.ContainerSpec.Labels {
+			commonLabels[discoveryutils.SanitizeLabelName("__meta_dockerswarm_container_label_"+k)] = v
 		}
 		var svcPorts []portConfig
 		for i, v := range services {

@@ -17,44 +17,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
-func TestInternStringSerial(t *testing.T) {
-	if err := testInternString(t); err != nil {
-		t.Fatalf("unexpected error: %s", err)
-	}
-}
-
-func TestInternStringConcurrent(t *testing.T) {
-	concurrency := 5
-	resultCh := make(chan error, concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
-			resultCh <- testInternString(t)
-		}()
-	}
-	timer := time.NewTimer(5 * time.Second)
-	for i := 0; i < concurrency; i++ {
-		select {
-		case err := <-resultCh:
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
-		case <-timer.C:
-			t.Fatalf("timeout")
-		}
-	}
-}
-
-func testInternString(t *testing.T) error {
-	for i := 0; i < 1000; i++ {
-		s := fmt.Sprintf("foo_%d", i)
-		s1 := internString(s)
-		if s != s1 {
-			return fmt.Errorf("unexpected string returned from internString; got %q; want %q", s1, s)
-		}
-	}
-	return nil
-}
-
 func TestMergeLabels(t *testing.T) {
 	f := func(swc *scrapeWorkConfig, target string, extraLabels, metaLabels map[string]string, resultExpected string) {
 		t.Helper()
@@ -74,19 +36,11 @@ func TestMergeLabels(t *testing.T) {
 		metricsPath:          "/foo/bar",
 		scrapeIntervalString: "15s",
 		scrapeTimeoutString:  "10s",
-		externalLabels: map[string]string{
-			"job": "bar",
-			"a":   "b",
-		},
-	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",a="b",job="xyz"}`)
+	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",job="xyz"}`)
 	f(&scrapeWorkConfig{
 		jobName:     "xyz",
 		scheme:      "https",
 		metricsPath: "/foo/bar",
-		externalLabels: map[string]string{
-			"job": "bar",
-			"a":   "b",
-		},
 	}, "foo", map[string]string{
 		"job": "extra_job",
 		"foo": "extra_foo",
@@ -712,8 +666,9 @@ scrape_config_files:
 }
 
 func resetNonEssentialFields(sws []*ScrapeWork) {
-	for i := range sws {
-		sws[i].OriginalLabels = nil
+	for _, sw := range sws {
+		sw.OriginalLabels = nil
+		sw.MetricRelabelConfigs = nil
 	}
 }
 
@@ -997,16 +952,18 @@ scrape_configs:
 					Value: "10s",
 				},
 				{
-					Name:  "datacenter",
-					Value: "foobar",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
 					Value: "foo",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "datacenter",
+					Value: "foobar",
 				},
 				{
 					Name:  "jobs",
@@ -1484,10 +1441,6 @@ scrape_configs:
 			},
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
-			MetricRelabelConfigs: mustParseRelabelConfigs(`
-- source_labels: [foo]
-  target_label: abc
-`),
 			jobNameOriginal: "foo",
 		},
 	})
@@ -1644,6 +1597,24 @@ scrape_configs:
 				{
 					Name:  "job",
 					Value: "yyy",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "__address__",
+					Value: "aaasdf",
+				},
+				{
+					Name:  "__param_a",
+					Value: "jlfd",
+				},
+				{
+					Name:  "foo",
+					Value: "xx",
+				},
+				{
+					Name:  "job",
+					Value: "foobar",
 				},
 				{
 					Name:  "q",
@@ -1885,8 +1856,10 @@ func TestScrapeConfigClone(t *testing.T) {
 	f := func(sc *ScrapeConfig) {
 		t.Helper()
 		scCopy := sc.clone()
-		if !reflect.DeepEqual(sc, scCopy) {
-			t.Fatalf("unexpected result after unmarshalJSON() for JSON:\n%s", sc.marshalJSON())
+		scJSON := sc.marshalJSON()
+		scCopyJSON := scCopy.marshalJSON()
+		if !reflect.DeepEqual(scJSON, scCopyJSON) {
+			t.Fatalf("unexpected cloned result:\ngot\n%s\nwant\n%s", scCopyJSON, scJSON)
 		}
 	}
 

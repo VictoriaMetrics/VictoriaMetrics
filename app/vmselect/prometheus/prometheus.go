@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
@@ -16,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
@@ -25,7 +26,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson/fastfloat"
-	"github.com/valyala/quicktemplate"
 )
 
 var (
@@ -44,11 +44,14 @@ var (
 	maxStepForPointsAdjustment = flag.Duration("search.maxStepForPointsAdjustment", time.Minute, "The maximum step when /api/v1/query_range handler adjusts "+
 		"points with timestamps closer than -search.latencyOffset to the current time. The adjustment is needed because such points may contain incomplete data")
 
-	maxUniqueTimeseries = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
-	maxFederateSeries   = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
-	maxExportSeries     = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
-	maxTSDBStatusSeries = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
-	maxSeriesLimit      = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxUniqueTimeseries    = flag.Int("search.maxUniqueTimeseries", 300e3, "The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage")
+	maxFederateSeries      = flag.Int("search.maxFederateSeries", 1e6, "The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage")
+	maxExportSeries        = flag.Int("search.maxExportSeries", 10e6, "The maximum number of time series, which can be returned from /api/v1/export* APIs. This option allows limiting memory usage")
+	maxTSDBStatusSeries    = flag.Int("search.maxTSDBStatusSeries", 10e6, "The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage")
+	maxSeriesLimit         = flag.Int("search.maxSeries", 30e3, "The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage")
+	maxPointsPerTimeseries = flag.Int("search.maxPointsPerTimeseries", 30e3, "The maximum points per a single timeseries returned from /api/v1/query_range. "+
+		"This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points "+
+		"returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph")
 )
 
 // Default step used if not set.
@@ -81,23 +84,19 @@ func FederateHandler(startTime time.Time, w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
+	sw := newScalableWriter(bw)
 	err = rss.RunParallel(nil, func(rs *netstorage.Result, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
-		bb := quicktemplate.AcquireByteBuffer()
+		bb := sw.getBuffer(workerID)
 		WriteFederate(bb, rs)
-		_, err := bw.Write(bb.B)
-		quicktemplate.ReleaseByteBuffer(bb)
-		return err
+		return sw.maybeFlushBuffer(bb)
 	})
 	if err != nil {
 		return fmt.Errorf("error during sending data to remote client: %w", err)
 	}
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return sw.flush()
 }
 
 var federateDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/federate"}`)
@@ -122,15 +121,14 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-
-	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
-	writeCSVLine := func(xb *exportBlock) {
+	sw := newScalableWriter(bw)
+	writeCSVLine := func(xb *exportBlock, workerID uint) error {
 		if len(xb.timestamps) == 0 {
-			return
+			return nil
 		}
-		bb := quicktemplate.AcquireByteBuffer()
+		bb := sw.getBuffer(workerID)
 		WriteExportCSVLine(bb, xb, fieldNames)
-		resultsCh <- bb
+		return sw.maybeFlushBuffer(bb)
 	}
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
@@ -147,17 +145,18 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 				xb.mn = &rs.MetricName
 				xb.timestamps = rs.Timestamps
 				xb.values = rs.Values
-				writeCSVLine(xb)
+				if err := writeCSVLine(xb, workerID); err != nil {
+					return err
+				}
 				xb.reset()
 				exportBlockPool.Put(xb)
 				return nil
 			})
-			close(resultsCh)
 			doneCh <- err
 		}()
 	} else {
 		go func() {
-			err := netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -167,29 +166,21 @@ func ExportCSVHandler(startTime time.Time, w http.ResponseWriter, r *http.Reques
 				xb := exportBlockPool.Get().(*exportBlock)
 				xb.mn = mn
 				xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
-				writeCSVLine(xb)
+				if err := writeCSVLine(xb, workerID); err != nil {
+					return err
+				}
 				xb.reset()
 				exportBlockPool.Put(xb)
 				return nil
 			})
-			close(resultsCh)
 			doneCh <- err
 		}()
-	}
-	// Consume all the data from resultsCh.
-	for bb := range resultsCh {
-		// Do not check for error in bw.Write, since this error is checked inside netstorage.ExportBlocks above.
-		_, _ = bw.Write(bb.B)
-		quicktemplate.ReleaseByteBuffer(bb)
-	}
-	if err := bw.Flush(); err != nil {
-		return err
 	}
 	err = <-doneCh
 	if err != nil {
 		return fmt.Errorf("error during sending the exported csv data to remote client: %w", err)
 	}
-	return nil
+	return sw.flush()
 }
 
 var exportCSVDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/csv"}`)
@@ -207,6 +198,7 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "VictoriaMetrics/native")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
+	sw := newScalableWriter(bw)
 
 	// Marshal tr
 	trBuf := make([]byte, 0, 16)
@@ -215,13 +207,13 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 	_, _ = bw.Write(trBuf)
 
 	// Marshal native blocks.
-	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+	err = netstorage.ExportBlocks(nil, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error {
 		if err := bw.Error(); err != nil {
 			return err
 		}
-		dstBuf := bbPool.Get()
+		bb := sw.getBuffer(workerID)
+		dst := bb.B
 		tmpBuf := bbPool.Get()
-		dst := dstBuf.B
 		tmp := tmpBuf.B
 
 		// Marshal mn
@@ -237,19 +229,13 @@ func ExportNativeHandler(startTime time.Time, w http.ResponseWriter, r *http.Req
 		tmpBuf.B = tmp
 		bbPool.Put(tmpBuf)
 
-		_, err := bw.Write(dst)
-
-		dstBuf.B = dst
-		bbPool.Put(dstBuf)
-		return err
+		bb.B = dst
+		return sw.maybeFlushBuffer(bb)
 	})
 	if err != nil {
 		return fmt.Errorf("error during sending native data to remote client: %w", err)
 	}
-	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("error during flushing native data to remote client: %w", err)
-	}
-	return nil
+	return sw.flush()
 }
 
 var exportNativeDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export/native"}`)
@@ -276,31 +262,48 @@ func ExportHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) 
 var exportDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/export"}`)
 
 func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonParams, format string, maxRowsPerLine int, reduceMemUsage bool) error {
-	writeResponseFunc := WriteExportStdResponse
-	writeLineFunc := func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
-		bb := quicktemplate.AcquireByteBuffer()
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	sw := newScalableWriter(bw)
+	writeLineFunc := func(xb *exportBlock, workerID uint) error {
+		bb := sw.getBuffer(workerID)
 		WriteExportJSONLine(bb, xb)
-		resultsCh <- bb
+		return sw.maybeFlushBuffer(bb)
 	}
 	contentType := "application/stream+json; charset=utf-8"
 	if format == "prometheus" {
 		contentType = "text/plain; charset=utf-8"
-		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
-			bb := quicktemplate.AcquireByteBuffer()
+		writeLineFunc = func(xb *exportBlock, workerID uint) error {
+			bb := sw.getBuffer(workerID)
 			WriteExportPrometheusLine(bb, xb)
-			resultsCh <- bb
+			return sw.maybeFlushBuffer(bb)
 		}
 	} else if format == "promapi" {
-		writeResponseFunc = WriteExportPromAPIResponse
-		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
-			bb := quicktemplate.AcquireByteBuffer()
+		WriteExportPromAPIHeader(bw)
+		firstLineOnce := uint32(0)
+		firstLineSent := uint32(0)
+		writeLineFunc = func(xb *exportBlock, workerID uint) error {
+			bb := sw.getBuffer(workerID)
+			if atomic.CompareAndSwapUint32(&firstLineOnce, 0, 1) {
+				// Send the first line to sw.bw
+				WriteExportPromAPILine(bb, xb)
+				_, err := sw.bw.Write(bb.B)
+				bb.Reset()
+				atomic.StoreUint32(&firstLineSent, 1)
+				return err
+			}
+			for atomic.LoadUint32(&firstLineSent) == 0 {
+				// Busy wait until the first line is sent to sw.bw
+				runtime.Gosched()
+			}
+			bb.B = append(bb.B, ',')
 			WriteExportPromAPILine(bb, xb)
-			resultsCh <- bb
+			return sw.maybeFlushBuffer(bb)
 		}
 	}
 	if maxRowsPerLine > 0 {
 		writeLineFuncOrig := writeLineFunc
-		writeLineFunc = func(xb *exportBlock, resultsCh chan<- *quicktemplate.ByteBuffer) {
+		writeLineFunc = func(xb *exportBlock, workerID uint) error {
 			valuesOrig := xb.values
 			timestampsOrig := xb.timestamps
 			values := valuesOrig
@@ -321,19 +324,19 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				}
 				xb.values = valuesChunk
 				xb.timestamps = timestampsChunk
-				writeLineFuncOrig(xb, resultsCh)
+				if err := writeLineFuncOrig(xb, workerID); err != nil {
+					return err
+				}
 			}
 			xb.values = valuesOrig
 			xb.timestamps = timestampsOrig
+			return nil
 		}
 	}
 
 	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", contentType)
-	bw := bufferedwriter.Get(w)
-	defer bufferedwriter.Put(bw)
 
-	resultsCh := make(chan *quicktemplate.ByteBuffer, cgroup.AvailableCPUs())
 	doneCh := make(chan error, 1)
 	if !reduceMemUsage {
 		rss, err := netstorage.ProcessSearchQuery(qt, sq, cp.deadline)
@@ -350,19 +353,20 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				xb.mn = &rs.MetricName
 				xb.timestamps = rs.Timestamps
 				xb.values = rs.Values
-				writeLineFunc(xb, resultsCh)
+				if err := writeLineFunc(xb, workerID); err != nil {
+					return err
+				}
 				xb.reset()
 				exportBlockPool.Put(xb)
 				return nil
 			})
 			qtChild.Done()
-			close(resultsCh)
 			doneCh <- err
 		}()
 	} else {
 		qtChild := qt.NewChild("background export format=%s", format)
 		go func() {
-			err := netstorage.ExportBlocks(qtChild, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error {
+			err := netstorage.ExportBlocks(qtChild, sq, cp.deadline, func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error {
 				if err := bw.Error(); err != nil {
 					return err
 				}
@@ -373,26 +377,30 @@ func exportHandler(qt *querytracer.Tracer, w http.ResponseWriter, cp *commonPara
 				xb.mn = mn
 				xb.timestamps, xb.values = b.AppendRowsWithTimeRangeFilter(xb.timestamps[:0], xb.values[:0], tr)
 				if len(xb.timestamps) > 0 {
-					writeLineFunc(xb, resultsCh)
+					if err := writeLineFunc(xb, workerID); err != nil {
+						return err
+					}
 				}
 				xb.reset()
 				exportBlockPool.Put(xb)
 				return nil
 			})
 			qtChild.Done()
-			close(resultsCh)
 			doneCh <- err
 		}()
 	}
-
-	// writeResponseFunc must consume all the data from resultsCh.
-	writeResponseFunc(bw, resultsCh, qt)
-	if err := bw.Flush(); err != nil {
-		return err
-	}
 	err := <-doneCh
 	if err != nil {
-		return fmt.Errorf("error during sending the data to remote client: %w", err)
+		return fmt.Errorf("cannot send data to remote client: %w", err)
+	}
+	if err := sw.flush(); err != nil {
+		return fmt.Errorf("cannot send data to remote client: %w", err)
+	}
+	if format == "promapi" {
+		WriteExportPromAPIFooter(bw, qt)
+	}
+	if err := bw.Flush(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -447,7 +455,7 @@ var deleteDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, labelName string, w http.ResponseWriter, r *http.Request) error {
 	defer labelValuesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -544,7 +552,7 @@ var tsdbStatusDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/
 func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer labelsDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, false)
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, false)
 	if err != nil {
 		return err
 	}
@@ -597,23 +605,25 @@ var seriesCountDuration = metrics.NewSummary(`vm_request_duration_seconds{path="
 func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	defer seriesDuration.UpdateDuration(startTime)
 
-	cp, err := getCommonParams(r, startTime, true)
-	if err != nil {
-		return err
-	}
 	// Do not set start to searchutils.minTimeMsecs by default as Prometheus does,
 	// since this leads to fetching and scanning all the data from the storage,
 	// which can take a lot of time for big storages.
 	// It is better setting start as end-defaultStep by default.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/91
-	if cp.start == 0 {
-		cp.start = cp.end - defaultStep
+	cp, err := getCommonParamsWithDefaultDuration(r, startTime, true)
+	if err != nil {
+		return err
 	}
 	limit, err := searchutils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
+
+	minLimit := *maxSeriesLimit
+	if limit > 0 && limit < *maxSeriesLimit {
+		minLimit = limit
+	}
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, minLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
@@ -733,6 +743,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		Start:               start,
 		End:                 start,
 		Step:                step,
+		MaxPointsPerSeries:  *maxPointsPerTimeseries,
 		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
@@ -818,8 +829,8 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	if start > end {
 		end = start + defaultStep
 	}
-	if err := promql.ValidateMaxPointsPerTimeseries(start, end, step); err != nil {
-		return err
+	if err := promql.ValidateMaxPointsPerSeries(start, end, step, *maxPointsPerTimeseries); err != nil {
+		return fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
 	}
 	if mayCache {
 		start, end = promql.AdjustStartEnd(start, end, step)
@@ -829,6 +840,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		Start:               start,
 		End:                 end,
 		Step:                step,
+		MaxPointsPerSeries:  *maxPointsPerTimeseries,
 		MaxSeries:           *maxUniqueTimeseries,
 		QuotedRemoteAddr:    httpserver.GetQuotedRemoteAddr(r),
 		Deadline:            deadline,
@@ -839,7 +851,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
-		return fmt.Errorf("cannot execute query: %w", err)
+		return err
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
 		queryOffset := getLatencyOffsetMilliseconds()
@@ -1052,6 +1064,17 @@ func getExportParams(r *http.Request, startTime time.Time) (*commonParams, error
 	return cp, nil
 }
 
+func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
+	cp, err := getCommonParams(r, startTime, requireNonEmptyMatch)
+	if err != nil {
+		return nil, err
+	}
+	if cp.start == 0 {
+		cp.start = cp.end - defaultStep
+	}
+	return cp, nil
+}
+
 // getCommonParams obtains common params from r, which are used in /api/v1/* handlers:
 //
 // - timeout
@@ -1104,4 +1127,42 @@ func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch 
 		filterss:         filterss,
 	}
 	return cp, nil
+}
+
+type scalableWriter struct {
+	bw *bufferedwriter.Writer
+	m  sync.Map
+}
+
+func newScalableWriter(bw *bufferedwriter.Writer) *scalableWriter {
+	return &scalableWriter{
+		bw: bw,
+	}
+}
+
+func (sw *scalableWriter) getBuffer(workerID uint) *bytesutil.ByteBuffer {
+	v, ok := sw.m.Load(workerID)
+	if !ok {
+		v = &bytesutil.ByteBuffer{}
+		sw.m.Store(workerID, v)
+	}
+	return v.(*bytesutil.ByteBuffer)
+}
+
+func (sw *scalableWriter) maybeFlushBuffer(bb *bytesutil.ByteBuffer) error {
+	if len(bb.B) < 1024*1024 {
+		return nil
+	}
+	_, err := sw.bw.Write(bb.B)
+	bb.Reset()
+	return err
+}
+
+func (sw *scalableWriter) flush() error {
+	sw.m.Range(func(k, v interface{}) bool {
+		bb := v.(*bytesutil.ByteBuffer)
+		_, err := sw.bw.Write(bb.B)
+		return err == nil
+	})
+	return sw.bw.Flush()
 }

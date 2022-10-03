@@ -126,47 +126,22 @@
 }
 {% endfunc %}
 
-{% func ExportPromAPIResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer) %}
+{% func ExportPromAPIHeader() %}
 {
-	{% code
-		lines := 0
-		bytesTotal := 0
-	%}
 	"status":"success",
 	"data":{
 		"resultType":"matrix",
 		"result":[
-			{% code bb, ok := <-resultsCh %}
-			{% if ok %}
-				{%z= bb.B %}
-				{% code
-					lines++
-					bytesTotal += len(bb.B)
-					quicktemplate.ReleaseByteBuffer(bb)
-				%}
-				{% for bb := range resultsCh %}
-					,{%z= bb.B %}
-					{% code
-						lines++
-						bytesTotal += len(bb.B)
-						quicktemplate.ReleaseByteBuffer(bb)
-					%}
-				{% endfor %}
-			{% endif %}
+{% endfunc %}
+
+{% func ExportPromAPIFooter(qt *querytracer.Tracer) %}
 		]
 	}
 	{% code
-		qt.Donef("export format=promapi: lines=%d, bytes=%d", lines, bytesTotal)
+		qt.Donef("export format=promapi")
 	%}
 	{%= dumpQueryTrace(qt) %}
 }
-{% endfunc %}
-
-{% func ExportStdResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer) %}
-	{% for bb := range resultsCh %}
-		{%z= bb.B %}
-		{% code quicktemplate.ReleaseByteBuffer(bb) %}
-	{% endfor %}
 {% endfunc %}
 
 {% func prometheusMetricName(mn *storage.MetricName) %}

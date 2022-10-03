@@ -66,8 +66,8 @@ func (tag *Tag) copyFrom(src *Tag) {
 	tag.Value = append(tag.Value[:0], src.Value...)
 }
 
-func marshalTagValueNoTrailingTagSeparator(dst, src []byte) []byte {
-	dst = marshalTagValue(dst, src)
+func marshalTagValueNoTrailingTagSeparator(dst []byte, src string) []byte {
+	dst = marshalTagValue(dst, bytesutil.ToUnsafeBytes(src))
 	// Remove trailing tagSeparatorChar
 	return dst[:len(dst)-1]
 }

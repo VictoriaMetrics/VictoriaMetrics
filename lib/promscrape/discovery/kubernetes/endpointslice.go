@@ -151,8 +151,8 @@ func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp En
 		m["__meta_kubernetes_endpointslice_endpoint_hostname"] = ea.Hostname
 	}
 	for k, v := range ea.Topology {
-		m["__meta_kubernetes_endpointslice_endpoint_topology_"+discoveryutils.SanitizeLabelName(k)] = v
-		m["__meta_kubernetes_endpointslice_endpoint_topology_present_"+discoveryutils.SanitizeLabelName(k)] = "true"
+		m[discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_"+k)] = v
+		m[discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_present_"+k)] = "true"
 	}
 	return m
 }

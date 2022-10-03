@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"testing"
@@ -41,7 +40,7 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	exp := fmt.Sprintf("https://victoriametrics.com/path/vmalert/api/v1/alert?%s=42&%s=2", paramGroupID, paramAlertID)
+	exp := fmt.Sprintf("https://victoriametrics.com/path/vmalert/alert?%s=42&%s=2", paramGroupID, paramAlertID)
 	if exp != fn(testAlert) {
 		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
@@ -87,7 +86,7 @@ groups:
 `
 	)
 
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +153,7 @@ groups:
 
 func writeToFile(t *testing.T, file, b string) {
 	t.Helper()
-	err := ioutil.WriteFile(file, []byte(b), 0644)
+	err := os.WriteFile(file, []byte(b), 0644)
 	if err != nil {
 		t.Fatal(err)
 	}

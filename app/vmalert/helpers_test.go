@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"reflect"
 	"sort"
 	"sync"
@@ -44,18 +45,20 @@ func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Qu
 }
 
 func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
-	return fq.Query(ctx, q, time.Now())
+	req, _, err := fq.Query(ctx, q, time.Now())
+	return req, err
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]datasource.Metric, *http.Request, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {
-		return nil, fq.err
+		return nil, nil, fq.err
 	}
 	cp := make([]datasource.Metric, len(fq.metrics))
 	copy(cp, fq.metrics)
-	return cp, nil
+	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
+	return cp, req, nil
 }
 
 func (fq *fakeQuerier) Health() bool {

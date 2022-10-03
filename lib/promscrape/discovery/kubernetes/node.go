@@ -104,8 +104,7 @@ func (n *Node) getTargetLabels(gw *groupWatcher) []map[string]string {
 			continue
 		}
 		addrTypesUsed[a.Type] = true
-		ln := discoveryutils.SanitizeLabelName(a.Type)
-		m["__meta_kubernetes_node_address_"+ln] = a.Address
+		m[discoveryutils.SanitizeLabelName("__meta_kubernetes_node_address_"+a.Type)] = a.Address
 	}
 	return []map[string]string{m}
 }

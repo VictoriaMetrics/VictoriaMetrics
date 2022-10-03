@@ -123,13 +123,13 @@ func (tsw *timeseriesWork) do(r *Result, workerID uint) error {
 		atomic.StoreUint32(tsw.mustStop, 1)
 		return fmt.Errorf("error during time series unpacking: %w", err)
 	}
+	tsw.rowsProcessed = len(r.Timestamps)
 	if len(r.Timestamps) > 0 {
 		if err := tsw.f(r, workerID); err != nil {
 			atomic.StoreUint32(tsw.mustStop, 1)
 			return err
 		}
 	}
-	tsw.rowsProcessed = len(r.Values)
 	return nil
 }
 
@@ -191,11 +191,9 @@ func (rss *Results) RunParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 	// Spin up up to gomaxprocs local workers and split work equally among them.
 	// This guarantees linear scalability with the increase of gomaxprocs
 	// (e.g. the number of available CPU cores).
-	workers := len(rss.packedTimeseries)
 	itemsPerWorker := 1
-	if workers > gomaxprocs {
-		itemsPerWorker = 1 + workers/gomaxprocs
-		workers = gomaxprocs
+	if len(rss.packedTimeseries) > gomaxprocs {
+		itemsPerWorker = 1 + len(rss.packedTimeseries)/gomaxprocs
 	}
 	var start int
 	var i uint
@@ -848,7 +846,8 @@ var ssPool sync.Pool
 // Data processing is immediately stopped if f returns non-nil error.
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
-func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
+func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline,
+	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error) error {
 	qt = qt.NewChild("export blocks: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -883,10 +882,10 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	var wg sync.WaitGroup
 	wg.Add(gomaxprocs)
 	for i := 0; i < gomaxprocs; i++ {
-		go func() {
+		go func(workerID uint) {
 			defer wg.Done()
 			for xw := range workCh {
-				if err := f(&xw.mn, &xw.b, tr); err != nil {
+				if err := f(&xw.mn, &xw.b, tr, workerID); err != nil {
 					errGlobalLock.Lock()
 					if errGlobal != nil {
 						errGlobal = err
@@ -897,7 +896,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 				xw.reset()
 				exportWorkPool.Put(xw)
 			}
-		}()
+		}(uint(i))
 	}
 
 	// Feed workers with work

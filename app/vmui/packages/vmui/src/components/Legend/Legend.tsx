@@ -70,11 +70,6 @@ const Legend: FC<LegendProps> = ({labels, query, onChange}) => {
         </div>
       </div>)}
     </div>
-    <div className="legendWrapperHotkey">
-      <p><code>Left click</code> - select series</p>
-      <p><code>Ctrl</code> + <code>Left click</code> - toggle multiple series</p>
-    </div>
-
   </>;
 };
 

@@ -8,8 +8,7 @@ AdditionalScrapeConfigs is an additional way to add scrape targets in VMAgent CR
 There are two options for adding targets into VMAgent: inline configuration into CRD or defining it as a Kubernetes Secret.
 
 No validation happens during the creation of configuration. However, you must validate job specs, and it must follow job spec configuration.
-Please check official Prometheus documentation as references.
-[Prometheus documentation](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+Please check [scrape_configs documentation](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) as references.
 
 ## Inline Additional Scrape Configuration in VMAgent CRD
 

@@ -58,20 +58,21 @@ There is also [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster
 ### Starting VM-Cluster via Docker
 
 The following commands clone the latest available
-[VictoriaMetrics cluster repository](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster)
-and start the docker container via 'docker-compose'. Further customization is possible by editing
-the [docker-compose.yaml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/docker-compose.yml)
+[VictoriaMetrics repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
+and start the docker container via 'make docker-cluster-up'. Further customization is possible by editing
+the [docker-compose-cluster.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/docker-compose-cluster.yml)
 file.
 
 <div class="with-copy" markdown="1">
 
 ```console
-git clone https://github.com/VictoriaMetrics/VictoriaMetrics --branch cluster && 
-cd VictoriaMetrics/deployment/docker && 
-docker-compose up
+git clone https://github.com/VictoriaMetrics/VictoriaMetrics && 
+make docker-cluster-up
 ```
 
 </div>
+
+See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker#readme).
 
 * [Cluster setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup)
 
@@ -140,10 +141,11 @@ The list of alerts for [single](https://github.com/VictoriaMetrics/VictoriaMetri
 and [cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/cluster/deployment/docker/alerts.yml)
 versions would also help to identify and notify about issues with the system.
 
-The rule of the thumb is to have a separate installation of VictoriaMetrics or any other monitoring system
+The rule of thumb is to have a separate installation of VictoriaMetrics or any other monitoring system
 to monitor the production installation of VictoriaMetrics. This would make monitoring independent and
 will help identify problems with the main monitoring installation.
 
+See more details in the article [VictoriaMetrics Monitoring](https://victoriametrics.com/blog/victoriametrics-monitoring/).
 
 ### Capacity planning
 

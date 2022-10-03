@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
@@ -27,19 +26,9 @@ type RecordingRule struct {
 
 	q datasource.Querier
 
-	// guard status fields
-	mu sync.RWMutex
-	// stores last moment of time Exec was called
-	lastExecTime time.Time
-	// stores the duration of the last Exec call
-	lastExecDuration time.Duration
-	// stores last error that happened in Exec func
-	// resets on every successful Exec
-	// may be used as Health state
-	lastExecError error
-	// stores the number of samples returned during
-	// the last evaluation
-	lastExecSamples int
+	// state stores recent state changes
+	// during evaluations
+	state *ruleState
 
 	metrics *recordingRuleMetrics
 }
@@ -69,6 +58,7 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		Labels:  cfg.Labels,
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
+		state:   newRuleState(),
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
@@ -80,18 +70,16 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
 	rr.metrics.errors = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_error{%s}`, labels),
 		func() float64 {
-			rr.mu.RLock()
-			defer rr.mu.RUnlock()
-			if rr.lastExecError == nil {
+			e := rr.state.getLast()
+			if e.err == nil {
 				return 0
 			}
 			return 1
 		})
 	rr.metrics.samples = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_recording_rules_last_evaluation_samples{%s}`, labels),
 		func() float64 {
-			rr.mu.RLock()
-			defer rr.mu.RUnlock()
-			return float64(rr.lastExecSamples)
+			e := rr.state.getLast()
+			return float64(e.samples)
 		})
 	return rr
 }
@@ -126,21 +114,29 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 
 // Exec executes RecordingRule expression via the given Querier.
 func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
-	qMetrics, err := rr.q.Query(ctx, rr.Expr, ts)
-	rr.mu.Lock()
-	defer rr.mu.Unlock()
+	start := time.Now()
+	qMetrics, req, err := rr.q.Query(ctx, rr.Expr, ts)
+	curState := ruleStateEntry{
+		time:     start,
+		at:       ts,
+		duration: time.Since(start),
+		samples:  len(qMetrics),
+		req:      req,
+	}
 
-	rr.lastExecTime = ts
-	rr.lastExecDuration = time.Since(ts)
-	rr.lastExecError = err
-	rr.lastExecSamples = len(qMetrics)
+	defer func() {
+		rr.state.add(curState)
+	}()
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
+		curState.err = fmt.Errorf("failed to execute query %q: %w", rr.Expr, err)
+		return nil, curState.err
 	}
 
 	numSeries := len(qMetrics)
 	if limit > 0 && numSeries > limit {
-		return nil, fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
+		curState.err = fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
+		return nil, curState.err
 	}
 
 	duplicates := make(map[string]struct{}, len(qMetrics))
@@ -149,8 +145,8 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]p
 		ts := rr.toTimeSeries(r)
 		key := stringifyLabels(ts)
 		if _, ok := duplicates[key]; ok {
-			rr.lastExecError = errDuplicate
-			return nil, fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
+			curState.err = fmt.Errorf("original metric %v; resulting labels %q: %w", r, key, errDuplicate)
+			return nil, curState.err
 		}
 		duplicates[key] = struct{}{}
 		tss = append(tss, ts)
@@ -205,23 +201,25 @@ func (rr *RecordingRule) UpdateWith(r Rule) error {
 // ToAPI returns Rule's representation in form
 // of APIRule
 func (rr *RecordingRule) ToAPI() APIRule {
+	lastState := rr.state.getLast()
 	r := APIRule{
 		Type:           "recording",
 		DatasourceType: rr.Type.String(),
 		Name:           rr.Name,
 		Query:          rr.Expr,
 		Labels:         rr.Labels,
-		LastEvaluation: rr.lastExecTime,
-		EvaluationTime: rr.lastExecDuration.Seconds(),
+		LastEvaluation: lastState.time,
+		EvaluationTime: lastState.duration.Seconds(),
 		Health:         "ok",
-		LastSamples:    rr.lastExecSamples,
+		LastSamples:    lastState.samples,
+		Updates:        rr.state.getAll(),
+
 		// encode as strings to avoid rounding
 		ID:      fmt.Sprintf("%d", rr.ID()),
 		GroupID: fmt.Sprintf("%d", rr.GroupID),
 	}
-
-	if rr.lastExecError != nil {
-		r.LastError = rr.lastExecError.Error()
+	if lastState.err != nil {
+		r.LastError = lastState.err.Error()
 		r.Health = "err"
 	}
 	return r

@@ -2,7 +2,7 @@ version: "3.5"
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent
+    image: victoriametrics/vmagent:v1.81.2
     depends_on:
       - "victoriametrics"
     ports:
@@ -18,7 +18,7 @@ services:
     restart: always
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics
+    image: victoriametrics/victoria-metrics:v1.81.2
     ports:
       - 8428:8428
       - 8089:8089
@@ -40,7 +40,7 @@ services:
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.0.3
+    image: grafana/grafana:9.1.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -56,7 +56,7 @@ services:
     restart: always
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert
+    image: victoriametrics/vmalert:v1.81.2
     depends_on:
       - "victoriametrics"
       - "alertmanager"
@@ -64,6 +64,8 @@ services:
       - 8880:8880
     volumes:
       - ./alerts.yml:/etc/alerts/alerts.yml
+      - ./alerts-health.yml:/etc/alerts/alerts-health.yml
+      - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
     command:
       - "--datasource.url=http://victoriametrics:8428/"
       - "--remoteRead.url=http://victoriametrics:8428/"
@@ -72,13 +74,14 @@ services:
       - "--rule=/etc/alerts/*.yml"
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
-      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":"{{$$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' ## when copypaste the line be aware of '$$' for escaping in '$expr'
+      # when copypaste the line be aware of '$$' for escaping in '$expr'
+      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":"{{$$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
     networks:
       - vm_net
     restart: always
   alertmanager:
     container_name: alertmanager
-    image: prom/alertmanager
+    image: prom/alertmanager:v0.24.0
     volumes:
       - ./alertmanager.yml:/config/alertmanager.yml
     command:

@@ -3,7 +3,6 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/url"
 	"os"
 	"strconv"
@@ -145,7 +144,7 @@ func getCloudEnvByName(name string) (*cloudEnvironmentEndpoints, error) {
 }
 
 func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, error) {
-	data, err := ioutil.ReadFile(filePath)
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot file %q: %w", filePath, err)
 	}
@@ -233,7 +232,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		}
 		var tr tokenResponse
 		if err := json.Unmarshal(data, &tr); err != nil {
-			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", string(data), err)
+			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", data, err)
 		}
 		expiresInSeconds, err := strconv.ParseInt(tr.ExpiresIn, 10, 64)
 		if err != nil {

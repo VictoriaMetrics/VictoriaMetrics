@@ -2080,5 +2080,5 @@ func stopTestStorage(s *Storage) {
 	s.metricIDCache.Stop()
 	s.metricNameCache.Stop()
 	s.tsidCache.Stop()
-	fs.MustRemoveAll(s.cachePath)
+	fs.MustRemoveDirAtomic(s.cachePath)
 }

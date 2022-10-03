@@ -16,6 +16,7 @@ GO_BUILDINFO = -X '$(PKG_PREFIX)/lib/buildinfo.Version=$(APP_NAME)-$(DATEINFO_TA
 include app/*/Makefile
 include deployment/*/Makefile
 include snap/local/Makefile
+include package/release/Makefile
 
 all: \
 	victoria-metrics-prod \
@@ -29,7 +30,7 @@ all: \
 clean:
 	rm -rf bin/*
 
-publish: \
+publish: docker-scan \
 	publish-victoria-metrics \
 	publish-vmagent \
 	publish-vmalert \
@@ -310,89 +311,87 @@ fmt:
 	gofmt -l -w -s ./app
 
 vet:
-	go vet -mod=vendor ./lib/...
-	go vet -mod=vendor ./app/...
+	go vet ./lib/...
+	go vet ./app/...
 
 lint: install-golint
 	golint lib/...
 	golint app/...
 
 install-golint:
-	which golint || GO111MODULE=off go get golang.org/x/lint/golint
+	which golint || go install golang.org/x/lint/golint@latest
 
 errcheck: install-errcheck
 	errcheck -exclude=errcheck_excludes.txt ./lib/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vminsert/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmselect/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmstorage/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmagent/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmalert/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmauth/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmbackup/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmrestore/...
-	errcheck -exclude=errcheck_excludes.txt ./app/vmctl/...
+	errcheck -exclude=errcheck_excludes.txt ./app/...
 
 install-errcheck:
-	which errcheck || GO111MODULE=off go get github.com/kisielk/errcheck
+	which errcheck || go install github.com/kisielk/errcheck@latest
 
-check-all: fmt vet lint errcheck golangci-lint
+check-all: fmt vet lint errcheck golangci-lint govulncheck
 
 test:
-	go test -mod=vendor ./lib/... ./app/...
+	go test ./lib/... ./app/...
 
 test-race:
-	go test -mod=vendor -race ./lib/... ./app/...
+	go test -race ./lib/... ./app/...
 
 test-pure:
-	CGO_ENABLED=0 go test -mod=vendor ./lib/... ./app/...
+	CGO_ENABLED=0 go test ./lib/... ./app/...
 
 test-full:
-	go test -mod=vendor -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 test-full-386:
-	GOARCH=386 go test -mod=vendor -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
+	GOARCH=386 go test -coverprofile=coverage.txt -covermode=atomic ./lib/... ./app/...
 
 benchmark:
-	go test -mod=vendor -bench=. ./lib/...
-	go test -mod=vendor -bench=. ./app/...
+	go test -bench=. ./lib/...
+	go test -bench=. ./app/...
 
 benchmark-pure:
-	CGO_ENABLED=0 go test -mod=vendor -bench=. ./lib/...
-	CGO_ENABLED=0 go test -mod=vendor -bench=. ./app/...
+	CGO_ENABLED=0 go test -bench=. ./lib/...
+	CGO_ENABLED=0 go test -bench=. ./app/...
 
 vendor-update:
 	go get -u -d ./lib/...
 	go get -u -d ./app/...
-	go mod tidy -compat=1.17
+	go mod tidy -compat=1.19
 	go mod vendor
 
 app-local:
-	CGO_ENABLED=1 go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=1 go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-local-pure:
-	CGO_ENABLED=0 go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-pure$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=0 go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-pure$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-local-goos-goarch:
-	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-$(GOOS)-$(GOARCH)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-$(GOOS)-$(GOARCH)$(RACE) $(PKG_PREFIX)/app/$(APP_NAME)
 
 app-local-windows-goarch:
-	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -mod=vendor -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
+	CGO_ENABLED=0 GOOS=windows GOARCH=$(GOARCH) go build $(RACE) -ldflags "$(GO_BUILDINFO)" -o bin/$(APP_NAME)-windows-$(GOARCH)$(RACE).exe $(PKG_PREFIX)/app/$(APP_NAME)
 
 quicktemplate-gen: install-qtc
 	qtc
 
 install-qtc:
-	which qtc || GO111MODULE=off go get github.com/valyala/quicktemplate/qtc
+	which qtc || go install github.com/valyala/quicktemplate/qtc@latest
 
 
 golangci-lint: install-golangci-lint
 	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.47.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.48.0
+
+govulncheck: install-govulncheck
+	govulncheck ./...
+
+install-govulncheck:
+	which govulncheck || go install golang.org/x/vuln/cmd/govulncheck@latest
 
 install-wwhrd:
-	which wwhrd || GO111MODULE=off go get github.com/frapposelli/wwhrd
+	which wwhrd || go install github.com/frapposelli/wwhrd@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml

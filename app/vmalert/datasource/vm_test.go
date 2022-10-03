@@ -94,7 +94,7 @@ func TestVMInstantQuery(t *testing.T) {
 	ts := time.Now()
 
 	expErr := func(err string) {
-		if _, err := pq.Query(ctx, query, ts); err == nil {
+		if _, _, err := pq.Query(ctx, query, ts); err == nil {
 			t.Fatalf("expected %q got nil", err)
 		}
 	}
@@ -106,7 +106,7 @@ func TestVMInstantQuery(t *testing.T) {
 	expErr("unknown status")                // 4
 	expErr("non-vector resultType error")   // 5
 
-	m, err := pq.Query(ctx, query, ts) // 6 - vector
+	m, _, err := pq.Query(ctx, query, ts) // 6 - vector
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -129,9 +129,12 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Fatalf("unexpected metric %+v want %+v", m, expected)
 	}
 
-	m, err = pq.Query(ctx, query, ts) // 7 - scalar
+	m, req, err := pq.Query(ctx, query, ts) // 7 - scalar
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
+	}
+	if req == nil {
+		t.Fatalf("expected request to be non-nil")
 	}
 	if len(m) != 1 {
 		t.Fatalf("expected 1 metrics got %d in %+v", len(m), m)
@@ -148,7 +151,7 @@ func TestVMInstantQuery(t *testing.T) {
 
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
-	m, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
+	m, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}

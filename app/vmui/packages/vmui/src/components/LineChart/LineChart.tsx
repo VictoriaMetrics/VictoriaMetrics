@@ -56,9 +56,16 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     tooltipOffset.left = parseFloat(u.over.style.left);
     tooltipOffset.top = parseFloat(u.over.style.top);
     u.root.querySelector(".u-wrap")?.appendChild(tooltip);
-    // wheel drag pan
-    u.over.addEventListener("mousedown", e => dragChart({u, e, setPanning, setPlotScale, factor}));
-    // wheel scroll zoom
+    u.over.addEventListener("mousedown", e => {
+      const {ctrlKey, metaKey} = e;
+      const leftClick = e.button === 0;
+      const leftClickWithMeta = leftClick && (ctrlKey || metaKey);
+      if (leftClickWithMeta) {
+        // drag pan
+        dragChart({u, e, setPanning, setPlotScale, factor});
+      }
+    });
+
     u.over.addEventListener("wheel", e => {
       if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
@@ -71,6 +78,23 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
       const max = min + nxRange;
       u.batch(() => setPlotScale({u, min, max}));
     });
+  };
+
+  const handleKeyDown = (e: KeyboardEvent) => {
+    const {target, ctrlKey, metaKey, key} = e;
+    const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+    if (!uPlotInst || isInput) return;
+    const minus = key === "-";
+    const plus = key === "+" || key === "=";
+    if ((minus || plus) && !(ctrlKey || metaKey)) {
+      e.preventDefault();
+      const factor = (xRange.max - xRange.min) / 10 * (plus ? 1 : -1);
+      setPlotScale({
+        u: uPlotInst,
+        min: xRange.min + factor,
+        max: xRange.max - factor
+      });
+    }
   };
 
   const setCursor = (u: uPlot) => {
@@ -110,6 +134,15 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     scales: {...getScales()},
     width: layoutSize.width || 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],
+    hooks: {
+      setSelect: [
+        (u) => {
+          const min = u.posToVal(u.select.left, "x");
+          const max = u.posToVal(u.select.left + u.select.width, "x");
+          setPlotScale({u, min, max});
+        }
+      ]
+    }
   };
 
   const updateChart = (type: typeChartUpdate): void => {
@@ -140,6 +173,14 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
     setXRange({min: period.start, max: period.end});
     return u.destroy;
   }, [uPlotRef.current, series, layoutSize]);
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [xRange]);
 
   useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);

@@ -1,7 +1,6 @@
 import {DragArgs} from "./types";
 
 export const dragChart = ({e, factor = 0.85, u, setPanning, setPlotScale}: DragArgs): void => {
-  if (e.button !== 0) return;
   e.preventDefault();
   setPanning(true);
   const leftStart = e.clientX;

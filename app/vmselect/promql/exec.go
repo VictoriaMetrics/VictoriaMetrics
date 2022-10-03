@@ -26,6 +26,24 @@ var (
 		`This option is DEPRECATED in favor of {__graphite__="a.*.c"} syntax for selecting metrics matching the given Graphite metrics filter`)
 )
 
+// UserReadableError is a type of error which supposed to be returned to the user without additional context.
+type UserReadableError struct {
+	// Err is the error which needs to be returned to the user.
+	Err error
+}
+
+// Unwrap returns ure.Err.
+//
+// This is used by standard errors package. See https://golang.org/pkg/errors
+func (ure *UserReadableError) Unwrap() error {
+	return ure.Err
+}
+
+// Error satisfies Error interface
+func (ure *UserReadableError) Error() string {
+	return ure.Err.Error()
+}
+
 // Exec executes q for the given ec.
 func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
 	if querystats.Enabled() {
@@ -73,7 +91,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 		qt.Printf("round series values to %d decimal digits after the point", n)
 	}
-	return result, err
+	return result, nil
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
@@ -81,7 +99,8 @@ func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
 	case *metricsql.FuncExpr:
 		switch strings.ToLower(v.Name) {
 		case "sort", "sort_desc",
-			"sort_by_label", "sort_by_label_desc":
+			"sort_by_label", "sort_by_label_desc",
+			"sort_by_label_numeric", "sort_by_label_numeric_desc":
 			return false
 		}
 	case *metricsql.AggrFuncExpr:

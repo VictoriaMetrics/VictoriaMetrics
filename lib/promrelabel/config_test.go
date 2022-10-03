@@ -7,6 +7,30 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func TestMultiLineRegexUnmarshalMarshal(t *testing.T) {
+	f := func(data, resultExpected string) {
+		t.Helper()
+		var mlr MultiLineRegex
+		if err := yaml.UnmarshalStrict([]byte(data), &mlr); err != nil {
+			t.Fatalf("cannot unmarshal %q: %s", data, err)
+		}
+		result, err := yaml.Marshal(&mlr)
+		if err != nil {
+			t.Fatalf("cannot marshal %q: %s", data, err)
+		}
+		if string(result) != resultExpected {
+			t.Fatalf("unexpected marshaled data; got\n%q\nwant\n%q", result, resultExpected)
+		}
+	}
+	f(``, `""`+"\n")
+	f(`foo`, "foo\n")
+	f(`a|b||c`, "- a\n- b\n- \"\"\n- c\n")
+	f(`(a|b)`, "(a|b)\n")
+	f(`a|b[c|d]`, "a|b[c|d]\n")
+	f("- a\n- b", "- a\n- b\n")
+	f("- a\n- (b)", "a|(b)\n")
+}
+
 func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 	f := func(data, resultExpected string) {
 		t.Helper()
@@ -31,7 +55,7 @@ func TestRelabelConfigMarshalUnmarshal(t *testing.T) {
 - regex:
   - 'fo.+'
   - '.*ba[r-z]a'
-`, "- regex:\n  - fo.+\n  - .*ba[r-z]a\n")
+`, "- regex: fo.+|.*ba[r-z]a\n")
 	f(`- regex: foo|bar`, "- regex:\n  - foo\n  - bar\n")
 	f(`- regex: True`, `- regex: "true"`+"\n")
 	f(`- regex: true`, `- regex: "true"`+"\n")
@@ -102,7 +126,7 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel:  "foo",
 			SourceLabels: []string{"aaa"},
 		},
-	}, "[SourceLabels=[aaa], Separator=;, TargetLabel=foo, Regex=^(.*)$, Modulus=0, Replacement=$1, Action=replace, If=, "+
+	}, "[SourceLabels=[aaa], Separator=;, TargetLabel=foo, Regex=.*, Modulus=0, Replacement=$1, Action=replace, If=, "+
 		"graphiteMatchTemplate=<nil>, graphiteLabelRules=[]], relabelDebug=false")
 	var ie IfExpression
 	if err := ie.Parse("{foo=~'bar'}"); err != nil {
@@ -117,7 +141,7 @@ func TestParsedConfigsString(t *testing.T) {
 			},
 			If: &ie,
 		},
-	}, "[SourceLabels=[], Separator=;, TargetLabel=, Regex=^(.*)$, Modulus=0, Replacement=$1, Action=graphite, If={foo=~'bar'}, "+
+	}, "[SourceLabels=[], Separator=;, TargetLabel=, Regex=.*, Modulus=0, Replacement=$1, Action=graphite, If={foo=~'bar'}, "+
 		"graphiteMatchTemplate=foo.*.bar, graphiteLabelRules=[replaceTemplate=$1-zz, targetLabel=job]], relabelDebug=false")
 	f([]RelabelConfig{
 		{
@@ -126,7 +150,7 @@ func TestParsedConfigsString(t *testing.T) {
 			TargetLabel:  "x",
 			If:           &ie,
 		},
-	}, "[SourceLabels=[foo bar], Separator=;, TargetLabel=x, Regex=^(.*)$, Modulus=0, Replacement=$1, Action=replace, If={foo=~'bar'}, "+
+	}, "[SourceLabels=[foo bar], Separator=;, TargetLabel=x, Regex=.*, Modulus=0, Replacement=$1, Action=replace, If={foo=~'bar'}, "+
 		"graphiteMatchTemplate=<nil>, graphiteLabelRules=[]], relabelDebug=false")
 }
 
@@ -136,6 +160,12 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 		pcs, err := ParseRelabelConfigs(rcs, false)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
+		}
+		if pcs != nil {
+			for _, prc := range pcs.prcs {
+				prc.stringReplacer = nil
+				prc.submatchReplacer = nil
+			}
 		}
 		if !reflect.DeepEqual(pcs, pcsExpected) {
 			t.Fatalf("unexpected pcs; got\n%#v\nwant\n%#v", pcs, pcsExpected)
@@ -150,13 +180,14 @@ func TestParseRelabelConfigsSuccess(t *testing.T) {
 	}, &ParsedConfigs{
 		prcs: []*parsedRelabelConfig{
 			{
-				SourceLabels: []string{"foo", "bar"},
-				Separator:    ";",
-				TargetLabel:  "xxx",
-				Regex:        defaultRegexForRelabelConfig,
-				Replacement:  "$1",
-				Action:       "replace",
+				SourceLabels:  []string{"foo", "bar"},
+				Separator:     ";",
+				TargetLabel:   "xxx",
+				RegexAnchored: defaultRegexForRelabelConfig,
+				Replacement:   "$1",
+				Action:        "replace",
 
+				regex:                        defaultPromRegex,
 				regexOriginal:                defaultOriginalRegexForRelabelConfig,
 				hasCaptureGroupInReplacement: true,
 			},
@@ -430,4 +461,22 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
+}
+
+func TestIsDefaultRegex(t *testing.T) {
+	f := func(s string, resultExpected bool) {
+		t.Helper()
+		result := isDefaultRegex(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for isDefaultRegex(%q); got %v; want %v", s, result, resultExpected)
+		}
+	}
+	f("", false)
+	f("foo", false)
+	f(".+", false)
+	f("a.*", false)
+	f(".*", true)
+	f("(.*)", true)
+	f("^.*$", true)
+	f("(?:.*)", true)
 }

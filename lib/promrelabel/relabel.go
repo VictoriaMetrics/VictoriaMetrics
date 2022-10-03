@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -16,27 +17,34 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 type parsedRelabelConfig struct {
-	SourceLabels []string
-	Separator    string
-	TargetLabel  string
-	Regex        *regexp.Regexp
-	Modulus      uint64
-	Replacement  string
-	Action       string
-	If           *IfExpression
+	SourceLabels  []string
+	Separator     string
+	TargetLabel   string
+	RegexAnchored *regexp.Regexp
+	Modulus       uint64
+	Replacement   string
+	Action        string
+	If            *IfExpression
 
 	graphiteMatchTemplate *graphiteMatchTemplate
 	graphiteLabelRules    []graphiteLabelRule
 
-	regexOriginal                *regexp.Regexp
-	hasCaptureGroupInTargetLabel bool
-	hasCaptureGroupInReplacement bool
+	regex         *regexutil.PromRegex
+	regexOriginal *regexp.Regexp
+
+	hasCaptureGroupInTargetLabel   bool
+	hasCaptureGroupInReplacement   bool
+	hasLabelReferenceInReplacement bool
+
+	stringReplacer   *bytesutil.FastStringTransformer
+	submatchReplacer *bytesutil.FastStringTransformer
 }
 
 // String returns human-readable representation for prc.
 func (prc *parsedRelabelConfig) String() string {
 	return fmt.Sprintf("SourceLabels=%s, Separator=%s, TargetLabel=%s, Regex=%s, Modulus=%d, Replacement=%s, Action=%s, If=%s, graphiteMatchTemplate=%s, graphiteLabelRules=%s",
-		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.Regex, prc.Modulus, prc.Replacement, prc.Action, prc.If, prc.graphiteMatchTemplate, prc.graphiteLabelRules)
+		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.regexOriginal, prc.Modulus, prc.Replacement,
+		prc.Action, prc.If, prc.graphiteMatchTemplate, prc.graphiteLabelRules)
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
@@ -164,7 +172,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		bb := relabelBufPool.Get()
 		for _, gl := range prc.graphiteLabelRules {
 			bb.B = gl.grt.Expand(bb.B[:0], gm.a)
-			valueStr := string(bb.B)
+			valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
 			labels = setLabelValue(labels, labelsOffset, gl.targetLabel, valueStr)
 		}
 		relabelBufPool.Put(bb)
@@ -172,14 +180,20 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return labels
 	case "replace":
 		// Store `replacement` at `target_label` if the `regex` matches `source_labels` joined with `separator`
+		replacement := prc.Replacement
 		bb := relabelBufPool.Get()
+		if prc.hasLabelReferenceInReplacement {
+			// Fill {{labelName}} references in the replacement
+			bb.B = fillLabelReferences(bb.B[:0], replacement, labels[labelsOffset:])
+			replacement = bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		}
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		if prc.Regex == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInTargetLabel {
-			if prc.Replacement == "$1" {
+		if prc.RegexAnchored == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInTargetLabel {
+			if replacement == "$1" {
 				// Fast path for the rule that copies source label values to destination:
 				// - source_labels: [...]
 				//   target_label: foobar
-				valueStr := string(bb.B)
+				valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
 				relabelBufPool.Put(bb)
 				return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 			}
@@ -188,22 +202,33 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 				// - target_label: foobar
 				//   replacement: something-here
 				relabelBufPool.Put(bb)
-				labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, prc.Replacement)
+				labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, replacement)
 				return labels
 			}
 		}
-		match := prc.Regex.FindSubmatchIndex(bb.B)
-		if match == nil {
-			// Fast path - nothing to replace.
+		sourceStr := bytesutil.ToUnsafeString(bb.B)
+		if !prc.regex.MatchString(sourceStr) {
+			// Fast path - regexp mismatch.
 			relabelBufPool.Put(bb)
 			return labels
 		}
-		sourceStr := bytesutil.ToUnsafeString(bb.B)
+		var valueStr string
+		if replacement == prc.Replacement {
+			// Fast path - the replacement wasn't modified, so it is safe calling stringReplacer.Transform.
+			valueStr = prc.stringReplacer.Transform(sourceStr)
+		} else {
+			// Slow path - the replacement has been modified, so the valueStr must be calculated
+			// from scratch based on the new replacement value.
+			match := prc.RegexAnchored.FindSubmatchIndex(bb.B)
+			valueStr = prc.expandCaptureGroups(replacement, sourceStr, match)
+		}
 		nameStr := prc.TargetLabel
 		if prc.hasCaptureGroupInTargetLabel {
+			// Slow path - target_label contains regex capture groups, so the target_label
+			// must be calculated from the regex match.
+			match := prc.RegexAnchored.FindSubmatchIndex(bb.B)
 			nameStr = prc.expandCaptureGroups(nameStr, sourceStr, match)
 		}
-		valueStr := prc.expandCaptureGroups(prc.Replacement, sourceStr, match)
 		relabelBufPool.Put(bb)
 		return setLabelValue(labels, labelsOffset, nameStr, valueStr)
 	case "replace_all":
@@ -211,10 +236,10 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		// and store the result at `target_label`
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		sourceStr := string(bb.B)
+		sourceStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
-		valueStr, ok := prc.replaceStringSubmatches(sourceStr, prc.Replacement, prc.hasCaptureGroupInReplacement)
-		if ok {
+		valueStr := prc.replaceStringSubmatchesFast(sourceStr)
+		if valueStr != sourceStr {
 			labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 		}
 		return labels
@@ -244,7 +269,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return labels
 	case "keep":
 		// Keep the target if `source_labels` joined with `separator` match the `regex`.
-		if prc.Regex == defaultRegexForRelabelConfig {
+		if prc.RegexAnchored == defaultRegexForRelabelConfig {
 			// Fast path for the case with `if` and without explicitly set `regex`:
 			//
 			// - action: keep
@@ -254,7 +279,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		keep := prc.matchString(bytesutil.ToUnsafeString(bb.B))
+		keep := prc.regex.MatchString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
 		if !keep {
 			return labels[:labelsOffset]
@@ -262,7 +287,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return labels
 	case "drop":
 		// Drop the target if `source_labels` joined with `separator` don't match the `regex`.
-		if prc.Regex == defaultRegexForRelabelConfig {
+		if prc.RegexAnchored == defaultRegexForRelabelConfig {
 			// Fast path for the case with `if` and without explicitly set `regex`:
 			//
 			// - action: drop
@@ -272,7 +297,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		}
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		drop := prc.matchString(bytesutil.ToUnsafeString(bb.B))
+		drop := prc.regex.MatchString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
 		if drop {
 			return labels[:labelsOffset]
@@ -288,10 +313,9 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		return setLabelValue(labels, labelsOffset, prc.TargetLabel, value)
 	case "labelmap":
 		// Replace label names with the `replacement` if they match `regex`
-		for i := range src {
-			label := &src[i]
-			labelName, ok := prc.replaceFullString(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
-			if ok {
+		for _, label := range src {
+			labelName := prc.replaceFullStringFast(label.Name)
+			if labelName != label.Name {
 				labels = setLabelValue(labels, labelsOffset, labelName, label.Value)
 			}
 		}
@@ -300,33 +324,33 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		// Replace all the occurrences of `regex` at label names with `replacement`
 		for i := range src {
 			label := &src[i]
-			label.Name, _ = prc.replaceStringSubmatches(label.Name, prc.Replacement, prc.hasCaptureGroupInReplacement)
+			label.Name = prc.replaceStringSubmatchesFast(label.Name)
 		}
 		return labels
 	case "labeldrop":
 		// Drop labels with names matching the `regex`
 		dst := labels[:labelsOffset]
-		for i := range src {
-			label := &src[i]
-			if !prc.matchString(label.Name) {
-				dst = append(dst, *label)
+		re := prc.regex
+		for _, label := range src {
+			if !re.MatchString(label.Name) {
+				dst = append(dst, label)
 			}
 		}
 		return dst
 	case "labelkeep":
 		// Keep labels with names matching the `regex`
 		dst := labels[:labelsOffset]
-		for i := range src {
-			label := &src[i]
-			if prc.matchString(label.Name) {
-				dst = append(dst, *label)
+		re := prc.regex
+		for _, label := range src {
+			if re.MatchString(label.Name) {
+				dst = append(dst, label)
 			}
 		}
 		return dst
 	case "uppercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		valueStr := string(bb.B)
+		valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
 		valueStr = strings.ToUpper(valueStr)
 		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
@@ -334,7 +358,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	case "lowercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		valueStr := string(bb.B)
+		valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
 		relabelBufPool.Put(bb)
 		valueStr = strings.ToLower(valueStr)
 		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
@@ -345,16 +369,23 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	}
 }
 
-func (prc *parsedRelabelConfig) replaceFullString(s, replacement string, hasCaptureGroupInReplacement bool) (string, bool) {
+// replaceFullStringFast replaces s with the replacement if s matches '^regex$'.
+//
+// s is returned as is if it doesn't match '^regex$'.
+func (prc *parsedRelabelConfig) replaceFullStringFast(s string) string {
 	prefix, complete := prc.regexOriginal.LiteralPrefix()
-	if complete && !hasCaptureGroupInReplacement {
+	replacement := prc.Replacement
+	if complete && !prc.hasCaptureGroupInReplacement {
 		if s == prefix {
-			return replacement, true
+			// Fast path - s matches literal regex
+			return replacement
 		}
-		return s, false
+		// Fast path - s doesn't match literal regex
+		return s
 	}
 	if !strings.HasPrefix(s, prefix) {
-		return s, false
+		// Fast path - s doesn't match literal prefix from regex
+		return s
 	}
 	if replacement == "$1" {
 		// Fast path for commonly used rule for deleting label prefixes such as:
@@ -368,68 +399,55 @@ func (prc *parsedRelabelConfig) replaceFullString(s, replacement string, hasCapt
 			reSuffix := reStr[len(prefix):]
 			switch reSuffix {
 			case "(.*)":
-				return suffix, true
+				return suffix
 			case "(.+)":
 				if len(suffix) > 0 {
-					return suffix, true
+					return suffix
 				}
-				return s, false
+				return s
 			}
 		}
 	}
+	if !prc.regex.MatchString(s) {
+		// Fast path - regex mismatch
+		return s
+	}
+	// Slow path - handle the rest of cases.
+	return prc.stringReplacer.Transform(s)
+}
+
+// replaceFullStringSlow replaces s with the replacement if s matches '^regex$'.
+//
+// s is returned as is if it doesn't match '^regex$'.
+func (prc *parsedRelabelConfig) replaceFullStringSlow(s string) string {
 	// Slow path - regexp processing
-	match := prc.Regex.FindStringSubmatchIndex(s)
+	match := prc.RegexAnchored.FindStringSubmatchIndex(s)
 	if match == nil {
-		return s, false
+		return s
 	}
-	bb := relabelBufPool.Get()
-	bb.B = prc.Regex.ExpandString(bb.B[:0], replacement, s, match)
-	result := string(bb.B)
-	relabelBufPool.Put(bb)
-	return result, true
+	return prc.expandCaptureGroups(prc.Replacement, s, match)
 }
 
-func (prc *parsedRelabelConfig) replaceStringSubmatches(s, replacement string, hasCaptureGroupInReplacement bool) (string, bool) {
-	re := prc.regexOriginal
-	prefix, complete := re.LiteralPrefix()
-	if complete && !hasCaptureGroupInReplacement {
-		if !strings.Contains(s, prefix) {
-			return s, false
-		}
-		return strings.ReplaceAll(s, prefix, replacement), true
-	}
-	if !re.MatchString(s) {
-		return s, false
-	}
-	return re.ReplaceAllString(s, replacement), true
-}
-
-func (prc *parsedRelabelConfig) matchString(s string) bool {
+// replaceStringSubmatchesFast replaces all the regex matches with the replacement in s.
+func (prc *parsedRelabelConfig) replaceStringSubmatchesFast(s string) string {
 	prefix, complete := prc.regexOriginal.LiteralPrefix()
-	if complete {
-		return prefix == s
+	if complete && !prc.hasCaptureGroupInReplacement && !strings.Contains(s, prefix) {
+		// Fast path - zero regex matches in s.
+		return s
 	}
-	if !strings.HasPrefix(s, prefix) {
-		return false
-	}
-	reStr := prc.regexOriginal.String()
-	if strings.HasPrefix(reStr, prefix) {
-		// Fast path for `foo.*` and `bar.+` regexps
-		reSuffix := reStr[len(prefix):]
-		switch reSuffix {
-		case ".+", "(.+)":
-			return len(s) > len(prefix)
-		case ".*", "(.*)":
-			return true
-		}
-	}
-	return prc.Regex.MatchString(s)
+	// Slow path - replace all the regex matches in s with the replacement.
+	return prc.submatchReplacer.Transform(s)
+}
+
+// replaceStringSubmatchesSlow replaces all the regex matches with the replacement in s.
+func (prc *parsedRelabelConfig) replaceStringSubmatchesSlow(s string) string {
+	return prc.regexOriginal.ReplaceAllString(s, prc.Replacement)
 }
 
 func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, match []int) string {
 	bb := relabelBufPool.Get()
-	bb.B = prc.Regex.ExpandString(bb.B[:0], template, source, match)
-	s := string(bb.B)
+	bb.B = prc.RegexAnchored.ExpandString(bb.B[:0], template, source, match)
+	s := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
 	relabelBufPool.Put(bb)
 	return s
 }
@@ -539,3 +557,38 @@ func labelsToString(labels []prompbmarshal.Label) string {
 	b = append(b, '}')
 	return string(b)
 }
+
+func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.Label) []byte {
+	s := replacement
+	for len(s) > 0 {
+		n := strings.Index(s, "{{")
+		if n < 0 {
+			return append(dst, s...)
+		}
+		dst = append(dst, s[:n]...)
+		s = s[n+2:]
+		n = strings.Index(s, "}}")
+		if n < 0 {
+			dst = append(dst, "{{"...)
+			return append(dst, s...)
+		}
+		labelName := s[:n]
+		s = s[n+2:]
+		labelValue := GetLabelValueByName(labels, labelName)
+		dst = append(dst, labelValue...)
+	}
+	return dst
+}
+
+// SanitizeName replaces unsupported by Prometheus chars in metric names and label names with _.
+//
+// See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
+func SanitizeName(name string) string {
+	return promSanitizer.Transform(name)
+}
+
+var promSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return unsupportedPromChars.ReplaceAllString(s, "_")
+})
+
+var unsupportedPromChars = regexp.MustCompile(`[^a-zA-Z0-9_:]`)

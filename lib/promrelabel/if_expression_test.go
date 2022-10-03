@@ -3,11 +3,8 @@ package promrelabel
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"gopkg.in/yaml.v2"
 )
 
@@ -124,10 +121,7 @@ func TestIfExpressionMatch(t *testing.T) {
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
-		labels, err := parseMetricWithLabels(metricWithLabels)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", metricWithLabels, err)
-		}
+		labels := MustParseMetricWithLabels(metricWithLabels)
 		if !ie.Match(labels) {
 			t.Fatalf("unexpected mismatch of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
@@ -161,10 +155,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
-		labels, err := parseMetricWithLabels(metricWithLabels)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", metricWithLabels, err)
-		}
+		labels := MustParseMetricWithLabels(metricWithLabels)
 		if ie.Match(labels) {
 			t.Fatalf("unexpected match of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
@@ -185,35 +176,4 @@ func TestIfExpressionMismatch(t *testing.T) {
 	f(`'{foo=~"bar|"}'`, `abc{foo="baz"}`)
 	f(`'{foo!~"bar|"}'`, `abc`)
 	f(`'{foo!~"bar|"}'`, `abc{foo="bar"}`)
-}
-
-func parseMetricWithLabels(metricWithLabels string) ([]prompbmarshal.Label, error) {
-	// add a value to metricWithLabels, so it could be parsed by prometheus protocol parser.
-	s := metricWithLabels + " 123"
-	var rows prometheus.Rows
-	var err error
-	rows.UnmarshalWithErrLogger(s, func(s string) {
-		err = fmt.Errorf("error during metric parse: %s", s)
-	})
-	if err != nil {
-		return nil, err
-	}
-	if len(rows.Rows) != 1 {
-		return nil, fmt.Errorf("unexpected number of rows parsed; got %d; want 1", len(rows.Rows))
-	}
-	r := rows.Rows[0]
-	var lfs []prompbmarshal.Label
-	if r.Metric != "" {
-		lfs = append(lfs, prompbmarshal.Label{
-			Name:  "__name__",
-			Value: r.Metric,
-		})
-	}
-	for _, tag := range r.Tags {
-		lfs = append(lfs, prompbmarshal.Label{
-			Name:  tag.Key,
-			Value: tag.Value,
-		})
-	}
-	return lfs, nil
 }

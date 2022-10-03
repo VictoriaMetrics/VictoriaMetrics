@@ -2,17 +2,18 @@ package notifier
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 func TestConfigWatcherReload(t *testing.T) {
-	f, err := ioutil.TempFile("", "")
+	f, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -34,7 +35,7 @@ static_configs:
 		t.Fatalf("expected to have 2 notifiers; got %d %#v", len(ns), ns)
 	}
 
-	f2, err := ioutil.TempFile("", "")
+	f2, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func TestConfigWatcherStart(t *testing.T) {
 	consulSDServer := newFakeConsulServer()
 	defer consulSDServer.Close()
 
-	consulSDFile, err := ioutil.TempFile("", "")
+	consulSDFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +108,7 @@ func TestConfigWatcherReloadConcurrent(t *testing.T) {
 	consulSDServer2 := newFakeConsulServer()
 	defer consulSDServer2.Close()
 
-	consulSDFile, err := ioutil.TempFile("", "")
+	consulSDFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,7 @@ consul_sd_configs:
       - consul
 `, consulSDServer1.URL, consulSDServer2.URL))
 
-	staticAndConsulSDFile, err := ioutil.TempFile("", "")
+	staticAndConsulSDFile, err := os.CreateTemp("", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +176,7 @@ consul_sd_configs:
 
 func writeToFile(t *testing.T, file, b string) {
 	t.Helper()
-	checkErr(t, ioutil.WriteFile(file, []byte(b), 0644))
+	checkErr(t, os.WriteFile(file, []byte(b), 0644))
 }
 
 func checkErr(t *testing.T, err error) {
@@ -298,4 +299,21 @@ func newFakeConsulServer() *httptest.Server {
 	})
 
 	return httptest.NewServer(mux)
+}
+
+func TestMergeHTTPClientConfigs(t *testing.T) {
+	cfg1 := promauth.HTTPClientConfig{Headers: []string{"Header:Foo"}}
+	cfg2 := promauth.HTTPClientConfig{BasicAuth: &promauth.BasicAuthConfig{
+		Username: "foo",
+		Password: promauth.NewSecret("bar"),
+	}}
+
+	result := mergeHTTPClientConfigs(cfg1, cfg2)
+
+	if result.Headers == nil {
+		t.Fatalf("expected Headers to be inherited")
+	}
+	if result.BasicAuth == nil {
+		t.Fatalf("expected BasicAuth tp be present")
+	}
 }

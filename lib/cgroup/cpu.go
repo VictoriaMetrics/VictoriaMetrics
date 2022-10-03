@@ -2,7 +2,6 @@ package cgroup
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"runtime"
 	"strconv"
@@ -80,7 +79,7 @@ func getCPUStat(statName string) (int64, error) {
 
 func getOnlineCPUCount() float64 {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/685#issuecomment-674423728
-	data, err := ioutil.ReadFile("/sys/devices/system/cpu/online")
+	data, err := os.ReadFile("/sys/devices/system/cpu/online")
 	if err != nil {
 		return -1
 	}

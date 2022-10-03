@@ -1,8 +1,11 @@
 # vmagent
 
-`vmagent` is a tiny but mighty agent which helps you collect metrics from various sources
+`vmagent` is a tiny agent which helps you collect metrics from various sources,
+[relabel and filter the collected metrics](#relabeling)
 and store them in [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
-or any other Prometheus-compatible storage systems with Prometheus `remote_write` protocol support.
+or any other storage systems via Prometheus `remote_write` protocol.
+
+See [Quick Start](#quick-start) for details.
 
 <img alt="vmagent" src="vmagent.png">
 
@@ -16,27 +19,40 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 
 ## Features
 
-* Can be used as a drop-in replacement for Prometheus for scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter). See [Quick Start](#quick-start) for details.
-* Can read data from Kafka. See [these docs](#reading-metrics-from-kafka).
-* Can write data to Kafka. See [these docs](#writing-metrics-to-kafka).
+* Can be used as a drop-in replacement for Prometheus for discovering and scraping targets such as [node_exporter](https://github.com/prometheus/node_exporter).
+  Note that single-node VictoriaMetrics can also discover and scrape Prometheus-compatible targets in the same way as `vmagent` does -
+  see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
-* Accepts data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
-* Can replicate collected metrics simultaneously to multiple remote storage systems.
+* Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
+* Can replicate collected metrics simultaneously to multiple remote storage systems -
+  see [these docs](#replication-and-high-availability).
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
-* Uses lower amounts of RAM, CPU, disk IO and network bandwidth compared with Prometheus.
+* Uses lower amounts of RAM, CPU, disk IO and network bandwidth than Prometheus.
 * Scrape targets can be spread among multiple `vmagent` instances when big number of targets must be scraped. See [these docs](#scraping-big-number-of-targets).
-* Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/). See [these docs](#stream-parsing-mode).
-* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
 * Can load scrape configs from multiple files. See [these docs](#loading-scrape-configs-from-multiple-files).
+* Can efficiently scrape targets that expose millions of time series such as [/federate endpoint in Prometheus](https://prometheus.io/docs/prometheus/latest/federation/).
+  See [these docs](#stream-parsing-mode).
+* Can deal with [high cardinality](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality)
+  and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues by limiting the number of unique time series at scrape time
+  and before sending them to remote storage systems. See [these docs](#cardinality-limiter).
+* Can write collected metrics to multiple tenants. See [these docs](#multitenancy).
+* Can read data from Kafka. See [these docs](#reading-metrics-from-kafka).
+* Can write data to Kafka. See [these docs](#writing-metrics-to-kafka).
 
 ## Quick Start
 
-Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) (`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)), unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets:
+Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) (
+`vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)),
+unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets:
 
-* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`). The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file, so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag, so `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
-* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified multiple times to replicate data concurrently to an arbitrary number of remote storage systems.
+* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`).
+  The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file,
+  so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
+  In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
+* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified
+  multiple times to replicate data concurrently to an arbitrary number of remote storage systems. See [various use cases](#use-cases).
 
 Example command line:
 
@@ -46,7 +62,12 @@ Example command line:
 
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
-If you don't need to scrape Prometheus-compatible targets, then the `-promscrape.config` option isn't needed. For example, the following command is sufficient for accepting data via [supported "push"-based protocols](#how-to-push-data-to-vmagent) and sending it to the provided `-remoteWrite.url`:
+If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
+without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+
+If you don't need to scrape Prometheus-compatible targets, then the `-promscrape.config` option isn't needed.
+For example, the following command is sufficient for accepting data via [supported push-based protocols](#how-to-push-data-to-vmagent)
+and sending it to the provided `-remoteWrite.url`:
 
 ```console
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
@@ -58,7 +79,8 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 
 ## How to push data to vmagent
 
-`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data) additionally to pull-based Prometheus-compatible targets' scraping:
+`vmagent` supports [the same set of push-based data ingestion protocols as VictoriaMetrics does](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+additionally to pull-based Prometheus-compatible targets' scraping:
 
 * DataDog "submit metrics" API. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-datadog-agent).
 * InfluxDB line protocol via `http://<vmagent>:8429/write`. See [these docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf).
@@ -73,10 +95,10 @@ Pass `-help` to `vmagent` in order to see [the full list of supported command-li
 ## Configuration update
 
 `vmagent` should be restarted in order to update config options set via command-line args.
+`vmagent` supports multiple approaches for reloading configs from updated config files such as
+`-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
 
-`vmagent` supports multiple approaches for reloading configs from updated config files such as `-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
-
-* Sending `SUGHUP` signal to `vmagent` process:
+* Sending `SIGHUP` signal to `vmagent` process:
 
   ```console
   kill -SIGHUP `pidof vmagent`
@@ -106,13 +128,16 @@ See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
 
 ### Flexible metrics relay
 
-`vmagent` can accept metrics in [various popular data ingestion protocols](#how-to-push-data-to-vmagent), apply [relabeling](#relabeling) to the accepted metrics (for example, change metric names/labels or drop unneeded metrics) and then forward the relabeled metrics to other remote storage systems, which support Prometheus `remote_write` protocol (including other `vmagent` instances).
+`vmagent` can accept metrics in [various popular data ingestion protocols](#how-to-push-data-to-vmagent), apply [relabeling](#relabeling)
+to the accepted metrics (for example, change metric names/labels or drop unneeded metrics) and then forward the relabeled metrics
+to other remote storage systems, which support Prometheus `remote_write` protocol (including other `vmagent` instances).
 
 ### Replication and high availability
 
 `vmagent` replicates the collected metrics among multiple remote storage instances configured via `-remoteWrite.url` args.
 If a single remote storage instance temporarily is out of service, then the collected data remains available in another remote storage instance.
-`vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again and then it sends the buffered data to the remote storage in order to prevent data gaps.
+`vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again
+and then it sends the buffered data to the remote storage in order to prevent data gaps.
 
 ### Relabeling and filtering
 
@@ -136,11 +161,49 @@ Also, Basic Auth can be enabled for the incoming `remote_write` requests with `-
 
 ### remote_write for clustered version
 
-While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets, writes are always performed in Promethes remote_write protocol. Therefore for the [clustered version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html), `-remoteWrite.url` the command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<accountID>/prometheus/api/v1/write` according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). There is also support for multitenant writes. See [these docs](#multitenancy).
+While `vmagent` can accept data in several supported protocols (OpenTSDB, Influx, Prometheus, Graphite) and scrape data from various targets,
+writes are always performed in Promethes remote_write protocol. Therefore for the [clustered version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html),
+the `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<accountID>/prometheus/api/v1/write`
+according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
+There is also support for multitenant writes. See [these docs](#multitenancy).
 
 ## Multitenancy
 
-By default `vmagent` collects the data without tenant identifiers and routes it to the configured `-remoteWrite.url`. But it can accept multitenant data if `-remoteWrite.multitenantURL` is set. In this case it accepts multitenant data at `http://vmagent:8429/insert/<accountID>/...` in the same way as cluster version of VictoriaMetrics does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and routes it to `<-remoteWrite.multitenantURL>/insert/<accountID>/prometheus/api/v1/write`. If multiple `-remoteWrite.multitenantURL` command-line options are set, then `vmagent` replicates the collected data across all the configured urls. This allows using a single `vmagent` instance in front of VictoriaMetrics clusters for processing the data from all the tenants.
+By default `vmagent` collects the data without tenant identifiers and routes it to the configured `-remoteWrite.url`.
+
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) supports writing data to multiple tenants
+specified via special labels - see [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
+This allows specifying tenant ids via [relabeling](#relabeling) and writing multitenant data
+to a single `-remoteWrite.url=http://<vminsert-addr>/insert/multitenant/prometheus/api/v1/write`.
+
+`vmagent` can accept data from the same multitenant endpoints as `vminsert` from [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html)
+does according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route the accepted data
+to the corresponding [tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) in VictoriaMetrics cluster
+pointed by the `-remoteWrite.multitenantURL` command-line flag. For example, if `-remoteWrite.multitenantURL` is set to `http://vminsert-service`,
+then `vmagent` would accept multitenant data at `http://vmagent:8429/insert/<accountID>/...` endpoints in the same way
+as [VictoriaMetrics cluster does](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) and route
+it to `http://vminsert-service/insert/<accountID>/prometheus/api/v1/write`.
+
+If multiple `-remoteWrite.multitenantURL` command-line options are set, then `vmagent` replicates the collected data across all the configured urls.
+This allows using a single `vmagent` instance in front of multiple VictoriaMetrics clusters.
+
+If `-remoteWrite.multitenantURL` command-line flag is set and `vmagent` is configured to scrape Prometheus-compatible targets
+(e.g. if `-promscrape.config` command-line flag is set) then `vmagent` reads tenantID from `__tenant_id__` label
+for the discovered targets and routes all the metrics from this target to the given `__tenant_id__`,
+e.g. to the url `<-remoteWrite.multitnenatURL>/insert/<__tenant_id__>/prometheus/api/v1/write`.
+
+For example, the following relabeling rule instructs sending metrics to tenantID defined in the `prometheus.io/tenant` annotation of Kubernetes pod deployment:
+
+```yaml
+scrape_configs:
+- kubernetes_sd_configs:
+  - role: pod
+  relabel_configs:
+  - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_tenant]
+    target_label: __tenant_id__
+```
+
+If the target has no associated `__tenant_id__` label, then its' metrics are routed to zero tenantID, e.g. to `<-remoteWrite.multitenantURL>/insert/0/prometheus/api/v1/write`.
 
 ## How to collect metrics in Prometheus format
 
@@ -155,39 +218,15 @@ Use `-remoteWrite.*` command-line flag instead for configuring remote write sett
 
 The file pointed by `-promscrape.config` may contain `%{ENV_VAR}` placeholders which are substituted by the corresponding `ENV_VAR` environment variable values.
 
-The following scrape types in [scrape_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config) section are supported:
+See [the list of supported service discovery types for Prometheus scrape targets](https://docs.victoriametrics.com/sd_configs.html).
 
-* `static_configs` is for scraping statically defined targets. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#static_config) for details.
-* `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config) for details.
-* `kubernetes_sd_configs` is for discovering and scraping Kubernetes (K8S) targets. See [kubernetes_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config) for details.
-* `ec2_sd_configs` is for discovering and scraping Amazon EC2 targets. See [ec2_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config) for details. `vmagent` doesn't support the `profile` config param yet.
-* `gce_sd_configs` is for discovering and scraping Google Compute Engine (GCE) targets. See [gce_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config) for details. `vmagent` provides the following additional functionality for `gce_sd_config`:
-  * if `project` arg is missing then `vmagent` uses the project for the instance where it runs;
-  * if `zone` arg is missing then `vmagent` uses the zone for the instance where it runs;
-  * if `zone` arg equals to `"*"`, then `vmagent` discovers all the zones for the given project;
-  * `zone` may contain a list of zones, i.e. `zone: [us-east1-a, us-east1-b]`.
-* `azure_sd_configs` - is for scraping the targets registered in Azure Cloud.
-  See [azure_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config) for details.
-* `consul_sd_configs` is for discovering and scraping targets registered in Consul. See [consul_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config) for details.
-* `dns_sd_configs` is for discovering and scraping targets from DNS records (SRV, A and AAAA). See [dns_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config) for details.
-* `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [openstack_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config) for details. [OpenStack identity API v3](https://docs.openstack.org/api-ref/identity/v3/) is supported only.
-* `docker_sd_configs` is for discovering and scraping Docker targets. See [docker_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config) for details.
-* `dockerswarm_sd_configs` is for discovering and scraping Docker Swarm targets. See [dockerswarm_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config) for details.
-* `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [eureka_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config) for details.
-* `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [digitalocean_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config) for details.
-* `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [http_sd_config](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config) for details.
-
-Note that `vmagent` doesn't support `refresh_interval` option for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
-command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
-entries to 60s. Run `vmagent -help` in order to see default values for the `-promscrape.*CheckInterval` flags.
-
-Please file feature requests to [our issue tracker](https://github.com/VictoriaMetrics/VictoriaMetrics/issues) if you need other service discovery mechanisms to be supported by `vmagent`.
 
 ## scrape_config enhancements
 
-`vmagent` supports the following additional options in `scrape_configs` section:
+`vmagent` supports the following additional options in [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section:
 
-* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target needs custom authorization and authentication. For example:
+* `headers` - a list of HTTP headers to send to scrape target with each scrape request. This can be used when the scrape target
+  needs custom authorization and authentication. For example:
 
 ```yaml
 scrape_configs:
@@ -197,18 +236,27 @@ scrape_configs:
   - "My-Auth: TopSecret"
 ```
 
-* `disable_compression: true` for disabling response compression on a per-job basis. By default `vmagent` requests compressed responses from scrape targets for saving network bandwidth.
-* `disable_keepalive: true` for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection) on a per-job basis. By default `vmagent` uses keep-alive connections to scrape targets for reducing overhead on connection re-establishing.
+* `disable_compression: true` for disabling response compression on a per-job basis. By default `vmagent` requests compressed responses
+  from scrape targets for saving network bandwidth.
+* `disable_keepalive: true` for disabling [HTTP keep-alive connections](https://en.wikipedia.org/wiki/HTTP_persistent_connection)
+  on a per-job basis. By default `vmagent` uses keep-alive connections to scrape targets for reducing overhead on connection re-establishing.
 * `series_limit: N` for limiting the number of unique time series a single scrape target can expose. See [these docs](#cardinality-limiter).
 * `stream_parse: true` for scraping targets in a streaming manner. This may be useful when targets export big number of metrics. See [these docs](#stream-parsing-mode).
-* `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
+* `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset
+  in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
 * `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
 * `relabel_debug: true` for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
 * `metric_relabel_debug: true` for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
+See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
+
+
 ## Loading scrape configs from multiple files
 
-`vmagent` supports loading scrape configs from multiple files specified in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent` loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file and from `https://config-server/scrape_config.yml` url:
+`vmagent` supports loading [scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) from multiple files specified
+in the `scrape_config_files` section of `-promscrape.config` file. For example, the following `-promscrape.config` instructs `vmagent`
+loading scrape configs from all the `*.yml` files under `configs` directory, from `single_scrape_config.yml` local file
+and from `https://config-server/scrape_config.yml` url:
 
 ```yml
 scrape_config_files:
@@ -217,7 +265,8 @@ scrape_config_files:
 - https://config-server/scrape_config.yml
 ```
 
-Every referred file can contain arbitrary number of [supported scrape configs](#how-to-collect-metrics-in-prometheus-format). There is no need in specifying top-level `scrape_configs` section in these files. For example:
+Every referred file can contain arbitrary number of [supported scrape configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+There is no need in specifying top-level `scrape_configs` section in these files. For example:
 
 ```yml
 - job_name: foo
@@ -234,24 +283,34 @@ Every referred file can contain arbitrary number of [supported scrape configs](#
 
 `vmagent` doesn't support the following sections in Prometheus config file passed to `-promscrape.config` command-line flag:
 
-* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via [supported push protocols](#how-to-push-data-to-vmagent). In this case the `-promscrape.config` file isn't needed.
-* `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API. It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics. See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
+* [remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). This section is substituted
+  with various `-remoteWrite*` command-line flags. See [the full list of flags](#advanced-usage). The `remote_write` section isn't supported
+  in order to reduce possible confusion when `vmagent` is used for accepting incoming metrics via [supported push protocols](#how-to-push-data-to-vmagent).
+  In this case the `-promscrape.config` file isn't needed.
+* `remote_read`. This section isn't supported at all, since `vmagent` doesn't provide Prometheus querying API.
+  It is expected that the querying API is provided by the remote storage specified via `-remoteWrite.url` such as VictoriaMetrics.
+  See [Prometheus querying API docs for VictoriaMetrics](https://docs.victoriametrics.com/#prometheus-querying-api-usage).
 * `rule_files` and `alerting`. These sections are supported by [vmalert](https://docs.victoriametrics.com/vmalert.html).
 
 The list of supported service discovery types is available [here](#how-to-collect-metrics-in-prometheus-format).
 
-Additionally `vmagent` doesn't support `refresh_interval` option at service discovery sections. This option is substituted with `-promscrape.*CheckInterval` command-line options, which are specific per each service discovery type. See [the full list of command-line flags for vmagent](#advanced-usage).
+Additionally `vmagent` doesn't support `refresh_interval` option at service discovery sections.
+This option is substituted with `-promscrape.*CheckInterval` command-line options, which are specific per each service discovery type.
+See [the full list of command-line flags for vmagent](#advanced-usage).
 
 ## Adding labels to metrics
 
 Extra labels can be added to metrics collected by `vmagent` via the following mechanisms:
 
-* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](#how-to-push-data-to-vmagent).
-* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`. For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
+* The `global -> external_labels` section in `-promscrape.config` file. These labels are added only to metrics scraped from targets configured
+  in the `-promscrape.config` file. They aren't added to metrics collected via other [data ingestion protocols](#how-to-push-data-to-vmagent).
+* The `-remoteWrite.label` command-line flag. These labels are added to all the collected metrics before sending them to `-remoteWrite.url`.
+  For example, the following command starts `vmagent`, which adds `{datacenter="foobar"}` label to all the metrics pushed
+  to all the configured remote storage systems (all the `-remoteWrite.url` flag values):
 
-```
-/path/to/vmagent -remoteWrite.label=datacenter=foobar ...
-```
+  ```
+  /path/to/vmagent -remoteWrite.label=datacenter=foobar ...
+  ```
 
 * Via relabeling. See [these docs](#relabeling).
 
@@ -260,64 +319,129 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 
 `vmagent` automatically generates the following metrics per each scrape of every [Prometheus-compatible target](#how-to-collect-metrics-in-prometheus-format):
 
-* `up` - this metric exposes `1` value on successful scrape and `0` value on unsuccessful scrape. This allows monitoring failing scrapes with the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html):
+* `up` - this metric exposes `1` value on successful scrape and `0` value on unsuccessful scrape. This allows monitoring
+  failing scrapes with the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html):
 
   ```metricsql
   up == 0
   ```
 
-* `scrape_duration_seconds` - this metric exposes scrape duration. This allows monitoring slow scrapes. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes, which take more than 1.5 seconds to complete:
+* `scrape_duration_seconds` - the duration of the scrape for the given target. This allows monitoring slow scrapes.
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns scrapes,
+  which take more than 1.5 seconds to complete:
 
   ```metricsql
   scrape_duration_seconds > 1.5
   ```
 
-* `scrape_timeout_seconds` - this metric exposes the configured timeout for the current scrape target (aka `scrape_timeout`). This allows detecting targets with scrape durations close to the configured scrape timeout. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label), which take more than 80% of the configured `scrape_timeout` during scrapes:
+* `scrape_timeout_seconds` - the configured timeout for the current scrape target (aka `scrape_timeout`).
+  This allows detecting targets with scrape durations close to the configured scrape timeout.
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets (identified by `instance` label),
+  which take more than 80% of the configured `scrape_timeout` during scrapes:
 
   ```metricsql
   scrape_duration_seconds / scrape_timeout_seconds > 0.8
   ```
 
-* `scrape_samples_scraped` - this metric exposes the number of samples (aka metrics) parsed per each scrape. This allows detecting targets, which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which expose more than 10000 metrics:
+* `scrape_samples_scraped` - the number of samples (aka metrics) parsed per each scrape. This allows detecting targets,
+  which expose too many metrics. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html)
+  returns targets, which expose more than 10000 metrics:
 
   ```metricsql
   scrape_samples_scraped > 10000
   ```
 
-* `scrape_samples_limit` - this metric exposes the configured limit on the number of metrics the given target can expose. The limit can be set via `sample_limit` option at [scrape_configs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config). This allows detecting targets, which expose too many metrics compared to the configured `sample_limit`. For example, the following query returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
+* `scrape_samples_limit` - the configured limit on the number of metrics the given target can expose.
+  The limit can be set via `sample_limit` option at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
+  This metric is exposed only if the `sample_limit` is set. This allows detecting targets,
+  which expose too many metrics compared to the configured `sample_limit`. For example, the following query
+  returns targets (identified by `instance` label), which expose more than 80% metrics compared to the configed `sample_limit`:
 
   ```metricsql
   scrape_samples_scraped / scrape_samples_limit > 0.8
   ```
 
-* `scrape_samples_post_metric_relabeling` - this metric exposes the number of samples (aka metrics) left after applying metric-level relabeling from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details). This allows detecting targets with too many metrics after the relabeling. For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets with more than 10000 metrics after the relabeling:
+* `scrape_samples_post_metric_relabeling` - the number of samples (aka metrics) left after applying metric-level relabeling
+  from `metric_relabel_configs` section (see [relabeling docs](#relabeling) for more details).
+  This allows detecting targets with too many metrics after the relabeling.
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets
+  with more than 10000 metrics after the relabeling:
 
   ```metricsql
   scrape_samples_post_metric_relabeling > 10000
   ```
 
-* `scrape_series_added` - this metric exposes **an approximate** number of new series the given target generates during the current scrape. This metric allows detecting targets (identified by `instance` label), which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate). For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets, which generate more than 1000 new series during the last hour:
+* `scrape_series_added` - **an approximate** number of new series the given target generates during the current scrape.
+  This metric allows detecting targets (identified by `instance` label),
+  which lead to [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate).
+  For example, the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html) returns targets,
+  which generate more than 1000 new series during the last hour:
 
   ```metricsql
   sum_over_time(scrape_series_added[1h]) > 1000
   ```
 
-  `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option (e.g. when [staleness markers](#prometheus-staleness-markers) are disabled).
+  `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option
+  (e.g. when [staleness markers](#prometheus-staleness-markers) are disabled).
+
+* `scrape_series_limit` - the limit on the number of unique time series the given target can expose according to [these docs](#cardinality-limiter).
+  This metric is exposed only if the series limit is set.
+
+* `scrape_series_current` - the number of unique series the given target exposed so far.
+  This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
+  This metric allows alerting when the number of exposed series by the given target reaches the limit.
+  For example, the following query would alert when the target exposes more than 90% of unique series compared to the configured limit.
+
+  ```metricsql
+  scrape_series_current / scrape_series_limit > 0.9
+  ```
+
+* `scrape_series_limit_samples_dropped` - exposes the number of dropped samples during the scrape because of the exceeded limit
+  on the number of unique series. This metric is exposed only if the series limit is set according to [these docs](#cardinality-limiter).
+  This metric allows alerting when scraped samples are dropped because of the exceeded limit.
+  For example, the following query alerts when at least a single sample is dropped because of the exceeded limit during the last hour:
+
+  ```metricsql
+  sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0
+  ```
 
 
 ## Relabeling
 
-VictoriaMetrics components (including `vmagent`) support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config) with [additional enhancements](#relabeling-enhancements) at various stages of data processing. The relabeling can be defined in the following places processed by `vmagent`:
+VictoriaMetrics components support [Prometheus-compatible relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config)
+with [additional enhancements](#relabeling-enhancements). The relabeling can be defined in the following places processed by `vmagent`:
 
-* At the `scrape_config -> relabel_configs` section in `-promscrape.config` file. This relabeling is used for modifying labels in discovered targets and for dropping unneded targets. This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
-* At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file. This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics. This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section. In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
-* At the `-remoteWrite.relabelConfig` file. This relabeling is used for modifying labels for all the collected metrics (inluding [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics before sending them to all the configured `-remoteWrite.url` addresses. This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
-* At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`. This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`. In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
+* At the `scrape_config -> relabel_configs` section in `-promscrape.config` file.
+  This relabeling is used for modifying labels in discovered targets and for dropping unneded targets.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
 
-All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`, which are replaced by the corresponding environment variable values.
+  This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section.
+  In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
+
+* At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
+  This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
+  See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
+
+  This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section.
+  In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
+
+* At the `-remoteWrite.relabelConfig` file. This relabeling is used for modifying labels for all the collected metrics
+  (inluding [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics
+  before sending them to all the configured `-remoteWrite.url` addresses.
+  This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`.
+  In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
+
+* At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics
+  and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`.
+  This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`.
+  In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
+
+All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
+which are replaced by the corresponding environment variable values.
 
 The following articles contain useful information about Prometheus relabeling:
 
+* [Cookbook for common relabeling tasks](https://docs.victoriametrics.com/relabeling.html)
 * [How to use Relabeling in Prometheus and VictoriaMetrics](https://valyala.medium.com/how-to-use-relabeling-in-prometheus-and-victoriametrics-8b90fc22c4b2)
 * [Life of a label](https://www.robustperception.io/life-of-a-label)
 * [Discarding targets and timeseries with relabeling](https://www.robustperception.io/relabelling-can-discard-targets-timeseries-and-alerts)
@@ -330,85 +454,113 @@ The following articles contain useful information about Prometheus relabeling:
 
 ## Relabeling enhancements
 
-VictoriaMetrics provides the following additional relabeling actions on top of standard actions from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
+`vmagent` provides the following enhancements on top of Prometheus-compatible relabeling:
 
-* `replace_all` replaces all of the occurrences of `regex` in the values of `source_labels` with the `replacement` and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
+* The `replacement` option can refer arbitrary labels via {% raw %}`{{label_name}}`{% endraw %} placeholders.
+  Such placeholders are substituted with the corresponding label value. For example, the following relabeling rule
+  sets `instance-job` label value to `host123-foo` when applied to the metric with `{instance="host123",job="foo"}` labels:
+
+  {% raw %}
+  ```yaml
+  - target_label: "instance-job"
+    replacement: "{{instance}}-{{job}}"
+  ```
+  {% endraw %}
+
+* An optional `if` filter can be used for conditional relabeling. The `if` filter may contain
+  arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
+  For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
 
   ```yaml
-  - action: replace_all
-    source_labels: ["__name__"]
-    target_label: "__name__"
-    regex: "-"
-    replacement: "_"
+  - if: 'foo{bar="baz"}'
+    action: keep
   ```
 
-* `labelmap_all` replaces all of the occurrences of `regex` in all the label names with the `replacement`. For example, the following relabeling config replaces all the occurrences of `-` char in all the label names with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
+  This is equivalent to less clear Prometheus-compatible relabeling rule:
 
   ```yaml
-  - action: labelmap_all
-    regex: "-"
-    replacement: "_"
+  - action: keep
+    source_labels: [__name__, bar]
+    regex: 'foo;baz'
   ```
 
-* `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal, while dropping all the other entries. For example, the following relabeling config keeps targets if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
-
-  ```yaml
-  - action: keep_if_equal
-    source_labels: ["instance", "host"]
-  ```
-
-* `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal, while keeping all the other entries. For example, the following relabeling config drops targets if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
-
-  ```yaml
-  - action: drop_if_equal
-    source_labels: ["instance", "host"]
-  ```
-
-* `keep_metrics`: keeps all the metrics with names matching the given `regex`, while dropping all the other metrics. For example, the following relabeling config keeps metrics with `fo` and `bar` names, while dropping all the other metrics:
+* The `regex` value can be split into multiple lines for improved readability and maintainability.
+  These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
 
   ```yaml
   - action: keep_metrics
-    regex: "foo|bar"
+    regex: "metric_a|metric_b|foo_.+"
   ```
-
-* `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics. For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
 
   ```yaml
-  - action: drop_metrics
-    regex: "foo|bar"
+  - action: keep_metrics
+    regex:
+    - "metric_a"
+    - "metric_b"
+    - "foo_.+"
   ```
 
-* `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
+* VictoriaMetrics provides the following additional relabeling actions on top of standard actions
+  from the [Prometheus relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config):
 
-The `regex` value can be split into multiple lines for improved readability and maintainability. These lines are automatically joined with `|` char when parsed. For example, the following configs are equivalent:
+  * `replace_all` replaces all of the occurrences of `regex` in the values of `source_labels` with the `replacement`
+    and stores the results in the `target_label`. For example, the following relabeling config replaces all the occurrences
+    of `-` char in metric names with `_` char (e.g. `foo-bar-baz` metric name is transformed into `foo_bar_baz`):
 
-```yaml
-- action: keep_metrics
-  regex: "metric_a|metric_b|foo_.+"
-```
+    ```yaml
+    - action: replace_all
+      source_labels: ["__name__"]
+      target_label: "__name__"
+      regex: "-"
+      replacement: "_"
+    ```
 
-```yaml
-- action: keep_metrics
-  regex:
-  - "metric_a"
-  - "metric_b"
-  - "foo_.+"
-```
+  * `labelmap_all` replaces all of the occurrences of `regex` in all the label names with the `replacement`.
+    For example, the following relabeling config replaces all the occurrences of `-` char in all the label names
+    with `_` char (e.g. `foo-bar-baz` label name is transformed into `foo_bar_baz`):
 
-VictoriaMetrics components support an optional `if` filter in relabeling configs, which can be used for conditional relabeling. The `if` filter may contain arbitrary [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). For example, the following relabeling rule drops metrics, which don't match `foo{bar="baz"}` series selector, while leaving the rest of metrics:
+    ```yaml
+    - action: labelmap_all
+      regex: "-"
+      replacement: "_"
+    ```
 
-```yaml
-- action: keep
-  if: 'foo{bar="baz"}'
-```
+  * `keep_if_equal`: keeps the entry if all the label values from `source_labels` are equal,
+    while dropping all the other entries. For example, the following relabeling config keeps targets
+    if they contain equal values for `instance` and `host` labels, while dropping all the other targets:
 
-This is equivalent to less clear Prometheus-compatible relabeling rule:
+    ```yaml
+    - action: keep_if_equal
+      source_labels: ["instance", "host"]
+    ```
 
-```yaml
-- action: keep
-  source_labels: [__name__, bar]
-  regex: 'foo;baz'
-```
+  * `drop_if_equal`: drops the entry if all the label values from `source_labels` are equal,
+    while keeping all the other entries. For example, the following relabeling config drops targets
+    if they contain equal values for `instance` and `host` labels, while keeping all the other targets:
+
+    ```yaml
+    - action: drop_if_equal
+      source_labels: ["instance", "host"]
+    ```
+
+  * `keep_metrics`: keeps all the metrics with names matching the given `regex`,
+    while dropping all the other metrics. For example, the following relabeling config keeps metrics
+    with `fo` and `bar` names, while dropping all the other metrics:
+
+    ```yaml
+    - action: keep_metrics
+      regex: "foo|bar"
+    ```
+
+  * `drop_metrics`: drops all the metrics with names matching the given `regex`, while keeping all the other metrics.
+    For example, the following relabeling config drops metrics with `foo` and `bar` names, while leaving all the other metrics:
+
+    ```yaml
+    - action: drop_metrics
+      regex: "foo|bar"
+    ```
+
+  * `graphite`: applies Graphite-style relabeling to metric name. See [these docs](#graphite-relabeling) for details.
 
 ## Graphite relabeling
 
@@ -451,17 +603,32 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 * If the scrape target becomes temporarily unavailable, then stale markers are sent for all the metrics scraped from this target.
 * If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
 
-Prometheus staleness markers' tracking needs additional memory, since it must store the previous response body per each scrape target in order to compare it to the current response body. The memory usage may be reduced by passing `-promscrape.noStaleMarkers` command-line flag to `vmagent`. This disables staleness tracking. This also disables tracking the number of new time series per each scrape with the auto-generated `scrape_series_added` metric. See [these docs](https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series) for details.
+Prometheus staleness markers' tracking needs additional memory, since it must store the previous response body per each scrape target
+in order to compare it to the current response body. The memory usage may be reduced by passing `-promscrape.noStaleMarkers`
+command-line flag to `vmagent`. This disables staleness tracking. This also disables tracking the number of new time series
+per each scrape with the auto-generated `scrape_series_added` metric. See [these docs](#automatically-generated-metrics) for details.
 
 ## Stream parsing mode
 
-By default `vmagent` reads the full response body from scrape target into memory, then parses it, applies [relabeling](#relabeling) and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode. When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics.
+By default `vmagent` reads the full response body from scrape target into memory, then parses it, applies [relabeling](#relabeling)
+and then pushes the resulting metrics to the configured `-remoteWrite.url`. This mode works good for the majority of cases
+when the scrape target exposes small number of metrics (e.g. less than 10 thousand). But this mode may take big amounts of memory
+when the scrape target exposes big number of metrics. In this case it is recommended enabling stream parsing mode.
+When this mode is enabled, then `vmagent` reads response from scrape target in chunks, then immediately processes every chunk
+and pushes the processed metrics to remote storage. This allows saving memory when scraping targets that expose millions of metrics.
 
-Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes bigger than the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally, the stream parsing mode can be explicitly enabled in the following places:
+Stream parsing mode is automatically enabled for scrape targets returning response bodies with sizes bigger than
+the `-promscrape.minResponseSizeForStreamParse` command-line flag value. Additionally,
+stream parsing mode can be explicitly enabled in the following places:
 
-* Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
-* Via `stream_parse: true` option at `scrape_configs` section. In this case all the scrape targets defined in this section are scraped in stream parsing mode.
-* Via `__stream_parse__=true` label, which can be set via [relabeling](#relabeling) at `relabel_configs` section. In this case stream parsing mode is enabled for the corresponding scrape targets. Typical use case: to set the label via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets exposing big number of metrics.
+* Via `-promscrape.streamParse` command-line flag. In this case all the scrape targets defined
+  in the file pointed by `-promscrape.config` are scraped in stream parsing mode.
+* Via `stream_parse: true` option at `scrape_configs` section. In this case all the scrape targets defined
+  in this section are scraped in stream parsing mode.
+* Via `__stream_parse__=true` label, which can be set via [relabeling](#relabeling) at `relabel_configs` section.
+  In this case stream parsing mode is enabled for the corresponding scrape targets.
+  Typical use case: to set the label via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/)
+  for targets exposing big number of metrics.
 
 Examples:
 
@@ -479,7 +646,8 @@ scrape_configs:
     'match[]': ['{__name__!=""}']
 ```
 
-Note that `sample_limit` and `series_limit` options cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
+Note that `sample_limit` and `series_limit` [scrape_config options](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
+cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
 
 ## Scraping big number of targets
 
@@ -495,7 +663,8 @@ spread scrape targets among a cluster of two `vmagent` instances:
 /path/to/vmagent -promscrape.cluster.membersCount=2 -promscrape.cluster.memberNum=1 -promscrape.config=/path/to/config.yml ...
 ```
 
-The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `vmagent` runs in Kubernetes. The pod name must end with a number in the range `0 ... promscrape.cluster.memberNum-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
+The `-promscrape.cluster.memberNum` can be set to a StatefulSet pod name when `vmagent` runs in Kubernetes.
+The pod name must end with a number in the range `0 ... promscrape.cluster.memberNum-1`. For example, `-promscrape.cluster.memberNum=vmagent-0`.
 
 By default each scrape target is scraped only by a single `vmagent` instance in the cluster. If there is a need for replicating scrape targets among multiple `vmagent` instances,
 then `-promscrape.cluster.replicationFactor` command-line flag must be set to the desired number of replicas. For example, the following commands
@@ -535,8 +704,8 @@ scrape_configs:
 
 Proxy can be configured with the following optional settings:
 
-* `proxy_authorization` for generic token authorization. See [Prometheus docs for details on authorization section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config)
-* `proxy_basic_auth` for Basic authorization. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+* `proxy_authorization` for generic token authorization. See [these docs](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options).
+* `proxy_basic_auth` for Basic authorization. See [these docs](https://docs.victoriametrics.com/sd_configs.html#http-api-client-options).
 * `proxy_bearer_token` and `proxy_bearer_token_file` for Bearer token authorization
 * `proxy_oauth2` for OAuth2 config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2).
 * `proxy_tls_config` for TLS config. See [these docs](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#tls_config).
@@ -565,45 +734,78 @@ scrape_configs:
 
 By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced in the following places:
 
-* Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually to all the scrape targets defined in the file pointed by `-promscrape.config`.
-* Via `series_limit` config option at `scrape_config` section. This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
-* Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section. This limit is applied to the corresponding scrape targets. Typical use case: to set the limit via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets, which may expose too high number of time series.
+* Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually
+  to all the scrape targets defined in the file pointed by `-promscrape.config`.
+* Via `series_limit` config option at `scrape_config` section. This limit is applied individually
+  to all the scrape targets defined in the given `scrape_config`.
+* Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section.
+  This limit is applied to the corresponding scrape targets. Typical use case: to set the limit
+  via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets,
+  which may expose too high number of time series.
 
-All the scraped metrics are dropped for time series exceeding the given limit. The exceeded limit can be [monitored](#monitoring) via `promscrape_series_limit_rows_dropped_total` metric.
+See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
 
-See also `sample_limit` option at [scrape_config section](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config).
+Scraped metrics are dropped for time series exceeding the given limit.
 
-By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`. The limit can be enforced by setting the following command-line flags:
+`vmagent` creates the following additional per-target metrics for targets with non-zero series limit:
 
-* `-remoteWrite.maxHourlySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last hour. Useful for limiting the number of active time series.
-* `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day. Useful for limiting daily churn rate.
+- `scrape_series_limit_samples_dropped` - the number of dropped samples during the scrape when the unique series limit is exceeded.
+- `scrape_series_limit` - the series limit for the given target.
+- `scrape_series_current` - the current number of series for the given target.
 
-Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
+These metrics are automatically sent to the configured `-remoteWrite.url` alongside with the scraped per-target metrics.
 
-The exceeded limits can be [monitored](#monitoring) with the following metrics:
+These metrics allow building the following alerting rules:
+
+- `scrape_series_current / scrape_series_limit > 0.9` - alerts when the number of series exposed by the target reaches 90% of the limit.
+- `sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
+
+
+By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`.
+The limit can be enforced by setting the following command-line flags:
+
+* `-remoteWrite.maxHourlySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last hour.
+  Useful for limiting the number of active time series.
+* `-remoteWrite.maxDailySeries` - limits the number of unique time series `vmagent` can write to remote storage systems during the last day.
+  Useful for limiting daily churn rate.
+
+Both limits can be set simultaneously. If any of these limits is reached, then samples for new time series are dropped instead of sending
+them to remote storage systems. A sample of dropped series is put in the log with `WARNING` level.
+
+`vmagent` exposes the following metrics at `http://vmagent:8429/metrics` page (see [monitoring docs](#monitoring) for details):
 
 * `vmagent_hourly_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded hourly limit on the number of unique time series.
+* `vmagent_hourly_series_limit_max_series` - the hourly series limit set via `-remoteWrite.maxHourlySeries`.
+* `vmagent_hourly_series_limit_current_series` - the current number of unique series registered during the last hour.
 * `vmagent_daily_series_limit_rows_dropped_total` - the number of metrics dropped due to exceeded daily limit on the number of unique time series.
+* `vmagent_daily_series_limit_max_series` - the daily series limit set via `-remoteWrite.maxDailySeries`.
+* `vmagent_daily_series_limit_current_series` - the current number of unique series registered during the last day.
 
 These limits are approximate, so `vmagent` can underflow/overflow the limit by a small percentage (usually less than 1%).
 
+See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinality-explorer).
+
 ## Monitoring
 
-`vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page. We recommend setting up regular scraping of this page
-either through `vmagent` itself or by Prometheus so that the exported metrics may be analyzed later.
-Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview. Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+`vmagent` exports various metrics in Prometheus exposition format at `http://vmagent-host:8429/metrics` page.
+We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus
+so that the exported metrics may be analyzed later.
+
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
+Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
 
-`vmagent` also exports the status for various targets at the following handlers:
+`vmagent` also exports the status for various targets at the following pages:
 
-* `http://vmagent-host:8429/targets`. This handler returns human-readable status for every active target.
-This page is easy to query from the command line with `wget`, `curl` or similar tools.
-It accepts optional `show_original_labels=1` query arg which shows the original labels per each target before applying the relabeling.
-This information may be useful for debugging target relabeling.
-* `http://vmagent-host:8429/api/v1/targets`. This handler returns data compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
-
-* `http://vmagent-host:8429/ready`. This handler returns http 200 status code when `vmagent` finishes it's initialization for all service_discovery configs.
-It may be useful to perform `vmagent` rolling update without any scrape loss.
+* `http://vmagent-host:8429/targets`. This pages shows the current status for every active target.
+* `http://vmagent-host:8429/service-discovery`. This pages shows the list of discovered targets with the discovered `__meta_*` labels
+  according to [these docs](https://docs.victoriametrics.com/sd_configs.html).
+  This page may help debugging target [relabeling](#relabeling).
+* `http://vmagent-host:8429/api/v1/targets`. This handler returns JSON response
+  compatible with [the corresponding page from Prometheus API](https://prometheus.io/docs/prometheus/latest/querying/api/#targets).
+* `http://vmagent-host:8429/ready`. This handler returns http 200 status code when `vmagent` finishes
+  it's initialization for all the [service_discovery configs](https://docs.victoriametrics.com/sd_configs.html).
+  It may be useful to perform `vmagent` rolling update without any scrape loss.
 
 ## Troubleshooting
 
@@ -616,24 +818,40 @@ It may be useful to perform `vmagent` rolling update without any scrape loss.
   * Disabling staleness tracking with `-promscrape.noStaleMarkers` option. See [these docs](#prometheus-staleness-markers).
   * Enabling stream parsing mode if `vmagent` scrapes targets with millions of metrics per target. See [these docs](#stream-parsing-mode).
   * Reducing the number of output queues with `-remoteWrite.queues` command-line option.
-  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option. Another option is to reduce memory limits in Docker and/or Kubernetes if `vmagent` runs under these systems.
-  * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`, where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
-  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent`, so it drops `"discoveredLabels"` and `"droppedTargets"` lists at `/api/v1/targets` page. This reduces memory usage when scraping big number of targets at the cost of reduced debuggability for improperly configured per-target relabeling.
+  * Reducing the amounts of RAM vmagent can use for in-memory buffering with `-memory.allowedPercent` or `-memory.allowedBytes` command-line option.
+    Another option is to reduce memory limits in Docker and/or Kubernetes if `vmagent` runs under these systems.
+  * Reducing the number of CPU cores vmagent can use by passing `GOMAXPROCS=N` environment variable to `vmagent`,
+    where `N` is the desired limit on CPU cores. Another option is to reduce CPU limits in Docker or Kubernetes if `vmagent` runs under these systems.
+  * Passing `-promscrape.dropOriginalLabels` command-line option to `vmagent`, so it drops `"discoveredLabels"` and `"droppedTargets"`
+    lists at `/api/v1/targets` page. This reduces memory usage when scraping big number of targets at the cost
+    of reduced debuggability for improperly configured per-target relabeling.
 
 * When `vmagent` scrapes many unreliable targets, it can flood the error log with scrape errors. These errors can be suppressed
   by passing `-promscrape.suppressScrapeErrors` command-line flag to `vmagent`. The most recent scrape error per each target can be observed at `http://vmagent-host:8429/targets`
   and `http://vmagent-host:8429/api/v1/targets`.
 
-* The `/api/v1/targets` page could be useful for debugging relabeling process for scrape targets.
-  This page contains original labels for targets dropped during relabeling (see "droppedTargets" section in the page output). By default the `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling, then increase `-promscrape.maxDroppedTargets` command-line flag value to see all the dropped targets. Note that tracking each dropped target requires up to 10Kb of RAM. Therefore big values for `-promscrape.maxDroppedTargets` may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
+* The `/service-discovery` page could be useful for debugging relabeling process for scrape targets.
+  This page contains original labels for targets dropped during relabeling.
+  By default the `-promscrape.maxDroppedTargets` targets are shown here. If your setup drops more targets during relabeling,
+  then increase `-promscrape.maxDroppedTargets` command-line flag value to see all the dropped targets.
+  Note that tracking each dropped target requires up to 10Kb of RAM. Therefore big values for `-promscrape.maxDroppedTargets`
+  may result in increased memory usage if a big number of scrape targets are dropped during relabeling.
 
-* We recommend you increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported at `http://vmagent-host:8429/metrics` page grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize` and `-remoteWrite.maxRowsPerBlock` command-line options in this case. This can improve data ingestion performance to the configured remote storage systems at the cost of higher memory usage.
+* We recommend you increase `-remoteWrite.queues` if `vmagent_remotewrite_pending_data_bytes` metric exported
+  at `http://vmagent-host:8429/metrics` page grows constantly. It is also recommended increasing `-remoteWrite.maxBlockSize`
+  and `-remoteWrite.maxRowsPerBlock` command-line options in this case. This can improve data ingestion performance
+  to the configured remote storage systems at the cost of higher memory usage.
 
-* If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set, try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage. Therefore it starts dropping the buffered data if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
+* If you see gaps in the data pushed by `vmagent` to remote storage when `-remoteWrite.maxDiskUsagePerURL` is set,
+  try increasing `-remoteWrite.queues`. Such gaps may appear because `vmagent` cannot keep up with sending the collected data to remote storage.
+  Therefore it starts dropping the buffered data if the on-disk buffer size exceeds `-remoteWrite.maxDiskUsagePerURL`.
 
-* `vmagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses. The number of dropped blocks can be monitored via `vmagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
+* `vmagent` drops data blocks if remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses.
+  The number of dropped blocks can be monitored via `vmagent_remotewrite_packets_dropped_total` metric exported at [/metrics page](#monitoring).
 
-* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling). Such storage systems include Prometheus, Cortex and Thanos, which typically emit `out of order sample` errors. The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling).
+* Use `-remoteWrite.queues=1` when `-remoteWrite.url` points to remote storage, which doesn't accept out-of-order samples (aka data backfilling).
+  Such storage systems include Prometheus, Cortex and Thanos, which typically emit `out of order sample` errors.
+  The best solution is to use remote storage with [backfilling support](https://docs.victoriametrics.com/#backfilling) such as VictoriaMetrics.
 
 * `vmagent` buffers scraped data at the `-remoteWrite.tmpDataPath` directory until it is sent to `-remoteWrite.url`.
   The directory can grow large when remote storage is unavailable for extended periods of time and if `-remoteWrite.maxDiskUsagePerURL` isn't set.
@@ -691,25 +909,33 @@ See also [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting
 * [Reading metrics from Kafka](#reading-metrics-from-kafka)
 * [Writing metrics to Kafka](#writing-metrics-to-kafka)
 
-The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page in `vmutils-*-enteprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+The enterprise version of vmagent is available for evaluation at [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
+in `vmutils-...-enteprise.tar.gz` archives and in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
 ### Reading metrics from Kafka
 
-[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages. These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` can read metrics in various formats from Kafka messages.
+These formats can be configured with `-kafka.consumer.topic.defaultFormat` or `-kafka.consumer.topic.format` command-line options. The following formats are supported:
 
-* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write). Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
+* `promremotewrite` - [Prometheus remote_write](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write).
+  Messages in this format can be sent by vmagent - see [these docs](#writing-metrics-to-kafka).
 * `influx` - [InfluxDB line protocol format](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/).
-* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format) and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
+* `prometheus` - [Prometheus text exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
+  and [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md).
 * `graphite` - [Graphite plaintext format](https://graphite.readthedocs.io/en/latest/feeding-carbon.html#the-plaintext-protocol).
 * `jsonline` - [JSON line format](https://docs.victoriametrics.com/#how-to-import-data-in-json-line-format).
 
 Every Kafka message may contain multiple lines in `influx`, `prometheus`, `graphite` and `jsonline` format delimited by `\n`.
 
-`vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
+`vmagent` consumes messages from Kafka topics specified by `-kafka.consumer.topic` command-line flag. Multiple topics can be specified
+by passing multiple `-kafka.consumer.topic` command-line flags to `vmagent`.
 
-`vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag. Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`. For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
+`vmagent` consumes messages from Kafka brokers specified by `-kafka.consumer.topic.brokers` command-line flag.
+Multiple brokers can be specified per each `-kafka.consumer.topic` by passing a list of brokers delimited by `;`.
+For example, `-kafka.consumer.topic.brokers=host1:9092;host2:9092`.
 
-The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092` from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
+The following command starts `vmagent`, which reads metrics in InfluxDB line protocol format from Kafka broker at `localhost:9092`
+from the topic `metrics-by-telegraf` and sends them to remote storage at `http://localhost:8428/api/v1/write`:
 
 ```console
 ./bin/vmagent -remoteWrite.url=http://localhost:8428/api/v1/write \
@@ -730,7 +956,9 @@ data_format = "influx"
 
 #### Command-line flags for Kafka consumer
 
-These command-line flags are available only in [enterprise](https://victoriametrics.com/products/enterprise/) version of `vmagent`, which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page (see `vmutils-*-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
+These command-line flags are available only in [enterprise](https://victoriametrics.com/products/enterprise/) version of `vmagent`,
+which can be downloaded for evaluation from [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) page
+(see `vmutils-...-enteprise.tar.gz` archives) and from [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags) with tags containing `enterprise` suffix.
 
 ```
   -kafka.consumer.topic array
@@ -763,9 +991,13 @@ These command-line flags are available only in [enterprise](https://victoriametr
 
 ### Writing metrics to Kafka
 
-[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` writes data to Kafka with `at-least-once` semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`, then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`. These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
+[Enterprise version](https://victoriametrics.com/products/enterprise/) of `vmagent` writes data to Kafka with `at-least-once`
+semantics if `-remoteWrite.url` contains e.g. Kafka url. For example, if `vmagent` is started with `-remoteWrite.url=kafka://localhost:9092/?topic=prom-rw`,
+then it would send Prometheus remote_write messages to Kafka bootstrap server at `localhost:9092` with the topic `prom-rw`.
+These messages can be read later from Kafka by another `vmagent` - see [these docs](#reading-metrics-from-kafka) for details.
 
-Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id` sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
+Additional Kafka options can be passed as query params to `-remoteWrite.url`. For instance, `kafka://localhost:9092/?topic=prom-rw&client.id=my-favorite-id`
+sets `client.id` Kafka option to `my-favorite-id`. The full list of Kafka options is available [here](https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md).
 
 #### Kafka broker authorization and authentication
 
@@ -785,11 +1017,13 @@ Two types of auth are supported:
 
 ## How to build from sources
 
-We recommend using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmagent` is located in the `vmutils-*` archives .
+We recommend using [official binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmagent` is located in the `vmutils-...` archives.
+
+It may be needed to build `vmagent` from source code when developing or testing new feature or bugfix.
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
 2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -818,7 +1052,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
 2. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -856,6 +1090,8 @@ The command for collecting CPU profile waits for 30 seconds before returning.
 
 The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
 
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
+
 ## Advanced usage
 
 `vmagent` can be fine-tuned with various command-line flags. Run `./vmagent -help` in order to see the full list of these flags with their desciptions and default values:
@@ -874,6 +1110,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+  -datadog.sanitizeMetricName
+     Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -dryRun
@@ -885,7 +1123,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -936,30 +1174,30 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -insert.maxQueueDuration duration
      The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
   -kafka.consumer.topic array
-     Kafka topic names for data consumption.
+     Kafka topic names for data consumption. This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.basicAuth.password array
-     Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+     Optional basic auth password for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.basicAuth.username array
-     Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN'
+     Optional basic auth username for -kafka.consumer.topic. Must be used in conjunction with any supported auth methods for kafka client, specified by flag -kafka.consumer.topic.options='security.protocol=SASL_SSL;sasl.mechanisms=PLAIN' . This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.brokers array
-     List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092
+     List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.defaultFormat string
-     Expected data format in the topic if -kafka.consumer.topic.format is skipped. (default "promremotewrite")
+     Expected data format in the topic if -kafka.consumer.topic.format is skipped. This flag is available only in enterprise version of VictoriaMetrics (default "promremotewrite")
   -kafka.consumer.topic.format array
-     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline
+     data format for corresponding kafka topic. Valid formats: influx, prometheus, promremotewrite, graphite, jsonline . This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.groupID array
-     Defines group.id for topic
+     Defines group.id for topic. This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.isGzipped array
-     Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.
+     Enables gzip setting for topic messages payload. Only prometheus, jsonline and influx formats accept gzipped messages.This flag is available only in enterprise version of VictoriaMetrics
      Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.options array
-     Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md.
+     Optional key=value;key1=value2 settings for topic consumer. See full configuration options at https://github.com/edenhill/librdkafka/blob/master/CONFIGURATION.md . This flag is available only in enterprise version of VictoriaMetrics
      Supports an array of values separated by comma or specified via multiple flags.
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
@@ -1001,7 +1239,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.azureSDCheckInterval duration
-     Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#azure_sd_config for details (default 1m0s)
+     Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string
      The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
@@ -1021,9 +1259,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
-     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
   -promscrape.digitaloceanSDCheckInterval duration
-     Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#digitalocean_sd_config for details (default 1m0s)
+     Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details (default 1m0s)
   -promscrape.disableCompression
      Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.disableKeepAlive
@@ -1033,27 +1271,27 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
-     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details (default 30s)
   -promscrape.dockerSDCheckInterval duration
-     Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#docker_sd_config for details (default 30s)
+     Interval for checking for changes in docker. This works only if docker_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#docker_sd_configs for details (default 30s)
   -promscrape.dockerswarmSDCheckInterval duration
-     Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details (default 30s)
+     Interval for checking for changes in dockerswarm. This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs for details (default 30s)
   -promscrape.dropOriginalLabels
      Whether to drop original labels for scrape targets at /targets and /api/v1/targets pages. This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. Note that this reduces debuggability for improper per-target relabeling configs
   -promscrape.ec2SDCheckInterval duration
-     Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#ec2_sd_config for details (default 1m0s)
+     Interval for checking for changes in ec2. This works only if ec2_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#ec2_sd_configs for details (default 1m0s)
   -promscrape.eurekaSDCheckInterval duration
-     Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#eureka_sd_config for details (default 30s)
+     Interval for checking for changes in eureka. This works only if eureka_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#eureka_sd_configs for details (default 30s)
   -promscrape.fileSDCheckInterval duration
-     Interval for checking for changes in 'file_sd_config'. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details (default 5m0s)
+     Interval for checking for changes in 'file_sd_config'. See https://docs.victoriametrics.com/sd_configs.html#file_sd_configs for details (default 1m0s)
   -promscrape.gceSDCheckInterval duration
-     Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#gce_sd_config for details (default 1m0s)
+     Interval for checking for changes in gce. This works only if gce_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#gce_sd_configs for details (default 1m0s)
   -promscrape.httpSDCheckInterval duration
-     Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#http_sd_config for details (default 1m0s)
+     Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#http_sd_configs for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
      How frequently to reload the full state from Kubernetes API server (default 30m0s)
   -promscrape.kubernetesSDCheckInterval duration
-     Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#kubernetes_sd_config for details (default 30s)
+     Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxResponseHeadersSize size
@@ -1068,7 +1306,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.noStaleMarkers
      Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
-     Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#openstack_sd_config for details (default 30s)
+     Interval for checking for changes in openstack API server. This works only if openstack_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#openstack_sd_configs for details (default 30s)
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info
   -promscrape.streamParse
@@ -1079,6 +1317,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to suppress scrape errors logging. The last error for each target is always available at '/targets' page even if scrape errors logging is suppressed. See also -promscrape.suppressScrapeErrorsDelay
   -promscrape.suppressScrapeErrorsDelay duration
      The delay for suppressing repeated scrape errors logging per each scrape targets. This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors
+  -promscrape.yandexcloudSDCheckInterval duration
+     Interval for checking for changes in Yandex Cloud API. This works only if yandexcloud_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#yandexcloud_sd_configs for details (default 30s)
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1089,6 +1329,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.accessKey array
      Optional AWS AccessKey to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.ec2Endpoint array
+     Optional AWS EC2 API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.region array
      Optional AWS region to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
@@ -1101,6 +1344,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.service array
      Optional AWS Service to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set. Defaults to "aps"
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.aws.stsEndpoint array
+     Optional AWS STS API endpoint to use for the corresponding -remoteWrite.url if -remoteWrite.aws.useSigv4 is set
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.aws.useSigv4 array
      Enables SigV4 request signing for the corresponding -remoteWrite.url. It is expected that other -remoteWrite.aws.* command-line flags are set if sigv4 request signing is enabled
@@ -1133,9 +1379,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
   -remoteWrite.maxDailySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
-  -remoteWrite.maxDiskUsagePerURL size
+  -remoteWrite.maxDiskUsagePerURL array
      The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. Disk usage is unlimited if the value is set to 0
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB.
+     Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxHourlySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
   -remoteWrite.maxRowsPerBlock int
@@ -1218,6 +1465,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -usePromCompatibleNaming
+     Whether to replace characters unsupported by Prometheus with underscores in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. See https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
   -version
      Show VictoriaMetrics version
 ```

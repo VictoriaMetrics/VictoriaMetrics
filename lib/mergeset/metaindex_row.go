@@ -3,7 +3,6 @@ package mergeset
 import (
 	"fmt"
 	"io"
-	"io/ioutil"
 	"sort"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -83,7 +82,7 @@ func (mr *metaindexRow) Unmarshal(src []byte) ([]byte, error) {
 func unmarshalMetaindexRows(dst []metaindexRow, r io.Reader) ([]metaindexRow, error) {
 	// It is ok to read all the metaindex in memory,
 	// since it is quite small.
-	compressedData, err := ioutil.ReadAll(r)
+	compressedData, err := io.ReadAll(r)
 	if err != nil {
 		return dst, fmt.Errorf("cannot read metaindex data: %w", err)
 	}

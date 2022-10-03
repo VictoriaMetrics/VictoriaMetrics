@@ -2,8 +2,10 @@ package datadog
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
+	"regexp"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -14,8 +16,18 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// The maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
-var maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v1/series")
+var (
+	// The maximum request size is defined at https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
+	maxInsertRequestSize = flagutil.NewBytes("datadog.maxInsertRequestSize", 64*1024*1024, "The maximum size in bytes of a single DataDog POST request to /api/v1/series")
+
+	// If all metrics in Datadog have the same naming schema as custom metrics, then the following rules apply:
+	// https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
+	// But there's some hidden behaviour. In addition to what it states in the docs, the following is also done:
+	// - Consecutive underscores are replaced with just one underscore
+	// - Underscore immediately before or after a dot are removed
+	sanitizeMetricName = flag.Bool("datadog.sanitizeMetricName", true, "Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at "+
+		"https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics")
+)
 
 // ParseStream parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
@@ -52,6 +64,9 @@ func ParseStream(r io.Reader, contentEncoding string, callback func(series []Ser
 	series := req.Series
 	for i := range series {
 		rows += len(series[i].Points)
+		if *sanitizeMetricName {
+			series[i].Metric = sanitizeName(series[i].Metric)
+		}
 	}
 	rowsRead.Add(rows)
 
@@ -136,3 +151,23 @@ func putRequest(req *Request) {
 }
 
 var requestPool sync.Pool
+
+// sanitizeName performs DataDog-compatible santizing for metric names
+//
+// See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
+func sanitizeName(name string) string {
+	return namesSanitizer.Transform(name)
+}
+
+var namesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	s = unsupportedDatadogChars.ReplaceAllString(s, "_")
+	s = multiUnderscores.ReplaceAllString(s, "_")
+	s = underscoresWithDots.ReplaceAllString(s, ".")
+	return s
+})
+
+var (
+	unsupportedDatadogChars = regexp.MustCompile(`[^0-9a-zA-Z_\.]+`)
+	multiUnderscores        = regexp.MustCompile(`_+`)
+	underscoresWithDots     = regexp.MustCompile(`_?\._?`)
+)

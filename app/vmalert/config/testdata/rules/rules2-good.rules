@@ -1,6 +1,6 @@
 groups:
   - name: TestGroup
-    interval: 2s
+    interval: 5s
     concurrency: 2
     limit: 1000
     headers:
@@ -9,10 +9,12 @@ groups:
       denyPartialResponse: ["true"]
     rules:
       - alert: Conns
-        expr: sum(vm_tcplistener_conns) by(instance) > 1
+        expr: vm_tcplistener_conns > 0
         for: 3m
+        debug: true
         annotations:
-          summary: Too high connection number for {{$labels.instance}}
+          labels: "Available labels: {{ $labels }}"
+          summary: Too high connection number for {{ $labels.instance }}
             {{ with printf "sum(vm_tcplistener_conns{instance=%q})" .Labels.instance | query }}
               {{ . | first | value }}
             {{ end }}

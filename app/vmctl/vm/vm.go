@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net/http"
 	"strings"
@@ -16,7 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/dmitryk-dk/pb/v3"
+	"github.com/cheggaaa/pb/v3"
 )
 
 // Config contains list of params to configure
@@ -394,7 +393,7 @@ func do(req *http.Request) error {
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusNoContent {
-		body, err := ioutil.ReadAll(resp.Body)
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
 		}

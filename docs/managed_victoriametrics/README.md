@@ -1,5 +1,5 @@
 ---
-sort: 26
+sort: 28
 ---
 
 # Managed VictoriaMetrics

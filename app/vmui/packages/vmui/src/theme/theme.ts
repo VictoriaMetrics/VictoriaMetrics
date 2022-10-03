@@ -3,7 +3,8 @@ import {createTheme} from "@mui/material/styles";
 const THEME = createTheme({
   palette: {
     primary: {
-      main: "#3F51B5"
+      main: "#3F51B5",
+      light: "#e3f2fd"
     },
     secondary: {
       main: "#F50057"
@@ -17,7 +18,7 @@ const THEME = createTheme({
       styleOverrides: {
         root: {
           position: "absolute",
-          top: "36px",
+          bottom: "-16px",
           left: "2px",
           margin: 0,
         }

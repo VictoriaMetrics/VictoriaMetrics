@@ -168,7 +168,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		_ = r.ParseForm()
 		path = strings.TrimPrefix(path, "/")
 		newURL := path + "/?" + r.Form.Encode()
-		http.Redirect(w, r, newURL, http.StatusMovedPermanently)
+		httpserver.Redirect(w, newURL)
 		return true
 	}
 	if strings.HasPrefix(path, "/vmui/") {
@@ -217,7 +217,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// vmalert access via incomplete url without `/` in the end. Redirecto to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
-		http.Redirect(w, r, "vmalert/", http.StatusMovedPermanently)
+		httpserver.Redirect(w, "vmalert/")
 		return true
 	}
 	if strings.HasPrefix(path, "/vmalert/") {
@@ -500,6 +500,12 @@ func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
 		statusCode = esc.StatusCode
 	}
 	w.WriteHeader(statusCode)
+
+	var ure *promql.UserReadableError
+	if errors.As(err, &ure) {
+		prometheus.WriteErrorResponse(w, statusCode, ure)
+		return
+	}
 	prometheus.WriteErrorResponse(w, statusCode, err)
 }
 

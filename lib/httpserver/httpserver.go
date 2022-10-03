@@ -34,7 +34,9 @@ var (
 	tlsEnable       = flag.Bool("tls", false, "Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set")
 	tlsCertFile     = flag.String("tlsCertFile", "", "Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated")
 	tlsKeyFile      = flag.String("tlsKeyFile", "", "Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated")
-	tlsCipherSuites = flagutil.NewArray("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
+	tlsCipherSuites = flagutil.NewArrayString("tlsCipherSuites", "Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants")
+	tlsMinVersion   = flag.String("tlsMinVersion", "", "Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. "+
+		"Supported values: TLS10, TLS11, TLS12, TLS13")
 
 	pathPrefix = flag.String("http.pathPrefix", "", "An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, "+
 		"then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. "+
@@ -95,9 +97,9 @@ func Serve(addr string, rh RequestHandler) {
 	logger.Infof("pprof handlers are exposed at %s://%s/debug/pprof/", scheme, hostAddr)
 	var tlsConfig *tls.Config
 	if *tlsEnable {
-		tc, err := netutil.GetServerTLSConfig(*tlsCertFile, *tlsKeyFile, *tlsCipherSuites)
+		tc, err := netutil.GetServerTLSConfig(*tlsCertFile, *tlsKeyFile, *tlsMinVersion, *tlsCipherSuites)
 		if err != nil {
-			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q: %s", *tlsCertFile, *tlsKeyFile, err)
+			logger.Fatalf("cannot load TLS cert from -tlsCertFile=%q, -tlsKeyFile=%q, -tlsMinVersion=%q: %s", *tlsCertFile, *tlsKeyFile, *tlsMinVersion, err)
 		}
 		tlsConfig = tc
 	}
@@ -236,13 +238,27 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		connTimeoutClosedConns.Inc()
 		w.Header().Set("Connection", "close")
 	}
-	path, err := getCanonicalPath(r.URL.Path)
-	if err != nil {
-		Errorf(w, r, "cannot get canonical path: %s", err)
-		unsupportedRequestErrors.Inc()
-		return
+	path := r.URL.Path
+	prefix := GetPathPrefix()
+	if prefix != "" {
+		// Trim -http.pathPrefix from path
+		prefixNoTrailingSlash := strings.TrimSuffix(prefix, "/")
+		if path == prefixNoTrailingSlash {
+			// Redirect to url with / at the end.
+			// This is needed for proper handling of relative urls in web browsers.
+			// Intentionally ignore query args, since it is expected that the requested url
+			// is composed by a human, so it doesn't contain query args.
+			Redirect(w, prefix)
+			return
+		}
+		if !strings.HasPrefix(path, prefix) {
+			Errorf(w, r, "missing -http.pathPrefix=%q in the requested path %q", *pathPrefix, path)
+			unsupportedRequestErrors.Inc()
+			return
+		}
+		path = path[len(prefix)-1:]
+		r.URL.Path = path
 	}
-	r.URL.Path = path
 	switch r.URL.Path {
 	case "/health":
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -326,24 +342,6 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		unsupportedRequestErrors.Inc()
 		return
 	}
-}
-
-func getCanonicalPath(path string) (string, error) {
-	if len(*pathPrefix) == 0 || path == "/" {
-		return path, nil
-	}
-	if *pathPrefix == path {
-		return "/", nil
-	}
-	prefix := *pathPrefix
-	if !strings.HasSuffix(prefix, "/") {
-		prefix = prefix + "/"
-	}
-	if !strings.HasPrefix(path, prefix) {
-		return "", fmt.Errorf("missing `-pathPrefix=%q` in the requested path: %q", *pathPrefix, path)
-	}
-	path = path[len(prefix)-1:]
-	return path, nil
 }
 
 func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
@@ -644,7 +642,17 @@ func IsTLS() bool {
 
 // GetPathPrefix - returns http server path prefix.
 func GetPathPrefix() string {
-	return *pathPrefix
+	prefix := *pathPrefix
+	if prefix == "" {
+		return ""
+	}
+	if !strings.HasPrefix(prefix, "/") {
+		prefix = "/" + prefix
+	}
+	if !strings.HasSuffix(prefix, "/") {
+		prefix += "/"
+	}
+	return prefix
 }
 
 // WriteAPIHelp writes pathList to w in HTML format.
@@ -671,4 +679,16 @@ func GetRequestURI(r *http.Request) string {
 		delimiter = "&"
 	}
 	return requestURI + delimiter + queryArgs
+}
+
+// Redirect redirects to the given url.
+func Redirect(w http.ResponseWriter, url string) {
+	// Do not use http.Redirect, since it breaks relative redirects
+	// if the http.Request.URL contains unexpected url.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918
+	w.Header().Set("Location", url)
+	// Use http.StatusFound instead of http.StatusMovedPermanently,
+	// since browsers can cache incorrect redirects returned with StatusMovedPermanently.
+	// This may require browser cache cleaning after the incorrect redirect is fixed.
+	w.WriteHeader(http.StatusFound)
 }

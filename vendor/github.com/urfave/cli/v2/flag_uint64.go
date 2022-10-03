@@ -25,7 +25,7 @@ func (f *Uint64Flag) GetCategory() string {
 func (f *Uint64Flag) Apply(set *flag.FlagSet) error {
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
-			valInt, err := strconv.ParseUint(val, 0, 64)
+			valInt, err := strconv.ParseUint(val, f.Base, 64)
 			if err != nil {
 				return fmt.Errorf("could not parse %q as uint64 value from %s for flag %s: %s", val, source, f.Name, err)
 			}
@@ -41,6 +41,15 @@ func (f *Uint64Flag) Apply(set *flag.FlagSet) error {
 			continue
 		}
 		set.Uint64(name, f.Value, f.Usage)
+	}
+
+	return nil
+}
+
+// RunAction executes flag action if set
+func (f *Uint64Flag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Uint64(f.Name))
 	}
 
 	return nil

@@ -8,7 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/dmitryk-dk/pb/v3"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type otsdbProcessor struct {
@@ -82,6 +82,9 @@ func (op *otsdbProcessor) run(silent, verbose bool) error {
 		errCh := make(chan error)
 		// we're going to make serieslist * queryRanges queries, so we should represent that in the progress bar
 		bar := pb.StartNew(len(serieslist) * queryRanges)
+		defer func(bar *pb.ProgressBar) {
+			bar.Finish()
+		}(bar)
 		var wg sync.WaitGroup
 		wg.Add(op.otsdbcc)
 		for i := 0; i < op.otsdbcc; i++ {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"sync"
 	"sync/atomic"
@@ -24,6 +25,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -36,8 +38,8 @@ var (
 		"The path can point to local file and to http url. "+
 		"See https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter for details")
 
-	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", 5*time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
-		"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#file_sd_config for details")
+	fileSDCheckInterval = flag.Duration("promscrape.fileSDCheckInterval", time.Minute, "Interval for checking for changes in 'file_sd_config'. "+
+		"See https://docs.victoriametrics.com/sd_configs.html#file_sd_configs for details")
 )
 
 // CheckConfig checks -promscrape.config for errors and unsupported options.
@@ -52,7 +54,7 @@ func CheckConfig() error {
 // Init initializes Prometheus scraper with config from the `-promscrape.config`.
 //
 // Scraped data is passed to pushData.
-func Init(pushData func(wr *prompbmarshal.WriteRequest)) {
+func Init(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) {
 	mustInitClusterMemberID()
 	globalStopChan = make(chan struct{})
 	scraperWG.Add(1)
@@ -90,7 +92,7 @@ func WriteConfigData(w io.Writer) {
 	_, _ = w.Write(*b)
 }
 
-func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
+func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
 	if configFile == "" {
 		// Nothing to scrape.
 		return
@@ -124,6 +126,7 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 	scs.add("http_sd_configs", *http.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getHTTPDScrapeWork(swsPrev) })
 	scs.add("kubernetes_sd_configs", *kubernetes.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getKubernetesSDScrapeWork(swsPrev) })
 	scs.add("openstack_sd_configs", *openstack.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getOpenStackSDScrapeWork(swsPrev) })
+	scs.add("yandexcloud_sd_configs", *yandexcloud.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getYandexCloudSDScrapeWork(swsPrev) })
 	scs.add("static_configs", 0, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getStaticScrapeWork() })
 
 	var tickerCh <-chan time.Time
@@ -183,14 +186,14 @@ func runScraper(configFile string, pushData func(wr *prompbmarshal.WriteRequest)
 var configReloads = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
 
 type scrapeConfigs struct {
-	pushData     func(wr *prompbmarshal.WriteRequest)
+	pushData     func(at *auth.Token, wr *prompbmarshal.WriteRequest)
 	wg           sync.WaitGroup
 	stopCh       chan struct{}
 	globalStopCh <-chan struct{}
 	scfgs        []*scrapeConfig
 }
 
-func newScrapeConfigs(pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scrapeConfigs {
+func newScrapeConfigs(pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scrapeConfigs {
 	return &scrapeConfigs{
 		pushData:     pushData,
 		stopCh:       make(chan struct{}),
@@ -232,7 +235,7 @@ func (scs *scrapeConfigs) stop() {
 
 type scrapeConfig struct {
 	name          string
-	pushData      func(wr *prompbmarshal.WriteRequest)
+	pushData      func(at *auth.Token, wr *prompbmarshal.WriteRequest)
 	getScrapeWork func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork
 	checkInterval time.Duration
 	cfgCh         chan *Config
@@ -285,7 +288,7 @@ type scraperGroup struct {
 	wg       sync.WaitGroup
 	mLock    sync.Mutex
 	m        map[string]*scraper
-	pushData func(wr *prompbmarshal.WriteRequest)
+	pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)
 
 	changesCount    *metrics.Counter
 	activeScrapers  *metrics.Counter
@@ -295,7 +298,7 @@ type scraperGroup struct {
 	globalStopCh <-chan struct{}
 }
 
-func newScraperGroup(name string, pushData func(wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scraperGroup {
+func newScraperGroup(name string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) *scraperGroup {
 	sg := &scraperGroup{
 		name:     name,
 		m:        make(map[string]*scraper),
@@ -411,7 +414,7 @@ type scraper struct {
 	stoppedCh chan struct{}
 }
 
-func newScraper(sw *ScrapeWork, group string, pushData func(wr *prompbmarshal.WriteRequest)) *scraper {
+func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) *scraper {
 	sc := &scraper{
 		stopCh:    make(chan struct{}),
 		stoppedCh: make(chan struct{}),

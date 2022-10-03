@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -43,8 +43,8 @@ type credentials struct {
 	Expiration      time.Time
 }
 
-// NewConfig returns new AWS Config.
-func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, error) {
+// NewConfig returns new AWS Config from the given args.
+func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, service string) (*Config, error) {
 	cfg := &Config{
 		client:           http.DefaultClient,
 		region:           region,
@@ -53,11 +53,9 @@ func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, 
 		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
-	cfg.service = service
 	if cfg.service == "" {
 		cfg.service = "aps"
 	}
-	cfg.region = region
 	if cfg.region == "" {
 		r, err := getDefaultRegion(cfg.client)
 		if err != nil {
@@ -65,8 +63,8 @@ func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, 
 		}
 		cfg.region = r
 	}
-	cfg.ec2Endpoint = buildAPIEndpoint(cfg.ec2Endpoint, cfg.region, "ec2")
-	cfg.stsEndpoint = buildAPIEndpoint(cfg.stsEndpoint, cfg.region, "sts")
+	cfg.ec2Endpoint = buildAPIEndpoint(ec2Endpoint, cfg.region, "ec2")
+	cfg.stsEndpoint = buildAPIEndpoint(stsEndpoint, cfg.region, "sts")
 	if cfg.roleARN == "" {
 		cfg.roleARN = os.Getenv("AWS_ROLE_ARN")
 	}
@@ -75,8 +73,6 @@ func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, 
 		return nil, fmt.Errorf("roleARN is missing for AWS_WEB_IDENTITY_TOKEN_FILE=%q; set it via env var AWS_ROLE_ARN", cfg.webTokenPath)
 	}
 	// explicitly set credentials has priority over env variables
-	cfg.defaultAccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
-	cfg.defaultSecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 	if len(accessKey) > 0 {
 		cfg.defaultAccessKey = accessKey
 	}
@@ -88,6 +84,11 @@ func NewConfig(region, roleARN, accessKey, secretKey, service string) (*Config, 
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
 	return cfg, nil
+}
+
+// GetRegion returns region for the given cfg.
+func (cfg *Config) GetRegion() string {
+	return cfg.region
 }
 
 // GetEC2APIResponse performs EC2 API request with ghe given action.
@@ -130,7 +131,7 @@ func (cfg *Config) SignRequest(req *http.Request, payloadHash string) error {
 }
 
 func readResponseBody(resp *http.Response, apiURL string) ([]byte, error) {
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
 	if err != nil {
 		return nil, fmt.Errorf("cannot read response from %q: %w", apiURL, err)
@@ -196,7 +197,7 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
 	if len(cfg.webTokenPath) > 0 {
-		token, err := ioutil.ReadFile(cfg.webTokenPath)
+		token, err := os.ReadFile(cfg.webTokenPath)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read webToken from path: %q, err: %w", cfg.webTokenPath, err)
 		}

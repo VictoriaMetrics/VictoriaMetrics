@@ -39,6 +39,13 @@ func (cm *CounterMap) Get(at *auth.Token) *metrics.Counter {
 	return cm.GetByTenant(key)
 }
 
+// MultiAdd adds multiple values grouped by auth.Token
+func (cm *CounterMap) MultiAdd(perTenantValues map[auth.Token]int) {
+	for token, value := range perTenantValues {
+		cm.Get(&token).Add(value)
+	}
+}
+
 // GetByTenant returns counter for the given key.
 func (cm *CounterMap) GetByTenant(key TenantID) *metrics.Counter {
 	m := cm.m.Load().(map[TenantID]*metrics.Counter)

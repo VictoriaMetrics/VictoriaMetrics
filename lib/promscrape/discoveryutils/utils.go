@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
@@ -15,12 +16,14 @@ import (
 //
 // This has been copied from Prometheus sources at util/strutil/strconv.go
 func SanitizeLabelName(name string) string {
-	return invalidLabelCharRE.ReplaceAllString(name, "_")
+	return labelNamesSanitizer.Transform(name)
 }
 
-var (
-	invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-)
+var labelNamesSanitizer = bytesutil.NewFastStringTransformer(func(s string) string {
+	return invalidLabelCharRE.ReplaceAllString(s, "_")
+})
+
+var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 // JoinHostPort returns host:port.
 //

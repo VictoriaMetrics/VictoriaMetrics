@@ -700,14 +700,26 @@ func TestAlertingRule_Template(t *testing.T) {
 		expAlerts map[uint64]*notifier.Alert
 	}{
 		{
-			newTestRuleWithLabels("common", "region", "east"),
+			&AlertingRule{
+				Name: "common",
+				Labels: map[string]string{
+					"region": "east",
+				},
+				Annotations: map[string]string{
+					"summary": `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
+				},
+				alerts: make(map[uint64]*notifier.Alert),
+				state:  newRuleState(),
+			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1, "instance", "foo"),
 				metricWithValueAndLabels(t, 1, "instance", "bar"),
 			},
 			map[uint64]*notifier.Alert{
 				hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "foo"}): {
-					Annotations: map[string]string{},
+					Annotations: map[string]string{
+						"summary": `common: Too high connection number for "foo"`,
+					},
 					Labels: map[string]string{
 						alertNameLabel: "common",
 						"region":       "east",
@@ -715,7 +727,9 @@ func TestAlertingRule_Template(t *testing.T) {
 					},
 				},
 				hash(map[string]string{alertNameLabel: "common", "region": "east", "instance": "bar"}): {
-					Annotations: map[string]string{},
+					Annotations: map[string]string{
+						"summary": `common: Too high connection number for "bar"`,
+					},
 					Labels: map[string]string{
 						alertNameLabel: "common",
 						"region":       "east",
@@ -735,6 +749,7 @@ func TestAlertingRule_Template(t *testing.T) {
 					"description": `{{ $labels.alertname}}: It is {{ $value }} connections for "{{ $labels.instance }}"`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
+				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "first", "instance", "foo", alertNameLabel, "override"),
@@ -774,6 +789,7 @@ func TestAlertingRule_Template(t *testing.T) {
 					"summary": `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
+				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1,
@@ -915,5 +931,11 @@ func newTestRuleWithLabels(name string, labels ...string) *AlertingRule {
 }
 
 func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
-	return &AlertingRule{Name: name, alerts: make(map[uint64]*notifier.Alert), For: waitFor, EvalInterval: waitFor}
+	return &AlertingRule{
+		Name:         name,
+		For:          waitFor,
+		EvalInterval: waitFor,
+		alerts:       make(map[uint64]*notifier.Alert),
+		state:        newRuleState(),
+	}
 }

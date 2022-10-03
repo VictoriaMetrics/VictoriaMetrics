@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules.
+	rulePath = flagutil.NewArrayString("rule", `Path to the file with alert rules.
 Supports patterns. Flag can be specified multiple times.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
@@ -36,7 +36,7 @@ Examples:
 absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
-	ruleTemplatesPath = flagutil.NewArray("rule.templates", `Path or glob pattern to location with go template definitions
+	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
 	for rules annotations templating. Flag can be specified multiple times.
 Examples:
  -rule.templates="/path/to/file". Path to a single file with go templates
@@ -60,8 +60,9 @@ absolute path to all .tpl files in root.`)
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/vmalert/api/v1/alert?group_id=&alert_id=' is used`)
-	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
+Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.
+If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
+	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
@@ -70,7 +71,7 @@ eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{
 
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
-	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The `-rule` flag must be specified.")
+	dryRun = flag.Bool("dryRun", false, "Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.")
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator
@@ -80,6 +81,9 @@ func main() {
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
 	envflag.Parse()
+	remoteread.InitSecretFlags()
+	remotewrite.InitSecretFlags()
+	datasource.InitSecretFlags()
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()
@@ -246,7 +250,7 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 	if externalAlertSource == "" {
 		return func(a notifier.Alert) string {
 			gID, aID := strconv.FormatUint(a.GroupID, 10), strconv.FormatUint(a.ID, 10)
-			return fmt.Sprintf("%s/vmalert/api/v1/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
+			return fmt.Sprintf("%s/vmalert/alert?%s=%s&%s=%s", externalURL, paramGroupID, gID, paramAlertID, aID)
 		}, nil
 	}
 	if validateTemplate {

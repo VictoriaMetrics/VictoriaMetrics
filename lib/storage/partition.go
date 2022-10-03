@@ -3,7 +3,6 @@ package storage
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -237,8 +236,8 @@ func (pt *partition) Drop() {
 	// Wait until all the pending transaction deletions are finished before removing partition directories.
 	pendingTxnDeletionsWG.Wait()
 
-	fs.MustRemoveAll(pt.smallPartsPath)
-	fs.MustRemoveAll(pt.bigPartsPath)
+	fs.MustRemoveDirAtomic(pt.smallPartsPath)
+	fs.MustRemoveDirAtomic(pt.bigPartsPath)
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
@@ -569,7 +568,7 @@ func (pt *partition) addRowsPart(rows []rawRow) {
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		return
 	}
-	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
+	if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
 		return
 	}
 	logger.Panicf("FATAL: cannot merge small parts: %s", err)
@@ -871,7 +870,7 @@ func hasActiveMerges(pws []*partWrapper) bool {
 
 var (
 	bigMergeWorkersCount   = getDefaultMergeConcurrency(4)
-	smallMergeWorkersCount = getDefaultMergeConcurrency(8)
+	smallMergeWorkersCount = getDefaultMergeConcurrency(16)
 )
 
 func getDefaultMergeConcurrency(max int) int {
@@ -956,7 +955,7 @@ func (pt *partition) partsMerger(mergerFunc func(isFinal bool) error) error {
 			// The merger has been stopped.
 			return nil
 		}
-		if !errors.Is(err, errNothingToMerge) {
+		if !errors.Is(err, errNothingToMerge) && !errors.Is(err, errReadOnlyMode) {
 			return err
 		}
 		if finalMergeDelaySeconds > 0 && fasttime.UnixTimestamp()-lastMergeTime > finalMergeDelaySeconds {
@@ -1012,11 +1011,13 @@ func (pt *partition) canBackgroundMerge() bool {
 	return atomic.LoadUint32(pt.isReadOnly) == 0
 }
 
+var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
+
 func (pt *partition) mergeBigParts(isFinal bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	maxOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
 
@@ -1032,7 +1033,7 @@ func (pt *partition) mergeSmallParts(isFinal bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
-		return nil
+		return errReadOnlyMode
 	}
 	// Try merging small parts to a big part at first.
 	maxBigPartOutBytes := getMaxOutBytes(pt.bigPartsPath, bigMergeWorkersCount)
@@ -1393,17 +1394,14 @@ func (pt *partition) removeStaleParts() {
 	}
 
 	// Physically remove stale parts under snapshotLock in order to provide
-	// consistent snapshots with partition.CreateSnapshot().
+	// consistent snapshots with table.CreateSnapshot().
 	pt.snapshotLock.RLock()
-	var removeWG sync.WaitGroup
 	for pw := range m {
 		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, pt.retentionMsecs/1000)
-		removeWG.Add(1)
-		fs.MustRemoveAllWithDoneCallback(pw.p.path, removeWG.Done)
+		fs.MustRemoveDirAtomic(pw.p.path)
 	}
-	removeWG.Wait()
 	// There is no need in calling fs.MustSyncPath() on pt.smallPartsPath and pt.bigPartsPath,
-	// since they should be automatically called inside fs.MustRemoveAllWithDoneCallback.
+	// since they should be automatically called inside fs.MustRemoveDirAtomic().
 
 	pt.snapshotLock.RUnlock()
 
@@ -1553,6 +1551,7 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, err
 	}
+	fs.MustRemoveTemporaryDirs(path)
 	d, err := os.Open(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open directory %q: %w", path, err)
@@ -1567,9 +1566,9 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	}
 
 	txnDir := path + "/txn"
-	fs.MustRemoveAll(txnDir)
+	fs.MustRemoveDirAtomic(txnDir)
 	tmpDir := path + "/tmp"
-	fs.MustRemoveAll(tmpDir)
+	fs.MustRemoveDirAtomic(tmpDir)
 	if err := createPartitionDirs(path); err != nil {
 		return nil, fmt.Errorf("cannot create directories for partition %q: %w", path, err)
 	}
@@ -1595,7 +1594,7 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 		if fs.IsEmptyDir(partPath) {
 			// Remove empty directory, which can be left after unclean shutdown on NFS.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1142
-			fs.MustRemoveAll(partPath)
+			fs.MustRemoveDirAtomic(partPath)
 			continue
 		}
 		startTime := time.Now()
@@ -1741,7 +1740,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	txnLock.RLock()
 	defer txnLock.RUnlock()
 
-	data, err := ioutil.ReadFile(txnPath)
+	data, err := os.ReadFile(txnPath)
 	if err != nil {
 		return fmt.Errorf("cannot read transaction file: %w", err)
 	}
@@ -1760,14 +1759,12 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	}
 
 	// Remove old paths. It is OK if certain paths don't exist.
-	var removeWG sync.WaitGroup
 	for _, path := range rmPaths {
 		path, err := validatePath(pathPrefix1, pathPrefix2, path)
 		if err != nil {
 			return fmt.Errorf("invalid path to remove: %w", err)
 		}
-		removeWG.Add(1)
-		fs.MustRemoveAllWithDoneCallback(path, removeWG.Done)
+		fs.MustRemoveDirAtomic(path)
 	}
 
 	// Move the new part to new directory.
@@ -1796,8 +1793,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		}
 	} else {
 		// Just remove srcPath.
-		removeWG.Add(1)
-		fs.MustRemoveAllWithDoneCallback(srcPath, removeWG.Done)
+		fs.MustRemoveDirAtomic(srcPath)
 	}
 
 	// Flush pathPrefix* directory metadata to the underying storage,
@@ -1808,12 +1804,9 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 	pendingTxnDeletionsWG.Add(1)
 	go func() {
 		defer pendingTxnDeletionsWG.Done()
-		// Remove the transaction file only after all the source paths are deleted.
-		// This is required for NFS mounts. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/61 .
-		removeWG.Wait()
 
 		// There is no need in calling fs.MustSyncPath for pathPrefix* after parts' removal,
-		// since it is already called by fs.MustRemoveAllWithDoneCallback.
+		// since it is already called by fs.MustRemoveDirAtomic.
 
 		if err := os.Remove(txnPath); err != nil {
 			logger.Errorf("cannot remove transaction file %q: %s", txnPath, err)

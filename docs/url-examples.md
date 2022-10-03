@@ -101,6 +101,7 @@ Additional information:
 
 * [How to export time series](https://docs.victoriametrics.com/#how-to-export-time-series)
 * [How to import time series](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+* [How to export data in JSON line format](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
 ## /api/v1/export/csv
@@ -267,7 +268,7 @@ Additional information:
 
 ## /api/v1/labels
 
-**Get a list of label names**
+**Get a list of label names at the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -287,6 +288,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
+By default VictoriaMetrics returns labels seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
+
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 * [Querying label values](https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values)
@@ -294,7 +297,7 @@ Additional information:
 
 ## /api/v1/label/.../values
 
-**Get a list of values for a particular label**
+**Get a list of values for a particular label on the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -313,6 +316,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 ```
 
 </div>
+
+By default VictoriaMetrics returns label values seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -377,7 +382,7 @@ Additional information:
 
 ## /api/v1/series
 
-**Returns series names with their labels**
+**Returns series names with their labels on the given time range**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -396,6 +401,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_htt
 ```
 
 </div>
+
+By default VictoriaMetrics returns time series seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -597,7 +604,7 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2 VictoriaMetrics_AccountID=0" | nc -N http://<vminsert> 4242
+echo "put foo.bar.baz `date +%s` 123  tag1=value1 tag2=value2" | nc -N http://<vminsert> 4242
 ```
 
 </div>
@@ -644,14 +651,12 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-echo "foo.bar.baz;tag1=value1;tag2=value2;VictoriaMetrics_AccountID=42 123 `date +%s`" | nc -N http://<vminsert> 2003
+echo "foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`" | nc -N http://<vminsert> 2003
 ```
 
 </div>
 
 Additional information:
-
-`VictoriaMetrics_AccountID=42` - [tenant ID](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) in cluster version of VictoriaMetrics
 
 * [How to send Graphite data to VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-graphite-compatible-agents-such-as-statsd)
 * [Multitenancy in cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)

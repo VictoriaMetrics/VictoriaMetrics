@@ -2,19 +2,28 @@ package datasource
 
 import (
 	"context"
+	"net/http"
 	"net/url"
 	"time"
 )
 
 // Querier interface wraps Query and QueryRange methods
 type Querier interface {
-	Query(ctx context.Context, query string, ts time.Time) ([]Metric, error)
+	// Query executes instant request with the given query at the given ts.
+	// It returns list of Metric in response, the http.Request used for sending query
+	// and error if any. Returned http.Request can't be reused and its body is already read.
+	// Query should stop once ctx is cancelled.
+	Query(ctx context.Context, query string, ts time.Time) ([]Metric, *http.Request, error)
+	// QueryRange executes range request with the given query on the given time range.
+	// It returns list of Metric in response and error if any.
+	// QueryRange should stop once ctx is cancelled.
 	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
 	Health() bool
 }
 
 // QuerierBuilder builds Querier with given params.
 type QuerierBuilder interface {
+	// BuildWithParams creates a new Querier object with the given params
 	BuildWithParams(params QuerierParams) Querier
 }
 
@@ -24,6 +33,7 @@ type QuerierParams struct {
 	EvaluationInterval time.Duration
 	QueryParams        url.Values
 	Headers            map[string]string
+	Debug              bool
 }
 
 // Metric is the basic entity which should be return by datasource

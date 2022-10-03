@@ -6,7 +6,7 @@ sort: 4
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
 or [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
-rules against configured `-datasource.url`. For sending alerting notifications
+rules against configured `-datasource.url` compatible with Prometheus HTTP API. For sending alerting notifications
 vmalert relies on [Alertmanager](https://github.com/prometheus/alertmanager) configured via `-notifier.url` flag.
 Recording rules results are persisted via [remote write](https://prometheus.io/docs/prometheus/latest/storage/#remote-storage-integrations)
 protocol and require `-remoteWrite.url` to be configured.
@@ -24,7 +24,7 @@ implementation and aims to be compatible with its syntax.
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
-* Lightweight without extra dependencies.
+* Lightweight and without extra dependencies.
 * Supports [reusable templates](#reusable-templates) for annotations.
 
 ## Limitations
@@ -51,7 +51,7 @@ The build binary will be placed in `VictoriaMetrics/bin` folder.
 To start using `vmalert` you will need the following things:
 
 * list of rules - PromQL/MetricsQL expressions to execute;
-* datasource address - reachable MetricsQL endpoint to run queries against;
+* datasource address - reachable endpoint with [Prometheus HTTP API](https://prometheus.io/docs/prometheus/latest/querying/api/#http-api) support for running queries against;
 * notifier address [optional] - reachable [Alert Manager](https://github.com/prometheus/alertmanager) instance for processing,
   aggregating alerts, and sending notifications. Please note, notifier address also supports Consul and DNS Service Discovery via
   [config file](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go).
@@ -64,11 +64,11 @@ Then configure `vmalert` accordingly:
 
 ```console
 ./bin/vmalert -rule=alert.rules \            # Path to the file with rules configuration. Supports wildcard
-    -datasource.url=http://localhost:8428 \  # PromQL compatible datasource
+    -datasource.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource
     -notifier.url=http://localhost:9093 \    # AlertManager URL (required if alerting rules are used)
     -notifier.url=http://127.0.0.1:9093 \    # AlertManager replica URL
     -remoteWrite.url=http://localhost:8428 \ # Remote write compatible storage to persist rules and alerts state info (required if recording rules are used)
-    -remoteRead.url=http://localhost:8428 \  # MetricsQL compatible datasource to restore alerts state from
+    -remoteRead.url=http://localhost:8428 \  # Prometheus HTTP API compatible datasource to restore alerts state from
     -external.label=cluster=east-1 \         # External label to be applied for each rule
     -external.label=replica=a                # Multiple external labels may be set
 ```
@@ -124,7 +124,7 @@ name: <string>
 #  params:
 #    nocache: ["1"]                # disable caching for vmselect
 #    denyPartialResponse: ["true"] # fail if one or more vmstorage nodes returned an error
-#    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests 
+#    extra_label: ["env=dev"]      # apply additional label filter "env=dev" for all requests
 # see more details at https://docs.victoriametrics.com#prometheus-querying-api-enhancements
 params:
   [ <string>: [<string>, ...]]
@@ -135,7 +135,7 @@ params:
 #  headers:
 #    - "CustomHeader: foo"
 #    - "CustomHeader2: bar"
-# Headers set via this param have priority over headers set via `-datasource.headers` flag. 
+# Headers set via this param have priority over headers set via `-datasource.headers` flag.
 headers:
   [ <string>, ...]
 
@@ -153,7 +153,7 @@ rules:
 ### Rules
 
 Every rule contains `expr` field for [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
-or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression. Vmalert will execute the configured
+or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression. `vmalert` will execute the configured
 expression and then act according to the Rule type.
 
 There are two types of Rules:
@@ -178,7 +178,7 @@ The syntax for alerting rule is the following:
 alert: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
+# By default, PromQL/MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -187,6 +187,13 @@ expr: <string>
 # If param is omitted or set to 0 then alerts will be immediately considered
 # as firing once they return.
 [ for: <duration> | default = 0s ]
+
+# Whether to print debug information into logs.
+# Information includes alerts state changes and requests sent to the datasource.
+# Please note, that if rule's query params contain sensitive
+# information - it will be printed to logs.
+# Is applicable to alerting rules only.
+[ debug: <bool> | default = false ]
 
 # Labels to add or overwrite for each alert.
 labels:
@@ -197,14 +204,31 @@ annotations:
   [ <labelname>: <tmpl_string> ]
 ```
 
-It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over it or execute expressions.
+#### Templating
+
+It is allowed to use [Go templating](https://golang.org/pkg/text/template/) in annotations to format data, iterate over
+or execute expressions.
+The following variables are available in templating:
+
+| Variable                           | Description                                                                                               | Example                                                                                                                                                                |
+|------------------------------------|-----------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| $value or .Value                   | The current alert's value. Avoid using value in labels, it may cause unexpected issues.                   | {% raw %}Number of connections is {{ $value }}{% endraw %}                                                                                                             |
+| $activeAt or .ActiveAt             | The moment of [time](https://pkg.go.dev/time) when alert became active (`pending` or `firing`).           | {% raw %}http://vm-grafana.com/panelId=xx?from={{($activeAt.Add (parseDurationTime \"1h\")).Unix}}&to={{($activeAt.Add (parseDurationTime \"-1h\")).Unix}}{% endraw %} |
+| $labels or .Labels                 | The list of labels of the current alert. Use as ".Labels.<label_name>".                                   | {% raw %}Too high number of connections for {{ .Labels.instance }}{% endraw %}                                                                                         |
+| $alertID or .AlertID               | The current alert's ID generated by vmalert.                                                              | {% raw %}Link: vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}{% endraw %}                                                                                   |
+| $groupID or .GroupID               | The current alert's group ID generated by vmalert.                                                        | {% raw %}Link: vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}{% endraw %}                                                                                   |
+| $expr or .Expr                     | Alert's expression. Can be used for generating links to Grafana or other systems.                         | {% raw %}/api/v1/query?query={{ $expr&#124;quotesEscape&#124;queryEscape }}{% endraw %}                                                                                |
+| $externalLabels or .ExternalLabels | List of labels configured via `-external.label` command-line flag.                                        | {% raw %}Issues with {{ $labels.instance }} (datacenter-{{ $externalLabels.dc }}){% endraw %}                                                                          |
+| $externalURL or .ExternalURL       | URL configured via `-external.url` command-line flag. Used for cases when vmalert is hidden behind proxy. | {% raw %}Visit {{ $externalURL }} for more details{% endraw %}                                                                                                         |
+
 Additionally, `vmalert` provides some extra templating functions
-listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/template_func.go) and [reusable templates](#reusable-templates).
+listed [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/templates/template.go)
+and [reusable templates](#reusable-templates).
 
 #### Reusable templates
 
 Like in Alertmanager you can define [reusable templates](https://prometheus.io/docs/prometheus/latest/configuration/template_examples/#defining-reusable-templates)
-to share same templates across annotations. Just define the templates in a file and 
+to share same templates across annotations. Just define the templates in a file and
 set the path via `-rule.templates` flag.
 
 For example, template `grafana.filter` can be defined as following:
@@ -253,7 +277,7 @@ The syntax for recording rules is following:
 record: <string>
 
 # The expression to evaluate. The expression language depends on the type value.
-# By default MetricsQL expression is used. If group.type="graphite", then the expression
+# By default, MetricsQL expression is used. If group.type="graphite", then the expression
 # must contain valid Graphite expression.
 expr: <string>
 
@@ -398,8 +422,8 @@ To avoid recording rules results and alerts state duplication in VictoriaMetrics
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
 The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
 If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
-command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps. 
-But due of backfilling (data delivered to the datasource with some delay) values of such results may differ, 
+command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
+But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
 which would affect deduplication logic and result into "jumping" datapoints.
 
 Alertmanager will automatically deduplicate alerts with identical labels, so ensure that
@@ -419,8 +443,8 @@ This ability allows to aggregate data. For example, the following rule will calc
 metric `http_requests` on the `5m` interval:
 
 ```yaml
-  - record: http_requests:avg5m   
-    expr: avg_over_time(http_requests[5m])   
+  - record: http_requests:avg5m
+    expr: avg_over_time(http_requests[5m])
 ```
 
 Every time this rule will be evaluated, `vmalert` will backfill its results as a new time series `http_requests:avg5m`
@@ -434,9 +458,9 @@ This ability allows to downsample data. For example, the following config will e
 groups:
   - name: my_group
     interval: 5m
-    rules:  
+    rules:
     - record: http_requests:avg5m
-      expr: avg_over_time(http_requests[5m])   
+      expr: avg_over_time(http_requests[5m])
 ```
 
 Ability of `vmalert` to be configured with different `datasource.url` and `remoteWrite.url` allows
@@ -454,7 +478,7 @@ or reducing resolution) and push results to "cold" cluster.
 
 ```
 ./bin/vmalert -rule=downsampling-rules.yml \                                        # Path to the file with rules configuration. Supports wildcard
-    -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recordi ng rules expressions
+    -datasource.url=http://raw-cluster-vmselect:8481/select/0/prometheus            # vmselect addr for executing recording rules expressions
     -remoteWrite.url=http://aggregated-cluster-vminsert:8480/insert/0/prometheus    # vminsert addr to persist recording rules results
 ```
 
@@ -476,7 +500,7 @@ we recommend using [vmagent](https://docs.victoriametrics.com/vmagent.html) as f
 
 In this topology, `vmalert` is configured to persist rule results to `vmagent`. And `vmagent`
 is configured to fan-out received data to two or more destinations.
-Using `vmagent` as a proxy provides additional benefits such as 
+Using `vmagent` as a proxy provides additional benefits such as
 [data persisting when storage is unreachable](https://docs.victoriametrics.com/vmagent.html#replication-and-high-availability),
 or time series modification via [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
@@ -488,10 +512,20 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 * `http://<vmalert-addr>` - UI;
 * `http://<vmalert-addr>/api/v1/rules` - list of all loaded groups and rules;
 * `http://<vmalert-addr>/api/v1/alerts` - list of all active alerts;
-* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>"` - get alert status by ID.
+* `http://<vmalert-addr>/vmalert/api/v1/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in JSON format.
   Used as alert source in AlertManager.
+* `http://<vmalert-addr>/vmalert/alert?group_id=<group_id>&alert_id=<alert_id>` - get alert status in web UI.
+* `http://<vmalert-addr>/vmalert/rule?group_id=<group_id>&rule_id=<rule_id>` - get rule status in web UI.
 * `http://<vmalert-addr>/metrics` - application metrics.
 * `http://<vmalert-addr>/-/reload` - hot configuration reload.
+
+`vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+This may be used for better integraion with Grafana unified alerting system. See the following docs for details:
+
+* [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
+* [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
+
 
 ## Graphite
 
@@ -515,7 +549,7 @@ To run vmalert in `replay` mode:
 
 ```
 ./bin/vmalert -rule=path/to/your.rules \        # path to files with rules you usually use with vmalert
-    -datasource.url=http://localhost:8428 \     # PromQL/MetricsQL compatible datasource
+    -datasource.url=http://localhost:8428 \     # Prometheus HTTP API compatible datasource
     -remoteWrite.url=http://localhost:8428 \    # remote write compatible storage to persist results
     -replay.timeFrom=2021-05-11T07:21:43Z \     # time from begin replay
     -replay.timeTo=2021-05-29T18:40:43Z         # time to finish replay
@@ -590,7 +624,7 @@ There are following non-required `replay` flags:
   Progress bar may generate a lot of log records, which is not formatted as standard VictoriaMetrics logger.
   It could break logs parsing by external system and generate additional load on it.
 
-See full description for these flags in `./vmalert --help`.
+See full description for these flags in `./vmalert -help`.
 
 ### Limitations
 
@@ -608,6 +642,95 @@ Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/1495
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
+## Troubleshooting
+
+vmalert executes configured rules within certain intervals. It is expected that at the moment when rule is executed,
+the data is already present in configured `-datasource.url`:
+
+<img alt="vmalert expected evaluation" src="vmalert_ts_normal.gif">
+
+Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
+may get empty response from datasource and produce empty recording rules or reset alerts state:
+
+<img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
+
+_By default recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
+This behavior is controlled by `-search.latencyOffset` command-line flag on vmselect. Usually, this results into
+a 30s shift for recording rules results.
+Note that too small value passed to `-search.latencyOffset` may lead to incomplete query results._
+
+Try the following recommendations in such cases:
+
+* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics
+are delivered to the datasource;
+* If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
+command-line flag to add a time shift for evaluations;
+* If time intervals between datapoints in datasource are irregular - try changing vmalert's `-datasource.queryStep`
+command-line flag to specify how far search query can lookback for the recent datapoint. By default, this value
+is equal to group's evaluation interval.
+
+Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
+alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
+after multiple consecutive evaluations, and at each evaluation their expression must be true. If at least one evaluation
+becomes false, then alert's state resets to the initial state.
+
+If `-remoteWrite.url` command-line flag is configured, vmalert will persist alert's state in form of time series
+`ALERTS` and `ALERTS_FOR_STATE` to the specified destination. Such time series can be then queried via
+[vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
+changed in time.
+
+vmalert also stores last N state updates for each rule. To check updates, click on `Details` link next to rule's name
+on `/vmalert/groups` page and check the `Last updates` section:
+
+<img alt="vmalert state" src="vmalert_state.png">
+
+Rows in the section represent ordered rule evaluations and their results. The column `curl` contains an example of
+HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
+no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
+moment when rule was evaluated.
+
+vmalert also alows configuring more detailed logging for specific rule. Just set `debug: true` in rule's configuration
+and vmalert will start printing additional log messages:
+```terminal
+2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
+2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
+2022-09-15T13:35:56.178Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: query returned 1 samples (elapsed: 28.368208ms)
+2022-09-15T13:35:56.178Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29&step=15s&time=1663248945"
+2022-09-15T13:35:56.179Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} created in state PENDING
+...
+2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
+```
+
+
+## Profiling
+
+`vmalert` provides handlers for collecting the following [Go profiles](https://blog.golang.org/profiling-go-programs):
+
+* Memory profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
+
+```console
+curl http://0.0.0.0:8880/debug/pprof/heap > mem.pprof
+```
+
+</div>
+
+* CPU profile. It can be collected with the following command (replace `0.0.0.0` with hostname if needed):
+
+<div class="with-copy" markdown="1">
+
+```console
+curl http://0.0.0.0:8880/debug/pprof/profile > cpu.pprof
+```
+
+</div>
+
+The command for collecting CPU profile waits for 30 seconds before returning.
+
+The collected profiles may be analyzed with [go tool pprof](https://github.com/google/pprof).
+It is safe sharing the collected profiles from security point of view, since they do not contain sensitive information.
+
 ## Configuration
 
 ### Flags
@@ -616,10 +739,10 @@ Pass `-help` to `vmalert` in order to see the full list of supported
 command-line flags with their descriptions.
 
 The shortlist of configuration flags is the following:
-
+{% raw  %}
 ```
   -clusterMode
-     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in enterprise version of VictoriaMetrics
   -configCheckInterval duration
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
@@ -637,27 +760,29 @@ The shortlist of configuration flags is the following:
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
   -datasource.headers string
-     Optional HTTP headers to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
+     Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
      Lookback defines how far into the past to look when evaluating queries. For example, if the datasource.lookback=5m then param "time" with value now()-5m will be added to every query.
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url. 
+     Optional OAuth2 clientID to use for -datasource.url.
   -datasource.oauth2.clientSecret string
      Optional OAuth2 clientSecret to use for -datasource.url.
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url. 
+     Optional OAuth2 clientSecretFile to use for -datasource.url.
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -datasource.url.
   -datasource.queryStep duration
-     queryStep defines how far a value can fallback to when evaluating queries. For example, if datasource.queryStep=15s then param "step" with value "15s" will be added to every query.If queryStep isn't specified, rule's evaluationInterval will be used instead.
+     How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
      Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
+  -datasource.showURL
+     Whether to show -datasource.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -datasource.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -datasource.url. By default, system CA is used
   -datasource.tlsCertFile string
@@ -669,14 +794,14 @@ The shortlist of configuration flags is the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     VictoriaMetrics or vmselect url. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend
+     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also '-datasource.disablePathAppend', '-datasource.showURL'.
   -defaultTenant.graphite string
-     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in enterprise version of VictoriaMetrics
   -defaultTenant.prometheus string
-     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy
+     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in enterprise version of VictoriaMetrics
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
-  -dryRun -rule
+  -dryRun
      Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
@@ -685,12 +810,13 @@ The shortlist of configuration flags is the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-     eg. 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.If empty '/vmalert/api/v1/alert?group_id=&alert_id=' is used
+     Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.
+     If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
@@ -796,13 +922,13 @@ The shortlist of configuration flags is the following:
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
-     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details (default 30s)
+     Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
   -promscrape.discovery.concurrency int
      The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
      The maximum duration for waiting to perform API requests if more than -promscrape.discovery.concurrency requests are simultaneously performed (default 1m0s)
   -promscrape.dnsSDCheckInterval duration
-     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config for details (default 30s)
+     Interval for checking for changes in dns. This works only if dns_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#dns_sd_configs for details (default 30s)
   -pushmetrics.extraLabel array
      Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
      Supports an array of values separated by comma or specified via multiple flags.
@@ -838,7 +964,9 @@ The shortlist of configuration flags is the following:
   -remoteRead.oauth2.scopes string
      Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
-     Optional OAuth2 tokenURL to use for -remoteRead.url. 
+     Optional OAuth2 tokenURL to use for -remoteRead.url.
+  -remoteRead.showURL
+     Whether to show -remoteRead.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteRead.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
   -remoteRead.tlsCertFile string
@@ -850,7 +978,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.tlsServerName string
      Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
   -remoteRead.url vmalert
-     Optional URL to VictoriaMetrics or vmselect that will be used to restore alerts state. This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also -remoteRead.disablePathAppend
+     Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
   -remoteWrite.basicAuth.password string
      Optional basic auth password for -remoteWrite.url
   -remoteWrite.basicAuth.passwordFile string
@@ -883,6 +1011,8 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -notifier.url.
+  -remoteWrite.showURL
+     Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.tlsCAFile string
      Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
   -remoteWrite.tlsCertFile string
@@ -894,7 +1024,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.tlsServerName string
      Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
   -remoteWrite.url string
-     Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend
+     Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
   -replay.maxDatapointsPerQuery int
@@ -943,9 +1073,12 @@ The shortlist of configuration flags is the following:
      Supports an array of values separated by comma or specified via multiple flags.
   -tlsKeyFile string
      Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+     Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
   -version
      Show VictoriaMetrics version
 ```
+{% endraw  %}
 
 ### Hot config reload
 
@@ -992,7 +1125,7 @@ and [DNS](https://prometheus.io/docs/prometheus/latest/configuration/configurati
 For example:
 
 ```
-static_configs: 
+static_configs:
   - targets:
       - localhost:9093
       - localhost:9095
@@ -1001,7 +1134,7 @@ consul_sd_configs:
   - server: localhost:8500
     services:
       - alertmanager
-      
+
 dns_sd_configs:
   - names:
       - my.domain.com
@@ -1029,7 +1162,7 @@ is the following:
 # password and password_file are mutually exclusive.
 basic_auth:
   [ username: <string> ]
-  [ password: <secret> ]
+  [ password: <string> ]
   [ password_file: <string> ]
 
 # Optional `Authorization` header configuration.
@@ -1048,10 +1181,41 @@ authorization:
 tls_config:
   [ <tls_config> ]
 
+# Configures Bearer authentication token via string
+bearer_token: <string>
+# or by passing path to the file with token.
+bearer_token_file: <string>
+
+# Configures OAuth 2.0 authentication
+# see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#oauth2
+oauth2:
+  [ <oauth2_config> ]
+  
+# Optional list of HTTP headers in form `header-name: value`
+# applied for all requests to notifiers
+# For example:
+#  headers:
+#    - "CustomHeader: foo"
+#    - "CustomHeader2: bar"
+headers:
+  [ <string>, ...]
+
 # List of labeled statically configured Notifiers.
+#
+# Each list of targets may be additionally instructed with
+# authorization params. Target's authorization params will
+# inherit params from global authorization params if there
+# are no conflicts.
 static_configs:
-  targets:
-    [ - '<host>' ]
+  [ - targets: ]
+      [ - '<host>' ]
+      [ oauth2 ]
+      [ basic_auth ]
+      [ authorization ]
+      [ tls_config ]
+      [ bearer_token ]
+      [ bearer_token_file ]
+      [ headers ]
 
 # List of Consul service discovery configurations.
 # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
@@ -1112,7 +1276,7 @@ spec:
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
 2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
@@ -1128,7 +1292,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.17.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
 2. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-linux-arm` or `vmalert-linux-arm64` binary respectively and puts it into the `bin` folder.
 

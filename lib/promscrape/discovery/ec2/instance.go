@@ -16,10 +16,11 @@ func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
 		return nil, err
 	}
 	azMap := getAZMap(cfg)
+	region := cfg.awsConfig.GetRegion()
 	var ms []map[string]string
 	for _, r := range rs {
 		for _, inst := range r.InstanceSet.Items {
-			ms = inst.appendTargetLabels(ms, r.OwnerID, cfg.port, azMap)
+			ms = inst.appendTargetLabels(ms, r.OwnerID, region, cfg.port, azMap)
 		}
 	}
 	return ms, nil
@@ -134,7 +135,7 @@ func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	return &v, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string, port int, azMap map[string]string) []map[string]string {
+func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID, region string, port int, azMap map[string]string) []map[string]string {
 	if len(inst.PrivateIPAddress) == 0 {
 		// Cannot scrape instance without private IP address
 		return ms
@@ -157,6 +158,7 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string,
 		"__meta_ec2_private_ip":           inst.PrivateIPAddress,
 		"__meta_ec2_public_dns_name":      inst.PublicDNSName,
 		"__meta_ec2_public_ip":            inst.PublicIPAddress,
+		"__meta_ec2_region":               region,
 		"__meta_ec2_vpc_id":               inst.VPCID,
 	}
 	if len(inst.VPCID) > 0 {
@@ -186,8 +188,7 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID string,
 		if len(t.Key) == 0 || len(t.Value) == 0 {
 			continue
 		}
-		name := discoveryutils.SanitizeLabelName(t.Key)
-		m["__meta_ec2_tag_"+name] = t.Value
+		m[discoveryutils.SanitizeLabelName("__meta_ec2_tag_"+t.Key)] = t.Value
 	}
 	ms = append(ms, m)
 	return ms

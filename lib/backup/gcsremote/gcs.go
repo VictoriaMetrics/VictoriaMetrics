@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
 )
@@ -61,6 +63,14 @@ func (fs *FS) Init() error {
 		}
 		client = c
 	}
+
+	client.SetRetry(
+		storage.WithPolicy(storage.RetryAlways),
+		storage.WithBackoff(gax.Backoff{
+			Initial:    time.Second,
+			Max:        time.Minute * 3,
+			Multiplier: 3,
+		}))
 	fs.bkt = client.Bucket(fs.Bucket)
 	return nil
 }

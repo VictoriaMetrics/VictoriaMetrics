@@ -17,7 +17,7 @@ import (
 // SDCheckInterval is check interval for Consul service discovery.
 var SDCheckInterval = flag.Duration("promscrape.consulSDCheckInterval", 30*time.Second, "Interval for checking for changes in Consul. "+
 	"This works only if consul_sd_configs is configured in '-promscrape.config' file. "+
-	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config for details")
+	"See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details")
 
 // consulWatcher is a watcher for consul api, updates services map in background with long-polling.
 type consulWatcher struct {
@@ -45,7 +45,7 @@ type serviceWatcher struct {
 // newConsulWatcher creates new watcher and starts background service discovery for Consul.
 func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, namespace string) *consulWatcher {
 	baseQueryArgs := "?dc=" + url.QueryEscape(datacenter)
-	if sdc.AllowStale {
+	if sdc.AllowStale == nil || *sdc.AllowStale {
 		baseQueryArgs += "&stale"
 	}
 	if namespace != "" {
