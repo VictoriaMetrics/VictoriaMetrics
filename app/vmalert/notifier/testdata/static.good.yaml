@@ -1,7 +1,21 @@
+headers:
+  - 'CustomHeader: foo'
+
 static_configs:
   - targets:
       - localhost:9093
       - localhost:9095
+    basic_auth:
+      username: foo
+      password: bar
+
+  - targets:
+      - localhost:9096
+      - localhost:9097
+    basic_auth:
+      username: foo
+      password: baz
+
 alert_relabel_configs:
   - target_label: "foo"
     replacement: "aaa"

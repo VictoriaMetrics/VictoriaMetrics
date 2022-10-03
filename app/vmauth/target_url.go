@@ -39,10 +39,19 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, []Header, error) {
 	u := *uOrig
 	// Prevent from attacks with using `..` in r.URL.Path
 	u.Path = path.Clean(u.Path)
+	if !strings.HasSuffix(u.Path, "/") && strings.HasSuffix(uOrig.Path, "/") {
+		// The path.Clean() removes traling slash.
+		// Return it back if needed.
+		// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1752
+		u.Path += "/"
+	}
 	if !strings.HasPrefix(u.Path, "/") {
 		u.Path = "/" + u.Path
 	}
-	u.Path = strings.TrimSuffix(u.Path, "/")
+	if u.Path == "/" {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1554
+		u.Path = ""
+	}
 	for _, e := range ui.URLMap {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {

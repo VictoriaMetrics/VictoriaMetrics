@@ -3,6 +3,8 @@ package regexutil
 import (
 	"regexp"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
 
 // PromRegex implements an optimized string matching for Prometheus-like regex.
@@ -13,6 +15,8 @@ import (
 // - alternate strings such as "foo|bar|baz"
 // - prefix match such as "foo.*" or "foo.+"
 // - substring match such as ".*foo.*" or ".+bar.+"
+//
+// The rest of regexps are also optimized by returning cached match results for the same input strings.
 type PromRegex struct {
 	// prefix contains literal prefix for regex.
 	// For example, prefix="foo" for regex="foo(a|b)"
@@ -32,9 +36,8 @@ type PromRegex struct {
 	// For example, orValues contain ["foo","bar","baz"] for regex suffix="foo|bar|baz"
 	orValues []string
 
-	// reSuffix contains an anchored regexp built from suffix:
-	// "^(?:suffix)$"
-	reSuffix *regexp.Regexp
+	// reSuffixMatcher contains fast matcher for "^suffix$"
+	reSuffixMatcher *bytesutil.FastStringMatcher
 }
 
 // NewPromRegex returns PromRegex for the given expr.
@@ -50,23 +53,16 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	// Anchor suffix to the beginning and the end of the matching string.
 	suffixExpr := "^(?:" + suffix + ")$"
 	reSuffix := regexp.MustCompile(suffixExpr)
+	reSuffixMatcher := bytesutil.NewFastStringMatcher(reSuffix.MatchString)
 	pr := &PromRegex{
-		prefix:        prefix,
-		suffix:        suffix,
-		substrDotStar: substrDotStar,
-		substrDotPlus: substrDotPlus,
-		orValues:      orValues,
-		reSuffix:      reSuffix,
+		prefix:          prefix,
+		suffix:          suffix,
+		substrDotStar:   substrDotStar,
+		substrDotPlus:   substrDotPlus,
+		orValues:        orValues,
+		reSuffixMatcher: reSuffixMatcher,
 	}
 	return pr, nil
-}
-
-// HasPrefix returns true if pr contains non-empty literal prefix.
-//
-// For example, if pr is "foo(bar|baz)", then the prefix is "foo",
-// so HasPrefix() returns true.
-func (pr *PromRegex) HasPrefix() bool {
-	return len(pr.prefix) > 0
 }
 
 // MatchString retruns true if s matches pr.
@@ -106,7 +102,7 @@ func (pr *PromRegex) MatchString(s string) bool {
 		return len(s) > 0
 	}
 	// Fall back to slow path by matching the original regexp.
-	return pr.reSuffix.MatchString(s)
+	return pr.reSuffixMatcher.Match(s)
 }
 
 func getSubstringLiteral(expr, prefixSuffix string) string {

@@ -77,10 +77,7 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", config, err)
 		}
-		labels, err := parseMetricWithLabels(metric)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", metric, err)
-		}
+		labels := MustParseMetricWithLabels(metric)
 		resultLabels := pcs.Apply(labels, 0, isFinalize)
 		result := labelsToString(resultLabels)
 		if result != resultExpected {
@@ -682,15 +679,21 @@ func TestApplyRelabelConfigs(t *testing.T) {
   regex: "a(.+)"
 `, `qwe{foo="bar",baz="aaa"}`, true, `qwe{abc="qwe.bar.aa",baz="aaa",foo="bar"}`)
 	})
+	// Check $ at the end of regex - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3131
+	t.Run("replacement-with-$-at-the-end-of-regex", func(t *testing.T) {
+		f(`
+- target_label: xyz
+  regex: "foo\\$$"
+  replacement: bar
+  source_labels: [xyz]
+`, `metric{xyz="foo$",a="b"}`, true, `metric{a="b",xyz="bar"}`)
+	})
 }
 
 func TestFinalizeLabels(t *testing.T) {
 	f := func(metric, resultExpected string) {
 		t.Helper()
-		labels, err := parseMetricWithLabels(metric)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", metric, err)
-		}
+		labels := MustParseMetricWithLabels(metric)
 		resultLabels := FinalizeLabels(nil, labels)
 		result := labelsToString(resultLabels)
 		if result != resultExpected {
@@ -706,10 +709,7 @@ func TestFinalizeLabels(t *testing.T) {
 func TestRemoveMetaLabels(t *testing.T) {
 	f := func(metric, resultExpected string) {
 		t.Helper()
-		labels, err := parseMetricWithLabels(metric)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", metric, err)
-		}
+		labels := MustParseMetricWithLabels(metric)
 		resultLabels := RemoveMetaLabels(nil, labels)
 		result := labelsToString(resultLabels)
 		if result != resultExpected {
@@ -725,10 +725,7 @@ func TestRemoveMetaLabels(t *testing.T) {
 func TestFillLabelReferences(t *testing.T) {
 	f := func(replacement, metric, resultExpected string) {
 		t.Helper()
-		labels, err := parseMetricWithLabels(metric)
-		if err != nil {
-			t.Fatalf("cannot parse %s: %s", metric, err)
-		}
+		labels := MustParseMetricWithLabels(metric)
 		result := fillLabelReferences(nil, replacement, labels)
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result; got\n%q\nwant\n%q", result, resultExpected)

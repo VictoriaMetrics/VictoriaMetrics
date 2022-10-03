@@ -473,6 +473,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_ec2_private_ip`: the private IP address of the instance, if present
 * `__meta_ec2_public_dns_name`: the public DNS name of the instance, if available
 * `__meta_ec2_public_ip`: the public IP address of the instance, if available
+* `__meta_ec2_region`: EC2 region for the discovered instance
 * `__meta_ec2_subnet_id`: comma separated list of subnets IDs in which the instance is running, if available
 * `__meta_ec2_tag_<tagkey>`: each tag value of the instance
 * `__meta_ec2_vpc_id`: the ID of the VPC in which the instance is running, if available

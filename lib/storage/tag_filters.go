@@ -588,13 +588,21 @@ func getOptimizedReMatchFunc(reMatch func(b []byte) bool, expr string) (func(b [
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing verified expr=%q: %s", expr, err)
 	}
-	if matchFunc, literalSuffix, reCost := getOptimizedReMatchFuncExt(reMatch, sre); matchFunc != nil {
+	// Prepare fast string matcher for reMatch.
+	fsm := bytesutil.NewFastStringMatcher(func(s string) bool {
+		return reMatch(bytesutil.ToUnsafeBytes(s))
+	})
+	reMatchFast := func(b []byte) bool {
+		return fsm.Match(bytesutil.ToUnsafeString(b))
+	}
+
+	if matchFunc, literalSuffix, reCost := getOptimizedReMatchFuncExt(reMatchFast, sre); matchFunc != nil {
 		// Found optimized function for matching the expr.
 		suffixUnescaped := tagCharsReverseRegexpEscaper.Replace(literalSuffix)
 		return matchFunc, suffixUnescaped, reCost
 	}
-	// Fall back to un-optimized reMatch.
-	return reMatch, "", reMatchCost
+	// Fall back to reMatchFast.
+	return reMatchFast, "", reMatchCost
 }
 
 // These cost values are used for sorting tag filters in ascending order or the required CPU time for execution.

@@ -104,6 +104,9 @@ func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.Modifie
 
 func aggrFuncExt(afe func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries, argOrig []*timeseries,
 	modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
+	// Remove empty time series, e.g. series with all NaN samples,
+	// since such series are ignored by aggregate functions.
+	argOrig = removeEmptySeries(argOrig)
 	arg := copyTimeseriesMetricNames(argOrig, keepOriginal)
 
 	// Perform grouping.

@@ -2,6 +2,7 @@ package bytesutil
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -18,11 +19,13 @@ func benchmarkFastStringTransformer(b *testing.B, s string) {
 	b.ReportAllocs()
 	b.SetBytes(1)
 	b.RunParallel(func(pb *testing.PB) {
+		n := uint64(0)
 		for pb.Next() {
 			sTransformed := fst.Transform(s)
-			GlobalSink += len(sTransformed)
+			n += uint64(len(sTransformed))
 		}
+		atomic.AddUint64(&GlobalSink, n)
 	})
 }
 
-var GlobalSink int
+var GlobalSink uint64

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 )
@@ -161,12 +162,13 @@ func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
 		var targets []Target
 		for _, cfg := range cw.cfg.StaticConfigs {
+			httpCfg := mergeHTTPClientConfigs(cw.cfg.HTTPClientConfig, cfg.HTTPClientConfig)
 			for _, target := range cfg.Targets {
 				address, labels, err := parseLabels(target, nil, cw.cfg)
 				if err != nil {
 					return fmt.Errorf("failed to parse labels for target %q: %s", target, err)
 				}
-				notifier, err := NewAlertManager(address, cw.genFn, cw.cfg.HTTPClientConfig, cw.cfg.parsedAlertRelabelConfigs, cw.cfg.Timeout.Duration())
+				notifier, err := NewAlertManager(address, cw.genFn, httpCfg, cw.cfg.parsedAlertRelabelConfigs, cw.cfg.Timeout.Duration())
 				if err != nil {
 					return fmt.Errorf("failed to init alertmanager for addr %q: %s", address, err)
 				}
@@ -251,4 +253,31 @@ func (cw *configWatcher) setTargets(key TargetType, targets []Target) {
 	}
 	cw.targets[key] = targets
 	cw.targetsMu.Unlock()
+}
+
+// mergeHTTPClientConfigs merges fields between child and parent params
+// by populating child from parent params if they're missing.
+func mergeHTTPClientConfigs(parent, child promauth.HTTPClientConfig) promauth.HTTPClientConfig {
+	if child.Authorization == nil {
+		child.Authorization = parent.Authorization
+	}
+	if child.BasicAuth == nil {
+		child.BasicAuth = parent.BasicAuth
+	}
+	if child.BearerToken == nil {
+		child.BearerToken = parent.BearerToken
+	}
+	if child.BearerTokenFile == "" {
+		child.BearerTokenFile = parent.BearerTokenFile
+	}
+	if child.OAuth2 == nil {
+		child.OAuth2 = parent.OAuth2
+	}
+	if child.TLSConfig == nil {
+		child.TLSConfig = parent.TLSConfig
+	}
+	if child.Headers == nil {
+		child.Headers = parent.Headers
+	}
+	return child
 }

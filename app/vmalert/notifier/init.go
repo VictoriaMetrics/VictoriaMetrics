@@ -17,32 +17,32 @@ var (
 	configPath                    = flag.String("notifier.config", "", "Path to configuration file for notifiers")
 	suppressDuplicateTargetErrors = flag.Bool("notifier.suppressDuplicateTargetErrors", false, "Whether to suppress 'duplicate target' errors during discovery")
 
-	addrs = flagutil.NewArray("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
+	addrs = flagutil.NewArrayString("notifier.url", "Prometheus alertmanager URL, e.g. http://127.0.0.1:9093")
 
-	basicAuthUsername     = flagutil.NewArray("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
-	basicAuthPassword     = flagutil.NewArray("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
-	basicAuthPasswordFile = flagutil.NewArray("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
+	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
+	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
+	basicAuthPasswordFile = flagutil.NewArrayString("notifier.basicAuth.passwordFile", "Optional path to basic auth password file for -notifier.url")
 
-	bearerToken     = flagutil.NewArray("notifier.bearerToken", "Optional bearer token for -notifier.url")
-	bearerTokenFile = flagutil.NewArray("notifier.bearerTokenFile", "Optional path to bearer token file for -notifier.url")
+	bearerToken     = flagutil.NewArrayString("notifier.bearerToken", "Optional bearer token for -notifier.url")
+	bearerTokenFile = flagutil.NewArrayString("notifier.bearerTokenFile", "Optional path to bearer token file for -notifier.url")
 
 	tlsInsecureSkipVerify = flagutil.NewArrayBool("notifier.tlsInsecureSkipVerify", "Whether to skip tls verification when connecting to -notifier.url")
-	tlsCertFile           = flagutil.NewArray("notifier.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
-	tlsKeyFile            = flagutil.NewArray("notifier.tlsKeyFile", "Optional path to client-side TLS certificate key to use when connecting to -notifier.url")
-	tlsCAFile             = flagutil.NewArray("notifier.tlsCAFile", "Optional path to TLS CA file to use for verifying connections to -notifier.url. "+
+	tlsCertFile           = flagutil.NewArrayString("notifier.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
+	tlsKeyFile            = flagutil.NewArrayString("notifier.tlsKeyFile", "Optional path to client-side TLS certificate key to use when connecting to -notifier.url")
+	tlsCAFile             = flagutil.NewArrayString("notifier.tlsCAFile", "Optional path to TLS CA file to use for verifying connections to -notifier.url. "+
 		"By default system CA is used")
-	tlsServerName = flagutil.NewArray("notifier.tlsServerName", "Optional TLS server name to use for connections to -notifier.url. "+
+	tlsServerName = flagutil.NewArrayString("notifier.tlsServerName", "Optional TLS server name to use for connections to -notifier.url. "+
 		"By default the server name from -notifier.url is used")
 
-	oauth2ClientID = flagutil.NewArray("notifier.oauth2.clientID", "Optional OAuth2 clientID to use for -notifier.url. "+
+	oauth2ClientID = flagutil.NewArrayString("notifier.oauth2.clientID", "Optional OAuth2 clientID to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
-	oauth2ClientSecret = flagutil.NewArray("notifier.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for -notifier.url. "+
+	oauth2ClientSecret = flagutil.NewArrayString("notifier.oauth2.clientSecret", "Optional OAuth2 clientSecret to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
-	oauth2ClientSecretFile = flagutil.NewArray("notifier.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -notifier.url. "+
+	oauth2ClientSecretFile = flagutil.NewArrayString("notifier.oauth2.clientSecretFile", "Optional OAuth2 clientSecretFile to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
-	oauth2TokenURL = flagutil.NewArray("notifier.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for -notifier.url. "+
+	oauth2TokenURL = flagutil.NewArrayString("notifier.oauth2.tokenUrl", "Optional OAuth2 tokenURL to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
-	oauth2Scopes = flagutil.NewArray("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
+	oauth2Scopes = flagutil.NewArrayString("notifier.oauth2.scopes", "Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")
 )
 

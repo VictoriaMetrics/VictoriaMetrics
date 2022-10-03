@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 )
 
 func TestConfigWatcherReload(t *testing.T) {
@@ -297,4 +299,21 @@ func newFakeConsulServer() *httptest.Server {
 	})
 
 	return httptest.NewServer(mux)
+}
+
+func TestMergeHTTPClientConfigs(t *testing.T) {
+	cfg1 := promauth.HTTPClientConfig{Headers: []string{"Header:Foo"}}
+	cfg2 := promauth.HTTPClientConfig{BasicAuth: &promauth.BasicAuthConfig{
+		Username: "foo",
+		Password: promauth.NewSecret("bar"),
+	}}
+
+	result := mergeHTTPClientConfigs(cfg1, cfg2)
+
+	if result.Headers == nil {
+		t.Fatalf("expected Headers to be inherited")
+	}
+	if result.BasicAuth == nil {
+		t.Fatalf("expected BasicAuth tp be present")
+	}
 }

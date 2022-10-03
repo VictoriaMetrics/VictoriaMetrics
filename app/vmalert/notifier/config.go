@@ -68,6 +68,8 @@ type Config struct {
 //	[ - '<host>' ]
 type StaticConfig struct {
 	Targets []string `yaml:"targets"`
+	// HTTPClientConfig contains HTTP configuration for the Targets
+	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.
