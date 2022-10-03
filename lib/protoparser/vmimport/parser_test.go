@@ -116,6 +116,18 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
+	// Infinity values
+	f(`{"metric":{"foo":"bar"},"values":["Infinity", "-Infinity"],"timestamps":[456, 789]}`, &Rows{
+		Rows: []Row{{
+			Tags: []Tag{{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			}},
+			Values:     []float64{math.Inf(1), math.Inf(-1)},
+			Timestamps: []int64{456, 789},
+		}},
+	})
+
 	// Line with multiple tags
 	f(`{"metric":{"foo":"bar","baz":"xx"},"values":[1.23, -3.21],"timestamps" : [456,789]}`, &Rows{
 		Rows: []Row{{
@@ -228,4 +240,43 @@ garbage here
 			},
 		},
 	})
+}
+
+func TestRowsUnmarshalNaNSuccess(t *testing.T) {
+	f := func(s string, rowsExpected *Rows) {
+		t.Helper()
+		var rows Rows
+		rows.Unmarshal(s)
+		if !checkNaN(rows, rowsExpected) {
+			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+		}
+
+		rows.Reset()
+		if len(rows.Rows) != 0 {
+			t.Fatalf("non-empty rows after reset: %+v", rows.Rows)
+		}
+	}
+	// NaN value
+	f(`{"metric":{"foo":"bar"},"values":["NaN"],"timestamps":[456]}`, &Rows{
+		Rows: []Row{{
+			Tags: []Tag{{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			}},
+			Values:     []float64{math.NaN()},
+			Timestamps: []int64{456},
+		}},
+	})
+}
+
+func checkNaN(rows Rows, expectedRows *Rows) bool {
+	for i, row := range rows.Rows {
+		r := expectedRows.Rows[i]
+		for j, f := range row.Values {
+			if math.IsNaN(f) && math.IsNaN(r.Values[j]) {
+				return true
+			}
+		}
+	}
+	return false
 }
