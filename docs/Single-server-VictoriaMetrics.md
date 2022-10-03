@@ -341,19 +341,21 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v1/series` path.
+VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) 
+or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) 
+via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) 
+at `/datadog/api/v1/series` path.
 
 ### Sending metrics to VictoriaMetrics
 
-DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
+DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
+or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
 <p align="center">
-  <img src="Sending_DD_metrics_to_VM.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
 </p>
 
-Depending on where you want to send metrics, the [URL for VictoriaMetrics](https://docs.victoriametrics.com/url-examples.html#datadog) will be different:
-1. Run DataDog using this ENV variable for sending metrics to VictoriaMetrics
-
+To configure DataDog agent via ENV variable add the following prefix:
 <div class="with-copy" markdown="1">
 
 ```
@@ -362,7 +364,10 @@ DD_DD_URL=http://victoriametrics:8428/datadog
 
 </div>
 
-Alternatively add this `dd_url` to DataDog YAML configuration file.
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
+
+To configure DataDog agent via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
+add the following line:
 
 <div class="with-copy" markdown="1">
 
@@ -372,17 +377,19 @@ dd_url: http://victoriametrics:8428/datadog
 
 </div>
 
-2. vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, pick the single-node or cluster URL formats.
+vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, 
+pick [single-node or cluster URL]((https://docs.victoriametrics.com/url-examples.html#datadog)) formats.
 
 ### Sending metrics to Datadog and VictoriaMetrics
  
-DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints` described in section YAML configuration.
+DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
+sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
 <p align="center">
-  <img src="Sending_DD_metrics_to_VM_and_DDhq.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
 </p>
  
-Run DataDog using this ENV variable for sending metrics to the single-node VictoriaMetrics on top of DataDoghq.
+Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
 <div class="with-copy" markdown="1">
 
@@ -392,103 +399,26 @@ DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'
 
 </div>
 
-Alternatively add an `additional_endpoints` to [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/).
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
+
+
+To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
+add the following line:
 
 <div class="with-copy" markdown="1">
 
 ```
-dd_url: http://victoriametrics:8428/datadog
+additional_endpoints: http://victoriametrics:8428/datadog
 ```
 
 </div>
 
 ### Send via cURL
 
-Example of how to send data to VictoriaMetrics via [DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line:
+See how to send data to VictoriaMetrics via 
+[DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line.
 
-### Single-node VictoriaMetrics:
-
-<div class="with-copy" markdown="1">
-
-```console
-echo '
-{
-  "series": [
-    {
-      "host": "test.example.com",
-      "interval": 20,
-      "metric": "system.load.1",
-      "points": [[
-        0,
-        0.5
-      ]],
-      "tags": [
-        "environment:test"
-      ],
-      "type": "rate"
-    }
-  ]
-}
-' | curl -X POST --data-binary @- http://victoriametrics:8428/datadog/api/v1/series
-```
-</div>
-
-### Cluster version of VictoriaMetrics:
-
-<div class="with-copy" markdown="1">
-
-```console
-echo '
-{
-  "series": [
-    {
-      "host": "test.example.com",
-      "interval": 20,
-      "metric": "system.load.1",
-      "points": [[
-        0,
-        0.5
-      ]],
-      "tags": [
-        "environment:test"
-      ],
-      "type": "rate"
-    }
-  ]
-}
-' | curl -X POST --data-binary @- http://vminsert:8480/insert/0/datadog/api/v1/series
-```
-
-</div>
-
-
-The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export):
-
-### Single-node VictoriaMetrics:
-
-<div class="with-copy" markdown="1">
-
-```console
-curl http://victoriametrics:8428/api/v1/export -d 'match[]=system.load.1'
-```
-
-</div>
-
-### Cluster version of VictoriaMetrics:
-
-<div class="with-copy" markdown="1">
-
-```console
-curl http://vmselect:8481/select/0/prometheus/api/v1/export -d 'match[]=system.load.1'
-```
-
-</div>
-
-This command should return the following output if everything is OK:
-
-```json
-{"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
-```
+The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export).
 
 ### Additional details
 

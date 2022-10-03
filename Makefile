@@ -397,14 +397,20 @@ check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
 copy-docs:
-	echo "---\nsort: ${ORDER}\n---\n" > ${DST}
+	> ${DST}
+	@if [[ ${ORDER} > 0 ]]; then \
+		echo "---\nsort: ${ORDER}\n---\n" > ${DST}; \
+	fi
 	cat ${SRC} >> ${DST}
+	sed -i '' 's/<img src=\"docs\//<img src=\"/' ${DST}
 
 # Copies docs for all components and adds the order tag.
+# For ORDER=0 it adds no order tag.
+# Images starting with <img src="docs/ are replaced with <img src="
 # Cluster docs are supposed to be ordered as 9th.
-# For The rest of docs is ordered manually.t
+# The rest of docs is ordered manually.
 docs-sync:
-	cp README.md docs/README.md
+	SRC=README.md DST=docs/README.md ORDER=0 $(MAKE) copy-docs
 	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md ORDER=1 $(MAKE) copy-docs
 	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=3 $(MAKE) copy-docs
 	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=4 $(MAKE) copy-docs
