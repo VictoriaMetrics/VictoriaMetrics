@@ -437,6 +437,28 @@ Additional information:
 * [TSDB Stats](https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats)
 * [URL format for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 
+## /datadog
+
+**DataDog URL for Single-node VictoriaMetrics**
+
+<div class="with-copy" markdown="1">
+
+```
+http://victoriametrics:8428/datadog
+```
+
+</div>
+
+**DataDog URL for Cluster version of VictoriaMetrics**
+
+<div class="with-copy" markdown="1">
+
+```
+http://vminsert:8480/insert/0/datadog
+```
+
+</div>
+
 ## /datadog/api/v1/series
 
 **Imports data in DataDog format into VictoriaMetrics**
