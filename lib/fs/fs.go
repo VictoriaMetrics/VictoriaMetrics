@@ -363,15 +363,15 @@ func ReadFullData(r io.Reader, data []byte) error {
 
 // MustWriteData writes data to w.
 func MustWriteData(w io.Writer, data []byte) {
-	if len(data) == 0 {
-		return
-	}
-	n, err := w.Write(data)
-	if err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes: %s", len(data), err)
-	}
-	if n != len(data) {
-		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes", n, len(data))
+	for len(data) != 0 {
+		n, err := w.Write(data)
+		if err != nil {
+			logger.Panicf("FATAL: cannot write %d bytes: %s", len(data), err)
+		}
+		if n == 0 {
+			logger.Panicf("BUG: wrote 0 bytes, but %d was sent", len(data))
+		}
+		data = data[n:]
 	}
 }
 
