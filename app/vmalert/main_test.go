@@ -34,7 +34,7 @@ func TestGetExternalURL(t *testing.T) {
 }
 
 func TestGetAlertURLGenerator(t *testing.T) {
-	testAlert := notifier.Alert{GroupID: 42, ID: 2, Value: 4}
+	testAlert := notifier.Alert{GroupID: 42, ID: 2, Value: 4, Labels: map[string]string{"tenant": "baz"}}
 	u, _ := url.Parse("https://victoriametrics.com/path")
 	fn, err := getAlertURLGenerator(u, "", false)
 	if err != nil {
@@ -48,11 +48,11 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	if err == nil {
 		t.Errorf("expected template validation error got nil")
 	}
-	fn, err = getAlertURLGenerator(u, "foo?query={{$value}}", true)
+	fn, err = getAlertURLGenerator(u, "foo?query={{$value}}&ds={{ $labels.tenant }}", true)
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	if exp := "https://victoriametrics.com/path/foo?query=4"; exp != fn(testAlert) {
+	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != fn(testAlert) {
 		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 }
