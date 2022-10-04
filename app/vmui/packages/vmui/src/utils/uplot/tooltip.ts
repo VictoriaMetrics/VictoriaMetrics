@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import {SetupTooltip} from "./types";
-import {getColorLine, formatPrettyNumber} from "./helpers";
+import {getColorLine, formatPrettyNumber, getLegendLabel} from "./helpers";
 
 export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = ""}: SetupTooltip): void => {
   const {seriesIdx, dataIdx} = tooltipIdx;
@@ -9,7 +9,7 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   const dataTime = u.data[0][dataIdx];
   const metric = metrics[seriesIdx - 1]?.metric || {};
   const selectedSeries = series[seriesIdx];
-  const color = getColorLine(Number(selectedSeries.scale || 0), selectedSeries.label || "");
+  const color = getColorLine(selectedSeries.label || "");
 
   const {width, height} = u.over.getBoundingClientRect();
   const top = u.valToPos((dataSeries || 0), series[seriesIdx]?.scale || "1");
@@ -22,8 +22,7 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   tooltip.style.top = `${tooltipOffset.top + top + 10 - (overflowY ? tooltipHeight + 10 : 0)}px`;
   tooltip.style.left = `${tooltipOffset.left + lft + 10 - (overflowX ? tooltipWidth + 20 : 0)}px`;
   const metricName = (selectedSeries.label || "").replace(/{.+}/gmi, "").trim();
-  const groupName = `Query ${selectedSeries.scale}`;
-  const name = metricName || groupName;
+  const name = getLegendLabel(metricName);
   const date = dayjs(new Date(dataTime * 1000)).format("YYYY-MM-DD HH:mm:ss:SSS (Z)");
   const info = Object.keys(metric).filter(k => k !== "__name__").map(k => `<div><b>${k}</b>: ${metric[k]}</div>`).join("");
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
