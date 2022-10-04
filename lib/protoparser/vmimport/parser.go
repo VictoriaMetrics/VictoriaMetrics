@@ -3,6 +3,7 @@ package vmimport
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -109,24 +110,32 @@ func getFloat64(value *fastjson.Value) (float64, error) {
 		return 0, fmt.Errorf("value is empty")
 	}
 
-	if value.Type() == fastjson.TypeString {
-		strVal := strings.ReplaceAll(strings.ToLower(value.String()), "\"", "")
-		if strings.EqualFold(strVal, "infinity") {
-			return math.Inf(1), nil
-		}
-		if strings.EqualFold(strVal, "-infinity") {
-			return math.Inf(-1), nil
-		}
-		if strings.EqualFold(strVal, "nan") {
-			return math.NaN(), nil
-		}
+	switch value.Type() {
+	case fastjson.TypeNull:
+		return math.NaN(), nil
+	case fastjson.TypeString:
+		return getSpecialFloat64ValueFromString(value.String())
+	default:
+		return value.Float64()
 	}
+}
 
-	f, err := value.Float64()
+func getSpecialFloat64ValueFromString(strVal string) (float64, error) {
+	str, err := strconv.Unquote(strings.ToLower(strVal))
 	if err != nil {
 		return 0, err
 	}
-	return f, nil
+
+	switch str {
+	case "infinity":
+		return math.Inf(1), nil
+	case "-infinity":
+		return math.Inf(-1), nil
+	case "null":
+		return math.NaN(), nil
+	default:
+		return 0, fmt.Errorf("got unsupported string: %q", str)
+	}
 }
 
 // Tag represents `/api/v1/import` tag.
