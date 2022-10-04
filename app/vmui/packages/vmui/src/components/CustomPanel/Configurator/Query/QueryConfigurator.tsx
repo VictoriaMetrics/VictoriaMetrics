@@ -17,12 +17,12 @@ export interface QueryConfiguratorProps {
   queryOptions: string[]
 }
 
-const MAX_QUERY_FIELDS = 4;
+export const MAX_QUERY_FIELDS = 4;
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 
   const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
-  const [stateQuery, setStateQuery] = useState(query.slice(0, MAX_QUERY_FIELDS) || []);
+  const [stateQuery, setStateQuery] = useState(query || []);
   const dispatch = useAppDispatch();
 
   const updateHistory = () => {

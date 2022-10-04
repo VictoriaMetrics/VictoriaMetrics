@@ -1,6 +1,7 @@
 import qs from "qs";
 import get from "lodash.get";
 import router from "../router";
+import {MAX_QUERY_FIELDS} from "../components/CustomPanel/Configurator/Query/QueryConfigurator";
 
 const graphStateToUrlParams = {
   "time.duration": "range_input",
@@ -105,7 +106,8 @@ export const getQueryStringValue = (
 
 export const getQueryArray = (): string[] => {
   const queryLength = window.location.search.match(/g\d+.expr/gmi)?.length || 1;
-  return new Array(queryLength).fill(1).map((q, i) => {
-    return getQueryStringValue(`g${i}.expr`, "") as string;
-  });
+  // .slice(0, MAX_QUERY_FIELDS)
+  return new Array(queryLength > MAX_QUERY_FIELDS ? MAX_QUERY_FIELDS : queryLength)
+    .fill(1)
+    .map((q, i) => getQueryStringValue(`g${i}.expr`, "") as string);
 };
