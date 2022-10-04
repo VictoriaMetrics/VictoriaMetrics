@@ -4,21 +4,25 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import QueryEditor from "./QueryEditor";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
-import HighlightOffIcon from "@mui/icons-material/HighlightOff";
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
-import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
+import Button from "@mui/material/Button";
+import Typography from "@mui/material/Typography";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
   queryOptions: string[]
 }
 
+const MAX_QUERY_FIELDS = 4;
+
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 
   const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
-  const [stateQuery, setStateQuery] = useState(query || []);
+  const [stateQuery, setStateQuery] = useState(query.slice(0, MAX_QUERY_FIELDS) || []);
   const dispatch = useAppDispatch();
 
   const updateHistory = () => {
@@ -65,31 +69,31 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
   return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
     <Box>
       {stateQuery.map((q, i) =>
-        <Box key={i} display="grid" gridTemplateColumns="1fr auto auto" gap="4px" width="100%"
-          mb={i === stateQuery.length - 1 ? 0 : 2.5}>
+        <Box key={i} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%" position="relative"
+          mb={i === stateQuery.length - 1 ? 0 : 2}>
           <QueryEditor
             query={stateQuery[i]} index={i} autocomplete={autocomplete} queryOptions={queryOptions}
             error={error} setHistoryIndex={setHistoryIndex} runQuery={onRunQuery} setQuery={onSetQuery}
-            label={`Query ${i + 1}`}/>
-          {i === 0 && <Tooltip title="Execute Query">
-            <IconButton onClick={onRunQuery} sx={{height: "49px", width: "49px"}}>
-              <PlayCircleOutlineIcon/>
-            </IconButton>
-          </Tooltip>}
-          {stateQuery.length < 2 && <Tooltip title="Add Query">
-            <IconButton onClick={onAddQuery} sx={{height: "49px", width: "49px"}}>
-              <AddCircleOutlineIcon/>
-            </IconButton>
-          </Tooltip>}
-          {i > 0 && <Tooltip title="Remove Query">
-            <IconButton onClick={() => onRemoveQuery(i)} sx={{height: "49px", width: "49px"}}>
-              <HighlightOffIcon/>
+            label={`Query ${i + 1}`} size={"small"}/>
+          {stateQuery.length > 1 && <Tooltip title="Remove Query">
+            <IconButton onClick={() => onRemoveQuery(i)} sx={{height: "33px", width: "33px", padding: 0}} color={"error"}>
+              <DeleteIcon fontSize={"small"}/>
             </IconButton>
           </Tooltip>}
         </Box>)}
     </Box>
-    <Box mt={3}>
+    <Box mt={3} display="grid" gridTemplateColumns="1fr auto" alignItems="center">
       <AdditionalSettings/>
+      <Box>
+        {stateQuery.length < MAX_QUERY_FIELDS && (
+          <Button variant="outlined" onClick={onAddQuery} startIcon={<AddIcon/>} sx={{mr: 2}}>
+            <Typography lineHeight={"20px"} fontWeight="500">Add Query</Typography>
+          </Button>
+        )}
+        <Button variant="contained" onClick={onRunQuery} startIcon={<PlayArrowIcon/>}>
+          <Typography lineHeight={"20px"} fontWeight="500">Execute Query</Typography>
+        </Button>
+      </Box>
     </Box>
   </Box>;
 };
