@@ -52,3 +52,13 @@ groups:
           summary: "More than 90% of CPU is used by \"{{ $labels.job }}\"(\"{{ $labels.instance }}\") during the last 5m"
           description: "Too high CPU usage may be a sign of insufficient resources and make process unstable.
                Consider to either increase available CPU resources or decrease the load on the process."
+
+      - alert: TooManyLogs
+        expr: sum(increase(vm_log_messages_total{level="error"}[5m])) by (job, instance) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many logs printed for job \"{{ $labels.job }}\" ({{ $labels.instance }})"
+          description: "Logging rate for job \"{{ $labels.job }}\" ({{ $labels.instance }}) is {{ $value }} for last 15m.\n
+         Worth to check logs for specific error messages."
