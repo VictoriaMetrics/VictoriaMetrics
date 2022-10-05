@@ -397,12 +397,12 @@ check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
 copy-docs:
-	> ${DST}
-	@if [[ ${ORDER} > 0 ]]; then \
+	echo '' > ${DST}
+	@if [ ${ORDER} -ne 0 ]; then \
 		echo "---\nsort: ${ORDER}\n---\n" > ${DST}; \
 	fi
 	cat ${SRC} >> ${DST}
-	sed -i '' 's/<img src=\"docs\//<img src=\"/' ${DST}
+	sed -i 's/<img src=\"docs\//<img src=\"/' ${DST}
 
 # Copies docs for all components and adds the order tag.
 # For ORDER=0 it adds no order tag.
