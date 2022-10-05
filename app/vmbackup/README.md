@@ -6,6 +6,7 @@ Supported storage systems for backups:
 
 * [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
+* [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<bucket>/<path/to/backup>`
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
