@@ -180,7 +180,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -dst string
-     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://bucket/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
