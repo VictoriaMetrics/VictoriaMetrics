@@ -3,7 +3,6 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"math"
 	"math/bits"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -490,7 +491,11 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+	at := &auth.Token{
+		ClsID: promrelabel.GetLabelValueByName(wc.labels, "cluster_id"),
+		PrjID: promrelabel.GetLabelValueByName(wc.labels, "project_id"),
+	}
+	sw.pushData(at, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = len(bodyString)
 	wc.reset()

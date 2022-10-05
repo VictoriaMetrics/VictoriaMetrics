@@ -201,6 +201,14 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	return rwctxs
 }
 
+func newO11yRemoteWriteUrls(at *auth.Token) ([]string, error) {
+	// get remote url from infra cluster annotations
+	o11yClusterUrl := "http://promethues-enpoint-a.observability.tidbcloud.com/84d444f9-7c7d-4d6e-8edd-4cd776a71f41/api/v1/write"
+	logger.Infof("get olly remote url with cluster_id=%s, project_id=%s, url=%s",
+		at.ClsID, at.PrjID, o11yClusterUrl)
+	return []string{o11yClusterUrl}, nil
+}
+
 var stopCh = make(chan struct{})
 var configReloaderWG sync.WaitGroup
 
@@ -246,8 +254,24 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	var rwctxs []*remoteWriteCtx
 	if at == nil {
 		rwctxs = rwctxsDefault
+	} else if at.ClsID != "" {
+		rwctxsMapLock.Lock()
+		tenantID := tenantmetrics.TenantID{
+			ClsID: at.ClsID,
+			PrjID: at.PrjID,
+		}
+		rwctxs = rwctxsMap[tenantID]
+		if rwctxs == nil {
+			if remoteUrl, err := newO11yRemoteWriteUrls(at); err == nil {
+				at = nil
+				rwctxs = newRemoteWriteCtxs(at, remoteUrl)
+			}
+			rwctxsMap[tenantID] = rwctxs
+		}
+		rwctxsMapLock.Unlock()
 	} else {
 		if len(*remoteWriteMultitenantURLs) == 0 {
+			return
 			logger.Panicf("BUG: -remoteWrite.multitenantURL command-line flag must be set when __tenant_id__=%q label is set", at)
 		}
 		rwctxsMapLock.Lock()

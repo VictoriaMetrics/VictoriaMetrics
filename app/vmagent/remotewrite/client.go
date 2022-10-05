@@ -309,6 +309,7 @@ again:
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}
+	logger.Infof("c.remoteWriteURL = %v", c.remoteWriteURL)
 	c.authCfg.SetHeaders(req, true)
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
