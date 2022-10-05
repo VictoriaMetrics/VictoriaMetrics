@@ -311,7 +311,7 @@ matching the specified [series selector](https://prometheus.io/docs/prometheus/l
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-
+See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ## How to apply new config to VictoriaMetrics
 
@@ -348,7 +348,7 @@ DataDog agent allows configuring destinations for metrics sending via ENV variab
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
 <p align="center">
-  <img src="docs/Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
 </p>
 
 To configure DataDog agent via ENV variable add the following prefix:
@@ -382,7 +382,7 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
 <p align="center">
-  <img src="docs/Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
 </p>
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
