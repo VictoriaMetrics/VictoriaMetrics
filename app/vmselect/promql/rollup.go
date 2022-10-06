@@ -167,6 +167,8 @@ var rollupFuncsCanAdjustWindow = map[string]bool{
 	"timestamp":              true,
 }
 
+// rollupFuncsRemoveCounterResets contains functions, which need to call removeCounterResets
+// over input samples before calling the corresponding rollup functions.
 var rollupFuncsRemoveCounterResets = map[string]bool{
 	"increase":            true,
 	"increase_prometheus": true,
@@ -175,6 +177,36 @@ var rollupFuncsRemoveCounterResets = map[string]bool{
 	"rate":                true,
 	"rollup_increase":     true,
 	"rollup_rate":         true,
+}
+
+// rollupFuncsSamplesScannedPerCall contains functions, which scan lower number of samples
+// than is passed to the rollup func.
+//
+// It is expected that the remaining rollupFuncs scan all the samples passed to them.
+var rollupFuncsSamplesScannedPerCall = map[string]int{
+	"absent_over_time":    1,
+	"count_over_time":     1,
+	"default_rollup":      1,
+	"delta":               2,
+	"delta_prometheus":    2,
+	"deriv_fast":          2,
+	"first_over_time":     1,
+	"idelta":              2,
+	"ideriv":              2,
+	"increase":            2,
+	"increase_prometheus": 2,
+	"increase_pure":       2,
+	"irate":               2,
+	"lag":                 1,
+	"last_over_time":      1,
+	"lifetime":            2,
+	"present_over_time":   1,
+	"rate":                2,
+	"scrape_interval":     2,
+	"tfirst_over_time":    1,
+	"timestamp":           1,
+	"timestamp_with_name": 1,
+	"tlast_over_time":     1,
 }
 
 // These functions don't change physical meaning of input time series,
@@ -248,26 +280,29 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	return aggrFuncNames, nil
 }
 
-func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
+func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step, window int64, lookbackDelta int64, sharedTimestamps []int64) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
 	preFunc := func(values []float64, timestamps []int64) {}
-	if rollupFuncsRemoveCounterResets[name] {
+	funcName = strings.ToLower(funcName)
+	if rollupFuncsRemoveCounterResets[funcName] {
 		preFunc = func(values []float64, timestamps []int64) {
 			removeCounterResets(values)
 		}
 	}
+	samplesScannedPerCall := rollupFuncsSamplesScannedPerCall[funcName]
 	newRollupConfig := func(rf rollupFunc, tagValue string) *rollupConfig {
 		return &rollupConfig{
-			TagValue:        tagValue,
-			Func:            rf,
-			Start:           start,
-			End:             end,
-			Step:            step,
-			Window:          window,
-			MayAdjustWindow: rollupFuncsCanAdjustWindow[name],
-			LookbackDelta:   lookbackDelta,
-			Timestamps:      sharedTimestamps,
-			isDefaultRollup: name == "default_rollup",
+			TagValue:              tagValue,
+			Func:                  rf,
+			Start:                 start,
+			End:                   end,
+			Step:                  step,
+			Window:                window,
+			MayAdjustWindow:       rollupFuncsCanAdjustWindow[funcName],
+			LookbackDelta:         lookbackDelta,
+			Timestamps:            sharedTimestamps,
+			isDefaultRollup:       funcName == "default_rollup",
+			samplesScannedPerCall: samplesScannedPerCall,
 		}
 	}
 	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
@@ -277,7 +312,7 @@ func getRollupConfigs(name string, rf rollupFunc, expr metricsql.Expr, start, en
 		return dst
 	}
 	var rcs []*rollupConfig
-	switch name {
+	switch funcName {
 	case "rollup":
 		rcs = appendRollupConfigs(rcs)
 	case "rollup_rate", "rollup_deriv":
@@ -414,6 +449,11 @@ type rollupConfig struct {
 
 	// Whether default_rollup is used.
 	isDefaultRollup bool
+
+	// The estimated number of samples scanned per Func call.
+	//
+	// If zero, then it is considered that Func scans all the samples passed to it.
+	samplesScannedPerCall int
 }
 
 func (rc *rollupConfig) String() string {
@@ -552,7 +592,8 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	ni := 0
 	nj := 0
 	f := rc.Func
-	var samplesScanned uint64
+	samplesScanned := uint64(len(values))
+	samplesScannedPerCall := uint64(rc.samplesScannedPerCall)
 	for _, tEnd := range rc.Timestamps {
 		tStart := tEnd - window
 		ni = seekFirstTimestampIdxAfter(timestamps[i:], tStart, ni)
@@ -584,7 +625,11 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 		rfa.currTimestamp = tEnd
 		value := f(rfa)
 		rfa.idx++
-		samplesScanned += uint64(len(rfa.values))
+		if samplesScannedPerCall > 0 {
+			samplesScanned += samplesScannedPerCall
+		} else {
+			samplesScanned += uint64(len(rfa.values))
+		}
 		dstValues = append(dstValues, value)
 	}
 	putRollupFuncArg(rfa)
