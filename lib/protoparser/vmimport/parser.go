@@ -3,9 +3,9 @@ package vmimport
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
@@ -79,9 +79,13 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 		return fmt.Errorf("missing `values` array")
 	}
 	for i, v := range values {
-		f, err := getFloat64(v)
+		f, err := v.Float64()
 		if err != nil {
-			return fmt.Errorf("cannot unmarshal value at position %d: %w", i, err)
+			// Fall back to parsing special values
+			f, err = getSpecialFloat64(v)
+			if err != nil {
+				return fmt.Errorf("cannot unmarshal value at position %d: %w", i, err)
+			}
 		}
 		r.Values = append(r.Values, f)
 	}
@@ -105,36 +109,40 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 	return nil
 }
 
-func getFloat64(value *fastjson.Value) (float64, error) {
-	if value == nil {
-		return 0, fmt.Errorf("value is empty")
-	}
+var nan = math.NaN()
 
-	switch value.Type() {
+func getSpecialFloat64(v *fastjson.Value) (float64, error) {
+	vt := v.Type()
+	switch vt {
 	case fastjson.TypeNull:
-		return math.NaN(), nil
+		return nan, nil
 	case fastjson.TypeString:
-		return getSpecialFloat64ValueFromString(value.String())
+		b, _ := v.StringBytes()
+		s := bytesutil.ToUnsafeString(b)
+		return getSpecialFloat64FromString(s)
 	default:
-		return value.Float64()
+		return 0, fmt.Errorf("unsupported value type: %s; value=%q", vt, v)
 	}
 }
 
-func getSpecialFloat64ValueFromString(strVal string) (float64, error) {
-	str, err := strconv.Unquote(strings.ToLower(strVal))
-	if err != nil {
-		return 0, err
-	}
+var inf = math.Inf(1)
 
-	switch str {
-	case "infinity":
-		return math.Inf(1), nil
-	case "-infinity":
-		return math.Inf(-1), nil
-	case "null":
-		return math.NaN(), nil
+func getSpecialFloat64FromString(s string) (float64, error) {
+	minus := false
+	if strings.HasPrefix(s, "-") {
+		minus = true
+		s = s[1:]
+	}
+	switch s {
+	case "infinity", "Infinity", "Inf", "inf":
+		if minus {
+			return -inf, nil
+		}
+		return inf, nil
+	case "null", "Null", "nan", "NaN":
+		return nan, nil
 	default:
-		return 0, fmt.Errorf("got unsupported string: %q", str)
+		return 0, fmt.Errorf("unsupported string: %q", s)
 	}
 }
 

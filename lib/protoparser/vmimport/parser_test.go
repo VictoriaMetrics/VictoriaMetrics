@@ -1,6 +1,7 @@
 package vmimport
 
 import (
+	"fmt"
 	"math"
 	"reflect"
 	"testing"
@@ -49,7 +50,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"metric":{"foo":"bar"},"values":["foo"],"timestamps":[3]}`)
 	f(`{"metric":{"foo":"bar"},"values":null,"timestamps":[3,4]}`)
 	f(`{"metric":{"foo":"bar"},"values":"null","timestamps":[3,4]}`)
-	f(`{"metric":{"foo":"bar"},"values":["NaN"],"timestamps":[3,4]}`)
+	f(`{"metric":{"foo":"bar"},"values":"NaN","timestamps":[3,4]}`)
+	f(`{"metric":{"foo":"bar"},"values":[["NaN"]],"timestamps":[3,4]}`)
 
 	// Invalid timestamps
 	f(`{"metric":{"foo":"bar"},"values":[1,2],"timestamps":3}`)
@@ -75,22 +77,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		var rows Rows
 		rows.Unmarshal(s)
 
-		if containsNaN(rows) {
-			if !checkNaN(rows, rowsExpected) {
-				t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
-				return
-			}
-			return
-		}
-
-		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
-			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+		if err := compareRows(&rows, rowsExpected); err != nil {
+			t.Fatalf("unexpected rows: %s;\ngot\n%+v;\nwant\n%+v", err, rows.Rows, rowsExpected.Rows)
 		}
 
 		// Try unmarshaling again
 		rows.Unmarshal(s)
-		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
-			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+		if err := compareRows(&rows, rowsExpected); err != nil {
+			t.Fatalf("unexpected rows at second unmarshal: %s;\ngot\n%+v;\nwant\n%+v", err, rows.Rows, rowsExpected.Rows)
 		}
 
 		rows.Reset()
@@ -117,14 +111,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 	})
 
 	// Inf and nan, null values
-	f(`{"metric":{"foo":"bar"},"values":[Inf, -Inf, "Infinity", "-Infinity", NaN, null, "null"],"timestamps":[456, 789, 123, 0, 1, 2, 3]}`, &Rows{
+	f(`{"metric":{"foo":"bar"},"values":[Inf, -Inf, "Infinity", "-Infinity", NaN, "NaN", null, "null", 1.2],"timestamps":[456, 789, 123, 0, 1, 42, 2, 3, 7]}`, &Rows{
 		Rows: []Row{{
 			Tags: []Tag{{
 				Key:   []byte("foo"),
 				Value: []byte("bar"),
 			}},
-			Values:     []float64{math.Inf(1), math.Inf(-1), math.Inf(1), math.Inf(-1), math.NaN(), math.NaN(), math.NaN()},
-			Timestamps: []int64{456, 789, 123, 0, 1, 2, 3},
+			Values:     []float64{inf, -inf, inf, -inf, nan, nan, nan, nan, 1.2},
+			Timestamps: []int64{456, 789, 123, 0, 1, 42, 2, 3, 7},
 		}},
 	})
 
@@ -242,56 +236,45 @@ garbage here
 	})
 }
 
-func Test_getFloat64FromStringValue(t *testing.T) {
-	f := func(name, strVal string, want float64, wantErr bool) {
-		t.Run(name, func(t *testing.T) {
-			got, err := getSpecialFloat64ValueFromString(strVal)
-			if (err != nil) != wantErr {
-				t.Errorf("getSpecialFloat64ValueFromString() error = %v, wantErr %v", err, wantErr)
-				return
-			}
-
-			if math.IsNaN(want) {
-				if !math.IsNaN(got) {
-					t.Fatalf("unexpected result; got %v; want %v", got, want)
-					return
-				}
-				return
-			}
-
-			if got != want {
-				t.Errorf("getSpecialFloat64ValueFromString() got = %v, want %v", got, want)
-			}
-		})
+func compareRows(rows, rowsExpected *Rows) error {
+	if len(rows.Rows) != len(rowsExpected.Rows) {
+		return fmt.Errorf("unexpected number of rows; got %d; want %d", len(rows.Rows), len(rowsExpected.Rows))
 	}
-
-	f("empty string", "", 0, true)
-	f("unsupported string", "1", 0, true)
-	f("null string", "null", 0, true)
-	f("infinity string", "\"Infinity\"", math.Inf(1), false)
-	f("-infinity string", "\"-Infinity\"", math.Inf(-1), false)
-	f("null string", "\"null\"", math.NaN(), false)
-}
-
-func containsNaN(rows Rows) bool {
-	for _, row := range rows.Rows {
-		for _, f := range row.Values {
-			if math.IsNaN(f) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func checkNaN(rows Rows, expectedRows *Rows) bool {
 	for i, row := range rows.Rows {
-		r := expectedRows.Rows[i]
-		for j, f := range row.Values {
-			if math.IsNaN(f) && math.IsNaN(r.Values[j]) {
-				return true
-			}
+		rowExpected := rowsExpected.Rows[i]
+		if err := compareSingleRow(&row, &rowExpected); err != nil {
+			return fmt.Errorf("unexpected row at position #%d: %w", i, err)
 		}
 	}
-	return false
+	return nil
+}
+
+func compareSingleRow(row, rowExpected *Row) error {
+	if !reflect.DeepEqual(row.Tags, rowExpected.Tags) {
+		return fmt.Errorf("unexpected tags; got %q; want %q", row.Tags, rowExpected.Tags)
+	}
+	if !reflect.DeepEqual(row.Timestamps, rowExpected.Timestamps) {
+		return fmt.Errorf("unexpected timestamps; got %d; want %d", row.Timestamps, rowExpected.Timestamps)
+	}
+	if err := compareValues(row.Values, rowExpected.Values); err != nil {
+		return fmt.Errorf("unexpected values; got %v; want %v", row.Values, rowExpected.Values)
+	}
+	return nil
+}
+
+func compareValues(values, valuesExpected []float64) error {
+	if len(values) != len(valuesExpected) {
+		return fmt.Errorf("unexpected number of values; got %d; want %d", len(values), len(valuesExpected))
+	}
+	for i, v := range values {
+		vExpected := valuesExpected[i]
+		if math.IsNaN(v) {
+			if !math.IsNaN(vExpected) {
+				return fmt.Errorf("expecting NaN at position #%d; got %v", i, v)
+			}
+		} else if v != vExpected {
+			return fmt.Errorf("unepxected value at position #%d; got %v; want %v", i, v, vExpected)
+		}
+	}
+	return nil
 }

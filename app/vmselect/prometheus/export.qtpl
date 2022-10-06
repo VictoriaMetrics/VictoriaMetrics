@@ -162,13 +162,15 @@
 {% func convertValueToSpecialJSON(v float64) %}
 	{% if math.IsNaN(v) %}
 		null
-	{% elseif math.IsInf(v, 1) %}
-		"Infinity"
-	{% elseif math.IsInf(v, -1) %}
-		"-Infinity"
+	{% elseif math.IsInf(v, 0) %}
+		{% if v > 0 %}
+			"Infinity"
+		{% else %}
+			"-Infinity"
+		{% endif %}
 	{% else %}
 		{%f= v %}
 	{% endif %}
 {% endfunc %}
-{% endstripspace %}
 
+{% endstripspace %}
