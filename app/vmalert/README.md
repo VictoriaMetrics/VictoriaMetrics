@@ -332,9 +332,8 @@ groups:
 ```
 
 The results of alerting and recording rules contain `vm_account_id` and `vm_project_id` labels
-if `-clusterMode` is enabled. These labels can be used during [templating](https://docs.victoriametrics.com/vmalert.html#templating).
-The results of alerting and recording rules with these labels can be stored to the corresponding tenants at VictoriaMetrics cluster
-via [multitenant endpoint](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy-via-labels).
+if `-clusterMode` is enabled. These labels can be used during [templating](https://docs.victoriametrics.com/vmalert.html#templating),
+and help to identify to which account or project the triggered alert or produced recording belongs.
 
 If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must
 contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
