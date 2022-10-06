@@ -200,7 +200,7 @@ func (bi *blockIterator) NextBlock(mb *storage.MetricBlock) bool {
 	if !bi.sr.NextMetricBlock() {
 		return false
 	}
-	mb.MetricName = bi.sr.MetricBlockRef.MetricName
+	mb.MetricName = append(mb.MetricName[:0], bi.sr.MetricBlockRef.MetricName...)
 	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
 	return true
 }
