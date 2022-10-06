@@ -3,7 +3,6 @@ package s3remote
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -12,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
@@ -307,7 +305,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 	o, err := fs.s3.GetObject(context.Background(), input)
 	if err != nil {
-		if errors.Is(err, &types.NoSuchKey{}) {
+		if strings.Contains(err.Error(), "NoSuchKey") {
 			return false, nil
 		}
 		return false, fmt.Errorf("cannot open %q at %s (remote path %q): %w", filePath, fs, path, err)
