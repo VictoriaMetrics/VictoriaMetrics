@@ -1,3 +1,4 @@
+/tmp
 /tags
 /pkg
 *.pprof
@@ -11,13 +12,12 @@
 /vmagent-remotewrite-data
 /vmstorage-data
 /vmselect-cache
-.DS_Store
-
-
-### terraform
-terraform.tfstate
-terraform.tfstate.*
-.terraform/
+/package/temp-deb-*
+/package/temp-rpm-*
+/package/*.deb
+/package/*.rpm
+.DS_store
 Gemfile.lock
 /_site
 _site
+*.tmp
