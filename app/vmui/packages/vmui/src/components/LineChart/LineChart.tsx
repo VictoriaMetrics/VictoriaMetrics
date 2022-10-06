@@ -130,7 +130,7 @@ const LineChart: FC<LineChartProps> = ({data, series, metrics = [],
   const options: uPlotOptions = {
     ...defaultOptions,
     series,
-    axes: getAxes(series.length > 1 ? series : [{}, {scale: "1"}], unit),
+    axes: getAxes( [{}, {scale: "1"}], unit),
     scales: {...getScales()},
     width: layoutSize.width || 400,
     plugins: [{hooks: {ready: onReadyChart, setCursor, setSeries: seriesFocus}}],

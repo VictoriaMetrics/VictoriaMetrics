@@ -66,7 +66,7 @@ const CustomPanel: FC = () => {
       <Box height="100%">
         {isLoading && <Spinner isLoading={isLoading} height={"500px"}/>}
         {<Box height={"100%"} bgcolor={"#fff"}>
-          <Box display="grid" gridTemplateColumns="1fr auto" alignItems="center" mx={-4} px={4} mb={2}
+          <Box display="grid" gridTemplateColumns="1fr auto" alignItems="center" mb={2}
             borderBottom={1} borderColor="divider">
             <DisplayTypeSwitch/>
             <Box display={"flex"}>

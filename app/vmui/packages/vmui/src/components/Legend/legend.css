@@ -53,8 +53,6 @@
 .legendMarker {
     width: 12px;
     height: 12px;
-    border-width: 2px;
-    border-style: solid;
     box-sizing: border-box;
     transition: 0.2s ease;
 }

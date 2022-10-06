@@ -20,6 +20,7 @@ export interface QueryEditorProps {
   error?: ErrorTypes | string;
   queryOptions: string[];
   label: string;
+  size?: "small" | "medium" | undefined;
 }
 
 const QueryEditor: FC<QueryEditorProps> = ({
@@ -32,6 +33,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   error,
   queryOptions,
   label,
+  size = "medium"
 }) => {
 
   const [focusField, setFocusField] = useState(false);
@@ -112,6 +114,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       onFocus={() => setFocusField(true)}
       onKeyDown={handleKeyDown}
       onChange={(e) => setQuery(e.target.value, index)}
+      size={size}
     />
     <Popper open={openAutocomplete} anchorEl={autocompleteAnchorEl.current} placement="bottom-start" sx={{zIndex: 3}}>
       <ClickAwayListener onClickAway={() => setOpenAutocomplete(false)}>
