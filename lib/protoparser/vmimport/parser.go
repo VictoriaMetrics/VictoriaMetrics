@@ -2,6 +2,8 @@ package vmimport
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -77,7 +79,7 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 		return fmt.Errorf("missing `values` array")
 	}
 	for i, v := range values {
-		f, err := v.Float64()
+		f, err := getFloat64(v)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal value at position %d: %w", i, err)
 		}
@@ -101,6 +103,39 @@ func (r *Row) unmarshal(s string, tu *tagsUnmarshaler) error {
 		return fmt.Errorf("`timestamps` array size must match `values` array size; got %d; want %d", len(r.Timestamps), len(r.Values))
 	}
 	return nil
+}
+
+func getFloat64(value *fastjson.Value) (float64, error) {
+	if value == nil {
+		return 0, fmt.Errorf("value is empty")
+	}
+
+	switch value.Type() {
+	case fastjson.TypeNull:
+		return math.NaN(), nil
+	case fastjson.TypeString:
+		return getSpecialFloat64ValueFromString(value.String())
+	default:
+		return value.Float64()
+	}
+}
+
+func getSpecialFloat64ValueFromString(strVal string) (float64, error) {
+	str, err := strconv.Unquote(strings.ToLower(strVal))
+	if err != nil {
+		return 0, err
+	}
+
+	switch str {
+	case "infinity":
+		return math.Inf(1), nil
+	case "-infinity":
+		return math.Inf(-1), nil
+	case "null":
+		return math.NaN(), nil
+	default:
+		return 0, fmt.Errorf("got unsupported string: %q", str)
+	}
 }
 
 // Tag represents `/api/v1/import` tag.

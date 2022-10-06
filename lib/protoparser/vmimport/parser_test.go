@@ -47,6 +47,9 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f(`{"metric":{"foo":"bar"},"values":null,"timestamps":[3,4]}`)
 	f(`{"metric":{"foo":"bar"},"timestamps":[3,4]}`)
 	f(`{"metric":{"foo":"bar"},"values":["foo"],"timestamps":[3]}`)
+	f(`{"metric":{"foo":"bar"},"values":null,"timestamps":[3,4]}`)
+	f(`{"metric":{"foo":"bar"},"values":"null","timestamps":[3,4]}`)
+	f(`{"metric":{"foo":"bar"},"values":["NaN"],"timestamps":[3,4]}`)
 
 	// Invalid timestamps
 	f(`{"metric":{"foo":"bar"},"values":[1,2],"timestamps":3}`)
@@ -71,6 +74,15 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		t.Helper()
 		var rows Rows
 		rows.Unmarshal(s)
+
+		if containsNaN(rows) {
+			if !checkNaN(rows, rowsExpected) {
+				t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
+				return
+			}
+			return
+		}
+
 		if !reflect.DeepEqual(rows.Rows, rowsExpected.Rows) {
 			t.Fatalf("unexpected rows;\ngot\n%+v;\nwant\n%+v", rows.Rows, rowsExpected.Rows)
 		}
@@ -104,15 +116,15 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		}},
 	})
 
-	// Inf and nan values
-	f(`{"metric":{"foo":"bar"},"values":[Inf, -Inf],"timestamps":[456, 789]}`, &Rows{
+	// Inf and nan, null values
+	f(`{"metric":{"foo":"bar"},"values":[Inf, -Inf, "Infinity", "-Infinity", NaN, null, "null"],"timestamps":[456, 789, 123, 0, 1, 2, 3]}`, &Rows{
 		Rows: []Row{{
 			Tags: []Tag{{
 				Key:   []byte("foo"),
 				Value: []byte("bar"),
 			}},
-			Values:     []float64{math.Inf(1), math.Inf(-1)},
-			Timestamps: []int64{456, 789},
+			Values:     []float64{math.Inf(1), math.Inf(-1), math.Inf(1), math.Inf(-1), math.NaN(), math.NaN(), math.NaN()},
+			Timestamps: []int64{456, 789, 123, 0, 1, 2, 3},
 		}},
 	})
 
@@ -228,4 +240,58 @@ garbage here
 			},
 		},
 	})
+}
+
+func Test_getFloat64FromStringValue(t *testing.T) {
+	f := func(name, strVal string, want float64, wantErr bool) {
+		t.Run(name, func(t *testing.T) {
+			got, err := getSpecialFloat64ValueFromString(strVal)
+			if (err != nil) != wantErr {
+				t.Errorf("getSpecialFloat64ValueFromString() error = %v, wantErr %v", err, wantErr)
+				return
+			}
+
+			if math.IsNaN(want) {
+				if !math.IsNaN(got) {
+					t.Fatalf("unexpected result; got %v; want %v", got, want)
+					return
+				}
+				return
+			}
+
+			if got != want {
+				t.Errorf("getSpecialFloat64ValueFromString() got = %v, want %v", got, want)
+			}
+		})
+	}
+
+	f("empty string", "", 0, true)
+	f("unsupported string", "1", 0, true)
+	f("null string", "null", 0, true)
+	f("infinity string", "\"Infinity\"", math.Inf(1), false)
+	f("-infinity string", "\"-Infinity\"", math.Inf(-1), false)
+	f("null string", "\"null\"", math.NaN(), false)
+}
+
+func containsNaN(rows Rows) bool {
+	for _, row := range rows.Rows {
+		for _, f := range row.Values {
+			if math.IsNaN(f) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func checkNaN(rows Rows, expectedRows *Rows) bool {
+	for i, row := range rows.Rows {
+		r := expectedRows.Rows[i]
+		for j, f := range row.Values {
+			if math.IsNaN(f) && math.IsNaN(r.Values[j]) {
+				return true
+			}
+		}
+	}
+	return false
 }
