@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -326,80 +325,4 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 	}
 
 	return true, nil
-}
-
-// ListDirs returns list of subdirectories in given directory
-func (fs *FS) ListDirs(subpath string) ([]string, error) {
-	path := strings.TrimPrefix(filepath.Join(fs.Dir, subpath), "/")
-	if path != "" && !strings.HasSuffix(path, "/") {
-		path += "/"
-	}
-
-	var dirs []string
-
-	const dirsDelimiter = "/"
-	pager := fs.client.ListBlobsHierarchy(dirsDelimiter, &azblob.ContainerListBlobsHierarchyOptions{
-		Prefix: &fs.Container,
-	})
-	ctx := context.Background()
-	for pager.NextPage(ctx) {
-		resp := pager.PageResponse()
-
-		const dirsDelimiter = "/"
-
-		for _, v := range resp.Segment.BlobPrefixes {
-			dir := *v.Name
-			if !strings.HasPrefix(dir, path) {
-				return nil, fmt.Errorf("unexpected prefix for AZBlob key %q; want %q", dir, dir)
-			}
-			dir = strings.TrimPrefix(dir, path)
-			if fscommon.IgnorePath(dir) || !strings.Contains(dir, dirsDelimiter) {
-				continue
-			}
-			dirs = append(dirs, strings.TrimSuffix(dir, dirsDelimiter))
-		}
-	}
-
-	return dirs, nil
-}
-
-// DeleteFiles deletes files at fs.
-//
-// The function does nothing if the files don't exist.
-func (fs *FS) DeleteFiles(filePaths []string) error {
-	if len(filePaths) == 0 {
-		return nil
-	}
-	for _, filePath := range filePaths {
-		path := filePath
-		if fs.Dir != "/" {
-			path = filepath.Join(fs.Dir + path)
-		}
-
-		ctx := context.Background()
-
-		opts := &azblob.ContainerListBlobsFlatOptions{
-			Prefix: &path,
-		}
-
-		pager := fs.client.ListBlobsFlat(opts)
-		for pager.NextPage(ctx) {
-			resp := pager.PageResponse()
-
-			for _, v := range resp.Segment.BlobItems {
-				file := *v.Name
-
-				bc, err := fs.clientForPath(file)
-				if err != nil {
-					return err
-				}
-
-				_, err = bc.Delete(ctx, &azblob.BlobDeleteOptions{})
-				if err != nil {
-					return fmt.Errorf("cannot delete %q at %s (remote dir %q): %w", file, fs, fs.Dir, err)
-				}
-			}
-		}
-	}
-	return nil
 }
