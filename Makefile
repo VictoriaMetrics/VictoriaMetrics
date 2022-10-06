@@ -230,6 +230,7 @@ copy-docs:
 	fi
 	cat ${SRC} >> ${DST}
 	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
+	rm -rf docs/*.tmp
 
 # Copies docs for all components and adds the order tag.
 # For ORDER=0 it adds no order tag.
