@@ -1,26 +1,47 @@
 # Release History
 
+## 0.5.0 (2022-09-29)
+
+### Breaking Changes
+
+* Complete architectural change for better user experience. Please view the [README](https://github.com/Azure/azure-sdk-for-go/tree/main/sdk/storage/azblob#readme)
+
+### Features Added
+
+* Added [UserDelegationCredential](https://learn.microsoft.com/rest/api/storageservices/create-user-delegation-sas) which resolves [#18976](https://github.com/Azure/azure-sdk-for-go/issues/18976), [#16916](https://github.com/Azure/azure-sdk-for-go/issues/16916), [#18977](https://github.com/Azure/azure-sdk-for-go/issues/18977) 
+* Added [Restore Container API](https://learn.microsoft.com/rest/api/storageservices/restore-container).
+
+### Bugs Fixed
+
+* Fixed issue [#18767](https://github.com/Azure/azure-sdk-for-go/issues/18767)
+* Fix deadlock when error writes are slow [#16937](https://github.com/Azure/azure-sdk-for-go/pull/16937)
+
 ## 0.4.1 (2022-05-12)
 
 ### Other Changes
+
 * Updated to latest `azcore` and `internal` modules
 
 ## 0.4.0 (2022-04-19)
 
 ### Breaking Changes
+
 * Fixed Issue #17150 : Renaming/refactoring high level methods.
 * Fixed Issue #16972 : Constructors should return clients by reference.
-* Renaming the options bags to match the naming convention same as that of response. The behaviour of options bags remains the same.
+* Renaming the options bags to match the naming convention same as that of response. The behaviour of options bags
+  remains the same.
 
 ### Bugs Fixed
+
 * Fixed Issue #17515 : SetTags options bag missing leaseID.
 * Fixed Issue #17423 : Drop "Type" suffix from `GeoReplicationStatusType`.
 * Fixed Issue #17335 : Nil pointer exception when passing nil options bag in `ListBlobsFlat` API call.
 * Fixed Issue #17188 : `BlobURLParts` not supporting VersionID
-* Fixed Issue #17152 , Issue #17131 , Issue #17061 : `UploadStreamToBlockBlob` / `UploadStreamToBlockBlob` methods ignoring the options bag. 
+* Fixed Issue #17152 , Issue #17131 , Issue #17061 : `UploadStreamToBlockBlob` / `UploadStreamToBlockBlob` methods
+  ignoring the options bag.
 * Fixed Issue #16920 : Fixing error handling example.
 * Fixed Issue #16786 : Refactoring of autorest code generation definition and adding necessary transformations.
-* Fixed Issue #16679 : Response parsing issue in List blobs API. 
+* Fixed Issue #16679 : Response parsing issue in List blobs API.
 
 ## 0.3.0 (2022-02-09)
 

@@ -64,12 +64,19 @@ func New[T any](pl exported.Pipeline, resp *http.Response) (*Poller[T], error) {
 	if !pollers.IsValidURL(locURL) {
 		return nil, fmt.Errorf("invalid polling URL %s", locURL)
 	}
+	// check for provisioning state.  if the operation is a RELO
+	// and terminates synchronously this will prevent extra polling.
+	// it's ok if there's no provisioning state.
+	state, _ := pollers.GetProvisioningState(resp)
+	if state == "" {
+		state = pollers.StatusInProgress
+	}
 	return &Poller[T]{
 		pl:       pl,
 		resp:     resp,
 		Type:     kind,
 		PollURL:  locURL,
-		CurState: pollers.StatusInProgress,
+		CurState: state,
 	}, nil
 }
 

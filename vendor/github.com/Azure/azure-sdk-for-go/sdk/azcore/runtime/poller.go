@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"net/http"
 	"time"
@@ -210,7 +211,8 @@ func (p *Poller[T]) PollUntilDone(ctx context.Context, options *PollUntilDoneOpt
 		cp.Frequency = 30 * time.Second
 	}
 
-	if cp.Frequency < time.Second {
+	// skip the floor check when executing tests so they don't take so long
+	if isTest := flag.Lookup("test.v"); isTest == nil && cp.Frequency < time.Second {
 		return *new(T), errors.New("polling frequency minimum is one second")
 	}
 

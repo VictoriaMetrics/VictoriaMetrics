@@ -8,7 +8,6 @@ package exported
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared"
@@ -51,7 +50,7 @@ func Payload(resp *http.Response) ([]byte, error) {
 	if buf, ok := resp.Body.(*shared.NopClosingBytesReader); ok {
 		return buf.Bytes(), nil
 	}
-	bytesBody, err := ioutil.ReadAll(resp.Body)
+	bytesBody, err := io.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
 		return nil, err

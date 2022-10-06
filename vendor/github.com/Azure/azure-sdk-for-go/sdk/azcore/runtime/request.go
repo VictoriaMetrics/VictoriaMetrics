@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 	"mime/multipart"
+	"path"
 	"reflect"
 	"strings"
 	"time"
@@ -37,6 +38,7 @@ const (
 )
 
 // NewRequest creates a new policy.Request with the specified input.
+// The endpoint MUST be properly encoded before calling this function.
 func NewRequest(ctx context.Context, httpMethod string, endpoint string) (*policy.Request, error) {
 	return exported.NewRequest(ctx, httpMethod, endpoint)
 }
@@ -55,19 +57,23 @@ func JoinPaths(root string, paths ...string) string {
 		root, qps = splitPath[0], splitPath[1]
 	}
 
-	for i := 0; i < len(paths); i++ {
-		root = strings.TrimRight(root, "/")
-		paths[i] = strings.TrimLeft(paths[i], "/")
-		root += "/" + paths[i]
+	p := path.Join(paths...)
+	// path.Join will remove any trailing slashes.
+	// if one was provided, preserve it.
+	if strings.HasSuffix(paths[len(paths)-1], "/") && !strings.HasSuffix(p, "/") {
+		p += "/"
 	}
 
 	if qps != "" {
-		if !strings.HasSuffix(root, "/") {
-			root += "/"
-		}
-		return root + "?" + qps
+		p = p + "?" + qps
 	}
-	return root
+
+	if strings.HasSuffix(root, "/") && strings.HasPrefix(p, "/") {
+		root = root[:len(root)-1]
+	} else if !strings.HasSuffix(root, "/") && !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return root + p
 }
 
 // EncodeByteArray will base-64 encode the byte slice v.
