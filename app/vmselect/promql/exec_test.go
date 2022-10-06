@@ -5120,7 +5120,40 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
-	t.Run(`quantiles_over_time`, func(t *testing.T) {
+	t.Run(`quantiles_over_time(single_sample)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_by_label(
+			quantiles_over_time("phi", 0.5, 0.9,
+				time()[100s:100s]
+			),
+			"phi",
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.5"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("phi"),
+				Value: []byte("0.9"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`quantiles_over_time(multiple_samples)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_by_label(
 			quantiles_over_time("phi", 0.5, 0.9,
