@@ -283,7 +283,7 @@ When querying the [backfilled data](https://docs.victoriametrics.com/#backfillin
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
 
-VMUI allows investigating correlations between two queries on the same graph. Just click `+` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
+VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button, enter an additional query in the newly appeared input field and press `Ctrl+Enter`. Results for all the queries should be displayed simultaneously on the same graph.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
