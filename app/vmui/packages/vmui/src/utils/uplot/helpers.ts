@@ -63,6 +63,10 @@ export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: 
   return Math.ceil(axisSize);
 };
 
-export const getColorLine = (scale: number, label: string): string => getColorFromString(`${scale}${label}`);
+export const getColorLine = (label: string): string => getColorFromString(label);
 
 export const getDashLine = (group: number): number[] => group <= 1 ? [] : [group*4, group*1.2];
+
+export const getLegendLabel = (label: string): string => {
+  return label.replace(/^\[\d+]/, "").replace(/{.+}/gmi, "");
+};
