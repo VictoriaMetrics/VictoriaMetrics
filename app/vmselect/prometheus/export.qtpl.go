@@ -547,51 +547,55 @@ func prometheusMetricName(mn *storage.MetricName) string {
 //line app/vmselect/prometheus/export.qtpl:160
 }
 
-//line app/vmselect/prometheus/export.qtpl:187
+//line app/vmselect/prometheus/export.qtpl:162
 func streamconvertValueToSpecialJSON(qw422016 *qt422016.Writer, v float64) {
-//line app/vmselect/prometheus/export.qtpl:188
+//line app/vmselect/prometheus/export.qtpl:163
 	if math.IsNaN(v) {
-//line app/vmselect/prometheus/export.qtpl:188
-		qw422016.N().S(`"NaN"`)
-//line app/vmselect/prometheus/export.qtpl:190
-	} else if math.IsInf(v, 1) {
-//line app/vmselect/prometheus/export.qtpl:190
-		qw422016.N().S(`"Infinity"`)
-//line app/vmselect/prometheus/export.qtpl:192
-	} else if math.IsInf(v, -1) {
-//line app/vmselect/prometheus/export.qtpl:192
-		qw422016.N().S(`"-Infinity"`)
-//line app/vmselect/prometheus/export.qtpl:194
+//line app/vmselect/prometheus/export.qtpl:163
+		qw422016.N().S(`null`)
+//line app/vmselect/prometheus/export.qtpl:165
+	} else if math.IsInf(v, 0) {
+//line app/vmselect/prometheus/export.qtpl:166
+		if v > 0 {
+//line app/vmselect/prometheus/export.qtpl:166
+			qw422016.N().S(`"Infinity"`)
+//line app/vmselect/prometheus/export.qtpl:168
+		} else {
+//line app/vmselect/prometheus/export.qtpl:168
+			qw422016.N().S(`"-Infinity"`)
+//line app/vmselect/prometheus/export.qtpl:170
+		}
+//line app/vmselect/prometheus/export.qtpl:171
 	} else {
-//line app/vmselect/prometheus/export.qtpl:195
+//line app/vmselect/prometheus/export.qtpl:172
 		qw422016.N().F(v)
-//line app/vmselect/prometheus/export.qtpl:196
+//line app/vmselect/prometheus/export.qtpl:173
 	}
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 }
 
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 func writeconvertValueToSpecialJSON(qq422016 qtio422016.Writer, v float64) {
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	streamconvertValueToSpecialJSON(qw422016, v)
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 }
 
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 func convertValueToSpecialJSON(v float64) string {
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	writeconvertValueToSpecialJSON(qb422016, v)
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	qs422016 := string(qb422016.B)
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 	return qs422016
-//line app/vmselect/prometheus/export.qtpl:197
+//line app/vmselect/prometheus/export.qtpl:174
 }
