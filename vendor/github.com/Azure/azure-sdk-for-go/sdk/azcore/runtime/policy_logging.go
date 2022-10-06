@@ -9,7 +9,7 @@ package runtime
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sort"
 	"strings"
@@ -210,7 +210,7 @@ func writeReqBody(req *policy.Request, b *bytes.Buffer) error {
 	if ct := req.Raw().Header.Get(shared.HeaderContentType); !shouldLogBody(b, ct) {
 		return nil
 	}
-	body, err := ioutil.ReadAll(req.Raw().Body)
+	body, err := io.ReadAll(req.Raw().Body)
 	if err != nil {
 		fmt.Fprintf(b, "   Failed to read request body: %s\n", err.Error())
 		return err
