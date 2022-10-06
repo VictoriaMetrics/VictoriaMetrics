@@ -1112,11 +1112,7 @@ func newRollupQuantiles(args []interface{}) (rollupFunc, error) {
 		// before calling rollup funcs.
 		values := rfa.values
 		if len(values) == 0 {
-			return rfa.prevValue
-		}
-		if len(values) == 1 {
-			// Fast path - only a single value.
-			return values[0]
+			return nan
 		}
 		qs := getFloat64s()
 		qs.A = quantiles(qs.A[:0], phis, values)
