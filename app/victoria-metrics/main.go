@@ -29,7 +29,7 @@ var (
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag")
-	downsamplingPeriods = flagutil.NewArray("downsampling.period", "Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs "+
+	downsamplingPeriods = flagutil.NewArrayString("downsampling.period", "Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs "+
 		"to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details")
 )
 
