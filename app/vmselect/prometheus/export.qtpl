@@ -99,10 +99,10 @@
 		"values":[
 			{% if len(xb.values) > 0 %}
 				{% code values := xb.values %}
-				{%f= values[0] %}
+					{%= convertValueToSpecialJSON(values[0]) %}
 				{% code values = values[1:] %}
 				{% for _, v := range values %}
-				  ,{% if math.IsNaN(v) %}null{% else %}{%f= v %}{% endif %}
+					,{%= convertValueToSpecialJSON(v) %}
 				{% endfor %}
 			{% endif %}
 		],
@@ -126,47 +126,22 @@
 }
 {% endfunc %}
 
-{% func ExportPromAPIResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer) %}
+{% func ExportPromAPIHeader() %}
 {
-	{% code
-		lines := 0
-		bytesTotal := 0
-	%}
 	"status":"success",
 	"data":{
 		"resultType":"matrix",
 		"result":[
-			{% code bb, ok := <-resultsCh %}
-			{% if ok %}
-				{%z= bb.B %}
-				{% code
-					lines++
-					bytesTotal += len(bb.B)
-					quicktemplate.ReleaseByteBuffer(bb)
-				%}
-				{% for bb := range resultsCh %}
-					,{%z= bb.B %}
-					{% code
-						lines++
-						bytesTotal += len(bb.B)
-						quicktemplate.ReleaseByteBuffer(bb)
-					%}
-				{% endfor %}
-			{% endif %}
+{% endfunc %}
+
+{% func ExportPromAPIFooter(qt *querytracer.Tracer) %}
 		]
 	}
 	{% code
-		qt.Donef("export format=promapi: lines=%d, bytes=%d", lines, bytesTotal)
+		qt.Donef("export format=promapi")
 	%}
 	{%= dumpQueryTrace(qt) %}
 }
-{% endfunc %}
-
-{% func ExportStdResponse(resultsCh <-chan *quicktemplate.ByteBuffer, qt *querytracer.Tracer) %}
-	{% for bb := range resultsCh %}
-		{%z= bb.B %}
-		{% code quicktemplate.ReleaseByteBuffer(bb) %}
-	{% endfor %}
 {% endfunc %}
 
 {% func prometheusMetricName(mn *storage.MetricName) %}
@@ -183,4 +158,19 @@
 	}
 	{% endif %}
 {% endfunc %}
+
+{% func convertValueToSpecialJSON(v float64) %}
+	{% if math.IsNaN(v) %}
+		null
+	{% elseif math.IsInf(v, 0) %}
+		{% if v > 0 %}
+			"Infinity"
+		{% else %}
+			"-Infinity"
+		{% endif %}
+	{% else %}
+		{%f= v %}
+	{% endif %}
+{% endfunc %}
+
 {% endstripspace %}

@@ -5,7 +5,6 @@ sort: 7
 # vmrestore
 
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
-VictoriaMetrics `v1.29.0` and newer versions must be used for working with the restored data.
 
 Restore process can be interrupted at any time. It is automatically resumed from the interruption point
 when restarting `vmrestore` with the same args.
@@ -14,18 +13,27 @@ when restarting `vmrestore` with the same args.
 
 VictoriaMetrics must be stopped during the restore process.
 
-```console
-vmrestore -src=gs://<bucket>/<path/to/backup> -storageDataPath=<local/path/to/restore>
+Run the following command to restore backup from the given `-src` into the given `-storageDataPath`:
 
+```console
+vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore>
 ```
 
-* `<bucket>` is [GCS bucket](https://cloud.google.com/storage/docs/creating-buckets) name.
-* `<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vmbackup.html) on GCS bucket.
+* `<storageType>://<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
+  `vmrestore` can restore backups from the following storage types:
+  * [GCS](https://cloud.google.com/storage/). Example: `-src=gs://<bucket>/<path/to/backup>`
+  * [S3](https://aws.amazon.com/s3/). Example: `-src=s3://<bucket>/<path/to/backup>`
+  * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `-src=azblob://<bucket>/<path/to/backup>`
+  * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/)
+    or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
+  * Local filesystem. Example: `-src=fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup
+    into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 * `<local/path/to/restore>` is the path to folder where data will be restored. This folder must be passed
   to VictoriaMetrics in `-storageDataPath` command-line flag after the restore process is complete.
 
 The original `-storageDataPath` directory may contain old files. They will be substituted by the files from backup,
 i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/questions/476041/how-do-i-make-rsync-delete-files-that-have-been-deleted-from-the-source-folder).
+
 
 ## Troubleshooting
 
@@ -158,7 +166,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
-     Source path with backup on the remote storage. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
+     Source path with backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://bucket/path/to/backup or fs:///path/to/local/backup
   -storageDataPath string
      Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
   -tls

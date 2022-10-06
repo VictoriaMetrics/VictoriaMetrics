@@ -53,11 +53,9 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		defaultAccessKey: os.Getenv("AWS_ACCESS_KEY_ID"),
 		defaultSecretKey: os.Getenv("AWS_SECRET_ACCESS_KEY"),
 	}
-	cfg.service = service
 	if cfg.service == "" {
 		cfg.service = "aps"
 	}
-	cfg.region = region
 	if cfg.region == "" {
 		r, err := getDefaultRegion(cfg.client)
 		if err != nil {
@@ -75,8 +73,6 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		return nil, fmt.Errorf("roleARN is missing for AWS_WEB_IDENTITY_TOKEN_FILE=%q; set it via env var AWS_ROLE_ARN", cfg.webTokenPath)
 	}
 	// explicitly set credentials has priority over env variables
-	cfg.defaultAccessKey = os.Getenv("AWS_ACCESS_KEY_ID")
-	cfg.defaultSecretKey = os.Getenv("AWS_SECRET_ACCESS_KEY")
 	if len(accessKey) > 0 {
 		cfg.defaultAccessKey = accessKey
 	}
@@ -88,6 +84,11 @@ func NewConfig(ec2Endpoint, stsEndpoint, region, roleARN, accessKey, secretKey, 
 		SecretAccessKey: cfg.defaultSecretKey,
 	}
 	return cfg, nil
+}
+
+// GetRegion returns region for the given cfg.
+func (cfg *Config) GetRegion() string {
+	return cfg.region
 }
 
 // GetEC2APIResponse performs EC2 API request with ghe given action.

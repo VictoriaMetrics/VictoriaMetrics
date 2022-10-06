@@ -2,7 +2,7 @@ import {MetricResult} from "../../api/types";
 import {Series} from "uplot";
 import {getNameForMetric} from "../metric";
 import {BarSeriesItem, Disp, Fill, LegendItem, Stroke} from "./types";
-import {getColorLine, getDashLine} from "./helpers";
+import {getColorLine} from "./helpers";
 import {HideSeriesArgs} from "./types";
 
 interface SeriesItem extends Series {
@@ -10,15 +10,15 @@ interface SeriesItem extends Series {
 }
 
 export const getSeriesItem = (d: MetricResult, hideSeries: string[], alias: string[]): SeriesItem => {
-  const label = getNameForMetric(d, alias[d.group - 1]);
+  const name = getNameForMetric(d, alias[d.group - 1]);
+  const label = `[${d.group}]${name}`;
   return {
     label,
-    dash: getDashLine(d.group),
     freeFormFields: d.metric,
     width: 1.4,
-    stroke: getColorLine(d.group, label),
-    show: !includesHideSeries(label, d.group, hideSeries),
-    scale: String(d.group),
+    stroke: getColorLine(label),
+    show: !includesHideSeries(label, hideSeries),
+    scale: "1",
     points: {
       size: 4.2,
       width: 1.4
@@ -35,9 +35,9 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItem => ({
 });
 
 export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesArgs): string[] => {
-  const label = `${legend.group}.${legend.label}`;
-  const include = includesHideSeries(legend.label, legend.group, hideSeries);
-  const labels = series.map(s => `${s.scale}.${s.label}`);
+  const {label} = legend;
+  const include = includesHideSeries(label, hideSeries);
+  const labels = series.map(s => s.label || "");
   if (metaKey) {
     return include ? hideSeries.filter(l => l !== label) : [...hideSeries, label];
   } else if (hideSeries.length) {
@@ -47,8 +47,8 @@ export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesA
   }
 };
 
-export const includesHideSeries = (label: string, group: string | number, hideSeries: string[]): boolean => {
-  return hideSeries.includes(`${group}.${label}`);
+export const includesHideSeries = (label: string, hideSeries: string[]): boolean => {
+  return hideSeries.includes(`${label}`);
 };
 
 export const getBarSeries = (

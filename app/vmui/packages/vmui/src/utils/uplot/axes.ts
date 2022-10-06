@@ -48,16 +48,15 @@ export const getMinMaxBuffer = (min: number | null, max: number | null): [number
   }
   const valueRange = Math.abs(max - min) || Math.abs(min) || 1;
   const padding = 0.02*valueRange;
-  return [min - padding, max + padding];
+  return [Math.floor(min - padding), Math.ceil(max + padding)];
 };
 
 export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {
   const result: AxisRange = {};
-  for (const key in values) {
-    const numbers = values[key];
-    const min = getMinFromArray(numbers);
-    const max = getMaxFromArray(numbers);
-    result[key] = getMinMaxBuffer(min, max);
-  }
+  const numbers = Object.values(values).flat();
+  const key = "1";
+  const min = getMinFromArray(numbers);
+  const max = getMaxFromArray(numbers);
+  result[key] = getMinMaxBuffer(min, max);
   return result;
 };

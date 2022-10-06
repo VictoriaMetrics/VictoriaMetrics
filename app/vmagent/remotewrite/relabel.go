@@ -13,14 +13,14 @@ import (
 )
 
 var (
-	unparsedLabelsGlobal = flagutil.NewArray("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
+	unparsedLabelsGlobal = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
 		"Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage")
 	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. "+
 		"The path can point either to local file or to http url. These entries are applied to all the metrics "+
 		"before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details")
 	relabelDebugGlobal = flag.Bool("remoteWrite.relabelDebug", false, "Whether to log metrics before and after relabeling with -remoteWrite.relabelConfig. "+
 		"If the -remoteWrite.relabelDebug is enabled, then the metrics aren't sent to remote storage. This is useful for debugging the relabeling configs")
-	relabelConfigPaths = flagutil.NewArray("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url. "+
+	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url. "+
 		"The path can point either to local file or to http url")
 	relabelDebug = flagutil.NewArrayBool("remoteWrite.urlRelabelDebug", "Whether to log metrics before and after relabeling with -remoteWrite.urlRelabelConfig. "+
 		"If the -remoteWrite.urlRelabelDebug is enabled, then the metrics aren't sent to the corresponding -remoteWrite.url. "+

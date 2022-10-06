@@ -331,6 +331,10 @@ groups:
     # Rules for accountID=456, projectID=789
 ```
 
+The results of alerting and recording rules contain `vm_account_id` and `vm_project_id` labels
+if `-clusterMode` is enabled. These labels can be used during [templating](https://docs.victoriametrics.com/vmalert.html#templating),
+and help to identify to which account or project the triggered alert or produced recording belongs.
+
 If `-clusterMode` is enabled, then `-datasource.url`, `-remoteRead.url` and `-remoteWrite.url` must
 contain only the hostname without tenant id. For example: `-datasource.url=http://vmselect:8481`.
 `vmalert` automatically adds the specified tenant to urls per each recording rule in this case.
@@ -810,8 +814,7 @@ The shortlist of configuration flags is the following:
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-     Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.
+     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]' . If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used
      If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.

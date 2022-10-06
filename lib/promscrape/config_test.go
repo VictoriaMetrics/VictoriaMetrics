@@ -36,19 +36,11 @@ func TestMergeLabels(t *testing.T) {
 		metricsPath:          "/foo/bar",
 		scrapeIntervalString: "15s",
 		scrapeTimeoutString:  "10s",
-		externalLabels: map[string]string{
-			"job": "bar",
-			"a":   "b",
-		},
-	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",a="b",job="xyz"}`)
+	}, "foo", nil, nil, `{__address__="foo",__metrics_path__="/foo/bar",__scheme__="https",__scrape_interval__="15s",__scrape_timeout__="10s",job="xyz"}`)
 	f(&scrapeWorkConfig{
 		jobName:     "xyz",
 		scheme:      "https",
 		metricsPath: "/foo/bar",
-		externalLabels: map[string]string{
-			"job": "bar",
-			"a":   "b",
-		},
 	}, "foo", map[string]string{
 		"job": "extra_job",
 		"foo": "extra_foo",
@@ -960,16 +952,18 @@ scrape_configs:
 					Value: "10s",
 				},
 				{
-					Name:  "datacenter",
-					Value: "foobar",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
 				{
 					Name:  "job",
 					Value: "foo",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "datacenter",
+					Value: "foobar",
 				},
 				{
 					Name:  "jobs",
@@ -1603,6 +1597,24 @@ scrape_configs:
 				{
 					Name:  "job",
 					Value: "yyy",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "__address__",
+					Value: "aaasdf",
+				},
+				{
+					Name:  "__param_a",
+					Value: "jlfd",
+				},
+				{
+					Name:  "foo",
+					Value: "xx",
+				},
+				{
+					Name:  "job",
+					Value: "foobar",
 				},
 				{
 					Name:  "q",

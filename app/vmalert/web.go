@@ -168,7 +168,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		if strings.HasPrefix(r.URL.Path, "/api/v1/") {
 			redirectURL = alert.APILink()
 		}
-		httpserver.RedirectPermanent(w, "/"+redirectURL)
+		httpserver.Redirect(w, "/"+redirectURL)
 		return true
 	}
 }

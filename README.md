@@ -279,7 +279,7 @@ When querying the [backfilled data](https://docs.victoriametrics.com/#backfillin
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
 
-VMUI allows investigating correlations between two queries on the same graph. Just click `+` button, enter the second query in the newly appeared input field and press `Ctrl+Enter`. Results for both queries should be displayed simultaneously on the same graph. Every query has its own vertical scale, which is displayed on the left and the right side of the graph. Lines for the second query are dashed.
+VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button, enter an additional query in the newly appeared input field and press `Ctrl+Enter`. Results for all the queries should be displayed simultaneously on the same graph.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -311,7 +311,7 @@ matching the specified [series selector](https://prometheus.io/docs/prometheus/l
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
 
 See [cardinality explorer playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/cardinality).
-
+See the example of using the cardinality explorer [here](https://victoriametrics.com/blog/cardinality-explorer/).
 
 ## How to apply new config to VictoriaMetrics
 
@@ -337,100 +337,86 @@ See also [vmagent](https://docs.victoriametrics.com/vmagent.html), which can be 
 
 ## How to send data from DataDog agent
 
-VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) at `/datadog/api/v1/series` path.
+VictoriaMetrics accepts data from [DataDog agent](https://docs.datadoghq.com/agent/) 
+or [DogStatsD](https://docs.datadoghq.com/developers/dogstatsd/) 
+via ["submit metrics" API](https://docs.datadoghq.com/api/latest/metrics/#submit-metrics) 
+at `/datadog/api/v1/series` path.
 
-### Single-node VictoriaMetrics:
+### Sending metrics to VictoriaMetrics
 
-Run DataDog agent with environment variable `DD_DD_URL=http://victoriametrics-host:8428/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `http://victoriametrics-host:8428/datadog`.
+DataDog agent allows configuring destinations for metrics sending via ENV variable `DD_DD_URL` 
+or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
-### Cluster version of VictoriaMetrics:
+<p align="center">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
+</p>
 
-Run DataDog agent with environment variable `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`. Alternatively, set `dd_url` param at [DataDog agent configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) to `DD_DD_URL=http://vinsert-host:8480/insert/0/datadog`.
-
-VictoriaMetrics doesn't check `DD_API_KEY` param, so it can be set to arbitrary value.
-
-Example of how to send data to VictoriaMetrics via [DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line:
-
-### Single-node VictoriaMetrics:
-
-```console
-echo '
-{
-  "series": [
-    {
-      "host": "test.example.com",
-      "interval": 20,
-      "metric": "system.load.1",
-      "points": [[
-        0,
-        0.5
-      ]],
-      "tags": [
-        "environment:test"
-      ],
-      "type": "rate"
-    }
-  ]
-}
-' | curl -X POST --data-binary @- http://victoriametrics-host:8428/datadog/api/v1/series
-```
-
-### Cluster version of VictoriaMetrics:
-
+To configure DataDog agent via ENV variable add the following prefix:
 <div class="with-copy" markdown="1">
 
-```console
-echo '
-{
-  "series": [
-    {
-      "host": "test.example.com",
-      "interval": 20,
-      "metric": "system.load.1",
-      "points": [[
-        0,
-        0.5
-      ]],
-      "tags": [
-        "environment:test"
-      ],
-      "type": "rate"
-    }
-  ]
-}
-' | curl -X POST --data-binary @- http://vminsert-host:8480/insert/0/datadog/api/v1/series
+```
+DD_DD_URL=http://victoriametrics:8428/datadog
 ```
 
 </div>
 
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
-The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export):
-
-### Single-node VictoriaMetrics:
+To configure DataDog agent via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
+add the following line:
 
 <div class="with-copy" markdown="1">
 
-```console
-curl http://victoriametrics-host:8428/api/v1/export -d 'match[]=system.load.1'
+```
+dd_url: http://victoriametrics:8428/datadog
 ```
 
 </div>
 
-### Cluster version of VictoriaMetrics:
+vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, 
+pick [single-node or cluster URL]((https://docs.victoriametrics.com/url-examples.html#datadog)) formats.
+
+### Sending metrics to Datadog and VictoriaMetrics
+ 
+DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guide/dual-shipping/) for metrics 
+sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
+ 
+<p align="center">
+  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
+</p>
+ 
+Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
 
 <div class="with-copy" markdown="1">
 
-```console
-curl http://vmselect-host:8481/select/0/prometheus/api/v1/export -d 'match[]=system.load.1'
+```
+DD_ADDITIONAL_ENDPOINTS='{\"http://victoriametrics:8428/datadog\"}'
 ```
 
 </div>
 
-This command should return the following output if everything is OK:
+_Choose correct URL for VictoriaMetrics [here](https://docs.victoriametrics.com/url-examples.html#datadog)._
 
-```json
-{"metric":{"__name__":"system.load.1","environment":"test","host":"test.example.com"},"values":[0.5],"timestamps":[1632833641000]}
+
+To configure DataDog Dual Shipping via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files)
+add the following line:
+
+<div class="with-copy" markdown="1">
+
 ```
+additional_endpoints: http://victoriametrics:8428/datadog
+```
+
+</div>
+
+### Send via cURL
+
+See how to send data to VictoriaMetrics via 
+[DataDog "submit metrics"](https://docs.victoriametrics.com/url-examples.html#datadogapiv1series) from command line.
+
+The imported data can be read via [export API](https://docs.victoriametrics.com/url-examples.html#apiv1export).
+
+### Additional details
 
 VictoriaMetrics automatically sanitizes metric names for the data ingested via DataDog protocol
 according to [DataDog metric naming recommendations](https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics).
@@ -451,7 +437,7 @@ See [these docs](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-
 
 ## How to send data from InfluxDB-compatible agents such as [Telegraf](https://www.influxdata.com/time-series-platform/telegraf/)
 
-Use `http://<victoriametric-addr>:8428` url instead of InfluxDB url in agents' configs.
+Use `http://<victoriametrics-addr>:8428` url instead of InfluxDB url in agents' configs.
 For instance, put the following lines into `Telegraf` config, so it sends data to VictoriaMetrics instead of InfluxDB:
 
 ```toml

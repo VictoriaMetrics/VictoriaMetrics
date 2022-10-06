@@ -46,7 +46,7 @@ const AdditionalSettings: FC = () => {
         control={<BasicSwitch checked={isTracingEnabled} onChange={onChangeQueryTracing} />}
       />
     </Box>
-    <Box ml={2}>
+    <Box ml={2} mr={2}>
       <StepConfigurator defaultStep={step} customStepEnable={customStep.enable}
         setStep={(value) => {
           graphDispatch({type: "SET_CUSTOM_STEP", payload: value});

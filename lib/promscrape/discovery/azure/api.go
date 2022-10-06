@@ -232,7 +232,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		}
 		var tr tokenResponse
 		if err := json.Unmarshal(data, &tr); err != nil {
-			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", string(data), err)
+			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", data, err)
 		}
 		expiresInSeconds, err := strconv.ParseInt(tr.ExpiresIn, 10, 64)
 		if err != nil {

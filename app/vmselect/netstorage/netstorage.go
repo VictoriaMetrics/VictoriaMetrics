@@ -925,7 +925,8 @@ var ssPool sync.Pool
 // Data processing is immediately stopped if f returns non-nil error.
 // It is the responsibility of f to call b.UnmarshalData before reading timestamps and values from the block.
 // It is the responsibility of f to filter blocks according to the given tr.
-func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline, f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange) error) error {
+func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline searchutils.Deadline,
+	f func(mn *storage.MetricName, b *storage.Block, tr storage.TimeRange, workerID uint) error) error {
 	qt = qt.NewChild("export blocks: %s", sq)
 	defer qt.Done()
 	if deadline.Exceeded() {
@@ -960,10 +961,10 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	var wg sync.WaitGroup
 	wg.Add(gomaxprocs)
 	for i := 0; i < gomaxprocs; i++ {
-		go func() {
+		go func(workerID uint) {
 			defer wg.Done()
 			for xw := range workCh {
-				if err := f(&xw.mn, &xw.b, tr); err != nil {
+				if err := f(&xw.mn, &xw.b, tr, workerID); err != nil {
 					errGlobalLock.Lock()
 					if errGlobal != nil {
 						errGlobal = err
@@ -974,7 +975,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 				xw.reset()
 				exportWorkPool.Put(xw)
 			}
-		}()
+		}(uint(i))
 	}
 
 	// Feed workers with work

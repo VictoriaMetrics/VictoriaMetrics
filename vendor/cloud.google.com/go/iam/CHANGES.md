@@ -1,5 +1,12 @@
 # Changes
 
+## [0.5.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.4.0...iam/v0.5.0) (2022-09-28)
+
+
+### Features
+
+* **iam:** remove ListApplicablePolicies ([52dddd1](https://github.com/googleapis/google-cloud-go/commit/52dddd1ed89fbe77e1859311c3b993a77a82bfc7))
+
 ## [0.4.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.3.0...iam/v0.4.0) (2022-09-06)
 
 

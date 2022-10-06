@@ -28,7 +28,7 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArray("rule", `Path to the file with alert rules.
+	rulePath = flagutil.NewArrayString("rule", `Path to the file with alert rules.
 Supports patterns. Flag can be specified multiple times.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
@@ -36,7 +36,7 @@ Examples:
 absolute path to all .yaml files in root.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
-	ruleTemplatesPath = flagutil.NewArray("rule.templates", `Path or glob pattern to location with go template definitions
+	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
 	for rules annotations templating. Flag can be specified multiple times.
 Examples:
  -rule.templates="/path/to/file". Path to a single file with go templates
@@ -59,10 +59,12 @@ absolute path to all .tpl files in root.`)
 	resendDelay = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
-	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service.
-Supports templating. For example, link to Grafana: 'explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]'.
-If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
-	externalLabels = flagutil.NewArray("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
+	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
+		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
+		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+
+		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]' . `+
+		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used`)
+	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
@@ -264,7 +266,7 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
-		templated, err := alert.ExecTemplate(nil, nil, m)
+		templated, err := alert.ExecTemplate(nil, alert.Labels, m)
 		if err != nil {
 			logger.Errorf("can not exec source template %s", err)
 		}
