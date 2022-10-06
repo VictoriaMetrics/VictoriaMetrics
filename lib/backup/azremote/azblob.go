@@ -128,7 +128,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 			}
 			var p common.Part
 			if !p.ParseFromRemotePath(file[len(dir):]) {
-				logger.Infof("skipping unknown object %q", file)
+				logger.Errorf("skipping unknown object %q", file)
 				continue
 			}
 
@@ -290,7 +290,7 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 
 	ctx := context.Background()
 	_, err := bc.GetProperties(ctx, nil)
-	logger.Infof("GetProperties(%q) returned %w", bc.URL(), err)
+	logger.Errorf("GetProperties(%q) returned %s", bc.URL(), err)
 	var azerr *azcore.ResponseError
 	if errors.As(err, &azerr) {
 		if azerr.ErrorCode == storageErrorCodeBlobNotFound {
