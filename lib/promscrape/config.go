@@ -1193,6 +1193,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		originalLabels = append([]prompbmarshal.Label{}, lctx.labels...)
 	}
 	lctx.labels = swc.relabelConfigs.Apply(lctx.labels, 0, false)
+	// Remove labels starting from "__meta_" prefix according to https://www.robustperception.io/life-of-a-label/
 	lctx.labels = promrelabel.RemoveMetaLabels(lctx.labels[:0], lctx.labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
@@ -1224,56 +1225,68 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		return nil, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
-	schemeRelabeled := promrelabel.GetLabelValueByName(labels, "__scheme__")
-	if len(schemeRelabeled) == 0 {
-		schemeRelabeled = "http"
+	scheme := promrelabel.GetLabelValueByName(labels, "__scheme__")
+	if len(scheme) == 0 {
+		scheme = "http"
 	}
-	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
-	if len(addressRelabeled) == 0 {
+	metricsPath := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
+	if len(metricsPath) == 0 {
+		metricsPath = "/metrics"
+	}
+	address := promrelabel.GetLabelValueByName(labels, "__address__")
+	if len(address) == 0 {
 		// Drop target without scrape address.
 		droppedTargetsMap.Register(originalLabels)
 		return nil, nil
 	}
-	if strings.Contains(addressRelabeled, "/") {
-		// Drop target with '/'
-		droppedTargetsMap.Register(originalLabels)
-		return nil, nil
+	// Usability extension to Prometheus behavior: extract optional scheme and metricsPath from __address__.
+	// Prometheus silently drops targets with __address__ containing scheme or metricsPath
+	// according to https://www.robustperception.io/life-of-a-label/ .
+	if strings.HasPrefix(address, "http://") {
+		scheme = "http"
+		address = address[len("http://"):]
+	} else if strings.HasPrefix(address, "https://") {
+		scheme = "https"
+		address = address[len("https://"):]
 	}
-	addressRelabeled = addMissingPort(addressRelabeled, schemeRelabeled == "https")
-	metricsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__metrics_path__")
-	if metricsPathRelabeled == "" {
-		metricsPathRelabeled = "/metrics"
+	if n := strings.IndexByte(address, '/'); n >= 0 {
+		metricsPath = address[n:]
+		address = address[:n]
 	}
+	address = addMissingPort(address, scheme == "https")
 
 	var at *auth.Token
 	tenantID := promrelabel.GetLabelValueByName(labels, "__tenant_id__")
-	if tenantID != "" {
+	if len(tenantID) > 0 {
 		newToken, err := auth.NewToken(tenantID)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse __tenant_id__=%q for job=%s, err: %w", tenantID, swc.jobName, err)
+			return nil, fmt.Errorf("cannot parse __tenant_id__=%q for job=%q: %w", tenantID, swc.jobName, err)
 		}
 		at = newToken
 	}
 
-	if !strings.HasPrefix(metricsPathRelabeled, "/") {
-		metricsPathRelabeled = "/" + metricsPathRelabeled
+	if !strings.HasPrefix(metricsPath, "/") {
+		metricsPath = "/" + metricsPath
 	}
-	paramsRelabeled := getParamsFromLabels(labels, swc.params)
-	optionalQuestion := "?"
-	if len(paramsRelabeled) == 0 || strings.Contains(metricsPathRelabeled, "?") {
-		optionalQuestion = ""
+	params := getParamsFromLabels(labels, swc.params)
+	optionalQuestion := ""
+	if len(params) > 0 {
+		optionalQuestion = "?"
+		if strings.Contains(metricsPath, "?") {
+			optionalQuestion = "&"
+		}
 	}
-	paramsStr := url.Values(paramsRelabeled).Encode()
-	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", schemeRelabeled, addressRelabeled, metricsPathRelabeled, optionalQuestion, paramsStr)
+	paramsStr := url.Values(params).Encode()
+	scrapeURL := fmt.Sprintf("%s://%s%s%s%s", scheme, address, metricsPath, optionalQuestion, paramsStr)
 	if _, err := url.Parse(scrapeURL); err != nil {
-		return nil, fmt.Errorf("invalid url %q for scheme=%q (%q), target=%q (%q), metrics_path=%q (%q) for `job_name` %q: %w",
-			scrapeURL, swc.scheme, schemeRelabeled, target, addressRelabeled, swc.metricsPath, metricsPathRelabeled, swc.jobName, err)
+		return nil, fmt.Errorf("invalid url %q for scheme=%q, target=%q, address=%q, metrics_path=%q for job=%q: %w",
+			scrapeURL, scheme, target, address, metricsPath, swc.jobName, err)
 	}
 	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
 	if promrelabel.GetLabelByName(labels, "instance") == nil {
 		labels = append(labels, prompbmarshal.Label{
 			Name:  "instance",
-			Value: addressRelabeled,
+			Value: address,
 		})
 		promrelabel.SortLabels(labels)
 	}
@@ -1314,8 +1327,15 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		}
 		streamParse = b
 	}
+	// Remove labels with "__" prefix according to https://www.robustperception.io/life-of-a-label/
+	labels = promrelabel.RemoveLabelsWithDoubleDashPrefix(labels[:0], labels)
+	// Remove references to deleted labels, so GC could clean strings for label name and label value past len(labels).
+	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
+	labels = append([]prompbmarshal.Label{}, labels...)
 	// Reduce memory usage by interning all the strings in labels.
 	internLabelStrings(labels)
+
 	sw := &ScrapeWork{
 		ScrapeURL:            scrapeURL,
 		ScrapeInterval:       scrapeInterval,
