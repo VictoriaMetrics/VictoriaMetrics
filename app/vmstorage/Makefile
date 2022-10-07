@@ -49,6 +49,21 @@ package-vmstorage:
 package-vmstorage-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) package-via-docker
 
+package-vmstorage-amd64:
+	APP_NAME=vmstorage $(MAKE) package-via-docker-amd64
+
+package-vmstorage-arm:
+	APP_NAME=vmstorage $(MAKE) package-via-docker-arm
+
+package-vmstorage-arm64:
+	APP_NAME=vmstorage $(MAKE) package-via-docker-arm64
+
+package-vmstorage-ppc64le:
+	APP_NAME=vmstorage $(MAKE) package-via-docker-ppc64le
+
+package-vmstorage-386:
+	APP_NAME=vmstorage $(MAKE) package-via-docker-386
+
 publish-vmstorage:
 	APP_NAME=vmstorage $(MAKE) publish-via-docker
 

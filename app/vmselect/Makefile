@@ -49,6 +49,21 @@ package-vmselect:
 package-vmselect-race:
 	APP_NAME=vmselect RACE=-race $(MAKE) package-via-docker
 
+package-vmselect-amd64:
+	APP_NAME=vmselect $(MAKE) package-via-docker-amd64
+
+package-vmselect-arm:
+	APP_NAME=vmselect $(MAKE) package-via-docker-arm
+
+package-vmselect-arm64:
+	APP_NAME=vmselect $(MAKE) package-via-docker-arm64
+
+package-vmselect-ppc64le:
+	APP_NAME=vmselect $(MAKE) package-via-docker-ppc64le
+
+package-vmselect-386:
+	APP_NAME=vmselect $(MAKE) package-via-docker-386
+
 publish-vmselect:
 	APP_NAME=vmselect $(MAKE) publish-via-docker
 
