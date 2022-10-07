@@ -1,4 +1,4 @@
-import React, {FC, useState} from "preact/compat";
+import React, {FC, useState, useEffect} from "preact/compat";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -11,6 +11,7 @@ import AdditionalSettings from "./AdditionalSettings";
 import {ErrorTypes} from "../../../../types";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
+import usePrevious from "../../../../hooks/usePrevious";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
@@ -23,6 +24,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
 
   const {query, queryHistory, queryControls: {autocomplete}} = useAppState();
   const [stateQuery, setStateQuery] = useState(query || []);
+  const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
   const dispatch = useAppDispatch();
 
   const updateHistory = () => {
@@ -66,6 +68,13 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
       payload: {value: {values, index: newIndexHistory}, queryNumber: indexQuery}
     });
   };
+
+  useEffect(() => {
+    if (prevStateQuery && (stateQuery.length < prevStateQuery.filter(q => q).length)) {
+      onRunQuery();
+    }
+  }, [stateQuery]);
+
   return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
     <Box>
       {stateQuery.map((q, i) =>
