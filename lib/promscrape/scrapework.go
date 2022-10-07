@@ -36,7 +36,6 @@ var (
 		"See also -promscrape.suppressScrapeErrorsDelay")
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
-	noStaleMarkers                = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
 	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
@@ -122,6 +121,10 @@ type ScrapeWork struct {
 	// Optional limit on the number of unique series the scrape target can expose.
 	SeriesLimit int
 
+	// Whether to process stale markers for the given target.
+	// See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
+	NoStaleMarkers bool
+
 	//The Tenant Info
 	AuthToken *auth.Token
 
@@ -144,12 +147,12 @@ func (sw *ScrapeWork) key() string {
 	key := fmt.Sprintf("JobNameOriginal=%s, ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
 		"ExternalLabels=%s, "+
 		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
-		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d",
+		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d, NoStaleMarkers=%v",
 		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
 		promLabelsString(sw.ExternalLabels),
 		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
 		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
-		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit)
+		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit, sw.NoStaleMarkers)
 	return key
 }
 
@@ -438,7 +441,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
-	areIdenticalSeries := *noStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -590,7 +593,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	}
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(sbr.body)
-	areIdenticalSeries := *noStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 
 	scrapedSamples.Update(float64(samplesScraped))
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -738,7 +741,7 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 }
 
 func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
-	if *noStaleMarkers {
+	if sw.Config.NoStaleMarkers {
 		return
 	}
 	bodyString := lastScrape

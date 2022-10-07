@@ -386,7 +386,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
   ```
 
   `vmagent` sets `scrape_series_added` to zero when it runs with `-promscrape.noStaleMarkers` command-line option
-  (e.g. when [staleness markers](#prometheus-staleness-markers) are disabled).
+  or when it scrapes target with `no_stale_markers: true` option, e.g. when [staleness markers](#prometheus-staleness-markers) are disabled.
 
 * `scrape_series_limit` - the limit on the number of unique time series the given target can expose according to [these docs](#cardinality-limiter).
   This metric is exposed only if the series limit is set.
@@ -608,9 +608,13 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 * If the scrape target is removed from the list of targets, then stale markers are sent for all the metrics scraped from this target.
 
 Prometheus staleness markers' tracking needs additional memory, since it must store the previous response body per each scrape target
-in order to compare it to the current response body. The memory usage may be reduced by passing `-promscrape.noStaleMarkers`
-command-line flag to `vmagent`. This disables staleness tracking. This also disables tracking the number of new time series
-per each scrape with the auto-generated `scrape_series_added` metric. See [these docs](#automatically-generated-metrics) for details.
+in order to compare it to the current response body. The memory usage may be reduced by disabling staleness tracking in the following ways:
+
+* By passing `-promscrape.noStaleMarkers` command-line flag to `vmagent`. This disables staleness tracking across all the targets.
+* By specifying `no_stale_markers: true` option in the [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for the corresponding target.
+
+When staleness tracking is disabled, then `vmagent` doesn't track the number of new time series per each scrape,
+e.g. it sets `scrape_series_added` metric to zero. See [these docs](#automatically-generated-metrics) for details.
 
 ## Stream parsing mode
 

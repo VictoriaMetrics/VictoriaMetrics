@@ -42,8 +42,9 @@ import (
 )
 
 var (
-	strictParse = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
-	dryRun      = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
+	noStaleMarkers = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
+	strictParse    = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
+	dryRun         = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
@@ -289,6 +290,7 @@ type ScrapeConfig struct {
 	ScrapeAlignInterval *promutils.Duration        `yaml:"scrape_align_interval,omitempty"`
 	ScrapeOffset        *promutils.Duration        `yaml:"scrape_offset,omitempty"`
 	SeriesLimit         int                        `yaml:"series_limit,omitempty"`
+	NoStaleMarkers      *bool                      `yaml:"no_stale_markers,omitempty"`
 	ProxyClientConfig   promauth.ProxyClientConfig `yaml:",inline"`
 
 	// This is set in loadConfig
@@ -950,6 +952,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		return nil, fmt.Errorf("cannot use stream parsing mode when `series_limit` is set for `job_name` %q", jobName)
 	}
 	externalLabels := globalCfg.getExternalLabels()
+	noStaleTracking := *noStaleMarkers
+	if sc.NoStaleMarkers != nil {
+		noStaleTracking = *sc.NoStaleMarkers
+	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeIntervalString: scrapeInterval.String(),
@@ -975,6 +981,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
 		scrapeOffset:         sc.ScrapeOffset.Duration(),
 		seriesLimit:          sc.SeriesLimit,
+		noStaleMarkers:       noStaleTracking,
 	}
 	return swc, nil
 }
@@ -1004,6 +1011,7 @@ type scrapeWorkConfig struct {
 	scrapeAlignInterval  time.Duration
 	scrapeOffset         time.Duration
 	seriesLimit          int
+	noStaleMarkers       bool
 }
 
 type targetLabelsGetter interface {
@@ -1357,6 +1365,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ScrapeAlignInterval:  swc.scrapeAlignInterval,
 		ScrapeOffset:         swc.scrapeOffset,
 		SeriesLimit:          seriesLimit,
+		NoStaleMarkers:       swc.noStaleMarkers,
 		AuthToken:            at,
 
 		jobNameOriginal: swc.jobName,
