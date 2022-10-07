@@ -214,6 +214,116 @@ func TestLoadConfig(t *testing.T) {
 	}
 }
 
+func TestAddressWithFullURL(t *testing.T) {
+	data := `
+scrape_configs:
+- job_name: abc
+  metrics_path: /foo/bar
+  scheme: https
+  params:
+    x: [y]
+  static_configs:
+  - targets:
+    # the following targets are scraped by the provided urls
+    - 'http://host1/metric/path1'
+    - 'https://host2/metric/path2'
+    - 'http://host3:1234/metric/path3?arg1=value1'
+    # the following target is scraped by <scheme>://host4:1234<metrics_path>
+    - host4:1234
+`
+	var cfg Config
+	allData, err := cfg.parseData([]byte(data), "sss")
+	if err != nil {
+		t.Fatalf("cannot parase data: %s", err)
+	}
+	if string(allData) != data {
+		t.Fatalf("invalid data returned from parseData;\ngot\n%s\nwant\n%s", allData, data)
+	}
+	sws := cfg.getStaticScrapeWork()
+	resetNonEssentialFields(sws)
+	swsExpected := []*ScrapeWork{
+		{
+			ScrapeURL:       "http://host1:80/metric/path1?x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "instance",
+					Value: "host1:80",
+				},
+				{
+					Name:  "job",
+					Value: "abc",
+				},
+			},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+		{
+			ScrapeURL:       "https://host2:443/metric/path2?x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "instance",
+					Value: "host2:443",
+				},
+				{
+					Name:  "job",
+					Value: "abc",
+				},
+			},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+		{
+			ScrapeURL:       "http://host3:1234/metric/path3?arg1=value1&x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "instance",
+					Value: "host3:1234",
+				},
+				{
+					Name:  "job",
+					Value: "abc",
+				},
+			},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+		{
+			ScrapeURL:       "https://host4:1234/foo/bar?x=y",
+			ScrapeInterval:  defaultScrapeInterval,
+			ScrapeTimeout:   defaultScrapeTimeout,
+			HonorTimestamps: true,
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "instance",
+					Value: "host4:1234",
+				},
+				{
+					Name:  "job",
+					Value: "abc",
+				},
+			},
+			AuthConfig:      &promauth.Config{},
+			ProxyAuthConfig: &promauth.Config{},
+			jobNameOriginal: "abc",
+		},
+	}
+	if !reflect.DeepEqual(sws, swsExpected) {
+		t.Fatalf("unexpected scrapeWork;\ngot\n%#v\nwant\n%#v", sws, swsExpected)
+	}
+}
+
 func TestBlackboxExporter(t *testing.T) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/684
 	data := `
@@ -249,34 +359,6 @@ scrape_configs:
 		ScrapeTimeout:   defaultScrapeTimeout,
 		HonorTimestamps: true,
 		Labels: []prompbmarshal.Label{
-			{
-				Name:  "__address__",
-				Value: "black:9115",
-			},
-			{
-				Name:  "__metrics_path__",
-				Value: "/probe",
-			},
-			{
-				Name:  "__param_module",
-				Value: "dns_udp_example",
-			},
-			{
-				Name:  "__param_target",
-				Value: "8.8.8.8",
-			},
-			{
-				Name:  "__scheme__",
-				Value: "http",
-			},
-			{
-				Name:  "__scrape_interval__",
-				Value: "1m0s",
-			},
-			{
-				Name:  "__scrape_timeout__",
-				Value: "10s",
-			},
 			{
 				Name:  "instance",
 				Value: "8.8.8.8",
@@ -719,26 +801,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "host1",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc/de",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "__vm_filepath",
 					Value: "",
 				},
@@ -766,26 +828,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "host2",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc/de",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "__vm_filepath",
 					Value: "",
 				},
@@ -812,26 +854,6 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "localhost:9090",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc/de",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
 				{
 					Name:  "__vm_filepath",
 					Value: "",
@@ -882,26 +904,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -931,26 +933,6 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
 				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
@@ -1016,30 +998,6 @@ scrape_configs:
 			DenyRedirects:   true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/foo/bar",
-				},
-				{
-					Name:  "__param_p",
-					Value: "x&y",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "https",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "54s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "5s",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:443",
 				},
@@ -1066,30 +1024,6 @@ scrape_configs:
 			DenyRedirects:   true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "aaa",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/foo/bar",
-				},
-				{
-					Name:  "__param_p",
-					Value: "x&y",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "https",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "54s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "5s",
-				},
-				{
 					Name:  "instance",
 					Value: "aaa:443",
 				},
@@ -1114,26 +1048,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "1.2.3.4",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "8s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "8s",
-				},
-				{
 					Name:  "instance",
 					Value: "1.2.3.4:80",
 				},
@@ -1155,26 +1069,6 @@ scrape_configs:
 			ScrapeTimeout:   8 * time.Second,
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foobar",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "8s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "8s",
-				},
 				{
 					Name:  "instance",
 					Value: "foobar:80",
@@ -1232,30 +1126,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__param_x",
-					Value: "keep_me",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "hash",
 					Value: "82",
 				},
@@ -1312,30 +1182,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/abc.de",
-				},
-				{
-					Name:  "__param_a",
-					Value: "b",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "mailto",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "instance",
 					Value: "fake.addr",
 				},
@@ -1377,10 +1223,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -1411,26 +1253,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -1457,26 +1279,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -1502,26 +1304,6 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
 				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
@@ -1562,30 +1344,6 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "pp",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__param_a",
-					Value: "c",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
 				{
 					Name:  "foo",
 					Value: "bar",
@@ -1678,42 +1436,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "127.0.0.1:9116",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/snmp",
-				},
-				{
-					Name:  "__param_module",
-					Value: "if_mib",
-				},
-				{
-					Name:  "__param_target",
-					Value: "192.168.1.2",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
-					Name:  "__series_limit__",
-					Value: "1234",
-				},
-				{
-					Name:  "__stream_parse__",
-					Value: "true",
-				},
-				{
 					Name:  "instance",
 					Value: "192.168.1.2",
 				},
@@ -1750,26 +1472,6 @@ scrape_configs:
 			HonorTimestamps: true,
 			Labels: []prompbmarshal.Label{
 				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "metricspath",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "1m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "10s",
-				},
-				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
 				},
@@ -1802,26 +1504,6 @@ scrape_configs:
 			ScrapeOffset:        time.Hour * 24 * 2,
 			HonorTimestamps:     true,
 			Labels: []prompbmarshal.Label{
-				{
-					Name:  "__address__",
-					Value: "foo.bar:1234",
-				},
-				{
-					Name:  "__metrics_path__",
-					Value: "/metrics",
-				},
-				{
-					Name:  "__scheme__",
-					Value: "http",
-				},
-				{
-					Name:  "__scrape_interval__",
-					Value: "168h0m0s",
-				},
-				{
-					Name:  "__scrape_timeout__",
-					Value: "24h0m0s",
-				},
 				{
 					Name:  "instance",
 					Value: "foo.bar:1234",
