@@ -2238,6 +2238,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in enterprise version of VictoriaMetrics (default 300000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
+  -search.maxMemoryPerQuery size
+     The maximum amounts of memory a single query may consume. Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . If the -search.maxMemoryPerQuery isn't set, then it is automatically calculated by dividing -memory.allowedPercent by -search.maxConcurrentRequests
+     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -search.maxPointsPerTimeseries int
      The maximum points per a single timeseries returned from /api/v1/query_range. This option doesn't limit the number of scanned raw samples in the database. The main purpose of this option is to limit the number of per-series points returned to graphing UI such as VMUI or Grafana. There is no sense in setting this limit to values bigger than the horizontal resolution of the graph (default 30000)
   -search.maxPointsSubqueryPerTimeseries int
