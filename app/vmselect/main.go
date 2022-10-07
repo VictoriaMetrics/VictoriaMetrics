@@ -101,6 +101,7 @@ func main() {
 		netstorage.InitTmpBlocksDir("")
 		promql.InitRollupResultCache("")
 	}
+	promql.InitMaxMemoryPerQuery(*maxConcurrentRequests)
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
 	var vmselectapiServer *vmselectapi.Server
