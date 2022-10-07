@@ -15,6 +15,23 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): drop all the labels with `__` prefix from discovered targets in the same way as Prometheus does according to [this article](https://www.robustperception.io/life-of-a-label/). Previously the following labels were available during [metric-level relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#metric_relabel_configs): `__address__`, `__scheme__`, `__metrics_path__`, `__scrape_interval__`, `__scrape_timeout__`, `__param_*`. Now these labels are available only during [target-level relabeling](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config). This should reduce CPU usage and memory usage for `vmagent` setups, which scrape big number of targets.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow specifying full url in scrape target addresses (aka `__address__` label). This makes valid the following `-promscrape.config`:
+
+  ```yml
+  scrape_configs:
+  - job_name: abc
+    metrics_path: /foo/bar
+    scheme: https
+    static_configs:
+    - targets:
+      # the following targets are scraped by the provided full urls
+      - 'http://host1/metric/path1'
+      - 'https://host2/metric/path2'
+      - 'http://host3:1234/metric/path3?arg1=value1'
+      # the following target is scraped by <scheme>://host4:1234<metrics_path>
+      - host4:1234
+  ```
 
 ## [v1.82.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.0)
 

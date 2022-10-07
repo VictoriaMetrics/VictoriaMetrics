@@ -72,19 +72,15 @@ type ScrapeWork struct {
 
 	// Labels to add to the scraped metrics.
 	//
-	// The list contains at least the following labels according to https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
+	// The list contains at least the following labels according to https://www.robustperception.io/life-of-a-label/
 	//
 	//     * job
-	//     * __address__
-	//     * __scheme__
-	//     * __metrics_path__
-	//     * __scrape_interval__
-	//     * __scrape_timeout__
-	//     * __param_<name>
-	//     * __meta_*
+	//     * instance
 	//     * user-defined labels set via `relabel_configs` section in `scrape_config`
 	//
 	// See also https://prometheus.io/docs/concepts/jobs_instances/
+	//
+	// Labels are already sorted by name.
 	Labels []prompbmarshal.Label
 
 	// ExternalLabels contains labels from global->external_labels section of -promscrape.config
@@ -164,8 +160,7 @@ func (sw *ScrapeWork) Job() string {
 
 // LabelsString returns labels in Prometheus format for the given sw.
 func (sw *ScrapeWork) LabelsString() string {
-	labelsFinalized := promrelabel.FinalizeLabels(nil, sw.Labels)
-	return promLabelsString(labelsFinalized)
+	return promLabelsString(sw.Labels)
 }
 
 func promLabelsString(labels []prompbmarshal.Label) string {

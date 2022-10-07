@@ -987,6 +987,8 @@ scrape_configs:
     #
     # Alternatively the scheme and path can be changed via `relabel_configs` section at `scrape_config` level.
     # See https://docs.victoriametrics.com/vmagent.html#relabeling .
+    #
+    # It is also possible specifying full target urls here, e.g. "http://host:port/metrics/path?query_args"
   - targets:
     - "vmsingle1:8428"
     - "vmsingleN:8428"
