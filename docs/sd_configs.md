@@ -1188,7 +1188,7 @@ scrape_configs:
   # disable_keepalive: <boolean>
 
   # stream_parse allows enabling stream parsing mode when scraping targets.
-  # By default stram parsing mode is disabled for targets which return up to a few thosands samples.
+  # By default stream parsing mode is disabled for targets which return up to a few thosands samples.
   # See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode .
   # stream_parse: <boolean>
 
@@ -1211,6 +1211,11 @@ scrape_configs:
   # By default there is no limit on the number of exposed series.
   # See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter .
   # series_limit: ...
+
+  # no_stale_markers allows disabling staleness tracking.
+  # By default staleness tracking is enabled for all the discovered scrape targets.
+  # See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
+  # no_stale_markers: <boolean>
 
   # Additional HTTP client options for target scraping can be specified here.
   # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options

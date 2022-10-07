@@ -1493,6 +1493,7 @@ scrape_configs:
   scrape_interval: 1w
   scrape_align_interval: 1d
   scrape_offset: 2d
+  no_stale_markers: true
   static_configs:
   - targets: ["foo.bar:1234"]
 `, []*ScrapeWork{
@@ -1503,6 +1504,7 @@ scrape_configs:
 			ScrapeAlignInterval: time.Hour * 24,
 			ScrapeOffset:        time.Hour * 24 * 2,
 			HonorTimestamps:     true,
+			NoStaleMarkers:      true,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "instance",
