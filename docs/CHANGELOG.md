@@ -15,6 +15,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.82.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.0)
+
+Released at 07-10-2022
+
 **Update note 1:** this release changes data format for [/api/v1/export/native](https://docs.victoriametrics.com/#how-to-export-data-in-native-format) in incompatible way, so it cannot be imported into older version of VictoriaMetrics via [/api/v1/import/native](https://docs.victoriametrics.com/#how-to-import-data-in-native-format).
 
 **Update note 2:** [vmalert](https://docs.victoriametrics.com/vmalert.html) changes default value for command-line flag `-datasource.queryStep` from `0s` to `5m`. The change supposed to improve reliability of the rules evaluation when evaluation interval is lower than scraping interval.
@@ -154,6 +159,30 @@ Released at 08-08-2022
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): return series from `q1` if `q2` doesn't return matching time series in the query `q1 ifnot q2`. Previously series from `q1` weren't returned in this case.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show date picker at `Table` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2874).
 * BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
+
+## [v1.79.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.4)
+
+Released at 07-10-2022
+
+**v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
+
+**Update note 1:** [vmalert](https://docs.victoriametrics.com/vmalert.html) changes default value for command-line flag `-datasource.queryStep` from `0s` to `5m`. The change supposed to improve reliability of the rules evaluation when evaluation interval is lower than scraping interval.
+
+* FEATURE: expose `vmagent_remotewrite_queues` metric and use it in alerting rules in order to improve the detection of remote storage connection saturation. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2871).
+
+* BUGFIX: do not export stale metrics via [/federate api](https://docs.victoriametrics.com/#federation) after the staleness markers. Previously such metrics were exported with `NaN` values. this could break some setups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3185).
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): properly handle request paths ending with `/` such as `/vmui/`. Previously `vmui` was dropping the traling `/`, which could prevent from using `vmui` via `vmauth`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1752).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly encode query params for aws signed requests, use `%20` instead of `+` as api requires. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3171).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate `rate_over_sum(m[d])` as `sum_over_time(m[d])/d`. Previously the `sum_over_time(m[d])` could be improperly divided by smaller than `d` time range. See [rate_over_sum() docs](https://docs.victoriametrics.com/MetricsQL.html#rate_over_sum) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3045).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate `increase(m[d])` over slow-changing counters with values smaller than 100. Previously [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) could return unexpectedly big results in this case. See [the related issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/962) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3163).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): ignore empty series when applying [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset). It should improve queries with additional filters by value in expressions like `limit_offset(1,1, foo > 1)`.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly calculate [quantiles_over_time](https://docs.victoriametrics.com/MetricsQL.html#quantiles_over_time) when the lookbehind window contains only a single sample. Previously an empty result was incorrectly returned in this case.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix `RangeError: Maximum call stack size exceeded` error when the query returns too many data points at `Table` view. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3092/files).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): re-evaluate annotations per each alert evaluation. Previously, annotations were evaluated only on alert's value change. This could result in stale annotations in some cases described in [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3119).
+* BUGFIX: prevent from excessive CPU usage when the storage enters [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode). The previous fix in [v1.79.3](https://docs.victoriametrics.com/CHANGELOG.html#v1793) wasn't complete.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): change default value for command-line flag `-datasource.queryStep` from `0s` to `5m`. Param `step` is added by vmalert to every rule evaluation request sent to datasource. Before this change, `step` was equal to group's evaluation interval by default. Param `step` for instant queries defines how far VM can look back for the last written data point. The change supposed to improve reliability of the rules evaluation when evaluation interval is lower than scraping interval.
+* BUGFIX: properly calculate `vm_rows_scanned_per_query` histogram exported at `/metrics` page of `vmselect` and single-node VictoriaMetrics. Previously it could return misleadingly high numbers for [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions), which scan only a few samples on the provided lookbehind window in square brackets. For example, `increase(m[1d])` always scans only 2 rows (aka `raw samples`) per each returned time series.
 
 ## [v1.79.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.3)
 
