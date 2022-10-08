@@ -2,14 +2,6 @@
 
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).
 
-Supported storage systems for backups:
-
-* [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
-* [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
-* [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<bucket>/<path/to/backup>`
-* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
-* Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
-
 `vmbackup` supports incremental and full backups. Incremental backups are created automatically if the destination path already contains data from the previous backup.
 Full backups can be sped up with `-origin` pointing to an already existing backup on the same remote storage. In this case `vmbackup` makes server-side copy for the shared
 data between the existing backup and new backup. It saves time and costs on data transfer.
@@ -23,6 +15,16 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
 See also [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html) tool built on top of `vmbackup`. This tool simplifies
 creation of hourly, daily, weekly and monthly backups.
 
+## Supported storage types
+
+`vmbackup` supports the following `-dst` storage types:
+
+* [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
+* [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
+* [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<bucket>/<path/to/backup>`
+* Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
+* Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
+
 ## Use cases
 
 ### Regular backups
@@ -30,7 +32,7 @@ creation of hourly, daily, weekly and monthly backups.
 Regular backup can be performed with the following command:
 
 ```console
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<path/to/new/backup>
 ```
 
 * `</path/to/victoria-metrics-data>` - path to VictoriaMetrics data pointed by `-storageDataPath` command-line flag in single-node VictoriaMetrics or in cluster `vmstorage`.
@@ -75,7 +77,7 @@ The command will upload only changed data to `gs://<bucket>/latest`.
 * Run the following command once a day:
 
 ```console
-vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
+./vmbackup -storageDataPath=</path/to/victoria-metrics-data> -snapshot.createURL=http://localhost:8428/snapshot/create -dst=gs://<bucket>/<YYYYMMDD> -origin=gs://<bucket>/latest
 ```
 
 Where `<daily-snapshot>` is the snapshot for the last day `<YYYYMMDD>`.

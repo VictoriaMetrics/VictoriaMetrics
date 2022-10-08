@@ -12,7 +12,7 @@ VictoriaMetrics must be stopped during the restore process.
 Run the following command to restore backup from the given `-src` into the given `-storageDataPath`:
 
 ```console
-vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore>
+./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore>
 ```
 
 * `<storageType>://<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
