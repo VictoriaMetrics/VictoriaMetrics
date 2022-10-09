@@ -249,7 +249,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmagent.html) automatically add `instance` and `job` labels per each discovered target:
 
 * The `job` label is set to `job_name` value specified in the corresponding [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
-* The `instance` label is set to the host:port part of `__address__` label value after target-level relabeling.
+* The `instance` label is set to the `host:port` part of `__address__` label value after target-level relabeling.
   The `__address__` label value is automatically set to the most suitable value depending
   on the used [service discovery type](https://docs.victoriametrics.com/sd_configs.html#supported-service-discovery-configs).
   The `__address__` label can be overriden during relabeling - see [these docs](#how-to-modify-scrape-urls-in-targets).
@@ -284,7 +284,7 @@ URLs for scrape targets are composed of the following parts:
   just update the `__address__` label during relabeling to the needed value.
   The port part is optional. If it is missing, then it is automatically set either to `80` or `443` depending
   on the used scheme (`http` or `https`).
-  The host:port part from the final `__address__` label is automatically set to `instance` label unless the `instance`
+  The `host:port` part from the final `__address__` label is automatically set to `instance` label unless the `instance`
   label is explicitly set during relabeling.
   The `__address__` label can contain the full scrape url, e.g. `http://host:port/metrics/path?query_args`.
   In this case the `__scheme__` and `__metrics_path__` labels are ignored.
