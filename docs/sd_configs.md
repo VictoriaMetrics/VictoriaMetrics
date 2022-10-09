@@ -1089,6 +1089,9 @@ scrape_configs:
   # Example values:
   # - "30s" - 30 seconds
   # - "2m" - 2 minutes
+  # The scrape_interval can be set on a per-target basis by specifying `__scrape_interval__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/vmagent.html#relabeling
   # scrape_interval: <duration>
 
   # scrape_timeout is an optional timeout when scraping the targets.
@@ -1100,6 +1103,9 @@ scrape_configs:
   # - "30s" - 30 seconds
   # - "2m" - 2 minutes
   # The `scrape_timeout` cannot exceed the `scrape_interval`.
+  # The scrape_timeout can be set on a per-target basis by specifying `__scrape_timeout__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/vmagent.html#relabeling
   # scrape_timeout: <duration>
 
   # metrics_path is the path to fetch metrics from targets.
@@ -1190,6 +1196,9 @@ scrape_configs:
   # stream_parse allows enabling stream parsing mode when scraping targets.
   # By default stream parsing mode is disabled for targets which return up to a few thosands samples.
   # See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode .
+  # The stream_parse can be set on a per-target basis by specifying `__stream_parse__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/vmagent.html#relabeling
   # stream_parse: <boolean>
 
   # scrape_align_interval allows aligning scrapes to the given interval.
@@ -1210,6 +1219,9 @@ scrape_configs:
   # a single target can expose during all the scrapes.
   # By default there is no limit on the number of exposed series.
   # See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter .
+  # The series_limit can be set on a per-target basis by specifying `__series_limit__`
+  # label during target relabeling phase.
+  # See https://docs.victoriametrics.com/vmagent.html#relabeling
   # series_limit: ...
 
   # no_stale_markers allows disabling staleness tracking.
