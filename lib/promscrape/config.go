@@ -1195,19 +1195,17 @@ var scrapeWorkKeyBufPool bytesutil.ByteBufferPool
 
 func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabels map[string]string) (*ScrapeWork, error) {
 	lctx := getLabelsContext()
-	lctx.labels = mergeLabels(lctx.labels[:0], swc, target, extraLabels, metaLabels)
+	defer putLabelsContext(lctx)
+
+	labels := mergeLabels(lctx.labels[:0], swc, target, extraLabels, metaLabels)
 	var originalLabels []prompbmarshal.Label
 	if !*dropOriginalLabels {
-		originalLabels = append([]prompbmarshal.Label{}, lctx.labels...)
+		originalLabels = append([]prompbmarshal.Label{}, labels...)
 	}
-	lctx.labels = swc.relabelConfigs.Apply(lctx.labels, 0, false)
+	labels = swc.relabelConfigs.Apply(labels, 0)
 	// Remove labels starting from "__meta_" prefix according to https://www.robustperception.io/life-of-a-label/
-	lctx.labels = promrelabel.RemoveMetaLabels(lctx.labels[:0], lctx.labels)
-	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
-	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	labels := append([]prompbmarshal.Label{}, lctx.labels...)
-	putLabelsContext(lctx)
+	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	lctx.labels = labels
 
 	// Verify whether the scrape work must be skipped because of `-promscrape.cluster.*` configs.
 	// Perform the verification on labels after the relabeling in order to guarantee that targets with the same set of labels
@@ -1290,14 +1288,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		return nil, fmt.Errorf("invalid url %q for scheme=%q, target=%q, address=%q, metrics_path=%q for job=%q: %w",
 			scrapeURL, scheme, target, address, metricsPath, swc.jobName, err)
 	}
-	// Set missing "instance" label according to https://www.robustperception.io/life-of-a-label
-	if promrelabel.GetLabelByName(labels, "instance") == nil {
-		labels = append(labels, prompbmarshal.Label{
-			Name:  "instance",
-			Value: address,
-		})
-		promrelabel.SortLabels(labels)
-	}
 	// Read __scrape_interval__ and __scrape_timeout__ from labels.
 	scrapeInterval := swc.scrapeInterval
 	if s := promrelabel.GetLabelValueByName(labels, "__scrape_interval__"); len(s) > 0 {
@@ -1340,7 +1330,16 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	// Remove references to deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	labels = append([]prompbmarshal.Label{}, labels...)
+	labelsCopy := make([]prompbmarshal.Label, len(labels)+1)
+	labels = append(labelsCopy[:0], labels...)
+	// Add missing "instance" label according to https://www.robustperception.io/life-of-a-label
+	if promrelabel.GetLabelByName(labels, "instance") == nil {
+		labels = append(labels, prompbmarshal.Label{
+			Name:  "instance",
+			Value: address,
+		})
+	}
+	promrelabel.SortLabels(labels)
 	// Reduce memory usage by interning all the strings in labels.
 	internLabelStrings(labels)
 

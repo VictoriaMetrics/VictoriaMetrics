@@ -123,7 +123,8 @@ func (ctx *Ctx) ApplyRelabeling(labels []prompb.Label) []prompb.Label {
 
 	if pcs.Len() > 0 {
 		// Apply relabeling
-		tmpLabels = pcs.Apply(tmpLabels, 0, true)
+		tmpLabels = pcs.Apply(tmpLabels, 0)
+		tmpLabels = promrelabel.FinalizeLabels(tmpLabels[:0], tmpLabels)
 		if len(tmpLabels) == 0 {
 			metricsDropped.Inc()
 		}

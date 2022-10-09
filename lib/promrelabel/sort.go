@@ -9,6 +9,9 @@ import (
 
 // SortLabels sorts labels.
 func SortLabels(labels []prompbmarshal.Label) {
+	if len(labels) < 2 {
+		return
+	}
 	ls := labelsSorterPool.Get().(*labelsSorter)
 	*ls = labels
 	if !sort.IsSorted(ls) {
@@ -20,6 +23,9 @@ func SortLabels(labels []prompbmarshal.Label) {
 
 // SortLabelsStable sorts labels using stable sort.
 func SortLabelsStable(labels []prompbmarshal.Label) {
+	if len(labels) < 2 {
+		return
+	}
 	ls := labelsSorterPool.Get().(*labelsSorter)
 	*ls = labels
 	if !sort.IsSorted(ls) {
