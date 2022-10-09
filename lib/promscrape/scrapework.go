@@ -67,6 +67,8 @@ type ScrapeWork struct {
 	// OriginalLabels contains original labels before relabeling.
 	//
 	// These labels are needed for relabeling troubleshooting at /targets page.
+	//
+	// OriginalLabels are sorted by name.
 	OriginalLabels []prompbmarshal.Label
 
 	// Labels to add to the scraped metrics.
@@ -79,13 +81,15 @@ type ScrapeWork struct {
 	//
 	// See also https://prometheus.io/docs/concepts/jobs_instances/
 	//
-	// Labels are already sorted by name.
+	// Labels are sorted by name.
 	Labels []prompbmarshal.Label
 
 	// ExternalLabels contains labels from global->external_labels section of -promscrape.config
 	//
 	// These labels are added to scraped metrics after the relabeling.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3137
+	//
+	// ExternalLabels are sorted by name.
 	ExternalLabels []prompbmarshal.Label
 
 	// ProxyURL HTTP proxy url
@@ -832,11 +836,9 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 	labelsLen := len(wc.labels)
 	wc.labels = appendLabels(wc.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
 	if needRelabel {
-		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen, true)
-	} else {
-		wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
-		promrelabel.SortLabels(wc.labels[labelsLen:])
+		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen)
 	}
+	wc.labels = promrelabel.FinalizeLabels(wc.labels[:labelsLen], wc.labels[labelsLen:])
 	if len(wc.labels) == labelsLen {
 		// Skip row without labels.
 		return

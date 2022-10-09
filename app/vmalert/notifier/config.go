@@ -132,8 +132,9 @@ func parseConfig(path string) (*Config, error) {
 
 func parseLabels(target string, metaLabels map[string]string, cfg *Config) (string, []prompbmarshal.Label, error) {
 	labels := mergeLabels(target, metaLabels, cfg)
-	labels = cfg.parsedRelabelConfigs.Apply(labels, 0, false)
+	labels = cfg.parsedRelabelConfigs.Apply(labels, 0)
 	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
+	promrelabel.SortLabels(labels)
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
