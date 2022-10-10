@@ -60,7 +60,6 @@ func Init() {
 	fs.RemoveDirContents(tmpDirPath)
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
-	promql.InitMaxMemoryPerQuery(*maxConcurrentRequests)
 
 	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
