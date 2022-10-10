@@ -154,6 +154,11 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
            "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/service-account-email"
     }
     ```
+* Obtaining credentials from env variables.
+    - For AWS S3 compatible storages set env variable `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
+      Also you can set env variable `AWS_SHARED_CREDENTIALS_FILE` with path to credentials file.
+    - For GCE cloud storage set env variable `GOOGLE_APPLICATION_CREDENTIALS` with path to credentials file.
+    - For Azure storage either set env variables `AZURE_STORAGE_ACCOUNT_NAME` and `AZURE_STORAGE_ACCOUNT_KEY`, or `AZURE_STORAGE_ACCOUNT_CONNECTION_STRING`.
 
 * Usage with s3 custom url endpoint. It is possible to use `vmbackup` with s3 compatible storages like minio, cloudian, etc.
   You have to add a custom url endpoint via flag:
