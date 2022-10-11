@@ -5,11 +5,11 @@ import (
 	"time"
 )
 
-// APIAlert represents a notifier.AlertingRule ruleState
+// APIAlert represents a notifier.AlertingRule state
 // for WEB view
 // https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
 type APIAlert struct {
-	State       string            `json:"ruleState"`
+	State       string            `json:"state"`
 	Name        string            `json:"name"`
 	Value       string            `json:"value"`
 	Labels      map[string]string `json:"labels,omitempty"`
@@ -30,7 +30,7 @@ type APIAlert struct {
 	// SourceLink contains a link to a system which should show
 	// why Alert was generated
 	SourceLink string `json:"source"`
-	// Restored shows whether Alert's ruleState was restored on restart
+	// Restored shows whether Alert's state was restored on restart
 	Restored bool `json:"restored"`
 }
 
@@ -86,10 +86,10 @@ type GroupAlerts struct {
 // see https://github.com/prometheus/compliance/blob/main/alert_generator/specification.md#get-apiv1rules
 type APIRule struct {
 	// State must be one of these under following scenarios
-	//  "pending": at least 1 alert in the rule in pending ruleState and no other alert in firing ruleState.
-	//  "firing": at least 1 alert in the rule in firing ruleState.
-	//  "inactive": no alert in the rule in firing or pending ruleState.
-	State string `json:"ruleState"`
+	//  "pending": at least 1 alert in the rule in pending state and no other alert in firing ruleState.
+	//  "firing": at least 1 alert in the rule in firing state.
+	//  "inactive": no alert in the rule in firing or pending state.
+	State string `json:"state"`
 	Name  string `json:"name"`
 	// Query represents Rule's `expression` field
 	Query string `json:"query"`
@@ -121,7 +121,7 @@ type APIRule struct {
 	// GroupID is an unique Group's ID
 	GroupID string `json:"group_id"`
 
-	// TODO:
+	// Updates contains the ordered list of recorded ruleStateEntry objects
 	Updates []ruleStateEntry `json:"updates"`
 }
 
