@@ -41,6 +41,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): automatically update graph, legend and url after the removal of query field. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3169) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3196#issuecomment-1269765205).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove duplicate `alertname` JSON entry from generated alerts. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3053). Thanks to @Howie59 for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3182)!
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix integration with Grafana via `-vmalert.proxyURL`, which has been broken in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820). See [this issue](https://github.com/VictoriaMetrics/helm-charts/issues/391).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix deletion of old backups at [Azure blob storage](https://azure.microsoft.com/en-us/products/storage/blobs/).
 
 ## [v1.82.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.0)
