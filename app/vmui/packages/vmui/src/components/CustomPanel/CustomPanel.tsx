@@ -40,7 +40,7 @@ const CustomPanel: FC = () => {
   };
 
   const {queryOptions} = useFetchQueryOptions();
-  const {isLoading, liveData, graphData, error, traces} = useFetchQuery({
+  const {isLoading, liveData, graphData, error, warning, traces} = useFetchQuery({
     visible: true,
     customStep
   });
@@ -83,6 +83,7 @@ const CustomPanel: FC = () => {
             </Box>
           </Box>
           {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
+          {warning && <Alert color="warning" severity="warning" sx={{whiteSpace: "pre-wrap", my: 2}}>{warning}</Alert>}
           {graphData && period && (displayType === "chart") && <>
             {isTracingEnabled && <TracingsView
               traces={tracesState}
