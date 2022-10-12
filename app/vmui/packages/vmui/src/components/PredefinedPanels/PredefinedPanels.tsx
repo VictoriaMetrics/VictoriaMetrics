@@ -46,7 +46,7 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
 
   const validExpr = useMemo(() => Array.isArray(expr) && expr.every(q => q), [expr]);
 
-  const {isLoading, graphData, error} = useFetchQuery({
+  const {isLoading, graphData, error, warning} = useFetchQuery({
     predefinedQuery: validExpr ? expr : [],
     display: "chart",
     visible,
@@ -115,6 +115,7 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
     <Box px={2} pb={2}>
       {isLoading && <Spinner isLoading={true} height={"500px"}/>}
       {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
+      {warning && <Alert color="warning" severity="warning" sx={{whiteSpace: "pre-wrap", my: 2}}>{warning}</Alert>}
       {graphData && <GraphView
         data={graphData}
         period={period}
