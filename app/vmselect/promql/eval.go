@@ -1077,14 +1077,14 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
 	rollupMemorySize = sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
-	if rollupMemorySize > int64(maxMemoryPerQuery.N) {
+	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		rss.Cancel()
 		return nil, &UserReadableError{
 			Err: fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series "+
 				"according to -search.maxMemoryPerQuery=%d; requested memory: %d bytes; "+
 				"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
 				"increasing -search.maxMemoryPerQuery",
-				rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, maxMemoryPerQuery.N, rollupMemorySize, float64(ec.Step)/1e3),
+				rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, maxMemory, rollupMemorySize, float64(ec.Step)/1e3),
 		}
 	}
 	rml := getRollupMemoryLimiter()
