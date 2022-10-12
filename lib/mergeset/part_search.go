@@ -213,6 +213,9 @@ func (ps *partSearch) NextItem() bool {
 
 	// The current block is over. Proceed to the next block.
 	if err := ps.nextBlock(); err != nil {
+		if err != io.EOF {
+			err = fmt.Errorf("error in %q: %w", ps.p.path, err)
+		}
 		ps.err = err
 		return false
 	}
