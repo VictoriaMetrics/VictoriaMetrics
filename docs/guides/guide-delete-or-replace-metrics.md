@@ -1,58 +1,24 @@
 # How to delete or replace metrics in VictoriaMetrics 
 
-**Scenario**
+Data deletion is an operation people expect a database to have. [VictoriaMetrics](https://victoriametrics.com) also supports 
+[delete operation](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-delete-time-series) but to a limited extent. Due to implementation details, VictoriaMetrics remains an [append-only database](https://en.wikipedia.org/wiki/Append-only), which perfectly fits the case for storing time series data. But the drawback of such architecture is that it is extremely expensive to mutate the data. Hence, `delete` or `update` operations support is very limited. In this guide, we'll walk through the possible workarounds for deleting or changing already written data in VictoriaMetrics.
 
-Today there are a lot of monitoring software (Enterprise SaaS or self-hosted services) that help users and companies to stay informed and watch what's going on with their servers, devices, machines, applications, etc. Some of this software can collect many different metrics out-of-the-box. Some of these metrics are useful, but some could be unneeded or mistakenly recorded in the database. In such cases, you may need to remove junky metrics or clear up all space after tests. As a time series database, VictoriaMetrics also provides a mechanism for deleting metrics, but for architecture reasons, it is not suitable for frequent use.
+### Precondition
 
-This guide will cover deletion and replacing metrics in the [Single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) and [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) versions of [VictoriaMetrics](https://victoriametrics.com).
-
-**Precondition**
-
-We will use:
 - [Single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html);
 - [Cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html);
 - [curl](https://curl.se/docs/manual.html)
-- [jq](https://stedolan.github.io/jq/)
+- [jq tool](https://stedolan.github.io/jq/)
 
 ## How to delete metrics
 
-According to official [documentation](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-delete-time-series), metrics can be deleted via `/api/v1/admin/tsdb/delete_series` for both VictoriaMetrics Single and Cluster. Before deleting we need to check that the required metrics are present in the database.
+_Warning: time series deletion is not recommended to use on a regular basis. Each call to delete API could have a performance penalty. The API was provided for one-off operations for deleting malformed data or tp satisfy GDPR compliance._
 
-To do this we need to send a query request with curl to **Single-node VictoriaMetrics** [api](https://docs.victoriametrics.com/url-examples.html#apiv1series):
-
-<div class="with-copy" markdown="1">
-
-```console
-curl -s 'http://127.0.0.1:8428/api/v1/series?match[]=process_cpu_cores_available' | jq
-```
-
-</div>
-
-The expected output will look like:
-```json
-{
-  "status": "success",
-  "data": [
-    {
-      "__name__": "process_cpu_cores_available",
-      "job": "victoriametrics",
-      "instance": "victoriametrics:8428"
-    },
-    {
-      "__name__": "process_cpu_cores_available",
-      "job": "vmagent",
-      "instance": "vmagent:8429"
-    },
-    {
-      "__name__": "process_cpu_cores_available",
-      "job": "vmalert",
-      "instance": "vmalert:8880"
-    }
-  ]
-}
-```
+[Delete API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-delete-time-series) expects from user to specify [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors). So the first thing to do before the deletion is to verify whether it matches the correct data.
 
 To check that metrics are present in **VictoriaMetrics Cluster** run the following command:
+
+_Warning: the response can return too many metrics, so pleas be careful with series selector_
 
 <div class="with-copy" markdown="1">
 
@@ -104,7 +70,7 @@ The expected output:
 
 ```
 
-To delete series, send a POST request to [delete API](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series) with [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) argument. For example:
+When you're sure with [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) correctness, send a POST request to [delete API](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series) with [`match[]=<time-series-selector>`](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors) argument. For example:
 
 **Single-node VictoriaMetrics**:
 
@@ -112,7 +78,7 @@ To delete series, send a POST request to [delete API](https://docs.victoriametri
 
 ```console
 
-curl -v http://127.0.0.1:8428/api/v1/admin/tsdb/delete_series?match[]=process_cpu_cores_available' | jq
+curl -v http://127.0.0.1:8428/api/v1/admin/tsdb/delete_series?match[]=process_cpu_cores_available'
 ```
 
 </div>
@@ -121,12 +87,12 @@ curl -v http://127.0.0.1:8428/api/v1/admin/tsdb/delete_series?match[]=process_cp
 <div class="with-copy" markdown="1">
 
 ```console
-curl -s 'http://127.0.0.1:8481/select/0/prometheus/api/v1/series?match[]=process_cpu_cores_available' | jq
+curl -s 'http://127.0.0.1:8481/select/0/prometheus/api/v1/series?match[]=process_cpu_cores_available'
 ```
 
 </div>
 
-After that all the time series matching the given selector are deleted. Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) may help freeing up storage space.
+If operation was successful, the deleted series will stop being [queryable](https://docs.victoriametrics.com/keyConcepts.html#query-data). Storage space for the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282). The background merges may never occur for data from previous months, so storage space won't be freed for historical data. In this case [forced merge](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#forced-merge) may help freeing up storage space.
 
 To trigger `force merge` on Single-node VictoriaMetrics run the following command:
 
@@ -144,23 +110,23 @@ And for the VictoriaMetrics Cluster version please run:
 curl -v -X POST http://127.0.0.1:8482/internal/force_merge
 ```
 
-After the merge is complete, the data will be permanently deleted.
+After the merge is complete, the data will be permanently deleted from the disk.
 
 ## How to replace metrics
 
-By default, VictoriaMetrics doesn't provide a mechanism that can be used to replace or update metrics. This task looks non-trivial, but there is a workaround.
+By default, VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a workaround, take the following actions:
 
 In short, we have to do the following:
-- export metrics to a file;
+- [export metrics to a file](https://docs.victoriametrics.com/url-examples.html#apiv1export);
 - change the values of metrics in the file and save it;
-- delete metrics from a database;
-- import saved file to VictoriaMetrics.
+- [delete metrics from a database](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series);
+- [import saved file to VictoriaMetrics](https://docs.victoriametrics.com/url-examples.html#apiv1import).
 
 ### Export metrics
 
 In this example, we will use `node_memory_MemTotal_bytes` metrics that scrapes by [node_exporter](https://github.com/prometheus/node_exporter/) and then vmagent write it to VictoriaMetrics Single and Cluster versions and [JSON line format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-json-line-format) to export metrics.
 
-Let's export metrics for `node_memory_MemTotal_bytes` with labels `instance="node-exporter:9100"` and `job="hostname.com"`. To do this, please run the following command:
+For example, let's export metric for `node_memory_MemTotal_bytes` with labels `instance="node-exporter:9100"` and `job="hostname.com"`:
 
 **Single-node VictoriaMetrics**:
 
@@ -255,7 +221,7 @@ The expected output will be the next:
 
 ### Delete metrics
 
-See [How to delete metrics](https://docs.victoriametrics.com/guides/guide-delete-and-replace-metrics.html#How-to-delete-metrics) from the previous paragraph
+See [How-to-delete-metrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html#how-to-delete-metrics) from the previous paragraph
 
 ### Import metrics
 
