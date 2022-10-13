@@ -3798,6 +3798,27 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`histogram_quantile(duplicate-le)`, func(t *testing.T) {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3225
+		t.Parallel()
+		q := `round(sort(histogram_quantile(0.6,
+			label_set(90, "foo", "bar", "le", "5")
+			or label_set(100, "foo", "bar", "le", "5.0")
+			or label_set(200, "foo", "bar", "le", "6.0")
+			or label_set(300, "foo", "bar", "le", "+Inf")
+		)), 0.1)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4.7, 4.7, 4.7, 4.7, 4.7, 4.7},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
 	t.Run(`histogram_quantile(valid)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(histogram_quantile(0.6,
