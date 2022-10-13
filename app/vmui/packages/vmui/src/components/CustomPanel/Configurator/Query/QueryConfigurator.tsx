@@ -12,13 +12,13 @@ import {ErrorTypes} from "../../../../types";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import usePrevious from "../../../../hooks/usePrevious";
+import {MAX_QUERY_FIELDS} from "../../../../config";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
   queryOptions: string[]
 }
 
-export const MAX_QUERY_FIELDS = 4;
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) => {
 

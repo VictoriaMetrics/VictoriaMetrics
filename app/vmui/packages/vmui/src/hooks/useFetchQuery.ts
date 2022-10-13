@@ -11,6 +11,7 @@ import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
 import {arrayEquals} from "../utils/array";
 import Trace from "../components/CustomPanel/Trace/Trace";
+import {MAX_SERIES} from "../config";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -28,6 +29,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
+  warning?: string,
   traces?: Trace[],
 } => {
   const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
@@ -37,6 +39,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
+  const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
 
   useEffect(() => {
@@ -56,6 +59,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
+
       for await (const response of responses) {
         const resp = await response.json();
         if (response.ok) {
@@ -73,7 +77,14 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
           setError(`${resp.errorType}\r\n${resp?.error}`);
         }
       }
-      isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
+
+      const length = tempData.length;
+      const seriesLimit = MAX_SERIES[displayType];
+      const result = tempData.slice(0, seriesLimit);
+      const limitText = `Showing ${seriesLimit} series out of ${length} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      setWarning(length > seriesLimit ? limitText : "");
+
+      isDisplayChart ? setGraphData(result as MetricResult[]) : setLiveData(result as InstantMetricResult[]);
       setTraces(tempTraces);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
@@ -107,9 +118,12 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   [serverUrl, period, displayType, customStep]);
 
   const prevFetchUrl = usePrevious(fetchUrl);
+  const prevDisplayType = usePrevious(displayType);
 
   useEffect(() => {
-    if (!visible || (fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl)) || !fetchUrl?.length) return;
+    const equalFetchUrl = fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl);
+    const changedDisplayType = displayType !== prevDisplayType;
+    if (!visible || (equalFetchUrl && !changedDisplayType) || !fetchUrl?.length) return;
     setIsLoading(true);
     const expr = predefinedQuery ?? query;
     throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr);
@@ -122,5 +136,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return {fetchUrl, isLoading, graphData, liveData, error, traces};
+  return {fetchUrl, isLoading, graphData, liveData, error, warning, traces};
 };
