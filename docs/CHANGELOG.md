@@ -38,7 +38,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
   See [the corresponding issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3208).
 
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): allow controlling staleness tracking on a per-[scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) basis by specifying `no_stale_markers: true` or `no_stale_markers: false` option in the corresponding [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): limit number of plotted series. Limits on tab: `Graph=20`, `Table=100`. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3155).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): limit the number of plotted series. This should prevent from browser crashes or hands when the query returns big number of time series. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3155).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): automatically update graph, legend and url after the removal of query field. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3169) and [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3196#issuecomment-1269765205).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): remove duplicate `alertname` JSON entry from generated alerts. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3053). Thanks to @Howie59 for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3182)!
