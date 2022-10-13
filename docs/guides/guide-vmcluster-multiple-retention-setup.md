@@ -16,7 +16,7 @@ A multi-retention setup can be implemented by dividing a [victoriametrics cluste
 
 Example:
 Setup should handle 3 different retention groups 3months, 1year and 3 years.
-Solution contains 3 groups of vmstorages + vminserst and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent.html) and [relabeling configuration](https://docs.victoriametrics.com/vmagent.html#relabeling). The [retentionPeriod](https://docs.victoriametrics.com/?highlight=retentionPeriod#retention) sets how long to keep the metrics. 
+Solution contains 3 groups of vmstorages + vminserst and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent.html) and [relabeling configuration](https://docs.victoriametrics.com/vmagent.html#relabeling). The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how long to keep the metrics. 
 
 The diagram below shows a proposed solution
 
