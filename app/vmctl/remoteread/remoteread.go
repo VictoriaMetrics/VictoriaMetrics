@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/golang/protobuf/proto"
@@ -41,6 +40,7 @@ type Config struct {
 	Transport *http.Transport
 }
 
+// Filter is used for request remote read data by filter
 type Filter struct {
 	Min, Max   int64
 	Label      string
@@ -82,7 +82,8 @@ func NewClient(cfg Config) (*Client, error) {
 	return c, nil
 }
 
-func (c *Client) Read(ctx context.Context, filter *Filter) ([]vm.TimeSeries, error) {
+// Read fetch data from remote write source
+func (c *Client) Read(ctx context.Context, filter *Filter) ([]*prompb.TimeSeries, error) {
 	query, err := c.query(filter)
 	if err != nil {
 		return nil, err
@@ -99,24 +100,20 @@ func (c *Client) Read(ctx context.Context, filter *Filter) ([]vm.TimeSeries, err
 
 	const attempts = 5
 	b := snappy.Encode(nil, data)
-	var timeserieses []vm.TimeSeries
 	for i := 0; i < attempts; i++ {
 		qr, err := c.fetch(ctx, b)
-		if err == nil {
-			for _, ts := range convertQueryResultToTimeSeries(qr) {
-				timeserieses = append(timeserieses, ts)
+		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil, fmt.Errorf("process stoped")
 			}
-			return timeserieses, nil
+			logger.Errorf("attempt %d to fetch data from remote storage: %s", i+1, err)
+			// sleeping to avoid remote db hammering
+			time.Sleep(time.Second)
+			continue
 		}
-		if errors.Is(err, context.Canceled) {
-			return nil, fmt.Errorf("process stoped")
-		}
-		logger.Errorf("attempt %d to fetch data from remote storage: %s", i+1, err)
-		// sleeping to avoid remote db hammering
-		time.Sleep(time.Second)
-		continue
+		return qr.Timeseries, nil
 	}
-	return timeserieses, nil
+	return nil, nil
 }
 
 func (c *Client) fetch(ctx context.Context, data []byte) (*prompb.QueryResult, error) {
@@ -203,23 +200,4 @@ func toLabelMatchers(matcher *labels.Matcher) (*prompb.LabelMatcher, error) {
 		Name:  matcher.Name,
 		Value: matcher.Value,
 	}, nil
-}
-
-func convertQueryResultToTimeSeries(result *prompb.QueryResult) []vm.TimeSeries {
-	var ts []vm.TimeSeries
-	for _, t := range result.Timeseries {
-		pts := vm.TimeSeries{}
-		for _, label := range t.Labels {
-			pts.LabelPairs = append(pts.LabelPairs, vm.LabelPair{
-				Name:  label.Name,
-				Value: label.Value,
-			})
-		}
-		for _, s := range t.Samples {
-			pts.Values = append(pts.Values, s.Value)
-			pts.Timestamps = append(pts.Timestamps, s.Timestamp)
-		}
-		ts = append(ts, pts)
-	}
-	return ts
 }

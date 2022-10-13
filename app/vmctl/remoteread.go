@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/prometheus/prometheus/prompb"
 )
 
 type remotereadProcessor struct {
@@ -140,9 +141,22 @@ func (rrp *remotereadProcessor) do(ctx context.Context, filter *remoteread.Filte
 	}
 
 	for _, ts := range data {
-		if err := rrp.dst.Input(&ts); err != nil {
+		imts := convertTimeseries(ts)
+		if err := rrp.dst.Input(imts); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func convertTimeseries(series *prompb.TimeSeries) *vm.TimeSeries {
+	var ts vm.TimeSeries
+	for _, label := range series.Labels {
+		ts.LabelPairs = append(ts.LabelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})
+	}
+	for _, sample := range series.Samples {
+		ts.Values = append(ts.Values, sample.Value)
+		ts.Timestamps = append(ts.Timestamps, sample.Timestamp)
+	}
+	return &ts
 }
