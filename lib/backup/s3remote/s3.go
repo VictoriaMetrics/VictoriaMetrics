@@ -61,7 +61,7 @@ func (fs *FS) Init() error {
 	}
 	configOpts := []func(*config.LoadOptions) error{
 		config.WithSharedConfigProfile(fs.ProfileName),
-		config.WithDefaultRegion("us-west-2"),
+		config.WithDefaultRegion("us-east-1"),
 	}
 
 	if len(fs.CredsFilePath) > 0 {
