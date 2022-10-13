@@ -665,6 +665,7 @@ func transformHistogramShare(tfa *transformFuncArg) ([]*timeseries, error) {
 		sort.Slice(xss, func(i, j int) bool {
 			return xss[i].le < xss[j].le
 		})
+		xss = mergeSameLE(xss)
 		dst := xss[0].ts
 		var tsLower, tsUpper *timeseries
 		if len(boundsLabel) > 0 {
@@ -945,6 +946,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 		sort.Slice(xss, func(i, j int) bool {
 			return xss[i].le < xss[j].le
 		})
+		xss = mergeSameLE(xss)
 		dst := xss[0].ts
 		var tsLower, tsUpper *timeseries
 		if len(boundsLabel) > 0 {
@@ -1012,6 +1014,7 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 	if len(xss) < 2 {
 		return
 	}
+	// Fill NaN in upper buckets with the first non-NaN value found in lower buckets.
 	for j := len(xss) - 1; j >= 0; j-- {
 		v := xss[j].ts.Values[i]
 		if !math.IsNaN(v) {
@@ -1023,6 +1026,8 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 			break
 		}
 	}
+	// Substitute lower bucket values with upper values if the lower values are NaN
+	// or are bigger than the upper bucket values.
 	vNext := xss[len(xss)-1].ts.Values[i]
 	for j := len(xss) - 2; j >= 0; j-- {
 		v := xss[j].ts.Values[i]
@@ -1032,6 +1037,26 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 			vNext = v
 		}
 	}
+}
+
+func mergeSameLE(xss []leTimeseries) []leTimeseries {
+	// Merge buckets with identical le values.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3225
+	xsDst := xss[0]
+	dst := xss[:1]
+	for j := 1; j < len(xss); j++ {
+		xs := xss[j]
+		if xs.le != xsDst.le {
+			dst = append(dst, xs)
+			xsDst = xs
+			continue
+		}
+		dstValues := xsDst.ts.Values
+		for k, v := range xs.ts.Values {
+			dstValues[k] += v
+		}
+	}
+	return dst
 }
 
 func transformHour(t time.Time) int {
