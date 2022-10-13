@@ -89,7 +89,7 @@ vmstorage:
   podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "8482"
-EOF     
+EOF
 ```
 </div>
 
