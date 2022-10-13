@@ -295,15 +295,21 @@ func (c *Command) startApp(ctx *Context) error {
 	return app.RunAsSubcommand(ctx)
 }
 
+// VisibleCommands returns a slice of the Commands with Hidden=false
+func (c *Command) VisibleCommands() []*Command {
+	var ret []*Command
+	for _, command := range c.Subcommands {
+		if !command.Hidden {
+			ret = append(ret, command)
+		}
+	}
+	return ret
+}
+
 // VisibleFlagCategories returns a slice containing all the visible flag categories with the flags they contain
 func (c *Command) VisibleFlagCategories() []VisibleFlagCategory {
 	if c.flagCategories == nil {
-		c.flagCategories = newFlagCategories()
-		for _, fl := range c.Flags {
-			if cf, ok := fl.(CategorizableFlag); ok {
-				c.flagCategories.AddFlag(cf.GetCategory(), cf)
-			}
-		}
+		c.flagCategories = newFlagCategoriesFromFlags(c.Flags)
 	}
 	return c.flagCategories.VisibleCategories()
 }

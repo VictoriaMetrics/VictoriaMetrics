@@ -1,7 +1,7 @@
 import qs from "qs";
 import get from "lodash.get";
 import router from "../router";
-import {MAX_QUERY_FIELDS} from "../components/CustomPanel/Configurator/Query/QueryConfigurator";
+import {MAX_QUERY_FIELDS} from "../config";
 
 const graphStateToUrlParams = {
   "time.duration": "range_input",
