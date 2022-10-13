@@ -35,7 +35,10 @@ type ClientOptions struct {
 // Client defines a set of operations applicable to block blobs.
 type Client base.CompositeClient[generated.BlobClient, generated.BlockBlobClient]
 
-// NewClient creates a Client object using the specified URL, Azure AD credential, and options.
+// NewClient creates an instance of Client with the specified values.
+//   - blobURL - the URL of the blob e.g. https://<account>.blob.core.windows.net/container/blob.txt
+//   - cred - an Azure AD credential, typically obtained via the azidentity module
+//   - options - client options; pass nil to accept the default values
 func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := runtime.NewBearerTokenPolicy(cred, []string{shared.TokenScope}, nil)
 	conOptions := shared.GetClientOptions(options)
@@ -45,7 +48,10 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 	return (*Client)(base.NewBlockBlobClient(blobURL, pl, nil)), nil
 }
 
-// NewClientWithNoCredential creates a Client object using the specified URL and options.
+// NewClientWithNoCredential creates an instance of Client with the specified values.
+// This is used to anonymously access a blob or with a shared access signature (SAS) token.
+//   - blobURL - the URL of the blob e.g. https://<account>.blob.core.windows.net/container/blob.txt?<sas token>
+//   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
 	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
@@ -53,7 +59,10 @@ func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client,
 	return (*Client)(base.NewBlockBlobClient(blobURL, pl, nil)), nil
 }
 
-// NewClientWithSharedKeyCredential creates a Client object using the specified URL, shared key, and options.
+// NewClientWithSharedKeyCredential creates an instance of Client with the specified values.
+//   - blobURL - the URL of the blob e.g. https://<account>.blob.core.windows.net/container/blob.txt
+//   - cred - a SharedKeyCredential created with the matching blob's storage account and access key
+//   - options - client options; pass nil to accept the default values
 func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
@@ -63,7 +72,11 @@ func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCreden
 	return (*Client)(base.NewBlockBlobClient(blobURL, pl, cred)), nil
 }
 
-// NewClientFromConnectionString creates Client from a connection String
+// NewClientFromConnectionString creates an instance of Client with the specified values.
+//   - connectionString - a connection string for the desired storage account
+//   - containerName - the name of the container within the storage account
+//   - blobName - the name of the blob within the container
+//   - options - client options; pass nil to accept the default values
 func NewClientFromConnectionString(connectionString, containerName, blobName string, options *ClientOptions) (*Client, error) {
 	parsed, err := shared.ParseConnectionString(connectionString)
 	if err != nil {
