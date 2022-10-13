@@ -124,7 +124,7 @@ func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLab
 			}
 		}
 		labels = pcs.Apply(labels, labelsLen)
-		labels = promrelabel.FinalizeLabels(labels[:0], labels)
+		labels = promrelabel.FinalizeLabels(labels[:labelsLen], labels)
 		if len(labels) == labelsLen {
 			// Drop the current time series, since relabeling removed all the labels.
 			continue
