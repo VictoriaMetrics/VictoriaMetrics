@@ -400,6 +400,53 @@ var (
 	}
 )
 
+const (
+	remotereadConcurrency      = "remoteread-concurrency"
+	remotereadFilterTimeStart  = "remoteread-filter-time-start"
+	remotereadFilterTimeEnd    = "remoteread-filter-time-end"
+	remotereadFilterLabel      = "remoteread-filter-label"
+	remotereadFilterLabelValue = "remoteread-filter-label-value"
+	remotereadRemoteRead       = "remoteread-remote-read"
+	remotereadStepInterval     = "remoteread-step-interval"
+)
+
+var (
+	remotereadFlags = []cli.Flag{
+		&cli.IntFlag{
+			Name:  remotereadConcurrency,
+			Usage: "Number of concurrently running remote read readers",
+			Value: 1,
+		},
+		&cli.StringFlag{
+			Name:  remotereadFilterTimeStart,
+			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  remotereadFilterTimeEnd,
+			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+		},
+		&cli.StringFlag{
+			Name:  remotereadFilterLabel,
+			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+		},
+		&cli.StringFlag{
+			Name:  remotereadFilterLabelValue,
+			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
+			Value: ".*",
+		},
+		&cli.BoolFlag{
+			Name:  remotereadRemoteRead,
+			Usage: "Use Prometheus remote read protocol",
+			Value: false,
+		},
+		&cli.StringFlag{
+			Name:     remotereadStepInterval,
+			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Required: true,
+		},
+	}
+)
+
 func mergeFlags(flags ...[]cli.Flag) []cli.Flag {
 	var result []cli.Flag
 	for _, f := range flags {

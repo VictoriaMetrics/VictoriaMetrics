@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -109,6 +110,40 @@ func main() {
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode))
 					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+				},
+			},
+			{
+				Name:  "remote-read",
+				Usage: "Migrate timeseries by remote-read protocol",
+				Flags: mergeFlags(globalFlags, remotereadFlags, vmFlags),
+				Action: func(c *cli.Context) error {
+					rr, err := remoteread.NewClient(remoteread.Config{
+						Addr: "http://localhost:9091/api/v1/read",
+					})
+					if err != nil {
+						return fmt.Errorf("error create remote read client: %s", err)
+					}
+
+					vmCfg := initConfigVM(c)
+
+					importer, err := vm.NewImporter(vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					rmp := remotereadProcessor{
+						src: rr,
+						dst: importer,
+						filter: remoteReadFilter{
+							timeStart:  c.String(remotereadFilterTimeStart),
+							timeEnd:    c.String(remotereadFilterTimeEnd),
+							label:      c.String(remotereadFilterLabel),
+							labelValue: c.String(remotereadFilterLabelValue),
+							chunk:      c.String(remotereadStepInterval),
+						},
+						cc: c.Int(remotereadConcurrency),
+					}
+					return rmp.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
 			{
