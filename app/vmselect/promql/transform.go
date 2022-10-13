@@ -936,6 +936,7 @@ func transformHistogramQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	rvs := make([]*timeseries, 0, len(m))
 	for _, xss := range m {
+		xss = mergeSameLE(xss)
 		sort.Slice(xss, func(i, j int) bool {
 			return xss[i].le < xss[j].le
 		})
@@ -1026,6 +1027,37 @@ func fixBrokenBuckets(i int, xss []leTimeseries) {
 			vNext = v
 		}
 	}
+}
+
+func mergeSameLE(xss []leTimeseries) []leTimeseries {
+	hit := false
+	m := make(map[float64]leTimeseries)
+	for _, xs := range xss {
+		i, ok := m[xs.le]
+		if ok {
+			ts := &timeseries{}
+			ts.CopyFromShallowTimestamps(i.ts)
+			for k := range ts.Values {
+				ts.Values[k] += xs.ts.Values[k]
+			}
+			m[xs.le] = leTimeseries{
+				le: xs.le,
+				ts: ts,
+			}
+			hit = true
+			continue
+		}
+		m[xs.le] = xs
+	}
+	if (!hit) {
+		return xss
+	}
+
+	r := make([]leTimeseries, 0, len(m))
+	for _, v := range m {
+		r = append(r, v)
+	}
+	return r
 }
 
 func transformHour(t time.Time) int {
