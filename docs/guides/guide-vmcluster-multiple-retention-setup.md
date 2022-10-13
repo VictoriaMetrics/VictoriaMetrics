@@ -16,7 +16,7 @@ A multi-retention setup can be implemented by dividing a [victoriametrics cluste
 
 Example:
 Setup should handle 3 different retention groups 3months, 1year and 3 years.
-Solution contains 3 groups of vmstorages + vminserst and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent.html) and [relabeling configuration](https://docs.victoriametrics.com/vmagent.html#relabeling) 
+Solution contains 3 groups of vmstorages + vminserst and one group of vmselects. Routing is done by [vmagent](https://docs.victoriametrics.com/vmagent.html) and [relabeling configuration](https://docs.victoriametrics.com/vmagent.html#relabeling). The [-retentionPeriod](https://docs.victoriametrics.com/#retention) sets how long to keep the metrics. 
 
 The diagram below shows a proposed solution
 
@@ -25,11 +25,11 @@ The diagram below shows a proposed solution
 </p>
 
 **Implementation Details**
-  1. Groups of vminserts A know about only vmstorages A and this is explicitly specified in [-storageNode configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
-  2. Groups of vminserts B know about only vmstorages B and this is explicitly specified in `-storageNode` configuration. 
-  3. Groups of vminserts C know about only vmstorages A and this is explicitly specified in `-storageNode` configuration. 
-  4. Vmselect reads data from all vmstorage nodes.
-  5. Vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig`. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling).
+  1. Groups of vminserts A know about only vmstorages A and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
+  2. Groups of vminserts B know about only vmstorages B and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
+  3. Groups of vminserts C know about only vmstorages A and this is explicitly specified via `-storageNode` [configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
+  4. Vmselect reads data from all vmstorage nodes via `-storageNode` [configuration](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-setup). 
+  5. Vmagent routes incoming metrics to the given set of `vminsert` nodes using relabeling rules specified at `-remoteWrite.urlRelabelConfig` [configuration](https://docs.victoriametrics.com/vmagent.html#relabeling).
 
 **Multi-Tenant Setup**
 
