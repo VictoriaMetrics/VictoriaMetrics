@@ -23,7 +23,7 @@ const (
 
 var (
 	// Version is the default version encoded in the SAS token.
-	Version = "2019-12-12"
+	Version = "2020-02-10"
 )
 
 // TimeFormats ISO 8601 format.
