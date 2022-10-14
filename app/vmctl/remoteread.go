@@ -133,23 +133,18 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 }
 
 func (rrp *remotereadProcessor) do(ctx context.Context, filter *remoteread.Filter) error {
-	data, err := rrp.src.Read(ctx, filter)
-	if err != nil {
-		tStart := time.Unix(0, filter.Min*int64(time.Millisecond))
-		tEnd := time.Unix(0, filter.Max*int64(time.Millisecond))
-		return fmt.Errorf("failed to read data for time range start: %s, end: %s, %s", tStart, tEnd, err)
-	}
-
-	for _, ts := range data {
-		imts := convertTimeseries(ts)
+	return rrp.src.Read(ctx, filter, func(series prompb.TimeSeries) error {
+		imts := convertTimeseries(series)
 		if err := rrp.dst.Input(imts); err != nil {
-			return err
+			tStart := time.Unix(0, filter.Min*int64(time.Millisecond))
+			tEnd := time.Unix(0, filter.Max*int64(time.Millisecond))
+			return fmt.Errorf("failed to read data for time range start: %s, end: %s, %s", tStart, tEnd, err)
 		}
-	}
-	return nil
+		return nil
+	})
 }
 
-func convertTimeseries(series *prompb.TimeSeries) *vm.TimeSeries {
+func convertTimeseries(series prompb.TimeSeries) *vm.TimeSeries {
 	var ts vm.TimeSeries
 	for _, label := range series.Labels {
 		ts.LabelPairs = append(ts.LabelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})

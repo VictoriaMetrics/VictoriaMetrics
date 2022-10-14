@@ -10,15 +10,22 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
+	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
+var bodyBufferPool bytesutil.ByteBufferPool
+
 const defaultWriteTimeout = 30 * time.Second
+
+type StreamCallback func(series prompb.TimeSeries) error
 
 // Client is an HTTP client for reading
 // timeseries via remote read protocol.
@@ -45,6 +52,11 @@ type Filter struct {
 	Min, Max   int64
 	Label      string
 	LabelValue string
+}
+
+type sample struct {
+	ts    int64
+	value float64
 }
 
 func (f Filter) inRange(min, max int64) bool {
@@ -83,44 +95,45 @@ func NewClient(cfg Config) (*Client, error) {
 }
 
 // Read fetch data from remote write source
-func (c *Client) Read(ctx context.Context, filter *Filter) ([]*prompb.TimeSeries, error) {
+func (c *Client) Read(ctx context.Context, filter *Filter, steamCb StreamCallback) error {
 	query, err := c.query(filter)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	req := &prompb.ReadRequest{
 		Queries: []*prompb.Query{
 			query,
 		},
+		AcceptedResponseTypes: []prompb.ReadRequest_ResponseType{prompb.ReadRequest_STREAMED_XOR_CHUNKS},
 	}
 	data, err := proto.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("unable to marshal read request: %w", err)
+		return fmt.Errorf("unable to marshal read request: %w", err)
 	}
 
 	const attempts = 5
 	b := snappy.Encode(nil, data)
 	for i := 0; i < attempts; i++ {
-		qr, err := c.fetch(ctx, b)
+		err := c.fetch(ctx, b, steamCb)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				return nil, fmt.Errorf("process stoped")
+				return fmt.Errorf("process stoped")
 			}
 			logger.Errorf("attempt %d to fetch data from remote storage: %s", i+1, err)
 			// sleeping to avoid remote db hammering
 			time.Sleep(time.Second)
 			continue
 		}
-		return qr.Timeseries, nil
+		return nil
 	}
-	return nil, nil
+	return nil
 }
 
-func (c *Client) fetch(ctx context.Context, data []byte) (*prompb.QueryResult, error) {
+func (c *Client) fetch(ctx context.Context, data []byte, steamCb StreamCallback) error {
 	r := bytes.NewReader(data)
 	req, err := http.NewRequest("POST", c.addr, r)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create new HTTP request: %w", err)
+		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
 
 	req.Header.Add("Content-Encoding", "snappy")
@@ -134,33 +147,47 @@ func (c *Client) fetch(ctx context.Context, data []byte) (*prompb.QueryResult, e
 
 	resp, err := c.c.Do(req.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
+		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("unexpected response code %d for %s. Response body %q",
+		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	d, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response: %w", err)
-	}
-	uncompressed, err := snappy.Decode(nil, d)
-	if err != nil {
-		return nil, fmt.Errorf("error decode response: %w", err)
-	}
+	bb := bodyBufferPool.Get()
+	defer bodyBufferPool.Put(bb)
 
-	var readResp prompb.ReadResponse
-	err = proto.Unmarshal(uncompressed, &readResp)
-	if err != nil {
-		return nil, fmt.Errorf("unable to unmarshal response body: %w", err)
-	}
+	stream := remote.NewChunkedReader(resp.Body, remote.DefaultChunkedReadLimit, bb.B)
 
-	return readResp.Results[0], nil
+	for {
+		var ts prompb.TimeSeries
+		res := &prompb.ChunkedReadResponse{}
+		err := stream.NextProto(res)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		for _, series := range res.ChunkedSeries {
+			ts.Labels = append(ts.Labels, series.Labels...)
+			for _, chunk := range series.Chunks {
+				samples, err := parseSamples(chunk.Data)
+				if err != nil {
+					return err
+				}
+				ts.Samples = append(ts.Samples, samples...)
+			}
+			if err := steamCb(ts); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (c *Client) query(filter *Filter) (*prompb.Query, error) {
@@ -200,4 +227,31 @@ func toLabelMatchers(matcher *labels.Matcher) (*prompb.LabelMatcher, error) {
 		Name:  matcher.Name,
 		Value: matcher.Value,
 	}, nil
+}
+
+func parseSamples(chunk []byte) ([]prompb.Sample, error) {
+	c, err := chunkenc.FromData(chunkenc.EncXOR, chunk)
+	if err != nil {
+		return nil, err
+	}
+
+	var samples []prompb.Sample
+	it := c.Iterator(nil)
+	for it.Next() {
+		if it.Err() != nil {
+			return nil, it.Err()
+		}
+
+		ts, v := it.At()
+		s := prompb.Sample{
+			Timestamp: ts,
+			Value:     v,
+		}
+		samples = append(samples, s)
+	}
+
+	if it.Err() != nil {
+		return nil, it.Err()
+	}
+	return samples, err
 }
