@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1)
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly apply regex filters when searching for time series. Previously unexpected time series could be returned from regex filter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3227). The issue was introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmbagent.html): properly apply `if` section with regex filters. Previously unexpected metrics could be returned from `if` section. The issue was introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
 
 ## [v1.82.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.0)
 
