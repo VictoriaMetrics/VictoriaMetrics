@@ -30,12 +30,12 @@ type UserDelegationCredential struct {
 	userDelegationKey UserDelegationKey
 }
 
-// AccountName returns the Storage account's Name
+// getAccountName returns the Storage account's Name
 func (f *UserDelegationCredential) getAccountName() string {
 	return f.accountName
 }
 
-// GetUDKParams is a helper method for accessing the user delegation key parameters outside of this package.
+// GetAccountName is a helper method for accessing the user delegation key parameters outside this package.
 func GetAccountName(udc *UserDelegationCredential) string {
 	return udc.getAccountName()
 }
@@ -48,17 +48,17 @@ func (f *UserDelegationCredential) computeHMACSHA256(message string) (string, er
 	return base64.StdEncoding.EncodeToString(h.Sum(nil)), err
 }
 
-// ComputeUDCHMACSHA256 is a helper method for computing the signed string outside of this package.
+// ComputeUDCHMACSHA256 is a helper method for computing the signed string outside this package.
 func ComputeUDCHMACSHA256(udc *UserDelegationCredential, message string) (string, error) {
 	return udc.computeHMACSHA256(message)
 }
 
-// GetUDKParams returns UserDelegationKey
+// getUDKParams returns UserDelegationKey
 func (f *UserDelegationCredential) getUDKParams() *UserDelegationKey {
 	return &f.userDelegationKey
 }
 
-// GetUDKParams is a helper method for accessing the user delegation key parameters outside of this package.
+// GetUDKParams is a helper method for accessing the user delegation key parameters outside this package.
 func GetUDKParams(udc *UserDelegationCredential) *UserDelegationKey {
 	return udc.getUDKParams()
 }

@@ -50,9 +50,7 @@ func (prc *parsedRelabelConfig) String() string {
 // Apply applies pcs to labels starting from the labelsOffset.
 //
 // If isFinalize is set, then FinalizeLabels is called on the labels[labelsOffset:].
-//
-// The returned labels at labels[labelsOffset:] are sorted.
-func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, isFinalize bool) []prompbmarshal.Label {
+func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	var inStr string
 	relabelDebug := false
 	if pcs != nil {
@@ -73,10 +71,6 @@ func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int, 
 		}
 	}
 	labels = removeEmptyLabels(labels, labelsOffset)
-	if isFinalize {
-		labels = FinalizeLabels(labels[:labelsOffset], labels[labelsOffset:])
-	}
-	SortLabels(labels[labelsOffset:])
 	if relabelDebug {
 		if len(labels) == labelsOffset {
 			logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed", inStr)
@@ -121,25 +115,36 @@ func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbm
 //
 // See https://www.robustperception.io/life-of-a-label fo details.
 func RemoveMetaLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
-	for i := range src {
-		label := &src[i]
+	for _, label := range src {
 		if strings.HasPrefix(label.Name, "__meta_") {
 			continue
 		}
-		dst = append(dst, *label)
+		dst = append(dst, label)
+	}
+	return dst
+}
+
+// RemoveLabelsWithDoubleDashPrefix removes labels with "__" prefix from src, appends the remaining lables to dst and returns the result.
+func RemoveLabelsWithDoubleDashPrefix(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
+	for _, label := range src {
+		name := label.Name
+		// A hack: do not delete __vm_filepath label, since it is used by internal logic for FileSDConfig.
+		if strings.HasPrefix(name, "__") && name != "__vm_filepath" {
+			continue
+		}
+		dst = append(dst, label)
 	}
 	return dst
 }
 
 // FinalizeLabels removes labels with "__" in the beginning (except of "__name__").
 func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
-	for i := range src {
-		label := &src[i]
+	for _, label := range src {
 		name := label.Name
 		if strings.HasPrefix(name, "__") && name != "__name__" {
 			continue
 		}
-		dst = append(dst, *label)
+		dst = append(dst, label)
 	}
 	return dst
 }

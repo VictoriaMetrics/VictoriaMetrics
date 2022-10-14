@@ -396,7 +396,7 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, false)
+				labels = pcs.Apply(labels, 0)
 				if len(labels) != 0 {
 					panic(fmt.Errorf("BUG: expecting empty labels"))
 				}
@@ -419,7 +419,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labelsOrig))
 				}
@@ -454,7 +456,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -488,7 +492,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 2 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 2, labels))
 				}
@@ -524,7 +530,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -560,7 +568,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -595,7 +605,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -630,7 +642,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 0 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 0, labels))
 				}
@@ -653,7 +667,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 0 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 0, labels))
 				}
@@ -676,7 +692,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 0 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 0, labels))
 				}
@@ -699,7 +717,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -734,7 +754,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -768,7 +790,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}
@@ -802,7 +826,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
 				}
@@ -830,7 +856,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
 				}
@@ -858,7 +886,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
 				}
@@ -886,7 +916,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 0 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 0, labels))
 				}
@@ -908,7 +940,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
 				}
@@ -936,7 +970,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
 				}
@@ -964,7 +1000,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 1, labels))
 				}
@@ -991,7 +1029,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 1 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 3, labels))
 				}
@@ -1018,7 +1058,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 2 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 3, labels))
 				}
@@ -1051,7 +1093,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != 2 {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), 3, labels))
 				}
@@ -1087,7 +1131,9 @@ func BenchmarkApplyRelabelConfigs(b *testing.B) {
 			var labels []prompbmarshal.Label
 			for pb.Next() {
 				labels = append(labels[:0], labelsOrig...)
-				labels = pcs.Apply(labels, 0, true)
+				labels = pcs.Apply(labels, 0)
+				labels = FinalizeLabels(labels[:0], labels)
+				SortLabels(labels)
 				if len(labels) != len(labelsOrig) {
 					panic(fmt.Errorf("unexpected number of labels; got %d; want %d; labels:\n%#v", len(labels), len(labelsOrig), labels))
 				}

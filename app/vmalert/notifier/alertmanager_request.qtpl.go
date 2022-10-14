@@ -51,22 +51,27 @@ func streamamRequest(qw422016 *qt422016.Writer, alerts []Alert, generatorURL fun
 //line app/vmalert/notifier/alertmanager_request.qtpl:16
 		}
 //line app/vmalert/notifier/alertmanager_request.qtpl:16
-		qw422016.N().S(`"labels": {"alertname":`)
+		qw422016.N().S(`"labels": {`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:18
-		qw422016.N().Q(alert.Name)
-//line app/vmalert/notifier/alertmanager_request.qtpl:19
 		lbls := alert.toPromLabels(relabelCfg)
 
+//line app/vmalert/notifier/alertmanager_request.qtpl:19
+		ll := len(lbls)
+
 //line app/vmalert/notifier/alertmanager_request.qtpl:20
-		for _, l := range lbls {
-//line app/vmalert/notifier/alertmanager_request.qtpl:20
-			qw422016.N().S(`,`)
+		for idx, l := range lbls {
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
 			qw422016.N().Q(l.Name)
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
 			qw422016.N().S(`:`)
 //line app/vmalert/notifier/alertmanager_request.qtpl:21
 			qw422016.N().Q(l.Value)
+//line app/vmalert/notifier/alertmanager_request.qtpl:21
+			if idx != ll-1 {
+//line app/vmalert/notifier/alertmanager_request.qtpl:21
+				qw422016.N().S(`,`)
+//line app/vmalert/notifier/alertmanager_request.qtpl:21
+			}
 //line app/vmalert/notifier/alertmanager_request.qtpl:22
 		}
 //line app/vmalert/notifier/alertmanager_request.qtpl:22

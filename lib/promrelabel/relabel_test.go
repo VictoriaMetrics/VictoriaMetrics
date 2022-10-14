@@ -78,7 +78,11 @@ func TestApplyRelabelConfigs(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", config, err)
 		}
 		labels := MustParseMetricWithLabels(metric)
-		resultLabels := pcs.Apply(labels, 0, isFinalize)
+		resultLabels := pcs.Apply(labels, 0)
+		if isFinalize {
+			resultLabels = FinalizeLabels(resultLabels[:0], resultLabels)
+		}
+		SortLabels(resultLabels)
 		result := labelsToString(resultLabels)
 		if result != resultExpected {
 			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)

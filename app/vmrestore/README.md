@@ -12,7 +12,7 @@ VictoriaMetrics must be stopped during the restore process.
 Run the following command to restore backup from the given `-src` into the given `-storageDataPath`:
 
 ```console
-vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore>
+./vmrestore -src=<storageType>://<path/to/backup> -storageDataPath=<local/path/to/restore>
 ```
 
 * `<storageType>://<path/to/backup>` is the path to backup made with [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
@@ -186,7 +186,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.2.
 2. Run `make vmrestore` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmrestore` binary and puts it into the `bin` folder.
 

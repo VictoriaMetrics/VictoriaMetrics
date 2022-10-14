@@ -183,9 +183,9 @@ func (a Alert) toPromLabels(relabelCfg *promrelabel.ParsedConfigs) []prompbmarsh
 			Value: v,
 		})
 	}
-	promrelabel.SortLabels(labels)
 	if relabelCfg != nil {
-		return relabelCfg.Apply(labels, 0, false)
+		labels = relabelCfg.Apply(labels, 0)
 	}
+	promrelabel.SortLabels(labels)
 	return labels
 }

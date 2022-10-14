@@ -196,8 +196,7 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 		fmt.Fprintf(w, `{"discoveredLabels":`)
 		writeLabelsJSON(w, ts.sw.Config.OriginalLabels)
 		fmt.Fprintf(w, `,"labels":`)
-		labelsFinalized := promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)
-		writeLabelsJSON(w, labelsFinalized)
+		writeLabelsJSON(w, ts.sw.Config.Labels)
 		fmt.Fprintf(w, `,"scrapePool":%q`, ts.sw.Config.Job())
 		fmt.Fprintf(w, `,"scrapeUrl":%q`, ts.sw.Config.ScrapeURL)
 		errMsg := ""

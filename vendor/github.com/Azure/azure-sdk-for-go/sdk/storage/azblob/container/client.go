@@ -10,7 +10,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -35,7 +34,10 @@ type ClientOptions struct {
 // Client represents a URL to the Azure Storage container allowing you to manipulate its blobs.
 type Client base.Client[generated.ContainerClient]
 
-// NewClient creates a Client object using the specified URL, Azure AD credential, and options.
+// NewClient creates an instance of Client with the specified values.
+//   - containerURL - the URL of the container e.g. https://<account>.blob.core.windows.net/container
+//   - cred - an Azure AD credential, typically obtained via the azidentity module
+//   - options - client options; pass nil to accept the default values
 func NewClient(containerURL string, cred azcore.TokenCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := runtime.NewBearerTokenPolicy(cred, []string{shared.TokenScope}, nil)
 	conOptions := shared.GetClientOptions(options)
@@ -45,7 +47,10 @@ func NewClient(containerURL string, cred azcore.TokenCredential, options *Client
 	return (*Client)(base.NewContainerClient(containerURL, pl, nil)), nil
 }
 
-// NewClientWithNoCredential creates a Client object using the specified URL and options.
+// NewClientWithNoCredential creates an instance of Client with the specified values.
+// This is used to anonymously access a container or with a shared access signature (SAS) token.
+//   - containerURL - the URL of the container e.g. https://<account>.blob.core.windows.net/container?<sas token>
+//   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(containerURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
 	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
@@ -53,7 +58,10 @@ func NewClientWithNoCredential(containerURL string, options *ClientOptions) (*Cl
 	return (*Client)(base.NewContainerClient(containerURL, pl, nil)), nil
 }
 
-// NewClientWithSharedKeyCredential creates a Client object using the specified URL, shared key, and options.
+// NewClientWithSharedKeyCredential creates an instance of Client with the specified values.
+//   - containerURL - the URL of the container e.g. https://<account>.blob.core.windows.net/container
+//   - cred - a SharedKeyCredential created with the matching container's storage account and access key
+//   - options - client options; pass nil to accept the default values
 func NewClientWithSharedKeyCredential(containerURL string, cred *SharedKeyCredential, options *ClientOptions) (*Client, error) {
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
@@ -63,7 +71,10 @@ func NewClientWithSharedKeyCredential(containerURL string, cred *SharedKeyCreden
 	return (*Client)(base.NewContainerClient(containerURL, pl, cred)), nil
 }
 
-// NewClientFromConnectionString creates a Client object using connection string of an account
+// NewClientFromConnectionString creates an instance of Client with the specified values.
+//   - connectionString - a connection string for the desired storage account
+//   - containerName - the name of the container within the storage account
+//   - options - client options; pass nil to accept the default values
 func NewClientFromConnectionString(connectionString string, containerName string, options *ClientOptions) (*Client, error) {
 	parsed, err := shared.ParseConnectionString(connectionString)
 	if err != nil {
@@ -317,11 +328,7 @@ func (c *Client) GetSASURL(permissions sas.ContainerPermissions, start time.Time
 		return "", err
 	}
 
-	endpoint := c.URL()
-	if !strings.HasSuffix(endpoint, "/") {
-		endpoint += "/"
-	}
-	endpoint += "?" + qps.Encode()
+	endpoint := c.URL() + "?" + qps.Encode()
 
 	return endpoint, nil
 }

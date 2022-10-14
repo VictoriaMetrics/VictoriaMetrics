@@ -1,6 +1,7 @@
 package bytesutil
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -38,6 +39,11 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 	// Slow path - run matchFunc for s and store the result in the cache.
 	b := fsm.matchFunc(s)
 	bp := &b
+	// Make a copy of s in order to limit memory usage to the s length,
+	// since the s may point to bigger string.
+	// This also protects from the case when s contains unsafe string, which points to a temporary byte slice.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3227
+	s = strings.Clone(s)
 	m.Store(s, bp)
 	n := atomic.AddUint64(&fsm.mLen, 1)
 	if n > 100e3 {

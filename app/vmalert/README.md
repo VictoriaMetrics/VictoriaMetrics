@@ -665,9 +665,10 @@ Try the following recommendations in such cases:
 are delivered to the datasource;
 * If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
 command-line flag to add a time shift for evaluations;
-* If time intervals between datapoints in datasource are irregular - try changing vmalert's `-datasource.queryStep`
-command-line flag to specify how far search query can lookback for the recent datapoint. By default, this value
-is equal to group's evaluation interval.
+* If time intervals between datapoints in datasource are irregular or `>=5min` - try changing vmalert's
+`-datasource.queryStep` command-line flag to specify how far search query can lookback for the recent datapoint. 
+The recommendation is to have the step at least two times bigger than `scrape_interval`, since
+there are no guarantees that scrape will not fail.
 
 Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
 alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
@@ -1275,7 +1276,7 @@ spec:
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.2.
 2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
@@ -1291,7 +1292,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.1.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.2.
 2. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-linux-arm` or `vmalert-linux-arm64` binary respectively and puts it into the `bin` folder.
 
