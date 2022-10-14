@@ -40,6 +40,8 @@ func (fst *FastStringTransformer) Transform(s string) string {
 	sTransformed := fst.transformFunc(s)
 	// Make a copy of s in order to limit memory usage to the s length,
 	// since the s may point to bigger string.
+	// This also protects from the case when s contains unsafe string, which points to a temporary byte slice.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3227
 	s = strings.Clone(s)
 	if sTransformed == s {
 		// point sTransformed to just allocated s, since it may point to s,
