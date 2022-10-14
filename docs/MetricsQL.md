@@ -1022,13 +1022,17 @@ per each `job` over the last 5 minutes.
 
 #### histogram_quantile
 
-`histogram_quantile(phi, buckets)` is a [transform function](#transform-functions), which calculates `phi`-quantile over the given
-[histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
+`histogram_quantile(phi, buckets)` is a [transform function](#transform-functions), which calculates `phi`-[percentile](https://en.wikipedia.org/wiki/Percentile)
+over the given [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
 `phi` must be in the range `[0...1]`. For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m]) by (le))`
 would return median request duration for all the requests during the last 5 minutes.
 
 The function accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile with the given `boundsLabel` label.
 See [this issue for details](https://github.com/prometheus/prometheus/issues/5706).
+
+When the [percentile](https://en.wikipedia.org/wiki/Percentile) is calculated over multiple histograms,
+then all the input histograms **must** have buckets with identical boundaries, e.g. they must have the same set of `le` or `vmrange` labels.
+Otherwise the returned result may be invalid. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3231) for details.
 
 This function is supported by PromQL (except of the `boundLabel` arg). See also [histogram_quantiles](#histogram_quantiles), [histogram_share](#histogram_share)
 and [quantile](#quantile).
