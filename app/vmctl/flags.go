@@ -401,48 +401,71 @@ var (
 )
 
 const (
-	remotereadConcurrency      = "remoteread-concurrency"
-	remotereadFilterTimeStart  = "remoteread-filter-time-start"
-	remotereadFilterTimeEnd    = "remoteread-filter-time-end"
-	remotereadFilterLabel      = "remoteread-filter-label"
-	remotereadFilterLabelValue = "remoteread-filter-label-value"
-	remotereadRemoteRead       = "remoteread-remote-read"
-	remotereadStepInterval     = "remoteread-step-interval"
+	remoteRead                 = "remote-read"
+	remoteReadConcurrency      = "remote-read-concurrency"
+	remoteReadFilterTimeStart  = "remote-read-filter-time-start"
+	remoteReadFilterTimeEnd    = "remote-read-filter-time-end"
+	remoteReadFilterLabel      = "remote-read-filter-label"
+	remoteReadFilterLabelValue = "remote-read-filter-label-value"
+	remoteReadStepInterval     = "remote-read-step-interval"
+	remoteReadSrcAddr          = "remote-read-src-addr"
+	remoteReadUser             = "remote-read-user"
+	remoteReadPassword         = "remote-read-password"
+	remoteReadHTTPTimeout      = "remote-read-http-timeout"
 )
 
 var (
-	remotereadFlags = []cli.Flag{
+	remoteReadFlags = []cli.Flag{
 		&cli.IntFlag{
-			Name:  remotereadConcurrency,
+			Name:  remoteReadConcurrency,
 			Usage: "Number of concurrently running remote read readers",
 			Value: 1,
 		},
 		&cli.StringFlag{
-			Name:  remotereadFilterTimeStart,
+			Name:  remoteReadFilterTimeStart,
 			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
 		},
 		&cli.StringFlag{
-			Name:  remotereadFilterTimeEnd,
+			Name:  remoteReadFilterTimeEnd,
 			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
 		},
 		&cli.StringFlag{
-			Name:  remotereadFilterLabel,
+			Name:  remoteReadFilterLabel,
 			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
 		},
 		&cli.StringFlag{
-			Name:  remotereadFilterLabelValue,
-			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", promFilterLabel),
+			Name:  remoteReadFilterLabelValue,
+			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", remoteReadFilterLabelValue),
 			Value: ".*",
 		},
 		&cli.BoolFlag{
-			Name:  remotereadRemoteRead,
+			Name:  remoteRead,
 			Usage: "Use Prometheus remote read protocol",
 			Value: false,
 		},
 		&cli.StringFlag{
-			Name:     remotereadStepInterval,
+			Name:     remoteReadStepInterval,
 			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     remoteReadSrcAddr,
+			Usage:    "Remote read address to perform read from.",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:    remoteReadUser,
+			Usage:   "Remote read username for basic auth",
+			EnvVars: []string{"REMOTE_READ_USERNAME"},
+		},
+		&cli.StringFlag{
+			Name:    remoteReadPassword,
+			Usage:   "Remote read password for basic auth",
+			EnvVars: []string{"REMOTE_READ_PASSWORD"},
+		},
+		&cli.DurationFlag{
+			Name:  remoteReadHTTPTimeout,
+			Usage: "ReadTimeout defines timeout for HTTP write request to remote storage",
 		},
 	}
 )

@@ -115,10 +115,13 @@ func main() {
 			{
 				Name:  "remote-read",
 				Usage: "Migrate timeseries by remote-read protocol",
-				Flags: mergeFlags(globalFlags, remotereadFlags, vmFlags),
+				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					rr, err := remoteread.NewClient(remoteread.Config{
-						Addr: "http://localhost:9091/api/v1/read",
+						Addr:        c.String(remoteReadSrcAddr),
+						Username:    c.String(remoteReadUser),
+						Password:    c.String(remoteReadPassword),
+						ReadTimeout: c.Duration(remoteReadHTTPTimeout),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)
@@ -135,13 +138,13 @@ func main() {
 						src: rr,
 						dst: importer,
 						filter: remoteReadFilter{
-							timeStart:  c.String(remotereadFilterTimeStart),
-							timeEnd:    c.String(remotereadFilterTimeEnd),
-							label:      c.String(remotereadFilterLabel),
-							labelValue: c.String(remotereadFilterLabelValue),
-							chunk:      c.String(remotereadStepInterval),
+							timeStart:  c.String(remoteReadFilterTimeStart),
+							timeEnd:    c.String(remoteReadFilterTimeEnd),
+							label:      c.String(remoteReadFilterLabel),
+							labelValue: c.String(remoteReadFilterLabelValue),
+							chunk:      c.String(remoteReadStepInterval),
 						},
-						cc: c.Int(remotereadConcurrency),
+						cc: c.Int(remoteReadConcurrency),
 					}
 					return rmp.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
 				},

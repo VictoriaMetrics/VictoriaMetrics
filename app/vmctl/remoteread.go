@@ -78,7 +78,11 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 	if err := barpool.Start(); err != nil {
 		return err
 	}
-	defer barpool.Stop()
+	defer func() {
+		barpool.Stop()
+		log.Println("Import finished!")
+		log.Print(rrp.dst.Stats())
+	}()
 
 	rangeC := make(chan *remoteread.Filter)
 	errCh := make(chan error)
@@ -127,8 +131,6 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 		return fmt.Errorf("import process failed: %s", err)
 	}
 
-	log.Println("Import finished!")
-	log.Print(rrp.dst.Stats())
 	return nil
 }
 

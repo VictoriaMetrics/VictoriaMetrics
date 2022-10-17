@@ -12,7 +12,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/model/labels"
@@ -23,28 +22,37 @@ import (
 
 var bodyBufferPool bytesutil.ByteBufferPool
 
-const defaultWriteTimeout = 30 * time.Second
+const (
+	defaultReadTimeout = 30 * time.Second
+	remoteReadPath     = "/api/v1/read"
+	healthPath         = "/health"
+)
 
+// StreamCallback is a callback function for processing time series
 type StreamCallback func(series prompb.TimeSeries) error
 
 // Client is an HTTP client for reading
-// timeseries via remote read protocol.
+// time series via remote read protocol.
 type Client struct {
-	addr    string
-	c       *http.Client
-	authCfg *promauth.Config
+	addr     string
+	c        *http.Client
+	user     string
+	password string
 }
 
 // Config is config for remote read.
 type Config struct {
 	// Addr of remote storage
-	Addr    string
-	AuthCfg *promauth.Config
-	// WriteTimeout defines timeout for HTTP write request
+	Addr string
+	// ReadTimeout defines timeout for HTTP write request
 	// to remote storage
-	WriteTimeout time.Duration
-	// Transport will be used by the underlying http.Client
-	Transport *http.Transport
+	ReadTimeout time.Duration
+	// Username is the remote read username, optional.
+	Username string
+	// Password is the remote read password, optional.
+	Password string
+
+	transport *http.Transport
 }
 
 // Filter is used for request remote read data by filter
@@ -54,51 +62,33 @@ type Filter struct {
 	LabelValue string
 }
 
-type sample struct {
-	ts    int64
-	value float64
-}
-
-func (f Filter) inRange(min, max int64) bool {
-	fmin, fmax := f.Min, f.Max
-	if min == 0 {
-		fmin = min
-	}
-	if fmax == 0 {
-		fmax = max
-	}
-	return min <= fmax && fmin <= max
-}
-
-// NewClient returns asynchronous client for
-// reading timeseries via remote write protocol.
+// NewClient returns client for
+// reading time series via remote read protocol.
 func NewClient(cfg Config) (*Client, error) {
 	if cfg.Addr == "" {
 		return nil, fmt.Errorf("config.Addr can't be empty")
 	}
-	if cfg.WriteTimeout == 0 {
-		cfg.WriteTimeout = defaultWriteTimeout
-	}
-	if cfg.Transport == nil {
-		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
+	if cfg.ReadTimeout == 0 {
+		cfg.ReadTimeout = defaultReadTimeout
 	}
 
 	c := &Client{
 		c: &http.Client{
-			Timeout:   cfg.WriteTimeout,
-			Transport: cfg.Transport,
+			Timeout:   cfg.ReadTimeout,
+			Transport: http.DefaultTransport.(*http.Transport).Clone(),
 		},
-		addr:    strings.TrimSuffix(cfg.Addr, "/"),
-		authCfg: cfg.AuthCfg,
+		addr:     strings.TrimSuffix(cfg.Addr, "/"),
+		user:     cfg.Username,
+		password: cfg.Password,
 	}
 	return c, nil
 }
 
-// Read fetch data from remote write source
-func (c *Client) Read(ctx context.Context, filter *Filter, steamCb StreamCallback) error {
+// Read fetch data from remote read source
+func (c *Client) Read(ctx context.Context, filter *Filter, streamCb StreamCallback) error {
 	query, err := c.query(filter)
 	if err != nil {
-		return err
+		return fmt.Errorf("error prepare stream query: %w", err)
 	}
 	req := &prompb.ReadRequest{
 		Queries: []*prompb.Query{
@@ -114,7 +104,7 @@ func (c *Client) Read(ctx context.Context, filter *Filter, steamCb StreamCallbac
 	const attempts = 5
 	b := snappy.Encode(nil, data)
 	for i := 0; i < attempts; i++ {
-		err := c.fetch(ctx, b, steamCb)
+		err := c.fetch(ctx, b, streamCb)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
 				return fmt.Errorf("process stoped")
@@ -129,9 +119,30 @@ func (c *Client) Read(ctx context.Context, filter *Filter, steamCb StreamCallbac
 	return nil
 }
 
-func (c *Client) fetch(ctx context.Context, data []byte, steamCb StreamCallback) error {
+// Ping checks the health of the read source
+func (c *Client) Ping() error {
+	url := c.addr + healthPath
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("cannot create request to %q: %s", url, err)
+	}
+	if c.user != "" {
+		req.SetBasicAuth(c.user, c.password)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("bad status code: %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {
 	r := bytes.NewReader(data)
-	req, err := http.NewRequest("POST", c.addr, r)
+	url := c.addr + remoteReadPath
+	req, err := http.NewRequest("POST", url, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}
@@ -141,8 +152,8 @@ func (c *Client) fetch(ctx context.Context, data []byte, steamCb StreamCallback)
 	req.Header.Set("Content-Type", "application/x-protobuf")
 	req.Header.Set("X-Prometheus-Remote-Read-Version", "0.1.0")
 
-	if c.authCfg != nil {
-		c.authCfg.SetHeaders(req, true)
+	if c.user != "" {
+		req.SetBasicAuth(c.user, c.password)
 	}
 
 	resp, err := c.c.Do(req.WithContext(ctx))
@@ -182,7 +193,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, steamCb StreamCallback)
 				}
 				ts.Samples = append(ts.Samples, samples...)
 			}
-			if err := steamCb(ts); err != nil {
+			if err := streamCb(ts); err != nil {
 				return err
 			}
 		}
@@ -232,14 +243,14 @@ func toLabelMatchers(matcher *labels.Matcher) (*prompb.LabelMatcher, error) {
 func parseSamples(chunk []byte) ([]prompb.Sample, error) {
 	c, err := chunkenc.FromData(chunkenc.EncXOR, chunk)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error read chunk: %w", err)
 	}
 
 	var samples []prompb.Sample
 	it := c.Iterator(nil)
 	for it.Next() {
 		if it.Err() != nil {
-			return nil, it.Err()
+			return nil, fmt.Errorf("error iterate over chunks: %w", it.Err())
 		}
 
 		ts, v := it.At()
@@ -250,8 +261,5 @@ func parseSamples(chunk []byte) ([]prompb.Sample, error) {
 		samples = append(samples, s)
 	}
 
-	if it.Err() != nil {
-		return nil, it.Err()
-	}
-	return samples, err
+	return samples, it.Err()
 }
