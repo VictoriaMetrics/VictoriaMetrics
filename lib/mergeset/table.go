@@ -204,7 +204,7 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
 			ibs[i] = nil
 		}
 		ris.ibs = ibs[:0]
-		ris.lastFlushTime = fasttime.UnixTimestamp()
+		atomic.StoreUint64(&ris.lastFlushTime, fasttime.UnixTimestamp())
 	}
 	ris.mu.Unlock()
 
@@ -632,19 +632,18 @@ func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, tb *Table, i
 	if flushSeconds <= 0 {
 		flushSeconds = 1
 	}
-
-	ris.mu.Lock()
-	if isFinal || currentTime-ris.lastFlushTime > uint64(flushSeconds) {
+	lastFlushTime := atomic.LoadUint64(&ris.lastFlushTime)
+	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
+		ris.mu.Lock()
 		ibs := ris.ibs
 		dst = append(dst, ibs...)
 		for i := range ibs {
 			ibs[i] = nil
 		}
 		ris.ibs = ibs[:0]
-		ris.lastFlushTime = currentTime
+		atomic.StoreUint64(&ris.lastFlushTime, currentTime)
+		ris.mu.Unlock()
 	}
-	ris.mu.Unlock()
-
 	return dst
 }
 
