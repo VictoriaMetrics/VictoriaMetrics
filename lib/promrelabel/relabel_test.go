@@ -116,6 +116,12 @@ func TestApplyRelabelConfigs(t *testing.T) {
   target_label: "bar"
   regex: ".+"
 `, `{xxx="yyy"}`, false, `{xxx="yyy"}`)
+		f(`
+- action: replace
+  source_labels: ["foo"]
+  target_label: "xxx"
+  regex: ".+"
+`, `{xxx="yyy"}`, false, `{xxx="yyy"}`)
 	})
 	t.Run("replace-if-miss", func(t *testing.T) {
 		f(`
@@ -133,6 +139,16 @@ func TestApplyRelabelConfigs(t *testing.T) {
   target_label: "bar"
   replacement: "a-$1-b"
 `, `{xxx="yyy"}`, false, `{bar="a-yyy;-b",xxx="yyy"}`)
+		f(`
+- action: replace
+  source_labels: ["xxx", "foo"]
+  target_label: "xxx"
+`, `{xxx="yyy"}`, false, `{xxx="yyy;"}`)
+		f(`
+- action: replace
+  source_labels: ["foo"]
+  target_label: "xxx"
+`, `{xxx="yyy"}`, false, `{}`)
 	})
 	t.Run("replace-if-hit", func(t *testing.T) {
 		f(`
