@@ -19,7 +19,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/golang/snappy v0.0.4
-	github.com/googleapis/gax-go/v2 v2.5.1
+	github.com/googleapis/gax-go/v2 v2.6.0
 	github.com/influxdata/influxdb v1.10.0
 	github.com/klauspost/compress v1.15.11
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
