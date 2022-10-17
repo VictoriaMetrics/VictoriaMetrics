@@ -1,5 +1,14 @@
 export interface AppParams {
   serverURL: string
+  headerStyles?: {
+    background?: string
+    color?: string
+  }
+  palette?: {
+    primary?: string
+    secondary?: string
+    error?: string
+  }
 }
 
 const getAppModeParams = (): AppParams => {
