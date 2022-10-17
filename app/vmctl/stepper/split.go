@@ -11,7 +11,8 @@ const (
 	// StepDay represents a one day interval
 	StepDay string = "day"
 	// StepHour represents a one hour interval
-	StepHour   string = "hour"
+	StepHour string = "hour"
+	// StepMinute represents a one minute interval
 	StepMinute string = "minute"
 )
 

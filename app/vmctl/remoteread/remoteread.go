@@ -51,8 +51,6 @@ type Config struct {
 	Username string
 	// Password is the remote read password, optional.
 	Password string
-
-	transport *http.Transport
 }
 
 // Filter is used for request remote read data by filter

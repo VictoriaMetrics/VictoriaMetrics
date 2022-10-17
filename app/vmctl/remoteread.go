@@ -15,8 +15,7 @@ import (
 )
 
 type remotereadProcessor struct {
-	filter    remoteReadFilter
-	rateLimit int64
+	filter remoteReadFilter
 
 	dst *vm.Importer
 	src *remoteread.Client
