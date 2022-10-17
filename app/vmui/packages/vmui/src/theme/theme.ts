@@ -14,6 +14,15 @@ const THEME = createTheme({
     },
     error: {
       main: palette?.error || "#FF4141"
+    },
+    warning: {
+      main: palette?.warning || "#ff9800"
+    },
+    info: {
+      main: palette?.info || "#03a9f4"
+    },
+    success: {
+      main: palette?.success || "#4caf50"
     }
   },
   components: {

@@ -7,12 +7,12 @@ import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/
 import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
-import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
+import {AxisRange, YaxisState} from "../../../state/graph/reducer";
 
 export interface GraphViewProps {
   data?: MetricResult[];
   period: TimeParams;
-  customStep: CustomStep;
+  customStep: number;
   query: string[];
   alias?: string[],
   yaxis: YaxisState;
@@ -49,7 +49,7 @@ const GraphView: FC<GraphViewProps> = ({
   setPeriod,
   alias = []
 }) => {
-  const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
+  const currentStep = useMemo(() => customStep || period.step || 1, [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);

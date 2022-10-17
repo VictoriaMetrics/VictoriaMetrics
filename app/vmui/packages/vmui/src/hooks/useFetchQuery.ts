@@ -7,7 +7,6 @@ import {ErrorTypes} from "../types";
 import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import debounce from "lodash.debounce";
 import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
-import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
 import {arrayEquals} from "../utils/array";
 import Trace from "../components/CustomPanel/Trace/Trace";
@@ -17,7 +16,7 @@ interface FetchQueryParams {
   predefinedQuery?: string[]
   visible: boolean
   display?: DisplayType,
-  customStep: CustomStep,
+  customStep: number,
 }
 
 const appModeEnable = getAppModeEnable();
@@ -107,7 +106,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(server)) {
       const updatedPeriod = {...period};
-      if (customStep.enable) updatedPeriod.step = customStep.value;
+      updatedPeriod.step = customStep;
       return expr.filter(q => q.trim()).map(q => displayChart
         ? getQueryRangeUrl(server, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(server, q, updatedPeriod, isTracingEnabled));

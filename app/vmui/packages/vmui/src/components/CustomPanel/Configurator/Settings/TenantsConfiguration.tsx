@@ -1,13 +1,11 @@
-import React, {FC, useState, useEffect} from "preact/compat";
-import Box from "@mui/material/Box";
+import React, {FC, useState, useEffect, useCallback} from "preact/compat";
 import TextField from "@mui/material/TextField";
 import InputAdornment from "@mui/material/InputAdornment";
 import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
-import Button from "@mui/material/Button";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import {ChangeEvent} from "react";
-
+import debounce from "lodash.debounce";
 
 const TenantsConfiguration: FC = () => {
   const {tenantId: tenantIdState} = useAppState();
@@ -15,12 +13,12 @@ const TenantsConfiguration: FC = () => {
 
   const [tenantId, setTenantId] = useState<string | number>(tenantIdState || 0);
 
+  const handleApply = (tenantId: string | number) => dispatch({type: "SET_TENANT_ID", payload: Number(tenantId)});
+  const debouncedHandleApply = useCallback(debounce(handleApply, 700), []);
+
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setTenantId(e.target.value);
-  };
-
-  const handleApply = () => {
-    dispatch({type: "SET_TENANT_ID", payload: Number(tenantId)});
+    debouncedHandleApply(e.target.value);
   };
 
   useEffect(() => {
@@ -28,33 +26,23 @@ const TenantsConfiguration: FC = () => {
     setTenantId(tenantIdState);
   }, [tenantIdState]);
 
-  return <Box display={"flex"} alignItems={"stretch"}>
-    <TextField
-      label="Tenant ID"
-      type="number"
-      size="small"
-      variant="outlined"
-      value={tenantId}
-      onChange={handleChange}
-      InputProps={{
-        startAdornment: (
-          <InputAdornment position="start">
-            <Tooltip title={"Define tenant id if you need request to another storage"}>
-              <InfoIcon fontSize={"small"} />
-            </Tooltip>
-          </InputAdornment>
-        ),
-      }}
-    />
-    <Button
-      variant={"outlined"}
-      onClick={handleApply}
-      color="primary"
-      sx={{ml: 1, minHeight: "100%"}}
-    >
-      Apply
-    </Button>
-  </Box>;
+  return <TextField
+    label="Tenant ID"
+    type="number"
+    size="small"
+    variant="outlined"
+    value={tenantId}
+    onChange={handleChange}
+    InputProps={{
+      startAdornment: (
+        <InputAdornment position="start">
+          <Tooltip title={"Define tenant id if you need request to another storage"}>
+            <InfoIcon fontSize={"small"} />
+          </Tooltip>
+        </InputAdornment>
+      ),
+    }}
+  />;
 };
 
 export default TenantsConfiguration;
