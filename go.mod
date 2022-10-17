@@ -32,7 +32,7 @@ require (
 	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b
 	golang.org/x/oauth2 v0.0.0-20221006150949-b44042a4b9c1
 	golang.org/x/sys v0.0.0-20221013171732-95e765b1cc43
-	google.golang.org/api v0.98.0
+	google.golang.org/api v0.99.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
