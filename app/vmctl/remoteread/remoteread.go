@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -20,12 +19,10 @@ import (
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
-var bodyBufferPool bytesutil.ByteBufferPool
-
 const (
 	defaultReadTimeout = 30 * time.Second
 	remoteReadPath     = "/api/v1/read"
-	healthPath         = "/health"
+	healthPath         = "/-/healthy"
 )
 
 // StreamCallback is a callback function for processing time series
@@ -55,9 +52,10 @@ type Config struct {
 
 // Filter is used for request remote read data by filter
 type Filter struct {
-	Min, Max   int64
-	Label      string
-	LabelValue string
+	StartTimestampMs int64
+	EndTimestampMs   int64
+	Label            string
+	LabelValue       string
 }
 
 // NewClient returns client for
@@ -167,10 +165,9 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	bb := bodyBufferPool.Get()
-	defer bodyBufferPool.Put(bb)
-
-	stream := remote.NewChunkedReader(resp.Body, remote.DefaultChunkedReadLimit, bb.B)
+	var b bytes.Buffer
+	bb := b.Bytes()
+	stream := remote.NewChunkedReader(resp.Body, remote.DefaultChunkedReadLimit, bb)
 
 	for {
 		var ts prompb.TimeSeries
@@ -201,18 +198,23 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 
 func (c *Client) query(filter *Filter) (*prompb.Query, error) {
 	var ms *labels.Matcher
+	var err error
 	if filter.Label == "" && filter.LabelValue == "" {
-		ms = labels.MustNewMatcher(labels.MatchRegexp, labels.MetricName, ".+")
+		ms, err = labels.NewMatcher(labels.MatchRegexp, labels.MetricName, ".+")
 	} else {
-		ms = labels.MustNewMatcher(labels.MatchRegexp, filter.Label, filter.LabelValue)
+		ms, err = labels.NewMatcher(labels.MatchRegexp, filter.Label, filter.LabelValue)
 	}
+	if err != nil {
+		return nil, err
+	}
+
 	m, err := toLabelMatchers(ms)
 	if err != nil {
 		return nil, err
 	}
 	return &prompb.Query{
-		StartTimestampMs: filter.Min,
-		EndTimestampMs:   filter.Max - 1,
+		StartTimestampMs: filter.StartTimestampMs,
+		EndTimestampMs:   filter.EndTimestampMs - 1,
 		Matchers:         []*prompb.LabelMatcher{m},
 	}, nil
 }

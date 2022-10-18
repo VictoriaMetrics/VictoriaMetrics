@@ -26,44 +26,17 @@ type remotereadProcessor struct {
 type remoteReadFilter struct {
 	label      string
 	labelValue string
-	timeStart  string
-	timeEnd    string
+	timeStart  *time.Time
+	timeEnd    *time.Time
 	chunk      string
 }
 
-func (f remoteReadFilter) startTimeParsed() (*time.Time, error) {
-	startOfRange, err := time.Parse(time.RFC3339, f.timeStart)
-	if err != nil {
-		return nil, err
-	}
-	return &startOfRange, nil
-}
-
-func (f remoteReadFilter) endTimeParsed() (*time.Time, error) {
-	if f.timeEnd == "" {
-		t := time.Now()
-		return &t, nil
-	}
-	endOfRange, err := time.Parse(time.RFC3339, f.timeEnd)
-	if err != nil {
-		return nil, err
-	}
-	return &endOfRange, nil
-}
-
 func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) error {
-
-	startOfRange, err := rrp.filter.startTimeParsed()
-	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, rrp.filter.timeStart, time.RFC3339, err)
+	if rrp.filter.timeEnd == nil {
+		t := time.Now()
+		rrp.filter.timeEnd = &t
 	}
-
-	endOfRange, err := rrp.filter.endTimeParsed()
-	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, rrp.filter.timeEnd, time.RFC3339, err)
-	}
-
-	ranges, err := stepper.SplitDateRange(*startOfRange, *endOfRange, rrp.filter.chunk)
+	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}
@@ -87,6 +60,14 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 	errCh := make(chan error)
 	rrp.dst.ResetStats()
 
+	if err := rrp.src.Ping(); err != nil {
+		return fmt.Errorf("data source not ready: %s", err)
+	}
+
+	if err := rrp.dst.Ping(); err != nil {
+		return fmt.Errorf("destination source not ready: %s", err)
+	}
+
 	var wg sync.WaitGroup
 	wg.Add(rrp.cc)
 	for i := 0; i < rrp.cc; i++ {
@@ -109,10 +90,10 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 		case vmErr := <-rrp.dst.Errors():
 			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
 		case rangeC <- &remoteread.Filter{
-			Min:        r[0].UnixMilli(),
-			Max:        r[1].UnixMilli(),
-			Label:      rrp.filter.label,
-			LabelValue: rrp.filter.labelValue}:
+			StartTimestampMs: r[0].UnixMilli(),
+			EndTimestampMs:   r[1].UnixMilli(),
+			Label:            rrp.filter.label,
+			LabelValue:       rrp.filter.labelValue}:
 		}
 	}
 
@@ -135,24 +116,33 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 
 func (rrp *remotereadProcessor) do(ctx context.Context, filter *remoteread.Filter) error {
 	return rrp.src.Read(ctx, filter, func(series prompb.TimeSeries) error {
-		imts := convertTimeseries(series)
-		if err := rrp.dst.Input(imts); err != nil {
-			tStart := time.Unix(0, filter.Min*int64(time.Millisecond))
-			tEnd := time.Unix(0, filter.Max*int64(time.Millisecond))
-			return fmt.Errorf("failed to read data for time range start: %s, end: %s, %s", tStart, tEnd, err)
+		ts := convertTimeseries(series)
+		if err := rrp.dst.Input(ts); err != nil {
+			return fmt.Errorf(
+				"failed to read data for time range start: %d, end: %d, %s",
+				filter.StartTimestampMs, filter.EndTimestampMs, err)
 		}
 		return nil
 	})
 }
 
 func convertTimeseries(series prompb.TimeSeries) *vm.TimeSeries {
-	var ts vm.TimeSeries
+	labelPairs := make([]vm.LabelPair, 0, len(series.Labels))
 	for _, label := range series.Labels {
-		ts.LabelPairs = append(ts.LabelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})
+		labelPairs = append(labelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})
 	}
+
+	n := len(series.Samples)
+	values := make([]float64, 0, n)
+	timestamps := make([]int64, 0, n)
 	for _, sample := range series.Samples {
-		ts.Values = append(ts.Values, sample.Value)
-		ts.Timestamps = append(ts.Timestamps, sample.Timestamp)
+		values = append(values, sample.Value)
+		timestamps = append(timestamps, sample.Timestamp)
 	}
-	return &ts
+
+	return &vm.TimeSeries{
+		LabelPairs: labelPairs,
+		Timestamps: timestamps,
+		Values:     values,
+	}
 }

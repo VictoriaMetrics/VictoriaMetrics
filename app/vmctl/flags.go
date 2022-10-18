@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -421,13 +422,15 @@ var (
 			Usage: "Number of concurrently running remote read readers",
 			Value: 1,
 		},
-		&cli.StringFlag{
-			Name:  remoteReadFilterTimeStart,
-			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+		&cli.TimestampFlag{
+			Name:   remoteReadFilterTimeStart,
+			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout: time.RFC3339,
 		},
-		&cli.StringFlag{
-			Name:  remoteReadFilterTimeEnd,
-			Usage: "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+		&cli.TimestampFlag{
+			Name:   remoteReadFilterTimeEnd,
+			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout: time.RFC3339,
 		},
 		&cli.StringFlag{
 			Name:  remoteReadFilterLabel,

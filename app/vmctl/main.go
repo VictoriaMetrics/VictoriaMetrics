@@ -138,8 +138,8 @@ func main() {
 						src: rr,
 						dst: importer,
 						filter: remoteReadFilter{
-							timeStart:  c.String(remoteReadFilterTimeStart),
-							timeEnd:    c.String(remoteReadFilterTimeEnd),
+							timeStart:  c.Timestamp(remoteReadFilterTimeStart),
+							timeEnd:    c.Timestamp(remoteReadFilterTimeEnd),
 							label:      c.String(remoteReadFilterLabel),
 							labelValue: c.String(remoteReadFilterLabelValue),
 							chunk:      c.String(remoteReadStepInterval),
