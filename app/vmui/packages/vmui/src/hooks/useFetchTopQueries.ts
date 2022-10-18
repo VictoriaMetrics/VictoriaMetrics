@@ -8,7 +8,6 @@ import {TopQueriesData} from "../types";
 import {useTopQueriesState} from "../state/topQueries/TopQueriesStateContext";
 
 export const useFetchTopQueries = () => {
-  const {serverURL: appServerUrl} = getAppModeParams();
   const {serverUrl} = useAppState();
   const {topN, maxLifetime, runQuery} = useTopQueriesState();
 
@@ -16,8 +15,7 @@ export const useFetchTopQueries = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
 
-  const server = useMemo(() => appServerUrl || serverUrl, [serverUrl, appServerUrl]);
-  const fetchUrl = useMemo(() => getTopQueries(server, topN, maxLifetime), [server, topN, maxLifetime]);
+  const fetchUrl = useMemo(() => getTopQueries(serverUrl, topN, maxLifetime), [serverUrl, topN, maxLifetime]);
 
   const fetchData = async () => {
     setLoading(true);
