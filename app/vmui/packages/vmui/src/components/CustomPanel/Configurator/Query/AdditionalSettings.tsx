@@ -7,6 +7,7 @@ import BasicSwitch from "../../../../theme/switch";
 import StepConfigurator from "./StepConfigurator";
 import {useGraphDispatch} from "../../../../state/graph/GraphStateContext";
 import {getAppModeParams} from "../../../../utils/app-mode";
+import TenantsConfiguration from "../Settings/TenantsConfiguration";
 
 const AdditionalSettings: FC = () => {
 
@@ -55,6 +56,7 @@ const AdditionalSettings: FC = () => {
         }}
       />
     </Box>
+    {!!inputTenantID && <Box sx={{mx: 3}}><TenantsConfiguration/></Box>}
   </Box>;
 };
 

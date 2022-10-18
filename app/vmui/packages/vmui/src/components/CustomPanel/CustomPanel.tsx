@@ -16,12 +16,8 @@ import {useFetchQueryOptions} from "../../hooks/useFetchQueryOptions";
 import TracingsView from "./Views/TracingsView";
 import Trace from "./Trace/Trace";
 import TableSettings from "../Table/TableSettings";
-import {getAppModeParams} from "../../utils/app-mode";
-import TenantsConfiguration from "./Configurator/Settings/TenantsConfiguration";
 
 const CustomPanel: FC = () => {
-
-  const {inputTenantID} = getAppModeParams();
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
@@ -67,7 +63,6 @@ const CustomPanel: FC = () => {
   return (
     <Box p={4} display="grid" gridTemplateRows="auto 1fr" style={{minHeight: "calc(100vh - 64px)"}}>
       <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
-        {!!inputTenantID && <Box sx={{mb: 4}}><TenantsConfiguration/></Box>}
         <QueryConfigurator error={error} queryOptions={queryOptions}/>
       </Box>
       <Box height="100%">
