@@ -55,7 +55,7 @@ Released at 14-10-2022
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix deletion of old backups at [Azure blob storage](https://azure.microsoft.com/en-us/products/storage/blobs/).
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly apply regex filters when searching for time series. Previously unexpected time series could be returned from regex filter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3227). The issue was introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmbagent.html): properly apply `if` section with regex filters. Previously unexpected metrics could be returned from `if` section. The issue was introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
-
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not show invalid error message in Kubernetes service discovery: `cannot parse WatchEvent json response: EOF`. The invalid error message has been appeared in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
 
 ## [v1.82.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.0)
 
