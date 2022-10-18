@@ -112,8 +112,7 @@ func ExecuteFuncString(template, startTag, endTag string, f TagFunc) string {
 // but when f returns an error, ExecuteFuncStringWithErr won't panic like ExecuteFuncString
 // it just returns an empty string and the error f returned
 func ExecuteFuncStringWithErr(template, startTag, endTag string, f TagFunc) (string, error) {
-	tagsCount := bytes.Count(unsafeString2Bytes(template), unsafeString2Bytes(startTag))
-	if tagsCount == 0 {
+	if n := bytes.Index(unsafeString2Bytes(template), unsafeString2Bytes(startTag)); n < 0 {
 		return template, nil
 	}
 
