@@ -48,7 +48,7 @@ export const getMinMaxBuffer = (min: number | null, max: number | null): [number
   }
   const valueRange = Math.abs(max - min) || Math.abs(min) || 1;
   const padding = 0.02*valueRange;
-  return [Math.floor(min - padding), Math.ceil(max + padding)];
+  return [min - padding, max + padding];
 };
 
 export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {
