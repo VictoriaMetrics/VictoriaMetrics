@@ -218,7 +218,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 			return
 		}
 
-		logger.Errorf("attempt %d to send request failed: %s", i+1, err)
+		logger.Warnf("attempt %d to send request failed: %s", i+1, err)
 		// sleeping to avoid remote db hammering
 		time.Sleep(time.Second)
 		continue
