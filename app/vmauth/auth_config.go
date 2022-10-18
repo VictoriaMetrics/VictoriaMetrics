@@ -250,7 +250,11 @@ func readAuthConfig(path string) (map[string]*UserInfo, error) {
 }
 
 func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
-	data = envtemplate.Replace(data)
+	var err error
+	data, err = envtemplate.Replace(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
+	}
 	var ac AuthConfig
 	if err := yaml.UnmarshalStrict(data, &ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)

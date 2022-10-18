@@ -26,7 +26,7 @@ require (
 	github.com/urfave/cli/v2 v2.19.2
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
-	github.com/valyala/fasttemplate v1.2.1
+	github.com/valyala/fasttemplate v1.2.2
 	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.0.0-20221014081412-f15817d10f9b
