@@ -122,6 +122,7 @@ func main() {
 						Username:    c.String(remoteReadUser),
 						Password:    c.String(remoteReadPassword),
 						ReadTimeout: c.Duration(remoteReadHTTPTimeout),
+						UseStream:   c.Bool(remoteReadUseStream),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)

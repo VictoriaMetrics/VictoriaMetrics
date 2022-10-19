@@ -30,10 +30,11 @@ type StreamCallback func(series prompb.TimeSeries) error
 // Client is an HTTP client for reading
 // time series via remote read protocol.
 type Client struct {
-	addr     string
-	c        *http.Client
-	user     string
-	password string
+	addr      string
+	c         *http.Client
+	user      string
+	password  string
+	useStream bool
 }
 
 // Config is config for remote read.
@@ -47,6 +48,8 @@ type Config struct {
 	Username string
 	// Password is the remote read password, optional.
 	Password string
+	// UseStream weather to use SAMPLES or STREAMED_XOR_CHUNKS mode
+	UseStream bool
 }
 
 // Filter is used for request remote read data by filter
@@ -158,9 +161,42 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	if c.useStream {
+		return processStreamResponse(resp.Body, streamCb)
+	}
+
+	return processResponse(resp.Body, streamCb)
+}
+
+func processResponse(body io.Reader, callback StreamCallback) error {
+	d, err := io.ReadAll(body)
+	if err != nil {
+		return fmt.Errorf("error reading response: %w", err)
+	}
+	uncompressed, err := snappy.Decode(nil, d)
+	if err != nil {
+		return fmt.Errorf("error decode response: %w", err)
+	}
+	var readResp prompb.ReadResponse
+	err = proto.Unmarshal(uncompressed, &readResp)
+	if err != nil {
+		return fmt.Errorf("unable to unmarshal response body: %w", err)
+	}
+	if len(readResp.Results) == 0 {
+		return fmt.Errorf("got empty response")
+	}
+	for _, ts := range readResp.Results[0].Timeseries {
+		if err := callback(*ts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func processStreamResponse(body io.Reader, callback StreamCallback) error {
 	var b bytes.Buffer
 	bb := b.Bytes()
-	stream := remote.NewChunkedReader(resp.Body, remote.DefaultChunkedReadLimit, bb)
+	stream := remote.NewChunkedReader(body, remote.DefaultChunkedReadLimit, bb)
 
 	for {
 		var ts prompb.TimeSeries
@@ -181,7 +217,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 				}
 				ts.Samples = append(ts.Samples, samples...)
 			}
-			if err := streamCb(ts); err != nil {
+			if err := callback(ts); err != nil {
 				return err
 			}
 		}

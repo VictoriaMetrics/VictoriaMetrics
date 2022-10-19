@@ -403,6 +403,7 @@ var (
 
 const (
 	remoteRead                 = "remote-read"
+	remoteReadUseStream        = "remote-read-use-stream"
 	remoteReadConcurrency      = "remote-read-concurrency"
 	remoteReadFilterTimeStart  = "remote-read-filter-time-start"
 	remoteReadFilterTimeEnd    = "remote-read-filter-time-end"
@@ -444,6 +445,11 @@ var (
 		&cli.BoolFlag{
 			Name:  remoteRead,
 			Usage: "Use Prometheus remote read protocol",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadUseStream,
+			Usage: "Defines to use STREAMED_XOR_CHUNKS mode",
 			Value: false,
 		},
 		&cli.StringFlag{
