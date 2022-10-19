@@ -75,9 +75,10 @@ func NewClient(cfg Config) (*Client, error) {
 			Timeout:   cfg.ReadTimeout,
 			Transport: http.DefaultTransport.(*http.Transport).Clone(),
 		},
-		addr:     strings.TrimSuffix(cfg.Addr, "/"),
-		user:     cfg.Username,
-		password: cfg.Password,
+		addr:      strings.TrimSuffix(cfg.Addr, "/"),
+		user:      cfg.Username,
+		password:  cfg.Password,
+		useStream: cfg.UseStream,
 	}
 	return c, nil
 }
@@ -168,7 +169,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	return processResponse(resp.Body, streamCb)
 }
 
-func processResponse(body io.Reader, callback StreamCallback) error {
+func processResponse(body io.ReadCloser, callback StreamCallback) error {
 	d, err := io.ReadAll(body)
 	if err != nil {
 		return fmt.Errorf("error reading response: %w", err)
@@ -193,7 +194,7 @@ func processResponse(body io.Reader, callback StreamCallback) error {
 	return nil
 }
 
-func processStreamResponse(body io.Reader, callback StreamCallback) error {
+func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 	var b bytes.Buffer
 	bb := b.Bytes()
 	stream := remote.NewChunkedReader(body, remote.DefaultChunkedReadLimit, bb)
