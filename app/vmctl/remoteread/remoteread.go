@@ -89,12 +89,7 @@ func (c *Client) Read(ctx context.Context, filter *Filter, streamCb StreamCallba
 	if err != nil {
 		return fmt.Errorf("error prepare stream query: %w", err)
 	}
-	req := &prompb.ReadRequest{
-		Queries: []*prompb.Query{
-			query,
-		},
-		AcceptedResponseTypes: []prompb.ReadRequest_ResponseType{prompb.ReadRequest_STREAMED_XOR_CHUNKS},
-	}
+	req := c.request(query)
 	data, err := proto.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("unable to marshal read request: %w", err)
@@ -247,6 +242,19 @@ func (c *Client) query(filter *Filter) (*prompb.Query, error) {
 		EndTimestampMs:   filter.EndTimestampMs - 1,
 		Matchers:         []*prompb.LabelMatcher{m},
 	}, nil
+}
+
+func (c *Client) request(query *prompb.Query) *prompb.ReadRequest {
+	req := &prompb.ReadRequest{
+		Queries: []*prompb.Query{
+			query,
+		},
+	}
+
+	if c.useStream {
+		req.AcceptedResponseTypes = []prompb.ReadRequest_ResponseType{prompb.ReadRequest_STREAMED_XOR_CHUNKS}
+	}
+	return req
 }
 
 func toLabelMatchers(matcher *labels.Matcher) (*prompb.LabelMatcher, error) {
