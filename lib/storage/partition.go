@@ -64,7 +64,7 @@ const finalPartsToMerge = 3
 // The number of shards for rawRow entries per partition.
 //
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
-var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 3) / 4
+var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 1) / 2
 
 // getMaxRawRowsPerShard returns the maximum number of rows that haven't been converted into parts yet.
 func getMaxRawRowsPerShard() int {
@@ -477,7 +477,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 		rowsToFlush = append(rowsToFlush, rrs.rows...)
 		rowsToFlush = append(rowsToFlush, rows...)
 		rrs.rows = rrs.rows[:0]
-		rrs.lastFlushTime = fasttime.UnixTimestamp()
+		atomic.StoreUint64(&rrs.lastFlushTime, fasttime.UnixTimestamp())
 	}
 	rrs.mu.Unlock()
 
@@ -726,14 +726,14 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFin
 	if flushSeconds <= 0 {
 		flushSeconds = 1
 	}
-
-	rrs.mu.Lock()
-	if isFinal || currentTime-rrs.lastFlushTime > uint64(flushSeconds) {
+	lastFlushTime := atomic.LoadUint64(&rrs.lastFlushTime)
+	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
+		rrs.mu.Lock()
 		dst = append(dst, rrs.rows...)
 		rrs.rows = rrs.rows[:0]
+		atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
+		rrs.mu.Unlock()
 	}
-	rrs.mu.Unlock()
-
 	return dst
 }
 

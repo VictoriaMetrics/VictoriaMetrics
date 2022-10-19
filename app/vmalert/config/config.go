@@ -243,9 +243,12 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 func parseFile(path string) ([]Group, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("error reading alert rule file: %w", err)
+		return nil, fmt.Errorf("error reading alert rule file %q: %w", path, err)
 	}
-	data = envtemplate.Replace(data)
+	data, err = envtemplate.Replace(data)
+	if err != nil {
+		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
+	}
 	g := struct {
 		Groups []Group `yaml:"groups"`
 		// Catches all undefined fields and must be empty after parsing.
