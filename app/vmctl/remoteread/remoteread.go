@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
 	"github.com/prometheus/prometheus/model/labels"
@@ -97,20 +96,14 @@ func (c *Client) Read(ctx context.Context, filter *Filter, streamCb StreamCallba
 		return fmt.Errorf("unable to marshal read request: %w", err)
 	}
 
-	const attempts = 5
 	b := snappy.Encode(nil, data)
-	for i := 0; i < attempts; i++ {
-		err := c.fetch(ctx, b, streamCb)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
-				return fmt.Errorf("process stoped")
-			}
-			logger.Errorf("attempt %d to fetch data from remote storage: %s", i+1, err)
-			// sleeping to avoid remote db hammering
-			time.Sleep(time.Second)
-			continue
+
+	err = c.fetch(ctx, b, streamCb)
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return fmt.Errorf("process stopped")
 		}
-		return nil
+		return fmt.Errorf("error to fetch data from remote read storage: %s", err)
 	}
 	return nil
 }
@@ -200,12 +193,12 @@ func (c *Client) query(filter *Filter) (*prompb.Query, error) {
 	var ms *labels.Matcher
 	var err error
 	if filter.Label == "" && filter.LabelValue == "" {
-		ms, err = labels.NewMatcher(labels.MatchRegexp, labels.MetricName, ".+")
+		ms = labels.MustNewMatcher(labels.MatchRegexp, labels.MetricName, ".+")
 	} else {
 		ms, err = labels.NewMatcher(labels.MatchRegexp, filter.Label, filter.LabelValue)
-	}
-	if err != nil {
-		return nil, err
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	m, err := toLabelMatchers(ms)

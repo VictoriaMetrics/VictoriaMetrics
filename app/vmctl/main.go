@@ -114,7 +114,7 @@ func main() {
 			},
 			{
 				Name:  "remote-read",
-				Usage: "Migrate timeseries by remote-read protocol",
+				Usage: "Migrate timeseries by prometheus remote-read protocol",
 				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					rr, err := remoteread.NewClient(remoteread.Config{
