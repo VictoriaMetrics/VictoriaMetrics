@@ -10,6 +10,7 @@ Features:
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
+- migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
 
 To see the full list of supported modes
@@ -28,6 +29,7 @@ COMMANDS:
    influx      Migrate timeseries from InfluxDB
    prometheus  Migrate timeseries from Prometheus
    vm-native   Migrate time series between VictoriaMetrics installations via native binary format
+   remote-read Migrate timeseries by Prometheus remote read protocol
    verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
@@ -432,6 +434,79 @@ Found 2 blocks to import. Continue? [Y/n] y
 2020/02/23 15:51:07 Total time: 7.153158218s
 ```
 
+## Migrating data by remote read protocol
+
+`vmctl` supports the `remote-read` mode for migrating data from any database which supports Prometheus remote read protocol 
+to VictoriaMetrics time-series database.
+
+See `./vmctl remote-read --help` for details and full list of flags.
+
+Migration is based on the remote reading and allows transparently fetch samples. 
+Remote read protocol supports two different modes `SAMPLES` and `STREAMED_XOR_CHUNKS`. You can read more about it 
+[here](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/).
+
+Please notice at that moment not all TSDB support `STREAMED_XOR_CHUNKS` mode and can handle stream requests.
+
+To start the migration process some flags should be defined:
+1. `--remote-read-src-addr` - address to perform read from;
+2. `--vm-addr` - address for single-node VM is usually equal to `--httpListenAddr`, and for cluster version;
+is equal to `--httpListenAddr` flag of vminsert component;
+3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
+4. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+
+As soon as required flags are provided and all endpoints are accessible, `vmctl` will start the fetch process 
+from remote read API. Basically, it just fetches all timeseries from the provided database and sends import requests 
+for each timeseries and pass results to VM importer. VM importer then accumulates received samples in batches and 
+sends import requests to VM.
+
+The importing process example for local installation of Prometheus
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read \
+--remote-read-src-addr=http://127.0.0.1:9091 \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6
+
+Split defined times into 8798 ranges to import. Continue? [Y/n]
+VM worker 0:↘ 127177 samples/s
+VM worker 1:↘ 140137 samples/s
+VM worker 2:↘ 151606 samples/s
+VM worker 3:↘ 130765 samples/s
+VM worker 4:↘ 131904 samples/s
+VM worker 5:↘ 132693 samples/s
+Processing ranges: 8798 / 8798 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/19 16:45:37 Import finished!
+2022/10/19 16:45:37 VictoriaMetrics importer stats:
+  idle duration: 6m57.793987511s;
+  time spent while importing: 1m18.463744801s;
+  total samples: 25348208;
+  samples/s: 323056.31;
+  total bytes: 669.7 MB;
+  bytes/s: 8.5 MB;
+  import requests: 127;
+  import requests retries: 0;
+2022/10/19 16:45:37 Total time: 1m19.406283424s
+```
+
+### Filtering
+
+The filtering consists of two parts: by label and label value, and time.
+
+Filtering by time may be configured via flags `--remote-read-filter-time-start` and `--remote-read-filter-time-end`
+in RFC3339 format. This filter is applied twice: to drop blocks out of range and to filter timeseries in blocks with
+overlapping time ranges.
+
+Also, you can add flags for filtering by label and label value via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`.
+in string format. For example, you can provide `--remote-read-filter-label=__name__` and `--remote-read-filter-label-value=.*`, and
+all timeseries will be collected from provided source database.
+
+### Configuration
+
+The configuration flags should contain self-explanatory descriptions.
+
 ## Migrating data from Thanos
 
 Thanos uses the same storage engine as Prometheus and the data layout on-disk should be the same. That means
@@ -477,6 +552,60 @@ then import it into VM using `vmctl` in `prometheus` mode.
     ```
     vmctl prometheus --prom-snapshot thanos-data --vm-addr http://victoria-metrics:8428
     ```
+
+### Remote read protocol
+
+At that moment Thanos only supports gRPC remote read protocol, but also they are [recommended](https://thanos.io/tip/thanos/integrations.md/#storeapi-as-prometheus-remote-read)
+to use [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) a proxy, that allows exposing any Thanos 
+service (or anything that exposes gRPC StoreAPI e.g. Querier) via Prometheus remote read protocol.
+
+If you want to migrate data, you should run [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy
+and define the Thanos store address `./thanos-remote-read -store 127.0.0.1:19194`. 
+It is important to know that `store` flag is Thanos Store API gRPC endpoint. 
+Also, it is important to know that thanos-remote-read proxy  doesn't support `STREAMED_XOR_CHUNKS` mode.
+When you run thanos-remote-read proxy, it exposes port to serve HTTP on `10080 by default`.
+
+The importing process example for local installation of Thanos
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read \
+--remote-read-src-addr=http://127.0.0.1:10080 \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6
+```
+
+On the [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy side you will see logs like:
+```
+ts=2022-10-19T15:05:04.193916Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666180800000 max_time:1666184399999 matchers:<type:RE value:\".*\" > aggregates:RAW "
+ts=2022-10-19T15:05:04.468852Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666184400000 max_time:1666187999999 matchers:<type:RE value:\".*\" > aggregates:RAW "
+ts=2022-10-19T15:05:04.553914Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666188000000 max_time:1666191364863 matchers:<type:RE value:\".*\" > aggregates:RAW "
+```
+
+And when process will finish you will see:
+```
+Split defined times into 8799 ranges to import. Continue? [Y/n]
+VM worker 0:↓ 98183 samples/s
+VM worker 1:↓ 114640 samples/s
+VM worker 2:↓ 131710 samples/s
+VM worker 3:↓ 114256 samples/s
+VM worker 4:↓ 105671 samples/s
+VM worker 5:↓ 124000 samples/s
+Processing ranges: 8799 / 8799 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/19 18:05:07 Import finished!
+2022/10/19 18:05:07 VictoriaMetrics importer stats:
+  idle duration: 52m13.987637229s;
+  time spent while importing: 9m1.728983776s;
+  total samples: 70836111;
+  samples/s: 130759.32;
+  total bytes: 2.2 GB;
+  bytes/s: 4.0 MB;
+  import requests: 356;
+  import requests retries: 0;
+2022/10/19 18:05:07 Total time: 9m2.607521618s
+```
 
 ## Migrating data from VictoriaMetrics
 
