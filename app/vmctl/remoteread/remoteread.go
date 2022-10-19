@@ -48,7 +48,7 @@ type Config struct {
 	Username string
 	// Password is the remote read password, optional.
 	Password string
-	// UseStream weather to use SAMPLES or STREAMED_XOR_CHUNKS mode
+	// UseStream defines wether to use SAMPLES or STREAMED_XOR_CHUNKS mode
 	UseStream bool
 }
 

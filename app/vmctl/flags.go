@@ -449,7 +449,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadUseStream,
-			Usage: "Defines to use STREAMED_XOR_CHUNKS mode",
+			Usage: "Defines wether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode",
 			Value: false,
 		},
 		&cli.StringFlag{
