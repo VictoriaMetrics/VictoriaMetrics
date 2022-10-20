@@ -445,10 +445,20 @@ func (rrss *rawRowsShards) Len() int {
 	return n
 }
 
-type rawRowsShard struct {
-	mu            sync.Mutex
-	rows          []rawRow
+type rawRowsShardNopad struct {
+	// Put lastFlushTime to the top in order to avoid unaligned memory access on 32-bit architectures
 	lastFlushTime uint64
+
+	mu   sync.Mutex
+	rows []rawRow
+}
+
+type rawRowsShard struct {
+	rawRowsShardNopad
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(rawRowsShardNopad{})%128]byte
 }
 
 func (rrs *rawRowsShard) Len() int {
