@@ -129,7 +129,8 @@ func (c *Cache) runWatchers(expireDuration time.Duration) {
 }
 
 func (c *Cache) expirationWatcher(expireDuration time.Duration) {
-	t := time.NewTicker(expireDuration / 2)
+	expireDuration += timeJitter(expireDuration / 10)
+	t := time.NewTicker(expireDuration)
 	for {
 		select {
 		case <-c.stopCh:
@@ -155,7 +156,9 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 }
 
 func (c *Cache) cacheSizeWatcher() {
-	t := time.NewTicker(1500 * time.Millisecond)
+	checkInterval := 1500 * time.Millisecond
+	checkInterval += timeJitter(checkInterval / 10)
+	t := time.NewTicker(checkInterval)
 	defer t.Stop()
 
 	var maxBytesSize uint64
@@ -374,4 +377,9 @@ func (c *Cache) SetBig(key, value []byte) {
 	atomic.AddUint64(&c.cs.SetCalls, 1)
 	curr := c.curr.Load().(*fastcache.Cache)
 	curr.SetBig(key, value)
+}
+
+func timeJitter(d time.Duration) time.Duration {
+	n := float64(time.Now().UnixNano()%1e9) / 1e9
+	return time.Duration(float64(d) * n)
 }
