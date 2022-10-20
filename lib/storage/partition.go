@@ -479,14 +479,24 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 	maxRowsCount := cap(rrs.rows)
 	capacity := maxRowsCount - len(rrs.rows)
 	if capacity >= len(rows) {
-		// Fast path - rows fit capacity.
+		// Fast path - rows fit rrs.rows capacity.
 		rrs.rows = append(rrs.rows, rows...)
 	} else {
-		// Slow path - rows don't fit capacity.
-		// Put rrs.rows and rows to rowsToFlush and convert it to a part.
-		rowsToFlush = append(rowsToFlush, rrs.rows...)
-		rowsToFlush = append(rowsToFlush, rows...)
-		rrs.rows = rrs.rows[:0]
+		// Slow path - rows don't fit rrs.rows capacity.
+		// Fill rrs.rows with rows until capacity,
+		// then put rrs.rows to rowsToFlush and convert it to a part.
+		n := copy(rrs.rows[:cap(rrs.rows)], rows)
+		rows = rows[n:]
+		rowsToFlush = rrs.rows
+		n = getMaxRawRowsPerShard()
+		rrs.rows = make([]rawRow, 0, n)
+		if len(rows) <= n {
+			rrs.rows = append(rrs.rows[:0], rows...)
+		} else {
+			// The slowest path - rows do not fit rrs.rows capacity.
+			// So append them directly to rowsToFlush.
+			rowsToFlush = append(rowsToFlush, rows...)
+		}
 		atomic.StoreUint64(&rrs.lastFlushTime, fasttime.UnixTimestamp())
 	}
 	rrs.mu.Unlock()
