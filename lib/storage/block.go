@@ -271,7 +271,7 @@ func (b *Block) UnmarshalData() error {
 	if b.bh.PrecisionBits < 64 {
 		// Recover timestamps order after lossy compression.
 		encoding.EnsureNonDecreasingSequence(b.timestamps, b.bh.MinTimestamp, b.bh.MaxTimestamp)
-	} else {
+	} else if b.bh.TimestampsMarshalType.NeedsValidation() {
 		// Ensure timestamps are in the range [MinTimestamp ... MaxTimestamps] and are ordered.
 		if err := checkTimestampsBounds(b.timestamps, b.bh.MinTimestamp, b.bh.MaxTimestamp); err != nil {
 			return err
