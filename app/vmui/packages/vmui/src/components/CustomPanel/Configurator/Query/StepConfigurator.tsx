@@ -42,7 +42,7 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({
   return <Box display="grid" gridTemplateColumns="auto 120px" alignItems="center">
     <FormControlLabel
       control={<BasicSwitch checked={customStepEnable} onChange={onChangeEnableStep}/>}
-      label="Override step value"
+      label="Override step value" sx={{ml: 0}}
     />
     <TextField
       label="Step value"

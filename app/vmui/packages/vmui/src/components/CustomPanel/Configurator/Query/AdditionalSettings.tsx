@@ -30,23 +30,23 @@ const AdditionalSettings: FC = () => {
     saveToStorage("QUERY_TRACING", !isTracingEnabled);
   };
 
-  return <Box display="flex" alignItems="center">
+  return <Box display="flex" alignItems="center" flexWrap="wrap" gap={2}>
     <Box>
-      <FormControlLabel label="Autocomplete"
+      <FormControlLabel label="Autocomplete" sx={{m: 0}}
         control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
       />
     </Box>
-    <Box ml={2}>
-      <FormControlLabel label="Disable cache"
+    <Box>
+      <FormControlLabel label="Disable cache" sx={{m: 0}}
         control={<BasicSwitch checked={nocache} onChange={onChangeCache}/>}
       />
     </Box>
-    <Box ml={2}>
-      <FormControlLabel label="Trace query"
+    <Box>
+      <FormControlLabel label="Trace query" sx={{m: 0}}
         control={<BasicSwitch checked={isTracingEnabled} onChange={onChangeQueryTracing} />}
       />
     </Box>
-    <Box ml={2} mr={2}>
+    <Box>
       <StepConfigurator defaultStep={step} customStepEnable={customStep.enable}
         setStep={(value) => {
           graphDispatch({type: "SET_CUSTOM_STEP", payload: value});

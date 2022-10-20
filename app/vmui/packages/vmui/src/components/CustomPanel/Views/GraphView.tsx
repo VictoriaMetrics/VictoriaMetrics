@@ -20,6 +20,7 @@ export interface GraphViewProps {
   showLegend?: boolean;
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({from, to}: {from: Date, to: Date}) => void
+  fullWidth?: boolean
 }
 
 const promValueToNumber = (s: string): number => {
@@ -47,7 +48,8 @@ const GraphView: FC<GraphViewProps> = ({
   showLegend= true,
   setYaxisLimits,
   setPeriod,
-  alias = []
+  alias = [],
+  fullWidth = true
 }) => {
   const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
 
@@ -130,7 +132,7 @@ const GraphView: FC<GraphViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   return <>
-    <div style={{width: "100%"}} ref={containerRef}>
+    <div style={{width: fullWidth ? "calc(100vw - 68px)" : "100%"}} ref={containerRef}>
       {containerRef?.current &&
           <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit}
             setPeriod={setPeriod} container={containerRef?.current}/>}

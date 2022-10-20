@@ -36,6 +36,7 @@ const classes = {
     color: "inherit",
     textDecoration: "underline",
     transition: ".2s opacity",
+    whiteSpace: "nowrap",
     "&:hover": {
       opacity: ".8",
     }
@@ -117,7 +118,7 @@ const Header: FC = () => {
           create an issue
         </Link>
       </Box>
-      <Box sx={{ml: 8}}>
+      <Box ml={4} flexGrow={1}>
         <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
           onChange={(e, val) => setActiveMenu(val)}>
           {routes.map(r => (
@@ -131,7 +132,7 @@ const Header: FC = () => {
           ))}
         </Tabs>
       </Box>
-      <Box display="flex" gap={1} alignItems="center" ml="auto" mr={0}>
+      <Box display="flex" gap={1} alignItems="center" mr={0} ml={4}>
         {headerSetup?.timeSelector && <TimeSelector/>}
         {headerSetup?.datePicker && (
           <DatePicker
