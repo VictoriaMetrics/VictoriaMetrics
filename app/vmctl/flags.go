@@ -415,6 +415,7 @@ const (
 	remoteReadUser             = "remote-read-user"
 	remoteReadPassword         = "remote-read-password"
 	remoteReadHTTPTimeout      = "remote-read-http-timeout"
+	remoteReadHeaders          = "remote-read-headers"
 )
 
 var (
@@ -481,6 +482,13 @@ var (
 			Name:  remoteReadCheckSrcAlive,
 			Usage: "Defines whether to check is alive remote source storage",
 			Value: true,
+		},
+		&cli.StringFlag{
+			Name:  remoteReadHeaders,
+			Value: "",
+			Usage: "Optional HTTP headers to send with each request to the corresponding remote source storage \n" +
+				"For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. \n" +
+				"Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'",
 		},
 	}
 )

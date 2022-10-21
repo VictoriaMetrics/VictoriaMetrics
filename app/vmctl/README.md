@@ -8,10 +8,11 @@ Features:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
 - migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
+- migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
-- migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read) to VictoriaMetrics
+- migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
 
 To see the full list of supported modes
@@ -631,7 +632,7 @@ It is possible todo by setting flag as `--remote-read-src-check-alive=false`
 It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
 When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
 
-The importing process example for the local installation of Thanos
+The importing process example for the local installation of Cortex
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
 ```
@@ -639,7 +640,6 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-concurrency=4 \
 --remote-read-src-check-alive=false \
 --vm-addr=http://127.0.0.1:8428 \
 --vm-concurrency=6 
@@ -667,6 +667,99 @@ Processing ranges: 8842 / 8842 [████████████████
   import requests retries: 0;
 2022/10/21 12:09:49 Total time: 4.71824253s
 ```
+It is important to know that if you run your Mimir installation in multi-tenant mode, remote read protocol
+requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
+
+## Migrating data from Mimir
+
+Mimir has similar implemintation as Cortex and also support of the Prometheus remote read protocol. That means
+`vmctl` in mode `remote-read` may also be used for Mimir historical data migration.
+These instructions may vary based on the details of your Mimir configuration.
+Please read carefully and verify as you go.
+
+### Remote read protocol
+
+If you want to migrate data, you should check your Mimir configuration in the section
+```yaml
+api:
+  prometheus_http_prefix:
+```
+
+If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
+By default, Mimir uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
+Mimir API doesn't support Prometheus `health` API, so we should disable the health check when we start the migration.
+It is possible todo by setting flag as `--remote-read-src-check-alive=false`
+
+Mimir supports both remote read mode, so you can use `STREAMED_XOR_CHUNKS` mode and `SAMPLES` mode.
+When you run Mimir, it exposes a port to serve HTTP on `8080 by default`.
+
+Next example of the local installation was in multi-tenant mode (3 instances of mimir) with nginx as load balancer.
+nginx config:
+```
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream backend {
+        server mimir-1:8080 max_fails=1 fail_timeout=1s;
+        server mimir-2:8080 max_fails=1 fail_timeout=1s;
+        server mimir-3:8080 max_fails=1 fail_timeout=1s backup;
+    }
+
+    server {
+        listen 9009;
+        access_log /dev/null;
+        location / {
+            proxy_pass http://backend;
+        }
+    }
+}
+```
+
+As you can see in the example we call `:9009` instead of `:8080` because of proxy.
+
+The importing process example for the local installation of Mimir
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read 
+--remote-read-src-addr=http://127.0.0.1:9009/prometheus \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--remote-read-src-check-alive=false \
+--remote-read-headers=X-Scope-OrgID:demo \
+--remote-read-use-stream=true \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6
+```
+
+And when the process finishes, you will see the following:
+
+```
+Split defined times into 8847 ranges to import. Continue? [Y/n]
+VM worker 0:→ 12176 samples/s
+VM worker 1:→ 11918 samples/s
+VM worker 2:→ 11261 samples/s
+VM worker 3:→ 12861 samples/s
+VM worker 4:→ 11096 samples/s
+VM worker 5:→ 11575 samples/s
+Processing ranges: 8847 / 8847 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/21 17:22:23 Import finished!
+2022/10/21 17:22:23 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 15.379614356s;
+  total samples: 81243;
+  samples/s: 5282.51;
+  total bytes: 6.1 MB;
+  bytes/s: 397.8 kB;
+  import requests: 6;
+  import requests retries: 0;
+2022/10/21 17:22:23 Total time: 16.287405248s
+```
+
+It is important to know that if you run your Mimir installation in multi-tenant mode, remote read protocol
+requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
 
 ## Migrating data from VictoriaMetrics
 

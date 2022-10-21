@@ -35,6 +35,7 @@ type Client struct {
 	user      string
 	password  string
 	useStream bool
+	headers   []keyValue
 }
 
 // Config is config for remote read.
@@ -50,6 +51,8 @@ type Config struct {
 	Password string
 	// UseStream defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode
 	UseStream bool
+	// Headers optional HTTP headers to send with each request to the corresponding remote source storage
+	Headers string
 }
 
 // Filter is used for request remote read data by filter
@@ -70,6 +73,16 @@ func NewClient(cfg Config) (*Client, error) {
 		cfg.ReadTimeout = defaultReadTimeout
 	}
 
+	var hdrs []string
+	if cfg.Headers != "" {
+		hdrs = strings.Split(cfg.Headers, "^^")
+	}
+
+	headers, err := parseHeaders(hdrs)
+	if err != nil {
+		return nil, err
+	}
+
 	c := &Client{
 		c: &http.Client{
 			Timeout:   cfg.ReadTimeout,
@@ -79,6 +92,7 @@ func NewClient(cfg Config) (*Client, error) {
 		user:      cfg.Username,
 		password:  cfg.Password,
 		useStream: cfg.UseStream,
+		headers:   headers,
 	}
 	return c, nil
 }
@@ -142,6 +156,10 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 
 	if c.user != "" {
 		req.SetBasicAuth(c.user, c.password)
+	}
+
+	for _, h := range c.headers {
+		req.Header.Add(h.key, h.value)
 	}
 
 	resp, err := c.c.Do(req.WithContext(ctx))
@@ -300,4 +318,26 @@ func parseSamples(chunk []byte) ([]prompb.Sample, error) {
 	}
 
 	return samples, it.Err()
+}
+
+type keyValue struct {
+	key   string
+	value string
+}
+
+func parseHeaders(headers []string) ([]keyValue, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	kvs := make([]keyValue, len(headers))
+	for i, h := range headers {
+		n := strings.IndexByte(h, ':')
+		if n < 0 {
+			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
+		}
+		kv := &kvs[i]
+		kv.key = strings.TrimSpace(h[:n])
+		kv.value = strings.TrimSpace(h[n+1:])
+	}
+	return kvs, nil
 }
