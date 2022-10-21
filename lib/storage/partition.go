@@ -473,23 +473,17 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		n := getMaxRawRowsPerShard()
-		rrs.rows = make([]rawRow, 0, n)
+		rrs.rows = newRawRowsBlock()
 	}
-	maxRowsCount := cap(rrs.rows)
-	capacity := maxRowsCount - len(rrs.rows)
-	if capacity >= len(rows) {
-		// Fast path - rows fit rrs.rows capacity.
-		rrs.rows = append(rrs.rows, rows...)
-	} else {
-		// Slow path - rows don't fit rrs.rows capacity.
-		// Fill rrs.rows with rows until capacity,
-		// then put rrs.rows to rowsToFlush and convert it to a part.
-		n := copy(rrs.rows[:cap(rrs.rows)], rows)
-		rows = rows[n:]
+	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
+	rrs.rows = rrs.rows[:len(rrs.rows)+n]
+	rows = rows[n:]
+	if len(rows) > 0 {
+		// Slow path - rows did't fit rrs.rows capacity.
+		// Convert rrs.rows to rowsToFlush and convert it to a part,
+		// then try moving the remaining rows to rrs.rows.
 		rowsToFlush = rrs.rows
-		n = getMaxRawRowsPerShard()
-		rrs.rows = make([]rawRow, 0, n)
+		rrs.rows = newRawRowsBlock()
 		if len(rows) <= n {
 			rrs.rows = append(rrs.rows[:0], rows...)
 		} else {
@@ -502,6 +496,11 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 	rrs.mu.Unlock()
 
 	pt.flushRowsToParts(rowsToFlush)
+}
+
+func newRawRowsBlock() []rawRow {
+	n := getMaxRawRowsPerShard()
+	return make([]rawRow, 0, n)
 }
 
 func (pt *partition) flushRowsToParts(rows []rawRow) {
@@ -747,13 +746,16 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFin
 		flushSeconds = 1
 	}
 	lastFlushTime := atomic.LoadUint64(&rrs.lastFlushTime)
-	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
-		rrs.mu.Lock()
-		dst = append(dst, rrs.rows...)
-		rrs.rows = rrs.rows[:0]
-		atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
-		rrs.mu.Unlock()
+	if !isFinal && currentTime <= lastFlushTime+uint64(flushSeconds) {
+		// Fast path - nothing to flush
+		return dst
 	}
+	// Slow path - move rrs.rows to dst.
+	rrs.mu.Lock()
+	dst = append(dst, rrs.rows...)
+	rrs.rows = rrs.rows[:0]
+	atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
+	rrs.mu.Unlock()
 	return dst
 }
 
