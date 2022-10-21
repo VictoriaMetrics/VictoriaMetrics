@@ -747,13 +747,16 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFin
 		flushSeconds = 1
 	}
 	lastFlushTime := atomic.LoadUint64(&rrs.lastFlushTime)
-	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
-		rrs.mu.Lock()
-		dst = append(dst, rrs.rows...)
-		rrs.rows = rrs.rows[:0]
-		atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
-		rrs.mu.Unlock()
+	if !isFinal && currentTime <= lastFlushTime+uint64(flushSeconds) {
+		// Fast path - nothing to flush
+		return dst
 	}
+	// Slow path - move rrs.rows to dst.
+	rrs.mu.Lock()
+	dst = append(dst, rrs.rows...)
+	rrs.rows = rrs.rows[:0]
+	atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
+	rrs.mu.Unlock()
 	return dst
 }
 
