@@ -473,8 +473,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		n := getMaxRawRowsPerShard()
-		rrs.rows = make([]rawRow, 0, n)
+		rrs.rows = newRawRowsBlock()
 	}
 	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
 	rrs.rows = rrs.rows[:len(rrs.rows)+n]
@@ -484,8 +483,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 		// Convert rrs.rows to rowsToFlush and convert it to a part,
 		// then try moving the remaining rows to rrs.rows.
 		rowsToFlush = rrs.rows
-		n = getMaxRawRowsPerShard()
-		rrs.rows = make([]rawRow, 0, n)
+		rrs.rows = newRawRowsBlock()
 		if len(rows) <= n {
 			rrs.rows = append(rrs.rows[:0], rows...)
 		} else {
@@ -498,6 +496,11 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 	rrs.mu.Unlock()
 
 	pt.flushRowsToParts(rowsToFlush)
+}
+
+func newRawRowsBlock() []rawRow {
+	n := getMaxRawRowsPerShard()
+	return make([]rawRow, 0, n)
 }
 
 func (pt *partition) flushRowsToParts(rows []rawRow) {
