@@ -796,7 +796,7 @@ func (s *Storage) mustRotateIndexDB() {
 	//    So queries for the last 24 hours stop returning samples added at step 3.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2698
 	s.pendingHourEntriesLock.Lock()
-	s.pendingHourEntries = []pendingHourMetricIDEntry{}
+	s.pendingHourEntries = nil
 	s.pendingHourEntriesLock.Unlock()
 	s.currHourMetricIDs.Store(&hourMetricIDs{})
 	s.prevHourMetricIDs.Store(&hourMetricIDs{})
@@ -2516,9 +2516,21 @@ func (s *Storage) updateNextDayMetricIDs() {
 
 func (s *Storage) updateCurrHourMetricIDs() {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
+	var newEntries []pendingHourMetricIDEntry
 	s.pendingHourEntriesLock.Lock()
-	newEntries := append([]pendingHourMetricIDEntry{}, s.pendingHourEntries...)
-	s.pendingHourEntries = s.pendingHourEntries[:0]
+	if len(s.pendingHourEntries) < cap(s.pendingHourEntries)/2 {
+		// Free up memory occupied by s.pendingHourEntries,
+		// since it looks like now it needs much lower amounts of memory.
+		newEntries = s.pendingHourEntries
+		s.pendingHourEntries = nil
+	} else {
+		// Copy s.pendingHourEntries to newEntries and re-use s.pendingHourEntries capacity,
+		// since its memory usage is at stable state.
+		// This should reduce the number of additional memory re-allocations
+		// when adding new items to s.pendingHourEntries.
+		newEntries = append([]pendingHourMetricIDEntry{}, s.pendingHourEntries...)
+		s.pendingHourEntries = s.pendingHourEntries[:0]
+	}
 	s.pendingHourEntriesLock.Unlock()
 
 	hour := fasttime.UnixHour()
