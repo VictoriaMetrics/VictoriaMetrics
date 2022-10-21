@@ -11,6 +11,7 @@ vmctl provides various useful actions with VictoriaMetrics components.
 Features:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
+- migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
@@ -609,6 +610,66 @@ Processing ranges: 8799 / 8799 [████████████████
   import requests: 356;
   import requests retries: 0;
 2022/10/19 18:05:07 Total time: 9m2.607521618s
+```
+
+## Migrating data from Cortex
+
+Cortex has an implementation of the Prometheus remote read protocol. That means
+`vmctl` in mode `remote-read` may also be used for Cortex historical data migration.
+These instructions may vary based on the details of your Cortex configuration.
+Please read carefully and verify as you go.
+
+### Remote read protocol
+
+If you want to migrate data, you should check your cortex configuration in the section
+```yaml
+api:
+  prometheus_http_prefix:
+```
+
+If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
+By default, Cortex uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
+Cortex API doesn't support Prometheus `health` API, so we should disable the health check when we start the migration.
+It is possible todo by setting flag as `--remote-read-src-check-alive=false`
+
+It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
+When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
+
+The importing process example for the local installation of Thanos
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read \ 
+--remote-read-src-addr=http://127.0.0.1:9009/prometheus \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--remote-read-concurrency=4 \
+--remote-read-src-check-alive=false \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6 
+```
+And when the process finishes, you will see the following:
+
+```
+Split defined times into 8842 ranges to import. Continue? [Y/n]
+VM worker 0:↗ 3863 samples/s
+VM worker 1:↗ 2686 samples/s
+VM worker 2:↗ 2620 samples/s
+VM worker 3:↗ 2705 samples/s
+VM worker 4:↗ 2643 samples/s
+VM worker 5:↗ 2593 samples/s
+Processing ranges: 8842 / 8842 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/21 12:09:49 Import finished!
+2022/10/21 12:09:49 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 3.82640757s;
+  total samples: 160232;
+  samples/s: 41875.31;
+  total bytes: 11.3 MB;
+  bytes/s: 3.0 MB;
+  import requests: 6;
+  import requests retries: 0;
+2022/10/21 12:09:49 Total time: 4.71824253s
 ```
 
 ## Migrating data from VictoriaMetrics

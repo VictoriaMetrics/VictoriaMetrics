@@ -411,6 +411,7 @@ const (
 	remoteReadFilterLabelValue = "remote-read-filter-label-value"
 	remoteReadStepInterval     = "remote-read-step-interval"
 	remoteReadSrcAddr          = "remote-read-src-addr"
+	remoteReadCheckSrcAlive    = "remote-read-src-check-alive"
 	remoteReadUser             = "remote-read-user"
 	remoteReadPassword         = "remote-read-password"
 	remoteReadHTTPTimeout      = "remote-read-http-timeout"
@@ -449,7 +450,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadUseStream,
-			Usage: "Defines wether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode",
+			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode",
 			Value: false,
 		},
 		&cli.StringFlag{
@@ -475,6 +476,11 @@ var (
 		&cli.DurationFlag{
 			Name:  remoteReadHTTPTimeout,
 			Usage: "ReadTimeout defines timeout for HTTP write request to remote storage",
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadCheckSrcAlive,
+			Usage: "Defines whether to check is alive remote source storage",
+			Value: true,
 		},
 	}
 )

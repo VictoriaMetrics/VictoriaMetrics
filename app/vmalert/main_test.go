@@ -55,6 +55,11 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != fn(testAlert) {
 		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
+	// fn, err := getAlertURLGenerator(u, `explore?orgId=1&left=["now-1h","now","Prometheus-DEV",{"expr": "{{$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]`, true)
+	// if err != nil {
+	// 	t.Errorf("unexpected error: %s", err)
+	// }
+
 }
 
 func TestConfigReload(t *testing.T) {
