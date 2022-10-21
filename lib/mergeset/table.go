@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
@@ -158,10 +159,20 @@ func (riss *rawItemsShards) Len() int {
 	return n
 }
 
-type rawItemsShard struct {
-	mu            sync.Mutex
-	ibs           []*inmemoryBlock
+type rawItemsShardNopad struct {
+	// Put lastFlushTime to the top in order to avoid unaligned memory access on 32-bit architectures
 	lastFlushTime uint64
+
+	mu  sync.Mutex
+	ibs []*inmemoryBlock
+}
+
+type rawItemsShard struct {
+	rawItemsShardNopad
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(rawItemsShardNopad{})%128]byte
 }
 
 func (ris *rawItemsShard) Len() int {
@@ -633,17 +644,20 @@ func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, tb *Table, i
 		flushSeconds = 1
 	}
 	lastFlushTime := atomic.LoadUint64(&ris.lastFlushTime)
-	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
-		ris.mu.Lock()
-		ibs := ris.ibs
-		dst = append(dst, ibs...)
-		for i := range ibs {
-			ibs[i] = nil
-		}
-		ris.ibs = ibs[:0]
-		atomic.StoreUint64(&ris.lastFlushTime, currentTime)
-		ris.mu.Unlock()
+	if !isFinal && currentTime <= lastFlushTime+uint64(flushSeconds) {
+		// Fast path - nothing to flush
+		return dst
 	}
+	// Slow path - move ris.ibs to dst
+	ris.mu.Lock()
+	ibs := ris.ibs
+	dst = append(dst, ibs...)
+	for i := range ibs {
+		ibs[i] = nil
+	}
+	ris.ibs = ibs[:0]
+	atomic.StoreUint64(&ris.lastFlushTime, currentTime)
+	ris.mu.Unlock()
 	return dst
 }
 

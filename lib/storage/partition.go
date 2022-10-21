@@ -445,10 +445,20 @@ func (rrss *rawRowsShards) Len() int {
 	return n
 }
 
-type rawRowsShard struct {
-	mu            sync.Mutex
-	rows          []rawRow
+type rawRowsShardNopad struct {
+	// Put lastFlushTime to the top in order to avoid unaligned memory access on 32-bit architectures
 	lastFlushTime uint64
+
+	mu   sync.Mutex
+	rows []rawRow
+}
+
+type rawRowsShard struct {
+	rawRowsShardNopad
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof(rawRowsShardNopad{})%128]byte
 }
 
 func (rrs *rawRowsShard) Len() int {
@@ -463,25 +473,34 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		n := getMaxRawRowsPerShard()
-		rrs.rows = make([]rawRow, 0, n)
+		rrs.rows = newRawRowsBlock()
 	}
-	maxRowsCount := cap(rrs.rows)
-	capacity := maxRowsCount - len(rrs.rows)
-	if capacity >= len(rows) {
-		// Fast path - rows fit capacity.
-		rrs.rows = append(rrs.rows, rows...)
-	} else {
-		// Slow path - rows don't fit capacity.
-		// Put rrs.rows and rows to rowsToFlush and convert it to a part.
-		rowsToFlush = append(rowsToFlush, rrs.rows...)
-		rowsToFlush = append(rowsToFlush, rows...)
-		rrs.rows = rrs.rows[:0]
+	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
+	rrs.rows = rrs.rows[:len(rrs.rows)+n]
+	rows = rows[n:]
+	if len(rows) > 0 {
+		// Slow path - rows did't fit rrs.rows capacity.
+		// Convert rrs.rows to rowsToFlush and convert it to a part,
+		// then try moving the remaining rows to rrs.rows.
+		rowsToFlush = rrs.rows
+		rrs.rows = newRawRowsBlock()
+		if len(rows) <= n {
+			rrs.rows = append(rrs.rows[:0], rows...)
+		} else {
+			// The slowest path - rows do not fit rrs.rows capacity.
+			// So append them directly to rowsToFlush.
+			rowsToFlush = append(rowsToFlush, rows...)
+		}
 		atomic.StoreUint64(&rrs.lastFlushTime, fasttime.UnixTimestamp())
 	}
 	rrs.mu.Unlock()
 
 	pt.flushRowsToParts(rowsToFlush)
+}
+
+func newRawRowsBlock() []rawRow {
+	n := getMaxRawRowsPerShard()
+	return make([]rawRow, 0, n)
 }
 
 func (pt *partition) flushRowsToParts(rows []rawRow) {
@@ -727,13 +746,16 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFin
 		flushSeconds = 1
 	}
 	lastFlushTime := atomic.LoadUint64(&rrs.lastFlushTime)
-	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
-		rrs.mu.Lock()
-		dst = append(dst, rrs.rows...)
-		rrs.rows = rrs.rows[:0]
-		atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
-		rrs.mu.Unlock()
+	if !isFinal && currentTime <= lastFlushTime+uint64(flushSeconds) {
+		// Fast path - nothing to flush
+		return dst
 	}
+	// Slow path - move rrs.rows to dst.
+	rrs.mu.Lock()
+	dst = append(dst, rrs.rows...)
+	rrs.rows = rrs.rows[:0]
+	atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
+	rrs.mu.Unlock()
 	return dst
 }
 
