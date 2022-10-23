@@ -22,6 +22,77 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 )
 
+func TestMarshalUnmarshalMetricIDs(t *testing.T) {
+	f := func(metricIDs []uint64) {
+		t.Helper()
+		data := marshalMetricIDs(nil, metricIDs)
+		result, err := unmarshalMetricIDs(nil, data)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !reflect.DeepEqual(result, metricIDs) {
+			t.Fatalf("unexpected metricIDs after unmarshaling;\ngot\n%d\nwant\n%d", result, metricIDs)
+		}
+	}
+	f(nil)
+	f([]uint64{1})
+	f([]uint64{1234, 678932943, 843289893843})
+}
+
+func TestMergeSortedMetricIDs(t *testing.T) {
+	f := func(a, b []uint64) {
+		t.Helper()
+		m := make(map[uint64]bool)
+		var resultExpected []uint64
+		for _, v := range a {
+			if !m[v] {
+				m[v] = true
+				resultExpected = append(resultExpected, v)
+			}
+		}
+		for _, v := range b {
+			if !m[v] {
+				m[v] = true
+				resultExpected = append(resultExpected, v)
+			}
+		}
+		sort.Slice(resultExpected, func(i, j int) bool {
+			return resultExpected[i] < resultExpected[j]
+		})
+
+		result := mergeSortedMetricIDs(a, b)
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result for mergeSortedMetricIDs(%d, %d); got\n%d\nwant\n%d", a, b, result, resultExpected)
+		}
+		result = mergeSortedMetricIDs(b, a)
+		if !reflect.DeepEqual(result, resultExpected) {
+			t.Fatalf("unexpected result for mergeSortedMetricIDs(%d, %d); got\n%d\nwant\n%d", b, a, result, resultExpected)
+		}
+	}
+	f(nil, nil)
+	f([]uint64{1}, nil)
+	f(nil, []uint64{23})
+	f([]uint64{1234}, []uint64{0})
+	f([]uint64{1}, []uint64{1})
+	f([]uint64{1}, []uint64{1, 2, 3})
+	f([]uint64{1, 2, 3}, []uint64{1, 2, 3})
+	f([]uint64{1, 2, 3}, []uint64{2, 3})
+	f([]uint64{0, 1, 7, 8, 9, 13, 20}, []uint64{1, 2, 7, 13, 15})
+	f([]uint64{0, 1, 2, 3, 4}, []uint64{5, 6, 7, 8})
+	f([]uint64{0, 1, 2, 3, 4}, []uint64{4, 5, 6, 7, 8})
+	f([]uint64{0, 1, 2, 3, 4}, []uint64{3, 4, 5, 6, 7, 8})
+	f([]uint64{2, 3, 4}, []uint64{1, 5, 6, 7})
+	f([]uint64{2, 3, 4}, []uint64{1, 2, 5, 6, 7})
+	f([]uint64{2, 3, 4}, []uint64{1, 2, 4, 5, 6, 7})
+	f([]uint64{2, 3, 4}, []uint64{1, 2, 3, 4, 5, 6, 7})
+	f([]uint64{2, 3, 4, 6}, []uint64{1, 2, 3, 4, 5, 6, 7})
+	f([]uint64{2, 3, 4, 6, 7}, []uint64{1, 2, 3, 4, 5, 6, 7})
+	f([]uint64{2, 3, 4, 6, 7, 8}, []uint64{1, 2, 3, 4, 5, 6, 7})
+	f([]uint64{2, 3, 4, 6, 7, 8, 9}, []uint64{1, 2, 3, 4, 5, 6, 7})
+	f([]uint64{1, 2, 3, 4, 6, 7, 8, 9}, []uint64{1, 2, 3, 4, 5, 6, 7})
+	f([]uint64{1, 2, 3, 4, 6, 7, 8, 9}, []uint64{2, 3, 4, 5, 6, 7})
+}
+
 func TestReverseBytes(t *testing.T) {
 	f := func(s, resultExpected string) {
 		t.Helper()
@@ -429,47 +500,6 @@ func TestRemoveDuplicateMetricIDs(t *testing.T) {
 	f([]uint64{0, 0, 0, 1, 1, 2}, []uint64{0, 1, 2})
 	f([]uint64{0, 1, 1, 2, 2}, []uint64{0, 1, 2})
 	f([]uint64{0, 1, 2, 2}, []uint64{0, 1, 2})
-}
-
-func TestMarshalUnmarshalTSIDs(t *testing.T) {
-	f := func(tsids []TSID) {
-		t.Helper()
-		value := marshalTSIDs(nil, tsids)
-		tsidsGot, err := unmarshalTSIDs(nil, value)
-		if err != nil {
-			t.Fatalf("cannot unmarshal tsids: %s", err)
-		}
-		if len(tsids) == 0 && len(tsidsGot) != 0 || len(tsids) > 0 && !reflect.DeepEqual(tsids, tsidsGot) {
-			t.Fatalf("unexpected tsids unmarshaled\ngot\n%+v\nwant\n%+v", tsidsGot, tsids)
-		}
-
-		// Try marshlaing with prefix
-		prefix := []byte("prefix")
-		valueExt := marshalTSIDs(prefix, tsids)
-		if !bytes.Equal(valueExt[:len(prefix)], prefix) {
-			t.Fatalf("unexpected prefix after marshaling;\ngot\n%X\nwant\n%X", valueExt[:len(prefix)], prefix)
-		}
-		if !bytes.Equal(valueExt[len(prefix):], value) {
-			t.Fatalf("unexpected prefixed marshaled value;\ngot\n%X\nwant\n%X", valueExt[len(prefix):], value)
-		}
-
-		// Try unmarshaling with prefix
-		tsidPrefix := []TSID{{MetricID: 123}, {JobID: 456}}
-		tsidsGot, err = unmarshalTSIDs(tsidPrefix, value)
-		if err != nil {
-			t.Fatalf("cannot unmarshal prefixed tsids: %s", err)
-		}
-		if !reflect.DeepEqual(tsidsGot[:len(tsidPrefix)], tsidPrefix) {
-			t.Fatalf("unexpected tsid prefix\ngot\n%+v\nwant\n%+v", tsidsGot[:len(tsidPrefix)], tsidPrefix)
-		}
-		if len(tsids) == 0 && len(tsidsGot) != len(tsidPrefix) || len(tsids) > 0 && !reflect.DeepEqual(tsidsGot[len(tsidPrefix):], tsids) {
-			t.Fatalf("unexpected prefixed tsids unmarshaled\ngot\n%+v\nwant\n%+v", tsidsGot[len(tsidPrefix):], tsids)
-		}
-	}
-
-	f(nil)
-	f([]TSID{{MetricID: 123}})
-	f([]TSID{{JobID: 34}, {MetricID: 2343}, {InstanceID: 243321}})
 }
 
 func TestIndexDBOpenClose(t *testing.T) {
@@ -881,7 +911,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, true, false); err != nil {
 			return fmt.Errorf("cannot add no-op negative filter: %w", err)
 		}
-		tsidsFound, err := db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err := searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
@@ -890,7 +920,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Verify tag cache.
-		tsidsCached, err := db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsCached, err := searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter: %w", err)
 		}
@@ -902,7 +932,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, true, false); err != nil {
 			return fmt.Errorf("cannot add negative filter for zeroing search results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by exact tag filter with full negative: %w", err)
 		}
@@ -920,7 +950,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, []byte(re), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for Graphite wildcard")
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter for Graphite wildcard: %w", err)
 		}
@@ -937,7 +967,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add([]byte("non-existent-tag"), []byte("foo|"), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for non-existing tag: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search with a filter matching empty tag: %w", err)
 		}
@@ -957,7 +987,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add([]byte("non-existent-tag2"), []byte("bar|"), false, true); err != nil {
 			return fmt.Errorf("cannot create regexp tag filter for non-existing tag2: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search with multipel filters matching empty tags: %w", err)
 		}
@@ -985,7 +1015,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, true, true); err != nil {
 			return fmt.Errorf("cannot add no-op negative filter with regexp: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter: %w", err)
 		}
@@ -995,7 +1025,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, true, true); err != nil {
 			return fmt.Errorf("cannot add negative filter for zeroing search results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by regexp tag filter with full negative: %w", err)
 		}
@@ -1011,7 +1041,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, mn.MetricGroup, false, true); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup matching zero results: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search by non-existing tag filter: %w", err)
 		}
@@ -1025,9 +1055,9 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 			continue
 		}
 
-		// Search with empty filter. It should match all the results for (accountID, projectID).
+		// Search with empty filter. It should match all the results.
 		tfs.Reset(mn.AccountID, mn.ProjectID)
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search for common prefix: %w", err)
 		}
@@ -1040,7 +1070,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs.Add(nil, nil, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for empty metricGroup: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search for empty metricGroup: %w", err)
 		}
@@ -1057,7 +1087,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		if err := tfs2.Add(nil, mn.MetricGroup, false, false); err != nil {
 			return fmt.Errorf("cannot create tag filter for MetricGroup: %w", err)
 		}
-		tsidsFound, err = db.searchTSIDs(nil, []*TagFilters{tfs1, tfs2}, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, []*TagFilters{tfs1, tfs2}, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search for empty metricGroup: %w", err)
 		}
@@ -1066,7 +1096,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		}
 
 		// Verify empty tfss
-		tsidsFound, err = db.searchTSIDs(nil, nil, tr, 1e5, noDeadline)
+		tsidsFound, err = searchTSIDsInTest(db, nil, tr)
 		if err != nil {
 			return fmt.Errorf("cannot search for nil tfss: %w", err)
 		}
@@ -1076,6 +1106,22 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 	}
 
 	return nil
+}
+
+func searchTSIDsInTest(db *indexDB, tfss []*TagFilters, tr TimeRange) ([]TSID, error) {
+	metricIDs, err := db.searchMetricIDs(nil, tfss, tr, 1e5, noDeadline)
+	if err != nil {
+		return nil, err
+	}
+	if len(tfss) == 0 {
+		if len(metricIDs) > 0 {
+			return nil, fmt.Errorf("expecting empty metricIDs for non-empty tfss; got %d metricIDs", len(metricIDs))
+		}
+		return nil, nil
+	}
+	accountID := tfss[0].accountID
+	projectID := tfss[0].projectID
+	return db.getTSIDsFromMetricIDs(nil, accountID, projectID, metricIDs, noDeadline)
 }
 
 func testHasTSID(tsids []TSID, tsid *TSID) bool {
@@ -1831,7 +1877,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MinTimestamp: int64(now - 2*msecPerHour - 1),
 		MaxTimestamp: int64(now),
 	}
-	matchedTSIDs, err := db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 10000, noDeadline)
+	matchedTSIDs, err := searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
@@ -1885,7 +1931,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		MaxTimestamp: int64(now),
 	}
 
-	matchedTSIDs, err = db.searchTSIDs(nil, []*TagFilters{tfs}, tr, 10000, noDeadline)
+	matchedTSIDs, err = searchTSIDsInTest(db, []*TagFilters{tfs}, tr)
 	if err != nil {
 		t.Fatalf("error searching tsids: %v", err)
 	}
