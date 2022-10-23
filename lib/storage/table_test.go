@@ -18,8 +18,8 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Create a new table
 	strg := newTestStorage()
-	var isReadOnly uint32
-	tb, err := openTable(path, strg, retentionMsecs, &isReadOnly)
+	strg.retentionMsecs = retentionMsecs
+	tb, err := openTable(path, strg)
 	if err != nil {
 		t.Fatalf("cannot create new table: %s", err)
 	}
@@ -29,7 +29,7 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Re-open created table multiple times.
 	for i := 0; i < 10; i++ {
-		tb, err := openTable(path, strg, retentionMsecs, &isReadOnly)
+		tb, err := openTable(path, strg)
 		if err != nil {
 			t.Fatalf("cannot open created table: %s", err)
 		}
@@ -46,15 +46,15 @@ func TestTableOpenMultipleTimes(t *testing.T) {
 	}()
 
 	strg := newTestStorage()
-	var isReadOnly uint32
-	tb1, err := openTable(path, strg, retentionMsecs, &isReadOnly)
+	strg.retentionMsecs = retentionMsecs
+	tb1, err := openTable(path, strg)
 	if err != nil {
 		t.Fatalf("cannot open table the first time: %s", err)
 	}
 	defer tb1.MustClose()
 
 	for i := 0; i < 10; i++ {
-		tb2, err := openTable(path, strg, retentionMsecs, &isReadOnly)
+		tb2, err := openTable(path, strg)
 		if err == nil {
 			tb2.MustClose()
 			t.Fatalf("expecting non-nil error when opening already opened table")
