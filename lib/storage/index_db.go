@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strconv"
 	"sync"
@@ -97,8 +98,8 @@ type indexDB struct {
 	extDB     *indexDB
 	extDBLock sync.Mutex
 
-	// Cache for fast TagFilters -> TSIDs lookup.
-	tagFiltersCache *workingsetcache.Cache
+	// Cache for fast TagFilters -> MetricIDs lookup.
+	tagFiltersToMetricIDsCache *workingsetcache.Cache
 
 	// The parent storage.
 	s *Storage
@@ -110,18 +111,18 @@ type indexDB struct {
 	indexSearchPool sync.Pool
 }
 
-var maxTagFilterCacheSize int
+var maxTagFiltersCacheSize int
 
-// SetTagFilterCacheSize overrides the default size of indexdb/tagFilters cache
-func SetTagFilterCacheSize(size int) {
-	maxTagFilterCacheSize = size
+// SetTagFiltersCacheSize overrides the default size of tagFiltersToMetricIDsCache
+func SetTagFiltersCacheSize(size int) {
+	maxTagFiltersCacheSize = size
 }
 
-func getTagFilterCacheSize() int {
-	if maxTagFilterCacheSize <= 0 {
+func getTagFiltersCacheSize() int {
+	if maxTagFiltersCacheSize <= 0 {
 		return int(float64(memory.Allowed()) / 32)
 	}
-	return maxTagFilterCacheSize
+	return maxTagFiltersCacheSize
 }
 
 // openIndexDB opens index db from the given path.
@@ -147,8 +148,9 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *
 		return nil, fmt.Errorf("cannot open indexDB %q: %w", path, err)
 	}
 
-	// Do not persist tagFiltersCache in files, since it is very volatile.
+	// Do not persist tagFiltersToMetricIDsCache in files, since it is very volatile.
 	mem := memory.Allowed()
+	tagFiltersCacheSize := getTagFiltersCacheSize()
 
 	db := &indexDB{
 		refCount:          1,
@@ -157,7 +159,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *
 		tb:                tb,
 		name:              name,
 
-		tagFiltersCache:            workingsetcache.New(getTagFilterCacheSize()),
+		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
@@ -168,11 +170,11 @@ const noDeadline = 1<<64 - 1
 
 // IndexDBMetrics contains essential metrics for indexDB.
 type IndexDBMetrics struct {
-	TagFiltersCacheSize         uint64
-	TagFiltersCacheSizeBytes    uint64
-	TagFiltersCacheSizeMaxBytes uint64
-	TagFiltersCacheRequests     uint64
-	TagFiltersCacheMisses       uint64
+	TagFiltersToMetricIDsCacheSize         uint64
+	TagFiltersToMetricIDsCacheSizeBytes    uint64
+	TagFiltersToMetricIDsCacheSizeMaxBytes uint64
+	TagFiltersToMetricIDsCacheRequests     uint64
+	TagFiltersToMetricIDsCacheMisses       uint64
 
 	DeletedMetricsCount uint64
 
@@ -210,12 +212,12 @@ func (db *indexDB) UpdateMetrics(m *IndexDBMetrics) {
 	var cs fastcache.Stats
 
 	cs.Reset()
-	db.tagFiltersCache.UpdateStats(&cs)
-	m.TagFiltersCacheSize += cs.EntriesCount
-	m.TagFiltersCacheSizeBytes += cs.BytesSize
-	m.TagFiltersCacheSizeMaxBytes += cs.MaxBytesSize
-	m.TagFiltersCacheRequests += cs.GetCalls
-	m.TagFiltersCacheMisses += cs.Misses
+	db.tagFiltersToMetricIDsCache.UpdateStats(&cs)
+	m.TagFiltersToMetricIDsCacheSize += cs.EntriesCount
+	m.TagFiltersToMetricIDsCacheSizeBytes += cs.BytesSize
+	m.TagFiltersToMetricIDsCacheSizeMaxBytes += cs.MaxBytesSize
+	m.TagFiltersToMetricIDsCacheRequests += cs.GetCalls
+	m.TagFiltersToMetricIDsCacheMisses += cs.Misses
 
 	m.DeletedMetricsCount += uint64(db.s.getDeletedMetricIDs().Len())
 
@@ -296,10 +298,10 @@ func (db *indexDB) decRef() {
 	db.SetExtDB(nil)
 
 	// Free space occupied by caches owned by db.
-	db.tagFiltersCache.Stop()
+	db.tagFiltersToMetricIDsCache.Stop()
 	db.loopsPerDateTagFilterCache.Stop()
 
-	db.tagFiltersCache = nil
+	db.tagFiltersToMetricIDsCache = nil
 	db.s = nil
 	db.loopsPerDateTagFilterCache = nil
 
@@ -312,74 +314,36 @@ func (db *indexDB) decRef() {
 	logger.Infof("indexDB %q has been dropped", tbPath)
 }
 
-func (db *indexDB) getFromTagFiltersCache(qt *querytracer.Tracer, key []byte) ([]TSID, bool) {
-	qt = qt.NewChild("search for tsids in tag filters cache")
+var tagBufPool bytesutil.ByteBufferPool
+
+func (db *indexDB) getMetricIDsFromTagFiltersCache(qt *querytracer.Tracer, key []byte) ([]uint64, bool) {
+	qt = qt.NewChild("search for metricIDs in tag filters cache")
 	defer qt.Done()
-	compressedBuf := tagBufPool.Get()
-	defer tagBufPool.Put(compressedBuf)
-	compressedBuf.B = db.tagFiltersCache.GetBig(compressedBuf.B[:0], key)
-	if len(compressedBuf.B) == 0 {
+	buf := tagBufPool.Get()
+	defer tagBufPool.Put(buf)
+	buf.B = db.tagFiltersToMetricIDsCache.GetBig(buf.B[:0], key)
+	if len(buf.B) == 0 {
 		qt.Printf("cache miss")
 		return nil, false
 	}
-	if compressedBuf.B[0] == 0 {
-		// Fast path - tsids are stored in uncompressed form.
-		qt.Printf("found tsids with size: %d bytes", len(compressedBuf.B))
-		tsids, err := unmarshalTSIDs(nil, compressedBuf.B[1:])
-		if err != nil {
-			logger.Panicf("FATAL: cannot unmarshal tsids from tagFiltersCache: %s", err)
-		}
-		qt.Printf("unmarshaled %d tsids", len(tsids))
-		return tsids, true
-	}
-	// Slow path - tsids are stored in compressed form.
-	qt.Printf("found tsids with compressed size: %d bytes", len(compressedBuf.B))
-	buf := tagBufPool.Get()
-	defer tagBufPool.Put(buf)
-	var err error
-	buf.B, err = encoding.DecompressZSTD(buf.B[:0], compressedBuf.B[1:])
+	qt.Printf("found metricIDs with size: %d bytes", len(buf.B))
+	metricIDs, err := unmarshalMetricIDs(nil, buf.B)
 	if err != nil {
-		logger.Panicf("FATAL: cannot decompress tsids from tagFiltersCache: %s", err)
+		logger.Panicf("FATAL: cannot unmarshal metricIDs from tagFiltersToMetricIDsCache: %s", err)
 	}
-	qt.Printf("decompressed tsids to %d bytes", len(buf.B))
-	tsids, err := unmarshalTSIDs(nil, buf.B)
-	if err != nil {
-		logger.Panicf("FATAL: cannot unmarshal tsids from tagFiltersCache: %s", err)
-	}
-	qt.Printf("unmarshaled %d tsids", len(tsids))
-	return tsids, true
+	qt.Printf("unmarshaled %d metricIDs", len(metricIDs))
+	return metricIDs, true
 }
 
-var tagBufPool bytesutil.ByteBufferPool
-
-func (db *indexDB) putToTagFiltersCache(qt *querytracer.Tracer, tsids []TSID, key []byte) {
-	qt = qt.NewChild("put %d tsids in cache", len(tsids))
+func (db *indexDB) putMetricIDsToTagFiltersCache(qt *querytracer.Tracer, metricIDs []uint64, key []byte) {
+	qt = qt.NewChild("put %d metricIDs in cache", len(metricIDs))
 	defer qt.Done()
-	if len(tsids) <= 2 {
-		// Fast path - store small number of tsids in uncompressed form.
-		// This saves CPU time on compress / decompress.
-		buf := tagBufPool.Get()
-		buf.B = append(buf.B[:0], 0)
-		buf.B = marshalTSIDs(buf.B, tsids)
-		qt.Printf("marshaled %d tsids into %d bytes", len(tsids), len(buf.B))
-		db.tagFiltersCache.SetBig(key, buf.B)
-		qt.Printf("store %d tsids into cache", len(tsids))
-		tagBufPool.Put(buf)
-		return
-	}
-	// Slower path - store big number of tsids in compressed form.
-	// This increases cache capacity.
 	buf := tagBufPool.Get()
-	buf.B = marshalTSIDs(buf.B[:0], tsids)
-	qt.Printf("marshaled %d tsids into %d bytes", len(tsids), len(buf.B))
-	compressedBuf := tagBufPool.Get()
-	compressedBuf.B = append(compressedBuf.B[:0], 1)
-	compressedBuf.B = encoding.CompressZSTDLevel(compressedBuf.B, buf.B, 1)
-	qt.Printf("compressed %d tsids into %d bytes", len(tsids), len(compressedBuf.B))
+	buf.B = marshalMetricIDs(buf.B, metricIDs)
+	qt.Printf("marshaled %d metricIDs into %d bytes", len(metricIDs), len(buf.B))
+	db.tagFiltersToMetricIDsCache.SetBig(key, buf.B)
+	qt.Printf("stored %d metricIDs into cache", len(metricIDs))
 	tagBufPool.Put(buf)
-	db.tagFiltersCache.SetBig(key, compressedBuf.B)
-	qt.Printf("stored %d compressed tsids into cache", len(tsids))
-	tagBufPool.Put(compressedBuf)
 }
 
 func (db *indexDB) getFromMetricIDCache(dst *TSID, metricID uint64) error {
@@ -475,35 +439,44 @@ func invalidateTagFiltersCache() {
 
 var tagFiltersKeyGen uint64
 
-func marshalTSIDs(dst []byte, tsids []TSID) []byte {
-	dst = encoding.MarshalUint64(dst, uint64(len(tsids)))
-	for i := range tsids {
-		dst = tsids[i].Marshal(dst)
+func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
+	dst = encoding.MarshalUint64(dst, uint64(len(metricIDs)))
+	if len(metricIDs) == 0 {
+		return dst
 	}
+	var buf []byte
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	sh.Data = uintptr(unsafe.Pointer(&metricIDs[0]))
+	sh.Cap = sh.Len
+	sh.Len = 8 * len(metricIDs)
+	dst = append(dst, buf...)
 	return dst
 }
 
-func unmarshalTSIDs(dst []TSID, src []byte) ([]TSID, error) {
+func unmarshalMetricIDs(dst []uint64, src []byte) ([]uint64, error) {
+	if len(src)%8 != 0 {
+		return dst, fmt.Errorf("cannot unmarshal metricIDs from buffer of %d bytes; the buffer length must divide by 8", len(src))
+	}
 	if len(src) < 8 {
-		return dst, fmt.Errorf("cannot unmarshal the number of tsids from %d bytes; require at least %d bytes", len(src), 8)
+		return dst, fmt.Errorf("cannot unmarshal metricIDs len from buffer of %d bytes; need at least 8 bytes", len(src))
 	}
 	n := encoding.UnmarshalUint64(src)
+	if n > ((1<<64)-1)/8 {
+		return dst, fmt.Errorf("unexpectedly high metricIDs len: %d bytes; must be lower than %d bytes", n, ((1<<64)-1)/8)
+	}
 	src = src[8:]
-	dstLen := len(dst)
-	if nn := dstLen + int(n) - cap(dst); nn > 0 {
-		dst = append(dst[:cap(dst)], make([]TSID, nn)...)
+	if n*8 != uint64(len(src)) {
+		return dst, fmt.Errorf("unexpected buffer length for unmarshaling metricIDs; got %d bytes; want %d bytes", n*8, len(src))
 	}
-	dst = dst[:dstLen+int(n)]
-	for i := 0; i < int(n); i++ {
-		tail, err := dst[dstLen+i].Unmarshal(src)
-		if err != nil {
-			return dst, fmt.Errorf("cannot unmarshal tsid #%d out of %d: %w", i, n, err)
-		}
-		src = tail
+	if n == 0 {
+		return dst, nil
 	}
-	if len(src) > 0 {
-		return dst, fmt.Errorf("non-zero tail left after unmarshaling %d tsids; len(tail)=%d", n, len(src))
-	}
+	var metricIDs []uint64
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&metricIDs))
+	sh.Data = uintptr(unsafe.Pointer(&src[0]))
+	sh.Cap = sh.Len
+	sh.Len = len(src) / 8
+	dst = append(dst, metricIDs...)
 	return dst, nil
 }
 
@@ -1783,8 +1756,10 @@ func (is *indexSearch) loadDeletedMetricIDs() (*uint64set.Set, error) {
 	return dmis, nil
 }
 
-// searchTSIDs returns sorted tsids matching the given tfss over the given tr.
-func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]TSID, error) {
+func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int, deadline uint64) ([]uint64, error) {
+	qt = qt.NewChild("search for matching metricIDs: filters=%s, timeRange=%s", tfss, &tr)
+	defer qt.Done()
+
 	if len(tfss) == 0 {
 		return nil, nil
 	}
@@ -1792,31 +1767,30 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 		tfss = convertToCompositeTagFilterss(tfss)
 	}
 
-	qtChild := qt.NewChild("search for tsids in the current indexdb")
-
+	qtChild := qt.NewChild("search for metricIDs in the current indexdb")
 	tfKeyBuf := tagFiltersKeyBufPool.Get()
 	defer tagFiltersKeyBufPool.Put(tfKeyBuf)
 
 	tfKeyBuf.B = marshalTagFiltersKey(tfKeyBuf.B[:0], tfss, tr, true)
-	tsids, ok := db.getFromTagFiltersCache(qtChild, tfKeyBuf.B)
+	metricIDs, ok := db.getMetricIDsFromTagFiltersCache(qtChild, tfKeyBuf.B)
 	if ok {
-		// Fast path - tsids found in the cache
+		// Fast path - metricIDs found in the cache
 		qtChild.Done()
-		return tsids, nil
+		return metricIDs, nil
 	}
 
-	// Slow path - search for tsids in the db and extDB.
+	// Slow path - search for metricIDs in the db and extDB.
 	is := db.getIndexSearch(deadline)
-	localTSIDs, err := is.searchTSIDs(qtChild, tfss, tr, maxMetrics)
+	localMetricIDs, err := is.searchMetricIDs(qtChild, tfss, tr, maxMetrics)
 	db.putIndexSearch(is)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error when searching for metricIDs in the current indexdb: %s", err)
 	}
 	qtChild.Done()
 
-	var extTSIDs []TSID
+	var extMetricIDs []uint64
 	if db.doExtDB(func(extDB *indexDB) {
-		qtChild := qt.NewChild("search for tsids in the previous indexdb")
+		qtChild := qt.NewChild("search for metricIDs in the previous indexdb")
 		defer qtChild.Done()
 
 		tfKeyExtBuf := tagFiltersKeyBufPool.Get()
@@ -1824,36 +1798,111 @@ func (db *indexDB) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr Ti
 
 		// Data in extDB cannot be changed, so use unversioned keys for tag cache.
 		tfKeyExtBuf.B = marshalTagFiltersKey(tfKeyExtBuf.B[:0], tfss, tr, false)
-		tsids, ok := extDB.getFromTagFiltersCache(qtChild, tfKeyExtBuf.B)
+		metricIDs, ok := extDB.getMetricIDsFromTagFiltersCache(qtChild, tfKeyExtBuf.B)
 		if ok {
-			extTSIDs = tsids
+			extMetricIDs = metricIDs
 			return
 		}
 		is := extDB.getIndexSearch(deadline)
-		extTSIDs, err = is.searchTSIDs(qtChild, tfss, tr, maxMetrics)
+		extMetricIDs, err = is.searchMetricIDs(qtChild, tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
-
-		sort.Slice(extTSIDs, func(i, j int) bool { return extTSIDs[i].Less(&extTSIDs[j]) })
-		extDB.putToTagFiltersCache(qtChild, extTSIDs, tfKeyExtBuf.B)
+		extDB.putMetricIDsToTagFiltersCache(qtChild, extMetricIDs, tfKeyExtBuf.B)
 	}) {
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %s", err)
 		}
 	}
 
-	// Merge localTSIDs with extTSIDs.
-	tsids = mergeTSIDs(localTSIDs, extTSIDs)
-	qt.Printf("merge %d tsids from the current indexdb with %d tsids from the previous indexdb; result: %d tsids", len(localTSIDs), len(extTSIDs), len(tsids))
+	// Merge localMetricIDs with extMetricIDs.
+	metricIDs = mergeSortedMetricIDs(localMetricIDs, extMetricIDs)
+	qt.Printf("merge %d metricIDs from the current indexdb with %d metricIDs from the previous indexdb; result: %d metricIDs",
+		len(localMetricIDs), len(extMetricIDs), len(metricIDs))
+
+	// Store metricIDs in the cache.
+	db.putMetricIDsToTagFiltersCache(qt, metricIDs, tfKeyBuf.B)
+
+	return metricIDs, nil
+}
+
+func mergeSortedMetricIDs(a, b []uint64) []uint64 {
+	if len(b) == 0 {
+		return a
+	}
+	i := 0
+	j := 0
+	result := make([]uint64, 0, len(a)+len(b))
+	for {
+		next := b[j]
+		start := i
+		for i < len(a) && a[i] <= next {
+			i++
+		}
+		result = append(result, a[start:i]...)
+		if len(result) > 0 {
+			last := result[len(result)-1]
+			for j < len(b) && b[j] == last {
+				j++
+			}
+		}
+		if i == len(a) {
+			return append(result, b[j:]...)
+		}
+		a, b = b, a
+		i, j = j, i
+	}
+}
+
+func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uint64, deadline uint64) ([]TSID, error) {
+	qt = qt.NewChild("obtain tsids from %d metricIDs", len(metricIDs))
+	defer qt.Done()
+
+	if len(metricIDs) == 0 {
+		return nil, nil
+	}
+	tsids := make([]TSID, len(metricIDs))
+	is := db.getIndexSearch(deadline)
+	defer db.putIndexSearch(is)
+	i := 0
+	for loopsPaceLimiter, metricID := range metricIDs {
+		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return nil, err
+			}
+		}
+		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
+		// than scanning the mergeset if it contains a lot of metricIDs.
+		tsid := &tsids[i]
+		err := is.db.getFromMetricIDCache(tsid, metricID)
+		if err == nil {
+			// Fast path - the tsid for metricID is found in cache.
+			i++
+			continue
+		}
+		if err != io.EOF {
+			return nil, err
+		}
+		if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
+			if err == io.EOF {
+				// Cannot find TSID for the given metricID.
+				// This may be the case on incomplete indexDB
+				// due to snapshot or due to unflushed entries.
+				// Just increment errors counter and skip it.
+				atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+				continue
+			}
+			return nil, fmt.Errorf("cannot find tsid %d out of %d for metricID %d: %w", i, len(metricIDs), metricID, err)
+		}
+		is.db.putToMetricIDCache(metricID, tsid)
+		i++
+	}
+	tsids = tsids[:i]
+	qt.Printf("load %d tsids from %d metricIDs", len(tsids), len(metricIDs))
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
 	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
 	qt.Printf("sort %d tsids", len(tsids))
-
-	// Store TSIDs in the cache.
-	db.putToTagFiltersCache(qt, tsids, tfKeyBuf.B)
-
-	return tsids, err
+	return tsids, nil
 }
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
@@ -1928,30 +1977,6 @@ func (is *indexSearch) searchMetricName(dst []byte, metricID uint64) ([]byte, er
 	return dst, nil
 }
 
-func mergeTSIDs(a, b []TSID) []TSID {
-	if len(b) > len(a) {
-		a, b = b, a
-	}
-	if len(b) == 0 {
-		return a
-	}
-	m := make(map[uint64]TSID, len(a))
-	for i := range a {
-		tsid := &a[i]
-		m[tsid.MetricID] = *tsid
-	}
-	for i := range b {
-		tsid := &b[i]
-		m[tsid.MetricID] = *tsid
-	}
-
-	tsids := make([]TSID, 0, len(m))
-	for _, tsid := range m {
-		tsids = append(tsids, tsid)
-	}
-	return tsids
-}
-
 func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 	ts := &is.ts
 	kb := &is.kb
@@ -1978,66 +2003,6 @@ func (is *indexSearch) containsTimeRange(tr TimeRange) (bool, error) {
 		return false, nil
 	}
 	return true, nil
-}
-
-func (is *indexSearch) searchTSIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]TSID, error) {
-	ok, err := is.containsTimeRange(tr)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		// Fast path - the index doesn't contain data for the given tr.
-		return nil, nil
-	}
-	metricIDs, err := is.searchMetricIDs(qt, tfss, tr, maxMetrics)
-	if err != nil {
-		return nil, err
-	}
-	if len(metricIDs) == 0 {
-		// Nothing found.
-		return nil, nil
-	}
-
-	// Obtain TSID values for the given metricIDs.
-	tsids := make([]TSID, len(metricIDs))
-	i := 0
-	for loopsPaceLimiter, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return nil, err
-			}
-		}
-		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
-		// than scanning the mergeset if it contains a lot of metricIDs.
-		tsid := &tsids[i]
-		err := is.db.getFromMetricIDCache(tsid, metricID)
-		if err == nil {
-			// Fast path - the tsid for metricID is found in cache.
-			i++
-			continue
-		}
-		if err != io.EOF {
-			return nil, err
-		}
-		if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
-			if err == io.EOF {
-				// Cannot find TSID for the given metricID.
-				// This may be the case on incomplete indexDB
-				// due to snapshot or due to unflushed entries.
-				// Just increment errors counter and skip it.
-				atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
-				continue
-			}
-			return nil, fmt.Errorf("cannot find tsid %d out of %d for metricID %d: %w", i, len(metricIDs), metricID, err)
-		}
-		is.db.putToMetricIDCache(metricID, tsid)
-		i++
-	}
-	tsids = tsids[:i]
-	qt.Printf("load %d tsids from %d metric ids", len(tsids), len(metricIDs))
-
-	// Do not sort the found tsids, since they will be sorted later.
-	return tsids, nil
 }
 
 func (is *indexSearch) getTSIDByMetricID(dst *TSID, metricID uint64) error {
@@ -2292,6 +2257,14 @@ func (is *indexSearch) searchMetricIDsWithFiltersOnDate(qt *querytracer.Tracer, 
 }
 
 func (is *indexSearch) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, tr TimeRange, maxMetrics int) ([]uint64, error) {
+	ok, err := is.containsTimeRange(tr)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		// Fast path - the index doesn't contain data for the given tr.
+		return nil, nil
+	}
 	metricIDs, err := is.searchMetricIDsInternal(qt, tfss, tr, maxMetrics)
 	if err != nil {
 		return nil, err
