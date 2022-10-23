@@ -181,8 +181,7 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 	})
 
 	// Create a table from rowss and test search on it.
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 	var isReadOnly uint32
 	tb, err := openTable("./test-table", strg, maxRetentionMsecs, &isReadOnly)
 	if err != nil {
