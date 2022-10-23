@@ -104,6 +104,9 @@ func InitRollupResultCache(cachePath string) {
 	metrics.GetOrCreateGauge(`vm_cache_size_bytes{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().BytesSize)
 	})
+	metrics.GetOrCreateGauge(`vm_cache_size_max_bytes{type="promql/rollupResult"}`, func() float64 {
+		return float64(fcs().MaxBytesSize)
+	})
 	metrics.GetOrCreateGauge(`vm_cache_requests_total{type="promql/rollupResult"}`, func() float64 {
 		return float64(fcs().GetCalls)
 	})
