@@ -25,10 +25,12 @@ type blockStreamMerger struct {
 
 func (bsm *blockStreamMerger) reset() {
 	bsm.Block = nil
+
 	for i := range bsm.bsrHeap {
 		bsm.bsrHeap[i] = nil
 	}
 	bsm.bsrHeap = bsm.bsrHeap[:0]
+
 	bsm.retentionDeadline = 0
 	bsm.nextBlockNoop = false
 	bsm.err = nil
