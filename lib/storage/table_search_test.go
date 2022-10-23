@@ -181,8 +181,10 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 	})
 
 	// Create a table from rowss and test search on it.
+	strg := &Storage{}
+	strg.setDeletedMetricIDs(nil)
 	var isReadOnly uint32
-	tb, err := openTable("./test-table", nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
+	tb, err := openTable("./test-table", strg, maxRetentionMsecs, &isReadOnly)
 	if err != nil {
 		t.Fatalf("cannot create table: %s", err)
 	}
@@ -203,7 +205,7 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 	tb.MustClose()
 
 	// Open the created table and test search on it.
-	tb, err = openTable("./test-table", nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
+	tb, err = openTable("./test-table", strg, maxRetentionMsecs, &isReadOnly)
 	if err != nil {
 		t.Fatalf("cannot open table: %s", err)
 	}

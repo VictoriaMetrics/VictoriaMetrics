@@ -21,7 +21,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func maxSmallPartSize() uint64 {
@@ -118,8 +117,8 @@ type partition struct {
 	smallPartsPath string
 	bigPartsPath   string
 
-	// The callack that returns deleted metric ids which must be skipped during merge.
-	getDeletedMetricIDs func() *uint64set.Set
+	// The parent storage.
+	s *Storage
 
 	// data retention in milliseconds.
 	// Used for deleting data outside the retention during background merge.
@@ -202,8 +201,7 @@ func (pw *partWrapper) decRef() {
 
 // createPartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string,
-	getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) (*partition, error) {
+func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage, retentionMsecs int64, isReadOnly *uint32) (*partition, error) {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Clean(smallPartitionsPath) + "/" + name
 	bigPartsPath := filepath.Clean(bigPartitionsPath) + "/" + name
@@ -216,7 +214,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 		return nil, fmt.Errorf("cannot create directories for big parts %q: %w", bigPartsPath, err)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, s, retentionMsecs, isReadOnly)
 	pt.tr.fromPartitionTimestamp(timestamp)
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
@@ -242,7 +240,7 @@ func (pt *partition) Drop() {
 }
 
 // openPartition opens the existing partition from the given paths.
-func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) (*partition, error) {
+func openPartition(smallPartsPath, bigPartsPath string, s *Storage, retentionMsecs int64, isReadOnly *uint32) (*partition, error) {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
@@ -266,7 +264,7 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 		return nil, fmt.Errorf("cannot open big parts from %q: %w", bigPartsPath, err)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, s, retentionMsecs, isReadOnly)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 	if err := pt.tr.fromPartitionName(name); err != nil {
@@ -280,15 +278,15 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 	return pt, nil
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage, retentionMsecs int64, isReadOnly *uint32) *partition {
 	p := &partition{
 		name:           name,
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
 
-		getDeletedMetricIDs: getDeletedMetricIDs,
-		retentionMsecs:      retentionMsecs,
-		isReadOnly:          isReadOnly,
+		s:              s,
+		retentionMsecs: retentionMsecs,
+		isReadOnly:     isReadOnly,
 
 		mergeIdx: uint64(time.Now().UnixNano()),
 		stopCh:   make(chan struct{}),
@@ -1205,7 +1203,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	// Merge parts.
-	dmis := pt.getDeletedMetricIDs()
 	var ph partHeader
 	rowsMerged := &pt.smallRowsMerged
 	rowsDeleted := &pt.smallRowsDeleted
@@ -1219,7 +1216,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		atomic.AddUint64(&pt.activeSmallMerges, 1)
 	}
 	retentionDeadline := timestampFromTime(startTime) - pt.retentionMsecs
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted)
 	if isBigPart {
 		atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
 	} else {
@@ -1252,7 +1249,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	dstPartPath := ""
 	if ph.RowsCount > 0 {
 		// The destination part may have no rows if they are deleted
-		// during the merge due to dmis.
+		// during the merge due to deleted time series.
 		dstPartPath = ph.Path(ptPath, mergeIdx)
 	}
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
