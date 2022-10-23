@@ -462,7 +462,7 @@ func unmarshalMetricIDs(dst []uint64, src []byte) ([]uint64, error) {
 	}
 	n := encoding.UnmarshalUint64(src)
 	if n > ((1<<64)-1)/8 {
-		return dst, fmt.Errorf("unexpectedly high metricIDs len: %d bytes; must be lower than %d bytes", n, ((1<<64)-1)/8)
+		return dst, fmt.Errorf("unexpectedly high metricIDs len: %d bytes; must be lower than %d bytes", n, uint64(((1<<64)-1)/8))
 	}
 	src = src[8:]
 	if n*8 != uint64(len(src)) {
