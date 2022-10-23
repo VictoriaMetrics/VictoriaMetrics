@@ -316,7 +316,7 @@ func CopyDirectory(srcPath, dstPath string) error {
 		}
 		src := filepath.Join(srcPath, de.Name())
 		dst := filepath.Join(dstPath, de.Name())
-		if err := copyFile(src, dst); err != nil {
+		if err := CopyFile(src, dst); err != nil {
 			return err
 		}
 	}
@@ -324,7 +324,8 @@ func CopyDirectory(srcPath, dstPath string) error {
 	return nil
 }
 
-func copyFile(srcPath, dstPath string) error {
+// CopyFile copies the file from srcPath to dstPath.
+func CopyFile(srcPath, dstPath string) error {
 	src, err := os.Open(srcPath)
 	if err != nil {
 		return err

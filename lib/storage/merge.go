@@ -57,7 +57,7 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			atomic.AddUint64(rowsDeleted, uint64(b.bh.RowsCount))
 			continue
 		}
-		retentionDeadline := bsm.getRetentionDeadline(b)
+		retentionDeadline := bsm.getRetentionDeadline(&b.bh)
 		if b.bh.MaxTimestamp < retentionDeadline {
 			// Skip blocks out of the given retention.
 			atomic.AddUint64(rowsDeleted, uint64(b.bh.RowsCount))
