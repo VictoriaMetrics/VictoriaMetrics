@@ -44,8 +44,7 @@ func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount
 		createBenchTable(b, path, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 		createdBenchTables[path] = true
 	}
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 	var isReadOnly uint32
 	tb, err := openTable(path, strg, maxRetentionMsecs, &isReadOnly)
 	if err != nil {
@@ -70,8 +69,7 @@ var createdBenchTables = make(map[string]bool)
 func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) {
 	b.Helper()
 
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 	var isReadOnly uint32
 	tb, err := openTable(path, strg, maxRetentionMsecs, &isReadOnly)
 	if err != nil {

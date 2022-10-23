@@ -24,8 +24,7 @@ func BenchmarkMergeBlockStreamsFourSourcesBestCase(b *testing.B) {
 
 func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop int64) {
 	var rowsMerged, rowsDeleted uint64
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 
 	b.ReportAllocs()
 	b.SetBytes(rowsPerLoop)

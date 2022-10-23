@@ -45,8 +45,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	b.ReportAllocs()
 	b.SetBytes(int64(rowsCountExpected))
 	tablePath := "./benchmarkTableAddRows"
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 	for i := 0; i < b.N; i++ {
 		var isReadOnly uint32
 		tb, err := openTable(tablePath, strg, maxRetentionMsecs, &isReadOnly)

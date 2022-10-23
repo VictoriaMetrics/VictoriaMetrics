@@ -17,8 +17,7 @@ func TestTableOpenClose(t *testing.T) {
 	}()
 
 	// Create a new table
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 	var isReadOnly uint32
 	tb, err := openTable(path, strg, retentionMsecs, &isReadOnly)
 	if err != nil {
@@ -46,8 +45,7 @@ func TestTableOpenMultipleTimes(t *testing.T) {
 		_ = os.RemoveAll(path)
 	}()
 
-	strg := &Storage{}
-	strg.setDeletedMetricIDs(nil)
+	strg := newTestStorage()
 	var isReadOnly uint32
 	tb1, err := openTable(path, strg, retentionMsecs, &isReadOnly)
 	if err != nil {
