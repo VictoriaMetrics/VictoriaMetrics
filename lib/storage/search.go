@@ -132,6 +132,9 @@ type Search struct {
 	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
 
+	// retentionDeadline is used for filtering out blocks outside the configured retention.
+	retentionDeadline int64
+
 	ts tableSearch
 
 	// tr contains time range used in the serach.
@@ -157,6 +160,7 @@ func (s *Search) reset() {
 	s.MetricBlockRef.BlockRef = nil
 
 	s.idb = nil
+	s.retentionDeadline = 0
 	s.ts.reset()
 	s.tr = TimeRange{}
 	s.tfss = nil
@@ -178,9 +182,11 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	if s.needClosing {
 		logger.Panicf("BUG: missing MustClose call before the next call to Init")
 	}
+	retentionDeadline := int64(fasttime.UnixTimestamp()*1e3) - storage.retentionMsecs
 
 	s.reset()
 	s.idb = storage.idb()
+	s.retentionDeadline = retentionDeadline
 	s.tr = tr
 	s.tfss = tfss
 	s.deadline = deadline
@@ -240,6 +246,10 @@ func (s *Search) NextMetricBlock() bool {
 		s.loops++
 		tsid := &s.ts.BlockRef.bh.TSID
 		if tsid.MetricID != s.prevMetricID {
+			if s.ts.BlockRef.bh.MaxTimestamp < s.retentionDeadline {
+				// Skip the block, since it contains only data outside the configured retention.
+				continue
+			}
 			var err error
 			s.MetricBlockRef.MetricName, err = s.idb.searchMetricNameWithCache(s.MetricBlockRef.MetricName[:0], tsid.MetricID, tsid.AccountID, tsid.ProjectID)
 			if err != nil {

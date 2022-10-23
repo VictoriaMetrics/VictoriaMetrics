@@ -61,7 +61,7 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline 
 	bsm.nextBlockNoop = true
 }
 
-func (bsm *blockStreamMerger) getRetentionDeadline(b *Block) int64 {
+func (bsm *blockStreamMerger) getRetentionDeadline(bh *blockHeader) int64 {
 	return bsm.retentionDeadline
 }
 
