@@ -24,6 +24,7 @@ export interface GraphViewProps {
 
 const promValueToNumber = (s: string): number => {
   // See https://prometheus.io/docs/prometheus/latest/querying/api/#expression-query-result-formats
+  const [whole = "0", decimal = "0"] = s.split(".");
   switch (s) {
     case "NaN":
       return NaN;
@@ -33,7 +34,7 @@ const promValueToNumber = (s: string): number => {
     case "-Inf":
       return -Infinity;
     default:
-      return parseFloat(s);
+      return parseFloat(`${whole}.${decimal.slice(0, 10)}`);
   }
 };
 
