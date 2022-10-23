@@ -93,6 +93,7 @@ type Search struct {
 	// MetricBlockRef is updated with each Search.NextMetricBlock call.
 	MetricBlockRef MetricBlockRef
 
+	// idb is used for MetricName lookup for the found data blocks.
 	idb *indexDB
 
 	ts tableSearch
@@ -143,16 +144,21 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	}
 
 	s.reset()
+	s.idb = storage.idb()
 	s.tr = tr
 	s.tfss = tfss
 	s.deadline = deadline
 	s.needClosing = true
 
-	tsids, err := storage.searchTSIDs(qt, tfss, tr, maxMetrics, deadline)
+	var tsids []TSID
+	metricIDs, err := s.idb.searchMetricIDs(qt, tfss, tr, maxMetrics, deadline)
 	if err == nil {
-		err = storage.prefetchMetricNames(qt, tsids, deadline)
+		tsids, err = s.idb.getTSIDsFromMetricIDs(qt, metricIDs, deadline)
+		if err == nil {
+			err = storage.prefetchMetricNames(qt, metricIDs, deadline)
+		}
 	}
-	// It is ok to call Init on error from storage.searchTSIDs.
+	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
 	// on Seach.MustClose otherwise.
 	s.ts.Init(storage.tb, tsids, tr)
@@ -161,8 +167,6 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 		s.err = err
 		return 0
 	}
-
-	s.idb = storage.idb()
 	return len(tsids)
 }
 

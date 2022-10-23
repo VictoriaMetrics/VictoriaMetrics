@@ -58,10 +58,14 @@ var (
 
 	minFreeDiskSpaceBytes = flagutil.NewBytes("storage.minFreeDiskSpaceBytes", 10e6, "The minimum free disk space at -storageDataPath after which the storage stops accepting new data")
 
-	cacheSizeStorageTSID        = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeIndexDBDataBlocks  = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
-	cacheSizeIndexDBTagFilters  = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFilters cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeStorageTSID = flagutil.NewBytes("storage.cacheSizeStorageTSID", 0, "Overrides max size for storage/tsid cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBIndexBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBIndexBlocks", 0, "Overrides max size for indexdb/indexBlocks cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBDataBlocks = flagutil.NewBytes("storage.cacheSizeIndexDBDataBlocks", 0, "Overrides max size for indexdb/dataBlocks cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
+	cacheSizeIndexDBTagFilters = flagutil.NewBytes("storage.cacheSizeIndexDBTagFilters", 0, "Overrides max size for indexdb/tagFiltersToMetricIDs cache. "+
+		"See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning")
 )
 
 // CheckTimeRange returns true if the given tr is denied for querying.
@@ -101,7 +105,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.N)
-	storage.SetTagFilterCacheSize(cacheSizeIndexDBTagFilters.N)
+	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.N)
 	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
 	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
 
@@ -605,19 +609,6 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
-	metrics.NewGauge(`vm_concurrent_search_tsids_limit_reached_total`, func() float64 {
-		return float64(m().SearchTSIDsConcurrencyLimitReached)
-	})
-	metrics.NewGauge(`vm_concurrent_search_tsids_limit_timeout_total`, func() float64 {
-		return float64(m().SearchTSIDsConcurrencyLimitTimeout)
-	})
-	metrics.NewGauge(`vm_concurrent_search_tsids_capacity`, func() float64 {
-		return float64(m().SearchTSIDsConcurrencyCapacity)
-	})
-	metrics.NewGauge(`vm_concurrent_search_tsids_current`, func() float64 {
-		return float64(m().SearchTSIDsConcurrencyCurrent)
-	})
-
 	metrics.NewGauge(`vm_search_delays_total`, func() float64 {
 		return float64(m().SearchDelays)
 	})
@@ -721,8 +712,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_entries{type="indexdb/indexBlocks"}`, func() float64 {
 		return float64(idbm().IndexBlocksCacheSize)
 	})
-	metrics.NewGauge(`vm_cache_entries{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagFiltersCacheSize)
+	metrics.NewGauge(`vm_cache_entries{type="indexdb/tagFiltersToMetricIDs"}`, func() float64 {
+		return float64(idbm().TagFiltersToMetricIDsCacheSize)
 	})
 	metrics.NewGauge(`vm_cache_entries{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSize())
@@ -762,8 +753,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/next_day_metric_ids"}`, func() float64 {
 		return float64(m().NextDayMetricIDCacheSizeBytes)
 	})
-	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagFiltersCacheSizeBytes)
+	metrics.NewGauge(`vm_cache_size_bytes{type="indexdb/tagFiltersToMetricIDs"}`, func() float64 {
+		return float64(idbm().TagFiltersToMetricIDsCacheSizeBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_bytes{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheSizeBytes())
@@ -793,8 +784,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/indexBlocks"}`, func() float64 {
 		return float64(idbm().IndexBlocksCacheSizeMaxBytes)
 	})
-	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagFiltersCacheSizeMaxBytes)
+	metrics.NewGauge(`vm_cache_size_max_bytes{type="indexdb/tagFiltersToMetricIDs"}`, func() float64 {
+		return float64(idbm().TagFiltersToMetricIDsCacheSizeMaxBytes)
 	})
 	metrics.NewGauge(`vm_cache_size_max_bytes{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheMaxSizeBytes())
@@ -821,8 +812,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/indexBlocks"}`, func() float64 {
 		return float64(idbm().IndexBlocksCacheRequests)
 	})
-	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagFiltersCacheRequests)
+	metrics.NewGauge(`vm_cache_requests_total{type="indexdb/tagFiltersToMetricIDs"}`, func() float64 {
+		return float64(idbm().TagFiltersToMetricIDsCacheRequests)
 	})
 	metrics.NewGauge(`vm_cache_requests_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheRequests())
@@ -849,8 +840,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/indexBlocks"}`, func() float64 {
 		return float64(idbm().IndexBlocksCacheMisses)
 	})
-	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/tagFilters"}`, func() float64 {
-		return float64(idbm().TagFiltersCacheMisses)
+	metrics.NewGauge(`vm_cache_misses_total{type="indexdb/tagFiltersToMetricIDs"}`, func() float64 {
+		return float64(idbm().TagFiltersToMetricIDsCacheMisses)
 	})
 	metrics.NewGauge(`vm_cache_misses_total{type="storage/regexps"}`, func() float64 {
 		return float64(storage.RegexpCacheMisses())
