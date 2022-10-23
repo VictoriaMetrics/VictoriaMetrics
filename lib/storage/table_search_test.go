@@ -182,8 +182,7 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 
 	// Create a table from rowss and test search on it.
 	strg := newTestStorage()
-	var isReadOnly uint32
-	tb, err := openTable("./test-table", strg, maxRetentionMsecs, &isReadOnly)
+	tb, err := openTable("./test-table", strg)
 	if err != nil {
 		t.Fatalf("cannot create table: %s", err)
 	}
@@ -204,7 +203,7 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 	tb.MustClose()
 
 	// Open the created table and test search on it.
-	tb, err = openTable("./test-table", strg, maxRetentionMsecs, &isReadOnly)
+	tb, err = openTable("./test-table", strg)
 	if err != nil {
 		t.Fatalf("cannot open table: %s", err)
 	}

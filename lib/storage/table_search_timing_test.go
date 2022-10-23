@@ -45,8 +45,7 @@ func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount
 		createdBenchTables[path] = true
 	}
 	strg := newTestStorage()
-	var isReadOnly uint32
-	tb, err := openTable(path, strg, maxRetentionMsecs, &isReadOnly)
+	tb, err := openTable(path, strg)
 	if err != nil {
 		b.Fatalf("cnanot open table %q: %s", path, err)
 	}
@@ -70,8 +69,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	b.Helper()
 
 	strg := newTestStorage()
-	var isReadOnly uint32
-	tb, err := openTable(path, strg, maxRetentionMsecs, &isReadOnly)
+	tb, err := openTable(path, strg)
 	if err != nil {
 		b.Fatalf("cannot open table %q: %s", path, err)
 	}
