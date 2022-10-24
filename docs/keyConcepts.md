@@ -93,7 +93,7 @@ So, the `counter` metric shows the number of observed events since the service s
 
 In programming, `counter` is a variable that you **increment** each time something happens.
 
-{% include img.html href="keyConcepts_counter.png" %}
+<img src="keyConcepts_counter.png">
 
 `vm_http_requests_total` is a typical example of a counter. The interpretation of a graph
 above is that time series `vm_http_requests_total{instance="localhost:8428", job="victoriametrics", path="api/v1/query_range"}`
@@ -119,7 +119,7 @@ by humans from other metric types.
 
 Gauge is used for measuring a value that can go up and down:
 
-{% include img.html href="keyConcepts_gauge.png" %}
+<img src="keyConcepts_gauge.png">
 
 The metric `process_resident_memory_anon_bytes` on the graph shows the memory usage of the application at every given time.
 It is changing frequently, going up and down showing how the process allocates and frees the memory.
@@ -219,7 +219,7 @@ Such a combination of `counter` metrics allows
 plotting [Heatmaps in Grafana](https://grafana.com/docs/grafana/latest/visualizations/heatmap/)
 and calculating [quantiles](https://prometheus.io/docs/practices/histograms/#quantiles):
 
-{% include img.html href="keyConcepts_histogram.png" %}
+<img src="keyConcepts_histogram.png">
 
 Grafana doesn't understand buckets with `vmrange` labels, so the [prometheus_buckets](https://docs.victoriametrics.com/MetricsQL.html#prometheus_buckets)
 function must be used for converting buckets with `vmrange` labels to buckets with `le` labels before building heatmaps in Grafana.
@@ -261,7 +261,7 @@ go_gc_duration_seconds_count 83
 
 The visualisation of summaries is pretty straightforward:
 
-{% include img.html href="keyConcepts_summary.png" %}
+<img src="keyConcepts_summary.png">
 
 Such an approach makes summaries easier to use but also puts significant limitations compared to [histograms](#histogram):
 
@@ -320,7 +320,7 @@ VictoriaMetrics supports both models used in modern monitoring applications: [pu
 
 Client regularly sends the collected metrics to the server in the push model:
 
-{% include img.html href="keyConcepts_push_model.png" %}
+<img src="keyConcepts_push_model.png">
 
 The client (application) decides when and where to send its metrics. VictoriaMetrics supports the following protocols
 for data ingestion (aka `push protocols`):
@@ -378,7 +378,7 @@ The cons of push protocol:
 Pull model is an approach popularized by [Prometheus](https://prometheus.io/), where the monitoring system decides when
 and where to pull metrics from:
 
-{% include img.html href="keyConcepts_pull_model.png" %}
+<img src="keyConcepts_pull_model.png">
 
 In pull model, the monitoring system needs to be aware of all the applications it needs to monitor. The metrics are
 scraped (pulled) from the known applications (aka `scrape targets`) via HTTP protocol on a regular basis (aka `scrape_interval`).
@@ -409,7 +409,7 @@ models for data collection. Many installations use exclusively one of these mode
 
 The most common approach for data collection is using both models:
 
-{% include img.html href="keyConcepts_data_collection.png" %}
+<img src="keyConcepts_data_collection.png">
 
 In this approach the additional component is used - [vmagent](https://docs.victoriametrics.com/vmagent.html). Vmagent is
 a lightweight agent whose main purpose is to collect, filter, relabel and deliver metrics to VictoriaMetrics.
@@ -424,7 +424,7 @@ installation for querying collected data.
 
 VictoriaMetrics components allow building more advanced topologies. For example, vmagents can push metrics from separate datacenters to the central VictoriaMetrics:
 
-{% include img.html href="keyConcepts_two_dcs.png" %}
+<img src="keyConcepts_two_dcs.png">
 
 VictoriaMetrics in this example may be either [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html). Vmagent also allows
@@ -854,7 +854,7 @@ VictoriaMetrics has a built-in graphical User Interface for querying and visuali
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui).
 Open `http://victoriametrics:8428/vmui` page, type the query and see the results:
 
-{% include img.html href="keyConcepts_vmui.png" %}
+<img src="keyConcepts_vmui.png">
 
 VictoriaMetrics supports [Prometheus HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 which makes it possible to [query it with Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup)
