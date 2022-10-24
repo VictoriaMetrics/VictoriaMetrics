@@ -452,7 +452,7 @@ Please notice at that moment not all TSDB support `STREAMED_XOR_CHUNKS` mode and
 To start the migration process some flags should be defined:
 1. `--remote-read-src-addr` - address to perform read from;
 2. `--vm-addr` - address for single-node VM is usually equal to `--httpListenAddr`, and for cluster version;
-is equal to `--httpListenAddr` flag of vminsert component;
+is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
 3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
 4. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
 
