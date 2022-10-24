@@ -10,6 +10,7 @@ import Popper from "@mui/material/Popper";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Paper from "@mui/material/Paper";
 import EventIcon from "@mui/icons-material/Event";
+import {getAppModeEnable} from "../../../utils/app-mode";
 
 const formatDate = "YYYY-MM-DD";
 
@@ -20,6 +21,7 @@ interface DatePickerProps {
 
 const DatePicker: FC<DatePickerProps> = ({date, onChange}) => {
 
+  const appModeEnable = getAppModeEnable();
   const dateFormatted = date ? dayjs(date).format(formatDate) : null;
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
@@ -30,7 +32,7 @@ const DatePicker: FC<DatePickerProps> = ({date, onChange}) => {
       <Button variant="contained" color="primary"
         sx={{
           color: "white",
-          border: "1px solid rgba(0, 0, 0, 0.2)",
+          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
           boxShadow: "none"
         }}
         startIcon={<EventIcon/>}

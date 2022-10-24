@@ -75,7 +75,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
     }
   }, [stateQuery]);
 
-  return <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
+  return <Box>
     <Box>
       {stateQuery.map((q, i) =>
         <Box key={i} display="grid" gridTemplateColumns="1fr auto" gap="4px" width="100%" position="relative"
