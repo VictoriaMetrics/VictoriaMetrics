@@ -82,27 +82,7 @@ func (cCtx *Context) IsSet(name string) bool {
 func (cCtx *Context) LocalFlagNames() []string {
 	var names []string
 	cCtx.flagSet.Visit(makeFlagNameVisitor(&names))
-	// Check the flags which have been set via env or file
-	if cCtx.Command != nil && cCtx.Command.Flags != nil {
-		for _, f := range cCtx.Command.Flags {
-			if f.IsSet() {
-				names = append(names, f.Names()...)
-			}
-		}
-	}
-
-	// Sort out the duplicates since flag could be set via multiple
-	// paths
-	m := map[string]struct{}{}
-	var unames []string
-	for _, name := range names {
-		if _, ok := m[name]; !ok {
-			m[name] = struct{}{}
-			unames = append(unames, name)
-		}
-	}
-
-	return unames
+	return names
 }
 
 // FlagNames returns a slice of flag names used by the this context and all of
@@ -110,7 +90,7 @@ func (cCtx *Context) LocalFlagNames() []string {
 func (cCtx *Context) FlagNames() []string {
 	var names []string
 	for _, pCtx := range cCtx.Lineage() {
-		names = append(names, pCtx.LocalFlagNames()...)
+		pCtx.flagSet.Visit(makeFlagNameVisitor(&names))
 	}
 	return names
 }
