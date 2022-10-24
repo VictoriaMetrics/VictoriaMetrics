@@ -630,8 +630,6 @@ api:
 
 If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
 By default, Cortex uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
-Cortex API doesn't support Prometheus `health` API, so we should disable the health check when we start the migration.
-It is possible todo by setting flag as `--remote-read-src-check-alive=false`
 
 It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
 When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
@@ -694,8 +692,6 @@ api:
 
 If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
 By default, Mimir uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
-Mimir API doesn't support Prometheus `health` API, so we should disable the health check when we start the migration.
-It is possible todo by setting flag as `--remote-read-src-check-alive=false`
 
 Mimir supports both remote read mode, so you can use `STREAMED_XOR_CHUNKS` mode and `SAMPLES` mode.
 When you run Mimir, it exposes a port to serve HTTP on `8080 by default`.

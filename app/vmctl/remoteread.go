@@ -20,8 +20,7 @@ type remotereadProcessor struct {
 	dst *vm.Importer
 	src *remoteread.Client
 
-	cc            int
-	checkSrcAlive bool
+	cc int
 }
 
 type remoteReadFilter struct {
@@ -60,13 +59,6 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 	rangeC := make(chan *remoteread.Filter)
 	errCh := make(chan error)
 	rrp.dst.ResetStats()
-
-	// Some remote storages doesn't support prometheus health API
-	if rrp.checkSrcAlive {
-		if err := rrp.src.Ping(); err != nil {
-			return fmt.Errorf("data source not ready: %s", err)
-		}
-	}
 
 	if err := rrp.dst.Ping(); err != nil {
 		return fmt.Errorf("destination source not ready: %s", err)

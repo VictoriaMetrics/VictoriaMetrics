@@ -146,8 +146,7 @@ func main() {
 							labelValue: c.String(remoteReadFilterLabelValue),
 							chunk:      c.String(remoteReadStepInterval),
 						},
-						cc:            c.Int(remoteReadConcurrency),
-						checkSrcAlive: c.Bool(remoteReadCheckSrcAlive),
+						cc: c.Int(remoteReadConcurrency),
 					}
 					return rmp.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
