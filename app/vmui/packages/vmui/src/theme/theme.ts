@@ -1,16 +1,28 @@
 import {createTheme} from "@mui/material/styles";
+import {getAppModeParams} from "../utils/app-mode";
+
+const {palette} = getAppModeParams();
 
 const THEME = createTheme({
   palette: {
     primary: {
-      main: "#3F51B5",
+      main: palette?.primary || "#3F51B5",
       light: "#e3f2fd"
     },
     secondary: {
-      main: "#F50057"
+      main: palette?.secondary || "#F50057"
     },
     error: {
-      main: "#FF4141"
+      main: palette?.error || "#FF4141"
+    },
+    warning: {
+      main: palette?.warning || "#ff9800"
+    },
+    info: {
+      main: palette?.info || "#03a9f4"
+    },
+    success: {
+      main: palette?.success || "#4caf50"
     }
   },
   components: {
@@ -104,10 +116,25 @@ const THEME = createTheme({
           boxShadow: "rgba(0, 0, 0, 0.08) 0px 4px 12px"
         }
       }
+    },
+    MuiTableCell: {
+      styleOverrides: {
+        head: {
+          fontWeight: 600
+        }
+      }
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          fontWeight: 600
+        }
+      }
     }
   },
   typography: {
-    "fontSize": 10
+    "fontSize": 10,
+    fontFamily: "'Lato', sans-serif"
   }
 });
 
