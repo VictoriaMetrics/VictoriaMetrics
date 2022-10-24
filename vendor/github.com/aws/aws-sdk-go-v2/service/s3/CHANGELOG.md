@@ -1,3 +1,13 @@
+# v1.29.0 (2022-10-21)
+
+* **Feature**: S3 on Outposts launches support for automatic bucket-style alias. You can use the automatic access point alias instead of an access point ARN for any object-level operation in an Outposts bucket.
+* **Bug Fix**: The SDK client has been updated to utilize the `aws.IsCredentialsProvider` function for determining if `aws.AnonymousCredentials` has been configured for the `CredentialProvider`.
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.28.0 (2022-10-19)
+
+* **Feature**: Updates internal logic for constructing API endpoints. We have added rule-based endpoints and internal model parameters.
+
 # v1.27.11 (2022-09-20)
 
 * **Dependency Update**: Updated to the latest SDK module versions
