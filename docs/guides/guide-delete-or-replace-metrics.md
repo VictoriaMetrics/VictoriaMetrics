@@ -234,8 +234,3 @@ The expected output will look like:
   ]
 }
 ```
-
-## Summary
-
-* We have learned how to remove metrics from VictoriaMetrics
-* We have learned how to update(replace) metrics in VictoriaMetrics
