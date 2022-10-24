@@ -69,16 +69,13 @@ const GraphView: FC<GraphViewProps> = ({
     const tempTimes: number[] = [];
     const tempValues: {[key: string]: number[]} = {};
     const tempLegend: LegendItem[] = [];
-    const tempSeries: uPlotSeries[] = [];
+    const tempSeries: uPlotSeries[] = [{}];
 
     data?.forEach((d) => {
       const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
-      let tmpValues = tempValues[d.group];
-      if (!tmpValues) {
-        tmpValues = [];
-      }
+      const tmpValues = tempValues[d.group] || [];
       for (const v of d.values) {
         tempTimes.push(v[0]);
         tmpValues.push(promValueToNumber(v[1]));
@@ -87,14 +84,15 @@ const GraphView: FC<GraphViewProps> = ({
     });
 
     const timeSeries = getTimeSeries(tempTimes, currentStep, period);
-    setDataChart([timeSeries, ...data.map(d => {
+    const timeDataSeries = data.map(d => {
       const results = [];
       const values = d.values;
+      const length = values.length;
       let j = 0;
       for (const t of timeSeries) {
-        while (j < values.length && values[j][0] < t) j++;
+        while (j < length && values[j][0] < t) j++;
         let v = null;
-        if (j < values.length && values[j][0] == t) {
+        if (j < length && values[j][0] == t) {
           v = promValueToNumber(values[j][1]);
           if (!Number.isFinite(v)) {
             // Treat special values as nulls in order to satisfy uPlot.
@@ -105,25 +103,24 @@ const GraphView: FC<GraphViewProps> = ({
         results.push(v);
       }
       return results;
-    })] as uPlotData);
-    setLimitsYaxis(tempValues);
+    });
+    timeDataSeries.unshift(timeSeries);
 
-    const newSeries = [{}, ...tempSeries];
-    if (JSON.stringify(newSeries) !== JSON.stringify(series)) {
-      setSeries(newSeries);
-      setLegend(tempLegend);
-    }
+    setLimitsYaxis(tempValues);
+    setDataChart(timeDataSeries as uPlotData);
+    setSeries(tempSeries);
+    setLegend(tempLegend);
   }, [data]);
 
   useEffect(() => {
     const tempLegend: LegendItem[] = [];
-    const tempSeries: uPlotSeries[] = [];
+    const tempSeries: uPlotSeries[] = [{}];
     data?.forEach(d => {
       const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
-    setSeries([{}, ...tempSeries]);
+    setSeries(tempSeries);
     setLegend(tempLegend);
   }, [hideSeries]);
 

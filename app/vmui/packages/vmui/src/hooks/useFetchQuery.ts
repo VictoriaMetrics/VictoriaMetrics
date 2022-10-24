@@ -48,38 +48,43 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
-    const isDisplayChart = displayType === "chart";
     try {
-      const responses = await Promise.all(fetchUrl.map(url => fetch(url, {signal: controller.signal})));
+      const isDisplayChart = displayType === "chart";
+      const seriesLimit = MAX_SERIES[displayType];
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
+      let totalLength = 0;
 
-      for await (const response of responses) {
+      for await (const url of fetchUrl) {
+        const response = await fetch(url, {signal: controller.signal});
         const resp = await response.json();
+
         if (response.ok) {
           setError(undefined);
+
           if (resp.trace) {
-            const trace = new Trace(resp.trace, query[counter-1]);
+            const trace = new Trace(resp.trace, query[counter - 1]);
             tempTraces.push(trace);
           }
-          resp.data.result.forEach((d: MetricBase) => {
+
+          const freeTempSize = seriesLimit - tempData.length;
+          resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
             tempData.push(d);
           });
+
+          totalLength += resp.data.result.length;
           counter++;
         } else {
           setError(`${resp.errorType}\r\n${resp?.error}`);
         }
       }
 
-      const length = tempData.length;
-      const seriesLimit = MAX_SERIES[displayType];
-      const result = tempData.slice(0, seriesLimit);
-      const limitText = `Showing ${seriesLimit} series out of ${length} series due to performance reasons. Please narrow down the query, so it returns less series`;
-      setWarning(length > seriesLimit ? limitText : "");
+      const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
+      setWarning(totalLength > seriesLimit ? limitText : "");
 
-      isDisplayChart ? setGraphData(result as MetricResult[]) : setLiveData(result as InstantMetricResult[]);
+      isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
     } catch (e) {
       if (e instanceof Error && e.name !== "AbortError") {
