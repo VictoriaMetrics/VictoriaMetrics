@@ -4,10 +4,8 @@ import {useAppState} from "../state/common/StateContext";
 import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
 import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
-import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import debounce from "lodash.debounce";
 import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
-import {CustomStep} from "../state/graph/reducer";
 import usePrevious from "./usePrevious";
 import {arrayEquals} from "../utils/array";
 import Trace from "../components/CustomPanel/Trace/Trace";
@@ -17,11 +15,8 @@ interface FetchQueryParams {
   predefinedQuery?: string[]
   visible: boolean
   display?: DisplayType,
-  customStep: CustomStep,
+  customStep: number,
 }
-
-const appModeEnable = getAppModeEnable();
-const {serverURL: appServerUrl} = getAppModeParams();
 
 export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: FetchQueryParams): {
   fetchUrl?: string[],
@@ -97,20 +92,19 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   const throttledFetchData = useCallback(debounce(fetchData, 600), []);
 
   const fetchUrl = useMemo(() => {
-    const server = appModeEnable ? appServerUrl : serverUrl;
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
     if (!period) return;
-    if (!server) {
+    if (!serverUrl) {
       setError(ErrorTypes.emptyServer);
     } else if (expr.every(q => !q.trim())) {
       setError(ErrorTypes.validQuery);
-    } else if (isValidHttpUrl(server)) {
+    } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = {...period};
-      if (customStep.enable) updatedPeriod.step = customStep.value;
+      updatedPeriod.step = customStep;
       return expr.filter(q => q.trim()).map(q => displayChart
-        ? getQueryRangeUrl(server, q, updatedPeriod, nocache, isTracingEnabled)
-        : getQueryUrl(server, q, updatedPeriod, isTracingEnabled));
+        ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
+        : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
