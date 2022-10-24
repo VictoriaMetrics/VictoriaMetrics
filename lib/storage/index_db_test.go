@@ -2198,6 +2198,8 @@ func newTestStorage() *Storage {
 		retentionMsecs:    maxRetentionMsecs,
 	}
 	s.setDeletedMetricIDs(&uint64set.Set{})
+	var idb *indexDB
+	s.idbCurr.Store(idb)
 	return s
 }
 
