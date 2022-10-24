@@ -4,7 +4,7 @@ sort: 11
 
 # vmanomaly
 
-**_vmanomaly is a part of [enterprise package](https://victoriametrics.com/products/enterprise/).
+**_vmanomaly is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Please [contact us](https://victoriametrics.com/contact-us/) to find out more._**
 
 ## About

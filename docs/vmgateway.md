@@ -4,7 +4,7 @@ sort: 9
 
 # vmgateway
 
-***vmgateway is a part of [enterprise package](https://victoriametrics.com/products/enterprise/). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
+***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
 <img alt="vmgateway" src="vmgateway-overview.jpeg">
 
@@ -17,7 +17,7 @@ sort: 9
   * Provides access by tenantID in the Cluster version
   * Allows for separate write/read/admin access to data
 
-`vmgateway` is included in our [enterprise packages](https://victoriametrics.com/products/enterprise/).
+`vmgateway` is included in our [enterprise packages](https://docs.victoriametrics.com/enterprise.html).
 
 ## Access Control
 
