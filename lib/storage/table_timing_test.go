@@ -45,9 +45,9 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	b.ReportAllocs()
 	b.SetBytes(int64(rowsCountExpected))
 	tablePath := "./benchmarkTableAddRows"
+	strg := newTestStorage()
 	for i := 0; i < b.N; i++ {
-		var isReadOnly uint32
-		tb, err := openTable(tablePath, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
+		tb, err := openTable(tablePath, strg)
 		if err != nil {
 			b.Fatalf("cannot open table %q: %s", tablePath, err)
 		}
@@ -95,7 +95,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		tb.MustClose()
 
 		// Open the table from files and verify the rows count on it
-		tb, err = openTable(tablePath, nilGetDeletedMetricIDs, maxRetentionMsecs, &isReadOnly)
+		tb, err = openTable(tablePath, strg)
 		if err != nil {
 			b.Fatalf("cannot open table %q: %s", tablePath, err)
 		}

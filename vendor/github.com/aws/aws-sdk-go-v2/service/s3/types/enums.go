@@ -88,6 +88,7 @@ const (
 	BucketLocationConstraintApSouth1     BucketLocationConstraint = "ap-south-1"
 	BucketLocationConstraintApSoutheast1 BucketLocationConstraint = "ap-southeast-1"
 	BucketLocationConstraintApSoutheast2 BucketLocationConstraint = "ap-southeast-2"
+	BucketLocationConstraintApSoutheast3 BucketLocationConstraint = "ap-southeast-3"
 	BucketLocationConstraintCaCentral1   BucketLocationConstraint = "ca-central-1"
 	BucketLocationConstraintCnNorth1     BucketLocationConstraint = "cn-north-1"
 	BucketLocationConstraintCnNorthwest1 BucketLocationConstraint = "cn-northwest-1"
@@ -120,6 +121,7 @@ func (BucketLocationConstraint) Values() []BucketLocationConstraint {
 		"ap-south-1",
 		"ap-southeast-1",
 		"ap-southeast-2",
+		"ap-southeast-3",
 		"ca-central-1",
 		"cn-north-1",
 		"cn-northwest-1",
