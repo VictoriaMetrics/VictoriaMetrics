@@ -28,7 +28,7 @@ Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.htm
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
-See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
+See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free 
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
@@ -69,7 +69,7 @@ VictoriaMetrics has the following prominent features:
   * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
-* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/products/enterprise/).
+* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise.html).
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/) and [Google Filestore](https://cloud.google.com/filestore).
 
@@ -735,7 +735,7 @@ VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series w
 
 ### Graphite Render API usage
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
@@ -1405,7 +1405,11 @@ VictoriaMetrics does not support indefinite retention, but you can specify an ar
 
 ## Multiple retentions
 
-A single instance of VictoriaMetrics supports only a single retention, which can be configured via `-retentionPeriod` command-line flag. If you need multiple retentions, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
+Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)
+in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
+
+Community version of VictoriaMetrics supports only a single retention, which can be configured via [-retentionPeriod](#retention) command-line flag.
+If you need multiple retentions in community version of VictoriaMetrics, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
 
 * `-retentionPeriod`
 * `-storageDataPath`, so the data for each retention period is saved in a separate directory
@@ -1413,12 +1417,44 @@ A single instance of VictoriaMetrics supports only a single retention, which can
 
 Then set up [vmauth](https://docs.victoriametrics.com/vmauth.html) in front of VictoriaMetrics instances,
 so it could route requests from particular user to VictoriaMetrics with the desired retention.
-The same scheme could be implemented for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+Similar scheme can be applied for multiple tenants in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html) for multi-retention setup details.
+
+## Retention filters
+
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports e.g. `retention filters`,
+which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
+a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
+must contain valid [retention](#retention) for time series matching the given `filter`. If series doesn't match
+any configured `-retentionFilter`, then the retention configured via [-retentionPeriod](#retention) command-line flag is applied to it.
+If series matches multiple configured retention filters, then the smallest retention is applied.
+
+For example, the following config sets 3 days retention for time series with `team="juniors"` label,
+30 days retention for time series with `env="dev"` or `env="staging"` label and 1 year retention for the remaining time series:
+
+```
+-retentionFilter='{team="juniors"}:3d' -retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y
+```
+
+Important notes:
+
+- The data outside of the configured retention isn't deleted instantly - it is deleted eventually during [background merges](https://docs.victoriametrics.com/#storage).
+- The `-retentionFilter` doesn't remove old data from `indexdb` (aka inverted index) until the configured [-retentionPeriod](#retention).
+  So the `indexdb` size can grow big under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)
+  even for small retentions configured via `-retentionFilter`.
+
+It is safe updating `-retentionFilter` during VictoriaMetrics restarts - the updated retention filters are applied eventually
+to historical data.
+
+See [how to configure multiple retentions in VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters).
+
+Retention filters can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Downsampling
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
 
 * `-downsampling.period=30d:5m` instructs VictoriaMetrics to [deduplicate](#deduplication) samples older than 30 days with 5 minutes interval.
 
@@ -2210,8 +2246,11 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
   -relabelDebug
      Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
+  -retentionFilter array
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in enterprise version of VictoriaMetrics
+     Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
-     Data with timestamps outside the retentionPeriod is automatically deleted
+     Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)

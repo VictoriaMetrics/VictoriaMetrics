@@ -1685,11 +1685,22 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 		return fmt.Errorf("cannot read directory: %w", err)
 	}
 	for _, fi := range fis {
+		fn := fi.Name()
 		if !fs.IsDirOrSymlink(fi) {
+			if fn == "appliedRetention.txt" {
+				// Copy the appliedRetention.txt file to dstDir.
+				// This file can be created by VictoriaMetrics enterprise.
+				// See https://docs.victoriametrics.com/#retention-filters .
+				// Do not make hard link to this file, since it can be modified over time.
+				srcPath := srcDir + "/" + fn
+				dstPath := dstDir + "/" + fn
+				if err := fs.CopyFile(srcPath, dstPath); err != nil {
+					return fmt.Errorf("cannot copy %q to %q: %w", srcPath, dstPath, err)
+				}
+			}
 			// Skip non-directories.
 			continue
 		}
-		fn := fi.Name()
 		if fn == "tmp" || fn == "txn" {
 			// Skip special dirs.
 			continue
