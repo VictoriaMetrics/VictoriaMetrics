@@ -49,7 +49,8 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 			return t, t.Add(time.Minute * 1)
 		}
 	default:
-		return nil, fmt.Errorf("failed to parse step value, valid values are: '%s', '%s', '%s'. provided: '%s'", StepMonth, StepDay, StepHour, step)
+		return nil, fmt.Errorf("failed to parse step value, valid values are: '%s', '%s', '%s', '%s'. provided: '%s'",
+			StepMonth, StepDay, StepHour, StepMinute, step)
 	}
 
 	currentStep := start

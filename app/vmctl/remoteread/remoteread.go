@@ -168,12 +168,12 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
+
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
 	if c.useStream {
 		return processStreamResponse(resp.Body, streamCb)

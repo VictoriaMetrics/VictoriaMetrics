@@ -673,7 +673,7 @@ Processing ranges: 8842 / 8842 [████████████████
 2022/10/21 12:09:49 Total time: 4.71824253s
 ```
 
-It is important to know that if you run your Mimir installation in multi-tenant mode, remote read protocol
+It is important to know that if you run your Cortex installation in multi-tenant mode, remote read protocol
 requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
 
 
@@ -701,28 +701,7 @@ Mimir supports both remote read mode, so you can use `STREAMED_XOR_CHUNKS` mode 
 When you run Mimir, it exposes a port to serve HTTP on `8080 by default`.
 
 Next example of the local installation was in multi-tenant mode (3 instances of mimir) with nginx as load balancer.
-nginx config:
-```
-events {
-    worker_connections 1024;
-}
-
-http {
-    upstream backend {
-        server mimir-1:8080 max_fails=1 fail_timeout=1s;
-        server mimir-2:8080 max_fails=1 fail_timeout=1s;
-        server mimir-3:8080 max_fails=1 fail_timeout=1s backup;
-    }
-
-    server {
-        listen 9009;
-        access_log /dev/null;
-        location / {
-            proxy_pass http://backend;
-        }
-    }
-}
-```
+Load balancer expose single port `:9090`.
 
 As you can see in the example we call `:9009` instead of `:8080` because of proxy.
 
