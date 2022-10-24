@@ -12,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // table represents a single table with time series data.
@@ -21,9 +20,7 @@ type table struct {
 	smallPartitionsPath string
 	bigPartitionsPath   string
 
-	getDeletedMetricIDs func() *uint64set.Set
-	retentionMsecs      int64
-	isReadOnly          *uint32
+	s *Storage
 
 	ptws     []*partitionWrapper
 	ptwsLock sync.Mutex
@@ -79,12 +76,10 @@ func (ptw *partitionWrapper) scheduleToDrop() {
 	atomic.AddUint64(&ptw.mustDrop, 1)
 }
 
-// openTable opens a table on the given path with the given retentionMsecs.
+// openTable opens a table on the given path.
 //
 // The table is created if it doesn't exist.
-//
-// Data older than the retentionMsecs may be dropped at any time.
-func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) (*table, error) {
+func openTable(path string, s *Storage) (*table, error) {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
@@ -122,7 +117,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	// Open partitions.
-	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
+	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, s)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open partitions in the table %q: %w", path, err)
 	}
@@ -131,9 +126,7 @@ func openTable(path string, getDeletedMetricIDs func() *uint64set.Set, retention
 		path:                path,
 		smallPartitionsPath: smallPartitionsPath,
 		bigPartitionsPath:   bigPartitionsPath,
-		getDeletedMetricIDs: getDeletedMetricIDs,
-		retentionMsecs:      retentionMsecs,
-		isReadOnly:          isReadOnly,
+		s:                   s,
 
 		flockF: flockF,
 
@@ -366,7 +359,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 			continue
 		}
 
-		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.getDeletedMetricIDs, tb.retentionMsecs, tb.isReadOnly)
+		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
 		if err != nil {
 			// Return only the first error, since it has no sense in returning all errors.
 			tb.ptwsLock.Unlock()
@@ -382,7 +375,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
 	now := int64(fasttime.UnixTimestamp() * 1000)
-	minTimestamp := now - tb.retentionMsecs
+	minTimestamp := now - tb.s.retentionMsecs
 	maxTimestamp := now + 2*24*3600*1000 // allow max +2 days from now due to timezones shit :)
 	if minTimestamp < 0 {
 		// Negative timestamps aren't supported by the storage.
@@ -412,7 +405,7 @@ func (tb *table) retentionWatcher() {
 		case <-ticker.C:
 		}
 
-		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.retentionMsecs
+		minTimestamp := int64(fasttime.UnixTimestamp()*1000) - tb.s.retentionMsecs
 		var ptwsDrop []*partitionWrapper
 		tb.ptwsLock.Lock()
 		dst := tb.ptws[:0]
@@ -504,7 +497,7 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) ([]*partition, error) {
+func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) ([]*partition, error) {
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
@@ -518,7 +511,7 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, getDeletedMet
 	for ptName := range ptNames {
 		smallPartsPath := smallPartitionsPath + "/" + ptName
 		bigPartsPath := bigPartitionsPath + "/" + ptName
-		pt, err := openPartition(smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
+		pt, err := openPartition(smallPartsPath, bigPartsPath, s)
 		if err != nil {
 			mustClosePartitions(pts)
 			return nil, fmt.Errorf("cannot open partition %q: %w", ptName, err)

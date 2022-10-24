@@ -569,6 +569,34 @@ Restoring from backup:
 2. Restore data from backup using [vmrestore](https://docs.victoriametrics.com/vmrestore.html) into `-storageDataPath` directory.
 3. Start `vmstorage` node.
 
+## Retention filters
+
+[VictoriaMetrics enterprise](https://victoriametrics.com/products/enterprise/) supports configuring multiple retentions for distinct sets of time series
+by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](https://docs.victoriametrics.com/#retention-filters) for details on this feature.
+
+Additionally, enterprise version of VictoriaMetrics cluster supports multiple retentions for distinct sets of [tenants](#multitenancy)
+by specifying filters on `vm_account_id` and/or `vm_project_id` pseudo-labels in `-retentionFilter` command-line flag.
+If the tenant doesn't match specified `-retentionFilter` options, then the global `-retentionPeriod` is used for it.
+
+For example, the following config sets retention to 1 day for [tenants](#multitenancy) with `accountID` starting from '42',
+then sets retention to 3 days for time series with label `env="dev"` or `env="prod"` from any tenant,
+while the rest of tenants will have 4 weeks retention:
+
+```
+-retentionFilter='{vm_account_id=~"42.*"}:1d' -retentionFilter='{env=~"dev|staging"}:3d' -retentionPeriod=4w
+```
+
+It is OK to mix filters on real labels with filters on `vm_account_id` and `vm_project_id` pseudo-labels.
+For example, the following config sets retention to 5 days for time series with `env="dev"` label from [tenant](#multitenancy) `accountID=5`:
+
+```
+-retentionFilter='{vm_account_id="5",env="dev"}:5d'
+```
+
+See also [these docs](https://docs.victoriametrics.com/#retention-filters) for additional details on retention filters.
+
+Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+
 ## Downsampling
 
 Downsampling is available in [enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
@@ -1128,8 +1156,11 @@ Below is the output for `/path/to/vmstorage -help`:
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
+  -retentionFilter array
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in enterprise version of VictoriaMetrics
+     Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
-     Data with timestamps outside the retentionPeriod is automatically deleted
+     Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
@@ -1157,7 +1188,7 @@ Below is the output for `/path/to/vmstorage -help`:
      Overrides max size for indexdb/indexBlocks cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.cacheSizeIndexDBTagFilters size
-     Overrides max size for indexdb/tagFilters cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
+     Overrides max size for indexdb/tagFiltersToMetricIDs cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
   -storage.cacheSizeStorageTSID size
      Overrides max size for storage/tsid cache. See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-tuning

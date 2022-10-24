@@ -365,7 +365,9 @@ func TestMergeForciblyStop(t *testing.T) {
 	ch := make(chan struct{})
 	var rowsMerged, rowsDeleted uint64
 	close(ch)
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, nil, 0, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
+
+	strg := newTestStorage()
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, ch, strg, 0, &rowsMerged, &rowsDeleted); !errors.Is(err, errForciblyStopped) {
 		t.Fatalf("unexpected error in mergeBlockStreams: got %v; want %v", err, errForciblyStopped)
 	}
 	if rowsMerged != 0 {
@@ -384,8 +386,9 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	var bsw blockStreamWriter
 	bsw.InitFromInmemoryPart(&mp)
 
+	strg := newTestStorage()
 	var rowsMerged, rowsDeleted uint64
-	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, nil, 0, &rowsMerged, &rowsDeleted); err != nil {
+	if err := mergeBlockStreams(&mp.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
 		t.Fatalf("unexpected error in mergeBlockStreams: %s", err)
 	}
 
