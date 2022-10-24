@@ -415,3 +415,27 @@ func newServiceMetadataMiddleware_opAssumeRole(region string) *awsmiddleware.Reg
 		OperationName: "AssumeRole",
 	}
 }
+
+// PresignAssumeRole is used to generate a presigned HTTP Request which contains
+// presigned URL, signed headers and HTTP method used.
+func (c *PresignClient) PresignAssumeRole(ctx context.Context, params *AssumeRoleInput, optFns ...func(*PresignOptions)) (*v4.PresignedHTTPRequest, error) {
+	if params == nil {
+		params = &AssumeRoleInput{}
+	}
+	options := c.options.copy()
+	for _, fn := range optFns {
+		fn(&options)
+	}
+	clientOptFns := append(options.ClientOptions, withNopHTTPClientAPIOption)
+
+	result, _, err := c.client.invokeOperation(ctx, "AssumeRole", params, clientOptFns,
+		c.client.addOperationAssumeRoleMiddlewares,
+		presignConverter(options).convertToPresignMiddleware,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	out := result.(*v4.PresignedHTTPRequest)
+	return out, nil
+}
