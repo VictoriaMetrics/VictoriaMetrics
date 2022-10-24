@@ -12,7 +12,7 @@ require (
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.22.2
 	github.com/VictoriaMetrics/metricsql v0.45.0
-	github.com/aws/aws-sdk-go-v2 v1.16.16
+	github.com/aws/aws-sdk-go-v2 v1.17.0
 	github.com/aws/aws-sdk-go-v2/config v1.17.8
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.27.11
