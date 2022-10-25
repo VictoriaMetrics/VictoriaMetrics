@@ -3,7 +3,6 @@ import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Toolbar from "@mui/material/Toolbar";
-import Typography from "@mui/material/Typography";
 import {ExecutionControls} from "../CustomPanel/Configurator/Time/ExecutionControls";
 import Logo from "../common/Logo";
 import {setQueryStringWithoutPageReload} from "../../utils/query-string";
@@ -17,6 +16,7 @@ import DatePicker from "../Main/DatePicker/DatePicker";
 import {useCardinalityState, useCardinalityDispatch} from "../../state/cardinality/CardinalityStateContext";
 import {useEffect} from "react";
 import ShortcutKeys from "../ShortcutKeys/ShortcutKeys";
+import {getAppModeEnable, getAppModeParams} from "../../utils/app-mode";
 
 const classes = {
   logo: {
@@ -25,9 +25,8 @@ const classes = {
     alignItems: "center",
     color: "#fff",
     cursor: "pointer",
-    "&:hover": {
-      textDecoration: "underline"
-    }
+    width: "100%",
+    marginBottom: "2px"
   },
   issueLink: {
     textAlign: "center",
@@ -59,12 +58,18 @@ const classes = {
 
 const Header: FC = () => {
 
+  const appModeEnable = getAppModeEnable();
+  const {headerStyles: {
+    background = appModeEnable ? "#FFF" : "primary.main",
+    color = appModeEnable ? "primary.main" : "#FFF",
+  } = {}} = getAppModeParams();
+
   const {date} = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
 
   const navigate = useNavigate();
   const {search, pathname} = useLocation();
-  const routes = [
+  const routes = useMemo(() => ([
     {
       label: "Custom panel",
       value: router.home,
@@ -72,6 +77,7 @@ const Header: FC = () => {
     {
       label: "Dashboards",
       value: router.dashboards,
+      hide: appModeEnable
     },
     {
       label: "Cardinality",
@@ -81,7 +87,7 @@ const Header: FC = () => {
       label: "Top queries",
       value: router.topQueries,
     }
-  ];
+  ]), [appModeEnable]);
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
@@ -103,31 +109,30 @@ const Header: FC = () => {
     setActiveMenu(pathname);
   }, [pathname]);
 
-  return <AppBar position="static" sx={{px: 1, boxShadow: "none"}}>
+  return <AppBar position="static" sx={{px: 1, boxShadow: "none", bgcolor: background, color}}>
     <Toolbar>
-      <Box display="grid" alignItems="center" justifyContent="center">
-        <Box onClick={onClickLogo} sx={classes.logo}>
-          <Logo style={{color: "inherit", marginRight: "6px"}}/>
-          <Typography variant="h5">
-            <span style={{fontWeight: "bolder"}}>VM</span>
-            <span style={{fontWeight: "lighter"}}>UI</span>
-          </Typography>
+      {!appModeEnable && (
+        <Box display="grid" alignItems="center" justifyContent="center">
+          <Box onClick={onClickLogo} sx={classes.logo}>
+            <Logo style={{color: "inherit", width: "100%"}}/>
+          </Box>
+          <Link sx={classes.issueLink} target="_blank"
+            href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
+            create an issue
+          </Link>
         </Box>
-        <Link sx={classes.issueLink} target="_blank"
-          href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
-          create an issue
-        </Link>
-      </Box>
-      <Box ml={4} flexGrow={1}>
-        <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: "white"}}}
+      )}
+      <Box ml={appModeEnable ? 0 : 8} flexGrow={1}>
+        <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: color}}}
           onChange={(e, val) => setActiveMenu(val)}>
-          {routes.map(r => (
+          {routes.filter(r => !r.hide).map(r => (
             <Tab
               key={`${r.label}_${r.value}`}
               label={r.label}
               value={r.value}
               component={RouterLink}
               to={`${r.value}${search}`}
+              sx={{color}}
             />
           ))}
         </Tabs>
@@ -141,7 +146,7 @@ const Header: FC = () => {
           />
         )}
         {headerSetup?.executionControls && <ExecutionControls/>}
-        {headerSetup?.globalSettings && <GlobalSettings/>}
+        {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
         <ShortcutKeys/>
       </Box>
     </Toolbar>

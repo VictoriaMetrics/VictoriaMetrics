@@ -5,12 +5,14 @@ import {saveToStorage} from "../../../../utils/storage";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import BasicSwitch from "../../../../theme/switch";
 import StepConfigurator from "./StepConfigurator";
-import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
+import {useGraphDispatch} from "../../../../state/graph/GraphStateContext";
+import {getAppModeParams} from "../../../../utils/app-mode";
+import TenantsConfiguration from "../Settings/TenantsConfiguration";
 
 const AdditionalSettings: FC = () => {
 
-  const {customStep} = useGraphState();
   const graphDispatch = useGraphDispatch();
+  const {inputTenantID} = getAppModeParams();
 
   const {queryControls: {autocomplete, nocache, isTracingEnabled}, time: {period: {step}}} = useAppState();
   const dispatch = useAppDispatch();
@@ -47,14 +49,13 @@ const AdditionalSettings: FC = () => {
       />
     </Box>
     <Box>
-      <StepConfigurator defaultStep={step} customStepEnable={customStep.enable}
+      <StepConfigurator defaultStep={step}
         setStep={(value) => {
           graphDispatch({type: "SET_CUSTOM_STEP", payload: value});
         }}
-        toggleEnableStep={() => {
-          graphDispatch({type: "TOGGLE_CUSTOM_STEP"});
-        }}/>
+      />
     </Box>
+    {!!inputTenantID && <Box sx={{mx: 3}}><TenantsConfiguration/></Box>}
   </Box>;
 };
 

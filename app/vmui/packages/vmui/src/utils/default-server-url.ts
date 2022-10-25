@@ -1,3 +1,6 @@
+import {getAppModeParams} from "./app-mode";
+
 export const getDefaultServer = (): string => {
-  return window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
+  const {serverURL} = getAppModeParams();
+  return serverURL || window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
 };

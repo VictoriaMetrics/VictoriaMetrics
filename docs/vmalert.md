@@ -319,7 +319,7 @@ There are the following approaches exist for alerting and recording rules across
   rules to `AccountID=123`.
 
 * To specify `tenant` parameter per each alerting and recording group if
-  [enterprise version of vmalert](https://victoriametrics.com/products/enterprise/) is used
+  [enterprise version of vmalert](https://docs.victoriametrics.com/enterprise.html) is used
   with `-clusterMode` command-line flag. For example:
 
 ```yaml

@@ -2,13 +2,9 @@ import {ErrorTypes} from "../types";
 import {useAppState} from "../state/common/StateContext";
 import {useEffect, useState} from "preact/compat";
 import {CardinalityRequestsParams, getCardinalityInfo} from "../api/tsdb";
-import {getAppModeEnable, getAppModeParams} from "../utils/app-mode";
 import {TSDBStatus} from "../components/CardinalityPanel/types";
 import {useCardinalityState} from "../state/cardinality/CardinalityStateContext";
 import AppConfigurator from "../components/CardinalityPanel/appConfigurator";
-
-const appModeEnable = getAppModeEnable();
-const {serverURL: appServerUrl} = getAppModeParams();
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
@@ -32,12 +28,11 @@ export const useFetchQuery = (): {
   }, [error]);
 
   const fetchCardinalityInfo = async (requestParams: CardinalityRequestsParams) => {
-    const server = appModeEnable ? appServerUrl : serverUrl;
-    if (!server) return;
+    if (!serverUrl) return;
     setError("");
     setIsLoading(true);
     setTSDBStatus(appConfigurator.defaultTSDBStatus);
-    const url = getCardinalityInfo(server, requestParams);
+    const url = getCardinalityInfo(serverUrl, requestParams);
 
     try {
       const response = await fetch(url);

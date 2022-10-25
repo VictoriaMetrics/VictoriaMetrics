@@ -42,6 +42,20 @@ const (
 	MarshalTypeNearestDelta = MarshalType(6)
 )
 
+// NeedsValidation returns true if mt may need additional validation for silent data corruption.
+func (mt MarshalType) NeedsValidation() bool {
+	switch mt {
+	case MarshalTypeNearestDelta2,
+		MarshalTypeNearestDelta:
+		return true
+	default:
+		// Other types do not need additional validation,
+		// since they either already contain checksums (e.g. compressed data)
+		// or they are trivial and cannot be validated (e.g. const or delta const)
+		return false
+	}
+}
+
 // CheckMarshalType verifies whether the mt is valid.
 func CheckMarshalType(mt MarshalType) error {
 	if mt < 0 || mt > 6 {

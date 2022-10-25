@@ -11,6 +11,7 @@ import List from "@mui/material/List";
 import ListItem from "@mui/material/ListItem";
 import ListItemText from "@mui/material/ListItemText";
 import {useLocation} from "react-router-dom";
+import {getAppModeEnable} from "../../../../utils/app-mode";
 
 interface AutoRefreshOption {
   seconds: number
@@ -35,6 +36,7 @@ const delayOptions: AutoRefreshOption[] = [
 export const ExecutionControls: FC = () => {
 
   const dispatch = useAppDispatch();
+  const appModeEnable = getAppModeEnable();
   const {queryControls: {autoRefresh}} = useAppState();
 
   const location = useLocation();
@@ -77,7 +79,7 @@ export const ExecutionControls: FC = () => {
         sx={{
           minWidth: "110px",
           color: "white",
-          border: "1px solid rgba(0, 0, 0, 0.2)",
+          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
           justifyContent: "space-between",
           boxShadow: "none",
         }}

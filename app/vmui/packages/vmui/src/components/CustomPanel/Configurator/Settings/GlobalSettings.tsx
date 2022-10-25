@@ -9,7 +9,6 @@ import Typography from "@mui/material/Typography";
 import CloseIcon from "@mui/icons-material/Close";
 import IconButton from "@mui/material/IconButton";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
-import {getAppModeEnable} from "../../../../utils/app-mode";
 
 const modalStyle = {
   position: "absolute" as const,
@@ -27,13 +26,12 @@ const title = "Setting Server URL";
 
 const GlobalSettings: FC = () => {
 
-  const appModeEnable = getAppModeEnable();
   const {serverUrl} = useAppState();
   const dispatch = useAppDispatch();
   const [changedServerUrl, setChangedServerUrl] = useState(serverUrl);
 
   const setServer = () => {
-    if (!appModeEnable) dispatch({type: "SET_SERVER", payload: changedServerUrl});
+    dispatch({type: "SET_SERVER", payload: changedServerUrl});
     handleClose();
   };
 

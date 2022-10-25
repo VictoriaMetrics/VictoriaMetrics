@@ -16,6 +16,7 @@ import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Tooltip from "@mui/material/Tooltip";
 import AlarmAdd from "@mui/icons-material/AlarmAdd";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import {getAppModeEnable} from "../../../../utils/app-mode";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
@@ -46,6 +47,7 @@ export const TimeSelector: FC = () => {
 
   const {time: {period: {end, start}, relativeTime}} = useAppState();
   const dispatch = useAppDispatch();
+  const appModeEnable = getAppModeEnable();
 
   useEffect(() => {
     setUntil(formatDateForNativeInput(dateFromSeconds(end)));
@@ -99,7 +101,7 @@ export const TimeSelector: FC = () => {
       <Button variant="contained" color="primary"
         sx={{
           color: "white",
-          border: "1px solid rgba(0, 0, 0, 0.2)",
+          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
           boxShadow: "none",
           minWidth: "34px",
           padding: displayFullDate ? "" : "6px 8px",

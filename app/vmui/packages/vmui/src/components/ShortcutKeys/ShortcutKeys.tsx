@@ -9,6 +9,7 @@ import KeyboardIcon from "@mui/icons-material/Keyboard";
 import CloseIcon from "@mui/icons-material/Close";
 import Divider from "@mui/material/Divider";
 import {isMacOs} from "../../utils/detect-os";
+import {getAppModeEnable} from "../../utils/app-mode";
 
 const modalStyle = {
   position: "absolute" as const,
@@ -80,13 +81,14 @@ const keyList = [
 
 const ShortcutKeys: FC = () => {
   const [openList, setOpenList] = useState(false);
+  const appModeEnable = getAppModeEnable();
 
   return <>
     <Tooltip title={"Shortcut keys"}>
       <Button variant="contained" color="primary"
         sx={{
           color: "white",
-          border: "1px solid rgba(0, 0, 0, 0.2)",
+          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
           minWidth: "34px",
           padding: "6px 8px",
           boxShadow: "none",

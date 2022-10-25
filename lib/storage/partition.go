@@ -21,7 +21,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 func maxSmallPartSize() uint64 {
@@ -118,16 +117,8 @@ type partition struct {
 	smallPartsPath string
 	bigPartsPath   string
 
-	// The callack that returns deleted metric ids which must be skipped during merge.
-	getDeletedMetricIDs func() *uint64set.Set
-
-	// data retention in milliseconds.
-	// Used for deleting data outside the retention during background merge.
-	retentionMsecs int64
-
-	// Whether the storage is in read-only mode.
-	// Background merge is stopped in read-only mode.
-	isReadOnly *uint32
+	// The parent storage.
+	s *Storage
 
 	// Name is the name of the partition in the form YYYY_MM.
 	name string
@@ -202,8 +193,7 @@ func (pw *partWrapper) decRef() {
 
 // createPartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string,
-	getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) (*partition, error) {
+func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) (*partition, error) {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Clean(smallPartitionsPath) + "/" + name
 	bigPartsPath := filepath.Clean(bigPartitionsPath) + "/" + name
@@ -216,7 +206,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 		return nil, fmt.Errorf("cannot create directories for big parts %q: %w", bigPartsPath, err)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.tr.fromPartitionTimestamp(timestamp)
 	pt.startMergeWorkers()
 	pt.startRawRowsFlusher()
@@ -242,7 +232,7 @@ func (pt *partition) Drop() {
 }
 
 // openPartition opens the existing partition from the given paths.
-func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) (*partition, error) {
+func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition, error) {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
@@ -266,7 +256,7 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 		return nil, fmt.Errorf("cannot open big parts from %q: %w", bigPartsPath, err)
 	}
 
-	pt := newPartition(name, smallPartsPath, bigPartsPath, getDeletedMetricIDs, retentionMsecs, isReadOnly)
+	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 	if err := pt.tr.fromPartitionName(name); err != nil {
@@ -280,15 +270,13 @@ func openPartition(smallPartsPath, bigPartsPath string, getDeletedMetricIDs func
 	return pt, nil
 }
 
-func newPartition(name, smallPartsPath, bigPartsPath string, getDeletedMetricIDs func() *uint64set.Set, retentionMsecs int64, isReadOnly *uint32) *partition {
+func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
 	p := &partition{
 		name:           name,
 		smallPartsPath: smallPartsPath,
 		bigPartsPath:   bigPartsPath,
 
-		getDeletedMetricIDs: getDeletedMetricIDs,
-		retentionMsecs:      retentionMsecs,
-		isReadOnly:          isReadOnly,
+		s: s,
 
 		mergeIdx: uint64(time.Now().UnixNano()),
 		stopCh:   make(chan struct{}),
@@ -473,25 +461,34 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) {
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		n := getMaxRawRowsPerShard()
-		rrs.rows = make([]rawRow, 0, n)
+		rrs.rows = newRawRowsBlock()
 	}
-	maxRowsCount := cap(rrs.rows)
-	capacity := maxRowsCount - len(rrs.rows)
-	if capacity >= len(rows) {
-		// Fast path - rows fit capacity.
-		rrs.rows = append(rrs.rows, rows...)
-	} else {
-		// Slow path - rows don't fit capacity.
-		// Put rrs.rows and rows to rowsToFlush and convert it to a part.
-		rowsToFlush = append(rowsToFlush, rrs.rows...)
-		rowsToFlush = append(rowsToFlush, rows...)
-		rrs.rows = rrs.rows[:0]
+	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
+	rrs.rows = rrs.rows[:len(rrs.rows)+n]
+	rows = rows[n:]
+	if len(rows) > 0 {
+		// Slow path - rows did't fit rrs.rows capacity.
+		// Convert rrs.rows to rowsToFlush and convert it to a part,
+		// then try moving the remaining rows to rrs.rows.
+		rowsToFlush = rrs.rows
+		rrs.rows = newRawRowsBlock()
+		if len(rows) <= n {
+			rrs.rows = append(rrs.rows[:0], rows...)
+		} else {
+			// The slowest path - rows do not fit rrs.rows capacity.
+			// So append them directly to rowsToFlush.
+			rowsToFlush = append(rowsToFlush, rows...)
+		}
 		atomic.StoreUint64(&rrs.lastFlushTime, fasttime.UnixTimestamp())
 	}
 	rrs.mu.Unlock()
 
 	pt.flushRowsToParts(rowsToFlush)
+}
+
+func newRawRowsBlock() []rawRow {
+	n := getMaxRawRowsPerShard()
+	return make([]rawRow, 0, n)
 }
 
 func (pt *partition) flushRowsToParts(rows []rawRow) {
@@ -737,13 +734,16 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFin
 		flushSeconds = 1
 	}
 	lastFlushTime := atomic.LoadUint64(&rrs.lastFlushTime)
-	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
-		rrs.mu.Lock()
-		dst = append(dst, rrs.rows...)
-		rrs.rows = rrs.rows[:0]
-		atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
-		rrs.mu.Unlock()
+	if !isFinal && currentTime <= lastFlushTime+uint64(flushSeconds) {
+		// Fast path - nothing to flush
+		return dst
 	}
+	// Slow path - move rrs.rows to dst.
+	rrs.mu.Lock()
+	dst = append(dst, rrs.rows...)
+	rrs.rows = rrs.rows[:0]
+	atomic.StoreUint64(&rrs.lastFlushTime, currentTime)
+	rrs.mu.Unlock()
 	return dst
 }
 
@@ -849,7 +849,9 @@ func (pt *partition) ForceMergeAllParts() error {
 		return nil
 	}
 
-	// If len(pws) == 1, then the merge must run anyway. This allows removing the deleted series and performing de-duplication if needed.
+	// If len(pws) == 1, then the merge must run anyway.
+	// This allows applying the configured retention, removing the deleted series
+	// and performing de-duplication if needed.
 	if err := pt.mergePartsOptimal(pws, pt.stopCh); err != nil {
 		return fmt.Errorf("cannot force merge %d parts from partition %q: %w", len(pws), pt.name, err)
 	}
@@ -1018,7 +1020,7 @@ func getMaxOutBytes(path string, workersCount int) uint64 {
 }
 
 func (pt *partition) canBackgroundMerge() bool {
-	return atomic.LoadUint32(pt.isReadOnly) == 0
+	return atomic.LoadUint32(&pt.s.isReadOnly) == 0
 }
 
 var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
@@ -1193,7 +1195,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 
 	// Merge parts.
-	dmis := pt.getDeletedMetricIDs()
 	var ph partHeader
 	rowsMerged := &pt.smallRowsMerged
 	rowsDeleted := &pt.smallRowsDeleted
@@ -1206,8 +1207,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 		atomic.AddUint64(&pt.smallMergesCount, 1)
 		atomic.AddUint64(&pt.activeSmallMerges, 1)
 	}
-	retentionDeadline := timestampFromTime(startTime) - pt.retentionMsecs
-	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
+	retentionDeadline := timestampFromTime(startTime) - pt.s.retentionMsecs
+	err := mergeBlockStreams(&ph, bsw, bsrs, stopCh, pt.s, retentionDeadline, rowsMerged, rowsDeleted)
 	if isBigPart {
 		atomic.AddUint64(&pt.activeBigMerges, ^uint64(0))
 	} else {
@@ -1240,7 +1241,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	dstPartPath := ""
 	if ph.RowsCount > 0 {
 		// The destination part may have no rows if they are deleted
-		// during the merge due to dmis.
+		// during the merge due to deleted time series.
 		dstPartPath = ph.Path(ptPath, mergeIdx)
 	}
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
@@ -1376,7 +1377,7 @@ func (pt *partition) stalePartsRemover() {
 func (pt *partition) removeStaleParts() {
 	m := make(map[*partWrapper]bool)
 	startTime := time.Now()
-	retentionDeadline := timestampFromTime(startTime) - pt.retentionMsecs
+	retentionDeadline := timestampFromTime(startTime) - pt.s.retentionMsecs
 
 	pt.partsLock.Lock()
 	for _, pw := range pt.bigParts {
@@ -1407,7 +1408,7 @@ func (pt *partition) removeStaleParts() {
 	// consistent snapshots with table.CreateSnapshot().
 	pt.snapshotLock.RLock()
 	for pw := range m {
-		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, pt.retentionMsecs/1000)
+		logger.Infof("removing part %q, since its data is out of the configured retention (%d secs)", pw.p.path, pt.s.retentionMsecs/1000)
 		fs.MustRemoveDirAtomic(pw.p.path)
 	}
 	// There is no need in calling fs.MustSyncPath() on pt.smallPartsPath and pt.bigPartsPath,
@@ -1595,8 +1596,11 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 			continue
 		}
 		fn := fi.Name()
-		if fn == "tmp" || fn == "txn" || fn == "snapshots" {
+		if fn == "snapshots" {
 			// "snapshots" dir is skipped for backwards compatibility. Now it is unused.
+			continue
+		}
+		if fn == "tmp" || fn == "txn" {
 			// Skip special dirs.
 			continue
 		}
@@ -1681,11 +1685,22 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 		return fmt.Errorf("cannot read directory: %w", err)
 	}
 	for _, fi := range fis {
+		fn := fi.Name()
 		if !fs.IsDirOrSymlink(fi) {
+			if fn == "appliedRetention.txt" {
+				// Copy the appliedRetention.txt file to dstDir.
+				// This file can be created by VictoriaMetrics enterprise.
+				// See https://docs.victoriametrics.com/#retention-filters .
+				// Do not make hard link to this file, since it can be modified over time.
+				srcPath := srcDir + "/" + fn
+				dstPath := dstDir + "/" + fn
+				if err := fs.CopyFile(srcPath, dstPath); err != nil {
+					return fmt.Errorf("cannot copy %q to %q: %w", srcPath, dstPath, err)
+				}
+			}
 			// Skip non-directories.
 			continue
 		}
-		fn := fi.Name()
 		if fn == "tmp" || fn == "txn" {
 			// Skip special dirs.
 			continue

@@ -644,17 +644,20 @@ func (ris *rawItemsShard) appendBlocksToFlush(dst []*inmemoryBlock, tb *Table, i
 		flushSeconds = 1
 	}
 	lastFlushTime := atomic.LoadUint64(&ris.lastFlushTime)
-	if isFinal || currentTime-lastFlushTime > uint64(flushSeconds) {
-		ris.mu.Lock()
-		ibs := ris.ibs
-		dst = append(dst, ibs...)
-		for i := range ibs {
-			ibs[i] = nil
-		}
-		ris.ibs = ibs[:0]
-		atomic.StoreUint64(&ris.lastFlushTime, currentTime)
-		ris.mu.Unlock()
+	if !isFinal && currentTime <= lastFlushTime+uint64(flushSeconds) {
+		// Fast path - nothing to flush
+		return dst
 	}
+	// Slow path - move ris.ibs to dst
+	ris.mu.Lock()
+	ibs := ris.ibs
+	dst = append(dst, ibs...)
+	for i := range ibs {
+		ibs[i] = nil
+	}
+	ris.ibs = ibs[:0]
+	atomic.StoreUint64(&ris.lastFlushTime, currentTime)
+	ris.mu.Unlock()
 	return dst
 }
 

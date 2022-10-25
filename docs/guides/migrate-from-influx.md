@@ -130,7 +130,7 @@ for serving read queries. This API is used in various integrations such as
 by [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - a graphical User Interface for
 querying and visualizing metrics:
 
-{% include img.html href="migrate-from-influx-vmui.png" %}
+<img src="migrate-from-influx-vmui.png">
 
 See more about [how to query data in VictoriaMetrics](https://docs.victoriametrics.com/keyConcepts.html#query-data).
 
@@ -159,7 +159,7 @@ The data sample consists data points for a measurement `foo`
 and a field `bar` with additional tag `instance=localhost`. If we would like plot this data as a time series in Grafana
 it might have the following look:
 
-{% include img.html href="migrate-from-influx-data-sample-in-influx.png" %}
+<img src="migrate-from-influx-data-sample-in-influx.png">
 
 The query used for this panel is written in
 [InfluxQL](https://docs.influxdata.com/influxdb/v1.8/query_language/):
@@ -194,7 +194,7 @@ InfluxQL query might be translated to MetricsQL let's break it into components f
 In result, executing the `foo_bar{instance="localhost"}` MetricsQL expression with `step=1m` for the same set of data in
 Grafana will have the following form:
 
-{% include img.html href="migrate-from-influx-data-sample-in-vm.png" %}
+<img src="migrate-from-influx-data-sample-in-vm.png">
 
 Visualizations from both databases are a bit different - VictoriaMetrics shows some extra points
 filling the gaps in the graph. This behavior is described in more
