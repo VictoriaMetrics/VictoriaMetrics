@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 )
 
 var (
@@ -20,6 +22,21 @@ var (
 //
 // This function must be called instead of flag.Parse() before using any flags in the program.
 func Parse() {
+	// Substitute %{ENV_VAR} inside args with the corresponding environment variable values
+	args := os.Args[1:]
+	dstArgs := args[:0]
+	for _, arg := range args {
+		b, err := envtemplate.Replace([]byte(arg))
+		if err != nil {
+			log.Fatalf("cannot process arg %q: %s", arg, err)
+		}
+		if len(b) > 0 {
+			dstArgs = append(dstArgs, string(b))
+		}
+	}
+	os.Args = os.Args[:1+len(dstArgs)]
+
+	// Parse flags
 	flag.Parse()
 	if !*enable {
 		return

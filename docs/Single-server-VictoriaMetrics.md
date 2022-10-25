@@ -136,7 +136,12 @@ VictoriaMetrics is developed at a fast pace, so it is recommended periodically c
 
 ### Environment variables
 
-Each flag value can be set via environment variables according to these rules:
+All the VictoriaMetrics components allow referring environment variables in command-line flags via `${ENV_VAR}` syntax.
+For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
+if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
+This expansion doesn't need any special shell - it is performed by VictoriaMetrics itself.
+
+Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
 
 * The `-envflag.enable` flag must be set.
 * Each `.` char in flag name must be substituted with `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`).
