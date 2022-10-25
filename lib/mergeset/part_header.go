@@ -163,7 +163,7 @@ func (ph *partHeader) WriteMetadata(partPath string) error {
 		return fmt.Errorf("cannot marshal metadata: %w", err)
 	}
 	metadataPath := partPath + "/metadata.json"
-	if err := fs.WriteFileAtomically(metadataPath, metadata); err != nil {
+	if err := fs.WriteFileAtomically(metadataPath, metadata, false); err != nil {
 		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
 	}
 	return nil

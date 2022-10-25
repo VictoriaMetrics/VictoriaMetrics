@@ -151,7 +151,7 @@ func (ph *partHeader) writeMinDedupInterval(partPath string) error {
 	filePath := partPath + "/min_dedup_interval"
 	dedupInterval := time.Duration(ph.MinDedupInterval) * time.Millisecond
 	data := dedupInterval.String()
-	if err := fs.WriteFileAtomically(filePath, []byte(data)); err != nil {
+	if err := fs.WriteFileAtomically(filePath, []byte(data), false); err != nil {
 		return fmt.Errorf("cannot create %q: %w", filePath, err)
 	}
 	return nil
