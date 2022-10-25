@@ -48,14 +48,14 @@ const AdditionalSettings: FC = () => {
         control={<BasicSwitch checked={isTracingEnabled} onChange={onChangeQueryTracing} />}
       />
     </Box>
-    <Box>
+    <Box ml={2}>
       <StepConfigurator defaultStep={step}
         setStep={(value) => {
           graphDispatch({type: "SET_CUSTOM_STEP", payload: value});
         }}
       />
     </Box>
-    {!!inputTenantID && <Box sx={{mx: 3}}><TenantsConfiguration/></Box>}
+    {!!inputTenantID && <Box ml={2}><TenantsConfiguration/></Box>}
   </Box>;
 };
 
