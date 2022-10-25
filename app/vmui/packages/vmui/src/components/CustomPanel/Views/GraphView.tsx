@@ -4,10 +4,11 @@ import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import Legend from "../../Legend/Legend";
 import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
-import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
+import {getLimitsYAxis, getMinMaxBuffer, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
 import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
+import {getAvgFromArray, getMaxFromArray, getMinFromArray} from "../../../utils/math";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -24,7 +25,6 @@ export interface GraphViewProps {
 
 const promValueToNumber = (s: string): number => {
   // See https://prometheus.io/docs/prometheus/latest/querying/api/#expression-query-result-formats
-  const [whole = "0", decimal = "0"] = s.split(".");
   switch (s) {
     case "NaN":
       return NaN;
@@ -34,7 +34,7 @@ const promValueToNumber = (s: string): number => {
     case "-Inf":
       return -Infinity;
     default:
-      return parseFloat(`${whole}.${decimal.slice(0, 10)}`);
+      return parseFloat(s);
   }
 };
 
@@ -105,7 +105,14 @@ const GraphView: FC<GraphViewProps> = ({
         }
         results.push(v);
       }
-      return results;
+
+      // stabilize float numbers
+      const resultAsNumber = results.filter(s => s !== null) as number[];
+      const avg = Math.abs(getAvgFromArray(resultAsNumber));
+      const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
+      const rangeStep = Math.abs(range[1] - range[0]);
+
+      return (avg > rangeStep * 1e10) ? results.map(() => avg) : results;
     })] as uPlotData);
     setLimitsYaxis(tempValues);
 
