@@ -7,7 +7,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
 // mergeBlockStreams merges bsrs into bsw and updates ph.
@@ -15,13 +14,13 @@ import (
 // mergeBlockStreams returns immediately if stopCh is closed.
 //
 // rowsMerged is atomically updated with the number of merged rows during the merge.
-func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{},
-	dmis *uint64set.Set, retentionDeadline int64, rowsMerged, rowsDeleted *uint64) error {
+func mergeBlockStreams(ph *partHeader, bsw *blockStreamWriter, bsrs []*blockStreamReader, stopCh <-chan struct{}, s *Storage, retentionDeadline int64,
+	rowsMerged, rowsDeleted *uint64) error {
 	ph.Reset()
 
 	bsm := bsmPool.Get().(*blockStreamMerger)
-	bsm.Init(bsrs)
-	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, dmis, retentionDeadline, rowsMerged, rowsDeleted)
+	bsm.Init(bsrs, retentionDeadline)
+	err := mergeBlockStreamsInternal(ph, bsw, bsm, stopCh, s, rowsMerged, rowsDeleted)
 	bsm.reset()
 	bsmPool.Put(bsm)
 	bsw.MustClose()
@@ -39,8 +38,8 @@ var bsmPool = &sync.Pool{
 
 var errForciblyStopped = fmt.Errorf("forcibly stopped")
 
-func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{},
-	dmis *uint64set.Set, retentionDeadline int64, rowsMerged, rowsDeleted *uint64) error {
+func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *blockStreamMerger, stopCh <-chan struct{}, s *Storage, rowsMerged, rowsDeleted *uint64) error {
+	dmis := s.getDeletedMetricIDs()
 	pendingBlockIsEmpty := true
 	pendingBlock := getBlock()
 	defer putBlock(pendingBlock)
@@ -52,52 +51,54 @@ func mergeBlockStreamsInternal(ph *partHeader, bsw *blockStreamWriter, bsm *bloc
 			return errForciblyStopped
 		default:
 		}
-		if dmis.Has(bsm.Block.bh.TSID.MetricID) {
+		b := bsm.Block
+		if dmis.Has(b.bh.TSID.MetricID) {
 			// Skip blocks for deleted metrics.
-			atomic.AddUint64(rowsDeleted, uint64(bsm.Block.bh.RowsCount))
+			atomic.AddUint64(rowsDeleted, uint64(b.bh.RowsCount))
 			continue
 		}
-		if bsm.Block.bh.MaxTimestamp < retentionDeadline {
+		retentionDeadline := bsm.getRetentionDeadline(&b.bh)
+		if b.bh.MaxTimestamp < retentionDeadline {
 			// Skip blocks out of the given retention.
-			atomic.AddUint64(rowsDeleted, uint64(bsm.Block.bh.RowsCount))
+			atomic.AddUint64(rowsDeleted, uint64(b.bh.RowsCount))
 			continue
 		}
 		if pendingBlockIsEmpty {
 			// Load the next block if pendingBlock is empty.
-			pendingBlock.CopyFrom(bsm.Block)
+			pendingBlock.CopyFrom(b)
 			pendingBlockIsEmpty = false
 			continue
 		}
 
-		// Verify whether pendingBlock may be merged with bsm.Block (the current block).
-		if pendingBlock.bh.TSID.MetricID != bsm.Block.bh.TSID.MetricID {
+		// Verify whether pendingBlock may be merged with b (the current block).
+		if pendingBlock.bh.TSID.MetricID != b.bh.TSID.MetricID {
 			// Fast path - blocks belong to distinct time series.
-			// Write the pendingBlock and then deal with bsm.Block.
-			if bsm.Block.bh.TSID.Less(&pendingBlock.bh.TSID) {
-				logger.Panicf("BUG: the next TSID=%+v is smaller than the current TSID=%+v", &bsm.Block.bh.TSID, &pendingBlock.bh.TSID)
+			// Write the pendingBlock and then deal with b.
+			if b.bh.TSID.Less(&pendingBlock.bh.TSID) {
+				logger.Panicf("BUG: the next TSID=%+v is smaller than the current TSID=%+v", &b.bh.TSID, &pendingBlock.bh.TSID)
 			}
 			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
-			pendingBlock.CopyFrom(bsm.Block)
+			pendingBlock.CopyFrom(b)
 			continue
 		}
-		if pendingBlock.tooBig() && pendingBlock.bh.MaxTimestamp <= bsm.Block.bh.MinTimestamp {
-			// Fast path - pendingBlock is too big and it doesn't overlap with bsm.Block.
-			// Write the pendingBlock and then deal with bsm.Block.
+		if pendingBlock.tooBig() && pendingBlock.bh.MaxTimestamp <= b.bh.MinTimestamp {
+			// Fast path - pendingBlock is too big and it doesn't overlap with b.
+			// Write the pendingBlock and then deal with b.
 			bsw.WriteExternalBlock(pendingBlock, ph, rowsMerged)
-			pendingBlock.CopyFrom(bsm.Block)
+			pendingBlock.CopyFrom(b)
 			continue
 		}
 
-		// Slow path - pendingBlock and bsm.Block belong to the same time series,
+		// Slow path - pendingBlock and b belong to the same time series,
 		// so they must be merged.
-		if err := unmarshalAndCalibrateScale(pendingBlock, bsm.Block); err != nil {
+		if err := unmarshalAndCalibrateScale(pendingBlock, b); err != nil {
 			return fmt.Errorf("cannot unmarshal and calibrate scale for blocks to be merged: %w", err)
 		}
 		tmpBlock.Reset()
-		tmpBlock.bh.TSID = bsm.Block.bh.TSID
-		tmpBlock.bh.Scale = bsm.Block.bh.Scale
-		tmpBlock.bh.PrecisionBits = minUint8(pendingBlock.bh.PrecisionBits, bsm.Block.bh.PrecisionBits)
-		mergeBlocks(tmpBlock, pendingBlock, bsm.Block, retentionDeadline, rowsDeleted)
+		tmpBlock.bh.TSID = b.bh.TSID
+		tmpBlock.bh.Scale = b.bh.Scale
+		tmpBlock.bh.PrecisionBits = minUint8(pendingBlock.bh.PrecisionBits, b.bh.PrecisionBits)
+		mergeBlocks(tmpBlock, pendingBlock, b, retentionDeadline, rowsDeleted)
 		if len(tmpBlock.timestamps) <= maxRowsPerBlock {
 			// More entries may be added to tmpBlock. Swap it with pendingBlock,
 			// so more entries may be added to pendingBlock on the next iteration.

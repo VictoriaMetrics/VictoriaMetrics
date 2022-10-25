@@ -13,6 +13,9 @@ type blockStreamMerger struct {
 
 	bsrHeap blockStreamReaderHeap
 
+	// Blocks with smaller timestamps are removed because of retention.
+	retentionDeadline int64
+
 	// Whether the call to NextBlock must be no-op.
 	nextBlockNoop bool
 
@@ -22,17 +25,21 @@ type blockStreamMerger struct {
 
 func (bsm *blockStreamMerger) reset() {
 	bsm.Block = nil
+
 	for i := range bsm.bsrHeap {
 		bsm.bsrHeap[i] = nil
 	}
 	bsm.bsrHeap = bsm.bsrHeap[:0]
+
+	bsm.retentionDeadline = 0
 	bsm.nextBlockNoop = false
 	bsm.err = nil
 }
 
 // Init initializes bsm with the given bsrs.
-func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader) {
+func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader, retentionDeadline int64) {
 	bsm.reset()
+	bsm.retentionDeadline = retentionDeadline
 	for _, bsr := range bsrs {
 		if bsr.NextBlock() {
 			bsm.bsrHeap = append(bsm.bsrHeap, bsr)
@@ -52,6 +59,10 @@ func (bsm *blockStreamMerger) Init(bsrs []*blockStreamReader) {
 	heap.Init(&bsm.bsrHeap)
 	bsm.Block = &bsm.bsrHeap[0].Block
 	bsm.nextBlockNoop = true
+}
+
+func (bsm *blockStreamMerger) getRetentionDeadline(bh *blockHeader) int64 {
+	return bsm.retentionDeadline
 }
 
 // NextBlock stores the next block in bsm.Block.

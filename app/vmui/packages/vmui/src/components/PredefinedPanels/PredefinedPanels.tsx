@@ -12,7 +12,6 @@ import {useFetchQuery} from "../../hooks/useFetchQuery";
 import Spinner from "../common/Spinner";
 import StepConfigurator from "../CustomPanel/Configurator/Query/StepConfigurator";
 import GraphSettings from "../CustomPanel/Configurator/Graph/GraphSettings";
-import {CustomStep} from "../../state/graph/reducer";
 import {marked} from "marked";
 import "./dashboard.css";
 
@@ -36,7 +35,7 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
-  const [customStep, setCustomStep] = useState<CustomStep>({enable: false, value: period.step || 1});
+  const [customStep, setCustomStep] = useState<number>(period.step || 1);
   const [yaxis, setYaxis] = useState<YaxisState>({
     limits: {
       enable: false,
@@ -106,9 +105,10 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
         {title || ""}
       </Typography>
       <Box mr={2} py={1}>
-        <StepConfigurator defaultStep={period.step} customStepEnable={customStep.enable}
-          setStep={(value) => setCustomStep({...customStep, value: value})}
-          toggleEnableStep={() => setCustomStep({...customStep, enable: !customStep.enable})}/>
+        <StepConfigurator
+          defaultStep={period.step}
+          setStep={(value) => setCustomStep(value)}
+        />
       </Box>
       <GraphSettings yaxis={yaxis} setYaxisLimits={setYaxisLimits} toggleEnableLimits={toggleEnableLimits}/>
     </Box>
