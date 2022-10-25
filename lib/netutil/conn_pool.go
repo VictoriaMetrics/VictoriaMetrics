@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -27,6 +28,8 @@ type ConnPool struct {
 
 	conns []connWithTimestamp
 
+	isStopped bool
+
 	// lastDialError contains the last error seen when dialing remote addr.
 	// When it is non-nil and conns is empty, then ConnPool.Get() return this error.
 	// This reduces the time needed for dialing unavailable remote storage systems.
@@ -41,12 +44,14 @@ type connWithTimestamp struct {
 
 // NewConnPool creates a new connection pool for the given addr.
 //
-// Name is used in exported metrics.
+// Name is used in metrics registered at ms.
 // handshakeFunc is used for handshaking after the connection establishing.
 // The compression is disabled if compressionLevel <= 0.
-func NewConnPool(name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout time.Duration) *ConnPool {
+//
+// Call ConnPool.MustStop when the returned ConnPool is no longer needed.
+func NewConnPool(ms *metrics.Set, name, addr string, handshakeFunc handshake.Func, compressionLevel int, dialTimeout time.Duration) *ConnPool {
 	cp := &ConnPool{
-		d:                 NewTCPDialer(name, addr, dialTimeout),
+		d:                 NewTCPDialer(ms, name, addr, dialTimeout),
 		concurrentDialsCh: make(chan struct{}, 8),
 
 		name:             name,
@@ -54,13 +59,13 @@ func NewConnPool(name, addr string, handshakeFunc handshake.Func, compressionLev
 		compressionLevel: compressionLevel,
 	}
 	cp.checkAvailability(true)
-	_ = metrics.NewGauge(fmt.Sprintf(`vm_tcpdialer_conns_idle{name=%q, addr=%q}`, name, addr), func() float64 {
+	_ = ms.NewGauge(fmt.Sprintf(`vm_tcpdialer_conns_idle{name=%q, addr=%q}`, name, addr), func() float64 {
 		cp.mu.Lock()
 		n := len(cp.conns)
 		cp.mu.Unlock()
 		return float64(n)
 	})
-	_ = metrics.NewGauge(fmt.Sprintf(`vm_tcpdialer_addr_available{name=%q, addr=%q}`, name, addr), func() float64 {
+	_ = ms.NewGauge(fmt.Sprintf(`vm_tcpdialer_addr_available{name=%q, addr=%q}`, name, addr), func() float64 {
 		cp.mu.Lock()
 		isAvailable := len(cp.conns) > 0 || cp.lastDialError == nil
 		cp.mu.Unlock()
@@ -73,6 +78,40 @@ func NewConnPool(name, addr string, handshakeFunc handshake.Func, compressionLev
 	connPools = append(connPools, cp)
 	connPoolsMu.Unlock()
 	return cp
+}
+
+// MustStop frees up resources occupied by cp.
+//
+// ConnPool.Get() immediately returns an error after MustStop call.
+// ConnPool.Put() immediately closes the connection returned to the pool.
+func (cp *ConnPool) MustStop() {
+	cp.mu.Lock()
+	isStopped := cp.isStopped
+	cp.isStopped = true
+	for _, c := range cp.conns {
+		_ = c.bc.Close()
+	}
+	cp.conns = nil
+	cp.mu.Unlock()
+	if isStopped {
+		logger.Panicf("BUG: MustStop is called multiple times")
+	}
+
+	connPoolsMu.Lock()
+	cpDeleted := false
+	for i, cpTmp := range connPools {
+		if cpTmp == cp {
+			connPoolsNew := append(connPools[:i], connPools[i+1:]...)
+			connPools[len(connPools)-1] = nil
+			connPools = connPoolsNew
+			cpDeleted = true
+			break
+		}
+	}
+	connPoolsMu.Unlock()
+	if !cpDeleted {
+		logger.Panicf("BUG: couldn't find the ConnPool in connPools")
+	}
 }
 
 // Addr returns the address where connections are established.
@@ -138,6 +177,10 @@ func (cp *ConnPool) dialAndHandshake() (*handshake.BufferedConn, error) {
 func (cp *ConnPool) tryGetConn() (*handshake.BufferedConn, error) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
+
+	if cp.isStopped {
+		return nil, fmt.Errorf("conn pool to %s cannot be used, since it is stopped", cp.d.addr)
+	}
 	if len(cp.conns) == 0 {
 		return nil, cp.lastDialError
 	}
@@ -159,10 +202,14 @@ func (cp *ConnPool) Put(bc *handshake.BufferedConn) {
 		return
 	}
 	cp.mu.Lock()
-	cp.conns = append(cp.conns, connWithTimestamp{
-		bc:             bc,
-		lastActiveTime: fasttime.UnixTimestamp(),
-	})
+	if cp.isStopped {
+		_ = bc.Close()
+	} else {
+		cp.conns = append(cp.conns, connWithTimestamp{
+			bc:             bc,
+			lastActiveTime: fasttime.UnixTimestamp(),
+		})
+	}
 	cp.mu.Unlock()
 }
 
@@ -188,8 +235,12 @@ func (cp *ConnPool) closeIdleConns() {
 
 func (cp *ConnPool) checkAvailability(force bool) {
 	cp.mu.Lock()
+	isStopped := cp.isStopped
 	hasDialError := cp.lastDialError != nil
 	cp.mu.Unlock()
+	if isStopped {
+		return
+	}
 	if hasDialError || force {
 		bc, _ := cp.dialAndHandshake()
 		if bc != nil {

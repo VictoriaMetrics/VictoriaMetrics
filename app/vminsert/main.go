@@ -93,7 +93,7 @@ func main() {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1672
 		hashSeed = 0xabcdef0123456789
 	}
-	netstorage.InitStorageNodes(*storageNodes, hashSeed)
+	netstorage.Init(*storageNodes, hashSeed)
 	logger.Infof("successfully initialized netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	relabel.Init()
@@ -158,7 +158,7 @@ func main() {
 
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
-	netstorage.Stop()
+	netstorage.MustStop()
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	fs.MustStopDirRemover()

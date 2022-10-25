@@ -2,8 +2,17 @@ package netstorage
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 )
+
+func TestInitStopNodes(t *testing.T) {
+	for i := 0; i < 3; i++ {
+		Init([]string{"host1", "host2"})
+		runtime.Gosched()
+		MustStop()
+	}
+}
 
 func TestMergeSortBlocks(t *testing.T) {
 	f := func(blocks []*sortBlock, dedupInterval int64, expectedResult *Result) {

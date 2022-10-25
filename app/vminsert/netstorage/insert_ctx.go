@@ -19,6 +19,7 @@ import (
 //
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
+	sns           []*storageNode
 	Labels        sortedLabels
 	MetricNameBuf []byte
 
@@ -40,9 +41,9 @@ func (br *bufRows) reset() {
 	br.rows = 0
 }
 
-func (br *bufRows) pushTo(sn *storageNode) error {
+func (br *bufRows) pushTo(sns []*storageNode, sn *storageNode) error {
 	bufLen := len(br.buf)
-	err := sn.push(br.buf, br.rows)
+	err := sn.push(sns, br.buf, br.rows)
 	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
@@ -55,6 +56,7 @@ func (br *bufRows) pushTo(sn *storageNode) error {
 
 // Reset resets ctx.
 func (ctx *InsertCtx) Reset() {
+	ctx.sns = getStorageNodes()
 	for i := range ctx.Labels {
 		label := &ctx.Labels[i]
 		label.Name = nil
@@ -64,7 +66,7 @@ func (ctx *InsertCtx) Reset() {
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 
 	if ctx.bufRowss == nil {
-		ctx.bufRowss = make([]bufRows, len(storageNodes))
+		ctx.bufRowss = make([]bufRows, len(ctx.sns))
 	}
 	for i := range ctx.bufRowss {
 		ctx.bufRowss[i].reset()
@@ -125,11 +127,12 @@ func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, time
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
 func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
-	sn := storageNodes[storageNodeIdx]
+	sns := ctx.sns
+	sn := sns[storageNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
 	if len(bufNew) >= maxBufSizePerStorageNode {
-		// Send buf to storageNode, since it is too big.
-		if err := br.pushTo(sn); err != nil {
+		// Send buf to sn, since it is too big.
+		if err := br.pushTo(sns, sn); err != nil {
 			return err
 		}
 		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
@@ -148,7 +151,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 		if len(br.buf) == 0 {
 			continue
 		}
-		if err := br.pushTo(storageNodes[i]); err != nil && firstErr == nil {
+		if err := br.pushTo(ctx.sns, ctx.sns[i]); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -159,7 +162,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 //
 // The returned index must be passed to WriteDataPoint.
 func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) int {
-	if len(storageNodes) == 1 {
+	if len(ctx.sns) == 1 {
 		// Fast path - only a single storage node.
 		return 0
 	}

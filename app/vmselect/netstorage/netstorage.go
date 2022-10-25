@@ -648,21 +648,22 @@ func (sbh *sortBlocksHeap) Pop() interface{} {
 func RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
 	qt = qt.NewChild("register metric names")
 	defer qt.Done()
+	sns := getStorageNodes()
 	// Split mrs among available vmstorage nodes.
-	mrsPerNode := make([][]storage.MetricRow, len(storageNodes))
+	mrsPerNode := make([][]storage.MetricRow, len(sns))
 	for _, mr := range mrs {
 		idx := 0
-		if len(storageNodes) > 1 {
+		if len(sns) > 1 {
 			// There is no need in using the same hash as for time series distribution in vminsert,
 			// since RegisterMetricNames is used only in Graphite Tags API.
 			h := xxhash.Sum64(mr.MetricNameRaw)
-			idx = int(h % uint64(len(storageNodes)))
+			idx = int(h % uint64(len(sns)))
 		}
 		mrsPerNode[idx] = append(mrsPerNode[idx], mr)
 	}
 
 	// Push mrs to storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.registerMetricNamesRequests.Inc()
 		err := sn.registerMetricNames(qt, mrsPerNode[workerID], deadline)
 		if err != nil {
@@ -693,7 +694,8 @@ func DeleteSeries(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		deletedCount int
 		err          error
 	}
-	snr := startStorageNodesRequest(qt, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.deleteSeriesRequests.Inc()
 		deletedCount, err := sn.deleteSeries(qt, requestData, deadline)
 		if err != nil {
@@ -734,7 +736,8 @@ func LabelNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		labelNames []string
 		err        error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.labelNamesRequests.Inc()
 		labelNames, err := sn.getLabelNames(qt, requestData, maxLabelNames, deadline)
 		if err != nil {
@@ -836,7 +839,8 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 		labelValues []string
 		err         error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.labelValuesRequests.Inc()
 		labelValues, err := sn.getLabelValues(qt, labelName, requestData, maxLabelValues, deadline)
 		if err != nil {
@@ -918,7 +922,8 @@ func TagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, denyP
 		suffixes []string
 		err      error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.tagValueSuffixesRequests.Inc()
 		suffixes, err := sn.getTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxSuffixes, deadline)
 		if err != nil {
@@ -982,7 +987,8 @@ func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.Se
 		status *storage.TSDBStatus
 		err    error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.tsdbStatusRequests.Inc()
 		status, err := sn.getTSDBStatus(qt, requestData, focusLabel, topN, deadline)
 		if err != nil {
@@ -1087,7 +1093,8 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 		n   uint64
 		err error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.seriesCountRequests.Inc()
 		n, err := sn.getSeriesCount(qt, accountID, projectID, deadline)
 		if err != nil {
@@ -1122,8 +1129,8 @@ type tmpBlocksFileWrapper struct {
 	orderedMetricNamess [][]string
 }
 
-func newTmpBlocksFileWrapper() *tmpBlocksFileWrapper {
-	n := len(storageNodes)
+func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
+	n := len(sns)
 	tbfs := make([]*tmpBlocksFile, n)
 	for i := range tbfs {
 		tbfs[i] = getTmpBlocksFile()
@@ -1210,8 +1217,9 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	blocksRead := newPerNodeCounter()
-	samples := newPerNodeCounter()
+	sns := getStorageNodes()
+	blocksRead := newPerNodeCounter(sns)
+	samples := newPerNodeCounter(sns)
 	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
 		mn := metricNamePool.Get().(*storage.MetricName)
 		if err := mn.Unmarshal(mb.MetricName); err != nil {
@@ -1226,7 +1234,7 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 		samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		return nil
 	}
-	_, err := ProcessBlocks(qt, true, sq, processBlock, deadline)
+	_, err := processBlocks(qt, sns, true, sq, processBlock, deadline)
 	qt.Printf("export blocks=%d, samples=%d, err=%v", blocksRead.GetTotal(), samples.GetTotal(), err)
 	if err != nil {
 		return fmt.Errorf("error occured during export: %w", err)
@@ -1250,7 +1258,8 @@ func SearchMetricNames(qt *querytracer.Tracer, denyPartialResponse bool, sq *sto
 		metricNames []string
 		err         error
 	}
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.searchMetricNamesRequests.Inc()
 		metricNames, err := sn.processSearchMetricNames(qt, requestData, deadline)
 		if err != nil {
@@ -1303,10 +1312,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		MinTimestamp: sq.MinTimestamp,
 		MaxTimestamp: sq.MaxTimestamp,
 	}
-	tbfw := newTmpBlocksFileWrapper()
-	blocksRead := newPerNodeCounter()
-	samples := newPerNodeCounter()
-	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(len(storageNodes))
+	sns := getStorageNodes()
+	tbfw := newTmpBlocksFileWrapper(sns)
+	blocksRead := newPerNodeCounter(sns)
+	samples := newPerNodeCounter(sns)
+	maxSamplesPerWorker := uint64(*maxSamplesPerQuery) / uint64(len(sns))
 	processBlock := func(mb *storage.MetricBlock, workerID uint) error {
 		blocksRead.Add(workerID, 1)
 		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
@@ -1320,7 +1330,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		}
 		return nil
 	}
-	isPartial, err := ProcessBlocks(qt, denyPartialResponse, sq, processBlock, deadline)
+	isPartial, err := processBlocks(qt, sns, denyPartialResponse, sq, processBlock, deadline)
 	if err != nil {
 		closeTmpBlockFiles(tbfw.tbfs)
 		return nil, false, fmt.Errorf("error occured during search: %w", err)
@@ -1349,9 +1359,15 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 // ProcessBlocks calls processBlock per each block matching the given sq.
 func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery,
 	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
+	sns := getStorageNodes()
+	return processBlocks(qt, sns, denyPartialResponse, sq, processBlock, deadline)
+}
+
+func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool, sq *storage.SearchQuery,
+	processBlock func(mb *storage.MetricBlock, workerID uint) error, deadline searchutils.Deadline) (bool, error) {
 	requestData := sq.Marshal(nil)
 
-	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
+	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	// Use per-worker WaitGroup instead of a shared WaitGroup in order to avoid inter-CPU contention,
 	// which may siginificantly slow down the rate of processBlock calls on multi-CPU systems.
 	type wgStruct struct {
@@ -1370,7 +1386,7 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 		// 128 mod (cache line size) = 0 .
 		_ [128 - unsafe.Sizeof(wgStruct{})%128]byte
 	}
-	wgs := make([]wgWithPadding, len(storageNodes))
+	wgs := make([]wgWithPadding, len(sns))
 	f := func(mb *storage.MetricBlock, workerID uint) error {
 		muwg := &wgs[workerID]
 		muwg.mu.Lock()
@@ -1386,7 +1402,7 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 	}
 
 	// Send the query to all the storage nodes in parallel.
-	snr := startStorageNodesRequest(qt, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.searchRequests.Inc()
 		err := sn.processSearchQuery(qt, requestData, f, workerID, deadline)
 		if err != nil {
@@ -1401,7 +1417,7 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 		errP := result.(*error)
 		return *errP
 	})
-	// Make sure that processBlock is no longer called after the exit from ProcessBlocks() function.
+	// Make sure that processBlock is no longer called after the exit from processBlocks() function.
 	for i := range wgs {
 		muwg := &wgs[i]
 		muwg.mu.Lock()
@@ -1420,11 +1436,13 @@ func ProcessBlocks(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage
 type storageNodesRequest struct {
 	denyPartialResponse bool
 	resultsCh           chan interface{}
+	sns                 []*storageNode
 }
 
-func startStorageNodesRequest(qt *querytracer.Tracer, denyPartialResponse bool, f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{}) *storageNodesRequest {
-	resultsCh := make(chan interface{}, len(storageNodes))
-	for idx, sn := range storageNodes {
+func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
+	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{}) *storageNodesRequest {
+	resultsCh := make(chan interface{}, len(sns))
+	for idx, sn := range sns {
 		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
 		go func(workerID uint, sn *storageNode) {
 			result := f(qtChild, workerID, sn)
@@ -1435,11 +1453,13 @@ func startStorageNodesRequest(qt *querytracer.Tracer, denyPartialResponse bool, 
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
 		resultsCh:           resultsCh,
+		sns:                 sns,
 	}
 }
 
 func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) error) error {
-	for i := 0; i < len(storageNodes); i++ {
+	sns := snr.sns
+	for i := 0; i < len(sns); i++ {
 		result := <-snr.resultsCh
 		if err := f(result); err != nil {
 			// Immediately return the error to the caller without waiting for responses from other vmstorage nodes -
@@ -1453,7 +1473,8 @@ func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) err
 func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Counter, f func(result interface{}) error) (bool, error) {
 	var errsPartial []error
 	resultsCollected := 0
-	for i := 0; i < len(storageNodes); i++ {
+	sns := snr.sns
+	for i := 0; i < len(sns); i++ {
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
@@ -1475,13 +1496,13 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			continue
 		}
 		resultsCollected++
-		if resultsCollected > len(storageNodes)-*replicationFactor {
+		if resultsCollected > len(sns)-*replicationFactor {
 			// There is no need in waiting for the remaining results,
 			// because the collected results contain all the data according to the given -replicationFactor.
 			// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
 			//
-			// It is expected that cap(snr.resultsCh) == len(storageNodes), otherwise goroutine leak is possible.
+			// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
 			return false, nil
 		}
 	}
@@ -1490,7 +1511,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		// is smaller than the -replicationFactor.
 		return false, nil
 	}
-	if len(errsPartial) == len(storageNodes) {
+	if len(errsPartial) == len(sns) {
 		// All the vmstorage nodes returned error.
 		// Return only the first error, since it has no sense in returning all errors.
 		return false, errsPartial[0]
@@ -1501,7 +1522,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 	partialResultsCounter.Inc()
 	// Do not return the error, since it may spam logs on busy vmselect
 	// serving high amounts of requests.
-	partialErrorsLogger.Warnf("%d out of %d vmstorage nodes were unavailable during the query; a sample error: %s", len(errsPartial), len(storageNodes), errsPartial[0])
+	partialErrorsLogger.Warnf("%d out of %d vmstorage nodes were unavailable during the query; a sample error: %s", len(errsPartial), len(sns), errsPartial[0])
 	return true, nil
 }
 
@@ -2346,14 +2367,28 @@ func readUint64(bc *handshake.BufferedConn) (uint64, error) {
 	return n, nil
 }
 
-var storageNodes []*storageNode
+func getStorageNodes() []*storageNode {
+	v := storageNodes.Load()
+	snb := v.(*storageNodesBucket)
+	return snb.sns
+}
 
-// InitStorageNodes initializes storage nodes' connections to the given addrs.
-func InitStorageNodes(addrs []string) {
+type storageNodesBucket struct {
+	ms  *metrics.Set
+	sns []*storageNode
+}
+
+var storageNodes atomic.Value
+
+// Init initializes storage nodes' connections to the given addrs.
+//
+// MustStop must be called when the initialized connections are no longer needed.
+func Init(addrs []string) {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
-
+	sns := make([]*storageNode, 0, len(addrs))
+	ms := metrics.NewSet()
 	for _, addr := range addrs {
 		if _, _, err := net.SplitHostPort(addr); err != nil {
 			// Automatically add missing port.
@@ -2361,39 +2396,50 @@ func InitStorageNodes(addrs []string) {
 		}
 		sn := &storageNode{
 			// There is no need in requests compression, since they are usually very small.
-			connPool: netutil.NewConnPool("vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout),
+			connPool: netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout),
 
-			concurrentQueries: metrics.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
+			concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 
-			registerMetricNamesRequests: metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			registerMetricNamesErrors:   metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequests:        metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesErrors:          metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequests:    metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesErrors:      metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusErrors:            metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:         metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountErrors:           metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesErrors:     metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchErrors:                metrics.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			registerMetricNamesErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			deleteSeriesErrors:          ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelNamesRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelNamesErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			labelValuesErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tagValueSuffixesErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tsdbStatusErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			seriesCountErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 
-			metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+			metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+			metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
 		}
-		storageNodes = append(storageNodes, sn)
+		sns = append(sns, sn)
 	}
+	metrics.RegisterSet(ms)
+	storageNodes.Store(&storageNodesBucket{
+		sns: sns,
+		ms:  ms,
+	})
 }
 
-// Stop gracefully stops netstorage.
-func Stop() {
-	// Nothing to do at the moment.
+// MustStop gracefully stops netstorage.
+func MustStop() {
+	snb := storageNodes.Load().(*storageNodesBucket)
+	storageNodes.Store(&storageNodesBucket{})
+	for _, sn := range snb.sns {
+		sn.connPool.MustStop()
+	}
+	metrics.UnregisterSet(snb.ms)
+	snb.ms.UnregisterAllMetrics()
 }
 
 var (
@@ -2434,9 +2480,9 @@ type perNodeCounter struct {
 	ns []uint64WithPadding
 }
 
-func newPerNodeCounter() *perNodeCounter {
+func newPerNodeCounter(sns []*storageNode) *perNodeCounter {
 	return &perNodeCounter{
-		ns: make([]uint64WithPadding, len(storageNodes)),
+		ns: make([]uint64WithPadding, len(sns)),
 	}
 }
 

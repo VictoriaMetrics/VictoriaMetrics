@@ -90,7 +90,7 @@ func main() {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
 
-	netstorage.InitStorageNodes(*storageNodes)
+	netstorage.Init(*storageNodes)
 	logger.Infof("started netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
 	if len(*cacheDataPath) > 0 {
@@ -137,7 +137,7 @@ func main() {
 
 	logger.Infof("shutting down neststorage...")
 	startTime = time.Now()
-	netstorage.Stop()
+	netstorage.MustStop()
 	if len(*cacheDataPath) > 0 {
 		promql.StopRollupResultCache()
 	}
