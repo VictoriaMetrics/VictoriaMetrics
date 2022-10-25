@@ -22,6 +22,7 @@ import (
 type namedMetric struct {
 	name   string
 	metric metric
+	isAux  bool
 }
 
 type metric interface {
@@ -49,6 +50,8 @@ func RegisterSet(s *Set) {
 }
 
 // UnregisterSet stops exporting metrics for the given s via global WritePrometheus() call.
+//
+// Call s.UnregisterAllMetrics() after unregistering s if it is no longer used.
 func UnregisterSet(s *Set) {
 	registeredSetsLock.Lock()
 	delete(registeredSets, s)
@@ -180,11 +183,23 @@ func WriteFDMetrics(w io.Writer) {
 }
 
 // UnregisterMetric removes metric with the given name from default set.
+//
+// See also UnregisterAllMetrics.
 func UnregisterMetric(name string) bool {
 	return defaultSet.UnregisterMetric(name)
 }
 
-// ListMetricNames returns a list of all the metric names from default set.
+// UnregisterAllMetrics unregisters all the metrics from default set.
+func UnregisterAllMetrics() {
+	defaultSet.UnregisterAllMetrics()
+}
+
+// ListMetricNames returns sorted list of all the metric names from default set.
 func ListMetricNames() []string {
 	return defaultSet.ListMetricNames()
+}
+
+// GetDefaultSet returns the default metrics set.
+func GetDefaultSet() *Set {
+	return defaultSet
 }

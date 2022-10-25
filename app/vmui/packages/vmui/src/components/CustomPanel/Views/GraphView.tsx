@@ -4,10 +4,11 @@ import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import Legend from "../../Legend/Legend";
 import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
-import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
+import {getLimitsYAxis, getMinMaxBuffer, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
 import {AxisRange, YaxisState} from "../../../state/graph/reducer";
+import {getAvgFromArray, getMaxFromArray, getMinFromArray} from "../../../utils/math";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -20,6 +21,7 @@ export interface GraphViewProps {
   showLegend?: boolean;
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({from, to}: {from: Date, to: Date}) => void
+  fullWidth?: boolean
 }
 
 const promValueToNumber = (s: string): number => {
@@ -47,7 +49,8 @@ const GraphView: FC<GraphViewProps> = ({
   showLegend= true,
   setYaxisLimits,
   setPeriod,
-  alias = []
+  alias = [],
+  fullWidth = true
 }) => {
   const currentStep = useMemo(() => customStep || period.step || 1, [period.step, customStep]);
 
@@ -102,10 +105,16 @@ const GraphView: FC<GraphViewProps> = ({
         }
         results.push(v);
       }
-      return results;
+
+      // stabilize float numbers
+      const resultAsNumber = results.filter(s => s !== null) as number[];
+      const avg = Math.abs(getAvgFromArray(resultAsNumber));
+      const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
+      const rangeStep = Math.abs(range[1] - range[0]);
+
+      return (avg > rangeStep * 1e10) ? results.map(() => avg) : results;
     });
     timeDataSeries.unshift(timeSeries);
-
     setLimitsYaxis(tempValues);
     setDataChart(timeDataSeries as uPlotData);
     setSeries(tempSeries);
@@ -127,7 +136,7 @@ const GraphView: FC<GraphViewProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
 
   return <>
-    <div style={{width: "100%"}} ref={containerRef}>
+    <div style={{width: fullWidth ? "calc(100vw - 68px)" : "100%"}} ref={containerRef}>
       {containerRef?.current &&
           <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit}
             setPeriod={setPeriod} container={containerRef?.current}/>}

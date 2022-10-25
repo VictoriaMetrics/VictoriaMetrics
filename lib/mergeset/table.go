@@ -580,7 +580,7 @@ func (tb *Table) convertToV1280() {
 		logger.Infof("finished round 2 of background conversion of %q to v1.28.0 format in %.3f seconds", tb.path, time.Since(startTime).Seconds())
 	}
 
-	if err := fs.WriteFileAtomically(flagFilePath, []byte("ok")); err != nil {
+	if err := fs.WriteFileAtomically(flagFilePath, []byte("ok"), false); err != nil {
 		logger.Panicf("FATAL: cannot create %q: %s", flagFilePath, err)
 	}
 }
@@ -975,7 +975,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	dstPartPath := ph.Path(tb.path, mergeIdx)
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
 	txnPath := fmt.Sprintf("%s/txn/%016X", tb.path, mergeIdx)
-	if err := fs.WriteFileAtomically(txnPath, bb.B); err != nil {
+	if err := fs.WriteFileAtomically(txnPath, bb.B, false); err != nil {
 		return fmt.Errorf("cannot create transaction file %q: %w", txnPath, err)
 	}
 

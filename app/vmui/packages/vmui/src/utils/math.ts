@@ -21,3 +21,5 @@ export const getMinFromArray = (a: number[]) => {
   }
   return Number.isFinite(min) ? min : null;
 };
+
+export const getAvgFromArray = (a: number[]) => a.reduce((a,b) => a+b) / a.length;

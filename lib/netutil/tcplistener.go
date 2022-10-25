@@ -16,8 +16,7 @@ var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for list
 
 // NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //
-// name is used for exported metrics. Each listener in the program must have
-// distinct name.
+// name is used for metrics registered in ms. Each listener in the program must have distinct name.
 func NewTCPListener(name, addr string, tlsConfig *tls.Config) (*TCPListener, error) {
 	network := GetTCPNetwork()
 	ln, err := net.Listen(network, addr)
@@ -27,13 +26,14 @@ func NewTCPListener(name, addr string, tlsConfig *tls.Config) (*TCPListener, err
 	if tlsConfig != nil {
 		ln = tls.NewListener(ln, tlsConfig)
 	}
+	ms := metrics.GetDefaultSet()
 	tln := &TCPListener{
 		Listener: ln,
 
-		accepts:      metrics.NewCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
-		acceptErrors: metrics.NewCounter(fmt.Sprintf(`vm_tcplistener_errors_total{name=%q, addr=%q, type="accept"}`, name, addr)),
+		accepts:      ms.NewCounter(fmt.Sprintf(`vm_tcplistener_accepts_total{name=%q, addr=%q}`, name, addr)),
+		acceptErrors: ms.NewCounter(fmt.Sprintf(`vm_tcplistener_errors_total{name=%q, addr=%q, type="accept"}`, name, addr)),
 	}
-	tln.connMetrics.init("vm_tcplistener", name, addr)
+	tln.connMetrics.init(ms, "vm_tcplistener", name, addr)
 	return tln, err
 }
 
