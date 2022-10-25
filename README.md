@@ -180,7 +180,12 @@ It is possible manualy setting up a toy cluster on a single host. In this case e
 
 ### Environment variables
 
-Each flag values can be set through environment variables by following these rules:
+All the VictoriaMetrics components allow referring environment variables in command-line flags via `${ENV_VAR}` syntax.
+For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
+if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
+This expansion doesn't need any special shell - it is performed by VictoriaMetrics itself.
+
+Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
 
 - The `-envflag.enable` flag must be set
 - Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
