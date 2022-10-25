@@ -442,16 +442,16 @@ Found 2 blocks to import. Continue? [Y/n] y
 
 ## Migrating data by remote read protocol
 
-`vmctl` supports the `remote-read` mode for migrating data from any database which supports Prometheus remote read protocol
-to VictoriaMetrics time-series database.
+`vmctl` supports the `remote-read` mode for migrating data from any database which supports
+[Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/)
 
 See `./vmctl remote-read --help` for details and full list of flags.
 
-Migration is based on the remote reading and allows transparently fetch samples.
-Remote read protocol supports two different modes `SAMPLES` and `STREAMED_XOR_CHUNKS`. You can read more about it
-[here](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/).
-
-Please notice at that moment not all TSDB support `STREAMED_XOR_CHUNKS` mode and can handle stream requests.
+Please note, vmctl expects the source TSDB to support
+[STREAMED_XOR_CHUNKS](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks) mode
+for response streaming. [SAMPLES](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#samples) mode
+is not supported due to its inefficiency.
+See more details [here](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/).
 
 To start the migration process some flags should be defined:
 1. `--remote-read-src-addr` - address to perform read from;
@@ -561,7 +561,7 @@ then import it into VM using `vmctl` in `prometheus` mode.
 
 ### Remote read protocol
 
-At that moment Thanos only supports gRPC remote read protocol, but also they are [recommended](https://thanos.io/tip/thanos/integrations.md/#storeapi-as-prometheus-remote-read)
+Currently, Thanos doesn't support streaming remote read protocol. It is [recommended](https://thanos.io/tip/thanos/integrations.md/#storeapi-as-prometheus-remote-read)
 to use [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) a proxy, that allows exposing any Thanos
 service (or anything that exposes gRPC StoreAPI e.g. Querier) via Prometheus remote read protocol.
 
