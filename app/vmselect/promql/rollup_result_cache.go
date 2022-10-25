@@ -387,8 +387,7 @@ func mustLoadRollupResultCacheKeyPrefix(path string) {
 func mustSaveRollupResultCacheKeyPrefix(path string) {
 	path = path + ".key.prefix"
 	data := encoding.MarshalUint64(nil, rollupResultCacheKeyPrefix)
-	fs.MustRemoveAll(path)
-	if err := fs.WriteFileAtomically(path, data); err != nil {
+	if err := fs.WriteFileAtomically(path, data, true); err != nil {
 		logger.Fatalf("cannot store rollupResult cache key prefix to %q: %s", path, err)
 	}
 }

@@ -1246,7 +1246,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	}
 	fmt.Fprintf(&bb, "%s -> %s\n", tmpPartPath, dstPartPath)
 	txnPath := fmt.Sprintf("%s/txn/%016X", ptPath, mergeIdx)
-	if err := fs.WriteFileAtomically(txnPath, bb.B); err != nil {
+	if err := fs.WriteFileAtomically(txnPath, bb.B, false); err != nil {
 		return fmt.Errorf("cannot create transaction file %q: %w", txnPath, err)
 	}
 

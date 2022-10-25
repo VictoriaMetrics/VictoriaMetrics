@@ -1076,10 +1076,7 @@ func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) in
 	}
 	minTimestamp = date * msecPerDay
 	dateBuf := encoding.MarshalInt64(nil, minTimestamp)
-	if err := os.RemoveAll(path); err != nil {
-		logger.Fatalf("cannot remove a file with minTimestampForCompositeIndex: %s", err)
-	}
-	if err := fs.WriteFileAtomically(path, dateBuf); err != nil {
+	if err := fs.WriteFileAtomically(path, dateBuf, true); err != nil {
 		logger.Fatalf("cannot store minTimestampForCompositeIndex: %s", err)
 	}
 	return minTimestamp
