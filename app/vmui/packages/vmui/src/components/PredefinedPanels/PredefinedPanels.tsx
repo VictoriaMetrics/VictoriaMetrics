@@ -126,7 +126,9 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
         alias={alias}
         showLegend={showLegend}
         setYaxisLimits={setYaxisLimits}
-        setPeriod={setPeriod}/>
+        setPeriod={setPeriod}
+        fullWidth={false}
+      />
       }
     </Box>
   </Box>;
