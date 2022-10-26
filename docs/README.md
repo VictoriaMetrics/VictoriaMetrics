@@ -133,10 +133,13 @@ VictoriaMetrics is developed at a fast pace, so it is recommended periodically c
 
 ### Environment variables
 
-All the VictoriaMetrics components allow referring environment variables in command-line flags via `${ENV_VAR}` syntax.
+All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
 For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
 if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
-This expansion doesn't need any special shell - it is performed by VictoriaMetrics itself.
+This expansion is performed by VictoriaMetrics itself.
+
+VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
+For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
 
 Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
 

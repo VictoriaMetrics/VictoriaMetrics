@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -59,15 +59,15 @@ func (fs *FS) Init() error {
 
 	var sc *service.Client
 	var err error
-	if cs, ok := os.LookupEnv(envStorageAccCs); ok {
+	if cs, ok := envtemplate.LookupEnv(envStorageAccCs); ok {
 		sc, err = service.NewClientFromConnectionString(cs, nil)
 		if err != nil {
 			return fmt.Errorf("failed to create AZBlob service client from connection string: %w", err)
 		}
 	}
 
-	accountName, ok1 := os.LookupEnv(envStorageAcctName)
-	accountKey, ok2 := os.LookupEnv(envStorageAccKey)
+	accountName, ok1 := envtemplate.LookupEnv(envStorageAcctName)
+	accountKey, ok2 := envtemplate.LookupEnv(envStorageAccKey)
 	if ok1 && ok2 {
 		creds, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 		if err != nil {
