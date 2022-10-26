@@ -251,7 +251,7 @@ func readAuthConfig(path string) (map[string]*UserInfo, error) {
 
 func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 	var err error
-	data, err = envtemplate.Replace(data)
+	data, err = envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}

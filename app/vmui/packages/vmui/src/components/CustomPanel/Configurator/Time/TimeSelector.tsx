@@ -15,6 +15,7 @@ import Divider from "@mui/material/Divider";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Tooltip from "@mui/material/Tooltip";
 import AlarmAdd from "@mui/icons-material/AlarmAdd";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import {getAppModeEnable} from "../../../../utils/app-mode";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
@@ -37,6 +38,8 @@ const classes = {
 };
 
 export const TimeSelector: FC = () => {
+
+  const displayFullDate = useMediaQuery("(min-width: 1120px)");
 
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [until, setUntil] = useState<string>();
@@ -99,13 +102,17 @@ export const TimeSelector: FC = () => {
         sx={{
           color: "white",
           border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-          boxShadow: "none"
+          boxShadow: "none",
+          minWidth: "34px",
+          padding: displayFullDate ? "" : "6px 8px",
         }}
-        startIcon={<QueryBuilderIcon/>}
+        startIcon={<QueryBuilderIcon style={displayFullDate ? {} : {marginRight: "-8px", marginLeft: "4px"}}/>}
         onClick={(e) => setAnchorEl(e.currentTarget)}>
-        {relativeTime && relativeTime !== "none"
-          ? relativeTime.replace(/_/g, " ")
-          : `${formatRange.start} - ${formatRange.end}`}
+        {displayFullDate && <span>
+          {relativeTime && relativeTime !== "none"
+            ? relativeTime.replace(/_/g, " ")
+            : `${formatRange.start} - ${formatRange.end}`}
+        </span>}
       </Button>
     </Tooltip>
     <Popper

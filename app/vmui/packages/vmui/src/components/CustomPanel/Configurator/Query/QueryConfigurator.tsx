@@ -91,11 +91,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({error, queryOptions}) =>
           </Tooltip>}
         </Box>)}
     </Box>
-    <Box mt={3} display="grid" gridTemplateColumns="1fr auto" alignItems="center">
+    <Box mt={3} display="grid" gridTemplateColumns="1fr auto" alignItems="start" gap={4}>
       <AdditionalSettings/>
-      <Box>
+      <Box display="grid" gridTemplateColumns="repeat(2, auto)" gap={1}>
         {stateQuery.length < MAX_QUERY_FIELDS && (
-          <Button variant="outlined" onClick={onAddQuery} startIcon={<AddIcon/>} sx={{mr: 2}}>
+          <Button variant="outlined" onClick={onAddQuery} startIcon={<AddIcon/>}>
             <Typography lineHeight={"20px"} fontWeight="500">Add Query</Typography>
           </Button>
         )}

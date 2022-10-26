@@ -35,6 +35,7 @@ const classes = {
     color: "inherit",
     textDecoration: "underline",
     transition: ".2s opacity",
+    whiteSpace: "nowrap",
     "&:hover": {
       opacity: ".8",
     }
@@ -121,7 +122,7 @@ const Header: FC = () => {
           </Link>
         </Box>
       )}
-      <Box sx={{ml: appModeEnable ? 0 : 8}}>
+      <Box ml={appModeEnable ? 0 : 8} flexGrow={1}>
         <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: color}}}
           onChange={(e, val) => setActiveMenu(val)}>
           {routes.filter(r => !r.hide).map(r => (
@@ -136,7 +137,7 @@ const Header: FC = () => {
           ))}
         </Tabs>
       </Box>
-      <Box display="flex" gap={1} alignItems="center" ml="auto" mr={0}>
+      <Box display="flex" gap={1} alignItems="center" mr={0} ml={4}>
         {headerSetup?.timeSelector && <TimeSelector/>}
         {headerSetup?.datePicker && (
           <DatePicker
