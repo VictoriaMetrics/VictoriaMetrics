@@ -63,7 +63,7 @@ absolute path to all .tpl files in root.`)
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
 		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+
 		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]' . `+
-		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used`)
+		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used. All query params will be automatically escaped`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
