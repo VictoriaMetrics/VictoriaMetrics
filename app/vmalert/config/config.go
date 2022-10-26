@@ -245,7 +245,7 @@ func parseFile(path string) ([]Group, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error reading alert rule file %q: %w", path, err)
 	}
-	data, err = envtemplate.Replace(data)
+	data, err = envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
 	}

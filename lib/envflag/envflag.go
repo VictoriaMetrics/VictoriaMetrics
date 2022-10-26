@@ -26,12 +26,13 @@ func Parse() {
 	args := os.Args[1:]
 	dstArgs := args[:0]
 	for _, arg := range args {
-		b, err := envtemplate.Replace([]byte(arg))
+		s, err := envtemplate.ReplaceString(arg)
 		if err != nil {
+			// Do not use lib/logger here, since it is uninitialized yet.
 			log.Fatalf("cannot process arg %q: %s", arg, err)
 		}
-		if len(b) > 0 {
-			dstArgs = append(dstArgs, string(b))
+		if len(s) > 0 {
+			dstArgs = append(dstArgs, s)
 		}
 	}
 	os.Args = os.Args[:1+len(dstArgs)]
@@ -56,7 +57,7 @@ func Parse() {
 		}
 		// Get flag value from environment var.
 		fname := getEnvFlagName(f.Name)
-		if v, ok := os.LookupEnv(fname); ok {
+		if v, ok := envtemplate.LookupEnv(fname); ok {
 			if err := flag.Set(f.Name, v); err != nil {
 				// Do not use lib/logger here, since it is uninitialized yet.
 				log.Fatalf("cannot set flag %s to %q, which is read from environment variable %q: %s", f.Name, v, fname, err)

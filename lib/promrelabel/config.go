@@ -152,7 +152,7 @@ func LoadRelabelConfigs(path string, relabelDebug bool) (*ParsedConfigs, error) 
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `relabel_configs` from %q: %w", path, err)
 	}
-	data, err = envtemplate.Replace(data)
+	data, err = envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars at %q: %w", path, err)
 	}
