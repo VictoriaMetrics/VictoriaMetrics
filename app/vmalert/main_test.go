@@ -52,7 +52,7 @@ func TestGetAlertURLGenerator(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
-	if exp := "https://victoriametrics.com/path/foo?query=4&ds=baz"; exp != fn(testAlert) {
+	if exp := "https://victoriametrics.com/path/foo%3Fquery%3D4%26ds%3Dbaz"; exp != fn(testAlert) {
 		t.Errorf("unexpected url want %s, got %s", exp, fn(testAlert))
 	}
 }

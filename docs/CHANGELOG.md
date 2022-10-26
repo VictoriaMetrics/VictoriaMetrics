@@ -56,6 +56,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix panic if `vmagent` runs with `-clusterMode` command-line flag in [multitenant mode](https://docs.victoriametrics.com/vmalert.html#multitenancy). The issue has been introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not show invalid error message in Kubernetes service discovery: `cannot parse WatchEvent json response: EOF`. The invalid error message has been appeared in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
 * BUGFIX: `vmselect`: expose missing metric `vm_cache_size_max_bytes{type="promql/rollupResult"}` . This metric is used for monitoring rollup cache usage with the query `vm_cache_size_bytes{type="promql/rollupResult"} / vm_cache_size_max_bytes{type="promql/rollupResult"}` in the same way as this is done for other cache types.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix escaping of query params when using `external.alert.source` flag.  See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3139).
 
 ## [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1)
 
