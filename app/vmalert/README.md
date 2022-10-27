@@ -816,7 +816,7 @@ The shortlist of configuration flags is the following:
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
      External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]' . If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used
-     If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used. All query params will be automatically escaped.
+     If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
