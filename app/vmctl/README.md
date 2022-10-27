@@ -501,9 +501,17 @@ Filtering by time may be configured via flags `--remote-read-filter-time-start` 
 in RFC3339 format. This filter is applied twice: to drop blocks out of range and to filter timeseries in blocks with
 overlapping time ranges.
 
-Also, you can add flags for filtering by label and label value via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`.
-in string format. For example, you can provide `--remote-read-filter-label=__name__` and `--remote-read-filter-label-value=.*`, and
-all timeseries will be collected from provided source database.
+Also, you can add flags for filtering by label and label value via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`
+in string format. For example, you can provide `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value=".*"`, and
+timeseries with label `tenant` and value which not empty will be collected from provided source database.
+As example this flags will filter next time series
+```
+continuous_app_metric0  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
+continuous_app_metric1  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
+continuous_app_metric2  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
+continuous_app_metric3  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
+continuous_app_metric4  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
+```
 
 ### Configuration
 
