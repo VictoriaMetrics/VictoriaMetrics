@@ -207,22 +207,9 @@ func FuncsWithExternalURL(externalURL *url.URL) textTpl.FuncMap {
 // templateFuncs initiates template helper functions
 func templateFuncs() textTpl.FuncMap {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/template_reference/
+	// and https://github.com/prometheus/prometheus/blob/fa6e05903fd3ce52e374a6e1bf4eb98c9f1f45a7/template/template.go#L150
 	return textTpl.FuncMap{
 		/* Strings */
-
-		// reReplaceAll ReplaceAllString returns a copy of src, replacing matches of the Regexp with
-		// the replacement string repl. Inside repl, $ signs are interpreted as in Expand,
-		// so for instance $1 represents the text of the first submatch.
-		// alias for https://golang.org/pkg/regexp/#Regexp.ReplaceAllString
-		"reReplaceAll": func(pattern, repl, text string) string {
-			re := regexp.MustCompile(pattern)
-			return re.ReplaceAllString(text, repl)
-		},
-
-		// match reports whether the string s
-		// contains any match of the regular expression pattern.
-		// alias for https://golang.org/pkg/regexp/#MatchString
-		"match": regexp.MatchString,
 
 		// title returns a copy of the string s with all Unicode letters
 		// that begin words mapped to their Unicode title case.
@@ -237,6 +224,31 @@ func templateFuncs() textTpl.FuncMap {
 		// alias for https://golang.org/pkg/strings/#ToLower
 		"toLower": strings.ToLower,
 
+		// crlfEscape replaces '\n' and '\r' chars with `\\n` and `\\r`.
+		// This funcion is deprectated.
+		//
+		// It is better to use quotesEscape, jsonEscape, queryEscape or pathEscape instead -
+		// these functions properly escape `\n` and `\r` chars according to their purpose.
+		"crlfEscape": func(q string) string {
+			q = strings.Replace(q, "\n", `\n`, -1)
+			return strings.Replace(q, "\r", `\r`, -1)
+		},
+
+		// quotesEscape escapes the string, so it can be safely put inside JSON string.
+		//
+		// See also jsonEscape.
+		"quotesEscape": quotesEscape,
+
+		// jsonEscape converts the string to properly encoded JSON string.
+		//
+		// See also quotesEscape.
+		"jsonEscape": jsonEscape,
+
+		// htmlEscape applies html-escaping to q, so it can be safely embedded as plaintext into html.
+		//
+		// See also safeHtml.
+		"htmlEscape": htmlEscape,
+
 		// stripPort splits string into host and port, then returns only host.
 		"stripPort": func(hostPort string) string {
 			host, _, err := net.SplitHostPort(hostPort)
@@ -244,6 +256,37 @@ func templateFuncs() textTpl.FuncMap {
 				return hostPort
 			}
 			return host
+		},
+
+		// stripDomain removes the domain part of a FQDN. Leaves port untouched.
+		"stripDomain": func(hostPort string) string {
+			host, port, err := net.SplitHostPort(hostPort)
+			if err != nil {
+				host = hostPort
+			}
+			ip := net.ParseIP(host)
+			if ip != nil {
+				return hostPort
+			}
+			host = strings.Split(host, ".")[0]
+			if port != "" {
+				return net.JoinHostPort(host, port)
+			}
+			return host
+		},
+
+		// match reports whether the string s
+		// contains any match of the regular expression pattern.
+		// alias for https://golang.org/pkg/regexp/#MatchString
+		"match": regexp.MatchString,
+
+		// reReplaceAll ReplaceAllString returns a copy of src, replacing matches of the Regexp with
+		// the replacement string repl. Inside repl, $ signs are interpreted as in Expand,
+		// so for instance $1 represents the text of the first submatch.
+		// alias for https://golang.org/pkg/regexp/#Regexp.ReplaceAllString
+		"reReplaceAll": func(pattern, repl, text string) string {
+			re := regexp.MustCompile(pattern)
+			return re.ReplaceAllString(text, repl)
 		},
 
 		// parseDuration parses a duration string such as "1h" into the number of seconds it represents
@@ -399,31 +442,15 @@ func templateFuncs() textTpl.FuncMap {
 			return ""
 		},
 
-		// pathEscape escapes the string so it can be safely placed inside a URL path segment,
-		// replacing special characters (including /) with %XX sequences as needed.
-		// alias for https://golang.org/pkg/net/url/#PathEscape
-		"pathEscape": func(u string) string {
-			return url.PathEscape(u)
-		},
+		// pathEscape escapes the string so it can be safely placed inside a URL path segment.
+		//
+		// See also queryEscape.
+		"pathEscape": url.PathEscape,
 
-		// queryEscape escapes the string so it can be safely placed
-		// inside a URL query.
-		// alias for https://golang.org/pkg/net/url/#QueryEscape
-		"queryEscape": func(q string) string {
-			return url.QueryEscape(q)
-		},
-
-		// crlfEscape replaces new line chars to skip URL encoding.
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890
-		"crlfEscape": func(q string) string {
-			q = strings.Replace(q, "\n", `\n`, -1)
-			return strings.Replace(q, "\r", `\r`, -1)
-		},
-
-		// quotesEscape escapes quote char
-		"quotesEscape": func(q string) string {
-			return strings.Replace(q, `"`, `\"`, -1)
-		},
+		// queryEscape escapes the string so it can be safely placed inside a query arg in URL.
+		//
+		// See also queryEscape.
+		"queryEscape": url.QueryEscape,
 
 		// query executes the MetricsQL/PromQL query against
 		// configured `datasource.url` address.
@@ -455,18 +482,23 @@ func templateFuncs() textTpl.FuncMap {
 			return m.Labels[label]
 		},
 
+		// value returns the value of the given metric.
+		// usually used alongside with `query` template function.
+		"value": func(m metric) float64 {
+			return m.Value
+		},
+
+		// strvalue returns metric name.
+		"strvalue": func(m metric) string {
+			return m.Labels["__name__"]
+		},
+
 		// sortByLabel sorts the given metrics by provided label key
 		"sortByLabel": func(label string, metrics []metric) []metric {
 			sort.SliceStable(metrics, func(i, j int) bool {
 				return metrics[i].Labels[label] < metrics[j].Labels[label]
 			})
 			return metrics
-		},
-
-		// value returns the value of the given metric.
-		// usually used alongside with `query` template function.
-		"value": func(m metric) float64 {
-			return m.Value
 		},
 
 		/* Helpers */
@@ -482,6 +514,8 @@ func templateFuncs() textTpl.FuncMap {
 		},
 
 		// safeHtml marks string as HTML not requiring auto-escaping.
+		//
+		// See also htmlEscape.
 		"safeHtml": func(text string) htmlTpl.HTML {
 			return htmlTpl.HTML(text)
 		},
