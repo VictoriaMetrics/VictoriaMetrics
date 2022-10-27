@@ -1,3 +1,20 @@
+# Release (2022-10-24)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/feature/ec2/imds`: [v1.12.19](feature/ec2/imds/CHANGELOG.md#v11219-2022-10-24)
+  * **Bug Fix**: Fixes an issue that prevented logging of the API request or responses when the respective log modes were enabled.
+* `github.com/aws/aws-sdk-go-v2/service/acmpca`: [v1.19.0](service/acmpca/CHANGELOG.md#v1190-2022-10-24)
+  * **Feature**: AWS Private Certificate Authority (AWS Private CA) now offers usage modes which are combination of features to address specific use cases.
+* `github.com/aws/aws-sdk-go-v2/service/batch`: [v1.19.0](service/batch/CHANGELOG.md#v1190-2022-10-24)
+  * **Feature**: This release adds support for AWS Batch on Amazon EKS.
+* `github.com/aws/aws-sdk-go-v2/service/datasync`: [v1.19.0](service/datasync/CHANGELOG.md#v1190-2022-10-24)
+  * **Feature**: Added support for self-signed certificates when using object storage locations; added BytesCompressed to the TaskExecution response.
+* `github.com/aws/aws-sdk-go-v2/service/sagemaker`: [v1.50.0](service/sagemaker/CHANGELOG.md#v1500-2022-10-24)
+  * **Feature**: SageMaker Inference Recommender now supports a new API ListInferenceRecommendationJobSteps to return the details of all the benchmark we create for an inference recommendation job.
+
 # Release (2022-10-21)
 
 ## General Highlights

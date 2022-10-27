@@ -1,3 +1,7 @@
+# v1.29.1 (2022-10-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.29.0 (2022-10-21)
 
 * **Feature**: S3 on Outposts launches support for automatic bucket-style alias. You can use the automatic access point alias instead of an access point ARN for any object-level operation in an Outposts bucket.
