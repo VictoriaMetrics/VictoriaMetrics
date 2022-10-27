@@ -890,7 +890,7 @@ func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honor
 		return dst
 	}
 	for _, label := range extraLabels {
-		prevLabel := promrelabel.GetLabelByName(labels, label.Name)
+		prevLabel := promrelabel.GetLabelByName(dst, label.Name)
 		if prevLabel == nil {
 			// Fast path - the label doesn't exist in labels, so just add it to dst.
 			dst = append(dst, label)

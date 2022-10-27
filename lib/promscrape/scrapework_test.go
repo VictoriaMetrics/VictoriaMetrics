@@ -34,10 +34,34 @@ func TestAppendExtraLabels(t *testing.T) {
 	f(`{a="b"}`, `{a="d"}`, true, `{a="b"}`)
 	f(`{a="b"}`, `{a="d"}`, false, `{exported_a="b",a="d"}`)
 	f(`{a="b",exported_a="x"}`, `{a="d"}`, true, `{a="b",exported_a="x"}`)
+	f(`{deployment="b",namespace="b"}`, `{namespace="a"}`, false, `{deployment="b",exported_namespace="b",namespace="a"}`)
+	f(`{namespace="b"}`, `{deployment="a",namespace="a"}`, false, `{exported_namespace="b",deployment="a",namespace="a"}`)
+	f(`{namespace="b"}`, `{namespace="a"}`, true, `{namespace="b"}`)
 	f(`{a="b",exported_a="x"}`, `{a="d"}`, false, `{a="d",exported_a="b"}`)
 	f(`{a="b"}`, `{a="d",exported_a="x"}`, true, `{a="b",exported_a="x"}`)
-	f(`{a="b"}`, `{a="d",exported_a="x"}`, false, `{exported_a="b",a="d",exported_a="x"}`)
+	f(`{a="b"}`, `{a="d",exported_a="x"}`, false, `{exported_a="b",a="d",exported_exported_a="x"}`)
 }
+
+//dst []prompbmarshal.Label, metric string, src []parser.Tag, extraLabels []prompbmarshal.Label, honorLabels bool
+
+func TestAppendLabels(t *testing.T) {
+	f := func(sourceLabels, metric string, extraLabels string, tag []parser.Tag, honorLabels bool, resultExpected string) {
+		t.Helper()
+
+		src := promrelabel.MustParseMetricWithLabels(sourceLabels)
+		extra := promrelabel.MustParseMetricWithLabels(extraLabels)
+		labels := appendLabels(src, metric, tag, extra, honorLabels)
+		result := promLabelsString(labels)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`{namespace="b"}`,"prescaling_metric", `{namespace="a"}`, []parser.Tag{{Key: "tagkey",Value: "tagvalue"}}, false, `{exported_namespace="b",__name__="prescaling_metric",tagkey="tagvalue",                      namespace="a"}`)
+	f(`{namespace="b"}`,"prescaling_metric", `{namespace="a"}`, []parser.Tag{{Key: "tagkey",Value: "tagvalue"}}, true, `{namespace="b",__name__="prescaling_metric",tagkey="tagvalue"}`)
+
+}
+
 
 func TestPromLabelsString(t *testing.T) {
 	f := func(labels []prompbmarshal.Label, resultExpected string) {
