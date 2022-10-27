@@ -1,10 +1,10 @@
-import {ErrorTypes} from "../types";
-import {useAppState} from "../state/common/StateContext";
-import {useEffect, useState} from "preact/compat";
-import {CardinalityRequestsParams, getCardinalityInfo} from "../api/tsdb";
-import {TSDBStatus} from "../components/CardinalityPanel/types";
-import {useCardinalityState} from "../state/cardinality/CardinalityStateContext";
-import AppConfigurator from "../components/CardinalityPanel/appConfigurator";
+import { ErrorTypes } from "../types";
+import { useAppState } from "../state/common/StateContext";
+import { useEffect, useState } from "preact/compat";
+import { CardinalityRequestsParams, getCardinalityInfo } from "../api/tsdb";
+import { TSDBStatus } from "../pages/CardinalityPanel/types";
+import { useCardinalityState } from "../state/cardinality/CardinalityStateContext";
+import AppConfigurator from "../pages/CardinalityPanel/appConfigurator";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],
@@ -13,9 +13,9 @@ export const useFetchQuery = (): {
   appConfigurator: AppConfigurator,
 } => {
   const appConfigurator = new AppConfigurator();
-  const {topN, extraLabel, match, date, runQuery, focusLabel} = useCardinalityState();
+  const { topN, extraLabel, match, date, runQuery, focusLabel } = useCardinalityState();
 
-  const {serverUrl} = useAppState();
+  const { serverUrl } = useAppState();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
   const [tsdbStatus, setTSDBStatus] = useState<TSDBStatus>(appConfigurator.defaultTSDBStatus);
@@ -38,7 +38,7 @@ export const useFetchQuery = (): {
       const response = await fetch(url);
       const resp = await response.json();
       if (response.ok) {
-        const {data} = resp;
+        const { data } = resp;
         setTSDBStatus({ ...data });
         setIsLoading(false);
       } else {
@@ -54,9 +54,9 @@ export const useFetchQuery = (): {
 
 
   useEffect(() => {
-    fetchCardinalityInfo({topN, extraLabel, match, date, focusLabel});
+    fetchCardinalityInfo({ topN, extraLabel, match, date, focusLabel });
   }, [serverUrl, runQuery, date]);
 
   appConfigurator.tsdbStatusData = tsdbStatus;
-  return {isLoading, appConfigurator: appConfigurator, error};
+  return { isLoading, appConfigurator: appConfigurator, error };
 };

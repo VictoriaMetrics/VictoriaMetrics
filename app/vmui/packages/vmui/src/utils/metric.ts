@@ -1,4 +1,4 @@
-import {MetricBase} from "../api/types";
+import { MetricBase } from "../api/types";
 
 export const getNameForMetric = (result: MetricBase, alias?: string): string => {
   const { __name__, ...freeFormFields } = result.metric;

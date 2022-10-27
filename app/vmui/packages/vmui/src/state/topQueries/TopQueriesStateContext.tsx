@@ -1,8 +1,8 @@
-import React, {createContext, FC, useContext, useEffect, useMemo, useReducer} from "preact/compat";
-import {Action, TopQueriesState, initialState, reducer} from "./reducer";
-import {Dispatch} from "react";
-import {useLocation} from "react-router-dom";
-import {setQueryStringValue} from "../../utils/query-string";
+import React, { createContext, FC, useContext, useEffect, useMemo, useReducer } from "preact/compat";
+import { Action, TopQueriesState, initialState, reducer } from "./reducer";
+import { Dispatch } from "react";
+import { useLocation } from "react-router-dom";
+import { setQueryStringValue } from "../../utils/query-string";
 import router from "../../router";
 
 type TopQueriesStateContextType = { state: TopQueriesState, dispatch: Dispatch<Action> };
@@ -12,7 +12,7 @@ export const TopQueriesStateContext = createContext<TopQueriesStateContextType>(
 export const useTopQueriesState = (): TopQueriesState => useContext(TopQueriesStateContext).state;
 export const useTopQueriesDispatch = (): Dispatch<Action> => useContext(TopQueriesStateContext).dispatch;
 
-export const TopQueriesStateProvider: FC = ({children}) => {
+export const TopQueriesStateProvider: FC = ({ children }) => {
   const location = useLocation();
 
   const [state, dispatch] = useReducer(reducer, initialState);

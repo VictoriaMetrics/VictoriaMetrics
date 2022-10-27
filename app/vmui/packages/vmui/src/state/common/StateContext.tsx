@@ -1,8 +1,8 @@
-import React, {createContext, FC, useContext, useEffect, useMemo, useReducer} from "preact/compat";
-import {Action, AppState, initialState, reducer} from "./reducer";
-import {getQueryStringValue, setQueryStringValue} from "../../utils/query-string";
-import {Dispatch} from "react";
-import {useLocation} from "react-router-dom";
+import React, { createContext, FC, useContext, useEffect, useMemo, useReducer } from "preact/compat";
+import { Action, AppState, initialState, reducer } from "./reducer";
+import { getQueryStringValue, setQueryStringValue } from "../../utils/query-string";
+import { Dispatch } from "react";
+import { useLocation } from "react-router-dom";
 import router from "../../router";
 
 type StateContextType = { state: AppState, dispatch: Dispatch<Action> };
@@ -18,8 +18,8 @@ export const initialPrepopulatedState = Object.entries(initialState)
     [key]: getQueryStringValue(key) || value
   }), {}) as AppState;
 
-export const StateProvider: FC = ({children}) => {
-  const {pathname} = useLocation();
+export const StateProvider: FC = ({ children }) => {
+  const { pathname } = useLocation();
 
   const [state, dispatch] = useReducer(reducer, initialPrepopulatedState);
 

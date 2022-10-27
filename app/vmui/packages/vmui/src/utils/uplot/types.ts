@@ -1,5 +1,5 @@
-import uPlot, {Series} from "uplot";
-import {MetricResult} from "../../api/types";
+import uPlot, { Series } from "uplot";
+import { MetricResult } from "../../api/types";
 
 export interface SetupTooltip {
     u: uPlot,
@@ -29,7 +29,7 @@ export interface DragArgs {
     u: uPlot,
     factor: number,
     setPanning: (enable: boolean) => void,
-    setPlotScale: ({u, min, max}: { u: uPlot, min: number, max: number }) => void
+    setPlotScale: ({ u, min, max }: { u: uPlot, min: number, max: number }) => void
 }
 
 export interface LegendItem {

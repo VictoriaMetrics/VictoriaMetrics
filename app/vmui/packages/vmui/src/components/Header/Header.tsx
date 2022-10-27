@@ -1,22 +1,22 @@
-import React, {FC, useMemo, useState} from "preact/compat";
+import React, { FC, useMemo, useState } from "preact/compat";
 import AppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Link from "@mui/material/Link";
 import Toolbar from "@mui/material/Toolbar";
-import {ExecutionControls} from "../CustomPanel/Configurator/Time/ExecutionControls";
-import Logo from "../common/Logo";
-import {setQueryStringWithoutPageReload} from "../../utils/query-string";
-import {TimeSelector} from "../CustomPanel/Configurator/Time/TimeSelector";
-import GlobalSettings from "../CustomPanel/Configurator/Settings/GlobalSettings";
-import {Link as RouterLink, useLocation, useNavigate} from "react-router-dom";
+import { ExecutionControls } from "../Configurators/TimeRangeSettings/ExecutionControls";
+import Logo from "../Main/Icons/Logo";
+import { setQueryStringWithoutPageReload } from "../../utils/query-string";
+import { TimeSelector } from "../Configurators/TimeRangeSettings/TimeSelector";
+import GlobalSettings from "../Configurators/GlobalSettings/GlobalSettings";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import router, {RouterOptions, routerOptions} from "../../router/index";
+import router, { RouterOptions, routerOptions } from "../../router";
 import DatePicker from "../Main/DatePicker/DatePicker";
-import {useCardinalityState, useCardinalityDispatch} from "../../state/cardinality/CardinalityStateContext";
-import {useEffect} from "react";
-import ShortcutKeys from "../ShortcutKeys/ShortcutKeys";
-import {getAppModeEnable, getAppModeParams} from "../../utils/app-mode";
+import { useCardinalityState, useCardinalityDispatch } from "../../state/cardinality/CardinalityStateContext";
+import { useEffect } from "react";
+import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
+import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
 
 const classes = {
   logo: {
@@ -59,16 +59,16 @@ const classes = {
 const Header: FC = () => {
 
   const appModeEnable = getAppModeEnable();
-  const {headerStyles: {
+  const { headerStyles: {
     background = appModeEnable ? "#FFF" : "primary.main",
     color = appModeEnable ? "primary.main" : "#FFF",
-  } = {}} = getAppModeParams();
+  } = {} } = getAppModeParams();
 
-  const {date} = useCardinalityState();
+  const { date } = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
 
   const navigate = useNavigate();
-  const {search, pathname} = useLocation();
+  const { search, pathname } = useLocation();
   const routes = useMemo(() => ([
     {
       label: "Custom panel",
@@ -102,29 +102,49 @@ const Header: FC = () => {
   };
 
   const navigateHandler = (pathname: string) => {
-    navigate({pathname, search: search});
+    navigate({ pathname, search: search });
   };
 
   useEffect(() => {
     setActiveMenu(pathname);
   }, [pathname]);
 
-  return <AppBar position="static" sx={{px: 1, boxShadow: "none", bgcolor: background, color}}>
+  return <AppBar
+    position="static"
+    sx={{ px: 1, boxShadow: "none", bgcolor: background, color }}
+  >
     <Toolbar>
       {!appModeEnable && (
-        <Box display="grid" alignItems="center" justifyContent="center">
-          <Box onClick={onClickLogo} sx={classes.logo}>
-            <Logo style={{color: "inherit", width: "100%"}}/>
+        <Box
+          display="grid"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Box
+            onClick={onClickLogo}
+            sx={classes.logo}
+          >
+            <Logo style={{ color: "inherit", width: "100%" }}/>
           </Box>
-          <Link sx={classes.issueLink} target="_blank"
-            href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
+          <Link
+            sx={classes.issueLink}
+            target="_blank"
+            href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
+          >
             create an issue
           </Link>
         </Box>
       )}
-      <Box ml={appModeEnable ? 0 : 8} flexGrow={1}>
-        <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: color}}}
-          onChange={(e, val) => setActiveMenu(val)}>
+      <Box
+        ml={appModeEnable ? 0 : 8}
+        flexGrow={1}
+      >
+        <Tabs
+          value={activeMenu}
+          textColor="inherit"
+          TabIndicatorProps={{ style: { background: color } }}
+          onChange={(e, val) => setActiveMenu(val)}
+        >
           {routes.filter(r => !r.hide).map(r => (
             <Tab
               key={`${r.label}_${r.value}`}
@@ -132,17 +152,23 @@ const Header: FC = () => {
               value={r.value}
               component={RouterLink}
               to={`${r.value}${search}`}
-              sx={{color}}
+              sx={{ color }}
             />
           ))}
         </Tabs>
       </Box>
-      <Box display="flex" gap={1} alignItems="center" mr={0} ml={4}>
+      <Box
+        display="flex"
+        gap={1}
+        alignItems="center"
+        mr={0}
+        ml={4}
+      >
         {headerSetup?.timeSelector && <TimeSelector/>}
         {headerSetup?.datePicker && (
           <DatePicker
             date={date}
-            onChange={(val) => cardinalityDispatch({type: "SET_DATE", payload: val})}
+            onChange={(val) => cardinalityDispatch({ type: "SET_DATE", payload: val })}
           />
         )}
         {headerSetup?.executionControls && <ExecutionControls/>}

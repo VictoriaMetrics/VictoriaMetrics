@@ -1,6 +1,5 @@
-/* eslint max-lines: 0 */
-import {DisplayType, displayTypeTabs} from "../../components/CustomPanel/Configurator/DisplayTypeSwitch";
-import {TimeParams, TimePeriod} from "../../types";
+import { DisplayType, displayTypeTabs } from "../../pages/CustomPanel/DisplayTypeSwitch";
+import { TimeParams, TimePeriod } from "../../types";
 import {
   dateFromSeconds,
   formatDateToLocal,
@@ -10,9 +9,9 @@ import {
   getDurationFromMilliseconds,
   getRelativeTime
 } from "../../utils/time";
-import {getFromStorage} from "../../utils/storage";
-import {getDefaultServer} from "../../utils/default-server-url";
-import {getQueryArray, getQueryStringValue} from "../../utils/query-string";
+import { getFromStorage } from "../../utils/storage";
+import { getDefaultServer } from "../../utils/default-server-url";
+import { getQueryArray, getQueryStringValue } from "../../utils/query-string";
 import dayjs from "dayjs";
 
 export interface TimeState {
@@ -61,7 +60,7 @@ export type Action =
     | { type: "TOGGLE_QUERY_TRACING" }
 
 
-const {duration, endInput, relativeTimeId} = getRelativeTime({
+const { duration, endInput, relativeTimeId } = getRelativeTime({
   defaultDuration: getQueryStringValue("g0.range_input", "1h") as string,
   defaultEndInput: new Date(formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date)),
 });
@@ -73,7 +72,7 @@ export const initialState: AppState = {
   serverUrl: getDefaultServer(),
   displayType: (displayType?.value || "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
-  queryHistory: query.map(q => ({index: 0, values: [q]})),
+  queryHistory: query.map(q => ({ index: 0, values: [q] })),
   tenantId: Number(getQueryStringValue("g0.tenantID", 0)),
   time: {
     duration,
@@ -216,7 +215,7 @@ export function reducer(state: AppState, action: Action): AppState {
       };
     case "RUN_QUERY":
       // eslint-disable-next-line no-case-declarations
-      const {duration: durationRunQuery, endInput} = getRelativeTime({
+      const { duration: durationRunQuery, endInput } = getRelativeTime({
         relativeTimeId: state.time.relativeTime,
         defaultDuration: state.time.duration,
         defaultEndInput: dateFromSeconds(state.time.period.end),

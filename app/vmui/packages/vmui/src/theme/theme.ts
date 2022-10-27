@@ -1,7 +1,7 @@
-import {createTheme} from "@mui/material/styles";
-import {getAppModeParams} from "../utils/app-mode";
+import { createTheme } from "@mui/material/styles";
+import { getAppModeParams } from "../utils/app-mode";
 
-const {palette} = getAppModeParams();
+const { palette } = getAppModeParams();
 
 const THEME = createTheme({
   palette: {

@@ -1,10 +1,12 @@
-import {MetricBase} from "../api/types";
+import { MetricBase } from "../api/types";
 
 declare global {
   interface Window {
     __VMUI_PREDEFINED_DASHBOARDS__: string[];
   }
 }
+
+export type DisplayType = "table" | "chart" | "code";
 
 export interface TimeParams {
   start: number; // timestamp in seconds

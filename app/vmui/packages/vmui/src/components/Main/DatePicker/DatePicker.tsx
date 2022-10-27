@@ -1,6 +1,6 @@
-import React, {FC} from "react";
+import React, { FC } from "react";
 import TextField from "@mui/material/TextField";
-import {useState} from "preact/compat";
+import { useState } from "preact/compat";
 import StaticDatePicker from "@mui/lab/StaticDatePicker";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
@@ -10,7 +10,7 @@ import Popper from "@mui/material/Popper";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Paper from "@mui/material/Paper";
 import EventIcon from "@mui/icons-material/Event";
-import {getAppModeEnable} from "../../../utils/app-mode";
+import { getAppModeEnable } from "../../../utils/app-mode";
 
 const formatDate = "YYYY-MM-DD";
 
@@ -19,7 +19,7 @@ interface DatePickerProps {
   onChange: (val: string | null) => void
 }
 
-const DatePicker: FC<DatePickerProps> = ({date, onChange}) => {
+const DatePicker: FC<DatePickerProps> = ({ date, onChange }) => {
 
   const appModeEnable = getAppModeEnable();
   const dateFormatted = date ? dayjs(date).format(formatDate) : null;
@@ -29,14 +29,17 @@ const DatePicker: FC<DatePickerProps> = ({date, onChange}) => {
 
   return <>
     <Tooltip title="Date control">
-      <Button variant="contained" color="primary"
+      <Button
+        variant="contained"
+        color="primary"
         sx={{
           color: "white",
           border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
           boxShadow: "none"
         }}
         startIcon={<EventIcon/>}
-        onClick={(e) => setAnchorEl(e.currentTarget)}>
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+      >
         {dateFormatted}
       </Button>
     </Tooltip>
@@ -44,7 +47,8 @@ const DatePicker: FC<DatePickerProps> = ({date, onChange}) => {
       open={open}
       anchorEl={anchorEl}
       placement="bottom-end"
-      modifiers={[{name: "offset", options: {offset: [0, 6]}}]}>
+      modifiers={[{ name: "offset", options: { offset: [0, 6] } }]}
+    >
       <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
         <Paper elevation={3}>
           <Box>

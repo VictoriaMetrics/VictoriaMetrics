@@ -1,4 +1,4 @@
-import {getQueryStringValue} from "../../utils/query-string";
+import { getQueryStringValue } from "../../utils/query-string";
 
 export interface TopQueriesState {
   maxLifetime: string,

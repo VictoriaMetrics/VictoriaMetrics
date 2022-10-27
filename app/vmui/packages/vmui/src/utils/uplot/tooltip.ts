@@ -1,9 +1,9 @@
 import dayjs from "dayjs";
-import {SetupTooltip} from "./types";
-import {getColorLine, formatPrettyNumber, getLegendLabel} from "./helpers";
+import { SetupTooltip } from "./types";
+import { getColorLine, formatPrettyNumber, getLegendLabel } from "./helpers";
 
-export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = ""}: SetupTooltip): void => {
-  const {seriesIdx, dataIdx} = tooltipIdx;
+export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = "" }: SetupTooltip): void => {
+  const { seriesIdx, dataIdx } = tooltipIdx;
   if (seriesIdx === null || dataIdx === undefined) return;
   const dataSeries = u.data[seriesIdx][dataIdx];
   const dataTime = u.data[0][dataIdx];
@@ -11,10 +11,10 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   const selectedSeries = series[seriesIdx];
   const color = getColorLine(selectedSeries.label || "");
 
-  const {width, height} = u.over.getBoundingClientRect();
+  const { width, height } = u.over.getBoundingClientRect();
   const top = u.valToPos((dataSeries || 0), series[seriesIdx]?.scale || "1");
   const lft = u.valToPos(dataTime, "x");
-  const {width: tooltipWidth, height: tooltipHeight} = tooltip.getBoundingClientRect();
+  const { width: tooltipWidth, height: tooltipHeight } = tooltip.getBoundingClientRect();
   const overflowX = lft + tooltipWidth >= width;
   const overflowY = top + tooltipHeight >= height;
 

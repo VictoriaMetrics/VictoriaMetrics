@@ -1,5 +1,5 @@
 import Header from "../Header/Header";
-import React, {FC} from "preact/compat";
+import React, { FC } from "preact/compat";
 import Box from "@mui/material/Box";
 import { Outlet } from "react-router-dom";
 

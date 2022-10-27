@@ -1,4 +1,4 @@
-import React, {createContext, FC, useContext, useEffect, useState} from "preact/compat";
+import React, { createContext, FC, useContext, useEffect, useState } from "preact/compat";
 import Alert from "@mui/material/Alert";
 import Snackbar from "@mui/material/Snackbar";
 
@@ -19,7 +19,7 @@ export const SnackbarContext = createContext<SnackbarContextType>({
 
 export const useSnack = (): SnackbarContextType => useContext(SnackbarContext);
 
-export const SnackbarProvider: FC = ({children}) => {
+export const SnackbarProvider: FC = ({ children }) => {
   const [snack, setSnack] = useState<SnackModel>({});
   const [open, setOpen] = useState(false);
 
@@ -42,8 +42,13 @@ export const SnackbarProvider: FC = ({children}) => {
     }
   };
 
-  return <SnackbarContext.Provider value={{showInfoMessage: setInfoMessage}}>
-    <Snackbar open={open} key={snack.key} autoHideDuration={4000} onClose={handleClose}>
+  return <SnackbarContext.Provider value={{ showInfoMessage: setInfoMessage }}>
+    <Snackbar
+      open={open}
+      key={snack.key}
+      autoHideDuration={4000}
+      onClose={handleClose}
+    >
       <Alert>
         {snack.message}
       </Alert>

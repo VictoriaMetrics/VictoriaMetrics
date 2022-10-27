@@ -1,5 +1,5 @@
 import dayjs from "dayjs";
-import {getQueryStringValue} from "../../utils/query-string";
+import { getQueryStringValue } from "../../utils/query-string";
 
 export interface CardinalityState {
   runQuery: number,
