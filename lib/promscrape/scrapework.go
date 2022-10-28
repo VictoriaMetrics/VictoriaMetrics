@@ -704,7 +704,15 @@ func (wc *writeRequestCtx) reset() {
 
 func (wc *writeRequestCtx) resetNoRows() {
 	prompbmarshal.ResetWriteRequest(&wc.writeRequest)
+
+	labels := wc.labels
+	for i := range labels {
+		label := &labels[i]
+		label.Name = ""
+		label.Value = ""
+	}
 	wc.labels = wc.labels[:0]
+
 	wc.samples = wc.samples[:0]
 }
 
@@ -740,6 +748,7 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 		}
 		dstSeries = append(dstSeries, ts)
 	}
+	prompbmarshal.ResetTimeSeries(wc.writeRequest.Timeseries[len(dstSeries):])
 	wc.writeRequest.Timeseries = dstSeries
 	return samplesDropped
 }
@@ -880,16 +889,14 @@ func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, ex
 func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honorLabels bool) []prompbmarshal.Label {
 	// Add extraLabels to labels.
 	// Handle duplicates in the same way as Prometheus does.
-	if len(dst) > offset && dst[offset].Name == "__name__" {
-		offset++
-	}
-	labels := dst[offset:]
-	if len(labels) == 0 {
+	if len(dst) == offset {
 		// Fast path - add extraLabels to dst without the need to de-duplicate.
 		dst = append(dst, extraLabels...)
 		return dst
 	}
+	offsetEnd := len(dst)
 	for _, label := range extraLabels {
+		labels := dst[offset:offsetEnd]
 		prevLabel := promrelabel.GetLabelByName(labels, label.Name)
 		if prevLabel == nil {
 			// Fast path - the label doesn't exist in labels, so just add it to dst.
@@ -904,13 +911,13 @@ func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honor
 		// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config
 		exportedName := "exported_" + label.Name
 		exportedLabel := promrelabel.GetLabelByName(labels, exportedName)
-		if exportedLabel == nil {
-			prevLabel.Name = exportedName
-			dst = append(dst, label)
-		} else {
-			exportedLabel.Value = prevLabel.Value
-			prevLabel.Value = label.Value
+		if exportedLabel != nil {
+			// The label with the name exported_<label.Name> already exists.
+			// Add yet another 'exported_' prefix to it.
+			exportedLabel.Name = "exported_" + exportedName
 		}
+		prevLabel.Name = exportedName
+		dst = append(dst, label)
 	}
 	return dst
 }
