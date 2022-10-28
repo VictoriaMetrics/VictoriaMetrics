@@ -2367,12 +2367,6 @@ func readUint64(bc *handshake.BufferedConn) (uint64, error) {
 	return n, nil
 }
 
-func getStorageNodes() []*storageNode {
-	v := storageNodes.Load()
-	snb := v.(*storageNodesBucket)
-	return snb.sns
-}
-
 type storageNodesBucket struct {
 	ms  *metrics.Set
 	sns []*storageNode
@@ -2380,10 +2374,34 @@ type storageNodesBucket struct {
 
 var storageNodes atomic.Value
 
+func getStorageNodesBucket() *storageNodesBucket {
+	return storageNodes.Load().(*storageNodesBucket)
+}
+
+func setStorageNodesBucket(snb *storageNodesBucket) {
+	storageNodes.Store(snb)
+}
+
+func getStorageNodes() []*storageNode {
+	snb := getStorageNodesBucket()
+	return snb.sns
+}
+
 // Init initializes storage nodes' connections to the given addrs.
 //
 // MustStop must be called when the initialized connections are no longer needed.
 func Init(addrs []string) {
+	snb := initStorageNodes(addrs)
+	setStorageNodesBucket(snb)
+}
+
+// MustStop gracefully stops netstorage.
+func MustStop() {
+	snb := getStorageNodesBucket()
+	mustStopStorageNodes(snb)
+}
+
+func initStorageNodes(addrs []string) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
@@ -2425,16 +2443,13 @@ func Init(addrs []string) {
 		sns = append(sns, sn)
 	}
 	metrics.RegisterSet(ms)
-	storageNodes.Store(&storageNodesBucket{
+	return &storageNodesBucket{
 		sns: sns,
 		ms:  ms,
-	})
+	}
 }
 
-// MustStop gracefully stops netstorage.
-func MustStop() {
-	snb := storageNodes.Load().(*storageNodesBucket)
-	storageNodes.Store(&storageNodesBucket{})
+func mustStopStorageNodes(snb *storageNodesBucket) {
 	for _, sn := range snb.sns {
 		sn.connPool.MustStop()
 	}

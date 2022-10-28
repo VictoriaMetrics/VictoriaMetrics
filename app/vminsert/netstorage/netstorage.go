@@ -459,12 +459,6 @@ type storageNode struct {
 	sendDurationSeconds *metrics.FloatCounter
 }
 
-func getStorageNodes() []*storageNode {
-	v := storageNodes.Load()
-	snb := v.(*storageNodesBucket)
-	return snb.sns
-}
-
 type storageNodesBucket struct {
 	ms     *metrics.Set
 	sns    []*storageNode
@@ -475,6 +469,19 @@ type storageNodesBucket struct {
 // storageNodes contains a list of vmstorage node clients.
 var storageNodes atomic.Value
 
+func getStorageNodesBucket() *storageNodesBucket {
+	return storageNodes.Load().(*storageNodesBucket)
+}
+
+func setStorageNodesBucket(snb *storageNodesBucket) {
+	storageNodes.Store(snb)
+}
+
+func getStorageNodes() []*storageNode {
+	snb := getStorageNodesBucket()
+	return snb.sns
+}
+
 // nodesHash is used for consistently selecting a storage node by key.
 var nodesHash *consistentHash
 
@@ -484,6 +491,17 @@ var nodesHash *consistentHash
 //
 // Call MustStop when the initialized vmstorage connections are no longer needed.
 func Init(addrs []string, hashSeed uint64) {
+	snb := initStorageNodes(addrs, hashSeed)
+	setStorageNodesBucket(snb)
+}
+
+// MustStop stops netstorage.
+func MustStop() {
+	snb := getStorageNodesBucket()
+	mustStopStorageNodes(snb)
+}
+
+func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
@@ -551,20 +569,15 @@ func Init(addrs []string, hashSeed uint64) {
 	}
 
 	metrics.RegisterSet(ms)
-	storageNodes.Store(&storageNodesBucket{
+	return &storageNodesBucket{
 		ms:     ms,
 		sns:    sns,
 		stopCh: stopCh,
 		wg:     &wg,
-	})
+	}
 }
 
-// MustStop stops netstorage.
-func MustStop() {
-	v := storageNodes.Load()
-	snb := v.(*storageNodesBucket)
-	storageNodes.Store(&storageNodesBucket{})
-
+func mustStopStorageNodes(snb *storageNodesBucket) {
 	close(snb.stopCh)
 	for _, sn := range snb.sns {
 		sn.brCond.Broadcast()

@@ -37,13 +37,15 @@ func TestTmpBlocksFileConcurrent(t *testing.T) {
 			ch <- testTmpBlocksFile()
 		}()
 	}
+	timer := time.NewTimer(30 * time.Second)
+	defer timer.Stop()
 	for i := 0; i < concurrency; i++ {
 		select {
 		case err := <-ch:
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-		case <-time.After(30 * time.Second):
+		case <-timer.C:
 			t.Fatalf("timeout")
 		}
 	}
