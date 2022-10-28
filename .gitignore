@@ -21,3 +21,4 @@ Gemfile.lock
 /_site
 _site
 *.tmp
+__debug_bin
