@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import {ErrorTypes} from "../types";
-import {getAppModeParams} from "../utils/app-mode";
 import {useAppState} from "../state/common/StateContext";
 import {useMemo} from "preact/compat";
 import {getTopQueries} from "../api/top-queries";
