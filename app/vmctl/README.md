@@ -498,8 +498,7 @@ Processing ranges: 8798 / 8798 [████████████████
 The filtering consists of two parts: by label and label value, and time.
 
 Filtering by time may be configured via flags `--remote-read-filter-time-start` and `--remote-read-filter-time-end`
-in RFC3339 format. This filter is applied twice: to drop blocks out of range and to filter timeseries in blocks with
-overlapping time ranges.
+in RFC3339 format.
 
 Also, you can add flags for filtering by label and label value via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`
 in string format. For example, you can provide `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value=".*"`, and
