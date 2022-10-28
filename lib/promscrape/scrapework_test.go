@@ -12,6 +12,33 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
+
+func TestAppendLabels(t *testing.T) {
+	f := func(sourceLabels, metric string, extraLabels string, tag []parser.Tag, honorLabels bool, resultExpected string) {
+		t.Helper()
+
+		src := promrelabel.MustParseMetricWithLabels(sourceLabels)
+		extra := promrelabel.MustParseMetricWithLabels(extraLabels)
+		labels := appendLabels(src, metric, tag, extra, honorLabels)
+		result := promLabelsString(labels)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; \ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f(`{}`, ``, `{}`, nil, false, `{__name__=""}`)
+	f(`{}`, ``, `{}`, nil, true, `{__name__=""}`)
+	f(`{}`, `metric_name`, `{}`, nil, false, `{__name__="metric_name"}`)
+	f(`{}`, `metric_name`, `{}`, nil, true, `{__name__="metric_name"}`)
+	f(`{a="b"}`, `metric_name`, `{}`, nil, false, `{a="b",__name__="metric_name"}`)
+	f(`{a="b"}`, `metric_name`, `{}`, nil, true, `{a="b",__name__="metric_name"}`)
+	f(`{a="b"}`, `metric_name`, `{a="c"}`, nil, false, `{a="b",__name__="metric_name",a="c"}`)
+	f(`{a="b"}`, `metric_name`, `{a="c"}`, nil, true, `{a="b",__name__="metric_name",a="c"}`)
+	f(`{a="b"}`, `metric_name`, `{a="c"}`, []parser.Tag{{Key: "k", Value: "v"}}, false, `{a="b",__name__="metric_name",k="v",a="c"}`)
+	f(`{a="b"}`, `metric_name`, `{a="c"}`, []parser.Tag{{Key: "k", Value: "v"}}, true, `{a="b",__name__="metric_name",k="v",a="c"}`)
+
+}
+
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(sourceLabels, extraLabels string, honorLabels bool, resultExpected string) {
 		t.Helper()
@@ -20,7 +47,7 @@ func TestAppendExtraLabels(t *testing.T) {
 		labels := appendExtraLabels(src, extra, 0, honorLabels)
 		result := promLabelsString(labels)
 		if result != resultExpected {
-			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+			t.Fatalf("unexpected result; \ngot\n%s\nwant\n%s", result, resultExpected)
 		}
 	}
 	f("{}", "{}", true, "{}")
@@ -44,7 +71,7 @@ func TestPromLabelsString(t *testing.T) {
 		t.Helper()
 		result := promLabelsString(labels)
 		if result != resultExpected {
-			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
+			t.Fatalf("unexpected result; \ngot\n%s\nwant\n%s", result, resultExpected)
 		}
 	}
 	f([]prompbmarshal.Label{}, "{}")
