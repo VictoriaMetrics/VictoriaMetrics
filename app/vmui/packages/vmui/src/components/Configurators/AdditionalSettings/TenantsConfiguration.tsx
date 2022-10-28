@@ -7,11 +7,13 @@ import { useAppDispatch, useAppState } from "../../../state/common/StateContext"
 import { ChangeEvent } from "react";
 import debounce from "lodash.debounce";
 import { getAppModeParams } from "../../../utils/app-mode";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 
 const TenantsConfiguration: FC = () => {
   const { serverURL } = getAppModeParams();
   const { tenantId: tenantIdState } = useAppState();
   const dispatch = useAppDispatch();
+  const timeDispatch = useTimeDispatch();
 
   const [tenantId, setTenantId] = useState<string | number>(tenantIdState || 0);
 
@@ -21,7 +23,7 @@ const TenantsConfiguration: FC = () => {
     if (serverURL) {
       const updateServerUrl = serverURL.replace(/(\/select\/)([\d]+)(\/prometheus)/gmi, `$1${tenantId}$3`);
       dispatch({ type: "SET_SERVER", payload: updateServerUrl });
-      dispatch({ type: "RUN_QUERY" });
+      timeDispatch({ type: "RUN_QUERY" });
     }
   };
 

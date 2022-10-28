@@ -3,7 +3,6 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import GraphView from "../../components/Views/GraphView";
 import TableView from "../../components/Views/TableView";
-import { useAppDispatch, useAppState } from "../../state/common/StateContext";
 import QueryConfigurator from "./QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import JsonView from "../../components/Views/JsonView";
@@ -16,15 +15,22 @@ import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TraceQuery from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
 import TableSettings from "../../components/Main/Table/TableSettings";
+import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
+import { useQueryState } from "../../state/query/QueryStateContext";
+import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 
 const CustomPanel: FC = () => {
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
-  const { displayType, time: { period }, query, queryControls: { isTracingEnabled } } = useAppState();
-  const { customStep, yaxis } = useGraphState();
 
-  const dispatch = useAppDispatch();
+  const { displayType, isTracingEnabled } = useCustomPanelState();
+  const { query } = useQueryState();
+
+  const { period } = useTimeState();
+  const timeDispatch = useTimeDispatch();
+
+  const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const setYaxisLimits = (limits: AxisRange) => {
@@ -36,7 +42,7 @@ const CustomPanel: FC = () => {
   };
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
-    dispatch({ type: "SET_PERIOD", payload: { from, to } });
+    timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
   const { queryOptions } = useFetchQueryOptions();

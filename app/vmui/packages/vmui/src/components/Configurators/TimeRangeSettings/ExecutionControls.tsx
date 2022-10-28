@@ -1,6 +1,5 @@
 import React, { FC, useEffect, useState } from "preact/compat";
 import Tooltip from "@mui/material/Tooltip";
-import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import Button from "@mui/material/Button";
 import Popper from "@mui/material/Popper";
 import Paper from "@mui/material/Paper";
@@ -9,9 +8,9 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import List from "@mui/material/List";
 import ListItemText from "@mui/material/ListItemText";
-import { useLocation } from "react-router-dom";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import ListItemButton from "@mui/material/ListItemButton";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 
 interface AutoRefreshOption {
   seconds: number
@@ -35,21 +34,15 @@ const delayOptions: AutoRefreshOption[] = [
 
 export const ExecutionControls: FC = () => {
 
-  const dispatch = useAppDispatch();
+  const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
-  const { queryControls: { autoRefresh } } = useAppState();
-
-  const location = useLocation();
-
-  useEffect(() => {
-    if (autoRefresh) dispatch({ type: "TOGGLE_AUTOREFRESH" });
-  }, [location]);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const [selectedDelay, setSelectedDelay] = useState<AutoRefreshOption>(delayOptions[0]);
 
   const handleChange = (d: AutoRefreshOption) => {
     if ((autoRefresh && !d.seconds) || (!autoRefresh && d.seconds)) {
-      dispatch({ type: "TOGGLE_AUTOREFRESH" });
+      setAutoRefresh(prev => !prev);
     }
     setSelectedDelay(d);
     setAnchorEl(null);

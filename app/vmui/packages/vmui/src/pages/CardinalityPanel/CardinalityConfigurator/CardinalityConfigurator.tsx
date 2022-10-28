@@ -5,10 +5,10 @@ import Tooltip from "@mui/material/Tooltip";
 import IconButton from "@mui/material/IconButton";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
-import { useAppState } from "../../../state/common/StateContext";
 import TextField from "@mui/material/TextField";
 import { ErrorTypes } from "../../../types";
 import QueryAutocompleteSwitcher from "../../../components/Configurators/QueryEditor/QueryAutocompleteSwitcher";
+import { useQueryState } from "../../../state/query/QueryStateContext";
 
 export interface CardinalityConfiguratorProps {
   onSetHistory: (step: number, index: number) => void;
@@ -41,7 +41,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
   match,
   focusLabel
 }) => {
-  const { queryControls: { autocomplete } } = useAppState();
+  const { autocomplete } = useQueryState();
   const { queryOptions } = useFetchQueryOptions();
 
   return <Box

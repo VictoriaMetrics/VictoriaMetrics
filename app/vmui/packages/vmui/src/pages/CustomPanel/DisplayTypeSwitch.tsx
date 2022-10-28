@@ -4,8 +4,8 @@ import ShowChartIcon from "@mui/icons-material/ShowChart";
 import CodeIcon from "@mui/icons-material/Code";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import { useAppDispatch, useAppState } from "../../state/common/StateContext";
 import { SyntheticEvent } from "react";
+import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 
 export type DisplayType = "table" | "chart" | "code";
 
@@ -17,8 +17,8 @@ export const displayTypeTabs = [
 
 export const DisplayTypeSwitch: FC = () => {
 
-  const { displayType } = useAppState();
-  const dispatch = useAppDispatch();
+  const { displayType } = useCustomPanelState();
+  const dispatch = useCustomPanelDispatch();
 
   const handleChange = (event: SyntheticEvent, newValue: DisplayType) => {
     dispatch({ type: "SET_DISPLAY_TYPE", payload: newValue ?? displayType });

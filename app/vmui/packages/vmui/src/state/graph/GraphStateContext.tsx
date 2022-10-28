@@ -10,13 +10,11 @@ export const useGraphState = (): GraphState => useContext(GraphStateContext).sta
 export const useGraphDispatch = (): Dispatch<GraphAction> => useContext(GraphStateContext).dispatch;
 
 export const GraphStateProvider: FC = ({ children }) => {
-
   const [state, dispatch] = useReducer(reducer, initialGraphState);
 
   const contextValue = useMemo(() => {
     return { state, dispatch };
   }, [state, dispatch]);
-
 
   return <GraphStateContext.Provider value={contextValue}>
     {children}

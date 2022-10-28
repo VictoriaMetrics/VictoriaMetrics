@@ -3,7 +3,6 @@ import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import QueryEditor from "../../components/Configurators/QueryEditor/QueryEditor";
-import { useAppDispatch, useAppState } from "../../state/common/StateContext";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -13,22 +12,24 @@ import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import usePrevious from "../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../config";
+import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
+import { useTimeDispatch } from "../../state/time/TimeStateContext";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
   queryOptions: string[]
 }
 
-
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) => {
 
-  const { query, queryHistory, queryControls: { autocomplete } } = useAppState();
+  const { query, queryHistory, autocomplete } = useQueryState();
+  const queryDispatch = useQueryDispatch();
+  const timeDispatch = useTimeDispatch();
+
   const [stateQuery, setStateQuery] = useState(query || []);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
-  const dispatch = useAppDispatch();
-
   const updateHistory = () => {
-    dispatch({
+    queryDispatch({
       type: "SET_QUERY_HISTORY", payload: stateQuery.map((q, i) => {
         const h = queryHistory[i] || { values: [] };
         const queryEqual = q === h.values[h.values.length - 1];
@@ -42,8 +43,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
 
   const onRunQuery = () => {
     updateHistory();
-    dispatch({ type: "SET_QUERY", payload: stateQuery });
-    dispatch({ type: "RUN_QUERY" });
+    queryDispatch({ type: "SET_QUERY", payload: stateQuery });
+    timeDispatch({ type: "RUN_QUERY" });
   };
 
   const onAddQuery = () => {
@@ -63,7 +64,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     const newIndexHistory = index + step;
     if (newIndexHistory < 0 || newIndexHistory >= values.length) return;
     onSetQuery(values[newIndexHistory] || "", indexQuery);
-    dispatch({
+    queryDispatch({
       type: "SET_QUERY_HISTORY_BY_INDEX",
       payload: { value: { values, index: newIndexHistory }, queryNumber: indexQuery }
     });

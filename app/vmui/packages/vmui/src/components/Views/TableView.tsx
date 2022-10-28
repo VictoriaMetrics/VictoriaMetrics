@@ -10,7 +10,7 @@ import TableRow from "@mui/material/TableRow";
 import TableSortLabel from "@mui/material/TableSortLabel";
 import { useSortedCategories } from "../../hooks/useSortedCategories";
 import Alert from "@mui/material/Alert";
-import { useAppState } from "../../state/common/StateContext";
+import { useQueryState } from "../../state/query/QueryStateContext";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -45,7 +45,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     setOrderBy(key);
   };
 
-  const { query } = useAppState();
+  const { query } = useQueryState();
   const [tableContainerHeight, setTableContainerHeight] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {

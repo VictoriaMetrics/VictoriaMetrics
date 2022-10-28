@@ -4,7 +4,6 @@ import { PanelSettings } from "../../types";
 import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import Typography from "@mui/material/Typography";
-import { useAppDispatch, useAppState } from "../../state/common/StateContext";
 import { AxisRange, YaxisState } from "../../state/graph/reducer";
 import GraphView from "../../components/Views/GraphView";
 import Alert from "@mui/material/Alert";
@@ -14,6 +13,7 @@ import StepConfigurator from "../../components/Configurators/AdditionalSettings/
 import GraphSettings from "../../components/Configurators/GraphSettings/GraphSettings";
 import { marked } from "marked";
 import "./dashboard.css";
+import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -29,9 +29,8 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
   alias
 }) => {
 
-  const { time: { period } } = useAppState();
-
-  const dispatch = useAppDispatch();
+  const { period } = useTimeState();
+  const dispatch = useTimeDispatch();
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);

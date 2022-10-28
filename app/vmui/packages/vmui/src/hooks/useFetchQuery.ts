@@ -10,6 +10,9 @@ import usePrevious from "./usePrevious";
 import { arrayEquals } from "../utils/array";
 import Trace from "../components/TraceQuery/Trace";
 import { MAX_SERIES } from "../config";
+import { useQueryState } from "../state/query/QueryStateContext";
+import { useTimeState } from "../state/time/TimeStateContext";
+import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -27,7 +30,10 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }:
   warning?: string,
   traces?: Trace[],
 } => {
-  const { query, displayType, serverUrl, time: { period }, queryControls: { nocache, isTracingEnabled } } = useAppState();
+  const { query } = useQueryState();
+  const { period } = useTimeState();
+  const { displayType, nocache, isTracingEnabled } = useCustomPanelState();
+  const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();

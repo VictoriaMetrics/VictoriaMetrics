@@ -1,6 +1,5 @@
 import React, { FC, useEffect, useState, useMemo } from "preact/compat";
 import { KeyboardEvent } from "react";
-import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { dateFromSeconds, formatDateForNativeInput } from "../../../utils/time";
 import TimeDurationSelector from "./TimeDurationSelector";
 import dayjs from "dayjs";
@@ -17,6 +16,7 @@ import Tooltip from "@mui/material/Tooltip";
 import AlarmAdd from "@mui/icons-material/AlarmAdd";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { getAppModeEnable } from "../../../utils/app-mode";
+import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
@@ -45,8 +45,8 @@ export const TimeSelector: FC = () => {
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
 
-  const { time: { period: { end, start }, relativeTime } } = useAppState();
-  const dispatch = useAppDispatch();
+  const { period: { end, start }, relativeTime } = useTimeState();
+  const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
 
   useEffect(() => {
@@ -73,11 +73,8 @@ export const TimeSelector: FC = () => {
 
   const open = Boolean(anchorEl);
   const setTimeAndClosePicker = () => {
-    if (from) {
-      dispatch({ type: "SET_FROM", payload: new Date(from) });
-    }
-    if (until) {
-      dispatch({ type: "SET_UNTIL", payload: new Date(until) });
+    if (from && until) {
+      dispatch({ type: "SET_PERIOD", payload: { from: new Date(from), to: new Date(until) } });
     }
     setAnchorEl(null);
   };
