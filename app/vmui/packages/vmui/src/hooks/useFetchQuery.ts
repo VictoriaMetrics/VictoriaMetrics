@@ -6,8 +6,6 @@ import {isValidHttpUrl} from "../utils/url";
 import {ErrorTypes} from "../types";
 import debounce from "lodash.debounce";
 import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
-import usePrevious from "./usePrevious";
-import {arrayEquals} from "../utils/array";
 import Trace from "../components/CustomPanel/Trace/Trace";
 import {MAX_SERIES} from "../config";
 
@@ -94,7 +92,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(debounce(fetchData, 600), []);
+  const throttledFetchData = useCallback(debounce(fetchData, 800), []);
 
   const fetchUrl = useMemo(() => {
     const expr = predefinedQuery ?? query;
@@ -116,13 +114,8 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   },
   [serverUrl, period, displayType, customStep]);
 
-  const prevFetchUrl = usePrevious(fetchUrl);
-  const prevDisplayType = usePrevious(displayType);
-
   useEffect(() => {
-    const equalFetchUrl = fetchUrl && prevFetchUrl && arrayEquals(fetchUrl, prevFetchUrl);
-    const changedDisplayType = displayType !== prevDisplayType;
-    if (!visible || (equalFetchUrl && !changedDisplayType) || !fetchUrl?.length) return;
+    if (!visible || !fetchUrl?.length) return;
     setIsLoading(true);
     const expr = predefinedQuery ?? query;
     throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr);

@@ -73,11 +73,8 @@ export const TimeSelector: FC = () => {
 
   const open = Boolean(anchorEl);
   const setTimeAndClosePicker = () => {
-    if (from) {
-      dispatch({type: "SET_FROM", payload: new Date(from)});
-    }
-    if (until) {
-      dispatch({type: "SET_UNTIL", payload: new Date(until)});
+    if (from && until) {
+      dispatch({type: "SET_PERIOD", payload: {from: new Date(from), to: new Date(until)}});
     }
     setAnchorEl(null);
   };
