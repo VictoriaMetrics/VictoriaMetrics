@@ -203,11 +203,15 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 [Entrprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports [dns+srv](https://en.wikipedia.org/wiki/SRV_record) names
 at `-storageNode` command-line flag passed to `vminsert` and `vmstorage`. In this case the provided `dns+srv` names are resolved
 into tcp addresses of `vmstorage` nodes to connect to. The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmstorage`
-when it changes behind the corresponding `dns+srv` names.
+when it changes behind the corresponding `dns+srv` names. The `dns+srv` names must be prefixed with `dns+srv:` prefix.
 
-It is possible specifying multiple `dns+srv` names at `-storageNode`. In this case all these names are resolved to tcp addresses of `vmstorage` nodes to connect to.
-The `dns+srv` names must be prefixed with `dns+srv:` prefix. For example, `-storageNode=dns+srv:vmstorage.srv.nodes` . It is OK to passe regular addresses
-together with `dns+srv` addresses at `-storageNode`.
+It is possible passing multiple `dns+srv` names to `-storageNode` command-line flag. In this case all these names are resolved to tcp addresses of `vmstorage` nodes to connect to.
+For example, `-storageNode='dns+srv:vmstorage-hot' -storageNode='dns+srv:vmstorage-cold'` .
+
+It is OK to pass regular static `vmstorage` addresses together with `dns+srv` addresses at `-storageNode`. For example,
+`-storageNode=vmstorage1,vmstorage2 -storageNode='dns+srv:vmstorage-autodiscovery'`.
+
+The currently discovered `vmstorage` nodes can be [monitored](#monitoring) vith `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
 ## mTLS protection
 
