@@ -874,6 +874,8 @@ func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, ex
 			Value: tag.Value,
 		})
 	}
+
+
 	return appendExtraLabels(dst, extraLabels, dstLen, honorLabels)
 }
 
@@ -883,12 +885,13 @@ func appendExtraLabels(dst, extraLabels []prompbmarshal.Label, offset int, honor
 	if len(dst) > offset && dst[offset].Name == "__name__" {
 		offset++
 	}
+	// I don't understand this, this case create a duplicate key labels :/ when we don't have tag in appendLabels
 	labels := dst[offset:]
-	if len(labels) == 0 {
-		// Fast path - add extraLabels to dst without the need to de-duplicate.
-		dst = append(dst, extraLabels...)
-		return dst
-	}
+	//if len(labels) == 0 {
+	//	// Fast path - add extraLabels to dst without the need to de-duplicate.
+	//	dst = append(dst, extraLabels...)
+	//	return dst
+	//}
 	for _, label := range extraLabels {
 		prevLabel := promrelabel.GetLabelByName(dst, label.Name)
 		if prevLabel == nil {

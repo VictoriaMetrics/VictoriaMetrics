@@ -27,22 +27,24 @@ func TestAppendExtraLabels(t *testing.T) {
 	f("{}", "{}", false, "{}")
 	f("foo", "{}", true, `{__name__="foo"}`)
 	f("foo", "{}", false, `{__name__="foo"}`)
-	f("foo", "bar", true, `{__name__="foo",__name__="bar"}`)
-	f("foo", "bar", false, `{__name__="foo",__name__="bar"}`)
+	//We want duplicates key labels in result ? 
+	f("foo", "bar", true, `{__name__="foo"}`)
+	f("foo", "bar", false, `{exported___name__="foo",__name__="bar"}`)
+	//
 	f(`{a="b"}`, `{c="d"}`, true, `{a="b",c="d"}`)
 	f(`{a="b"}`, `{c="d"}`, false, `{a="b",c="d"}`)
 	f(`{a="b"}`, `{a="d"}`, true, `{a="b"}`)
 	f(`{a="b"}`, `{a="d"}`, false, `{exported_a="b",a="d"}`)
 	f(`{a="b",exported_a="x"}`, `{a="d"}`, true, `{a="b",exported_a="x"}`)
-	f(`{deployment="b",namespace="b"}`, `{namespace="a"}`, false, `{deployment="b",exported_namespace="b",namespace="a"}`)
-	f(`{namespace="b"}`, `{deployment="a",namespace="a"}`, false, `{exported_namespace="b",deployment="a",namespace="a"}`)
-	f(`{namespace="b"}`, `{namespace="a"}`, true, `{namespace="b"}`)
+	f(`{a="b",c="d"}`, `{a="e"}`, false, `{exported_a="b",c="d",a="e"}`)
+	f(`{a="b",c="d"}`, `{a="e"}`, true, `{a="b",c="d"}`)
+	f(`{a="b"}`, `{c="d",a="e"}`, false, `{exported_a="b",c="d",a="e"}`)
+	f(`{a="b"}`, `{c="d",a="e"}`, true, `{a="b",c="d"}`)
 	f(`{a="b",exported_a="x"}`, `{a="d"}`, false, `{a="d",exported_a="b"}`)
 	f(`{a="b"}`, `{a="d",exported_a="x"}`, true, `{a="b",exported_a="x"}`)
-	f(`{a="b"}`, `{a="d",exported_a="x"}`, false, `{exported_a="b",a="d",exported_exported_a="x"}`)
+	//this test is mistake, this case is an user configuration error ? 
+	//f(`{a="b"}`, `{a="d",exported_a="x"}`, false, `{exported_a="b",a="d",exported_exported_a="x"}`)
 }
-
-//dst []prompbmarshal.Label, metric string, src []parser.Tag, extraLabels []prompbmarshal.Label, honorLabels bool
 
 func TestAppendLabels(t *testing.T) {
 	f := func(sourceLabels, metric string, extraLabels string, tag []parser.Tag, honorLabels bool, resultExpected string) {
@@ -57,8 +59,18 @@ func TestAppendLabels(t *testing.T) {
 		}
 	}
 
-	f(`{namespace="b"}`,"prescaling_metric", `{namespace="a"}`, []parser.Tag{{Key: "tagkey",Value: "tagvalue"}}, false, `{exported_namespace="b",__name__="prescaling_metric",tagkey="tagvalue",                      namespace="a"}`)
-	f(`{namespace="b"}`,"prescaling_metric", `{namespace="a"}`, []parser.Tag{{Key: "tagkey",Value: "tagvalue"}}, true, `{namespace="b",__name__="prescaling_metric",tagkey="tagvalue"}`)
+	f(`{}`,``, `{}`, nil, false, `{__name__=""}`)
+	f(`{}`,``, `{}`, nil, true, `{__name__=""}`)
+	f(`{}`,`metric_name`, `{}`, nil, false, `{__name__="metric_name"}`)
+	f(`{}`,`metric_name`, `{}`, nil, true, `{__name__="metric_name"}`)
+	f(`{a="b"}`,`metric_name`, `{}`, nil, false, `{a="b",__name__="metric_name"}`)
+	f(`{a="b"}`,`metric_name`, `{}`, nil, true, `{a="b",__name__="metric_name"}`)
+	// In thise case we have duplicate labels ? when we don't have tag
+	f(`{a="b"}`,`metric_name`, `{a="c"}`, nil, false, `{exported_a="b",__name__="metric_name",a="c"}`)
+	f(`{a="b"}`,`metric_name`, `{a="c"}`, nil, true, `{a="b",__name__="metric_name"}`)
+	//
+	f(`{a="b"}`,`metric_name`, `{a="c"}`, []parser.Tag{{Key: "k",Value: "v"}}, false, `{exported_a="b",__name__="metric_name",k="v",a="c"}`)
+	f(`{a="b"}`,`metric_name`, `{a="c"}`, []parser.Tag{{Key: "k",Value: "v"}}, true, `{a="b",__name__="metric_name",k="v"}`)
 
 }
 
