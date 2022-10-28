@@ -32,6 +32,8 @@ plus the following additional features:
   and increasing performance for queries over historical data.
 - [Multiple retentions](https://docs.victoriametrics.com/#retention-filters) - this feature allows reducing storage costs
   by specifying different retentions to different datasets.
+- [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) -
+  this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
 - [Graphite querying](https://docs.victoriametrics.com/#graphite-render-api-usage) - this feature allows seamless
   transition from Graphite to VictoriaMetrics without the need to modify queries at dashboards and alerts.
   VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite -
