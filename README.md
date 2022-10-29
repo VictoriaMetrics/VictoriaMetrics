@@ -211,7 +211,7 @@ For example, `-storageNode='dns+srv:vmstorage-hot' -storageNode='dns+srv:vmstora
 It is OK to pass regular static `vmstorage` addresses together with `dns+srv` addresses at `-storageNode`. For example,
 `-storageNode=vmstorage1,vmstorage2 -storageNode='dns+srv:vmstorage-autodiscovery'`.
 
-The currently discovered `vmstorage` nodes can be [monitored](#monitoring) vith `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
+The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
 ## mTLS protection
 
