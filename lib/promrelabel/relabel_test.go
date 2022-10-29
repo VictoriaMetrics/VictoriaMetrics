@@ -708,6 +708,18 @@ func TestApplyRelabelConfigs(t *testing.T) {
   source_labels: [xyz]
 `, `metric{xyz="foo$",a="b"}`, true, `metric{a="b",xyz="bar"}`)
 	})
+	t.Run("issue-3251", func(t *testing.T) {
+		f(`
+- source_labels: [instance, container_label_com_docker_swarm_task_name]
+  separator: ';'
+  #  regex: '(.*?)\..*;(.*?)\..*'
+  regex: '([^.]+).[^;]+;([^.]+).+'
+  replacement: '$2:$1'
+  target_label: container_label_com_docker_swarm_task_name
+  action: replace
+`, `{instance="subdomain.domain.com",container_label_com_docker_swarm_task_name="myservice.h408nlaxmv8oqkn1pjjtd71to.nv987lz99rb27lkjjnfiay0g4"}`, true,
+`{container_label_com_docker_swarm_task_name="myservice:subdomain",instance="subdomain.domain.com"}`)
+	})
 }
 
 func TestFinalizeLabels(t *testing.T) {
