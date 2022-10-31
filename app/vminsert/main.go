@@ -85,6 +85,9 @@ func main() {
 	if len(*storageNodes) == 0 {
 		logger.Fatalf("missing -storageNode arg")
 	}
+	if hasEmptyValues(*storageNodes) {
+		logger.Fatalf("found empty address of storage node in the -storageNodes flag, please make sure that all -storageNode args are non-empty")
+	}
 	if duplicatedAddr := checkDuplicates(*storageNodes); duplicatedAddr != "" {
 		logger.Fatalf("found equal addresses of storage nodes in the -storageNodes flag: %q", duplicatedAddr)
 	}
@@ -367,4 +370,13 @@ func checkDuplicates(arr []string) string {
 		visited[s] = struct{}{}
 	}
 	return ""
+}
+
+func hasEmptyValues(arr []string) bool {
+	for _, s := range arr {
+		if s == "" {
+			return true
+		}
+	}
+	return false
 }
