@@ -62,8 +62,8 @@ absolute path to all .tpl files in root.`)
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
 		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+
-		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left=[\"now-1h\",\"now\",\"VictoriaMetrics\",{\"expr\": \"{{$expr|quotesEscape|crlfEscape|queryEscape}}\"},{\"mode\":\"Metrics\"},{\"ui\":[true,true,true,\"none\"]}]' . `+
-		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used. All query params will be automatically escaped`)
+		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' . `+
+		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
 
@@ -270,7 +270,7 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		if err != nil {
 			logger.Errorf("can not exec source template %s", err)
 		}
-		return fmt.Sprintf("%s/%s", externalURL, url.QueryEscape(templated["tpl"]))
+		return fmt.Sprintf("%s/%s", externalURL, templated["tpl"])
 	}, nil
 }
 

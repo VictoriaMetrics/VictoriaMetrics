@@ -151,6 +151,142 @@ The result on the GCS bucket. We see only 3 daily backups:
 ![daily](vmbackupmanager_rp_daily_2.png)
 
 
+## API methods
+
+`vmbackupmanager` exposes the following API methods:
+
+* GET `/api/v1/backups` - returns list of backups in remote storage.
+  Example output:
+  ```json
+  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  ```
+
+* POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
+  Example request body:
+  ```json
+  {"backup":"daily/2022-10-06"}
+  ```
+
+* GET `/api/v1/restore` - returns backup name from restore mark if it exists.
+  Example response:
+  ```json
+  {"backup":"daily/2022-10-06"}
+  ```
+
+* DELETE `/api/v1/restore` - delete restore mark.
+
+## CLI
+
+`vmbackupmanager` exposes CLI commands to work with [API methods](#api-methods) without external dependencies.
+
+Supported commands:
+```console
+vmbackupmanager backup 
+
+  vmbackupmanager backup list 
+    List backups in remote storage
+
+vmbackupmanager restore 
+  Restore backup specified by restore mark if it exists
+
+  vmbackupmanager restore get 
+    Get restore mark if it exists
+
+  vmbackupmanager restore delete 
+    Delete restore mark if it exists
+
+  vmbackupmanager restore create [backup_name]
+    Create restore mark
+```
+
+By default, CLI commands are using `http://127.0.0.1:8300` endpoint to reach `vmbackupmanager` API.
+It can be changed by using flag:
+```
+-apiURL string
+      vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
+```
+
+### Backup commands
+
+`vmbackupmanager backup list` lists backups in remote storage:
+```console
+$ ./vmbackupmanager backup list
+["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+```
+
+### Restore commands
+
+Restore commands are used to create, get and delete restore mark.
+Restore mark is used by `vmbackupmanager` to store backup name to restore when running restore.
+
+
+Create restore mark:
+```console
+$ ./vmbackupmanager restore create daily/2022-10-06
+```
+
+Get restore mark if it exists:
+```console
+$ ./vmbackupmanager restore get
+{"backup":"daily/2022-10-06"}
+```
+
+Delete restore mark if it exists:
+```console
+$ ./vmbackupmanager restore delete
+```
+
+Perform restore:
+```console
+$ /vmbackupmanager-prod restore -dst=gs://vmstorage-data/$NODE_IP -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
+```
+Note that `vmsingle` or `vmstorage` should be stopped before performing restore.
+
+If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vmbackupmanager restore` will exit with successful status code.
+
+### How to restore backup via CLI
+
+1. Run `vmbackupmanager backup list` to get list of available backups:
+  ```console
+  $ /vmbackupmanager-prod backup list
+  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  ```
+2. Run `vmbackupmanager restore create` to create restore mark:
+   - Use relative path to backup to restore from currently used remote storage:
+     ```console
+     $ /vmbackupmanager-prod restore create daily/2022-10-06
+     ```
+   - Use full path to backup to restore from any remote storage:
+     ```console
+     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2022-10-06
+     ```
+3. Stop `vmstorage` or `vmsingle` node
+4. Run `vmbackupmanager restore` to restore backup:
+  ```console
+  $ /vmbackupmanager-prod restore -credsFilePath=credentials.json -storageDataPath=/vmstorage-data
+  ```
+5. Start `vmstorage` or `vmsingle` node
+
+
+### How to restore in Kubernetes
+
+1. Enter container running `vmbackupmanager`
+2. Use `vmbackupmanager backup list` to get list of available backups:
+  ```console
+  $ /vmbackupmanager-prod backup list
+  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  ```
+3. Use `vmbackupmanager restore create` to create restore mark:
+  - Use relative path to backup to restore from currently used remote storage:
+    ```console
+    $ /vmbackupmanager-prod restore create daily/2022-10-06
+    ```
+  - Use full path to backup to restore from any remote storage:
+    ```console
+    $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2022-10-06
+    ```
+4. Restart pod
+
 ## Configuration
 
 ### Flags
@@ -256,6 +392,8 @@ vmbackupmanager performs regular backups according to the provided configs.
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
+  -restoreOnStart
+     Check if backup restore was requested and restore requested backup.
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
   -s3ForcePathStyle

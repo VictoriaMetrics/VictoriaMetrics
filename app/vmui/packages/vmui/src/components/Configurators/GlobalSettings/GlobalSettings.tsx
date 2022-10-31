@@ -30,8 +30,8 @@ const GlobalSettings: FC = () => {
   const dispatch = useAppDispatch();
   const [changedServerUrl, setChangedServerUrl] = useState(serverUrl);
 
-  const setServer = () => {
-    dispatch({ type: "SET_SERVER", payload: changedServerUrl });
+  const setServer = (url?: string) => {
+    dispatch({ type: "SET_SERVER", payload: url || changedServerUrl });
     handleClose();
   };
 
@@ -81,7 +81,7 @@ const GlobalSettings: FC = () => {
             <CloseIcon/>
           </IconButton>
         </Box>
-        <ServerConfigurator setServer={setChangedServerUrl}/>
+        <ServerConfigurator setServer={setChangedServerUrl} onEnter={setServer}/>
         <Box
           display="grid"
           gridTemplateColumns="auto auto"
@@ -97,7 +97,7 @@ const GlobalSettings: FC = () => {
           </Button>
           <Button
             variant="contained"
-            onClick={setServer}
+            onClick={() => setServer()}
           >
             apply
           </Button>

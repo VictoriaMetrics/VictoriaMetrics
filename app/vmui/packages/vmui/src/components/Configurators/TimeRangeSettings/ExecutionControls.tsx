@@ -8,9 +8,10 @@ import AutorenewIcon from "@mui/icons-material/Autorenew";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import List from "@mui/material/List";
 import ListItemText from "@mui/material/ListItemText";
-import { getAppModeEnable } from "../../../utils/app-mode";
 import ListItemButton from "@mui/material/ListItemButton";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
+import {getAppModeEnable} from "../../../utils/app-mode";
+import Box from "@mui/material/Box";
 
 interface AutoRefreshOption {
   seconds: number
@@ -48,12 +49,16 @@ export const ExecutionControls: FC = () => {
     setAnchorEl(null);
   };
 
+  const handleUpdate = () => {
+    dispatch({type: "RUN_QUERY"});
+  };
+
   useEffect(() => {
     const delay = selectedDelay.seconds;
     let timer: number;
     if (autoRefresh) {
       timer = setInterval(() => {
-        dispatch({ type: "RUN_QUERY_TO_NOW" });
+        dispatch({ type: "RUN_QUERY" });
       }, delay * 1000) as unknown as number;
     } else {
       setSelectedDelay(delayOptions[0]);
@@ -67,24 +72,32 @@ export const ExecutionControls: FC = () => {
   const open = Boolean(anchorEl);
 
   return <>
-    <Tooltip title="Auto-refresh control">
-      <Button
-        variant="contained"
-        color="primary"
-        sx={{
-          minWidth: "110px",
-          color: "white",
-          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-          justifyContent: "space-between",
-          boxShadow: "none",
-        }}
-        startIcon={<AutorenewIcon/>}
+    <Box sx={{
+      minWidth: "110px",
+      color: "white",
+      border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
+      justifyContent: "space-between",
+      boxShadow: "none",
+      borderRadius: "4px",
+      display: "grid",
+      gridTemplateColumns: "auto 1fr"
+    }}>
+      <Tooltip title="Refresh dashboard">
+        <Button variant="contained" color="primary"
+          sx={{color: "white", minWidth: "34px", boxShadow: "none", borderRadius: "3px 0 0 3px", p: "6px 6px"}}
+          startIcon={<AutorenewIcon fontSize={"small"} style={{marginRight: "-8px", marginLeft: "4px"}}/>}
+          onClick={handleUpdate}
+        >
+        </Button>
+      </Tooltip>
+      <Tooltip title="Auto-refresh control">
+        <Button variant="contained" color="primary" sx={{boxShadow: "none", borderRadius: "0 3px 3px 0"}} fullWidth
         endIcon={<KeyboardArrowDownIcon sx={{ transform: open ? "rotate(180deg)" : "none" }}/>}
         onClick={(e) => setAnchorEl(e.currentTarget)}
       >
         {selectedDelay.title}
       </Button>
-    </Tooltip>
+    </Tooltip></Box>
     <Popper
       open={open}
       anchorEl={anchorEl}
@@ -93,7 +106,7 @@ export const ExecutionControls: FC = () => {
     >
       <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
         <Paper elevation={3}>
-          <List style={{ minWidth: "110px",maxHeight: "208px", overflow: "auto", padding: "20px 0" }}>
+          <List style={{ minWidth: "110px", maxHeight: "208px", overflow: "auto", padding: "20px 0" }}>
             {delayOptions.map(d =>
               <ListItemButton
                 key={d.seconds}
