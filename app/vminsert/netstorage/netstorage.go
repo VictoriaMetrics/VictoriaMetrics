@@ -59,12 +59,6 @@ func (sn *storageNode) push(sns []*storageNode, buf []byte, rows int) error {
 		// Fast path - the buffer is successfully sent to sn.
 		return nil
 	}
-	if *dropSamplesOnOverload && atomic.LoadUint32(&sn.isReadOnly) == 0 {
-		sn.rowsDroppedOnOverload.Add(rows)
-		dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
-			"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
-		return nil
-	}
 	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
 	if err := sn.rerouteBufToOtherStorageNodes(sns, buf, rows); err != nil {
 		return fmt.Errorf("error when re-routing rows from %s: %w", sn.dialer.Addr(), err)
@@ -228,6 +222,14 @@ func sendBufToReplicasNonblocking(sns []*storageNode, br *bufRows, snIdx, replic
 			}
 			if !sn.sendBufRowsNonblocking(br) {
 				// Cannot send data to sn. Go to the next sn.
+				if *dropSamplesOnOverload && atomic.LoadUint32(&sn.isReadOnly) == 0 {
+					sn.rowsDroppedOnOverload.Add(br.rows)
+					dropSamplesOnOverloadLogger.Warnf("some rows dropped, because -dropSamplesOnOverload is set and vmstorage %s cannot accept new rows now. "+
+						"See vm_rpc_rows_dropped_on_overload_total metric at /metrics page", sn.dialer.Addr())
+					// storage cannot accept data.
+					usedStorageNodes[sn] = struct{}{}
+					break
+				}
 				continue
 			}
 			// Successfully sent data to sn.
@@ -743,7 +745,7 @@ func getNotReadyStorageNodeIdxs(sns []*storageNode, dst []int, snExtra *storageN
 func (sn *storageNode) trySendBuf(buf []byte, rows int) bool {
 	sent := false
 	sn.brLock.Lock()
-	if sn.isReady() && len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
+	if len(sn.br.buf)+len(buf) <= maxBufSizePerStorageNode {
 		sn.br.buf = append(sn.br.buf, buf...)
 		sn.br.rows += rows
 		sent = true
