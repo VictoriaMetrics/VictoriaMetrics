@@ -13,8 +13,8 @@ export type CustomPanelAction =
   | { type: "TOGGLE_NO_CACHE"}
   | { type: "TOGGLE_QUERY_TRACING" }
 
-const queryTab = getQueryStringValue("g0.tab", 0);
-const displayType = displayTypeTabs.find(t => t.prometheusCode === queryTab || t.value === queryTab);
+const queryTab = getQueryStringValue("g0.tab", 0) as string;
+const displayType = displayTypeTabs.find(t => t.prometheusCode === +queryTab || t.value === queryTab);
 
 export const initialCustomPanelState: CustomPanelState = {
   displayType: (displayType?.value || "chart") as DisplayType,

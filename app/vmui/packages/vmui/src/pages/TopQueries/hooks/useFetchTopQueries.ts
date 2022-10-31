@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { ErrorTypes } from "../types";
-import { useAppState } from "../state/common/StateContext";
+import { ErrorTypes } from "../../../types";
+import { useAppState } from "../../../state/common/StateContext";
 import { useMemo } from "preact/compat";
-import { getTopQueries } from "../api/top-queries";
-import { TopQueriesData } from "../types";
-import { useTopQueriesState } from "../state/topQueries/TopQueriesStateContext";
+import { getTopQueries } from "../../../api/top-queries";
+import { TopQueriesData } from "../../../types";
+import { useTopQueriesState } from "../../../state/topQueries/TopQueriesStateContext";
 
 export const useFetchTopQueries = () => {
   const { serverUrl } = useAppState();

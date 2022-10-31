@@ -27,7 +27,7 @@ const ctrlMeta = isMacOs() ? "Cmd" : "Ctrl";
 
 const keyList = [
   {
-    title: "AdditionalSettings",
+    title: "Query",
     list: [
       {
         keys: ["Enter"],
@@ -39,16 +39,16 @@ const keyList = [
       },
       {
         keys: [ctrlMeta, "Arrow Up"],
-        description: "Previous command from the AdditionalSettings history"
+        description: "Previous command from the Query history"
       },
       {
         keys: [ctrlMeta, "Arrow Down"],
-        description: "Next command from the AdditionalSettings history"
+        description: "Next command from the Query history"
       }
     ]
   },
   {
-    title: "GraphSettings",
+    title: "Graph",
     list: [
       {
         keys: [ctrlMeta, "Scroll Up"],

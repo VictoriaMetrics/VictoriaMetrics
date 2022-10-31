@@ -18,17 +18,17 @@ import TableSettings from "../../components/Main/Table/TableSettings";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
+import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
 const CustomPanel: FC = () => {
+  const { displayType, isTracingEnabled } = useCustomPanelState();
+  const { query } = useQueryState();
+  const { period } = useTimeState();
+  const timeDispatch = useTimeDispatch();
+  useSetQueryParams();
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
-
-  const { displayType, isTracingEnabled } = useCustomPanelState();
-  const { query } = useQueryState();
-
-  const { period } = useTimeState();
-  const timeDispatch = useTimeDispatch();
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();

@@ -59,7 +59,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
         mb={4}
       >
         <QueryEditor
-          query={query}
+          query={query || match || ""}
           index={0}
           autocomplete={autocomplete}
           queryOptions={queryOptions}
@@ -67,7 +67,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           setHistoryIndex={onSetHistory}
           runQuery={onRunQuery}
           setQuery={onSetQuery}
-          label={"TimeRangeSettings series selector"}
+          label={"Time series selector"}
         />
         <Box mr={2}>
           <TextField

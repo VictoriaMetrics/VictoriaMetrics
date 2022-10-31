@@ -1,10 +1,10 @@
-import { ErrorTypes } from "../types";
-import { useAppState } from "../state/common/StateContext";
+import { ErrorTypes } from "../../../types";
+import { useAppState } from "../../../state/common/StateContext";
 import { useEffect, useState } from "preact/compat";
-import { CardinalityRequestsParams, getCardinalityInfo } from "../api/tsdb";
-import { TSDBStatus } from "../pages/CardinalityPanel/types";
-import { useCardinalityState } from "../state/cardinality/CardinalityStateContext";
-import AppConfigurator from "../pages/CardinalityPanel/appConfigurator";
+import { CardinalityRequestsParams, getCardinalityInfo } from "../../../api/tsdb";
+import { TSDBStatus } from "../types";
+import { useCardinalityState } from "../../../state/cardinality/CardinalityStateContext";
+import AppConfigurator from "../appConfigurator";
 
 export const useFetchQuery = (): {
   fetchUrl?: string[],

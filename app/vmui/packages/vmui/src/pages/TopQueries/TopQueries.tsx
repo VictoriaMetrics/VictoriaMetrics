@@ -1,6 +1,6 @@
 import React, { ChangeEvent, FC, useEffect, useMemo, KeyboardEvent } from "react";
 import Box from "@mui/material/Box";
-import { useFetchTopQueries } from "../../hooks/useFetchTopQueries";
+import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
 import Spinner from "../../components/Main/Spinner";
 import Alert from "@mui/material/Alert";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
@@ -14,6 +14,7 @@ import IconButton from "@mui/material/IconButton";
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
+import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -21,6 +22,7 @@ const TopQueries: FC = () => {
   const { data, error, loading } = useFetchTopQueries();
   const { topN, maxLifetime } = useTopQueriesState();
   const topQueriesDispatch = useTopQueriesDispatch();
+  useSetQueryParams();
 
   const invalidTopN = useMemo(() => !!topN && topN < 1, [topN]);
 

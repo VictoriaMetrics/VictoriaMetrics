@@ -97,7 +97,7 @@ const Header: FC = () => {
 
   const onClickLogo = () => {
     navigateHandler(router.home);
-    setQueryStringWithoutPageReload("");
+    setQueryStringWithoutPageReload({});
     window.location.reload();
   };
 

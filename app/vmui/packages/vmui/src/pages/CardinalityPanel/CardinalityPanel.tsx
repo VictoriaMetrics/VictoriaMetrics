@@ -1,7 +1,7 @@
 import React, { ChangeEvent, FC, useState } from "react";
 import { SyntheticEvent } from "react";
 import { Alert } from "@mui/material";
-import { useFetchQuery } from "../../hooks/useCardinalityFetch";
+import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
 import { Data } from "../../components/Main/Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
@@ -9,6 +9,7 @@ import Spinner from "../../components/Main/Spinner";
 import { useCardinalityDispatch, useCardinalityState } from "../../state/cardinality/CardinalityStateContext";
 import MetricsContent from "./MetricsContent/MetricsContent";
 import { DefaultActiveTab, Tabs, TSDBStatus, Containers } from "./types";
+import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
 const spinnerContainerStyles = (height: string) =>  {
   return {
@@ -23,9 +24,10 @@ const spinnerContainerStyles = (height: string) =>  {
 };
 
 const CardinalityPanel: FC = () => {
-  const cardinalityDispatch = useCardinalityDispatch();
-
   const { topN, match, date, focusLabel } = useCardinalityState();
+  const cardinalityDispatch = useCardinalityDispatch();
+  useSetQueryParams();
+
   const configError = "";
   const [query, setQuery] = useState(match || "");
   const [queryHistoryIndex, setQueryHistoryIndex] = useState(0);

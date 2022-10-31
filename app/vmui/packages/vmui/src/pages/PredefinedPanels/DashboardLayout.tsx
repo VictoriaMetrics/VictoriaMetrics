@@ -7,8 +7,10 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import PredefinedDashboard from "./PredefinedDashboard";
 import get from "lodash.get";
+import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
 const DashboardLayout: FC = () => {
+  useSetQueryParams();
 
   const [dashboards, setDashboards] = useState<DashboardSettings[]>();
   const [tab, setTab] = useState(0);

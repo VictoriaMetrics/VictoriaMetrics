@@ -9,9 +9,16 @@ import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customP
 
 export type DisplayType = "table" | "chart" | "code";
 
-export const displayTypeTabs = [
-  { value: "chart", icon: <ShowChartIcon/>, label: "GraphSettings", prometheusCode: 0 },
-  { value: "code", icon: <CodeIcon/>, label: "JSON" },
+type DisplayTab = {
+  value: DisplayType
+  icon: JSX.Element
+  label: string
+  prometheusCode: number
+}
+
+export const displayTypeTabs: DisplayTab[] = [
+  { value: "chart", icon: <ShowChartIcon/>, label: "Graph", prometheusCode: 0 },
+  { value: "code", icon: <CodeIcon/>, label: "JSON", prometheusCode: 3 },
   { value: "table", icon: <TableChartIcon/>, label: "Table", prometheusCode: 1 }
 ];
 
