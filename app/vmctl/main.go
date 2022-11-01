@@ -34,6 +34,9 @@ func main() {
 		Name:    "vmctl",
 		Usage:   "VictoriaMetrics command-line tool",
 		Version: buildinfo.Version,
+		// Disable `-version` flag to avoid conflict with lib/buildinfo flags
+		// see https://github.com/urfave/cli/issues/1560
+		HideVersion: true,
 		Commands: []*cli.Command{
 			{
 				Name:  "opentsdb",
