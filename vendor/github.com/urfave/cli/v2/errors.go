@@ -83,7 +83,7 @@ type ExitCoder interface {
 
 type exitError struct {
 	exitCode int
-	err      error
+	message  interface{}
 }
 
 // NewExitError calls Exit to create a new ExitCoder.
@@ -98,36 +98,21 @@ func NewExitError(message interface{}, exitCode int) ExitCoder {
 //
 // This is the simplest way to trigger a non-zero exit code for an App without
 // having to call os.Exit manually. During testing, this behavior can be avoided
-// by overriding the ExitErrHandler function on an App or the package-global
+// by overiding the ExitErrHandler function on an App or the package-global
 // OsExiter function.
 func Exit(message interface{}, exitCode int) ExitCoder {
-	var err error
-
-	switch e := message.(type) {
-	case ErrorFormatter:
-		err = fmt.Errorf("%+v", message)
-	case error:
-		err = e
-	default:
-		err = fmt.Errorf("%+v", message)
-	}
-
 	return &exitError{
-		err:      err,
+		message:  message,
 		exitCode: exitCode,
 	}
 }
 
 func (ee *exitError) Error() string {
-	return ee.err.Error()
+	return fmt.Sprintf("%v", ee.message)
 }
 
 func (ee *exitError) ExitCode() int {
 	return ee.exitCode
-}
-
-func (ee *exitError) Unwrap() error {
-	return ee.err
 }
 
 // HandleExitCoder handles errors implementing ExitCoder by printing their

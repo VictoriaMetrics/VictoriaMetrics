@@ -98,7 +98,7 @@ func (a *App) prepareFishCommands(commands []*Command, allCommands *[]string, pr
 			a.prepareFishFlags(command.VisibleFlags(), command.Names())...,
 		)
 
-		// recursively iterate subcommands
+		// recursevly iterate subcommands
 		if len(command.Subcommands) > 0 {
 			completions = append(
 				completions,
