@@ -21,10 +21,10 @@ const classes = {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    background: "#3F51B5",
+    backgroundColor: "primary.main",
     padding: "6px 6px 6px 12px",
     borderRadius: "4px 4px 0 0",
-    color: "#FFF",
+    color: "primary.contrastText",
   },
   popoverBody: {
     display: "grid",

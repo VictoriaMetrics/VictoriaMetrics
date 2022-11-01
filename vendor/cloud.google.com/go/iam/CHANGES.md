@@ -1,5 +1,12 @@
 # Changes
 
+## [0.6.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.5.0...iam/v0.6.0) (2022-10-25)
+
+
+### Features
+
+* **iam:** start generating stubs dir ([de2d180](https://github.com/googleapis/google-cloud-go/commit/de2d18066dc613b72f6f8db93ca60146dabcfdcc))
+
 ## [0.5.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.4.0...iam/v0.5.0) (2022-09-28)
 
 

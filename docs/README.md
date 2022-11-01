@@ -25,7 +25,7 @@ Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.htm
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
-See [features available in enterprise package](https://victoriametrics.com/products/enterprise/).
+See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free 
 from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
@@ -66,7 +66,7 @@ VictoriaMetrics has the following prominent features:
   * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).
-* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://victoriametrics.com/products/enterprise/).
+* It ideally works with big amounts of time series data from APM, Kubernetes, IoT sensors, connected cars, industrial telemetry, financial data and various [Enterprise workloads](https://docs.victoriametrics.com/enterprise.html).
 * It has open source [cluster version](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster).
 * It can store data on [NFS-based storages](https://en.wikipedia.org/wiki/Network_File_System) such as [Amazon EFS](https://aws.amazon.com/efs/) and [Google Filestore](https://cloud.google.com/filestore).
 
@@ -133,7 +133,15 @@ VictoriaMetrics is developed at a fast pace, so it is recommended periodically c
 
 ### Environment variables
 
-Each flag value can be set via environment variables according to these rules:
+All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
+For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
+if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
+This expansion is performed by VictoriaMetrics itself.
+
+VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
+For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
+
+Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
 
 * The `-envflag.enable` flag must be set.
 * Each `.` char in flag name must be substituted with `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`).
@@ -278,7 +286,7 @@ Multi-line queries can be entered by pressing `Shift-Enter` in query input field
 
 When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling) or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results), it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by clickhing `Override step value` checkbox.
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
 
 VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button, enter an additional query in the newly appeared input field and press `Ctrl+Enter`. Results for all the queries should be displayed simultaneously on the same graph.
 
@@ -322,7 +330,7 @@ VictoriaMetrics is configured via command-line flags, so it must be restarted wh
 * Wait until the process stops. This can take a few seconds.
 * Start VictoriaMetrics with the new command-line flags.
 
-Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies alos to [vmagent](https://docs.victoriametrics.com/vmagent.html).
+Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](https://grafana.com/blog/2019/03/25/whats-new-in-prometheus-2.8-wal-based-remote-write/) for details. The same applies also to [vmagent](https://docs.victoriametrics.com/vmagent.html).
 
 ## How to scrape Prometheus exporters such as [node-exporter](https://github.com/prometheus/node_exporter)
 
@@ -732,7 +740,7 @@ VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series w
 
 ### Graphite Render API usage
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
 When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
@@ -865,8 +873,9 @@ Steps for restoring from a snapshot:
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
-for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
-the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+for metrics to delete. Delete API doesn't support the deletion of specific time ranges, the series can only be deleted completely. 
+Storage space for the deleted time series isn't freed instantly - it is freed during subsequent
+[background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 Note that background merges may never occur for data from previous months, so storage space won't be freed for historical data.
 In this case [forced merge](#forced-merge) may help freeing up storage space.
@@ -1403,7 +1412,7 @@ VictoriaMetrics does not support indefinite retention, but you can specify an ar
 ## Multiple retentions
 
 Distinct retentions for distinct time series can be configured via [retention filters](#retention-filters)
-in [VictoriaMetrics enterprise](https://victoriametrics.com/products/enterprise/).
+in [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html).
 
 Community version of VictoriaMetrics supports only a single retention, which can be configured via [-retentionPeriod](#retention) command-line flag.
 If you need multiple retentions in community version of VictoriaMetrics, then you may start multiple VictoriaMetrics instances with distinct values for the following flags:
@@ -1420,7 +1429,7 @@ See [these docs](https://docs.victoriametrics.com/guides/guide-vmcluster-multipl
 
 ## Retention filters
 
-[Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) supports e.g. `retention filters`,
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports e.g. `retention filters`,
 which allow configuring multiple retentions for distinct sets of time series matching the configured [series filters](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 via `-retentionFilter` command-line flag. This flag accepts `filter:duration` options, where `filter` must be
 a valid [series filter](https://docs.victoriametrics.com/keyConcepts.html#filtering), while the `duration`
@@ -1451,7 +1460,7 @@ Retention filters can be evaluated for free by downloading and using enterprise 
 
 ## Downsampling
 
-[VictoriaMetrics Enterprise](https://victoriametrics.com/products/enterprise/) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
+[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports multi-level downsampling with `-downsampling.period` command-line flag. For example:
 
 * `-downsampling.period=30d:5m` instructs VictoriaMetrics to [deduplicate](#deduplication) samples older than 30 days with 5 minutes interval.
 

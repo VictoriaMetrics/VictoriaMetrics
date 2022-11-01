@@ -93,7 +93,7 @@ type Config struct {
 
 func (cfg *Config) unmarshal(data []byte, isStrict bool) error {
 	var err error
-	data, err = envtemplate.Replace(data)
+	data, err = envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return fmt.Errorf("cannot expand environment variables: %w", err)
 	}
@@ -375,7 +375,7 @@ func loadStaticConfigs(path string) ([]StaticConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot read `static_configs` from %q: %w", path, err)
 	}
-	data, err = envtemplate.Replace(data)
+	data, err = envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
 	}
@@ -419,7 +419,7 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]*Scrap
 			if err != nil {
 				return nil, nil, fmt.Errorf("cannot load %q: %w", path, err)
 			}
-			data, err = envtemplate.Replace(data)
+			data, err = envtemplate.ReplaceBytes(data)
 			if err != nil {
 				return nil, nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
 			}

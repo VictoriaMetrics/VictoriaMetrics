@@ -15,6 +15,8 @@ import Divider from "@mui/material/Divider";
 import ClickAwayListener from "@mui/material/ClickAwayListener";
 import Tooltip from "@mui/material/Tooltip";
 import AlarmAdd from "@mui/icons-material/AlarmAdd";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import {getAppModeEnable} from "../../../../utils/app-mode";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
@@ -37,12 +39,15 @@ const classes = {
 
 export const TimeSelector: FC = () => {
 
+  const displayFullDate = useMediaQuery("(min-width: 1120px)");
+
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
 
   const {time: {period: {end, start}, relativeTime}} = useAppState();
   const dispatch = useAppDispatch();
+  const appModeEnable = getAppModeEnable();
 
   useEffect(() => {
     setUntil(formatDateForNativeInput(dateFromSeconds(end)));
@@ -68,11 +73,8 @@ export const TimeSelector: FC = () => {
 
   const open = Boolean(anchorEl);
   const setTimeAndClosePicker = () => {
-    if (from) {
-      dispatch({type: "SET_FROM", payload: new Date(from)});
-    }
-    if (until) {
-      dispatch({type: "SET_UNTIL", payload: new Date(until)});
+    if (from && until) {
+      dispatch({type: "SET_PERIOD", payload: {from: new Date(from), to: new Date(until)}});
     }
     setAnchorEl(null);
   };
@@ -96,14 +98,18 @@ export const TimeSelector: FC = () => {
       <Button variant="contained" color="primary"
         sx={{
           color: "white",
-          border: "1px solid rgba(0, 0, 0, 0.2)",
-          boxShadow: "none"
+          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
+          boxShadow: "none",
+          minWidth: "34px",
+          padding: displayFullDate ? "" : "6px 8px",
         }}
-        startIcon={<QueryBuilderIcon/>}
+        startIcon={<QueryBuilderIcon style={displayFullDate ? {} : {marginRight: "-8px", marginLeft: "4px"}}/>}
         onClick={(e) => setAnchorEl(e.currentTarget)}>
-        {relativeTime && relativeTime !== "none"
-          ? relativeTime.replace(/_/g, " ")
-          : `${formatRange.start} - ${formatRange.end}`}
+        {displayFullDate && <span>
+          {relativeTime && relativeTime !== "none"
+            ? relativeTime.replace(/_/g, " ")
+            : `${formatRange.start} - ${formatRange.end}`}
+        </span>}
       </Button>
     </Tooltip>
     <Popper

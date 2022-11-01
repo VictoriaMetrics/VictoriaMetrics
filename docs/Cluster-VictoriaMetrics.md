@@ -159,6 +159,9 @@ A minimal cluster must contain the following nodes:
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports automatic discoverying and updating of `vmstorage` nodes.
+See [these docs](#automatic-vmstorage-discovery) for details.
+
 It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
 
 It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
@@ -184,16 +187,39 @@ It is possible manualy setting up a toy cluster on a single host. In this case e
 
 ### Environment variables
 
-Each flag values can be set through environment variables by following these rules:
+All the VictoriaMetrics components allow referring environment variables in command-line flags via `%{ENV_VAR}` syntax.
+For example, `-metricsAuthKey=%{METRICS_AUTH_KEY}` is automatically expanded to `-metricsAuthKey=top-secret`
+if `METRICS_AUTH_KEY=top-secret` environment variable exists at VictoriaMetrics startup.
+This expansion is performed by VictoriaMetrics itself.
+
+VictoriaMetrics recursively expands `%{ENV_VAR}` references in environment variables on startup.
+For example, `FOO=%{BAR}` environment variable is expanded to `FOO=abc` if `BAR=a%{BAZ}` and `BAZ=bc`.
+
+Additionally, all the VictoriaMetrics components allow setting flag values via environment variables according to these rules:
 
 - The `-envflag.enable` flag must be set
 - Each `.` in flag names must be substituted by `_` (for example `-insert.maxQueueDuration <duration>` will translate to `insert_maxQueueDuration=<duration>`)
 - For repeating flags, an alternative syntax can be used by joining the different values into one using `,` as separator (for example `-storageNode <nodeA> -storageNode <nodeB>` will translate to `storageNode=<nodeA>,<nodeB>`)
 - It is possible setting prefix for environment vars with `-envflag.prefix`. For instance, if `-envflag.prefix=VM_`, then env vars must be prepended with `VM_`
 
+## Automatic vmstorage discovery
+
+[Entrprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports [dns+srv](https://en.wikipedia.org/wiki/SRV_record) names
+at `-storageNode` command-line flag passed to `vminsert` and `vmstorage`. In this case the provided `dns+srv` names are resolved
+into tcp addresses of `vmstorage` nodes to connect to. The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmstorage`
+when it changes behind the corresponding `dns+srv` names. The `dns+srv` names must be prefixed with `dns+srv:` prefix.
+
+It is possible passing multiple `dns+srv` names to `-storageNode` command-line flag. In this case all these names are resolved to tcp addresses of `vmstorage` nodes to connect to.
+For example, `-storageNode='dns+srv:vmstorage-hot' -storageNode='dns+srv:vmstorage-cold'` .
+
+It is OK to pass regular static `vmstorage` addresses together with `dns+srv` addresses at `-storageNode`. For example,
+`-storageNode=vmstorage1,vmstorage2 -storageNode='dns+srv:vmstorage-autodiscovery'`.
+
+The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
+
 ## mTLS protection
 
-By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
+By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
 
 The following optional command-line flags related to mTLS are supported:
 
@@ -205,7 +231,7 @@ When `vmselect` runs with `-clusternativeListenAddr` command-line option, then i
 
 See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6) on how to set up mTLS in VictoriaMetrics cluster.
 
-[Enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Monitoring
 
@@ -281,7 +307,7 @@ See [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 - URLs for [Graphite Metrics API](https://graphite-api.readthedocs.io/en/latest/api.html#the-metrics-api): `http://<vmselect>:8481/select/<accountID>/graphite/<suffix>`, where:
   - `<accountID>` is an arbitrary number identifying data namespace for query (aka tenant)
   - `<suffix>` may have the following values:
-    - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html). This functionality is available in [Enterprise package](https://victoriametrics.com/products/enterprise/). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+    - `render` - implements Graphite Render API. See [these docs](https://graphite.readthedocs.io/en/stable/render_api.html). This functionality is available in [Enterprise package](https://docs.victoriametrics.com/enterprise.html). Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
     - `metrics/find` - searches Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-find).
     - `metrics/expand` - expands Graphite metrics. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-expand).
     - `metrics/index.json` - returns all the metric names. See [these docs](https://graphite-api.readthedocs.io/en/latest/api.html#metrics-index-json).
@@ -571,7 +597,7 @@ Restoring from backup:
 
 ## Retention filters
 
-[VictoriaMetrics enterprise](https://victoriametrics.com/products/enterprise/) supports configuring multiple retentions for distinct sets of time series
+[VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html) supports configuring multiple retentions for distinct sets of time series
 by passing `-retentionFilter` command-line flag to `vmstorage` nodes. See [these docs](https://docs.victoriametrics.com/#retention-filters) for details on this feature.
 
 Additionally, enterprise version of VictoriaMetrics cluster supports multiple retentions for distinct sets of [tenants](#multitenancy)
@@ -599,7 +625,7 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 
 ## Downsampling
 
-Downsampling is available in [enterprise version of VictoriaMetrics](https://victoriametrics.com/products/enterprise/). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
+Downsampling is available in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html). It is configured with `-downsampling.period` command-line flag. The same flag value must be passed to both `vmstorage` and `vmselect` nodes. See [these docs](https://docs.victoriametrics.com/#downsampling) for details.
 
 Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
@@ -826,7 +852,7 @@ Below is the output for `/path/to/vminsert -help`:
   -sortLabels
      Whether to sort labels for incoming samples before writing them to storage. This may be needed for reducing memory usage at storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}. Enabled sorting for labels can slow down ingestion performance a bit
   -storageNode array
-     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
+     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via dns+srv records. For example, -storageNode=dns+srv:vmstorage.addrs . See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
@@ -1035,7 +1061,7 @@ Below is the output for `/path/to/vmselect -help`:
      Comma-separated addresses of vmselect nodes; usage: -selectNode=vmselect-host1,...,vmselect-hostN
      Supports an array of values separated by comma or specified via multiple flags.
   -storageNode array
-     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN
+     Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via dns+srv records. For example, -storageNode=dns+srv:vmstorage.addrs .See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set

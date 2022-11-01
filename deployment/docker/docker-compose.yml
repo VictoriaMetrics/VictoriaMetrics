@@ -2,7 +2,7 @@ version: "3.5"
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.81.2
+    image: victoriametrics/vmagent:v1.83.0
     depends_on:
       - "victoriametrics"
     ports:
@@ -18,7 +18,7 @@ services:
     restart: always
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.81.2
+    image: victoriametrics/victoria-metrics:v1.83.0
     ports:
       - 8428:8428
       - 8089:8089
@@ -56,7 +56,7 @@ services:
     restart: always
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.81.2
+    image: victoriametrics/vmalert:v1.83.0
     depends_on:
       - "victoriametrics"
       - "alertmanager"
@@ -75,7 +75,7 @@ services:
       # display source of alerts in grafana
       - "--external.url=http://127.0.0.1:3000" #grafana outside container
       # when copypaste the line be aware of '$$' for escaping in '$expr'
-      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":"{{$$expr|quotesEscape|crlfEscape|queryEscape}}"},{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
+      - '--external.alert.source=explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'
     networks:
       - vm_net
     restart: always

@@ -24,7 +24,7 @@ type SDConfig struct {
 	Role string `yaml:"role"`
 	// The filepath to kube config.
 	// If defined any cluster connection information from HTTPClientConfig is ignored.
-	KubeConfigFile string `yaml:"kubeconfig_file"`
+	KubeConfigFile string `yaml:"kubeconfig_file,omitempty"`
 
 	HTTPClientConfig promauth.HTTPClientConfig `yaml:",inline"`
 	ProxyURL         *proxy.URL                `yaml:"proxy_url,omitempty"`

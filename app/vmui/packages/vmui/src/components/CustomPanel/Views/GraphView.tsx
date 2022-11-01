@@ -4,15 +4,16 @@ import LineChart from "../../LineChart/LineChart";
 import {AlignedData as uPlotData, Series as uPlotSeries} from "uplot";
 import Legend from "../../Legend/Legend";
 import {getHideSeries, getLegendItem, getSeriesItem} from "../../../utils/uplot/series";
-import {getLimitsYAxis, getTimeSeries} from "../../../utils/uplot/axes";
+import {getLimitsYAxis, getMinMaxBuffer, getTimeSeries} from "../../../utils/uplot/axes";
 import {LegendItem} from "../../../utils/uplot/types";
 import {TimeParams} from "../../../types";
-import {AxisRange, CustomStep, YaxisState} from "../../../state/graph/reducer";
+import {AxisRange, YaxisState} from "../../../state/graph/reducer";
+import {getAvgFromArray, getMaxFromArray, getMinFromArray} from "../../../utils/math";
 
 export interface GraphViewProps {
   data?: MetricResult[];
   period: TimeParams;
-  customStep: CustomStep;
+  customStep: number;
   query: string[];
   alias?: string[],
   yaxis: YaxisState;
@@ -20,6 +21,7 @@ export interface GraphViewProps {
   showLegend?: boolean;
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({from, to}: {from: Date, to: Date}) => void
+  fullWidth?: boolean
 }
 
 const promValueToNumber = (s: string): number => {
@@ -47,9 +49,10 @@ const GraphView: FC<GraphViewProps> = ({
   showLegend= true,
   setYaxisLimits,
   setPeriod,
-  alias = []
+  alias = [],
+  fullWidth = true
 }) => {
-  const currentStep = useMemo(() => customStep.enable ? customStep.value : period.step || 1, [period.step, customStep]);
+  const currentStep = useMemo(() => customStep || period.step || 1, [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
@@ -69,16 +72,13 @@ const GraphView: FC<GraphViewProps> = ({
     const tempTimes: number[] = [];
     const tempValues: {[key: string]: number[]} = {};
     const tempLegend: LegendItem[] = [];
-    const tempSeries: uPlotSeries[] = [];
+    const tempSeries: uPlotSeries[] = [{}];
 
     data?.forEach((d) => {
       const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
-      let tmpValues = tempValues[d.group];
-      if (!tmpValues) {
-        tmpValues = [];
-      }
+      const tmpValues = tempValues[d.group] || [];
       for (const v of d.values) {
         tempTimes.push(v[0]);
         tmpValues.push(promValueToNumber(v[1]));
@@ -87,14 +87,15 @@ const GraphView: FC<GraphViewProps> = ({
     });
 
     const timeSeries = getTimeSeries(tempTimes, currentStep, period);
-    setDataChart([timeSeries, ...data.map(d => {
+    const timeDataSeries = data.map(d => {
       const results = [];
       const values = d.values;
+      const length = values.length;
       let j = 0;
       for (const t of timeSeries) {
-        while (j < values.length && values[j][0] < t) j++;
+        while (j < length && values[j][0] < t) j++;
         let v = null;
-        if (j < values.length && values[j][0] == t) {
+        if (j < length && values[j][0] == t) {
           v = promValueToNumber(values[j][1]);
           if (!Number.isFinite(v)) {
             // Treat special values as nulls in order to satisfy uPlot.
@@ -104,33 +105,38 @@ const GraphView: FC<GraphViewProps> = ({
         }
         results.push(v);
       }
-      return results;
-    })] as uPlotData);
-    setLimitsYaxis(tempValues);
 
-    const newSeries = [{}, ...tempSeries];
-    if (JSON.stringify(newSeries) !== JSON.stringify(series)) {
-      setSeries(newSeries);
-      setLegend(tempLegend);
-    }
+      // stabilize float numbers
+      const resultAsNumber = results.filter(s => s !== null) as number[];
+      const avg = Math.abs(getAvgFromArray(resultAsNumber));
+      const range = getMinMaxBuffer(getMinFromArray(resultAsNumber), getMaxFromArray(resultAsNumber));
+      const rangeStep = Math.abs(range[1] - range[0]);
+
+      return (avg > rangeStep * 1e10) ? results.map(() => avg) : results;
+    });
+    timeDataSeries.unshift(timeSeries);
+    setLimitsYaxis(tempValues);
+    setDataChart(timeDataSeries as uPlotData);
+    setSeries(tempSeries);
+    setLegend(tempLegend);
   }, [data]);
 
   useEffect(() => {
     const tempLegend: LegendItem[] = [];
-    const tempSeries: uPlotSeries[] = [];
+    const tempSeries: uPlotSeries[] = [{}];
     data?.forEach(d => {
       const seriesItem = getSeriesItem(d, hideSeries, alias);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
-    setSeries([{}, ...tempSeries]);
+    setSeries(tempSeries);
     setLegend(tempLegend);
   }, [hideSeries]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
   return <>
-    <div style={{width: "100%"}} ref={containerRef}>
+    <div style={{width: fullWidth ? "calc(100vw - 68px)" : "100%"}} ref={containerRef}>
       {containerRef?.current &&
           <LineChart data={dataChart} series={series} metrics={data} period={period} yaxis={yaxis} unit={unit}
             setPeriod={setPeriod} container={containerRef?.current}/>}

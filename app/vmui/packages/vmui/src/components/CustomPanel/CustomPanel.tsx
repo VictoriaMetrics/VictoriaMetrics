@@ -62,7 +62,9 @@ const CustomPanel: FC = () => {
 
   return (
     <Box p={4} display="grid" gridTemplateRows="auto 1fr" style={{minHeight: "calc(100vh - 64px)"}}>
-      <QueryConfigurator error={error} queryOptions={queryOptions}/>
+      <Box boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;" p={4} pb={2} m={-4} mb={2}>
+        <QueryConfigurator error={error} queryOptions={queryOptions}/>
+      </Box>
       <Box height="100%">
         {isLoading && <Spinner isLoading={isLoading} height={"500px"}/>}
         {<Box height={"100%"} bgcolor={"#fff"}>

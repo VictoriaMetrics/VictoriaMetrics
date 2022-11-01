@@ -5,12 +5,14 @@ import {saveToStorage} from "../../../../utils/storage";
 import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
 import BasicSwitch from "../../../../theme/switch";
 import StepConfigurator from "./StepConfigurator";
-import {useGraphDispatch, useGraphState} from "../../../../state/graph/GraphStateContext";
+import {useGraphDispatch} from "../../../../state/graph/GraphStateContext";
+import {getAppModeParams} from "../../../../utils/app-mode";
+import TenantsConfiguration from "../Settings/TenantsConfiguration";
 
 const AdditionalSettings: FC = () => {
 
-  const {customStep} = useGraphState();
   const graphDispatch = useGraphDispatch();
+  const {inputTenantID} = getAppModeParams();
 
   const {queryControls: {autocomplete, nocache, isTracingEnabled}, time: {period: {step}}} = useAppState();
   const dispatch = useAppDispatch();
@@ -30,31 +32,30 @@ const AdditionalSettings: FC = () => {
     saveToStorage("QUERY_TRACING", !isTracingEnabled);
   };
 
-  return <Box display="flex" alignItems="center">
+  return <Box display="flex" alignItems="center" flexWrap="wrap" gap={2}>
     <Box>
-      <FormControlLabel label="Autocomplete"
+      <FormControlLabel label="Autocomplete" sx={{m: 0}}
         control={<BasicSwitch checked={autocomplete} onChange={onChangeAutocomplete}/>}
       />
     </Box>
-    <Box ml={2}>
-      <FormControlLabel label="Disable cache"
+    <Box>
+      <FormControlLabel label="Disable cache" sx={{m: 0}}
         control={<BasicSwitch checked={nocache} onChange={onChangeCache}/>}
       />
     </Box>
-    <Box ml={2}>
-      <FormControlLabel label="Trace query"
+    <Box>
+      <FormControlLabel label="Trace query" sx={{m: 0}}
         control={<BasicSwitch checked={isTracingEnabled} onChange={onChangeQueryTracing} />}
       />
     </Box>
-    <Box ml={2} mr={2}>
-      <StepConfigurator defaultStep={step} customStepEnable={customStep.enable}
+    <Box ml={2}>
+      <StepConfigurator defaultStep={step}
         setStep={(value) => {
           graphDispatch({type: "SET_CUSTOM_STEP", payload: value});
         }}
-        toggleEnableStep={() => {
-          graphDispatch({type: "TOGGLE_CUSTOM_STEP"});
-        }}/>
+      />
     </Box>
+    {!!inputTenantID && <Box ml={2}><TenantsConfiguration/></Box>}
   </Box>;
 };
 

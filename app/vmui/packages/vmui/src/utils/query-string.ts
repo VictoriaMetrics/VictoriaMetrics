@@ -9,6 +9,7 @@ const graphStateToUrlParams = {
   "time.period.step": "step_input",
   "time.relativeTime": "relative_time",
   "displayType": "tab",
+  "tenantId": "tenantID",
 };
 
 const stateToUrlParams = {

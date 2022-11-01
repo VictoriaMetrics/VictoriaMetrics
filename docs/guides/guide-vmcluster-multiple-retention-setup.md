@@ -7,7 +7,7 @@ Setup Victoria Metrics Cluster with support of multiple retention periods within
 
 **Challenge**
 
-If you use [VictoriaMetrics enterprise](https://victoriametrics.com/products/enterprise/), then you can use
+If you use [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html), then you can use
 [retention filters](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters) for applying multiple retentions
 to distinct sets of time series and/or [tenants](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 

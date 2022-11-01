@@ -6,6 +6,52 @@ import (
 	textTpl "text/template"
 )
 
+func TestTemplateFuncs(t *testing.T) {
+	funcs := templateFuncs()
+	f := func(funcName, s, resultExpected string) {
+		t.Helper()
+		v := funcs[funcName]
+		fLocal := v.(func(s string) string)
+		result := fLocal(s)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for %s(%q); got\n%s\nwant\n%s", funcName, s, result, resultExpected)
+		}
+	}
+	f("title", "foo bar", "Foo Bar")
+	f("toUpper", "foo", "FOO")
+	f("toLower", "FOO", "foo")
+	f("pathEscape", "foo/bar\n+baz", "foo%2Fbar%0A+baz")
+	f("queryEscape", "foo+bar\n+baz", "foo%2Bbar%0A%2Bbaz")
+	f("jsonEscape", `foo{bar="baz"}`+"\n + 1", `"foo{bar=\"baz\"}\n + 1"`)
+	f("quotesEscape", `foo{bar="baz"}`+"\n + 1", `foo{bar=\"baz\"}\n + 1`)
+	f("htmlEscape", "foo < 10\nabc", "foo &lt; 10\nabc")
+	f("crlfEscape", "foo\nbar\rx", `foo\nbar\rx`)
+	f("stripPort", "foo", "foo")
+	f("stripPort", "foo:1234", "foo")
+	f("stripDomain", "foo.bar.baz", "foo")
+	f("stripDomain", "foo.bar:123", "foo:123")
+
+	// check "match" func
+	matchFunc := funcs["match"].(func(pattern, s string) (bool, error))
+	if _, err := matchFunc("invalid[regexp", "abc"); err == nil {
+		t.Fatalf("expecting non-nil error on invalid regexp")
+	}
+	ok, err := matchFunc("abc", "def")
+	if err != nil {
+		t.Fatalf("unexpected error")
+	}
+	if ok {
+		t.Fatalf("unexpected match")
+	}
+	ok, err = matchFunc("a.+b", "acsdb")
+	if err != nil {
+		t.Fatalf("unexpected error")
+	}
+	if !ok {
+		t.Fatalf("unexpected mismatch")
+	}
+}
+
 func mkTemplate(current, replacement interface{}) textTemplate {
 	tmpl := textTemplate{}
 	if current != nil {

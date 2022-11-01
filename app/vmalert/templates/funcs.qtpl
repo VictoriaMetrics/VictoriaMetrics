@@ -1,0 +1,15 @@
+{% stripspace %}
+
+{% func quotesEscape(s string) %}
+	{%j= s %}
+{% endfunc %}
+
+{% func jsonEscape(s string) %}
+	{%q= s %}
+{% endfunc %}
+
+{% func htmlEscape(s string) %}
+	{%s s %}
+{% endfunc %}
+
+{% endstripspace %}

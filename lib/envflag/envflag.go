@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 )
 
 var (
@@ -20,32 +22,57 @@ var (
 //
 // This function must be called instead of flag.Parse() before using any flags in the program.
 func Parse() {
-	flag.Parse()
+	ParseFlagSet(flag.CommandLine, os.Args[1:])
+}
+
+// ParseFlagSet parses the given args into the given fs.
+func ParseFlagSet(fs *flag.FlagSet, args []string) {
+	args = expandArgs(args)
+	if err := fs.Parse(args); err != nil {
+		// Do not use lib/logger here, since it is uninitialized yet.
+		log.Fatalf("cannot parse flags %q: %s", args, err)
+	}
 	if !*enable {
 		return
 	}
-
 	// Remember explicitly set command-line flags.
 	flagsSet := make(map[string]bool)
-	flag.Visit(func(f *flag.Flag) {
+	fs.Visit(func(f *flag.Flag) {
 		flagsSet[f.Name] = true
 	})
 
 	// Obtain the remaining flag values from environment vars.
-	flag.VisitAll(func(f *flag.Flag) {
+	fs.VisitAll(func(f *flag.Flag) {
 		if flagsSet[f.Name] {
 			// The flag is explicitly set via command-line.
 			return
 		}
 		// Get flag value from environment var.
 		fname := getEnvFlagName(f.Name)
-		if v, ok := os.LookupEnv(fname); ok {
-			if err := flag.Set(f.Name, v); err != nil {
+		if v, ok := envtemplate.LookupEnv(fname); ok {
+			if err := fs.Set(f.Name, v); err != nil {
 				// Do not use lib/logger here, since it is uninitialized yet.
-				log.Fatalf("cannot set flag %s to %q, which is read from environment variable %q: %s", f.Name, v, fname, err)
+				log.Fatalf("cannot set flag %s to %q, which is read from env var %q: %s", f.Name, v, fname, err)
 			}
 		}
 	})
+}
+
+// expandArgs substitutes %{ENV_VAR} placeholders inside args
+// with the corresponding environment variable values.
+func expandArgs(args []string) []string {
+	dstArgs := make([]string, 0, len(args))
+	for _, arg := range args {
+		s, err := envtemplate.ReplaceString(arg)
+		if err != nil {
+			// Do not use lib/logger here, since it is uninitialized yet.
+			log.Fatalf("cannot process arg %q: %s", arg, err)
+		}
+		if len(s) > 0 {
+			dstArgs = append(dstArgs, s)
+		}
+	}
+	return dstArgs
 }
 
 func getEnvFlagName(s string) string {

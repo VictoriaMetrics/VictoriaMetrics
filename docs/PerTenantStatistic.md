@@ -4,7 +4,7 @@ sort: 19
 
 # VictoriaMetrics Cluster Per Tenant Statistic
 
-***The per-tenant statistic is a part of [enterprise package](https://victoriametrics.com/products/enterprise/). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
+***The per-tenant statistic is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
 <img alt="cluster-per-tenant-stat" src="PerTenantStatistic-stats.jpg">
 

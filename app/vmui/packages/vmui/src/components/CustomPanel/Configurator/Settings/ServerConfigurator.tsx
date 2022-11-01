@@ -1,30 +1,19 @@
-import React, {FC, useEffect, useState} from "preact/compat";
+import React, {FC, useState} from "preact/compat";
 import TextField from "@mui/material/TextField";
-import {useAppDispatch, useAppState} from "../../../../state/common/StateContext";
+import {useAppState} from "../../../../state/common/StateContext";
 import {ErrorTypes} from "../../../../types";
-import {getAppModeEnable, getAppModeParams} from "../../../../utils/app-mode";
-import {ChangeEvent} from "react";
+import {ChangeEvent, KeyboardEvent} from "react";
 
 export interface ServerConfiguratorProps {
   error?: ErrorTypes | string;
   setServer: (url: string) => void
+  onEnter: (url: string) => void
 }
 
-const ServerConfigurator: FC<ServerConfiguratorProps> = ({error, setServer}) => {
-
-  const appModeEnable = getAppModeEnable();
-  const {serverURL: appServerUrl} = getAppModeParams();
+const ServerConfigurator: FC<ServerConfiguratorProps> = ({error, setServer, onEnter}) => {
 
   const {serverUrl} = useAppState();
-  const dispatch = useAppDispatch();
   const [changedServerUrl, setChangedServerUrl] = useState(serverUrl);
-
-  useEffect(() => {
-    if (appModeEnable) {
-      dispatch({type: "SET_SERVER", payload: appServerUrl});
-      setChangedServerUrl(appServerUrl);
-    }
-  }, [appServerUrl]);
 
   const onChangeServer = (e: ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => {
     const value = e.target.value || "";
@@ -32,10 +21,24 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({error, setServer}) => 
     setServer(value);
   };
 
-  return  <TextField variant="outlined" fullWidth label="Server URL" value={changedServerUrl || ""} disabled={appModeEnable}
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onEnter(changedServerUrl);
+    }
+  };
+
+  return <TextField
+    autoFocus
+    fullWidth
+    variant="outlined"
+    label="Server URL"
+    value={changedServerUrl || ""}
     error={error === ErrorTypes.validServer || error === ErrorTypes.emptyServer}
     inputProps={{style: {fontFamily: "Monospace"}}}
-    onChange={onChangeServer}/>;
+    onChange={onChangeServer}
+    onKeyDown={onKeyDown}
+  />;
 };
 
 export default ServerConfigurator;

@@ -31,7 +31,8 @@ export interface AppState {
   displayType: DisplayType;
   query: string[];
   time: TimeState;
-  queryHistory: QueryHistory[],
+  tenantId: number;
+  queryHistory: QueryHistory[];
   queryControls: {
     autoRefresh: boolean;
     autocomplete: boolean;
@@ -51,6 +52,7 @@ export type Action =
     | { type: "SET_UNTIL", payload: Date }
     | { type: "SET_FROM", payload: Date }
     | { type: "SET_PERIOD", payload: TimePeriod }
+    | { type: "SET_TENANT_ID", payload: number }
     | { type: "RUN_QUERY"}
     | { type: "RUN_QUERY_TO_NOW"}
     | { type: "TOGGLE_AUTOREFRESH"}
@@ -72,6 +74,7 @@ export const initialState: AppState = {
   displayType: (displayType?.value || "chart") as DisplayType,
   query: query, // demo_memory_usage_bytes
   queryHistory: query.map(q => ({index: 0, values: [q]})),
+  tenantId: Number(getQueryStringValue("g0.tenantID", 0)),
   time: {
     duration,
     period: getTimeperiodForDuration(duration, endInput),
@@ -173,6 +176,11 @@ export function reducer(state: AppState, action: Action): AppState {
           period: getTimeperiodForDuration(durationPeriod, action.payload.to),
           relativeTime: "none"
         }
+      };
+    case "SET_TENANT_ID":
+      return {
+        ...state,
+        tenantId: action.payload
       };
     case "TOGGLE_AUTOREFRESH":
       return {

@@ -1,60 +1,67 @@
-import React, {FC, useEffect, useState} from "preact/compat";
-import {ChangeEvent} from "react";
-import Box from "@mui/material/Box";
-import FormControlLabel from "@mui/material/FormControlLabel";
+import React, {FC, useCallback, useState} from "preact/compat";
+import {ChangeEvent, useEffect} from "react";
 import TextField from "@mui/material/TextField";
-import BasicSwitch from "../../../../theme/switch";
+import debounce from "lodash.debounce";
+import InputAdornment from "@mui/material/InputAdornment";
+import Tooltip from "@mui/material/Tooltip";
+import RestartAltIcon from "@mui/icons-material/RestartAlt";
+import IconButton from "@mui/material/IconButton";
 
 interface StepConfiguratorProps {
   defaultStep?: number,
-  customStepEnable: boolean,
   setStep: (step: number) => void,
-  toggleEnableStep: () => void
 }
 
-const StepConfigurator: FC<StepConfiguratorProps> = ({
-  defaultStep, customStepEnable, setStep, toggleEnableStep
-}) => {
+const StepConfigurator: FC<StepConfiguratorProps> = ({defaultStep, setStep}) => {
 
   const [customStep, setCustomStep] = useState(defaultStep);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
-    setStep(customStep || 1);
-  }, [customStep]);
+  const handleApply = (step: number) => setStep(step || 1);
+  const debouncedHandleApply = useCallback(debounce(handleApply, 700), []);
 
   const onChangeStep = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    if (!customStepEnable) return;
     const value = +e.target.value;
+    if (!value) return;
+    handleSetStep(value);
+  };
+
+  const handleSetStep = (value: number) => {
     if (value > 0) {
       setCustomStep(value);
+      debouncedHandleApply(value);
       setError(false);
     } else {
       setError(true);
     }
   };
 
-  const onChangeEnableStep = () => {
-    setError(false);
-    toggleEnableStep();
-  };
+  useEffect(() => {
+    if (defaultStep) handleSetStep(defaultStep);
+  }, [defaultStep]);
 
-  return <Box display="grid" gridTemplateColumns="auto 120px" alignItems="center">
-    <FormControlLabel
-      control={<BasicSwitch checked={customStepEnable} onChange={onChangeEnableStep}/>}
-      label="Override step value"
-    />
-    <TextField
-      label="Step value"
-      type="number"
-      size="small"
-      variant="outlined"
-      value={customStep}
-      disabled={!customStepEnable}
-      error={error}
-      helperText={error ? "step is out of allowed range" : " "}
-      onChange={onChangeStep}/>
-  </Box>;
+  return <TextField
+    label="Step value"
+    type="number"
+    size="small"
+    variant="outlined"
+    value={customStep}
+    error={error}
+    helperText={error ? "step is out of allowed range" : " "}
+    onChange={onChangeStep}
+    InputProps={{
+      inputProps: {min: 0},
+      endAdornment: (
+        <InputAdornment position="start" sx={{mr: -0.5, cursor: "pointer"}}>
+          <Tooltip title={"Reset step to default"}>
+            <IconButton size={"small"} onClick={() => handleSetStep(defaultStep || 1)}>
+              <RestartAltIcon fontSize={"small"} />
+            </IconButton>
+          </Tooltip>
+        </InputAdornment>
+      ),
+    }}
+  />;
 };
 
 export default StepConfigurator;
