@@ -872,8 +872,10 @@ Steps for restoring from a snapshot:
 
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/admin/tsdb/delete_series?match[]=<timeseries_selector_for_delete>`,
 where `<timeseries_selector_for_delete>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
-for metrics to delete. After that all the time series matching the given selector are deleted. Storage space for
-the deleted time series isn't freed instantly - it is freed during subsequent [background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+for metrics to delete. Delete API doesn't support the deletion of specific time ranges, the series can only be deleted completely. 
+After using the API all the time series matching the given selector will be deleted.
+Storage space for the deleted time series isn't freed instantly - it is freed during subsequent 
+[background merges of data files](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 Note that background merges may never occur for data from previous months, so storage space won't be freed for historical data.
 In this case [forced merge](#forced-merge) may help freeing up storage space.
