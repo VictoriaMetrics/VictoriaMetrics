@@ -45,11 +45,12 @@ plus the following additional features:
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 
-On top of this, enterprise package of VictoriaMetrics usually includes the following important Enterprise points:
+On top of this, enterprise package of VictoriaMetrics includes the following important Enterprise features:
 
 - First-class consulting and technical support provided by the core dev team.
 - [Monitoring of monitoring](https://victoriametrics.com/products/mom/) - this feature allows forecasting
   and preventing possible issues in VictoriaMetrics setups.
 - [Enterprise security compliance](https://victoriametrics.com/security/).
+- Prioritizing of feature requests from Enterprise customers.
 
 [Contact us](mailto:info@victoriametrics.com) if you are interested in VictoriaMetrics enterprise.
