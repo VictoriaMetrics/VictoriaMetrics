@@ -21,7 +21,7 @@ Enterprise version of VictoriaMetrics Single and Cluster support multi-retention
 * VictoriaMetrics Single - `-retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y`
 * VictoriaMetrics Cluster - `-retentionFilter='{vm_account_id=~"42.*"}:1d' -retentionFilter='{env=~"dev|staging"}:3d' -retentionPeriod=4w`. Labels `vm_account_id` and `vm_project_id` can be used to specify tenant and project respectively.
 
-Documentation for the single version is [here](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#multiple-retentions), and for the cluster - [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters)
+Multi-retention is explained in more detail in corresponding docs for [single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#multiple-retentions) and [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters) versions.
 
 **Open Source Solution**
 
