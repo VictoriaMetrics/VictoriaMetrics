@@ -10,7 +10,7 @@ import List from "@mui/material/List";
 import ListItemText from "@mui/material/ListItemText";
 import ListItemButton from "@mui/material/ListItemButton";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
-import {getAppModeEnable} from "../../../utils/app-mode";
+import { getAppModeEnable } from "../../../utils/app-mode";
 import Box from "@mui/material/Box";
 
 interface AutoRefreshOption {
@@ -50,7 +50,7 @@ export const ExecutionControls: FC = () => {
   };
 
   const handleUpdate = () => {
-    dispatch({type: "RUN_QUERY"});
+    dispatch({ type: "RUN_QUERY" });
   };
 
   useEffect(() => {
@@ -72,32 +72,44 @@ export const ExecutionControls: FC = () => {
   const open = Boolean(anchorEl);
 
   return <>
-    <Box sx={{
-      minWidth: "110px",
-      color: "white",
-      border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-      justifyContent: "space-between",
-      boxShadow: "none",
-      borderRadius: "4px",
-      display: "grid",
-      gridTemplateColumns: "auto 1fr"
-    }}>
+    <Box
+      sx={{
+        minWidth: "110px",
+        color: "white",
+        border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
+        justifyContent: "space-between",
+        boxShadow: "none",
+        borderRadius: "4px",
+        display: "grid",
+        gridTemplateColumns: "auto 1fr"
+      }}
+    >
       <Tooltip title="Refresh dashboard">
-        <Button variant="contained" color="primary"
-          sx={{color: "white", minWidth: "34px", boxShadow: "none", borderRadius: "3px 0 0 3px", p: "6px 6px"}}
-          startIcon={<AutorenewIcon fontSize={"small"} style={{marginRight: "-8px", marginLeft: "4px"}}/>}
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ color: "white", minWidth: "34px", boxShadow: "none", borderRadius: "3px 0 0 3px", p: "6px 6px" }}
+          startIcon={<AutorenewIcon
+            fontSize={"small"}
+            style={{ marginRight: "-8px", marginLeft: "4px" }}
+          />}
           onClick={handleUpdate}
         >
         </Button>
       </Tooltip>
       <Tooltip title="Auto-refresh control">
-        <Button variant="contained" color="primary" sx={{boxShadow: "none", borderRadius: "0 3px 3px 0"}} fullWidth
-        endIcon={<KeyboardArrowDownIcon sx={{ transform: open ? "rotate(180deg)" : "none" }}/>}
-        onClick={(e) => setAnchorEl(e.currentTarget)}
-      >
-        {selectedDelay.title}
-      </Button>
-    </Tooltip></Box>
+        <Button
+          variant="contained"
+          color="primary"
+          sx={{ boxShadow: "none", borderRadius: "0 3px 3px 0" }}
+          fullWidth
+          endIcon={<KeyboardArrowDownIcon sx={{ transform: open ? "rotate(180deg)" : "none" }}/>}
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+        >
+          {selectedDelay.title}
+        </Button>
+      </Tooltip>
+    </Box>
     <Popper
       open={open}
       anchorEl={anchorEl}

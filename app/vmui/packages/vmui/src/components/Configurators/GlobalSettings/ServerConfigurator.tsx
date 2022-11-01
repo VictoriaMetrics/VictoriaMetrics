@@ -2,7 +2,7 @@ import React, { FC, useState } from "preact/compat";
 import TextField from "@mui/material/TextField";
 import { useAppState } from "../../../state/common/StateContext";
 import { ErrorTypes } from "../../../types";
-import { ChangeEvent , KeyboardEvent} from "react";
+import { ChangeEvent , KeyboardEvent } from "react";
 
 export interface ServerConfiguratorProps {
   error?: ErrorTypes | string;
@@ -10,7 +10,7 @@ export interface ServerConfiguratorProps {
   onEnter: (url: string) => void
 }
 
-const ServerConfigurator: FC<ServerConfiguratorProps> = ({ error, setServer , onEnter}) => {
+const ServerConfigurator: FC<ServerConfiguratorProps> = ({ error, setServer , onEnter }) => {
 
   const { serverUrl } = useAppState();
   const [changedServerUrl, setChangedServerUrl] = useState(serverUrl);
@@ -27,7 +27,7 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ error, setServer , on
       onEnter(changedServerUrl);
     }
   };
-  return  <TextField
+  return <TextField
     autoFocus
     fullWidth
     variant="outlined"

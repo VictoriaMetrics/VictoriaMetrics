@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { CSSProperties } from "react";
 import { MouseEvent as ReactMouseEvent } from "react";
-import { DashboardRow } from "../../types";
+import { DashboardRow } from "../../../types";
 import Box from "@mui/material/Box";
 import Accordion from "@mui/material/Accordion";
 import AccordionSummary from "@mui/material/AccordionSummary";
@@ -9,9 +9,9 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import Grid from "@mui/material/Grid";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import Typography from "@mui/material/Typography";
-import PredefinedPanels from "./PredefinedPanels";
+import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";
 import Alert from "@mui/material/Alert";
-import useResize from "../../hooks/useResize";
+import useResize from "../../../hooks/useResize";
 
 export interface PredefinedDashboardProps extends DashboardRow {
   filename: string;
@@ -119,7 +119,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({ index, title, panel
                 position={"relative"}
                 height={"100%"}
               >
-                <PredefinedPanels
+                <PredefinedPanel
                   title={p.title}
                   description={p.description}
                   unit={p.unit}

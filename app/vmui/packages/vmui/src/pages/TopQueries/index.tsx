@@ -18,7 +18,7 @@ import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
-const TopQueries: FC = () => {
+const Index: FC = () => {
   const { data, error, loading } = useFetchTopQueries();
   const { topN, maxLifetime } = useTopQueriesState();
   const topQueriesDispatch = useTopQueriesDispatch();
@@ -199,4 +199,4 @@ const TopQueries: FC = () => {
   );
 };
 
-export default TopQueries;
+export default Index;

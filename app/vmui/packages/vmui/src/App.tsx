@@ -6,12 +6,12 @@ import CssBaseline from "@mui/material/CssBaseline";
 import LocalizationProvider from "@mui/lab/LocalizationProvider";
 import DayjsUtils from "@date-io/dayjs";
 import router from "./router";
-import CustomPanel from "./pages/CustomPanel/CustomPanel";
-import HomeLayout from "./components/Home/HomeLayout";
-import DashboardsLayout from "./pages/PredefinedPanels/DashboardLayout";
-import CardinalityPanel from "./pages/CardinalityPanel/CardinalityPanel";
-import TopQueries from "./pages/TopQueries/TopQueries";
 import AppContextProvider from "./contexts/AppContextProvider";
+import HomeLayout from "./components/Home/HomeLayout";
+import CustomPanel from "./pages/CustomPanel";
+import DashboardsLayout from "./pages/PredefinedPanels";
+import CardinalityPanel from "./pages/CardinalityPanel";
+import TopQueries from "./pages/TopQueries";
 
 const App: FC = () => {
 

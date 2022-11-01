@@ -81,7 +81,10 @@ const GlobalSettings: FC = () => {
             <CloseIcon/>
           </IconButton>
         </Box>
-        <ServerConfigurator setServer={setChangedServerUrl} onEnter={setServer}/>
+        <ServerConfigurator
+          setServer={setChangedServerUrl}
+          onEnter={setServer}
+        />
         <Box
           display="grid"
           gridTemplateColumns="auto auto"

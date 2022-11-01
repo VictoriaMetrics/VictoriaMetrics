@@ -8,10 +8,10 @@ export const useSetQueryParams = () => {
 
   const setSearchParamsFromState = () => {
     const params = compactObject({
-      range_input: duration,
-      end_input: date,
-      step_input: step,
-      relative_time: relativeTime
+      ["g0.range_input"]: duration,
+      ["g0.end_input"]: date,
+      ["g0.step_input"]: step,
+      ["g0.relative_time"]: relativeTime
     });
 
     setQueryStringWithoutPageReload(params);

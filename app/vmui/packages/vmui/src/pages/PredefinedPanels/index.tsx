@@ -5,11 +5,11 @@ import Box from "@mui/material/Box";
 import Alert from "@mui/material/Alert";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import PredefinedDashboard from "./PredefinedDashboard";
+import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import get from "lodash.get";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
-const DashboardLayout: FC = () => {
+const Index: FC = () => {
   useSetQueryParams();
 
   const [dashboards, setDashboards] = useState<DashboardSettings[]>();
@@ -70,4 +70,4 @@ const DashboardLayout: FC = () => {
   </>;
 };
 
-export default DashboardLayout;
+export default Index;

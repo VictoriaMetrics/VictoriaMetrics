@@ -1,25 +1,25 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import Box from "@mui/material/Box";
-import { PanelSettings } from "../../types";
+import { PanelSettings } from "../../../types";
 import Tooltip from "@mui/material/Tooltip";
 import InfoIcon from "@mui/icons-material/Info";
 import Typography from "@mui/material/Typography";
-import { AxisRange, YaxisState } from "../../state/graph/reducer";
-import GraphView from "../../components/Views/GraphView";
+import { AxisRange, YaxisState } from "../../../state/graph/reducer";
+import GraphView from "../../../components/Views/GraphView";
 import Alert from "@mui/material/Alert";
-import { useFetchQuery } from "../../hooks/useFetchQuery";
-import Spinner from "../../components/Main/Spinner";
-import StepConfigurator from "../../components/Configurators/AdditionalSettings/StepConfigurator";
-import GraphSettings from "../../components/Configurators/GraphSettings/GraphSettings";
+import { useFetchQuery } from "../../../hooks/useFetchQuery";
+import Spinner from "../../../components/Main/Spinner";
+import StepConfigurator from "../../../components/Configurators/AdditionalSettings/StepConfigurator";
+import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
 import { marked } from "marked";
-import "./dashboard.css";
-import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
+import "../dashboard.css";
+import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
 }
 
-const PredefinedPanels: FC<PredefinedPanelsProps> = ({
+const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   title,
   description,
   unit,
@@ -196,4 +196,4 @@ const PredefinedPanels: FC<PredefinedPanelsProps> = ({
   </Box>;
 };
 
-export default PredefinedPanels;
+export default PredefinedPanel;

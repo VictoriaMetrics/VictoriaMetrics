@@ -23,7 +23,7 @@ const spinnerContainerStyles = (height: string) =>  {
   };
 };
 
-const CardinalityPanel: FC = () => {
+const Index: FC = () => {
   const { topN, match, date, focusLabel } = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
   useSetQueryParams();
@@ -136,4 +136,4 @@ const CardinalityPanel: FC = () => {
   );
 };
 
-export default CardinalityPanel;
+export default Index;

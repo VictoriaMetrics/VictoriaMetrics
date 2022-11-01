@@ -20,7 +20,7 @@ import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 
-const CustomPanel: FC = () => {
+const Index: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
   const { query } = useQueryState();
   const { period } = useTimeState();
@@ -158,4 +158,4 @@ const CustomPanel: FC = () => {
   );
 };
 
-export default CustomPanel;
+export default Index;

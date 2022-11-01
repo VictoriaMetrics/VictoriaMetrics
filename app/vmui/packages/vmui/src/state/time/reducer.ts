@@ -22,9 +22,12 @@ export type TimeAction =
   | { type: "RUN_QUERY"}
   | { type: "RUN_QUERY_TO_NOW"}
 
+const defaultDuration = getQueryStringValue("g0.range_input") as string;
+
 const { duration, endInput, relativeTimeId } = getRelativeTime({
-  defaultDuration: getQueryStringValue("g0.range_input", "1h") as string,
+  defaultDuration: defaultDuration || "1h",
   defaultEndInput: new Date(formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date)),
+  relativeTimeId: defaultDuration ? getQueryStringValue("g0.relative_time", "none") as string : undefined
 });
 
 export const initialTimeState: TimeState = {
