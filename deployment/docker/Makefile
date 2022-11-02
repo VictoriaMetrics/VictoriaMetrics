@@ -180,13 +180,13 @@ remove-docker-images:
 
 
 docker-single-up:
-	docker-compose -f deployment/docker/docker-compose.yml up
+	docker-compose -f docker-compose.yml up
 
 docker-single-down:
-	docker-compose -f deployment/docker/docker-compose.yml down -v
+	docker-compose -f docker-compose.yml down -v
 
 docker-cluster-up:
-	docker-compose -f deployment/docker/docker-compose-cluster.yml up
+	docker-compose -f docker-compose-cluster.yml up
 
 docker-cluster-down:
-	docker-compose -f deployment/docker/docker-compose-cluster.yml down -v
+	docker-compose -f docker-compose-cluster.yml down -v
