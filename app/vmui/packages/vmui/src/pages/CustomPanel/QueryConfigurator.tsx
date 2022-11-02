@@ -55,15 +55,15 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
-  const onSetQuery = (value: string, index: number) => {
+  const handleChangeQuery = (value: string, index: number) => {
     setStateQuery(prev => prev.map((q, i) => i === index ? value : q));
   };
 
-  const setHistoryIndex = (step: number, indexQuery: number) => {
+  const handleHistoryChange = (step: number, indexQuery: number) => {
     const { index, values } = queryHistory[indexQuery];
     const newIndexHistory = index + step;
     if (newIndexHistory < 0 || newIndexHistory >= values.length) return;
-    onSetQuery(values[newIndexHistory] || "", indexQuery);
+    handleChangeQuery(values[newIndexHistory] || "", indexQuery);
     queryDispatch({
       type: "SET_QUERY_HISTORY_BY_INDEX",
       payload: { value: { values, index: newIndexHistory }, queryNumber: indexQuery }
@@ -89,14 +89,14 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
           mb={i === stateQuery.length - 1 ? 0 : 2}
         >
           <QueryEditor
-            query={stateQuery[i]}
-            index={i}
+            value={stateQuery[i]}
             autocomplete={autocomplete}
-            queryOptions={queryOptions}
+            options={queryOptions}
             error={error}
-            setHistoryIndex={setHistoryIndex}
-            runQuery={onRunQuery}
-            setQuery={onSetQuery}
+            onArrowUp={() => handleHistoryChange(-1, i)}
+            onArrowDown={() => handleHistoryChange(1, i)}
+            onEnter={onRunQuery}
+            onChange={(value) => handleChangeQuery(value, i)}
             label={`Query ${i + 1}`}
             size={"small"}
           />

@@ -1,7 +1,7 @@
 import { MetricResult } from "../../api/types";
 import { Series } from "uplot";
 import { getNameForMetric } from "../metric";
-import { BarSeriesItem, Disp, Fill, LegendItem, Stroke } from "./types";
+import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
 import { getColorLine } from "./helpers";
 import { HideSeriesArgs } from "./types";
 
@@ -26,7 +26,7 @@ export const getSeriesItem = (d: MetricResult, hideSeries: string[], alias: stri
   };
 };
 
-export const getLegendItem = (s: SeriesItem, group: number): LegendItem => ({
+export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => ({
   group,
   label: s.label || "",
   color: s.stroke as string,

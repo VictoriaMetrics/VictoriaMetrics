@@ -112,11 +112,15 @@ const Index: FC = () => {
         focusLabel={focusLabel}
         onFocusLabelChange={onFocusLabelChange}
       />
-      {error && <Alert
-        color="error"
-        severity="error"
-        sx={{ whiteSpace: "pre-wrap", mt: 2 }}
-      >{error}</Alert>}
+      {error && (
+        <Alert
+          color="error"
+          severity="error"
+          sx={{ whiteSpace: "pre-wrap", m: 2 }}
+        >
+          {error}
+        </Alert>
+      )}
       {appConfigurator.keys(focusLabel).map((keyName) => (
         <MetricsContent
           key={keyName}

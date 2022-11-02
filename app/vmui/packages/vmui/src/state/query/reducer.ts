@@ -1,4 +1,4 @@
-import { getFromStorage } from "../../utils/storage";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { getQueryArray } from "../../utils/query-string";
 
 export interface QueryHistory {
@@ -45,6 +45,7 @@ export function reducer(state: QueryState, action: QueryAction): QueryState {
         queryHistory: state.queryHistory
       };
     case "TOGGLE_AUTOCOMPLETE":
+      saveToStorage("AUTOCOMPLETE", !state.autocomplete);
       return {
         ...state,
         autocomplete: !state.autocomplete

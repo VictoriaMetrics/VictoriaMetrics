@@ -24,7 +24,7 @@ export const initialState: CardinalityState = {
   topN: getQueryStringValue("topN", 10) as number,
   date: getQueryStringValue("date", dayjs(new Date()).format("YYYY-MM-DD")) as string,
   focusLabel: getQueryStringValue("focusLabel", "") as string,
-  match: (getQueryStringValue("match", []) as string[]).join("&"),
+  match: getQueryStringValue("match", "") as string,
   extraLabel: getQueryStringValue("extra_label", "") as string,
 };
 

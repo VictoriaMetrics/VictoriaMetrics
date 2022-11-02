@@ -7,12 +7,12 @@ import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import TextField from "@mui/material/TextField";
 import { ErrorTypes } from "../../../types";
-import QueryAutocompleteSwitcher from "../../../components/Configurators/QueryEditor/QueryAutocompleteSwitcher";
-import { useQueryState } from "../../../state/query/QueryStateContext";
+import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
+import Toggle from "../../../components/Main/Toggle/Toggle";
 
 export interface CardinalityConfiguratorProps {
-  onSetHistory: (step: number, index: number) => void;
-  onSetQuery: (query: string, index: number) => void;
+  onSetHistory: (step: number) => void;
+  onSetQuery: (query: string) => void;
   onRunQuery: () => void;
   onTopNChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
   onFocusLabelChange: (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => void;
@@ -42,7 +42,13 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
   focusLabel
 }) => {
   const { autocomplete } = useQueryState();
+  const queryDispatch = useQueryDispatch();
+
   const { queryOptions } = useFetchQueryOptions();
+
+  const onChangeAutocomplete = () => {
+    queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
+  };
 
   return <Box
     boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;"
@@ -54,22 +60,22 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
       <Box
         display="grid"
         gridTemplateColumns="1fr auto auto auto auto"
-        gap="4px"
+        gap={2}
         width="100%"
         mb={4}
       >
         <QueryEditor
-          query={query || match || ""}
-          index={0}
+          value={query || match || ""}
           autocomplete={autocomplete}
-          queryOptions={queryOptions}
+          options={queryOptions}
           error={error}
-          setHistoryIndex={onSetHistory}
-          runQuery={onRunQuery}
-          setQuery={onSetQuery}
+          onArrowUp={() => onSetHistory(-1)}
+          onArrowDown={() => onSetHistory(1)}
+          onEnter={onRunQuery}
+          onChange={(value) => onSetQuery(value)}
           label={"Time series selector"}
         />
-        <Box mr={2}>
+        <Box>
           <TextField
             label="Number of entries per table"
             type="number"
@@ -81,7 +87,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
             onChange={onTopNChange}
           />
         </Box>
-        <Box mr={2}>
+        <Box>
           <TextField
             label="Focus label"
             type="text"
@@ -91,7 +97,17 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
             onChange={onFocusLabelChange}
           />
         </Box>
-        <QueryAutocompleteSwitcher/>
+        <Box
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+        >
+          <Toggle
+            label={"Autocomplete"}
+            value={autocomplete}
+            onChange={onChangeAutocomplete}
+          />
+        </Box>
         <Tooltip title="Execute Query">
           <IconButton
             onClick={onRunQuery}

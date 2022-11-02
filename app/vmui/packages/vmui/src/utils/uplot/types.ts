@@ -19,7 +19,7 @@ export interface SetupTooltip {
 
 export interface HideSeriesArgs {
     hideSeries: string[],
-    legend: LegendItem,
+    legend: LegendItemType,
     metaKey: boolean,
     series: Series[]
 }
@@ -32,7 +32,7 @@ export interface DragArgs {
     setPlotScale: ({ u, min, max }: { u: uPlot, min: number, max: number }) => void
 }
 
-export interface LegendItem {
+export interface LegendItemType {
     group: number;
     label: string;
     color: string;

@@ -1,5 +1,5 @@
 import { DisplayType, displayTypeTabs } from "../../pages/CustomPanel/DisplayTypeSwitch";
-import { getFromStorage } from "../../utils/storage";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { getQueryStringValue } from "../../utils/query-string";
 
 export interface CustomPanelState {
@@ -30,12 +30,14 @@ export function reducer(state: CustomPanelState, action: CustomPanelAction): Cus
         displayType: action.payload
       };
     case "TOGGLE_QUERY_TRACING":
+      saveToStorage("QUERY_TRACING", !state.isTracingEnabled);
       return {
         ...state,
         isTracingEnabled: !state.isTracingEnabled,
 
       };
     case "TOGGLE_NO_CACHE":
+      saveToStorage("NO_CACHE", !state.nocache);
       return {
         ...state,
         nocache: !state.nocache

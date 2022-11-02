@@ -5,7 +5,7 @@ import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
 import Legend from "../Chart/Legend/Legend";
 import { getHideSeries, getLegendItem, getSeriesItem } from "../../utils/uplot/series";
 import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../utils/uplot/axes";
-import { LegendItem } from "../../utils/uplot/types";
+import { LegendItemType } from "../../utils/uplot/types";
 import { TimeParams } from "../../types";
 import { AxisRange, YaxisState } from "../../state/graph/reducer";
 import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../utils/math";
@@ -56,7 +56,7 @@ const GraphView: FC<GraphViewProps> = ({
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
-  const [legend, setLegend] = useState<LegendItem[]>([]);
+  const [legend, setLegend] = useState<LegendItemType[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
@@ -64,14 +64,14 @@ const GraphView: FC<GraphViewProps> = ({
     setYaxisLimits(limits);
   };
 
-  const onChangeLegend = (legend: LegendItem, metaKey: boolean) => {
+  const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
     setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
   };
 
   useEffect(() => {
     const tempTimes: number[] = [];
     const tempValues: {[key: string]: number[]} = {};
-    const tempLegend: LegendItem[] = [];
+    const tempLegend: LegendItemType[] = [];
     const tempSeries: uPlotSeries[] = [{}];
 
     data?.forEach((d) => {
@@ -122,7 +122,7 @@ const GraphView: FC<GraphViewProps> = ({
   }, [data]);
 
   useEffect(() => {
-    const tempLegend: LegendItem[] = [];
+    const tempLegend: LegendItemType[] = [];
     const tempSeries: uPlotSeries[] = [{}];
     data?.forEach(d => {
       const seriesItem = getSeriesItem(d, hideSeries, alias);

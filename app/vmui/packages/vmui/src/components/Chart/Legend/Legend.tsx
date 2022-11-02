@@ -1,27 +1,18 @@
 import React, { FC, useMemo, useState } from "preact/compat";
-import { LegendItem } from "../../../utils/uplot/types";
+import { LegendItemType } from "../../../utils/uplot/types";
+import LegendItem from "./LegendItem/LegendItem";
 import "./legend.css";
-import { getLegendLabel } from "../../../utils/uplot/helpers";
-import Tooltip from "@mui/material/Tooltip";
 
-export interface LegendProps {
-  labels: LegendItem[];
+interface LegendProps {
+  labels: LegendItemType[];
   query: string[];
-  onChange: (item: LegendItem, metaKey: boolean) => void;
+  onChange: (item: LegendItemType, metaKey: boolean) => void;
 }
 
 const Legend: FC<LegendProps> = ({ labels, query, onChange }) => {
-  const [copiedValue, setCopiedValue] = useState("");
-
   const groups = useMemo(() => {
     return Array.from(new Set(labels.map(l => l.group)));
   }, [labels]);
-
-  const handleClickFreeField = async (val: string, id: string) => {
-    await navigator.clipboard.writeText(val);
-    setCopiedValue(id);
-    setTimeout(() => setCopiedValue(""), 2000);
-  };
 
   return <>
     <div className="legendWrapper">
@@ -34,44 +25,12 @@ const Legend: FC<LegendProps> = ({ labels, query, onChange }) => {
           <span>(&quot;{query[group - 1]}&quot;)</span>
         </div>
         <div>
-          {labels.filter(l => l.group === group).map((legendItem: LegendItem) =>
-            <div
-              className={legendItem.checked ? "legendItem" : "legendItem legendItemHide"}
+          {labels.filter(l => l.group === group).map((legendItem: LegendItemType) =>
+            <LegendItem
               key={legendItem.label}
-              onClick={(e) => onChange(legendItem, e.ctrlKey || e.metaKey)}
-            >
-              <div
-                className="legendMarker"
-                style={{ backgroundColor: legendItem.color }}
-              />
-              <div className="legendLabel">
-                {getLegendLabel(legendItem.label)}
-                {!!Object.keys(legendItem.freeFormFields).length && <>
-                  &#160;&#123;
-                  {Object.keys(legendItem.freeFormFields).filter(f => f !== "__name__").map((f) => {
-                    const freeField = `${f}="${legendItem.freeFormFields[f]}"`;
-                    const fieldId = `${legendItem.label}.${freeField}`;
-                    return <Tooltip
-                      arrow
-                      key={f}
-                      open={copiedValue === fieldId}
-                      title={"Copied!"}
-                    >
-                      <span
-                        className="legendFreeFields"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleClickFreeField(freeField, fieldId);
-                        }}
-                      >
-                        {f}: {legendItem.freeFormFields[f]}
-                      </span>
-                    </Tooltip>;
-                  })}
-                  &#125;
-                </>}
-              </div>
-            </div>
+              legend={legendItem}
+              onChange={onChange}
+            />
           )}
         </div>
       </div>)}

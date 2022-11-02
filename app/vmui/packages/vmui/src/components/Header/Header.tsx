@@ -17,6 +17,7 @@ import { useCardinalityState, useCardinalityDispatch } from "../../state/cardina
 import { useEffect } from "react";
 import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
+import CardinalityDatePicker from "../Configurators/CardinalityDatePicker/CardinalityDatePicker";
 
 const classes = {
   logo: {
@@ -165,12 +166,7 @@ const Header: FC = () => {
         ml={4}
       >
         {headerSetup?.timeSelector && <TimeSelector/>}
-        {headerSetup?.datePicker && (
-          <DatePicker
-            date={date}
-            onChange={(val) => cardinalityDispatch({ type: "SET_DATE", payload: val })}
-          />
-        )}
+        {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
         {headerSetup?.executionControls && <ExecutionControls/>}
         {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
         <ShortcutKeys/>
