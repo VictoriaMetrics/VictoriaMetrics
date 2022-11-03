@@ -6,6 +6,7 @@ import {Alert} from "@mui/material";
 import Trace from "../../components/CustomPanel/Trace/Trace";
 import TracingsView from "../../components/CustomPanel/Views/TracingsView";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
 
 const TracePage: FC = () => {
   const [tracesState, setTracesState] = useState<Trace[]>([]);
@@ -95,16 +96,24 @@ const TracePage: FC = () => {
       {!tracesState.length && (
         <Box
           display={"flex"}
-          gap={1}
           flexDirection={"column"}
           alignItems={"center"}
           justifyContent={"center"}
           flexGrow={"1"}
           paddingBottom={"64px"}
         >
-          <div>Please, file with JSON response content.</div>
-          <div>The file must contain tracing information in JSON format.</div>
-          <div>Tracing graph will be displayed after file upload.</div>
+          <Typography sx={{fontSize: 16, whiteSpace: "pre-line", textAlign: "center", lineHeight: "26px"}}>
+            Please, file with JSON response content.
+            {"\n"}
+            The file must contain tracing information in JSON format.
+            {"\n"}
+            In order to use tracing please refer to the doc:&nbsp;
+            <a href="https://docs.victoriametrics.com/#query-tracing" target="_blank" rel="noreferrer">
+              https://docs.victoriametrics.com/#query-tracing
+            </a>
+            {"\n"}
+            Tracing graph will be displayed after file upload.
+          </Typography>
           <Tooltip title="The file must contain tracing information in JSON format">
             <Button
               variant="contained"
