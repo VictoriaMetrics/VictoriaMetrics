@@ -19,11 +19,12 @@ const TracePage: FC = () => {
     try {
       const result = String(e.target?.result);
       const resp = JSON.parse(result);
-      if (!resp.trace) {
+      const traceData = resp.trace || resp;
+      if (!traceData.duration_msec) {
         handleError(new Error("Not found the tracing information"), filename);
         return;
       }
-      setTracesState(prev => [...prev, new Trace(resp.trace, filename)]);
+      setTracesState(prev => [...prev, new Trace(traceData, filename)]);
     } catch (e) {
       if (e instanceof Error) handleError(e, filename);
     }
