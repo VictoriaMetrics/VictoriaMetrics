@@ -655,14 +655,14 @@ VMAgentList contains a list of VMAgent
 
 VMAgentRemoteWriteSettings - defines global settings for all remoteWrite urls.
 
-| Field | Description | Scheme | Required |
-| ----- | ----------- | ------ | -------- |
-| maxBlockSize | The maximum size in bytes of unpacked request to send to remote storage | *int32 | false |
-| maxDiskUsagePerURL | The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath | *int32 | false |
-| queues | The number of concurrent queues | *int32 | false |
-| showURL | Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive auth info | *bool | false |
-| tmpDataPath | Path to directory where temporary data for remote write component is stored (default vmagent-remotewrite-data) | *string | false |
-| flushInterval | Interval for flushing the data to remote storage. (default 1s) | *string | false |
+| Field | Description | Scheme            | Required |
+| ----- | ----------- |-------------------| -------- |
+| maxBlockSize | The maximum size in bytes of unpacked request to send to remote storage | *int32            | false |
+| maxDiskUsagePerURL | The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath | *int64            | false |
+| queues | The number of concurrent queues | *int32            | false |
+| showURL | Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive auth info | *bool             | false |
+| tmpDataPath | Path to directory where temporary data for remote write component is stored (default vmagent-remotewrite-data) | *string           | false |
+| flushInterval | Interval for flushing the data to remote storage. (default 1s) | *string           | false |
 | label | Optional labels in the form &#39;name=value&#39; to add to all the metrics before sending them | map[string]string | false |
 
 [Back to TOC](#table-of-contents)
