@@ -9,7 +9,7 @@ interface TraceViewProps {
 
 const TraceView: FC<TraceViewProps> = ({trace}) => {
 
-  return (<List sx={{ width: "100%" }} component="nav">
+  return (<List sx={{ width: "100%", mb: 2 }} component="nav">
     <NestedNav trace={trace} totalMsec={trace.duration} />
   </List>);
 };

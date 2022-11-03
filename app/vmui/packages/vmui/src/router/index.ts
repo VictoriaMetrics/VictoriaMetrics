@@ -3,6 +3,7 @@ const router = {
   dashboards: "/dashboards",
   cardinality: "/cardinality",
   topQueries: "/top-queries",
+  trace: "/trace"
 };
 
 export interface RouterOptions {

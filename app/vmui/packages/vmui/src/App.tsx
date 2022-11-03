@@ -18,6 +18,7 @@ import HomeLayout from "./components/Home/HomeLayout";
 import DashboardsLayout from "./components/PredefinedPanels/DashboardsLayout";
 import CardinalityPanel from "./components/CardinalityPanel/CardinalityPanel";
 import TopQueries from "./components/TopQueries/TopQueries";
+import TracePage from "./pages/TracePage";
 
 
 const App: FC = () => {
@@ -40,6 +41,7 @@ const App: FC = () => {
                             <Route path={router.dashboards} element={<DashboardsLayout/>}/>
                             <Route path={router.cardinality} element={<CardinalityPanel/>} />
                             <Route path={router.topQueries} element={<TopQueries/>} />
+                            <Route path={router.trace} element={<TracePage/>} />
                           </Route>
                         </Routes>
                       </SnackbarProvider>
