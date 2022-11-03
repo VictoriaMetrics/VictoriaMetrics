@@ -102,7 +102,7 @@ const TracePage: FC = () => {
           flexGrow={"1"}
           paddingBottom={"64px"}
         >
-          <div>You can choose a file and download it.</div>
+          <div>Please, file with JSON response content.</div>
           <div>The file must contain tracing information in JSON format.</div>
           <div>When a file is downloaded successfully, all tracing information shows.</div>
           <Tooltip title="The file must contain tracing information in JSON format">
