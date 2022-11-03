@@ -104,7 +104,7 @@ const TracePage: FC = () => {
         >
           <div>Please, file with JSON response content.</div>
           <div>The file must contain tracing information in JSON format.</div>
-          <div>When a file is downloaded successfully, all tracing information shows.</div>
+          <div>Tracing graph will be displayed after file upload.</div>
           <Tooltip title="The file must contain tracing information in JSON format">
             <Button
               variant="contained"
