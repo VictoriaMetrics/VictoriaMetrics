@@ -103,7 +103,7 @@ const TracePage: FC = () => {
           paddingBottom={"64px"}
         >
           <Typography sx={{fontSize: 16, whiteSpace: "pre-line", textAlign: "center", lineHeight: "26px"}}>
-            Please, file with JSON response content.
+            Please, upload file with JSON response content.
             {"\n"}
             The file must contain tracing information in JSON format.
             {"\n"}
