@@ -14,7 +14,16 @@ to distinct sets of time series and/or [tenants](https://docs.victoriametrics.co
 Community version of VictoriaMetrics supports only one retention period via [-retentionPeriod](https://docs.victoriametrics.com/#retention) command-line flag.
 The following solution allows supporting multiple retentions for community version of VictoriaMetrics.
 
-**Solution**
+**Enterprise Solution**
+
+Enterprise version of VictoriaMetrics Single and Cluster support multi-retention from version [1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0) via `-retentionFilters` command-line flag. For example:
+
+* VictoriaMetrics Single - `-retentionFilter='{env=~"dev|staging"}:30d' -retentionPeriod=1y`
+* VictoriaMetrics Cluster - `-retentionFilter='{vm_account_id=~"42.*"}:1d' -retentionFilter='{env=~"dev|staging"}:3d' -retentionPeriod=4w`. Labels `vm_account_id` and `vm_project_id` can be used to specify tenant and project respectively.
+
+Multi-retention is explained in more detail in corresponding docs for [single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#multiple-retentions) and [cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#retention-filters) versions.
+
+**Open Source Solution**
 
 A multi-retention setup can be implemented by dividing a [victoriametrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) into logical groups with different retentions.
 
