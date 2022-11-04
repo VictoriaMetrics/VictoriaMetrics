@@ -94,7 +94,13 @@ const CustomPanel: FC = () => {
             <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
               setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>
           </>}
-          {liveData && (displayType === "code") && <JsonView data={liveData}/>}
+          {liveData && (displayType === "code") && <>
+            {isTracingEnabled && <TracingsView
+              traces={tracesState}
+              onDeleteClick={handleTraceDelete}
+            />}
+            <JsonView data={liveData}/>
+          </>}
           {liveData && (displayType === "table") && <>
             {isTracingEnabled && <TracingsView
               traces={tracesState}
