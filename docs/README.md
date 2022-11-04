@@ -31,6 +31,8 @@ from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/rele
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](#how-to-upgrade-victoriametrics).
 
+VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
+
 ## Prominent features
 
 VictoriaMetrics has the following prominent features:
