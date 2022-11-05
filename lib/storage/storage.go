@@ -2362,7 +2362,11 @@ func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 	}
 	s.currHourMetricIDs.Store(hmNew)
 	if hm.hour != hour {
-		hm.m.Union(newMetricIDs.At(hm.hour))
+		if hm.m != nil {
+			hm.m.Union(newMetricIDs.At(hm.hour))
+		} else {
+			hm.m = newMetricIDs.At(hm.hour)
+		}
 		s.prevHourMetricIDs.Store(hm)
 	}
 }
