@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -20,6 +21,7 @@ var (
 	errInvalidActionType    = NewExitError("ERROR invalid Action type. "+
 		fmt.Sprintf("Must be `func(*Context`)` or `func(*Context) error).  %s", contactSysadmin)+
 		fmt.Sprintf("See %s", appActionDeprecationURL), 2)
+	ignoreFlagPrefix = "test." // this is to ignore test flags when adding flags from other packages
 
 	SuggestFlag               SuggestFlagFunc    = suggestFlag
 	SuggestCommand            SuggestCommandFunc = suggestCommand
@@ -103,12 +105,19 @@ type App struct {
 	// cli.go uses text/template to render templates. You can
 	// render custom help text by setting this variable.
 	CustomAppHelpTemplate string
+	// SliceFlagSeparator is used to customize the separator for SliceFlag, the default is ","
+	SliceFlagSeparator string
 	// Boolean to enable short-option handling so user can combine several
 	// single-character bool arguments into one
 	// i.e. foobar -o -v -> foobar -ov
 	UseShortOptionHandling bool
 	// Enable suggestions for commands and flags
 	Suggest bool
+	// Allows global flags set by libraries which use flag.XXXVar(...) directly
+	// to be parsed through this library
+	AllowExtFlags bool
+	// Treat all flags as normal arguments if true
+	SkipFlagParsing bool
 
 	didSetup bool
 
@@ -195,6 +204,16 @@ func (a *App) Setup() {
 		a.ErrWriter = os.Stderr
 	}
 
+	if a.AllowExtFlags {
+		// add global flags added by other packages
+		flag.VisitAll(func(f *flag.Flag) {
+			// skip test flags
+			if !strings.HasPrefix(f.Name, ignoreFlagPrefix) {
+				a.Flags = append(a.Flags, &extFlag{f})
+			}
+		})
+	}
+
 	var newCommands []*Command
 
 	for _, c := range a.Commands {
@@ -241,6 +260,10 @@ func (a *App) Setup() {
 	if a.Metadata == nil {
 		a.Metadata = make(map[string]interface{})
 	}
+
+	if len(a.SliceFlagSeparator) != 0 {
+		defaultSliceFlagSeparator = a.SliceFlagSeparator
+	}
 }
 
 func (a *App) newRootCommand() *Command {
@@ -264,6 +287,7 @@ func (a *App) newRootCommand() *Command {
 		HelpName:               a.HelpName,
 		CustomHelpTemplate:     a.CustomAppHelpTemplate,
 		categories:             a.categories,
+		SkipFlagParsing:        a.SkipFlagParsing,
 		isRoot:                 true,
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/exported"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/tracing"
 )
 
 // Policy represents an extensibility point for the Pipeline that can mutate the specified
@@ -27,6 +28,9 @@ type Request = exported.Request
 // ClientOptions contains optional settings for a client's pipeline.
 // All zero-value fields will be initialized with default values.
 type ClientOptions struct {
+	// APIVersion overrides the default version requested of the service. Set with caution as this package version has not been tested with arbitrary service versions.
+	APIVersion string
+
 	// Cloud specifies a cloud for the client. The default is Azure Public Cloud.
 	Cloud cloud.Configuration
 
@@ -38,6 +42,10 @@ type ClientOptions struct {
 
 	// Telemetry configures the built-in telemetry policy.
 	Telemetry TelemetryOptions
+
+	// TracingProvider configures the tracing provider.
+	// It defaults to a no-op tracer.
+	TracingProvider tracing.Provider
 
 	// Transport sets the transport for HTTP requests.
 	Transport Transporter

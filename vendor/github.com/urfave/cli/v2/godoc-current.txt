@@ -316,12 +316,19 @@ type App struct {
 	// cli.go uses text/template to render templates. You can
 	// render custom help text by setting this variable.
 	CustomAppHelpTemplate string
+	// SliceFlagSeparator is used to customize the separator for SliceFlag, the default is ","
+	SliceFlagSeparator string
 	// Boolean to enable short-option handling so user can combine several
 	// single-character bool arguments into one
 	// i.e. foobar -o -v -> foobar -ov
 	UseShortOptionHandling bool
 	// Enable suggestions for commands and flags
 	Suggest bool
+	// Allows global flags set by libraries which use flag.XXXVar(...) directly
+	// to be parsed through this library
+	AllowExtFlags bool
+	// Treat all flags as normal arguments if true
+	SkipFlagParsing bool
 
 	// Has unexported fields.
 }
@@ -841,7 +848,7 @@ func Exit(message interface{}, exitCode int) ExitCoder
 
     This is the simplest way to trigger a non-zero exit code for an App
     without having to call os.Exit manually. During testing, this behavior
-    can be avoided by overiding the ExitErrHandler function on an App or the
+    can be avoided by overriding the ExitErrHandler function on an App or the
     package-global OsExiter function.
 
 func NewExitError(message interface{}, exitCode int) ExitCoder

@@ -37,7 +37,7 @@ git remote add enterprise <url>
       This step can be run manually with the command `make publish` from the needed git tag.
 4. Push the tags created `v1.xx.y` and `v1.xx.y-cluster` at step 2 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics .
    **Important note:** do not push enteprise tags to public GitHub repository - they must be pushed only to private repository.
-5. Run `TAG=v1.xx.yy make github-create-release github-upload-assets`. This command performs the following tasks:
+5. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
    a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
       The release id is stored at `/tmp/vm-github-release` file.
@@ -57,6 +57,7 @@ git remote add enterprise <url>
 8. Remove the `draft` checkbox for the `TAG` release and manually publish it.
 9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
    by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
+10. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
 
 ## Building snap package
 
