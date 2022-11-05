@@ -1,5 +1,22 @@
 # Release History
 
+## 1.2.0 (2022-11-04)
+
+### Features Added
+* Added `ClientOptions.APIVersion` field, which overrides the default version a client
+  requests of the service, if the client supports this (all ARM clients do).
+* Added package `tracing` that contains the building blocks for distributed tracing.
+* Added field `TracingProvider` to type `policy.ClientOptions` that will be used to set the per-client tracing implementation.
+
+### Bugs Fixed
+* Fixed an issue in `runtime.SetMultipartFormData` to properly handle slices of `io.ReadSeekCloser`.
+* Fixed the MaxRetryDelay default to be 60s.
+* Failure to poll the state of an LRO will now return an `*azcore.ResponseError` for poller types that require this behavior.
+* Fixed a bug in `runtime.NewPipeline` that would cause pipeline-specified allowed headers and query parameters to be lost.
+
+### Other Changes
+* Retain contents of read-only fields when sending requests.
+
 ## 1.1.4 (2022-10-06)
 
 ### Bugs Fixed
