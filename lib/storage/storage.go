@@ -916,8 +916,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	}
 
 	// Unmarshal header
-	isFull := encoding.UnmarshalUint64(src)
-	src = src[8:]
 	hourLoaded := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	if hourLoaded != hour {
@@ -971,7 +969,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 
 	hm.m = m
 	hm.byTenant = byTenant
-	hm.isFull = isFull != 0
 	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), m.Len(), srcOrigLen)
 	return hm
 }
@@ -1000,13 +997,8 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	logger.Infof("saving %s to %q...", name, path)
 	startTime := time.Now()
 	dst := make([]byte, 0, hm.m.Len()*8+24)
-	isFull := uint64(0)
-	if hm.isFull {
-		isFull = 1
-	}
 
 	// Marshal header
-	dst = encoding.MarshalUint64(dst, isFull)
 	dst = encoding.MarshalUint64(dst, hm.hour)
 
 	// Marshal hm.m
@@ -2470,7 +2462,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	// Slow path: hm.m must be updated with non-empty s.pendingHourEntries.
 	var m *uint64set.Set
 	var byTenant map[accountProjectKey]*uint64set.Set
-	isFull := hm.isFull
 	if hm.hour == hour {
 		m = hm.m.Clone()
 		byTenant = make(map[accountProjectKey]*uint64set.Set, len(hm.byTenant))
@@ -2480,7 +2471,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	} else {
 		m = &uint64set.Set{}
 		byTenant = make(map[accountProjectKey]*uint64set.Set)
-		isFull = true
 	}
 
 	for _, x := range newEntries {
@@ -2501,7 +2491,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 		m:        m,
 		byTenant: byTenant,
 		hour:     hour,
-		isFull:   isFull,
 	}
 	s.currHourMetricIDs.Store(hmNew)
 	if hm.hour != hour {
@@ -2513,7 +2502,6 @@ type hourMetricIDs struct {
 	m        *uint64set.Set
 	byTenant map[accountProjectKey]*uint64set.Set
 	hour     uint64
-	isFull   bool
 }
 
 type generationTSID struct {
