@@ -24,6 +24,7 @@ func TestExpandTemplates(t *testing.T) {
 	f([]string{"foo=%{bar}", "bar=x"}, []string{"bar=x", "foo=x"})
 	f([]string{"a=x%{b}", "b=y%{c}z%{d}", "c=123", "d=qwe"}, []string{"a=xy123zqwe", "b=y123zqwe", "c=123", "d=qwe"})
 	f([]string{"a=x%{b}y", "b=z%{a}q", "c"}, []string{"a=xzxzxzxz%{a}qyqyqyqy", "b=zxzxzxzx%{b}yqyqyqyq", "c="})
+	f([]string{"a=%{x.y}"}, []string{"a=%{x.y}"})
 }
 
 func TestLookupEnv(t *testing.T) {
@@ -70,6 +71,7 @@ func TestReplaceSuccess(t *testing.T) {
 	f("", "")
 	f("foo", "foo")
 	f("a %{foo}-x", "a bar-x")
+	f("%{foo.bar}", "%{foo.bar}")
 }
 
 func TestReplaceFailure(t *testing.T) {
