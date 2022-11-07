@@ -98,7 +98,7 @@ type Storage struct {
 
 	// Pending MetricID values to be added to currHourMetricIDs.
 	pendingHourEntriesLock sync.Mutex
-	pendingHourEntries     pendingHourEntries
+	pendingHourEntries     *uint64set.Set
 
 	// Pending MetricIDs to be added to nextDayMetricIDs.
 	pendingNextDayMetricIDsLock sync.Mutex
@@ -213,7 +213,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	hmPrev := s.mustLoadHourMetricIDs(hour-1, "prev_hour_metric_ids")
 	s.currHourMetricIDs.Store(hmCurr)
 	s.prevHourMetricIDs.Store(hmPrev)
-	s.pendingHourEntries = pendingHourEntries{{}, {}}
+	s.pendingHourEntries = &uint64set.Set{}
 
 	date := fasttime.UnixDate()
 	nextDayMetricIDs := s.mustLoadNextDayMetricIDs(date)
@@ -718,10 +718,12 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stop:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 			return
 		case <-ticker.C:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 		}
 	}
 }
@@ -770,7 +772,7 @@ func (s *Storage) mustRotateIndexDB() {
 	//    So queries for the last 24 hours stop returning samples added at step 3.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2698
 	s.pendingHourEntriesLock.Lock()
-	s.pendingHourEntries = pendingHourEntries{{}, {}}
+	s.pendingHourEntries = &uint64set.Set{}
 	s.pendingHourEntriesLock.Unlock()
 	s.currHourMetricIDs.Store(&hourMetricIDs{})
 	s.prevHourMetricIDs.Store(&hourMetricIDs{})
@@ -2021,7 +2023,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	}
 	if len(pendingHourEntries) > 0 {
 		s.pendingHourEntriesLock.Lock()
-		s.pendingHourEntries.At(hm.hour).AddMulti(pendingHourEntries)
+		s.pendingHourEntries.AddMulti(pendingHourEntries)
 		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
@@ -2292,8 +2294,7 @@ type byDateMetricIDEntry struct {
 	v    uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs() {
-	date := fasttime.UnixDate()
+func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	e := s.nextDayMetricIDs.Load().(*byDateMetricIDEntry)
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
@@ -2307,6 +2308,11 @@ func (s *Storage) updateNextDayMetricIDs() {
 	// Slow path: union pendingMetricIDs with e.v
 	if e.date == date {
 		pendingMetricIDs.Union(&e.v)
+	} else {
+		// Do not add pendingMetricIDs from the previous day to the cyrrent day,
+		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
+		pendingMetricIDs = &uint64set.Set{}
 	}
 	eNew := &byDateMetricIDEntry{
 		date: date,
@@ -2315,24 +2321,14 @@ func (s *Storage) updateNextDayMetricIDs() {
 	s.nextDayMetricIDs.Store(eNew)
 }
 
-type pendingHourEntries [2]*uint64set.Set
-
-func (p pendingHourEntries) At(hour uint64) *uint64set.Set {
-	return p[hour%2]
-}
-
-func (p pendingHourEntries) Len() int {
-	return p[0].Len() + p[1].Len()
-}
-
 func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	s.pendingHourEntriesLock.Lock()
 	newMetricIDs := s.pendingHourEntries
-	s.pendingHourEntries = pendingHourEntries{{}, {}}
+	s.pendingHourEntries = &uint64set.Set{}
 	s.pendingHourEntriesLock.Unlock()
 
-	if newMetricIDs.At(hour).Len() == 0 && hm.hour == hour {
+	if newMetricIDs.Len() == 0 && hm.hour == hour {
 		// Fast path: nothing to update.
 		return
 	}
@@ -2344,18 +2340,18 @@ func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 	} else {
 		m = &uint64set.Set{}
 	}
-	m.Union(newMetricIDs.At(hour))
+	if hour%24 != 0 {
+		// Do not add pending metricIDs from the previous hour to the current hour on the next day,
+		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
+		m.Union(newMetricIDs)
+	}
 	hmNew := &hourMetricIDs{
 		m:    m,
 		hour: hour,
 	}
 	s.currHourMetricIDs.Store(hmNew)
 	if hm.hour != hour {
-		if hm.m != nil {
-			hm.m.Union(newMetricIDs.At(hm.hour))
-		} else {
-			hm.m = newMetricIDs.At(hm.hour)
-		}
 		s.prevHourMetricIDs.Store(hm)
 	}
 }

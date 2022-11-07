@@ -11,6 +11,7 @@ import (
 	"testing/quick"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 )
 
@@ -150,15 +151,15 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		var s Storage
 		s.currHourMetricIDs.Store(&hourMetricIDs{})
 		s.prevHourMetricIDs.Store(&hourMetricIDs{})
-		s.pendingHourEntries = pendingHourEntries{{}, {}}
+		s.pendingHourEntries = &uint64set.Set{}
 		return &s
 	}
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			hour: hour - 1,
+			hour: 123,
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
@@ -183,7 +184,7 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	})
 	t.Run("empty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
 			hour: hour,
@@ -212,17 +213,16 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	})
 	t.Run("nonempty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
-
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
 		pendingHourEntries.Add(8293432)
-		s.pendingHourEntries.At(hour).Union(pendingHourEntries)
+		s.pendingHourEntries = pendingHourEntries
 
+		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			hour: hour - 1,
+			hour: 123,
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
@@ -247,15 +247,13 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	})
 	t.Run("nonempty_pending_metric_ids_valid_curr_hour", func(t *testing.T) {
 		s := newStorage()
-
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
-
 		pendingHourEntries := &uint64set.Set{}
 		pendingHourEntries.Add(343)
 		pendingHourEntries.Add(32424)
 		pendingHourEntries.Add(8293432)
-		s.pendingHourEntries.At(hour).Union(pendingHourEntries)
+		s.pendingHourEntries = pendingHourEntries
 
+		hour := fasttime.UnixHour()
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
 			hour: hour,
@@ -289,21 +287,17 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
 	})
-	t.Run("nonempty_pending_metric_ids_from_previous_hour_stale_hour", func(t *testing.T) {
+	t.Run("nonempty_pending_metric_ids_from_previous_hour_new_day", func(t *testing.T) {
 		s := newStorage()
 
-		hour := uint64(timestampFromTime(time.Now())) / msecPerHour
+		hour := fasttime.UnixHour()
+		hour -= hour % 24
 
-		pendingPreviousHourEntries := &uint64set.Set{}
-		pendingPreviousHourEntries.Add(343)
-		pendingPreviousHourEntries.Add(32424)
-		pendingPreviousHourEntries.Add(8293432)
-		s.pendingHourEntries.At(hour - 1).Union(pendingPreviousHourEntries)
-
-		pendingCurrentHourEntries := &uint64set.Set{}
-		pendingCurrentHourEntries.Add(12)
-		pendingCurrentHourEntries.Add(34)
-		s.pendingHourEntries.At(hour).Union(pendingCurrentHourEntries)
+		pendingHourEntries := &uint64set.Set{}
+		pendingHourEntries.Add(343)
+		pendingHourEntries.Add(32424)
+		pendingHourEntries.Add(8293432)
+		s.pendingHourEntries = pendingHourEntries
 
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
@@ -315,21 +309,13 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if hmCurr.hour != hour {
 			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
 		}
-		if !hmCurr.m.Equal(pendingCurrentHourEntries) {
-			t.Fatalf("unexpected hmCurr.m; got %v; want %v", hmCurr.m, pendingCurrentHourEntries)
+		if hmCurr.m.Len() != 0 {
+			t.Fatalf("unexpected non-empty hmCurr.m; got %v", hmCurr.m.AppendTo(nil))
 		}
-		if !hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
-		}
-
 		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
-		if !hmPrev.m.Equal(pendingPreviousHourEntries) {
-			t.Fatalf("unexpected hmPrev.m; got %v; want %v", hmPrev.m, pendingPreviousHourEntries)
+		if !reflect.DeepEqual(hmPrev, hmOrig) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmOrig)
 		}
-		if hmPrev.isFull {
-			t.Fatalf("unexpected hmPrev.isFull; got %v; want %v", hmPrev.isFull, false)
-		}
-
 		if s.pendingHourEntries.Len() != 0 {
 			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
 		}
