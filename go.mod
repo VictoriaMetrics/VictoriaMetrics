@@ -31,7 +31,7 @@ require (
 	github.com/oklog/ulid v1.3.1
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/prometheus v1.8.2-0.20201119142752-3ad25a6dc3d9
-	github.com/urfave/cli/v2 v2.23.2
+	github.com/urfave/cli/v2 v2.23.4
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
