@@ -715,10 +715,12 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stop:
-			s.updateCurrHourMetricIDs()
+			hour := fasttime.UnixHour()
+			s.updateCurrHourMetricIDs(hour)
 			return
 		case <-ticker.C:
-			s.updateCurrHourMetricIDs()
+			hour := fasttime.UnixHour()
+			s.updateCurrHourMetricIDs(hour)
 		}
 	}
 }
@@ -731,10 +733,12 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stop:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 			return
 		case <-ticker.C:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 		}
 	}
 }
@@ -2411,8 +2415,7 @@ type byDateMetricIDEntry struct {
 	v    uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs() {
-	date := fasttime.UnixDate()
+func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	e := s.nextDayMetricIDs.Load().(*byDateMetricIDEntry)
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
@@ -2426,6 +2429,11 @@ func (s *Storage) updateNextDayMetricIDs() {
 	// Slow path: union pendingMetricIDs with e.v
 	if e.date == date {
 		pendingMetricIDs.Union(&e.v)
+	} else {
+		// Do not add pendingMetricIDs from the previous day to the cyrrent day,
+		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
+		pendingMetricIDs = &uint64set.Set{}
 	}
 	eNew := &byDateMetricIDEntry{
 		date: date,
@@ -2434,7 +2442,7 @@ func (s *Storage) updateNextDayMetricIDs() {
 	s.nextDayMetricIDs.Store(eNew)
 }
 
-func (s *Storage) updateCurrHourMetricIDs() {
+func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	var newEntries []pendingHourMetricIDEntry
 	s.pendingHourEntriesLock.Lock()
@@ -2453,7 +2461,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	}
 	s.pendingHourEntriesLock.Unlock()
 
-	hour := fasttime.UnixHour()
 	if len(newEntries) == 0 && hm.hour == hour {
 		// Fast path: nothing to update.
 		return
@@ -2473,18 +2480,23 @@ func (s *Storage) updateCurrHourMetricIDs() {
 		byTenant = make(map[accountProjectKey]*uint64set.Set)
 	}
 
-	for _, x := range newEntries {
-		m.Add(x.MetricID)
-		k := accountProjectKey{
-			AccountID: x.AccountID,
-			ProjectID: x.ProjectID,
+	if hour%24 != 0 {
+		// Do not add pending metricIDs from the previous hour to the current hour on the next day,
+		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
+		for _, x := range newEntries {
+			m.Add(x.MetricID)
+			k := accountProjectKey{
+				AccountID: x.AccountID,
+				ProjectID: x.ProjectID,
+			}
+			e := byTenant[k]
+			if e == nil {
+				e = &uint64set.Set{}
+				byTenant[k] = e
+			}
+			e.Add(x.MetricID)
 		}
-		e := byTenant[k]
-		if e == nil {
-			e = &uint64set.Set{}
-			byTenant[k] = e
-		}
-		e.Add(x.MetricID)
 	}
 
 	hmNew := &hourMetricIDs{
