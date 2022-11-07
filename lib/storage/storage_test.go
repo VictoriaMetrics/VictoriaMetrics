@@ -178,9 +178,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		if hmCurr.m.Len() != 0 {
 			t.Fatalf("unexpected length of hm.m; got %d; want %d", hmCurr.m.Len(), 0)
 		}
-		if !hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
-		}
 
 		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
 		if !reflect.DeepEqual(hmPrev, hmOrig) {
@@ -214,9 +211,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		if !reflect.DeepEqual(hmCurr, hmOrig) {
 			t.Fatalf("unexpected hmCurr; got %v; want %v", hmCurr, hmOrig)
-		}
-		if hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
@@ -278,9 +272,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
-		}
-		if !hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, true)
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
@@ -347,9 +338,6 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		}
 		if !reflect.DeepEqual(hmCurr.byTenant, byTenantExpected) {
 			t.Fatalf("unexpected hmPrev.byTenant; got %v; want %v", hmCurr.byTenant, byTenantExpected)
-		}
-		if hmCurr.isFull {
-			t.Fatalf("unexpected hmCurr.isFull; got %v; want %v", hmCurr.isFull, false)
 		}
 
 		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
