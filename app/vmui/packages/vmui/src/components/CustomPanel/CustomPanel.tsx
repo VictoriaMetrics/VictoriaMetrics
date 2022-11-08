@@ -86,28 +86,16 @@ const CustomPanel: FC = () => {
           </Box>
           {error && <Alert color="error" severity="error" sx={{whiteSpace: "pre-wrap", mt: 2}}>{error}</Alert>}
           {warning && <Alert color="warning" severity="warning" sx={{whiteSpace: "pre-wrap", my: 2}}>{warning}</Alert>}
+          {isTracingEnabled && <TracingsView
+            traces={tracesState}
+            onDeleteClick={handleTraceDelete}
+          />}
           {graphData && period && (displayType === "chart") && <>
-            {isTracingEnabled && <TracingsView
-              traces={tracesState}
-              onDeleteClick={handleTraceDelete}
-            />}
             <GraphView data={graphData} period={period} customStep={customStep} query={query} yaxis={yaxis}
               setYaxisLimits={setYaxisLimits} setPeriod={setPeriod}/>
           </>}
-          {liveData && (displayType === "code") && <>
-            {isTracingEnabled && <TracingsView
-              traces={tracesState}
-              onDeleteClick={handleTraceDelete}
-            />}
-            <JsonView data={liveData}/>
-          </>}
-          {liveData && (displayType === "table") && <>
-            {isTracingEnabled && <TracingsView
-              traces={tracesState}
-              onDeleteClick={handleTraceDelete}
-            />}
-            <TableView data={liveData} displayColumns={displayColumns}/>
-          </>}
+          {liveData && (displayType === "code") && <JsonView data={liveData}/>}
+          {liveData && (displayType === "table") && <TableView data={liveData} displayColumns={displayColumns}/>}
         </Box>}
       </Box>
     </Box>
