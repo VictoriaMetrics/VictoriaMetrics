@@ -1,46 +1,21 @@
-import React, { FC, useMemo, useState } from "preact/compat";
-import AppBar from "@mui/material/AppBar";
-import Box from "@mui/material/Box";
-import Link from "@mui/material/Link";
-import Toolbar from "@mui/material/Toolbar";
-import { ExecutionControls } from "../Configurators/TimeRangeSettings/ExecutionControls";
-import Logo from "../Main/Icons/Logo";
+import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import { ExecutionControls } from "../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
 import { setQueryStringWithoutPageReload } from "../../utils/query-string";
-import { TimeSelector } from "../Configurators/TimeRangeSettings/TimeSelector";
+import { TimeSelector } from "../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import GlobalSettings from "../Configurators/GlobalSettings/GlobalSettings";
-import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import router, { RouterOptions, routerOptions } from "../../router";
-import DatePicker from "../Main/DatePicker/DatePicker";
 import { useCardinalityState, useCardinalityDispatch } from "../../state/cardinality/CardinalityStateContext";
 import { useEffect } from "react";
 import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
 import CardinalityDatePicker from "../Configurators/CardinalityDatePicker/CardinalityDatePicker";
+import { LogoIcon } from "../Main/Icons";
+import { getVariableColor } from "../../utils/theme";
+import "./style.scss";
+import Tabs from "../Main/Tabs/Tabs";
 
 const classes = {
-  logo: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    color: "#fff",
-    cursor: "pointer",
-    width: "100%",
-    marginBottom: "2px"
-  },
-  issueLink: {
-    textAlign: "center",
-    fontSize: "10px",
-    opacity: ".4",
-    color: "inherit",
-    textDecoration: "underline",
-    transition: ".2s opacity",
-    whiteSpace: "nowrap",
-    "&:hover": {
-      opacity: ".8",
-    }
-  },
   menuLink: {
     display: "block",
     padding: "16px 8px",
@@ -58,15 +33,12 @@ const classes = {
 };
 
 const Header: FC = () => {
-
+  const primaryColor = getVariableColor("primary");
   const appModeEnable = getAppModeEnable();
   const { headerStyles: {
-    background = appModeEnable ? "#FFF" : "primary.main",
-    color = appModeEnable ? "primary.main" : "#FFF",
+    background = appModeEnable ? "#FFF" : primaryColor,
+    color = appModeEnable ? primaryColor : "#FFF",
   } = {} } = getAppModeParams();
-
-  const { date } = useCardinalityState();
-  const cardinalityDispatch = useCardinalityDispatch();
 
   const navigate = useNavigate();
   const { search, pathname } = useLocation();
@@ -92,6 +64,11 @@ const Header: FC = () => {
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
+  const handleChangeTab = (value: string) => {
+    setActiveMenu(value);
+    navigate(value);
+  };
+
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
@@ -110,69 +87,44 @@ const Header: FC = () => {
     setActiveMenu(pathname);
   }, [pathname]);
 
-  return <AppBar
-    position="static"
-    sx={{ px: 1, boxShadow: "none", bgcolor: background, color }}
+  return <header
+    className="vm-header"
+    style={{ background, color }}
   >
-    <Toolbar>
-      {!appModeEnable && (
-        <Box
-          display="grid"
-          alignItems="center"
-          justifyContent="center"
+    {!appModeEnable && (
+      <div className="vm-header-logo">
+        <div
+          className="vm-header-logo__icon"
+          onClick={onClickLogo}
         >
-          <Box
-            onClick={onClickLogo}
-            sx={classes.logo}
-          >
-            <Logo style={{ color: "inherit", width: "100%" }}/>
-          </Box>
-          <Link
-            sx={classes.issueLink}
-            target="_blank"
-            href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
-          >
+          <LogoIcon/>
+        </div>
+        <a
+          className="vm-header-logo__issue"
+          target="_blank"
+          href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
+          rel="noreferrer"
+        >
             create an issue
-          </Link>
-        </Box>
-      )}
-      <Box
-        ml={appModeEnable ? 0 : 8}
-        flexGrow={1}
-      >
-        <Tabs
-          value={activeMenu}
-          textColor="inherit"
-          TabIndicatorProps={{ style: { background: color } }}
-          onChange={(e, val) => setActiveMenu(val)}
-        >
-          {routes.filter(r => !r.hide).map(r => (
-            <Tab
-              key={`${r.label}_${r.value}`}
-              label={r.label}
-              value={r.value}
-              component={RouterLink}
-              to={`${r.value}${search}`}
-              sx={{ color }}
-            />
-          ))}
-        </Tabs>
-      </Box>
-      <Box
-        display="flex"
-        gap={1}
-        alignItems="center"
-        mr={0}
-        ml={4}
-      >
-        {headerSetup?.timeSelector && <TimeSelector/>}
-        {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
-        {headerSetup?.executionControls && <ExecutionControls/>}
-        {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
-        <ShortcutKeys/>
-      </Box>
-    </Toolbar>
-  </AppBar>;
+        </a>
+      </div>
+    )}
+    <div className="vm-header-nav">
+      <Tabs
+        activeItem={activeMenu}
+        items={routes.filter(r => !r.hide)}
+        color={color}
+        onChange={handleChangeTab}
+      />
+    </div>
+    <div className="vm-header__settings">
+      {headerSetup?.timeSelector && <TimeSelector/>}
+      {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
+      {headerSetup?.executionControls && <ExecutionControls/>}
+      {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
+      <ShortcutKeys/>
+    </div>
+  </header>;
 };
 
 export default Header;

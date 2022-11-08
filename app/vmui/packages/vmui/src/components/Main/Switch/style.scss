@@ -1,0 +1,39 @@
+@import "src/styles/variables";
+
+$switch-height: 18px;
+$switch-width: $switch-height * 2;
+$switch-padding: 3px;
+$switch-handle-size: $switch-height - ($switch-padding * 2);
+$switch-border-radius: $switch-handle-size + ($switch-padding * 2);
+
+.vm-switch {
+  width: $switch-width;
+  height: $switch-height;
+  background-color: rgba($color-black, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  border-radius: $switch-border-radius;
+  padding: $switch-padding;
+  cursor: pointer;
+
+  &_disabled {
+    cursor: default;
+  }
+
+  &_active {
+    justify-content: flex-end;
+    background-color: $color-primary;
+  }
+
+  &__handle {
+    width: $switch-handle-size;
+    height: $switch-handle-size;
+    background-color: $color-white;
+    border-radius: 50%;
+  }
+
+  &__label {
+    margin-left: $padding-small;
+  }
+}

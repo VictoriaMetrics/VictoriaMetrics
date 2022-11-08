@@ -1,15 +1,9 @@
 import React, { FC, useState } from "preact/compat";
-import Tooltip from "@mui/material/Tooltip";
-import Button from "@mui/material/Button";
-import Modal from "@mui/material/Modal";
-import Box from "@mui/material/Box";
-import Typography from "@mui/material/Typography";
-import IconButton from "@mui/material/IconButton";
-import KeyboardIcon from "@mui/icons-material/Keyboard";
-import CloseIcon from "@mui/icons-material/Close";
-import Divider from "@mui/material/Divider";
 import { isMacOs } from "../../../utils/detect-os";
 import { getAppModeEnable } from "../../../utils/app-mode";
+import Button from "../Button/Button";
+import { KeyboardIcon } from "../Icons";
+import Modal from "../Modal/Modal";
 
 const modalStyle = {
   position: "absolute" as const,
@@ -83,78 +77,45 @@ const ShortcutKeys: FC = () => {
   const [openList, setOpenList] = useState(false);
   const appModeEnable = getAppModeEnable();
 
+  // sx={{
+  //   color: "white",
+  //     border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
+  //     minWidth: "34px",
+  //     padding: "6px 8px",
+  //     boxShadow: "none",
+  // }}
+
   return <>
-    <Tooltip title={"Shortcut keys"}>
-      <Button
-        variant="contained"
-        color="primary"
-        sx={{
-          color: "white",
-          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-          minWidth: "34px",
-          padding: "6px 8px",
-          boxShadow: "none",
-        }}
-        startIcon={<KeyboardIcon style={{ marginRight: "-8px", marginLeft: "4px" }}/>}
-        onClick={() => setOpenList(prev => !prev)}
-      >
-      </Button>
-    </Tooltip>
-    <Modal
-      open={openList}
-      onClose={() => setOpenList(false)}
+    {/*<Tooltip title={"Shortcut keys"}>*/}
+    <Button
+      variant="contained"
+      color="primary"
+      onClick={() => setOpenList(prev => !prev)}
     >
-      <Box sx={modalStyle}>
-        <Box
-          display="grid"
-          gridTemplateColumns="1fr auto"
-          alignItems="center"
-          mb={2}
-        >
-          <Typography
-            id="modal-modal-title"
-            variant="h6"
-            component="h2"
-          >
-            Shortcut keys
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={() => setOpenList(false)}
-          >
-            <CloseIcon/>
-          </IconButton>
-        </Box>
-        <Box>
+      <KeyboardIcon/>
+    </Button>
+    {/*</Tooltip>*/}
+
+    {openList && (
+      <Modal
+        title={"Shortcut keys"}
+        onClose={() => setOpenList(false)}
+      >
+        <div>
           {keyList.map(section => (
-            <Box
+            <div
               key={section.title}
-              mb={3}
             >
-              <Typography
-                variant="body1"
-                component="h3"
-                fontWeight="bold"
-                mb={0.5}
-              >
+              <h3>
                 {section.title}
-              </Typography>
-              <Divider sx={{ mb: 1 }}/>
-              <Box>
+              </h3>
+              {/*<Divider sx={{ mb: 1 }}/>*/}
+              <div>
                 {section.list.map(l => (
-                  <Box
+                  <div
                     key={l.keys.join("+")}
-                    display="grid"
-                    gridTemplateColumns="160px 1fr"
-                    alignItems="center"
-                    mb={1}
                   >
-                    <Box
-                      display="flex"
-                      alignItems="center"
-                      fontSize="10px"
-                      gap={"4px"}
-                    >
+                    <div>
                       {l.keys.map((k, i) => (
                         <>
                           <code
@@ -163,21 +124,18 @@ const ShortcutKeys: FC = () => {
                           >{k}</code> {i !== l.keys.length - 1 ? "+" : ""}
                         </>
                       ))}
-                    </Box>
-                    <Typography
-                      variant="body2"
-                      component="p"
-                    >
+                    </div>
+                    <p>
                       {l.description}
-                    </Typography>
-                  </Box>
+                    </p>
+                  </div>
                 ))}
-              </Box>
-            </Box>
+              </div>
+            </div>
           ))}
-        </Box>
-      </Box>
-    </Modal>
+        </div>
+      </Modal>
+    )}
   </>;
 };
 

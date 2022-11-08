@@ -1,7 +1,4 @@
 import { FC } from "react";
-import { Box, Grid, Tab, Tabs, Typography } from "@mui/material";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
 import TabPanel from "../../../components/Main/TabPanel/TabPanel";
 import EnhancedTable from "../../../components/Main/Table/Table";
 import TableCells from "../TableCells/TableCells";
@@ -45,40 +42,28 @@ const MetricsContent: FC<MetricsProperties> = ({
   );
   return (
     <>
-      <Grid
-        container
-        spacing={2}
-        sx={{ px: 2 }}
-      >
-        <Grid
-          item
-          xs={12}
-          md={12}
-          lg={12}
-        >
-          <Typography
-            gutterBottom
-            variant="h5"
-            component="h5"
-          >{sectionTitle}</Typography>
-          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={activeTab}
-              onChange={onChange}
-              aria-label="basic tabs example"
-            >
-              {tabs.map((title: string, i: number) =>
-                <Tab
-                  key={title}
-                  label={title}
-                  aria-controls={`tabpanel-${i}`}
-                  id={tabId}
-                  iconPosition={"start"}
-                  icon={ i === 0 ? <TableChartIcon /> : <ShowChartIcon /> }
-                />
-              )}
-            </Tabs>
-          </Box>
+      <div>
+        <div>
+          <h5>{sectionTitle}</h5>
+          <div>
+            {/* TODO add tabs */}
+            {/*<div*/}
+            {/*  value={activeTab}*/}
+            {/*  onChange={onChange}*/}
+            {/*  aria-label="basic tabs example"*/}
+            {/*>*/}
+            {/*  {tabs.map((title: string, i: number) =>*/}
+            {/*    <Tab*/}
+            {/*      key={title}*/}
+            {/*      label={title}*/}
+            {/*      aria-controls={`tabpanel-${i}`}*/}
+            {/*      id={tabId}*/}
+            {/*      iconPosition={"start"}*/}
+            {/*      icon={ i === 0 ? <TableIcon /> : <ChartIcon /> }*/}
+            {/*    />*/}
+            {/*  )}*/}
+            {/*</div>*/}
+          </div>
           {tabs.map((_,idx) =>
             <div
               ref={chartContainer}
@@ -108,8 +93,8 @@ const MetricsContent: FC<MetricsProperties> = ({
               </TabPanel>
             </div>
           )}
-        </Grid>
-      </Grid>
+        </div>
+      </div>
     </>
   );
 };

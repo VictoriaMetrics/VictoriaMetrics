@@ -1,20 +1,16 @@
-import React, { ChangeEvent, FC, useEffect, useMemo, KeyboardEvent } from "react";
-import Box from "@mui/material/Box";
+import React, { FC, useEffect, useMemo, KeyboardEvent } from "react";
 import { useFetchTopQueries } from "./hooks/useFetchTopQueries";
-import Spinner from "../../components/Main/Spinner";
-import Alert from "@mui/material/Alert";
+import Spinner from "../../components/Main/Spinner/Spinner";
 import TopQueryPanel from "./TopQueryPanel/TopQueryPanel";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import TextField from "@mui/material/TextField";
 import { useTopQueriesDispatch, useTopQueriesState } from "../../state/topQueries/TopQueriesStateContext";
 import { formatPrettyNumber } from "../../utils/uplot/helpers";
 import { isSupportedDuration } from "../../utils/time";
-import IconButton from "@mui/material/IconButton";
-import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
+import Button from "../../components/Main/Button/Button";
+import { PlayCircleOutlineIcon } from "../../components/Main/Icons";
+import TextField from "../../components/Main/TextField/TextField";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -43,12 +39,12 @@ const Index: FC = () => {
     return value || key;
   };
 
-  const onTopNChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
-    topQueriesDispatch({ type: "SET_TOP_N", payload: +e.target.value });
+  const onTopNChange = (value: string) => {
+    topQueriesDispatch({ type: "SET_TOP_N", payload: +value });
   };
 
-  const onMaxLifetimeChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
-    topQueriesDispatch({ type: "SET_MAX_LIFE_TIME", payload: e.target.value });
+  const onMaxLifetimeChange = (value: string) => {
+    topQueriesDispatch({ type: "SET_MAX_LIFE_TIME", payload: value });
   };
 
   const onApplyQuery = () => {
@@ -66,101 +62,75 @@ const Index: FC = () => {
   }, [data]);
 
   return (
-    <Box
-      p={4}
+    <div
       style={{ minHeight: "calc(100vh - 64px)" }}
     >
-      {loading && <Spinner
-        isLoading={true}
-        height={"100%"}
-      />}
+      {loading && <Spinner containerStyles={{ height: "500px" }}/>}
 
-      <Box
-        boxShadow="rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;"
-        p={4}
-        pb={2}
-        m={-4}
-        mb={4}
-      >
-        <Box
-          display={"flex"}
-          alignItems={"flex"}
-          mb={2}
-        >
-          <Box
-            mr={2}
-            flexGrow={1}
-          >
+      <div >
+        <div >
+          <div >
             <TextField
-              fullWidth
               label="Max lifetime"
-              size="medium"
-              variant="outlined"
+              // size="medium"
               value={maxLifetime}
-              error={!maxLifetimeValid}
-              helperText={!maxLifetimeValid ? "Invalid duration value" : `For example ${exampleDuration}`}
+              error={!maxLifetimeValid ? "Invalid duration value" : `For example ${exampleDuration}`}
               onChange={onMaxLifetimeChange}
               onKeyDown={onKeyDown}
             />
-          </Box>
-          <Box mr={2}>
+          </div>
+          <div>
             <TextField
-              fullWidth
               label="Number of returned queries"
               type="number"
-              size="medium"
-              variant="outlined"
+              // size="medium"
               value={topN || ""}
-              error={invalidTopN}
-              helperText={invalidTopN ? "Number must be bigger than zero" : " "}
+              error={invalidTopN ? "Number must be bigger than zero" : " "}
               onChange={onTopNChange}
               onKeyDown={onKeyDown}
             />
-          </Box>
-          <Box>
-            <Tooltip title="Apply">
-              <IconButton
-                onClick={onApplyQuery}
-                sx={{ height: "49px", width: "49px" }}
-              >
-                <PlayCircleOutlineIcon/>
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-        <Typography
-          variant="body1"
-          pt={2}
-        >
+          </div>
+          <div>
+            {/*<Tooltip title="Apply">*/}
+            <Button
+              onClick={onApplyQuery}
+            >
+              <PlayCircleOutlineIcon/>
+            </Button>
+            {/*</Tooltip>*/}
+          </div>
+        </div>
+        <div>
             VictoriaMetrics tracks the last&nbsp;
-          <Tooltip
-            arrow
-            title={<Typography>search.queryStats.lastQueriesCount</Typography>}
-          >
-            <b style={{ cursor: "default" }}>
-              {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
-            </b>
-          </Tooltip>
+          {/*<Tooltip*/}
+          {/*  arrow*/}
+          {/*  title={<Typography>search.queryStats.lastQueriesCount</Typography>}*/}
+          {/*>*/}
+          <b style={{ cursor: "default" }}>
+            {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
+          </b>
+          {/*</Tooltip>*/}
             &nbsp;queries with durations at least&nbsp;
-          <Tooltip
-            arrow
-            title={<Typography>search.queryStats.minQueryDuration</Typography>}
-          >
-            <b style={{ cursor: "default" }}>
-              {getQueryStatsTitle("search.queryStats.minQueryDuration")}
-            </b>
-          </Tooltip>
-        </Typography>
-      </Box>
+          {/*<Tooltip*/}
+          {/*  arrow*/}
+          {/*  title={<Typography>search.queryStats.minQueryDuration</Typography>}*/}
+          {/*>*/}
+          <b style={{ cursor: "default" }}>
+            {getQueryStatsTitle("search.queryStats.minQueryDuration")}
+          </b>
+          {/*</Tooltip>*/}
+        </div>
+      </div>
 
-      {error && <Alert
-        color="error"
-        severity="error"
-        sx={{ whiteSpace: "pre-wrap", my: 2 }}
-      >{error}</Alert>}
+      {/* TODO add alert */}
+      {/*{error && <Alert*/}
+      {/*  color="error"*/}
+      {/*  severity="error"*/}
+      {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
+      {/*>{error}</Alert>}*/}
 
       {data && (<>
-        <Box>
+        <div>
           <TopQueryPanel
             rows={data.topByCount}
             title={"Most frequently executed queries"}
@@ -193,9 +163,9 @@ const Index: FC = () => {
             ]}
             defaultOrderBy={"sumDurationSeconds"}
           />
-        </Box>
+        </div>
       </>)}
-    </Box>
+    </div>
   );
 };
 

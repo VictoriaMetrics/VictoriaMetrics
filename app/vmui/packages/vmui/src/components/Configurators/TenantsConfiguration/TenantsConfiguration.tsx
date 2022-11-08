@@ -1,13 +1,11 @@
 import React, { FC, useState, useEffect, useCallback } from "preact/compat";
-import TextField from "@mui/material/TextField";
-import InputAdornment from "@mui/material/InputAdornment";
-import Tooltip from "@mui/material/Tooltip";
-import InfoIcon from "@mui/icons-material/Info";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { ChangeEvent } from "react";
 import debounce from "lodash.debounce";
 import { getAppModeParams } from "../../../utils/app-mode";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
+import { InfoIcon } from "../../Main/Icons";
+import TextField from "../../Main/TextField/TextField";
 
 const TenantsConfiguration: FC = () => {
   const { serverURL } = getAppModeParams();
@@ -29,9 +27,9 @@ const TenantsConfiguration: FC = () => {
 
   const debouncedHandleApply = useCallback(debounce(handleApply, 700), []);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setTenantId(e.target.value);
-    debouncedHandleApply(e.target.value);
+  const handleChange = (value: string) => {
+    setTenantId(value);
+    debouncedHandleApply(value);
   };
 
   useEffect(() => {
@@ -42,20 +40,15 @@ const TenantsConfiguration: FC = () => {
   return <TextField
     label="Tenant ID"
     type="number"
-    size="small"
-    variant="outlined"
+    // size="small"
+    // variant="outlined"
     value={tenantId}
     onChange={handleChange}
-    InputProps={{
-      inputProps: { min: 0 },
-      startAdornment: (
-        <InputAdornment position="start">
-          <Tooltip title={"Define tenant id if you need request to another storage"}>
-            <InfoIcon fontSize={"small"} />
-          </Tooltip>
-        </InputAdornment>
-      ),
-    }}
+    endIcon={(
+      // <Tooltip title={"Define tenant id if you need request to another storage"}>
+      <InfoIcon/>
+      // </Tooltip>
+    )}
   />;
 };
 

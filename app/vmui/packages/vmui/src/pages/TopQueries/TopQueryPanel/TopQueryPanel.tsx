@@ -1,17 +1,9 @@
 import React, { FC, useState } from "react";
-import Box from "@mui/material/Box";
 import { TopQuery } from "../../../types";
-import Typography from "@mui/material/Typography";
-import Accordion from "@mui/material/Accordion";
-import AccordionSummary from "@mui/material/AccordionSummary";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import AccordionDetails from "@mui/material/AccordionDetails";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import CodeIcon from "@mui/icons-material/Code";
-import TopQueryTable from "../TopQueryTable/TopQueryTable";
+// import TopQueryTable from "../TopQueryTable/TopQueryTable";
 import JsonView from "../../../components/Views/JsonView";
+import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
+import Accordion from "../../../components/Main/Accordion/Accordion";
 
 export interface TopQueryPanelProps {
   rows: TopQuery[],
@@ -32,64 +24,30 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
   return (
     <Accordion
       defaultExpanded={true}
-      sx={{
-        mt: 2,
-        border: "1px solid",
-        borderColor: "primary.light",
-        boxShadow: "none",
-        "&:before": {
-          opacity: 0
-        }
-      }}
+      title={<h3>{title}</h3>}
     >
-      <AccordionSummary
-        sx={{
-          p: 2,
-          bgcolor: "primary.light",
-          minHeight: "64px",
-          ".MuiAccordionSummary-content": { display: "flex", alignItems: "center" },
-        }}
-        expandIcon={<ExpandMoreIcon />}
-      >
-        <Typography
-          variant="h6"
-          component="h6"
-        >
-          {title}
-        </Typography>
-      </AccordionSummary>
-      <AccordionDetails sx={{ p: 0 }}>
-        <Box width={"100%"}>
-          <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-            <Tabs
-              value={activeTab}
-              onChange={onChangeTab}
-              sx={{ minHeight: "0", marginBottom: "-1px" }}
-            >
-              {tabs.map((title: string, i: number) =>
-                <Tab
-                  key={title}
-                  label={title}
-                  aria-controls={`tabpanel-${i}`}
-                  id={`${title}_${i}`}
-                  iconPosition={"start"}
-                  sx={{ minHeight: "41px" }}
-                  icon={ i === 0 ? <TableChartIcon /> : <CodeIcon /> }
-                />
-              )}
-            </Tabs>
-          </Box>
-          {activeTab === 0 && <TopQueryTable
-            rows={rows}
-            columns={columns}
-            defaultOrderBy={defaultOrderBy}
-          />}
-          {activeTab === 1 && <Box m={2}><JsonView data={rows} /></Box>}
-        </Box>
-      </AccordionDetails>
-      <Box >
-
-      </Box>
+      <div>
+        <div>
+          {/*TODO add tabs*/}
+          <div>
+            {tabs.map((title: string, i: number) =>
+              <div
+                key={title}
+                id={`${title}_${i}`}
+              >
+                { i === 0 ? <TableIcon /> : <CodeIcon />}
+                {title}
+              </div>
+            )}
+          </div>
+        </div>
+        {/*{activeTab === 0 && <TopQueryTable*/}
+        {/*  rows={rows}*/}
+        {/*  columns={columns}*/}
+        {/*  defaultOrderBy={defaultOrderBy}*/}
+        {/*/>}*/}
+        {activeTab === 1 && <div><JsonView data={rows} /></div>}
+      </div>
     </Accordion>
   );
 };

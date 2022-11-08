@@ -1,19 +1,13 @@
 import React, { FC, useState, useEffect } from "preact/compat";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Tooltip from "@mui/material/Tooltip";
 import QueryEditor from "../../components/Configurators/QueryEditor/QueryEditor";
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
-import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AdditionalSettings from "../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import { ErrorTypes } from "../../types";
-import Button from "@mui/material/Button";
-import Typography from "@mui/material/Typography";
 import usePrevious from "../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../config";
 import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../state/time/TimeStateContext";
+import { DeleteIcon, PlayIcon, PlusIcon } from "../../components/Main/Icons";
+import Button from "../../components/Main/Button/Button";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
@@ -76,17 +70,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     }
   }, [stateQuery]);
 
-  return <Box>
-    <Box>
+  return <div>
+    <div>
       {stateQuery.map((q, i) =>
-        <Box
+        <div
           key={i}
-          display="grid"
-          gridTemplateColumns="1fr auto"
-          gap="4px"
-          width="100%"
-          position="relative"
-          mb={i === stateQuery.length - 1 ? 0 : 2}
         >
           <QueryEditor
             value={stateQuery[i]}
@@ -100,55 +88,40 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
             label={`Query ${i + 1}`}
             size={"small"}
           />
-          {stateQuery.length > 1 && <Tooltip title="Remove Query">
-            <IconButton
+          {stateQuery.length > 1 && (
+            // <Tooltip title="Remove Query">
+            <Button
               onClick={() => onRemoveQuery(i)}
-              sx={{ height: "33px", width: "33px", padding: 0 }}
               color={"error"}
             >
-              <DeleteIcon fontSize={"small"}/>
-            </IconButton>
-          </Tooltip>}
-        </Box>)}
-    </Box>
-    <Box
-      mt={3}
-      display="grid"
-      gridTemplateColumns="1fr auto"
-      alignItems="start"
-      gap={4}
-    >
+              <DeleteIcon/>
+            </Button>
+            // </Tooltip>
+          )}
+        </div>)}
+    </div>
+    <div>
       <AdditionalSettings/>
-      <Box
-        display="grid"
-        gridTemplateColumns="repeat(2, auto)"
-        gap={1}
-      >
+      <div>
         {stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"
             onClick={onAddQuery}
-            startIcon={<AddIcon/>}
+            startIcon={<PlusIcon/>}
           >
-            <Typography
-              lineHeight={"20px"}
-              fontWeight="500"
-            >Add Query</Typography>
+            <span>Add Query</span>
           </Button>
         )}
         <Button
           variant="contained"
           onClick={onRunQuery}
-          startIcon={<PlayArrowIcon/>}
+          startIcon={<PlayIcon/>}
         >
-          <Typography
-            lineHeight={"20px"}
-            fontWeight="500"
-          >Execute Query</Typography>
+          <span>Execute Query</span>
         </Button>
-      </Box>
-    </Box>
-  </Box>;
+      </div>
+    </div>
+  </div>;
 };
 
 export default QueryConfigurator;

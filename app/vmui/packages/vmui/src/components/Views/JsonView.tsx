@@ -1,9 +1,8 @@
 import React, { FC, useMemo } from "preact/compat";
 import { InstantMetricResult } from "../../api/types";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import { useSnack } from "../../contexts/Snackbar";
 import { TopQuery } from "../../types";
+import Button from "../Main/Button/Button";
 
 export interface JsonViewProps {
   data: InstantMetricResult[] | TopQuery[];
@@ -15,8 +14,8 @@ const JsonView: FC<JsonViewProps> = ({ data }) => {
   const formattedJson = useMemo(() => JSON.stringify(data, null, 2), [data]);
 
   return (
-    <Box position="relative">
-      <Box
+    <div>
+      <div
         style={{
           position: "sticky",
           top: "16px",
@@ -35,9 +34,9 @@ const JsonView: FC<JsonViewProps> = ({ data }) => {
         >
           Copy JSON
         </Button>
-      </Box>
+      </div>
       <pre style={{ margin: 0 }}>{formattedJson}</pre>
-    </Box>
+    </div>
   );
 };
 

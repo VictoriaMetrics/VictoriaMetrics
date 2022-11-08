@@ -1,4 +1,3 @@
-import { Box, Paper, Table, TableBody, TableCell, TableContainer, TablePagination, TableRow, } from "@mui/material";
 import React, { FC, useState } from "preact/compat";
 import { ChangeEvent, MouseEvent } from "react";
 import { Data, Order, TableProps, } from "./types";
@@ -75,63 +74,64 @@ const EnhancedTable: FC<TableProps> = ({
   const sortedData = isPagingEnabled ? stableSort(rows, getComparator(order, orderBy))
     .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage) : stableSort(rows, getComparator(order, orderBy));
   return (
-    <Box sx={{ width: "100%" }}>
-      <Paper sx={{ width: "100%", mb: 2 }}>
-        <TableContainer>
-          <Table
-            size={"small"}
-            sx={{ minWidth: 750 }}
-            aria-labelledby="tableTitle"
-          >
-            <EnhancedTableHead
-              numSelected={selected.length}
-              order={order}
-              orderBy={orderBy}
-              onSelectAllClick={handleSelectAllClick}
-              onRequestSort={handleRequestSort}
-              rowCount={rows.length}
-              headerCells={headerCells}
-            />
-            <TableBody>
-              {/* if you don't need to support IE11, you can replace the `stableSort` call with:
-              rows.slice().sort(getComparator(order, orderBy)) */}
-              {sortedData
-                .map((row) => {
-                  const isItemSelected = isSelected(row.name);
-
-                  return (
-                    <TableRow
-                      hover
-                      onClick={handleClick(row.name)}
-                      role="checkbox"
-                      aria-checked={isItemSelected}
-                      tabIndex={-1}
-                      key={row.name}
-                      selected={isItemSelected}
-                    >
-                      {tableCells(row)}
-                    </TableRow>
-                  );
-                })}
-              {emptyRows > 0 && (
-                <TableRow>
-                  <TableCell colSpan={6}/>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        {isPagingEnabled ? <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={rows.length}
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-        /> : null}
-      </Paper>
-    </Box>
+    <div>table</div>
+  // <Box sx={{ width: "100%" }}>
+  //   <Paper sx={{ width: "100%", mb: 2 }}>
+  //     <TableContainer>
+  //       <Table
+  //         size={"small"}
+  //         sx={{ minWidth: 750 }}
+  //         aria-labelledby="tableTitle"
+  //       >
+  //         <EnhancedTableHead
+  //           numSelected={selected.length}
+  //           order={order}
+  //           orderBy={orderBy}
+  //           onSelectAllClick={handleSelectAllClick}
+  //           onRequestSort={handleRequestSort}
+  //           rowCount={rows.length}
+  //           headerCells={headerCells}
+  //         />
+  //         <TableBody>
+  //           {/* if you don't need to support IE11, you can replace the `stableSort` call with:
+  //             rows.slice().sort(getComparator(order, orderBy)) */}
+  //           {sortedData
+  //             .map((row) => {
+  //               const isItemSelected = isSelected(row.name);
+  //
+  //               return (
+  //                 <TableRow
+  //                   hover
+  //                   onClick={handleClick(row.name)}
+  //                   role="checkbox"
+  //                   aria-checked={isItemSelected}
+  //                   tabIndex={-1}
+  //                   key={row.name}
+  //                   selected={isItemSelected}
+  //                 >
+  //                   {tableCells(row)}
+  //                 </TableRow>
+  //               );
+  //             })}
+  //           {emptyRows > 0 && (
+  //             <TableRow>
+  //               <TableCell colSpan={6}/>
+  //             </TableRow>
+  //           )}
+  //         </TableBody>
+  //       </Table>
+  //     </TableContainer>
+  //     {isPagingEnabled ? <TablePagination
+  //       rowsPerPageOptions={[5, 10, 25]}
+  //       component="div"
+  //       count={rows.length}
+  //       rowsPerPage={rowsPerPage}
+  //       page={page}
+  //       onPageChange={handleChangePage}
+  //       onRowsPerPageChange={handleChangeRowsPerPage}
+  //     /> : null}
+  //   </Paper>
+  // </Box>
   );
 };
 

@@ -1,0 +1,25 @@
+@import "src/styles/variables";
+
+.vm-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  span {
+    display: grid;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: 20px;
+    }
+  }
+
+  &__start-icon {
+    margin-right: $padding-small;
+  }
+
+  &__end-icon {
+    margin-left: $padding-small;
+  }
+}

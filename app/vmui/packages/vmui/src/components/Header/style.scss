@@ -1,0 +1,53 @@
+@import "src/styles/variables";
+
+.vm-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: $padding-small $padding-medium;
+  gap: $padding-medium;
+
+  &-logo {
+    display: grid;
+    align-items: center;
+    justify-content: center;
+
+    &__icon {
+      position: relative;
+      display: flex;
+      align-items: center;
+      color: $color-white;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 2px;
+    }
+
+    &__issue {
+      text-align: center;
+      font-size: 10px;
+      opacity: 0.4;
+      color: inherit;
+      text-decoration: underline;
+      transition: 0.2s opacity;
+      white-space: nowrap;
+      cursor: pointer;
+
+      &:hover {
+        opacity: 0.8;
+      }
+    }
+  }
+
+  &-nav {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  &__settings {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    flex-grow: 1;
+  }
+}

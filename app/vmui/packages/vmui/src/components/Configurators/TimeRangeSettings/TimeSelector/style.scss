@@ -1,0 +1,25 @@
+@import "src/styles/variables";
+
+.vm-time-selector {
+  display: grid;
+  grid-template-columns: repeat(2, 200px);
+  padding: $padding-global 0;
+
+  &-left {
+    display: flex;
+    flex-direction: column;
+    gap: $padding-small;
+    border-right: $border-divider;
+    padding: 0 $padding-global;
+
+    &__inputs {
+      flex-grow: 1;
+    }
+
+    &__controls {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: $padding-small;
+    }
+  }
+}

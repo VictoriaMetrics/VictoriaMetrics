@@ -1,0 +1,121 @@
+@import "src/styles/variables";
+
+.vm-text-field {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+
+  &__label {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    left: 14px;
+    color: $color-text-secondary;
+    font-size: $font-size;
+    line-height: $font-size;
+    pointer-events: none;
+    background-color: transparent;
+    transition: top 100ms linear, left 100ms linear, font-size 100ms ease;
+    user-select: none;
+  }
+
+  &__error {
+    position: absolute;
+    top: calc(100% - 8px);
+    left: 8px;
+    padding: 3px;
+    color: $color-error;
+    font-size: $font-size-small;
+    line-height: $font-size-small;
+    pointer-events: none;
+    user-select: none;
+    background-color: $color-white;
+    z-index: 2;
+  }
+
+  &__input {
+    width: 100%;
+    padding: 16px 14px;
+    border: 1px solid $color-text-disabled;
+    border-radius: $border-radius-small;
+    font-size: $font-size;
+    transition: border 200ms ease;
+    resize: none;
+
+    &:focus {
+      border: 1px solid $color-primary;
+    }
+
+    &:hover {
+      border: 1px solid $color-primary;
+    }
+
+    &:not(:placeholder-shown) + .oy-text-field__label,
+    &:focus + .oy-text-field__label {
+      top: 0;
+      left: 6px;
+      font-size: $font-size-small;
+      padding: 3px;
+      background-color: $color-white;
+      z-index: 3;
+    }
+
+    &_error {
+      border: 1px solid $color-error;
+
+      &:hover {
+        border: 1px solid $color-error;
+      }
+
+      &:focus {
+        border: 1px solid $color-error;
+      }
+    }
+
+    &_icon-start + .oy-text-field__label {
+      left: 42px;
+    }
+
+    &_icon-start {
+      padding-left: 42px;
+    }
+
+    &_textarea {
+      min-height: 150px;
+    }
+
+    &_textarea + .oy-text-field__label {
+      top: 22px;
+    }
+
+    &:disabled {
+      background-color: inherit;
+      color: inherit;
+    }
+  }
+
+  &__icon-start,
+  &__icon-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: auto;
+    left: 14px;
+    width: 20px;
+    height: auto;
+    position: absolute;
+    color: $color-text-secondary;
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  &__icon-end {
+    left: auto;
+    right: 14px;
+  }
+}

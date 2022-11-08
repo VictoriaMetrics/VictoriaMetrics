@@ -1,11 +1,7 @@
 import React, { FC } from "preact/compat";
-import TableChartIcon from "@mui/icons-material/TableChart";
-import ShowChartIcon from "@mui/icons-material/ShowChart";
-import CodeIcon from "@mui/icons-material/Code";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
 import { SyntheticEvent } from "react";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
+import { ChartIcon, CodeIcon, TableIcon } from "../../components/Main/Icons";
 
 export type DisplayType = "table" | "chart" | "code";
 
@@ -17,9 +13,9 @@ type DisplayTab = {
 }
 
 export const displayTypeTabs: DisplayTab[] = [
-  { value: "chart", icon: <ShowChartIcon/>, label: "Graph", prometheusCode: 0 },
+  { value: "chart", icon: <ChartIcon/>, label: "Graph", prometheusCode: 0 },
   { value: "code", icon: <CodeIcon/>, label: "JSON", prometheusCode: 3 },
-  { value: "table", icon: <TableChartIcon/>, label: "Table", prometheusCode: 1 }
+  { value: "table", icon: <TableIcon/>, label: "Table", prometheusCode: 1 }
 ];
 
 export const DisplayTypeSwitch: FC = () => {
@@ -31,19 +27,10 @@ export const DisplayTypeSwitch: FC = () => {
     dispatch({ type: "SET_DISPLAY_TYPE", payload: newValue ?? displayType });
   };
 
-  return <Tabs
-    value={displayType}
-    onChange={handleChange}
-    sx={{ minHeight: "0", marginBottom: "-1px" }}
-  >
+  // TODO add tabs
+  return <div>
     {displayTypeTabs.map(t =>
-      <Tab
-        key={t.value}
-        icon={t.icon}
-        iconPosition="start"
-        label={t.label}
-        value={t.value}
-        sx={{ minHeight: "41px" }}
-      />)}
-  </Tabs>;
+      <div key={t.value}>{t.value}</div>
+    )}
+  </div>;
 };

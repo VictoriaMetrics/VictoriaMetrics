@@ -1,7 +1,6 @@
 import React, { FC, useState, useMemo } from "preact/compat";
 import { LegendItemType } from "../../../../utils/uplot/types";
 import { getLegendLabel } from "../../../../utils/uplot/helpers";
-import Tooltip from "@mui/material/Tooltip";
 import "./legendItem.css";
 
 interface LegendItemProps {
@@ -42,13 +41,16 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
         </span>
 
         &#160;&#123;
-        {freeFormFields.map(f => <Tooltip
-          arrow
-          key={f.id}
-          open={copiedValue === f.id}
-          title={"Copied!"}
-        >
+
+        {/*<Tooltip*/}
+        {/* arrow*/}
+        {/*  key={f.id}*/}
+        {/*  open={copiedValue === f.id}*/}
+        {/*  title={"Copied!"}*/}
+        {/*>*/}
+        {freeFormFields.map(f => (
           <span
+            key={f.key}
             className="legendFreeFields"
             onClick={(e) => {
               e.stopPropagation();
@@ -56,8 +58,8 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
             }}
           >
             {f.key}: {legend.freeFormFields[f.key]}
-          </span>
-        </Tooltip>)}
+          </span>))}
+        {/*</Tooltip>*/}
         &#125;
       </div>
     </div>

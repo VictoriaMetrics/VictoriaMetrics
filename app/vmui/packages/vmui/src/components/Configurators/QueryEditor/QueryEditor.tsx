@@ -1,13 +1,9 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
-import Popper from "@mui/material/Popper";
-import TextField from "@mui/material/TextField";
-import Box from "@mui/material/Box";
-import Paper from "@mui/material/Paper";
-import MenuItem from "@mui/material/MenuItem";
-import MenuList from "@mui/material/MenuList";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
+import TextField from "../../Main/TextField/TextField";
+import Popper from "../../Main/Popper/Popper";
+import useClickOutside from "../../../hooks/useClickOutside";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -40,7 +36,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
 
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
-  const wrapperEl = useRef<HTMLUListElement>(null);
+  const wrapperEl = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
@@ -59,7 +55,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
   }, [openAutocomplete, options]);
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
 
     const ctrlMetaKey = ctrlKey || metaKey;
@@ -106,50 +102,43 @@ const QueryEditor: FC<QueryEditorProps> = ({
     if (target?.scrollIntoView) target.scrollIntoView({ block: "center" });
   }, [focusOption]);
 
-  return <Box ref={autocompleteAnchorEl}>
+  useClickOutside(autocompleteAnchorEl, () => setOpenAutocomplete(false));
+
+  return <div ref={autocompleteAnchorEl}>
     <TextField
-      defaultValue={value}
-      fullWidth
+      value={value}
       label={label}
-      multiline
-      focused={!!value}
-      error={!!error}
+      type={"textarea"}
+      autofocus={!!value}
+      error={error}
       onKeyDown={handleKeyDown}
-      onChange={(e) => onChange(e.target.value)}
-      size={size}
+      onChange={onChange}
+      // size={size}
     />
     <Popper
       open={openAutocomplete}
-      anchorEl={autocompleteAnchorEl.current}
-      placement="bottom-start"
-      sx={{ zIndex: 3 }}
+      buttonRef={autocompleteAnchorEl}
+      placement="bottom-left"
+      onClose={() => setOpenAutocomplete(false)}
     >
-      <ClickAwayListener onClickAway={() => setOpenAutocomplete(false)}>
-        <Paper
-          elevation={3}
-          sx={{ maxHeight: 300, overflow: "auto" }}
-        >
-          <MenuList
-            ref={wrapperEl}
-            dense
-          >
-            {foundOptions.map((item, i) =>
-              <MenuItem
-                id={`$autocomplete$${item}`}
-                key={item}
-                sx={{ bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})` }}
-                onClick={() => {
-                  onChange(item);
-                  setOpenAutocomplete(false);
-                }}
-              >
-                {item}
-              </MenuItem>)}
-          </MenuList>
-        </Paper>
-      </ClickAwayListener>
+      <div>
+        <div ref={wrapperEl}>
+          {foundOptions.map((item, i) =>
+            <li
+              id={`$autocomplete$${item}`}
+              key={item}
+              // sx={{ bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})` }}
+              onClick={() => {
+                onChange(item);
+                setOpenAutocomplete(false);
+              }}
+            >
+              {item}
+            </li>)}
+        </div>
+      </div>
     </Popper>
-  </Box>;
+  </div>;
 };
 
 export default QueryEditor;

@@ -1,37 +1,11 @@
-import SettingsIcon from "@mui/icons-material/Settings";
-import React, { FC, useState } from "preact/compat";
-import AxesLimitsConfigurator from "./AxesLimitsConfigurator";
-import Box from "@mui/material/Box";
-import IconButton from "@mui/material/IconButton";
-import Paper from "@mui/material/Paper";
-import Popper from "@mui/material/Popper";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
-import CloseIcon from "@mui/icons-material/Close";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
+import React, { FC, useRef, useState } from "preact/compat";
+import AxesLimitsConfigurator from "./AxesLimitsConfigurator/AxesLimitsConfigurator";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
-
-const classes = {
-  popover: {
-    display: "grid",
-    gridGap: "16px",
-    padding: "0 0 25px",
-  },
-  popoverHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "primary.main",
-    padding: "6px 6px 6px 12px",
-    borderRadius: "4px 4px 0 0",
-    color: "primary.contrastText",
-  },
-  popoverBody: {
-    display: "grid",
-    gridGap: "6px",
-    padding: "0 14px",
-  }
-};
+import { CloseIcon, SettingsIcon } from "../../Main/Icons";
+import Button from "../../Main/Button/Button";
+import useClickOutside from "../../../hooks/useClickOutside";
+import Popper from "../../Main/Popper/Popper";
+import "./style.scss";
 
 const title = "Axes Index";
 
@@ -42,49 +16,49 @@ interface GraphSettingsProps {
 }
 
 const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEnableLimits }) => {
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const open = Boolean(anchorEl);
+  const popperRef = useRef<HTMLDivElement>(null);
+  const [openPopper, setOpenPopper] = useState(false);
+  const buttonRef = useRef<HTMLDivElement>(null);
+  useClickOutside(popperRef, () => setOpenPopper(false), buttonRef);
 
-  return <Box>
-    <Tooltip title={title}>
-      <IconButton onClick={(e) => setAnchorEl(e.currentTarget)}>
-        <SettingsIcon/>
-      </IconButton>
-    </Tooltip>
-    <Popper
-      open={open}
-      anchorEl={anchorEl}
-      placement="left-start"
-      modifiers={[{ name: "offset", options: { offset: [0, 6] } }]}
-    >
-      <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
-        <Paper
-          elevation={3}
-          sx={classes.popover}
+  return (
+    <div className="vm-graph-settings">
+      {/*<Tooltip title={title}>*/}
+      <div ref={buttonRef}>
+        <Button onClick={() => setOpenPopper(true)}>
+          <SettingsIcon/>
+        </Button>
+      </div>
+      {/*</Tooltip>*/}
+      <Popper
+        open={openPopper}
+        buttonRef={buttonRef}
+        placement="left-start"
+        onClose={() => setOpenPopper(false)}
+      >
+        <div
+          className="vm-graph-settings-popper"
+          ref={popperRef}
         >
-          <Box
-            id="handle"
-            sx={classes.popoverHeader}
-          >
-            <Typography variant="body1"><b>{title}</b></Typography>
-            <IconButton
-              size="small"
-              onClick={() => setAnchorEl(null)}
-            >
-              <CloseIcon style={{ color: "white" }}/>
-            </IconButton>
-          </Box>
-          <Box sx={classes.popoverBody}>
+          <div className="vm-graph-settings-popper-header">
+            <div className="vm-graph-settings-popper-header__title">
+              {title}
+            </div>
+            <Button onClick={() => setOpenPopper(false)}>
+              <CloseIcon/>
+            </Button>
+          </div>
+          <div className="vm-graph-settings-popper__body">
             <AxesLimitsConfigurator
               yaxis={yaxis}
               setYaxisLimits={setYaxisLimits}
               toggleEnableLimits={toggleEnableLimits}
             />
-          </Box>
-        </Paper>
-      </ClickAwayListener>
-    </Popper>
-  </Box>;
+          </div>
+        </div>
+      </Popper>
+    </div>
+  );
 };
 
 export default GraphSettings;

@@ -1,10 +1,6 @@
 import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import getDashboardSettings from "./getDashboardSettings";
 import { DashboardRow, DashboardSettings } from "../../types";
-import Box from "@mui/material/Box";
-import Alert from "@mui/material/Alert";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
 import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import get from "lodash.get";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
@@ -26,29 +22,26 @@ const Index: FC = () => {
   }, []);
 
   return <>
-    {!dashboards && <Alert
-      color="info"
-      severity="info"
-      sx={{ m: 4 }}
-    >Dashboards not found</Alert>}
+    {/*{!dashboards && <Alert*/}
+    {/*  color="info"*/}
+    {/*  severity="info"*/}
+    {/*  sx={{ m: 4 }}*/}
+    {/*>Dashboards not found</Alert>}*/}
     {dashboards && <>
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs
-          value={tab}
-          onChange={(e, val) => setTab(val)}
-          aria-label="dashboard-tabs"
-        >
+      <div>
+        {/* TODO add tabs */}
+        <div>
           {dashboards && dashboards.map((d, i) =>
-            <Tab
+            <div
               key={i}
-              label={d.title || d.filename}
               id={`tab-${i}`}
-              aria-controls={`tabpanel-${i}`}
-            />
+            >
+              {d.title || d.filename}
+            </div>
           )}
-        </Tabs>
-      </Box>
-      <Box>
+        </div>
+      </div>
+      <div>
         {Array.isArray(rows) && !!rows.length
           ? rows.map((r,i) =>
             <PredefinedDashboard
@@ -58,14 +51,17 @@ const Index: FC = () => {
               title={r.title}
               panels={r.panels}
             />)
-          : <Alert
-            color="error"
-            severity="error"
-            sx={{ m: 4 }}
-          >
-            <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
-          </Alert>}
-      </Box>
+          : (
+            <div>error</div>
+            // <Alert
+            //   color="error"
+            //   severity="error"
+            //   sx={{ m: 4 }}
+            // >
+            //   <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+            // </Alert>
+          )}
+      </div>
     </>}
   </>;
 };

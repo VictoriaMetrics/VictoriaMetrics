@@ -1,15 +1,7 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { InstantMetricResult } from "../../api/types";
 import { InstantDataSeries } from "../../types";
-import Table from "@mui/material/Table";
-import TableBody from "@mui/material/TableBody";
-import TableCell from "@mui/material/TableCell";
-import TableContainer from "@mui/material/TableContainer";
-import TableHead from "@mui/material/TableHead";
-import TableRow from "@mui/material/TableRow";
-import TableSortLabel from "@mui/material/TableSortLabel";
 import { useSortedCategories } from "../../hooks/useSortedCategories";
-import Alert from "@mui/material/Alert";
 import { useQueryState } from "../../state/query/QueryStateContext";
 
 export interface GraphViewProps {
@@ -56,70 +48,71 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
 
   return (
     <>
-      {(rows.length > 0)
-        ? <TableContainer
-          ref={tableContainerRef}
-          sx={{ width: "calc(100vw - 68px)", height: tableContainerHeight }}
-        >
-          <Table
-            stickyHeader
-            aria-label="simple table"
-          >
-            <TableHead>
-              <TableRow>
-                {sortedColumns.map((col, index) => (
-                  <TableCell
-                    key={index}
-                    style={{ textTransform: "capitalize", paddingTop: 0 }}
-                  >
-                    <TableSortLabel
-                      active={orderBy === col.key}
-                      direction={orderDir}
-                      onClick={() => sortHandler(col.key)}
-                    >
-                      {col.key}
-                    </TableSortLabel>
-                  </TableCell>
-                ))}
-                <TableCell align="right">
-                  <TableSortLabel
-                    active={orderBy === "Value"}
-                    direction={orderDir}
-                    onClick={() => sortHandler("Value")}
-                  >
-                    Value
-                  </TableSortLabel>
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {rows.map((row, index) => (
-                <TableRow
-                  key={index}
-                  hover
-                >
-                  {row.metadata.map((rowMeta, index2) => {
-                    const prevRowValue = rows[index - 1] && rows[index - 1].metadata[index2];
-                    return (
-                      <TableCell
-                        sx={prevRowValue === rowMeta ? { opacity: 0.4 } : {}}
-                        style={{ whiteSpace: "nowrap" }}
-                        key={index2}
-                      >{rowMeta}</TableCell>
-                    );
-                  }
-                  )}
-                  <TableCell align="right">{row.value}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-        : <Alert
-          color="warning"
-          severity="warning"
-          sx={{ mt: 2 }}
-        >No data to show</Alert>}
+      table view
+      {/*{(rows.length > 0)*/}
+      {/*  ? <TableContainer*/}
+      {/*    ref={tableContainerRef}*/}
+      {/*    sx={{ width: "calc(100vw - 68px)", height: tableContainerHeight }}*/}
+      {/*  >*/}
+      {/*    <Table*/}
+      {/*      stickyHeader*/}
+      {/*      aria-label="simple table"*/}
+      {/*    >*/}
+      {/*      <TableHead>*/}
+      {/*        <TableRow>*/}
+      {/*          {sortedColumns.map((col, index) => (*/}
+      {/*            <TableCell*/}
+      {/*              key={index}*/}
+      {/*              style={{ textTransform: "capitalize", paddingTop: 0 }}*/}
+      {/*            >*/}
+      {/*              <TableSortLabel*/}
+      {/*                active={orderBy === col.key}*/}
+      {/*                direction={orderDir}*/}
+      {/*                onClick={() => sortHandler(col.key)}*/}
+      {/*              >*/}
+      {/*                {col.key}*/}
+      {/*              </TableSortLabel>*/}
+      {/*            </TableCell>*/}
+      {/*          ))}*/}
+      {/*          <TableCell align="right">*/}
+      {/*            <TableSortLabel*/}
+      {/*              active={orderBy === "Value"}*/}
+      {/*              direction={orderDir}*/}
+      {/*              onClick={() => sortHandler("Value")}*/}
+      {/*            >*/}
+      {/*              Value*/}
+      {/*            </TableSortLabel>*/}
+      {/*          </TableCell>*/}
+      {/*        </TableRow>*/}
+      {/*      </TableHead>*/}
+      {/*      <TableBody>*/}
+      {/*        {rows.map((row, index) => (*/}
+      {/*          <TableRow*/}
+      {/*            key={index}*/}
+      {/*            hover*/}
+      {/*          >*/}
+      {/*            {row.metadata.map((rowMeta, index2) => {*/}
+      {/*              const prevRowValue = rows[index - 1] && rows[index - 1].metadata[index2];*/}
+      {/*              return (*/}
+      {/*                <TableCell*/}
+      {/*                  sx={prevRowValue === rowMeta ? { opacity: 0.4 } : {}}*/}
+      {/*                  style={{ whiteSpace: "nowrap" }}*/}
+      {/*                  key={index2}*/}
+      {/*                >{rowMeta}</TableCell>*/}
+      {/*              );*/}
+      {/*            }*/}
+      {/*            )}*/}
+      {/*            <TableCell align="right">{row.value}</TableCell>*/}
+      {/*          </TableRow>*/}
+      {/*        ))}*/}
+      {/*      </TableBody>*/}
+      {/*    </Table>*/}
+      {/*  </TableContainer>*/}
+      {/*  : <Alert*/}
+      {/*    color="warning"*/}
+      {/*    severity="warning"*/}
+      {/*    sx={{ mt: 2 }}*/}
+      {/*  >No data to show</Alert>}*/}
     </>
   );
 };

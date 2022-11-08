@@ -1,6 +1,4 @@
 import React, { createContext, FC, useContext, useEffect, useState } from "preact/compat";
-import Alert from "@mui/material/Alert";
-import Snackbar from "@mui/material/Snackbar";
 
 export interface SnackModel {
   message?: string;
@@ -43,16 +41,16 @@ export const SnackbarProvider: FC = ({ children }) => {
   };
 
   return <SnackbarContext.Provider value={{ showInfoMessage: setInfoMessage }}>
-    <Snackbar
-      open={open}
-      key={snack.key}
-      autoHideDuration={4000}
-      onClose={handleClose}
-    >
-      <Alert>
-        {snack.message}
-      </Alert>
-    </Snackbar>
+    {/*<Snackbar*/}
+    {/*  open={open}*/}
+    {/*  key={snack.key}*/}
+    {/*  autoHideDuration={4000}*/}
+    {/*  onClose={handleClose}*/}
+    {/*>*/}
+    {/*  <Alert>*/}
+    {/*    {snack.message}*/}
+    {/*  </Alert>*/}
+    {/*</Snackbar>*/}
     {children}
   </SnackbarContext.Provider>;
 };

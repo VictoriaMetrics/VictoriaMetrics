@@ -1,0 +1,8 @@
+@import "src/styles/variables";
+
+.vm-additional-settings {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: $padding-global;
+}

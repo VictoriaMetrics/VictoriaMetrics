@@ -1,0 +1,8 @@
+@import "src/styles/variables";
+
+.vm-global-settings {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  margin-bottom: $padding-medium;
+}

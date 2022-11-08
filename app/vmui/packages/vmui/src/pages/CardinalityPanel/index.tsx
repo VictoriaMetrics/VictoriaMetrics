@@ -1,11 +1,10 @@
-import React, { ChangeEvent, FC, useState } from "react";
+import React, { FC, useState } from "react";
 import { SyntheticEvent } from "react";
-import { Alert } from "@mui/material";
 import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
 import { Data } from "../../components/Main/Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
-import Spinner from "../../components/Main/Spinner";
+import Spinner from "../../components/Main/Spinner/Spinner";
 import { useCardinalityDispatch, useCardinalityState } from "../../state/cardinality/CardinalityStateContext";
 import MetricsContent from "./MetricsContent/MetricsContent";
 import { DefaultActiveTab, Tabs, TSDBStatus, Containers } from "./types";
@@ -51,12 +50,12 @@ const Index: FC = () => {
     setQuery(queryHistory[newIndexHistory]);
   };
 
-  const onTopNChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
-    cardinalityDispatch({ type: "SET_TOP_N", payload: +e.target.value });
+  const onTopNChange = (value: string) => {
+    cardinalityDispatch({ type: "SET_TOP_N", payload: +value });
   };
 
-  const onFocusLabelChange = (e: ChangeEvent<HTMLTextAreaElement|HTMLInputElement>) => {
-    cardinalityDispatch({ type: "SET_FOCUS_LABEL", payload: e.target.value });
+  const onFocusLabelChange = (value: string) => {
+    cardinalityDispatch({ type: "SET_FOCUS_LABEL", payload: value });
   };
 
   const { isLoading, appConfigurator, error } = useFetchQuery();
@@ -85,42 +84,43 @@ const Index: FC = () => {
 
   return (
     <>
-      {isLoading && <Spinner
-        isLoading={isLoading}
-        height={"800px"}
-        containerStyles={spinnerContainerStyles("100%")}
-        title={<Alert
-          color="error"
-          severity="error"
-          sx={{ whiteSpace: "pre-wrap", mt: 2 }}
-        >
-          Please wait while cardinality stats is calculated. This may take some time if the db contains big number of time series
-        </Alert>}
-      />}
+      {/*{isLoading && <Spinner*/}
+      {/*  isLoading={isLoading}*/}
+      {/*  height={"800px"}*/}
+      {/*  containerStyles={spinnerContainerStyles("100%")}*/}
+      {/*  title={<Alert*/}
+      {/*    color="error"*/}
+      {/*    severity="error"*/}
+      {/*    sx={{ whiteSpace: "pre-wrap", mt: 2 }}*/}
+      {/*  >*/}
+      {/*    Please wait while cardinality stats is calculated. This may take some time if the db contains big number of time series*/}
+      {/*  </Alert>}*/}
+      {/*/>}*/}
       <CardinalityConfigurator
         error={configError}
         query={query}
-        onRunQuery={onRunQuery}
-        onSetQuery={onSetQuery}
-        onSetHistory={onSetHistory}
-        onTopNChange={onTopNChange}
         topN={topN}
         date={date}
         match={match}
         totalSeries={tsdbStatusData.totalSeries}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         focusLabel={focusLabel}
+        onRunQuery={onRunQuery}
+        onSetQuery={onSetQuery}
+        onSetHistory={onSetHistory}
+        onTopNChange={onTopNChange}
         onFocusLabelChange={onFocusLabelChange}
       />
-      {error && (
-        <Alert
-          color="error"
-          severity="error"
-          sx={{ whiteSpace: "pre-wrap", m: 2 }}
-        >
-          {error}
-        </Alert>
-      )}
+      {/* TODO add Alert*/}
+      {/*{error && (*/}
+      {/*  <Alert*/}
+      {/*    color="error"*/}
+      {/*    severity="error"*/}
+      {/*    sx={{ whiteSpace: "pre-wrap", m: 2 }}*/}
+      {/*  >*/}
+      {/*    {error}*/}
+      {/*  </Alert>*/}
+      {/*)}*/}
       {appConfigurator.keys(focusLabel).map((keyName) => (
         <MetricsContent
           key={keyName}

@@ -1,10 +1,8 @@
 import React, { FC } from "preact/compat";
-import Typography from "@mui/material/Typography";
 import TraceView from "./TraceView";
-import Alert from "@mui/material/Alert";
-import RemoveCircleIcon from "@mui/icons-material/RemoveCircle";
-import Button from "@mui/material/Button";
 import Trace from "./Trace";
+import Button from "../Main/Button/Button";
+import { RemoveCircleIcon } from "../Main/Icons";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -14,13 +12,10 @@ interface TraceViewProps {
 const TracingsView: FC<TraceViewProps> = ({ traces, onDeleteClick }) => {
   if (!traces.length) {
     return (
-      <Alert
-        color={"info"}
-        severity="info"
-        sx={{ whiteSpace: "pre-wrap", mt: 2 }}
-      >
+      // TODO add alert
+      <div>
         Please re-run the query to see results of the tracing
-      </Alert>
+      </div>
     );
   }
 
@@ -29,18 +24,12 @@ const TracingsView: FC<TraceViewProps> = ({ traces, onDeleteClick }) => {
   };
 
   return <>{traces.map((trace: Trace) => <>
-    <Typography
-      variant="h5"
-      component="div"
-    >
+    <div>
       Trace for <b>{trace.queryValue}</b>
       <Button onClick={handleDeleteClick(trace)}>
-        <RemoveCircleIcon
-          fontSize={"medium"}
-          color={"error"}
-        />
+        <RemoveCircleIcon />
       </Button>
-    </Typography>
+    </div>
     <TraceView trace={trace} />
   </>)}</>;
 };

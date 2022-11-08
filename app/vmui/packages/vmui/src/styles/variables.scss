@@ -1,0 +1,63 @@
+/************* colors *************/
+:root {
+  --color-primary: #3F51B5;
+  --color-secondary: #F50057;
+  --color-error: #FF4141;
+  --color-warning: #FF9800;
+  --color-info: #03A9F4;
+  --color-success: #4CAF50;
+}
+
+$color-black: #000000;
+$color-silver: #C4C4C4;
+$color-alto: #D8D8D8;
+$color-white: #ffffff;
+
+$color-primary: var(--color-primary);
+$color-secondary: var(--color-secondary);
+$color-error: var(--color-error);
+$color-warning: var(--color-warning);
+$color-info: var(--color-info);
+$color-success: var(--color-success);
+
+$color-text: #313635;
+$color-text-secondary: #7a8684;
+$color-text-disabled: #cacfce;
+
+
+/************* background *************/
+$color-background-modal: rgba($color-black, 0.7);
+$color-background-body: $color-white;
+$color-background-tooltip: rgba($color-text, 0.8);
+
+
+/************* padding *************/
+$padding-global: 16px;
+$padding-large: 64px;
+$padding-medium: 32px;
+$padding-small: 8px;
+
+
+/************* fonts *************/
+$font-family-global: 'Lato', sans-serif;
+$font-size-large: 20px;
+$font-size-medium: 16px;
+$font-size: 14px;
+$font-size-small: 12px;
+
+
+/************* border *************/
+$border-divider: 1px solid rgba($color-black, 0.15);
+
+
+/************* border-radius *************/
+$border-radius-small: 4px;
+$border-radius-medium: 8px;
+$border-radius-large: 16px;
+
+
+/************* box-shadows *************/
+$box-shadow: rgba($color-primary, 0.08) 0px 4px 12px;
+$box-shadow-hover: rgba($color-primary, 0.12) 0px 2px 8px;
+$box-shadow-header: rgba($color-primary, 0.1) 0px 2px 8px;
+$box-shadow-popper: rgba($color-black, 0.1) 0px 2px 5px 0px, rgba($color-black, 0.01) 0px 1px 1px 4px;

@@ -1,5 +1,4 @@
 import React, { FC } from "preact/compat";
-import List from "@mui/material/List";
 import NestedNav from "./NestedNav/NestedNav";
 import Trace from "./Trace";
 
@@ -9,15 +8,12 @@ interface TraceViewProps {
 
 const TraceView: FC<TraceViewProps> = ({ trace }) => {
 
-  return (<List
-    sx={{ width: "100%" }}
-    component="nav"
-  >
+  return (<nav>
     <NestedNav
       trace={trace}
       totalMsec={trace.duration}
     />
-  </List>);
+  </nav>);
 };
 
 export default TraceView;
