@@ -49,7 +49,10 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 		baseQueryArgs += "&stale"
 	}
 	if namespace != "" {
-		baseQueryArgs += "&ns=" + namespace
+		baseQueryArgs += "&ns=" + url.QueryEscape(namespace)
+	}
+	if sdc.Partition != "" {
+		baseQueryArgs += "&partition=" + url.QueryEscape(sdc.Partition)
 	}
 	for k, v := range sdc.NodeMeta {
 		baseQueryArgs += "&node-meta=" + url.QueryEscape(k+":"+v)

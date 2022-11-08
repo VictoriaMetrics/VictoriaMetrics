@@ -112,8 +112,14 @@ scrape_configs:
     # datacenter: "..."
 
     # namespace is an optional Consul namespace.
+    # See https://developer.hashicorp.com/consul/docs/enterprise/namespaces
     # If the namespace isn't specified, then it is read from CONSUL_NAMESPACE environment var.
     # namespace: "..."
+
+    # partition is an optional Consul partition.
+    # See https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
+    # If partition isn't specified, then the default partition is used.
+    # partition: "..."
 
     # scheme is an optional scheme (http or https) to use for connecting to Consul server.
     # By default http scheme is used.
@@ -151,7 +157,9 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_consul_dc`: the datacenter name for the target
 * `__meta_consul_health`: the health status of the service
 * `__meta_consul_metadata_<key>`: each node metadata key value of the target
+* `__meta_consul_namespace`: namespace of the service - see [namespace docs](https://developer.hashicorp.com/consul/docs/enterprise/namespaces)
 * `__meta_consul_node`: the node name defined for the target
+* `__meta_consul_partition`: partition of the service - see [partition docs](https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions)
 * `__meta_consul_service_address`: the service address of the target
 * `__meta_consul_service_id`: the service ID of the target
 * `__meta_consul_service_metadata_<key>`: each service metadata key value of the target
