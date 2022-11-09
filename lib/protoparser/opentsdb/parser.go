@@ -82,26 +82,31 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	}
 	r.Timestamp = int64(timestamp)
 	tail = trimLeadingSpaces(tail[n+1:])
+	valueStr := ""
+	tagsStr := ""
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
-		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290
-		n = len(tail)
+		// Missing tags.
+		// Accept this case even if OpenTSDB forbids it according to http://opentsdb.net/docs/build/html/api_telnet/put.html:
+		// > At least one tag pair must be present.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290
+		valueStr = tail
+	} else {
+		valueStr = tail[:n]
+		tagsStr = tail[n+1:]
 	}
-	v, err := fastfloat.Parse(tail[:n])
+	v, err := fastfloat.Parse(valueStr)
 	if err != nil {
-		return tagsPool, fmt.Errorf("cannot parse value from %q: %w", tail[:n], err)
+		return tagsPool, fmt.Errorf("cannot parse value from %q: %w", valueStr, err)
 	}
 	r.Value = v
-	if len(tail) > n {
-		tagsStart := len(tagsPool)
-		tagsPool, err = unmarshalTags(tagsPool, tail[n+1:])
-		if err != nil {
-			return tagsPool, fmt.Errorf("cannot unmarshal tags in %q: %w", s, err)
-		}
-		tags := tagsPool[tagsStart:]
-		r.Tags = tags[:len(tags):len(tags)]
+	tagsStart := len(tagsPool)
+	tagsPool, err = unmarshalTags(tagsPool, tagsStr)
+	if err != nil {
+		return tagsPool, fmt.Errorf("cannot unmarshal tags in %q: %w", s, err)
 	}
-
+	tags := tagsPool[tagsStart:]
+	r.Tags = tags[:len(tags):len(tags)]
 	return tagsPool, nil
 }
 
