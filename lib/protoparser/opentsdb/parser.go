@@ -84,20 +84,24 @@ func (r *Row) unmarshal(s string, tagsPool []Tag) ([]Tag, error) {
 	tail = trimLeadingSpaces(tail[n+1:])
 	n = strings.IndexByte(tail, ' ')
 	if n < 0 {
-		return tagsPool, fmt.Errorf("cannot find whitespace between value and the first tag in %q", s)
+		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290
+		n = len(tail)
 	}
 	v, err := fastfloat.Parse(tail[:n])
 	if err != nil {
 		return tagsPool, fmt.Errorf("cannot parse value from %q: %w", tail[:n], err)
 	}
 	r.Value = v
-	tagsStart := len(tagsPool)
-	tagsPool, err = unmarshalTags(tagsPool, tail[n+1:])
-	if err != nil {
-		return tagsPool, fmt.Errorf("cannot unmarshal tags in %q: %w", s, err)
+	if len(tail) > n {
+		tagsStart := len(tagsPool)
+		tagsPool, err = unmarshalTags(tagsPool, tail[n+1:])
+		if err != nil {
+			return tagsPool, fmt.Errorf("cannot unmarshal tags in %q: %w", s, err)
+		}
+		tags := tagsPool[tagsStart:]
+		r.Tags = tags[:len(tags):len(tags)]
 	}
-	tags := tagsPool[tagsStart:]
-	r.Tags = tags[:len(tags):len(tags)]
+
 	return tagsPool, nil
 }
 
