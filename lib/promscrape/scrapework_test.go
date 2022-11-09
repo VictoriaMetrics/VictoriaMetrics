@@ -465,63 +465,55 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`)
 }
 
-func TestAddRowToTimeseries(t *testing.T) {
-	f := func(r *parser.Row, cfg *ScrapeWork, needRelabel bool, dataExpected string) {
+func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
+	f := func(row string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
-
-		wc := &writeRequestCtx{}
-
-		timeseriesExpected := parseData(dataExpected)
-		timestamp := int64(123000)
-
-		var sw scrapeWork
-		sw.Config = cfg
-		sw.addRowToTimeseries(wc, r, timestamp, needRelabel)
-
-		wr := wc.writeRequest
-
-		var expectEqualError error
-		tsExpected := timeseriesExpected[:len(wr.Timeseries)]
-		if err := expectEqualTimeseries(wr.Timeseries, tsExpected); err != nil {
-			expectEqualError = fmt.Errorf("%w\ngot\n%v\nwant\n%v", err, wr.Timeseries, tsExpected)
+		sw := scrapeWork{
+			Config: cfg,
 		}
-		if expectEqualError != nil {
-			t.Fatalf("unexpected error: %s", expectEqualError)
+		var wc writeRequestCtx
+		r := parsePromRow(row)
+		sw.addRowToTimeseries(&wc, r, r.Timestamp, false)
+		tss := wc.writeRequest.Timeseries
+		tssExpected := parseData(dataExpected)
+		if err := expectEqualTimeseries(tss, tssExpected); err != nil {
+			t.Fatalf("%s\ngot\n%v\nwant\n%v", err, tss, tssExpected)
 		}
 	}
 
-	//With HonorLabels=false
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
-				{
-					Key:   "a",
-					Value: "f",
-				},
-			},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
+	// HonorLabels=false, empty Labels and ExternalLabels
+	f(`metric 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout:  time.Second * 42,
 			Labels:         []prompbmarshal.Label{},
 			ExternalLabels: []prompbmarshal.Label{},
 			HonorLabels:    false,
 		},
-		false,
-		`
-		metric{a="f"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric:    "metric",
-			Tags:      []parser.Tag{},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
+		`metric 0 123`)
+	f(`metric{a="f"} 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric{a="f"} 0 123`)
+	// HonorLabels=true, empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric 0 123`)
+	f(`metric{a="f"} 0 123`,
+		&ScrapeWork{
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric{a="f"} 0 123`)
+	// HonorLabels=false, non-empty Labels
+	f(`metric 0 123`,
+		&ScrapeWork{
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "a",
@@ -531,46 +523,9 @@ func TestAddRowToTimeseries(t *testing.T) {
 			ExternalLabels: []prompbmarshal.Label{},
 			HonorLabels:    false,
 		},
-		false,
-		`
-		metric{a="f"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric:    "metric",
-			Tags:      []parser.Tag{},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
-			Labels:        []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			HonorLabels: false,
-		},
-		false,
-		`
-		metric{a="f"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
-				{
-					Key:   "a",
-					Value: "b",
-				},
-			},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
-		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "a",
@@ -580,111 +535,10 @@ func TestAddRowToTimeseries(t *testing.T) {
 			ExternalLabels: []prompbmarshal.Label{},
 			HonorLabels:    false,
 		},
-		false,
-		`
-		metric{a="f",exported_a="b"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
-				{
-					Key:   "a",
-					Value: "b",
-				},
-			},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=true, non-empty Labels
+	f(`metric 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
-			Labels:        []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			HonorLabels: false,
-		},
-		false,
-		`
-		metric{a="f",exported_a="b"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric:    "metric",
-			Tags:      []parser.Tag{},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
-		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "e",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			HonorLabels: false,
-		},
-		false,
-		`
-		metric{a="f",exported_a="e"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
-				{
-					Key:   "a",
-					Value: "b",
-				},
-			},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
-		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "c",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "d",
-				},
-			},
-			HonorLabels: false,
-		},
-		false,
-		`
-		metric{a="d",exported_a="c"} 0 123
-	`)
-	// With HonorLabels=true
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
-				{
-					Key:   "a",
-					Value: "b",
-				},
-			},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
-		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "a",
@@ -694,25 +548,48 @@ func TestAddRowToTimeseries(t *testing.T) {
 			ExternalLabels: []prompbmarshal.Label{},
 			HonorLabels:    true,
 		},
-		false,
-		`
-		metric{a="b"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
 				{
-					Key:   "a",
-					Value: "b",
+					Name:  "a",
+					Value: "f",
 				},
 			},
-			Value:     0,
-			Timestamp: int64(123000),
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
 		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=false, non-empty ExternalLabels
+	f(`metric 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
-			Labels:        []prompbmarshal.Label{},
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=true, non-empty ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
 			ExternalLabels: []prompbmarshal.Label{
 				{
 					Name:  "a",
@@ -721,19 +598,179 @@ func TestAddRowToTimeseries(t *testing.T) {
 			},
 			HonorLabels: true,
 		},
-		false,
-		`
-		metric{a="b"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric:    "metric",
-			Tags:      []parser.Tag{},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=false, non-empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",x="y"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar",x="y"} 0 123`)
+	// HonorLabels=true, non-empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f",x="y"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f",foo="bar",x="y"} 0 123`)
+	// HonorLabels=false, clashing Labels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric{a="f",exported_a="b"} 0 123`)
+	// HonorLabels=true, clashing Labels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric{a="b"} 0 123`)
+	// HonorLabels=false, clashing ExternalLabels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",exported_a="b"} 0 123`)
+	// HonorLabels=true, clashing ExternalLabels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="b"} 0 123`)
+	// HonorLabels=false, clashing Labels and ExternalLAbels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "e",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",exported_a="e"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "e",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar",exported_a="e"} 0 123`)
+	// HonorLabels=true, clashing Labels and ExternalLAbels
+	f(`metric 0 123`,
+		&ScrapeWork{
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "a",
@@ -748,43 +785,36 @@ func TestAddRowToTimeseries(t *testing.T) {
 			},
 			HonorLabels: true,
 		},
-		false,
-		`
-		metric{a="e"} 0 123
-	`)
-	f(
-		&parser.Row{
-			Metric: "metric",
-			Tags: []parser.Tag{
-				{
-					Key:   "a",
-					Value: "b",
-				},
-			},
-			Value:     0,
-			Timestamp: int64(123000),
-		},
+		`metric{a="e"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			ScrapeTimeout: time.Second * 42,
 			Labels: []prompbmarshal.Label{
 				{
 					Name:  "a",
-					Value: "c",
+					Value: "e",
 				},
 			},
 			ExternalLabels: []prompbmarshal.Label{
 				{
 					Name:  "a",
-					Value: "d",
+					Value: "f",
 				},
 			},
 			HonorLabels: true,
 		},
-		false,
-		`
-		metric{a="b"} 0 123
-	`)
+		`metric{a="e",foo="bar"} 0 123`)
+}
 
+func parsePromRow(data string) *parser.Row {
+	var rows parser.Rows
+	errLogger := func(s string) {
+		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
+	}
+	rows.UnmarshalWithErrLogger(data, errLogger)
+	if len(rows.Rows) != 1 {
+		panic(fmt.Errorf("unexpected number of rows parsed from %q; got %d; want %d", data, len(rows.Rows), 1))
+	}
+	return &rows.Rows[0]
 }
 
 func parseData(data string) []prompbmarshal.TimeSeries {
