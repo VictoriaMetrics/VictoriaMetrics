@@ -101,14 +101,23 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			},
 		}},
 	})
-	// No tags
-	f("put foobar 789 -123.456", &Rows{
+	// Missing first tag
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290
+	f("put aaa 123 43", &Rows{
 		Rows: []Row{{
-			Metric:    "foobar",
-			Value:     -123.456,
-			Timestamp: 789,
+			Metric:    "aaa",
+			Value:     43,
+			Timestamp: 123,
 		}},
 	})
+	f("put aaa 123 43 ", &Rows{
+		Rows: []Row{{
+			Metric:    "aaa",
+			Value:     43,
+			Timestamp: 123,
+		}},
+	})
+
 	// Fractional timestamp that is supported by Akumuli.
 	f("put foobar 789.4 -123.456 a=b", &Rows{
 		Rows: []Row{{
