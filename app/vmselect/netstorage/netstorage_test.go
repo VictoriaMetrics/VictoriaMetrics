@@ -12,6 +12,20 @@ func TestInitStopNodes(t *testing.T) {
 		runtime.Gosched()
 		MustStop()
 	}
+
+	// Try initializing the netstorage with bigger number of nodes
+	for i := 0; i < 3; i++ {
+		Init([]string{"host1", "host2", "host3"})
+		runtime.Gosched()
+		MustStop()
+	}
+
+	// Try initializing the netstorage with smaller number of nodes
+	for i := 0; i < 3; i++ {
+		Init([]string{"host1"})
+		runtime.Gosched()
+		MustStop()
+	}
 }
 
 func TestMergeSortBlocks(t *testing.T) {
