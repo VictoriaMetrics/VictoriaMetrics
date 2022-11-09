@@ -37,9 +37,6 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 	f("put aaa timestamp")
 	f("put foobar 3df4 -123456 a=b")
 
-	// Missing first tag
-	f("put aaa 123 43")
-
 	// Invalid value
 	f("put aaa 123 invalid-value")
 	f("put foobar 789 -123foo456 a=b")
@@ -102,6 +99,14 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 					Value: "c",
 				},
 			},
+		}},
+	})
+	// No tags
+	f("put foobar 789 -123.456", &Rows{
+		Rows: []Row{{
+			Metric:    "foobar",
+			Value:     -123.456,
+			Timestamp: 789,
 		}},
 	})
 	// Fractional timestamp that is supported by Akumuli.
