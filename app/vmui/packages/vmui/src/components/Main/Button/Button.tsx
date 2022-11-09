@@ -16,7 +16,7 @@ interface ButtonProps {
 }
 
 const Button: FC<ButtonProps> = ({
-  variant = "text",
+  variant = "contained",
   color = "primary",
   size = "medium",
   children,

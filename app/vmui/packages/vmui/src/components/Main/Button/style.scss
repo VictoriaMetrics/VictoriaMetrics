@@ -1,9 +1,42 @@
 @import "src/styles/variables";
 
 .vm-button {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 6px $padding-global;
+  font-size: $font-size-small;
+  border-radius: $border-radius-small;
+  color: $color-white;
+  transform-style: preserve-3d;
+  cursor: pointer;
+
+  &:before,
+  &:after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transition: background-color 200ms ease;
+    border-radius: $border-radius-small;
+  }
+
+  &:before {
+    background-color: $color-primary;
+    transform: translateZ(-2px);
+  }
+
+  &:after {
+    background-color: transparent;
+    transform: translateZ(-1px);
+  }
+
+  &:hover:after {
+    background-color: rgba($color-black, 0.2)
+  }
 
   span {
     display: grid;
