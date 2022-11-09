@@ -19,7 +19,7 @@ import (
 //
 // InsertCtx.Reset must be called before the first usage.
 type InsertCtx struct {
-	sns           []*storageNode
+	snb           *storageNodesBucket
 	Labels        sortedLabels
 	MetricNameBuf []byte
 
@@ -41,9 +41,9 @@ func (br *bufRows) reset() {
 	br.rows = 0
 }
 
-func (br *bufRows) pushTo(sns []*storageNode, sn *storageNode) error {
+func (br *bufRows) pushTo(snb *storageNodesBucket, sn *storageNode) error {
 	bufLen := len(br.buf)
-	err := sn.push(sns, br.buf, br.rows)
+	err := sn.push(snb, br.buf, br.rows)
 	br.reset()
 	if err != nil {
 		return &httpserver.ErrorWithStatusCode{
@@ -56,7 +56,7 @@ func (br *bufRows) pushTo(sns []*storageNode, sn *storageNode) error {
 
 // Reset resets ctx.
 func (ctx *InsertCtx) Reset() {
-	ctx.sns = getStorageNodes()
+	ctx.snb = getStorageNodesBucket()
 	for i := range ctx.Labels {
 		label := &ctx.Labels[i]
 		label.Name = nil
@@ -66,7 +66,7 @@ func (ctx *InsertCtx) Reset() {
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 
 	if ctx.bufRowss == nil {
-		ctx.bufRowss = make([]bufRows, len(ctx.sns))
+		ctx.bufRowss = make([]bufRows, len(ctx.snb.sns))
 	}
 	for i := range ctx.bufRowss {
 		ctx.bufRowss[i].reset()
@@ -127,12 +127,12 @@ func (ctx *InsertCtx) WriteDataPoint(at *auth.Token, labels []prompb.Label, time
 // WriteDataPointExt writes the given metricNameRaw with (timestmap, value) to ctx buffer with the given storageNodeIdx.
 func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte, timestamp int64, value float64) error {
 	br := &ctx.bufRowss[storageNodeIdx]
-	sns := ctx.sns
-	sn := sns[storageNodeIdx]
+	snb := ctx.snb
+	sn := snb.sns[storageNodeIdx]
 	bufNew := storage.MarshalMetricRow(br.buf, metricNameRaw, timestamp, value)
 	if len(bufNew) >= maxBufSizePerStorageNode {
 		// Send buf to sn, since it is too big.
-		if err := br.pushTo(sns, sn); err != nil {
+		if err := br.pushTo(snb, sn); err != nil {
 			return err
 		}
 		br.buf = storage.MarshalMetricRow(bufNew[:0], metricNameRaw, timestamp, value)
@@ -146,12 +146,14 @@ func (ctx *InsertCtx) WriteDataPointExt(storageNodeIdx int, metricNameRaw []byte
 // FlushBufs flushes ctx bufs to remote storage nodes.
 func (ctx *InsertCtx) FlushBufs() error {
 	var firstErr error
+	snb := ctx.snb
+	sns := snb.sns
 	for i := range ctx.bufRowss {
 		br := &ctx.bufRowss[i]
 		if len(br.buf) == 0 {
 			continue
 		}
-		if err := br.pushTo(ctx.sns, ctx.sns[i]); err != nil && firstErr == nil {
+		if err := br.pushTo(snb, sns[i]); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -162,7 +164,7 @@ func (ctx *InsertCtx) FlushBufs() error {
 //
 // The returned index must be passed to WriteDataPoint.
 func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) int {
-	if len(ctx.sns) == 1 {
+	if len(ctx.snb.sns) == 1 {
 		// Fast path - only a single storage node.
 		return 0
 	}
@@ -179,7 +181,7 @@ func (ctx *InsertCtx) GetStorageNodeIdx(at *auth.Token, labels []prompb.Label) i
 	ctx.labelsBuf = buf
 
 	// Do not exclude unavailable storage nodes in order to properly account for rerouted rows in storageNode.push().
-	idx := nodesHash.getNodeIdx(h, nil)
+	idx := ctx.snb.nodesHash.getNodeIdx(h, nil)
 	return idx
 }
 
