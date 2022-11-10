@@ -38,6 +38,7 @@ type Service struct {
 	Service   string
 	Address   string
 	Namespace string
+	Partition string
 	Port      int
 	Tags      []string
 	Meta      map[string]string
@@ -83,6 +84,7 @@ func (sn *ServiceNode) appendTargetLabels(ms []map[string]string, serviceName, t
 		"__meta_consul_dc":              sn.Node.Datacenter,
 		"__meta_consul_health":          aggregatedStatus(sn.Checks),
 		"__meta_consul_namespace":       sn.Service.Namespace,
+		"__meta_consul_partition":       sn.Service.Partition,
 		"__meta_consul_node":            sn.Node.Node,
 		"__meta_consul_service":         serviceName,
 		"__meta_consul_service_address": sn.Service.Address,
