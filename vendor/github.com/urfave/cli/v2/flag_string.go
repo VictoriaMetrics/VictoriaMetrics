@@ -31,10 +31,10 @@ func (f *StringFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	if f.Value == "" {
-		return f.Value
+	if f.defaultValue == "" {
+		return f.defaultValue
 	}
-	return fmt.Sprintf("%q", f.Value)
+	return fmt.Sprintf("%q", f.defaultValue)
 }
 
 // GetEnvVars returns the env vars for this flag
@@ -44,6 +44,9 @@ func (f *StringFlag) GetEnvVars() []string {
 
 // Apply populates the flag given the flag set and environment
 func (f *StringFlag) Apply(set *flag.FlagSet) error {
+	// set default value so that environment wont be able to overwrite it
+	f.defaultValue = f.Value
+
 	if val, _, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		f.Value = val
 		f.HasBeenSet = true
@@ -63,6 +66,15 @@ func (f *StringFlag) Apply(set *flag.FlagSet) error {
 // Get returns the flag’s value in the given Context.
 func (f *StringFlag) Get(ctx *Context) string {
 	return ctx.String(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *StringFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.String(f.Name))
+	}
+
+	return nil
 }
 
 // String looks up the value of a local StringFlag, returns

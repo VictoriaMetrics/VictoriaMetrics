@@ -11,9 +11,9 @@ import (
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // f must be safe for concurrent calls.
 //
@@ -53,9 +53,9 @@ func (g *Gauge) marshalTo(prefix string, w io.Writer) {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned gauge is safe to use from concurrent goroutines.
 //

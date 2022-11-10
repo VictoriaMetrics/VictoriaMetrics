@@ -32,7 +32,7 @@ func (f *DurationFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	return f.GetValue()
+	return f.defaultValue.String()
 }
 
 // GetEnvVars returns the env vars for this flag
@@ -42,6 +42,9 @@ func (f *DurationFlag) GetEnvVars() []string {
 
 // Apply populates the flag given the flag set and environment
 func (f *DurationFlag) Apply(set *flag.FlagSet) error {
+	// set default value so that environment wont be able to overwrite it
+	f.defaultValue = f.Value
+
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
 			valDuration, err := time.ParseDuration(val)
@@ -68,6 +71,15 @@ func (f *DurationFlag) Apply(set *flag.FlagSet) error {
 // Get returns the flag’s value in the given Context.
 func (f *DurationFlag) Get(ctx *Context) time.Duration {
 	return ctx.Duration(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *DurationFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Duration(f.Name))
+	}
+
+	return nil
 }
 
 // Duration looks up the value of a local DurationFlag, returns
