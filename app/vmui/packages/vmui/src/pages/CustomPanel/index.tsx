@@ -1,9 +1,9 @@
 import React, { FC, useState, useEffect } from "preact/compat";
 import GraphView from "../../components/Views/GraphView";
 // import TableView from "../../components/Views/TableView";
-import QueryConfigurator from "./QueryConfigurator";
+import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
-import JsonView from "../../components/Views/JsonView";
+import JsonView from "../../components/Views/JsonView/JsonView";
 import { DisplayTypeSwitch } from "./DisplayTypeSwitch";
 import GraphSettings from "../../components/Configurators/GraphSettings/GraphSettings";
 import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateContext";
@@ -12,11 +12,12 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TraceQuery from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
-import TableSettings from "../../components/Main/Table/TableSettings";
+import TableSettings from "../../components/Main/Table/TableSettings/TableSettings";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
+import "./style.scss";
 
 const Index: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -65,69 +66,63 @@ const Index: FC = () => {
   }, [displayType]);
 
   return (
-    <div>
-      <div>
-        <QueryConfigurator
-          error={error}
-          queryOptions={queryOptions}
-        />
-      </div>
-      <div>
-        {isLoading && <Spinner containerStyles={{ height: "500px" }}/>}
-        {<div>
-          <div>
-            <DisplayTypeSwitch/>
-            <div>
-              {displayType === "chart" && <GraphSettings
-                yaxis={yaxis}
-                setYaxisLimits={setYaxisLimits}
-                toggleEnableLimits={toggleEnableLimits}
-              />}
-              {displayType === "table" && <TableSettings
-                data={liveData || []}
-                defaultColumns={displayColumns}
-                onChange={setDisplayColumns}
-              />}
-            </div>
-          </div>
-          {/*{error && <Alert*/}
-          {/*  color="error"*/}
-          {/*  severity="error"*/}
-          {/*  sx={{ whiteSpace: "pre-wrap", mt: 2 }}*/}
-          {/*>{error}</Alert>}*/}
-          {/*{warning && <Alert*/}
-          {/*  color="warning"*/}
-          {/*  severity="warning"*/}
-          {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
-          {/*>{warning}</Alert>}*/}
-          {graphData && period && (displayType === "chart") && <>
-            {isTracingEnabled && <TraceQuery
-              traces={tracesState}
-              onDeleteClick={handleTraceDelete}
-            />}
-            <GraphView
-              data={graphData}
-              period={period}
-              customStep={customStep}
-              query={query}
-              yaxis={yaxis}
-              setYaxisLimits={setYaxisLimits}
-              setPeriod={setPeriod}
-            />
-          </>}
-          {liveData && (displayType === "code") && <JsonView data={liveData}/>}
-          {liveData && (displayType === "table") && <>
-            {isTracingEnabled && <TraceQuery
-              traces={tracesState}
-              onDeleteClick={handleTraceDelete}
-            />}
+    <div className="vm-custom-panel">
+      <QueryConfigurator
+        error={error}
+        queryOptions={queryOptions}
+      />
+      <div className="vm-custom-panel-body">
+        {isLoading && <Spinner />}
+        <div className="vm-custom-panel-body-header">
+          <DisplayTypeSwitch/>
+          {displayType === "chart" && <GraphSettings
+            yaxis={yaxis}
+            setYaxisLimits={setYaxisLimits}
+            toggleEnableLimits={toggleEnableLimits}
+          />}
+          {displayType === "table" && <TableSettings
+            data={liveData || []}
+            defaultColumns={displayColumns}
+            onChange={setDisplayColumns}
+          />}
+        </div>
+        {/*{error && <Alert*/}
+        {/*  color="error"*/}
+        {/*  severity="error"*/}
+        {/*  sx={{ whiteSpace: "pre-wrap", mt: 2 }}*/}
+        {/*>{error}</Alert>}*/}
+        {/*{warning && <Alert*/}
+        {/*  color="warning"*/}
+        {/*  severity="warning"*/}
+        {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
+        {/*>{warning}</Alert>}*/}
+        {graphData && period && (displayType === "chart") && <>
+          {isTracingEnabled && <TraceQuery
+            traces={tracesState}
+            onDeleteClick={handleTraceDelete}
+          />}
+          <GraphView
+            data={graphData}
+            period={period}
+            customStep={customStep}
+            query={query}
+            yaxis={yaxis}
+            setYaxisLimits={setYaxisLimits}
+            setPeriod={setPeriod}
+          />
+        </>}
+        {liveData && (displayType === "code") && <JsonView data={liveData}/>}
+        {liveData && (displayType === "table") && <>
+          {isTracingEnabled && <TraceQuery
+            traces={tracesState}
+            onDeleteClick={handleTraceDelete}
+          />}
             coming soon
-            {/*<TableView*/}
-            {/*  data={liveData}*/}
-            {/*  displayColumns={displayColumns}*/}
-            {/*/>*/}
-          </>}
-        </div>}
+          {/*<TableView*/}
+          {/*  data={liveData}*/}
+          {/*  displayColumns={displayColumns}*/}
+          {/*/>*/}
+        </>}
       </div>
     </div>
   );

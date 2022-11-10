@@ -1,39 +1,70 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
-$switch-height: 18px;
+$switch-height: 17px;
 $switch-width: $switch-height * 2;
 $switch-padding: 3px;
 $switch-handle-size: $switch-height - ($switch-padding * 2);
 $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
 
 .vm-switch {
-  width: $switch-width;
-  height: $switch-height;
-  background-color: rgba($color-black, 0.4);
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  border-radius: $switch-border-radius;
-  padding: $switch-padding;
   cursor: pointer;
 
   &_disabled {
+    opacity: 0.6;
     cursor: default;
   }
 
-  &_active {
-    justify-content: flex-end;
+  &_secondary_active &-track {
+    background-color: $color-secondary;
+  }
+
+  &_primary_active &-track {
     background-color: $color-primary;
   }
 
-  &__handle {
-    width: $switch-handle-size;
-    height: $switch-handle-size;
-    background-color: $color-white;
-    border-radius: 50%;
+  &_active &-track {
+    &__thumb {
+      left: $switch-width - $switch-handle-size - $switch-padding;
+    }
+  }
+
+  &:hover &-track {
+    opacity: 0.8;
+  }
+
+  &-track {
+    position: relative;
+    background-color: rgba($color-black, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    border-radius: $switch-border-radius;
+    padding: $switch-padding;
+    width: $switch-width;
+    height: $switch-height;
+    transition: background-color 200ms ease, opacity 300ms ease-out;
+
+    &__thumb {
+      position: absolute;
+      top: auto;
+      left: $switch-padding;
+      min-width: $switch-handle-size;
+      min-height: $switch-handle-size;
+      background-color: $color-white;
+      border-radius: 50%;
+      transition: right 200ms ease-out, left 200ms ease-out;
+      transform-style: preserve-3d;
+    }
   }
 
   &__label {
+    white-space: nowrap;
+    font-size: inherit;
+    color: inherit;
     margin-left: $padding-small;
+    transition: color 200ms ease;
   }
 }

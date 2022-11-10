@@ -8,8 +8,8 @@ interface PopperProps {
   children: ReactNode
   open: boolean
   onClose: () => void
-  buttonRef: React.RefObject<HTMLDivElement>
-  placement?: string
+  buttonRef: React.RefObject<HTMLElement>
+  placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right"
   animation?: string
   offset?: {top: number, left: number}
 }
@@ -120,8 +120,6 @@ const Popper: FC<PopperProps> = ({
     "vm-popper_open": isOpen,
     [`vm-popper_open_${animation}`]: animation,
   });
-
-  console.log(popperStyle);
 
   return (
     <>

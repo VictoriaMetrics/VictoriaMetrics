@@ -1,4 +1,4 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
 html, body, #root {
   font-family: $font-family-global;
@@ -16,19 +16,15 @@ html, body, #root {
 
 * {
   font: inherit;
-  scrollbar-width: thin;
-  scrollbar-color: $color-alto transparent;
   -webkit-overflow-scrolling: touch;
   -moz-osx-font-smoothing: grayscale; /* Firefox */
   -webkit-font-smoothing: antialiased; /* WebKit  */
-  -webkit-tap-highlight-color: transparent;
-  -moz-tap-highlight-color: transparent;
   cursor: inherit;
 }
 
 
 code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  font-family: $font-family-monospace;
 }
 
 .shortcut-key {

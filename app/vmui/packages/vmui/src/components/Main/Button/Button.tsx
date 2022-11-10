@@ -5,14 +5,15 @@ import "./style.scss";
 
 interface ButtonProps {
   variant?: "contained" | "outlined" | "text"
-  color?: "primary" | "success" | "error"
+  color?: "primary" | "secondary" | "success" | "error"
   size?: "small" | "medium" | "large"
   endIcon?: ReactNode
   startIcon?: ReactNode
   fullWidth?: boolean
   disabled?: boolean
   children?: ReactNode
-  onClick: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
+  className?: string
+  onClick?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
 }
 
 const Button: FC<ButtonProps> = ({
@@ -23,18 +24,20 @@ const Button: FC<ButtonProps> = ({
   endIcon,
   startIcon,
   fullWidth = false,
+  className,
+  disabled,
   onClick,
-  disabled
 }) => {
 
   const classesButton = classNames({
     "vm-button": true,
-    [`vm-button_${variant}`]: variant,
+    [`vm-button_${variant}_${color}`]: true,
     [`vm-button_${size}`]: size,
-    [`vm-button_${color}`]: color,
+    "vm-button_icon": (startIcon || endIcon) && !children,
     "vm-button_full-width": fullWidth,
     "vm-button_with-icon": startIcon || endIcon,
-    "vm-button_disabled": disabled
+    "vm-button_disabled": disabled,
+    [className || ""]: className
   });
 
   return (

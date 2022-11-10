@@ -1,5 +1,7 @@
 @import 'src/styles/variables';
 
+$padding-modal: 22px;
+
 .vm-modal {
   position: fixed;
   top: 0;
@@ -12,43 +14,41 @@
   justify-content: center;
   background: rgba($color-black, 0.55);
 
-  &-header {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    margin-bottom: $padding-medium;
-
-    &__title {
-
-    }
-
-    &__close {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 24px;
-      padding: 10px;
-      box-sizing: content-box;
-      color: $color-white;
-      cursor: pointer;
-
-      svg {
-        width: 100%;
-        height: auto;
-      }
-    }
-  }
-
   &-content {
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
-    padding: $padding-global;
-    overflow: hidden;
+    padding: $padding-modal;
     max-height: 85vh;
     background: $color-white;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
     border-radius: $border-radius-small;
+    overflow: hidden;
+
+    &-header {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      margin-bottom: $padding-modal ;
+
+      &__title {
+        font-weight: bold;
+        font-size: $font-size-medium;
+      }
+
+      &__close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        padding: 10px;
+        box-sizing: content-box;
+        color: $color-white;
+        cursor: pointer;
+
+        svg {
+          width: 100%;
+          height: auto;
+        }
+      }
+    }
   }
 }
 

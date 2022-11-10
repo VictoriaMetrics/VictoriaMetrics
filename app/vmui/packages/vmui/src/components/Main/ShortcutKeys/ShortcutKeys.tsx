@@ -4,18 +4,7 @@ import { getAppModeEnable } from "../../../utils/app-mode";
 import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";
 import Modal from "../Modal/Modal";
-
-const modalStyle = {
-  position: "absolute" as const,
-  top: "50%",
-  left: "50%",
-  p: 3,
-  minWidth: "300px",
-  maxWidth: "800px",
-  borderRadius: "4px",
-  bgcolor: "background.paper",
-  transform: "translate(-50%, -50%)",
-};
+import "./style.scss";
 
 const ctrlMeta = isMacOs() ? "Cmd" : "Ctrl";
 
@@ -77,23 +66,15 @@ const ShortcutKeys: FC = () => {
   const [openList, setOpenList] = useState(false);
   const appModeEnable = getAppModeEnable();
 
-  // sx={{
-  //   color: "white",
-  //     border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-  //     minWidth: "34px",
-  //     padding: "6px 8px",
-  //     boxShadow: "none",
-  // }}
-
   return <>
     {/*<Tooltip title={"Shortcut keys"}>*/}
     <Button
+      className={appModeEnable ? "" : "vm-header-button"}
       variant="contained"
       color="primary"
+      startIcon={<KeyboardIcon/>}
       onClick={() => setOpenList(prev => !prev)}
-    >
-      <KeyboardIcon/>
-    </Button>
+    />
     {/*</Tooltip>*/}
 
     {openList && (
@@ -101,21 +82,22 @@ const ShortcutKeys: FC = () => {
         title={"Shortcut keys"}
         onClose={() => setOpenList(false)}
       >
-        <div>
+        <div className="vm-shortcuts">
           {keyList.map(section => (
             <div
+              className="vm-shortcuts-section"
               key={section.title}
             >
-              <h3>
+              <h3 className="vm-shortcuts-section__title">
                 {section.title}
               </h3>
-              {/*<Divider sx={{ mb: 1 }}/>*/}
-              <div>
+              <div className="vm-shortcuts-section-list">
                 {section.list.map(l => (
                   <div
+                    className="vm-shortcuts-section-list-item"
                     key={l.keys.join("+")}
                   >
-                    <div>
+                    <div className="vm-shortcuts-section-list-item__key">
                       {l.keys.map((k, i) => (
                         <>
                           <code
@@ -125,7 +107,7 @@ const ShortcutKeys: FC = () => {
                         </>
                       ))}
                     </div>
-                    <p>
+                    <p className="vm-shortcuts-section-list-item__description">
                       {l.description}
                     </p>
                   </div>

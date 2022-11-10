@@ -1,7 +1,8 @@
 import React, { FC, useState, useMemo } from "preact/compat";
 import { LegendItemType } from "../../../../utils/uplot/types";
 import { getLegendLabel } from "../../../../utils/uplot/helpers";
-import "./legendItem.css";
+import "./style.scss";
+import classNames from "classnames";
 
 interface LegendItemProps {
   legend: LegendItemType;
@@ -28,15 +29,18 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
 
   return (
     <div
-      className={legend.checked ? "legendItem" : "legendItem legendItemHide"}
+      className={classNames({
+        "vm-legend-item": true,
+        "vm-legend-item_hide": !legend.checked,
+      })}
       onClick={(e) => onChange(legend, e.ctrlKey || e.metaKey)}
     >
       <div
-        className="legendMarker"
+        className="vm-legend-item__marker"
         style={{ backgroundColor: legend.color }}
       />
-      <div className="legendLabel">
-        <span>
+      <div className="vm-legend-item-info">
+        <span className="vm-legend-item-info__label">
           {getLegendLabel(legend.label)}
         </span>
 
@@ -50,8 +54,8 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
         {/*>*/}
         {freeFormFields.map(f => (
           <span
+            className="vm-legend-item-info__free-fields"
             key={f.key}
-            className="legendFreeFields"
             onClick={(e) => {
               e.stopPropagation();
               handleClickFreeField(f.freeField, f.id);

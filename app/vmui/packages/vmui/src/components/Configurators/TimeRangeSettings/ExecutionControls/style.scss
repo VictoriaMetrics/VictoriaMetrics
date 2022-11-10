@@ -1,32 +1,20 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
+@use "src/components/Main/Button/style" as *;
 
 .vm-execution-controls {
 
   &__buttons {
     display: flex;
+    justify-content: space-between;
+    border-radius: $button-radius + 1;
+    min-width: 124px;
   }
 
   &-list {
-    min-width: 110px;
+    width: 124px;
     max-height: 208px;
     overflow: auto;
     padding: $padding-small 0;
-    font-size: $font-size-small;
-
-    &__item {
-      padding: $padding-small $padding-global;
-      cursor: pointer;
-      background-color: transparent;
-      transition: background-color 200ms ease;
-
-      &_active {
-        font-weight: bold;
-        color: $color-primary;
-      }
-
-      &:hover {
-        background-color: rgba($color-black, 0.05);
-      }
-    }
+    font-size: $font-size;
   }
 }

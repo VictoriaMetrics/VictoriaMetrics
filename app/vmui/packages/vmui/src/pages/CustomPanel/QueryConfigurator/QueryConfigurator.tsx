@@ -1,13 +1,14 @@
 import React, { FC, useState, useEffect } from "preact/compat";
-import QueryEditor from "../../components/Configurators/QueryEditor/QueryEditor";
-import AdditionalSettings from "../../components/Configurators/AdditionalSettings/AdditionalSettings";
-import { ErrorTypes } from "../../types";
-import usePrevious from "../../hooks/usePrevious";
-import { MAX_QUERY_FIELDS } from "../../config";
-import { useQueryDispatch, useQueryState } from "../../state/query/QueryStateContext";
-import { useTimeDispatch } from "../../state/time/TimeStateContext";
-import { DeleteIcon, PlayIcon, PlusIcon } from "../../components/Main/Icons";
-import Button from "../../components/Main/Button/Button";
+import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
+import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
+import { ErrorTypes } from "../../../types";
+import usePrevious from "../../../hooks/usePrevious";
+import { MAX_QUERY_FIELDS } from "../../../config";
+import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
+import { useTimeDispatch } from "../../../state/time/TimeStateContext";
+import { DeleteIcon, PlayIcon, PlusIcon } from "../../../components/Main/Icons";
+import Button from "../../../components/Main/Button/Button";
+import "./style.scss";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
@@ -70,10 +71,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     }
   }, [stateQuery]);
 
-  return <div>
-    <div>
-      {stateQuery.map((q, i) =>
+  return <div className="vm-query-configurator">
+    <div className="vm-query-configurator-list">
+      {stateQuery.map((q, i) => (
         <div
+          className="vm-query-configurator-list-row"
           key={i}
         >
           <QueryEditor
@@ -90,26 +92,29 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
           />
           {stateQuery.length > 1 && (
             // <Tooltip title="Remove Query">
-            <Button
-              onClick={() => onRemoveQuery(i)}
-              color={"error"}
-            >
-              <DeleteIcon/>
-            </Button>
+            <div className="vm-query-configurator-list-row__button">
+              <Button
+                variant={"text"}
+                color={"error"}
+                startIcon={<DeleteIcon/>}
+                onClick={() => onRemoveQuery(i)}
+              />
+            </div>
             // </Tooltip>
           )}
-        </div>)}
+        </div>
+      ))}
     </div>
-    <div>
+    <div className="vm-query-configurator-settings">
       <AdditionalSettings/>
-      <div>
+      <div className="vm-query-configurator-settings__buttons">
         {stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"
             onClick={onAddQuery}
             startIcon={<PlusIcon/>}
           >
-            <span>Add Query</span>
+            Add Query
           </Button>
         )}
         <Button
@@ -117,7 +122,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
           onClick={onRunQuery}
           startIcon={<PlayIcon/>}
         >
-          <span>Execute Query</span>
+          Execute Query
         </Button>
       </div>
     </div>

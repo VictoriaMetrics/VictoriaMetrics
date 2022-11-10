@@ -4,6 +4,8 @@ import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
 import Popper from "../../Main/Popper/Popper";
 import useClickOutside from "../../../hooks/useClickOutside";
+import "./style.scss";
+import classNames from "classnames";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -29,7 +31,6 @@ const QueryEditor: FC<QueryEditorProps> = ({
   error,
   options,
   label,
-  size = "medium"
 }) => {
 
   const [focusOption, setFocusOption] = useState(-1);
@@ -91,6 +92,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     // Enter
     if (enter && hasAutocomplete && !shiftKey && !ctrlMetaKey) {
       onChange(foundOptions[focusOption]);
+      setOpenAutocomplete(false);
     } else if (enter && !shiftKey) {
       onEnter();
     }
@@ -102,9 +104,12 @@ const QueryEditor: FC<QueryEditorProps> = ({
     if (target?.scrollIntoView) target.scrollIntoView({ block: "center" });
   }, [focusOption]);
 
-  useClickOutside(autocompleteAnchorEl, () => setOpenAutocomplete(false));
+  useClickOutside(autocompleteAnchorEl, () => setOpenAutocomplete(false), wrapperEl);
 
-  return <div ref={autocompleteAnchorEl}>
+  return <div
+    className="vm-query-editor"
+    ref={autocompleteAnchorEl}
+  >
     <TextField
       value={value}
       label={label}
@@ -121,21 +126,25 @@ const QueryEditor: FC<QueryEditorProps> = ({
       placement="bottom-left"
       onClose={() => setOpenAutocomplete(false)}
     >
-      <div>
-        <div ref={wrapperEl}>
-          {foundOptions.map((item, i) =>
-            <li
-              id={`$autocomplete$${item}`}
-              key={item}
-              // sx={{ bgcolor: `rgba(0, 0, 0, ${i === focusOption ? 0.12 : 0})` }}
-              onClick={() => {
-                onChange(item);
-                setOpenAutocomplete(false);
-              }}
-            >
-              {item}
-            </li>)}
-        </div>
+      <div
+        className="vm-query-editor-autocomplete"
+        ref={wrapperEl}
+      >
+        {foundOptions.map((item, i) =>
+          <div
+            className={classNames({
+              "vm-list__item": true,
+              "vm-list__item_active": i === focusOption
+            })}
+            id={`$autocomplete$${item}`}
+            key={item}
+            onClick={() => {
+              onChange(item);
+              setOpenAutocomplete(false);
+            }}
+          >
+            {item}
+          </div>)}
       </div>
     </Popper>
   </div>;

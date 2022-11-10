@@ -5,6 +5,7 @@ import Button from "../../../Main/Button/Button";
 import { ArrowDownIcon, RefreshIcon } from "../../../Main/Icons";
 import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
+import classNames from "classnames";
 
 interface AutoRefreshOption {
   seconds: number
@@ -77,15 +78,19 @@ export const ExecutionControls: FC = () => {
 
   return <>
     <div className="vm-execution-controls">
-      <div className="vm-execution-controls__buttons">
+      <div
+        className={classNames({
+          "vm-execution-controls__buttons": true,
+          "vm-header-button": !appModeEnable
+        })}
+      >
         {/*<Tooltip title="Refresh dashboard">*/}
         <Button
           variant="contained"
           color="primary"
           onClick={handleUpdate}
-        >
-          <RefreshIcon/>
-        </Button>
+          startIcon={<RefreshIcon/>}
+        />
         {/*</Tooltip>*/}
         {/*<Tooltip title="Auto-refresh control">*/}
         {/* TODO add rotate arrow */}
@@ -112,7 +117,10 @@ export const ExecutionControls: FC = () => {
       <div className="vm-execution-controls-list">
         {delayOptions.map(d =>
           <div
-            className="vm-execution-controls-list__item"
+            className={classNames({
+              "vm-list__item": true,
+              "vm-list__item_active": d.seconds === selectedDelay.seconds
+            })}
             key={d.seconds}
             onClick={() => handleChange(d)}
           >

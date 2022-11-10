@@ -4,6 +4,7 @@ import { useAppDispatch, useAppState } from "../../../state/common/StateContext"
 import { SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";
+import "./style.scss";
 
 const title = "Setting Server URL";
 
@@ -25,44 +26,29 @@ const GlobalSettings: FC = () => {
   return <>
     {/*<Tooltip title={title}>*/}
     <Button
+      className="vm-header-button"
       variant="contained"
       color="primary"
-      // sx={{
-      //   color: "white",
-      //   border: "1px solid rgba(0, 0, 0, 0.2)",
-      //   minWidth: "34px",
-      //   padding: "6px 8px",
-      //   boxShadow: "none",
-      // }}
+      startIcon={<SettingsIcon/>}
       onClick={handleOpen}
-    >
-      <SettingsIcon/>
-    </Button>
+    />
     {/*</Tooltip>*/}
     {open && (
       <Modal
         title={title}
         onClose={handleClose}
       >
-        <div>
-          <div>
+        <div className="vm-server-configurator">
+          <div className="vm-server-configurator__input">
             <ServerConfigurator
               setServer={setChangedServerUrl}
               onEnter={setServer}
             />
           </div>
-
-          {/*
-          // TODO modal footer
-          display="grid"
-          gridTemplateColumns="auto auto"
-          gap={1}
-          justifyContent="end"
-          mt={4}
-          */}
-          <div>
+          <div className="vm-server-configurator__footer">
             <Button
               variant="outlined"
+              color="error"
               onClick={handleClose}
             >
                 Cancel

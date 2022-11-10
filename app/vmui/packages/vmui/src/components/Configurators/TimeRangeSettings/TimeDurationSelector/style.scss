@@ -1,23 +1,7 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
 .vm-time-duration {
   max-height: 168px;
   overflow: auto;
-  font-size: $font-size-small;
-
-  &__item {
-    padding: $padding-small $padding-global;
-    cursor: pointer;
-    background-color: transparent;
-    transition: background-color 200ms ease;
-
-    &_active {
-      font-weight: bold;
-      color: $color-primary;
-    }
-
-    &:hover {
-      background-color: rgba($color-black, 0.05);
-    }
-  }
+  font-size: $font-size;
 }

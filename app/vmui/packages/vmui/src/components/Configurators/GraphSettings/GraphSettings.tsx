@@ -25,28 +25,32 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
     <div className="vm-graph-settings">
       {/*<Tooltip title={title}>*/}
       <div ref={buttonRef}>
-        <Button onClick={() => setOpenPopper(true)}>
-          <SettingsIcon/>
-        </Button>
+        <Button
+          variant="text"
+          startIcon={<SettingsIcon/>}
+          onClick={() => setOpenPopper(true)}
+        />
       </div>
       {/*</Tooltip>*/}
       <Popper
         open={openPopper}
         buttonRef={buttonRef}
-        placement="left-start"
+        placement="bottom-right"
         onClose={() => setOpenPopper(false)}
       >
         <div
           className="vm-graph-settings-popper"
           ref={popperRef}
         >
-          <div className="vm-graph-settings-popper-header">
-            <div className="vm-graph-settings-popper-header__title">
+          <div className="vm-popper-header">
+            <h3 className="vm-popper-header__title">
               {title}
-            </div>
-            <Button onClick={() => setOpenPopper(false)}>
-              <CloseIcon/>
-            </Button>
+            </h3>
+            <Button
+              size="small"
+              startIcon={<CloseIcon/>}
+              onClick={() => setOpenPopper(false)}
+            />
           </div>
           <div className="vm-graph-settings-popper__body">
             <AxesLimitsConfigurator

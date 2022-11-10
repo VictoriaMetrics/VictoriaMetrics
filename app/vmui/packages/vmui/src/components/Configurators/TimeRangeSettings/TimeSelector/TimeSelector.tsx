@@ -81,6 +81,7 @@ export const TimeSelector: FC = () => {
     <div ref={buttonRef}>
       {/*<Tooltip title="Time range controls">*/}
       <Button
+        className={appModeEnable ? "" : "vm-header-button"}
         variant="contained"
         color="primary"
         startIcon={<ClockIcon/>}
@@ -137,6 +138,7 @@ export const TimeSelector: FC = () => {
             {/*/>*/}
           </div>
           <Button
+            variant="outlined"
             startIcon={<AlarmIcon />}
             onClick={onSwitchToNow}
           >
@@ -144,15 +146,15 @@ export const TimeSelector: FC = () => {
           </Button>
           <div className="vm-time-selector-left__controls">
             <Button
+              color="error"
               variant="outlined"
               onClick={onCancelClick}
             >
               Cancel
             </Button>
             <Button
-              variant="outlined"
+              color="primary"
               onClick={onApplyClick}
-              color={"success"}
             >
               Apply
             </Button>

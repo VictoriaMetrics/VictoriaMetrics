@@ -1,11 +1,11 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
 .vm-header {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   padding: $padding-small $padding-medium;
-  gap: $padding-medium;
+  gap: $padding-large;
 
   &-logo {
     display: grid;
@@ -39,7 +39,7 @@
   }
 
   &-nav {
-    font-size: 10px;
+    font-size: $font-size-small;
     font-weight: 600;
   }
 

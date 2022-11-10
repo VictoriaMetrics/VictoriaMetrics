@@ -1,7 +1,7 @@
-import React, { FC, KeyboardEvent, useEffect, useRef, HTMLInputTypeAttribute, ReactNode, LegacyRef } from "react";
+import React, { FC, KeyboardEvent, useEffect, useRef, HTMLInputTypeAttribute, ReactNode } from "react";
 import classNames from "classnames";
-import "./style.scss";
 import { useMemo } from "preact/compat";
+import "./style.scss";
 
 interface TextFieldProps {
   label?: string,
@@ -45,9 +45,10 @@ const TextField: FC<TextFieldProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
-    if (e.key === "Enter" && onEnter) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      console.log("prevent");
       e.preventDefault();
-      onEnter();
+      onEnter && onEnter();
     }
   };
 
@@ -61,7 +62,10 @@ const TextField: FC<TextFieldProps> = ({
     fieldRef?.current?.focus && fieldRef.current.focus();
   }, [fieldRef, autofocus]);
 
-  return <label className="vm-text-field">
+  return <label
+    className="vm-text-field"
+    data-replicated-value={value}
+  >
     {startIcon && <div className="vm-text-field__icon-start">{startIcon}</div>}
     {endIcon && <div className="vm-text-field__icon-end">{endIcon}</div>}
     {type === "textarea"
@@ -73,6 +77,7 @@ const TextField: FC<TextFieldProps> = ({
           value={value}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
+          rows={1}
           placeholder=" "
         />
       )

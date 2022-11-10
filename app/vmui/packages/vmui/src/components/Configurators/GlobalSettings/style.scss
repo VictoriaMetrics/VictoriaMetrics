@@ -1,8 +1,21 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
-.vm-global-settings {
+.vm-server-configurator {
   display: grid;
-  grid-template-columns: 1fr auto;
   align-items: center;
-  margin-bottom: $padding-medium;
+  gap: $padding-global;
+
+  &__input {
+
+  }
+
+  &__footer {
+    display: inline-grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    margin-left: auto;
+    margin-right: 0;
+  }
 }

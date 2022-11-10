@@ -1,7 +1,7 @@
 import React, { FC } from "preact/compat";
-import { SyntheticEvent } from "react";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { ChartIcon, CodeIcon, TableIcon } from "../../components/Main/Icons";
+import Tabs from "../../components/Main/Tabs/Tabs";
 
 export type DisplayType = "table" | "chart" | "code";
 
@@ -23,14 +23,15 @@ export const DisplayTypeSwitch: FC = () => {
   const { displayType } = useCustomPanelState();
   const dispatch = useCustomPanelDispatch();
 
-  const handleChange = (event: SyntheticEvent, newValue: DisplayType) => {
-    dispatch({ type: "SET_DISPLAY_TYPE", payload: newValue ?? displayType });
+  const handleChange = (newValue: string) => {
+    dispatch({ type: "SET_DISPLAY_TYPE", payload: newValue as DisplayType ?? displayType });
   };
 
-  // TODO add tabs
-  return <div>
-    {displayTypeTabs.map(t =>
-      <div key={t.value}>{t.value}</div>
-    )}
-  </div>;
+  return (
+    <Tabs
+      activeItem={displayType}
+      items={displayTypeTabs}
+      onChange={handleChange}
+    />
+  );
 };

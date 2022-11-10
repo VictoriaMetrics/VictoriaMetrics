@@ -42,18 +42,16 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) =
     <TextField
       label="Step value"
       type="number"
-      // size="small"
-      // variant="outlined"
       value={customStep}
       error={error ? "step is out of allowed range" : ""}
       onChange={onChangeStep}
       endIcon={(
         <Button
+          variant={"text"}
           size={"small"}
+          startIcon={<RestartIcon/>}
           onClick={() => handleSetStep(defaultStep || 1)}
-        >
-          <RestartIcon/>
-        </Button>
+        />
       )}
     />
   );

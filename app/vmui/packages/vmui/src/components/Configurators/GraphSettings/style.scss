@@ -1,24 +1,10 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
 .vm-graph-settings {
   &-popper {
     display: grid;
     gap: $padding-global;
-    padding: 0 0 $padding-medium;
-
-    &-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background-color: $color-primary;
-      padding: $padding-small;
-      border-radius: $border-radius-small $border-radius-small 0 0;
-      color: $color-white;
-
-      &__title {
-        font-weight: bold;
-      }
-    }
+    padding: 0 0 $padding-global;
 
     &__body {
       display: grid;

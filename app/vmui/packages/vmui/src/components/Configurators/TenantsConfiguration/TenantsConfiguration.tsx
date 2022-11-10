@@ -4,8 +4,9 @@ import { ChangeEvent } from "react";
 import debounce from "lodash.debounce";
 import { getAppModeParams } from "../../../utils/app-mode";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
-import { InfoIcon } from "../../Main/Icons";
+import { InfoIcon, RestartIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
+import Button from "../../Main/Button/Button";
 
 const TenantsConfiguration: FC = () => {
   const { serverURL } = getAppModeParams();
@@ -46,7 +47,11 @@ const TenantsConfiguration: FC = () => {
     onChange={handleChange}
     endIcon={(
       // <Tooltip title={"Define tenant id if you need request to another storage"}>
-      <InfoIcon/>
+      <Button
+        variant={"text"}
+        size={"small"}
+        startIcon={<InfoIcon/>}
+      />
       // </Tooltip>
     )}
   />;

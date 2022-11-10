@@ -1,7 +1,7 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import React, { FC, useMemo } from "preact/compat";
 import { LegendItemType } from "../../../utils/uplot/types";
 import LegendItem from "./LegendItem/LegendItem";
-import "./legend.css";
+import "./style.scss";
 
 interface LegendProps {
   labels: LegendItemType[];
@@ -15,14 +15,14 @@ const Legend: FC<LegendProps> = ({ labels, query, onChange }) => {
   }, [labels]);
 
   return <>
-    <div className="legendWrapper">
+    <div className="vm-legend">
       {groups.map((group) => <div
-        className="legendGroup"
+        className="vm-legend-group"
         key={group}
       >
-        <div className="legendGroupTitle">
-          <span className="legendGroupQuery">Query {group}</span>
-          <span>(&quot;{query[group - 1]}&quot;)</span>
+        <div className="vm-legend-group-title">
+          <span className="vm-legend-group-title__count">Query {group}: </span>
+          <span className="vm-legend-group-title__query">{query[group - 1]}</span>
         </div>
         <div>
           {labels.filter(l => l.group === group).map((legendItem: LegendItemType) =>

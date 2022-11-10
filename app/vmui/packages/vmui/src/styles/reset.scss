@@ -2,7 +2,6 @@ html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, pre, a
   margin: 0;
   padding: 0;
   border: 0;
-  font-size: 100%;
   vertical-align: baseline;
 }
 
@@ -39,13 +38,9 @@ input:focus::placeholder {
   transition: opacity 0.3s ease;
 }
 
-*:not([class*="gmail"]) {
+* {
   outline: none;
   box-sizing: border-box;
-}
-
-[class^="icon-"]:before, [class*=" icon-"]:before {
-  width: auto !important;
 }
 
 button {

@@ -30,26 +30,29 @@ const Modal: FC<ModalProps> = ({ title, children, onClose }) => {
       className="vm-modal"
       onMouseDown={onClose}
     >
-      <div className="vm-modal-header">
-        {title && (
-          <div className="vm-modal-header__title">
-            {title}
+      <div className="vm-modal-content">
+        <div className="vm-modal-content-header">
+          {title && (
+            <div className="vm-modal-content-header__title">
+              {title}
+            </div>
+          )}
+          <div className="vm-modal-header__close">
+            <Button
+              variant="text"
+              size="small"
+              onClick={onClose}
+            >
+              <CloseIcon/>
+            </Button>
           </div>
-        )}
-        <div className="vm-modal-header__close">
-          <Button
-            size="small"
-            onClick={onClose}
-          >
-            <CloseIcon/>
-          </Button>
         </div>
-      </div>
-      <div
-        className="vm-modal-content"
-        onMouseDown={(e) => e.stopPropagation()}
-      >
-        {children}
+        <div
+          className="vm-modal-content-body"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {children}
+        </div>
       </div>
     </div>
   ), document.body);

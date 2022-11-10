@@ -1,11 +1,14 @@
 import Header from "../Header/Header";
 import React, { FC } from "preact/compat";
 import { Outlet } from "react-router-dom";
+import "./style.scss";
 
 const HomeLayout: FC = () => {
-  return <section>
+  return <section className="vm-container">
     <Header/>
-    <Outlet/>
+    <div className="vm-container-body">
+      <Outlet/>
+    </div>
   </section>;
 };
 

@@ -137,7 +137,7 @@ const GraphView: FC<GraphViewProps> = ({
 
   return <>
     <div
-      style={{ width: fullWidth ? "calc(100vw - 68px)" : "100%" }}
+      // style={{ width: fullWidth ? "calc(100vw - 68px)" : "100%" }}
       ref={containerRef}
     >
       {containerRef?.current &&

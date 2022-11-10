@@ -8,21 +8,20 @@ interface TimeDurationSelector {
   relativeTime: string;
 }
 
-const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDuration }) => {
-  console.log(relativeTimeOptions, relativeTime);
-  return <div className="vm-time-duration">
+const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDuration }) => (
+  <div className="vm-time-duration">
     {relativeTimeOptions.map(({ id, duration, until, title }) =>
       <div
         className={classNames({
-          "vm-time-duration__item": true,
-          "vm-time-duration__item_active": id === relativeTime
+          "vm-list__item": true,
+          "vm-list__item_active": id === relativeTime
         })}
         key={id}
         onClick={() => setDuration({ duration, until: until(), id })}
       >
         {title || duration}
       </div>)}
-  </div>;
-};
+  </div>
+);
 
 export default TimeDurationSelector;

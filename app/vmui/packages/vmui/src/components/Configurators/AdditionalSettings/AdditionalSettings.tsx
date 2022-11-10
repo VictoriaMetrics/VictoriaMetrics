@@ -50,20 +50,21 @@ const AdditionalSettings: FC = () => {
       onChange={onChangeCache}
     />
     <Switch
-      label={"Disable cache"}
-      value={nocache}
-      onChange={onChangeCache}
-    />
-    <Switch
       label={"Trace query"}
       value={isTracingEnabled}
       onChange={onChangeQueryTracing}
     />
-    <StepConfigurator
-      defaultStep={step}
-      setStep={onChangeStep}
-    />
-    {!!inputTenantID && <TenantsConfiguration/>}
+    <div className="vm-additional-settings__input">
+      <StepConfigurator
+        defaultStep={step}
+        setStep={onChangeStep}
+      />
+    </div>
+    {!!inputTenantID && (
+      <div className="vm-additional-settings__input">
+        <TenantsConfiguration/>
+      </div>
+    )}
   </div>;
 };
 

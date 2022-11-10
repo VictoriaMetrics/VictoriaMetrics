@@ -1,7 +1,7 @@
 import React, { FC, useState } from "react";
 import { TopQuery } from "../../../types";
 // import TopQueryTable from "../TopQueryTable/TopQueryTable";
-import JsonView from "../../../components/Views/JsonView";
+import JsonView from "../../../components/Views/JsonView/JsonView";
 import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
 import Accordion from "../../../components/Main/Accordion/Accordion";
 

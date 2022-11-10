@@ -1,32 +1,32 @@
-@import "src/styles/variables";
+@use "src/styles/variables" as *;
 
 .vm-text-field {
   position: relative;
+  display: grid;
+  margin: 6px 0;
   width: 100%;
-  display: flex;
-  align-items: center;
-  margin: 10px 0;
 
-  &__label {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    left: 14px;
-    color: $color-text-secondary;
-    font-size: $font-size;
-    line-height: $font-size;
-    pointer-events: none;
-    background-color: transparent;
-    transition: top 100ms linear, left 100ms linear, font-size 100ms ease;
-    user-select: none;
+  &::after {
+    content: attr(data-replicated-value) " ";
+    white-space: pre-wrap;
+    visibility: hidden;
   }
 
+  &__input,
+  &::after {
+    width: 100%;
+    padding: $padding-small $padding-global;
+    border: 1px solid $color-text-disabled;
+    font-size: 12px;
+    line-height: 18px;
+    grid-area: 1 / 1 / 2 / 2;
+  }
+
+  &__label,
   &__error {
     position: absolute;
-    top: calc(100% - 8px);
-    left: 8px;
-    padding: 3px;
-    color: $color-error;
+    left: $padding-global/2;
+    padding: 0 3px;
     font-size: $font-size-small;
     line-height: $font-size-small;
     pointer-events: none;
@@ -35,14 +35,23 @@
     z-index: 2;
   }
 
+  &__label {
+    top: -$font-size-small/2;
+    color: $color-text-secondary;
+  }
+
+  &__error {
+    bottom: -$font-size-small/2;
+    color: $color-error;
+  }
+
   &__input {
-    width: 100%;
-    padding: 16px 14px;
-    border: 1px solid $color-text-disabled;
+    display: block;
     border-radius: $border-radius-small;
-    font-size: $font-size;
     transition: border 200ms ease;
+    min-height: 34px;
     resize: none;
+    overflow: hidden;
 
     &:focus {
       border: 1px solid $color-primary;
@@ -50,16 +59,6 @@
 
     &:hover {
       border: 1px solid $color-primary;
-    }
-
-    &:not(:placeholder-shown) + .oy-text-field__label,
-    &:focus + .oy-text-field__label {
-      top: 0;
-      left: 6px;
-      font-size: $font-size-small;
-      padding: 3px;
-      background-color: $color-white;
-      z-index: 3;
     }
 
     &_error {
@@ -74,20 +73,8 @@
       }
     }
 
-    &_icon-start + .oy-text-field__label {
-      left: 42px;
-    }
-
     &_icon-start {
       padding-left: 42px;
-    }
-
-    &_textarea {
-      min-height: 150px;
-    }
-
-    &_textarea + .oy-text-field__label {
-      top: 22px;
     }
 
     &:disabled {
@@ -101,10 +88,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    max-width: 24px;
     top: auto;
-    left: 14px;
-    width: 20px;
-    height: auto;
+    left: $padding-small;
+    height: 100%;
     position: absolute;
     color: $color-text-secondary;
 
@@ -116,6 +103,6 @@
 
   &__icon-end {
     left: auto;
-    right: 14px;
+    right: $padding-small;
   }
 }

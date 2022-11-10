@@ -5,12 +5,15 @@ import { FC } from "preact/compat";
 
 interface SwitchProps {
   value: boolean
+  color?: "primary" | "secondary" | "error"
   disabled?: boolean
   label?: string
   onChange: (value: boolean) => void
 }
 
-const Switch: FC<SwitchProps> = ({ value = false, disabled = false, label, onChange }) => {
+const Switch: FC<SwitchProps> = ({
+  value = false, disabled = false, label, color = "secondary", onChange
+}) => {
   const toggleSwitch = () => {
     if (disabled) return;
     onChange(!value);
@@ -20,6 +23,8 @@ const Switch: FC<SwitchProps> = ({ value = false, disabled = false, label, onCha
     "vm-switch": true,
     "vm-switch_disabled": disabled,
     "vm-switch_active": value,
+    [`vm-switch_${color}_active`]: value,
+    [`vm-switch_${color}`]: color
   });
 
   return (
@@ -27,9 +32,11 @@ const Switch: FC<SwitchProps> = ({ value = false, disabled = false, label, onCha
       className={switchClasses}
       onClick={toggleSwitch}
     >
-      <div
-        className="vm-switch__handle"
-      />
+      <div className="vm-switch-track">
+        <div
+          className="vm-switch-track__thumb"
+        />
+      </div>
       {label && <span className="vm-switch__label">{label}</span>}
     </div>
   );
