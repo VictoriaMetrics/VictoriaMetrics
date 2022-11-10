@@ -242,6 +242,24 @@ Released at 08-08-2022
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show date picker at `Table` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2874).
 * BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
 
+## [v1.79.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.5)
+
+Released at 10-11-2022
+
+**v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
+
+**Update note 1:** [vmalert](https://docs.victoriametrics.com/vmalert.html): the `crlfEscape` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) becames obsolete starting from this release. It can be safely removed from alerting templates, since `\n` chars are properly escaped with other `*Escape` functions now. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3139) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890) issue for details.
+
+* SECURITY: update Go builder to v1.19.3. This fixes [CVE-2022 security issue](https://github.com/golang/go/issues/56328). See [the changelog](https://github.com/golang/go/issues?q=milestone%3AGo1.19.3+label%3ACherryPickApproved).
+
+* BUGFIX: properly register new time series in per-day inverted index if they were ingested during the last 10 seconds of the day. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309). Thanks to @lmarszal for the bugreport and for the [initial fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3320).
+* BUGFIX: properly accept [OpenTSDB telnet put lines](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol) without tags without the need to specify the trailing whitespace. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly merge buckets with identical `le` values, but with different string representation of these values when calculating [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile) and [histogram_share](https://docs.victoriametrics.com/MetricsQL.html#histogram_share). For example, `http_request_duration_seconds_bucket{le="5"}` and `http_requests_duration_seconds_bucket{le="5.0"}`. Such buckets may be returned from distinct targets. Thanks to @647-coder for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3225).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): change severity level for log messages about failed attempts for sending data to remote storage from `error` to `warn`. The message for about all failed send attempts remains at `error` severity level.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly escape string passed to `quotesEscape` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions), so it can be safely embedded into JSON string. This makes obsolete the `crlfEscape` function. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3139) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890) issue.
+* BUGFIX: `vmselect`: expose missing metric `vm_cache_size_max_bytes{type="promql/rollupResult"}` . This metric is used for monitoring rollup cache usage with the query `vm_cache_size_bytes{type="promql/rollupResult"} / vm_cache_size_max_bytes{type="promql/rollupResult"}` in the same way as this is done for other cache types.
+
 ## [v1.79.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.4)
 
 Released at 07-10-2022
