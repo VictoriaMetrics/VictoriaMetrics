@@ -23,9 +23,12 @@ func (f *UintFlag) GetCategory() string {
 
 // Apply populates the flag given the flag set and environment
 func (f *UintFlag) Apply(set *flag.FlagSet) error {
+	// set default value so that environment wont be able to overwrite it
+	f.defaultValue = f.Value
+
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
-			valInt, err := strconv.ParseUint(val, 0, 64)
+			valInt, err := strconv.ParseUint(val, f.Base, 64)
 			if err != nil {
 				return fmt.Errorf("could not parse %q as uint value from %s for flag %s: %s", val, source, f.Name, err)
 			}
@@ -46,6 +49,15 @@ func (f *UintFlag) Apply(set *flag.FlagSet) error {
 	return nil
 }
 
+// RunAction executes flag action if set
+func (f *UintFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Uint(f.Name))
+	}
+
+	return nil
+}
+
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *UintFlag) GetValue() string {
@@ -57,7 +69,7 @@ func (f *UintFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	return f.GetValue()
+	return fmt.Sprintf("%d", f.defaultValue)
 }
 
 // GetEnvVars returns the env vars for this flag

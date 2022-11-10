@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -73,7 +74,7 @@ func (s *StringSlice) Get() interface{} {
 // String returns a readable representation of this value
 // (for usage defaults)
 func (f *StringSliceFlag) String() string {
-	return withEnvHint(f.GetEnvVars(), stringifyStringSliceFlag(f))
+	return FlagStringer(f)
 }
 
 // TakesValue returns true of the flag takes a value, otherwise false
@@ -94,10 +95,15 @@ func (f *StringSliceFlag) GetCategory() string {
 // GetValue returns the flags value as string representation and an empty
 // string if the flag takes no value at all.
 func (f *StringSliceFlag) GetValue() string {
-	if f.Value != nil {
-		return f.Value.String()
+	var defaultVals []string
+	if f.Value != nil && len(f.Value.Value()) > 0 {
+		for _, s := range f.Value.Value() {
+			if len(s) > 0 {
+				defaultVals = append(defaultVals, strconv.Quote(s))
+			}
+		}
 	}
-	return ""
+	return strings.Join(defaultVals, ", ")
 }
 
 // GetDefaultText returns the default text for this flag
@@ -111,6 +117,11 @@ func (f *StringSliceFlag) GetDefaultText() string {
 // GetEnvVars returns the env vars for this flag
 func (f *StringSliceFlag) GetEnvVars() []string {
 	return f.EnvVars
+}
+
+// IsSliceFlag implements DocGenerationSliceFlag.
+func (f *StringSliceFlag) IsSliceFlag() bool {
+	return true
 }
 
 // Apply populates the flag given the flag set and environment
@@ -155,6 +166,15 @@ func (f *StringSliceFlag) Apply(set *flag.FlagSet) error {
 // Get returns the flag’s value in the given Context.
 func (f *StringSliceFlag) Get(ctx *Context) []string {
 	return ctx.StringSlice(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *StringSliceFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.StringSlice(f.Name))
+	}
+
+	return nil
 }
 
 // StringSlice looks up the value of a local StringSliceFlag, returns

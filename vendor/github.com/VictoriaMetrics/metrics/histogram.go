@@ -25,20 +25,20 @@ var bucketMultiplier = math.Pow(10, 1.0/bucketsPerDecimal)
 // Each bucket contains a counter for values in the given range.
 // Each non-empty bucket is exposed via the following metric:
 //
-//     <metric_name>_bucket{<optional_tags>,vmrange="<start>...<end>"} <counter>
+//	<metric_name>_bucket{<optional_tags>,vmrange="<start>...<end>"} <counter>
 //
 // Where:
 //
-//     - <metric_name> is the metric name passed to NewHistogram
-//     - <optional_tags> is optional tags for the <metric_name>, which are passed to NewHistogram
-//     - <start> and <end> - start and end values for the given bucket
-//     - <counter> - the number of hits to the given bucket during Update* calls
+//   - <metric_name> is the metric name passed to NewHistogram
+//   - <optional_tags> is optional tags for the <metric_name>, which are passed to NewHistogram
+//   - <start> and <end> - start and end values for the given bucket
+//   - <counter> - the number of hits to the given bucket during Update* calls
 //
 // Histogram buckets can be converted to Prometheus-like buckets with `le` labels
 // with `prometheus_buckets(<metric_name>_bucket)` function from PromQL extensions in VictoriaMetrics.
 // (see https://github.com/VictoriaMetrics/VictoriaMetrics/wiki/MetricsQL ):
 //
-//     prometheus_buckets(request_duration_bucket)
+//	prometheus_buckets(request_duration_bucket)
 //
 // Time series produced by the Histogram have better compression ratio comparing to
 // Prometheus histogram buckets with `le` labels, since they don't include counters
@@ -143,9 +143,9 @@ func (h *Histogram) VisitNonZeroBuckets(f func(vmrange string, count uint64)) {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned histogram is safe to use from concurrent goroutines.
 func NewHistogram(name string) *Histogram {
@@ -159,9 +159,9 @@ func NewHistogram(name string) *Histogram {
 // name must be valid Prometheus-compatible metric with possible labels.
 // For instance,
 //
-//     * foo
-//     * foo{bar="baz"}
-//     * foo{bar="baz",aaa="b"}
+//   - foo
+//   - foo{bar="baz"}
+//   - foo{bar="baz",aaa="b"}
 //
 // The returned histogram is safe to use from concurrent goroutines.
 //

@@ -5,15 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
 const defaultPlaceholder = "value"
+
+var defaultSliceFlagSeparator = ","
 
 var (
 	slPfx = fmt.Sprintf("sl:::%d:::", time.Now().UTC().UnixNano())
@@ -84,6 +86,12 @@ func (f FlagsByName) Swap(i, j int) {
 	f[i], f[j] = f[j], f[i]
 }
 
+// ActionableFlag is an interface that wraps Flag interface and RunAction operation.
+type ActionableFlag interface {
+	Flag
+	RunAction(*Context) error
+}
+
 // Flag is a common interface related to parsing flags in cli.
 // For more advanced flag parsing techniques, it is recommended that
 // this interface be implemented.
@@ -124,6 +132,14 @@ type DocGenerationFlag interface {
 	GetEnvVars() []string
 }
 
+// DocGenerationSliceFlag extends DocGenerationFlag for slice-based flags.
+type DocGenerationSliceFlag interface {
+	DocGenerationFlag
+
+	// IsSliceFlag returns true for flags that can be given multiple times.
+	IsSliceFlag() bool
+}
+
 // VisibleFlag is an interface that allows to check if a flag is visible
 type VisibleFlag interface {
 	Flag
@@ -138,6 +154,12 @@ type CategorizableFlag interface {
 	VisibleFlag
 
 	GetCategory() string
+}
+
+// Countable is an interface to enable detection of flag values which support
+// repetitive flags
+type Countable interface {
+	Count() int
 }
 
 func flagSet(name string, flags []Flag) (*flag.FlagSet, error) {
@@ -249,19 +271,23 @@ func prefixedNames(names []string, placeholder string) string {
 	return prefixed
 }
 
+func envFormat(envVars []string, prefix, sep, suffix string) string {
+	if len(envVars) > 0 {
+		return fmt.Sprintf(" [%s%s%s]", prefix, strings.Join(envVars, sep), suffix)
+	}
+	return ""
+}
+
+func defaultEnvFormat(envVars []string) string {
+	return envFormat(envVars, "$", ", $", "")
+}
+
 func withEnvHint(envVars []string, str string) string {
 	envText := ""
-	if len(envVars) > 0 {
-		prefix := "$"
-		suffix := ""
-		sep := ", $"
-		if runtime.GOOS == "windows" {
-			prefix = "%"
-			suffix = "%"
-			sep = "%, %"
-		}
-
-		envText = fmt.Sprintf(" [%s%s%s]", prefix, strings.Join(envVars, sep), suffix)
+	if runtime.GOOS != "windows" || os.Getenv("PSHOME") != "" {
+		envText = defaultEnvFormat(envVars)
+	} else {
+		envText = envFormat(envVars, "%", "%, %", "%")
 	}
 	return str + envText
 }
@@ -314,74 +340,13 @@ func stringifyFlag(f Flag) string {
 
 	usageWithDefault := strings.TrimSpace(usage + defaultValueString)
 
-	return withEnvHint(df.GetEnvVars(),
-		fmt.Sprintf("%s\t%s", prefixedNames(df.Names(), placeholder), usageWithDefault))
-}
-
-func stringifyIntSliceFlag(f *IntSliceFlag) string {
-	var defaultVals []string
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, i := range f.Value.Value() {
-			defaultVals = append(defaultVals, strconv.Itoa(i))
-		}
+	pn := prefixedNames(df.Names(), placeholder)
+	sliceFlag, ok := f.(DocGenerationSliceFlag)
+	if ok && sliceFlag.IsSliceFlag() {
+		pn = pn + " [ " + pn + " ]"
 	}
 
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifyInt64SliceFlag(f *Int64SliceFlag) string {
-	var defaultVals []string
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, i := range f.Value.Value() {
-			defaultVals = append(defaultVals, strconv.FormatInt(i, 10))
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifyFloat64SliceFlag(f *Float64SliceFlag) string {
-	var defaultVals []string
-
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, i := range f.Value.Value() {
-			defaultVals = append(defaultVals, strings.TrimRight(strings.TrimRight(fmt.Sprintf("%f", i), "0"), "."))
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifyStringSliceFlag(f *StringSliceFlag) string {
-	var defaultVals []string
-	if f.Value != nil && len(f.Value.Value()) > 0 {
-		for _, s := range f.Value.Value() {
-			if len(s) > 0 {
-				defaultVals = append(defaultVals, strconv.Quote(s))
-			}
-		}
-	}
-
-	return stringifySliceFlag(f.Usage, f.Names(), defaultVals)
-}
-
-func stringifySliceFlag(usage string, names, defaultVals []string) string {
-	placeholder, usage := unquoteUsage(usage)
-	if placeholder == "" {
-		placeholder = defaultPlaceholder
-	}
-
-	defaultVal := ""
-	if len(defaultVals) > 0 {
-		defaultVal = fmt.Sprintf(formatDefault("%s"), strings.Join(defaultVals, ", "))
-	}
-
-	usageWithDefault := strings.TrimSpace(fmt.Sprintf("%s%s", usage, defaultVal))
-	multiInputString := "(accepts multiple inputs)"
-	if usageWithDefault != "" {
-		multiInputString = "\t" + multiInputString
-	}
-	return fmt.Sprintf("%s\t%s%s", prefixedNames(names, placeholder), usageWithDefault, multiInputString)
+	return withEnvHint(df.GetEnvVars(), fmt.Sprintf("%s\t%s", pn, usageWithDefault))
 }
 
 func hasFlag(flags []Flag, fl Flag) bool {
@@ -415,5 +380,5 @@ func flagFromEnvOrFile(envVars []string, filePath string) (value string, fromWhe
 }
 
 func flagSplitMultiValues(val string) []string {
-	return strings.Split(val, ",")
+	return strings.Split(val, defaultSliceFlagSeparator)
 }

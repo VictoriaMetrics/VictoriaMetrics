@@ -11,6 +11,19 @@ type Generic interface {
 	String() string
 }
 
+type stringGeneric struct {
+	value string
+}
+
+func (s *stringGeneric) Set(value string) error {
+	s.value = value
+	return nil
+}
+
+func (s *stringGeneric) String() string {
+	return s.value
+}
+
 // TakesValue returns true of the flag takes a value, otherwise false
 func (f *GenericFlag) TakesValue() bool {
 	return true
@@ -40,7 +53,10 @@ func (f *GenericFlag) GetDefaultText() string {
 	if f.DefaultText != "" {
 		return f.DefaultText
 	}
-	return f.GetValue()
+	if f.defaultValue != nil {
+		return f.defaultValue.String()
+	}
+	return ""
 }
 
 // GetEnvVars returns the env vars for this flag
@@ -50,7 +66,12 @@ func (f *GenericFlag) GetEnvVars() []string {
 
 // Apply takes the flagset and calls Set on the generic flag with the value
 // provided by the user for parsing by the flag
-func (f GenericFlag) Apply(set *flag.FlagSet) error {
+func (f *GenericFlag) Apply(set *flag.FlagSet) error {
+	// set default value so that environment wont be able to overwrite it
+	if f.Value != nil {
+		f.defaultValue = &stringGeneric{value: f.Value.String()}
+	}
+
 	if val, source, found := flagFromEnvOrFile(f.EnvVars, f.FilePath); found {
 		if val != "" {
 			if err := f.Value.Set(val); err != nil {
@@ -62,6 +83,10 @@ func (f GenericFlag) Apply(set *flag.FlagSet) error {
 	}
 
 	for _, name := range f.Names() {
+		if f.Destination != nil {
+			set.Var(f.Destination, name, f.Usage)
+			continue
+		}
 		set.Var(f.Value, name, f.Usage)
 	}
 
@@ -71,6 +96,15 @@ func (f GenericFlag) Apply(set *flag.FlagSet) error {
 // Get returns the flag’s value in the given Context.
 func (f *GenericFlag) Get(ctx *Context) interface{} {
 	return ctx.Generic(f.Name)
+}
+
+// RunAction executes flag action if set
+func (f *GenericFlag) RunAction(c *Context) error {
+	if f.Action != nil {
+		return f.Action(c, c.Generic(f.Name))
+	}
+
+	return nil
 }
 
 // Generic looks up the value of a local GenericFlag, returns
