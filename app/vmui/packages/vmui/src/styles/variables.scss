@@ -50,6 +50,6 @@ $border-radius-large: 16px;
 
 
 /************* box-shadows *************/
-$box-shadow: 2px 4px 12px rgb(0 0 0 / 8%);
-$box-shadow-bottom: rgba(0, 0, 0, 0.04) 0px 3px 5px;
-$box-shadow-popper: rgba(99, 99, 99, 0.2) 0px 2px 8px 0px;
+$box-shadow: 2px 4px 12px rgba($color-black, 0.08);
+$box-shadow-bottom: rgba($color-black, 0.04) 0px 3px 5px;
+$box-shadow-popper: rgba($color-black, 0.2) 0px 2px 8px 0px;

@@ -1,0 +1,49 @@
+@use "src/styles/variables" as *;
+
+.vm-predefined-panel {
+
+  &-header {
+    display: grid;
+    grid-template-columns: auto 1fr 160px auto;
+    align-items: center;
+    justify-content: flex-start;
+    gap: $padding-small;
+    padding: $padding-small $padding-small*2;
+    border-bottom: $border-divider;
+
+    &__title {
+
+    }
+
+    &__info {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      color: $color-primary
+    }
+  }
+
+  &-body {
+    padding: $padding-small $padding-small*2;
+  }
+}
+
+//.panelDescription ul {
+//    line-height: 2.2;
+//}
+//
+//.panelDescription a {
+//    color: #FFFFFF;
+//}
+//
+//.panelDescription code {
+//    display: inline;
+//    max-width: 100%;
+//    padding: 4px 6px;
+//    background-color: rgba(0, 0, 0, 0.3);
+//    border-radius: 2px;
+//    font-weight: 400;
+//    font-size: inherit;
+//    color: #FFFFFF;
+//}

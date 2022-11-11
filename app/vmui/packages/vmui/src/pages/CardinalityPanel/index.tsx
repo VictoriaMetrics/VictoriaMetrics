@@ -84,6 +84,7 @@ const Index: FC = () => {
 
   return (
     <>
+      {isLoading && <Spinner/>}
       {/*{isLoading && <Spinner*/}
       {/*  isLoading={isLoading}*/}
       {/*  height={"800px"}*/}

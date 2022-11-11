@@ -71,7 +71,7 @@ const Index: FC = () => {
         error={error}
         queryOptions={queryOptions}
       />
-      <div className="vm-custom-panel-body">
+      <div className="vm-custom-panel-body vm-block">
         {isLoading && <Spinner />}
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>

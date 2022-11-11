@@ -5,29 +5,29 @@ import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";
 import useResize from "../../../hooks/useResize";
 import Accordion from "../../../components/Main/Accordion/Accordion";
+import "./style.scss";
+import classNames from "classnames";
 
 export interface PredefinedDashboardProps extends DashboardRow {
   filename: string;
   index: number;
 }
 
-const resizerStyle: CSSProperties = {
-  position: "absolute",
-  top: 0,
-  bottom: 0,
-  width: "10px",
-  opacity: 0,
-  cursor: "ew-resize",
-};
-
-const PredefinedDashboard: FC<PredefinedDashboardProps> = ({ index, title, panels, filename }) => {
+const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
+  index,
+  title,
+  panels,
+  filename
+}) => {
 
   const windowSize = useResize(document.body);
   const sizeSection = useMemo(() => {
     return windowSize.width / 12;
   }, [windowSize]);
 
+  const [expanded, setExpanded] = useState(!index);
   const [panelsWidth, setPanelsWidth] = useState<number[]>([]);
+  console.log(panelsWidth);
 
   useEffect(() => {
     setPanelsWidth(panels.map(p => p.width || 12));
@@ -60,6 +60,8 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({ index, title, panel
     });
   };
 
+  const handleChangeExpanded = (val: boolean) => setExpanded(val);
+
   useEffect(() => {
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -69,28 +71,32 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({ index, title, panel
     };
   }, [resize]);
 
-  return <Accordion
-    defaultExpanded={!index}
-    title={(
-      <div>
-        {title && (
-          <span>
-            {title}
-          </span>
-        )}
-        {panels && (
-          <span>
-            ({panels.length} panels)
-          </span>
-        )}
-      </div>
-    )}
-  >
-    <div>
-      {Array.isArray(panels) && !!panels.length
-        ? panels.map((p, i) =>
-          <div key={i}>
-            <div>
+  const HeaderAccordion = () => (
+    <div
+      className={classNames({
+        "vm-predefined-dashboard-header": true,
+        "vm-predefined-dashboard-header_open": expanded
+      })}
+    >
+      {title && <span className="vm-predefined-dashboard-header__title">{title}</span>}
+      {panels && <span className="vm-predefined-dashboard-header__count">({panels.length} panels)</span>}
+    </div>
+  );
+
+  return <div className="vm-predefined-dashboard">
+    <Accordion
+      defaultExpanded={expanded}
+      onChange={handleChangeExpanded}
+      title={<HeaderAccordion/>}
+    >
+      <div className="vm-predefined-dashboard-panels">
+        {Array.isArray(panels) && !!panels.length
+          ? panels.map((p, i) =>
+            <div
+              className="vm-predefined-dashboard-panels-panel"
+              style={{ gridColumn: `span ${panelsWidth[i]}` }}
+              key={i}
+            >
               <PredefinedPanel
                 title={p.title}
                 description={p.description}
@@ -101,23 +107,24 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({ index, title, panel
                 showLegend={p.showLegend}
               />
               <button
-                style={{ ...resizerStyle, right: 0 }}
+                className="vm-predefined-dashboard-panels-panel__resizer"
                 onMouseDown={(e) => handleMouseDown(e, i)}
               />
             </div>
-          </div>)
-        : <>
-          {/*<Alert*/}
-          {/*  color="error"*/}
-          {/*  severity="error"*/}
-          {/*  sx={{ m: 4 }}*/}
-          {/*>*/}
-          {/*  <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.*/}
-          {/*</Alert>*/}
-        </>
-      }
-    </div>
-  </Accordion>;
+          )
+          : <>
+            {/*<Alert*/}
+            {/*  color="error"*/}
+            {/*  severity="error"*/}
+            {/*  sx={{ m: 4 }}*/}
+            {/*>*/}
+            {/*  <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.*/}
+            {/*</Alert>*/}
+          </>
+        }
+      </div>
+    </Accordion>
+  </div>;
 };
 
 export default PredefinedDashboard;

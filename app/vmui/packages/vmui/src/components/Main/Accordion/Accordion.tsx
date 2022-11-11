@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import React, { FC, useState, useEffect } from "preact/compat";
 import { ArrowDownIcon } from "../Icons";
 import "./style.scss";
 import { ReactNode } from "react";
@@ -7,12 +7,20 @@ interface AccordionProps {
   title: ReactNode
   children: ReactNode
   defaultExpanded?: boolean
+  onChange?: (value: boolean) => void
 }
 
 const Accordion: FC<AccordionProps> = ({
-  defaultExpanded = false, children, title,
+  defaultExpanded = false,
+  onChange,
+  title,
+  children
 }) => {
   const [isOpen, setIsOpen] = useState(defaultExpanded);
+
+  useEffect(() => {
+    onChange && onChange(isOpen);
+  }, [isOpen]);
 
   return (
     <>

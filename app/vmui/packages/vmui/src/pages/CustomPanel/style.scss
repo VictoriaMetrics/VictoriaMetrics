@@ -6,10 +6,6 @@
   &-body {
     position: relative;
     margin-top: $padding-medium;
-    padding: 0 $padding-medium $padding-medium;
-    background-color: $color-white;
-    border-radius: $border-radius-medium;
-    box-shadow: $box-shadow;
 
     &-header {
       position: relative;
@@ -17,7 +13,7 @@
       align-items: center;
       justify-content: space-between;
       font-size: $font-size-small;
-      margin: 0 0-$padding-medium $padding-medium;
+      margin: -$padding-medium 0-$padding-medium $padding-medium;
       padding: 0 $padding-medium;
       border-bottom: $border-divider;
       z-index: 1;

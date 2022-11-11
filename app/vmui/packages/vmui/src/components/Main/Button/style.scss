@@ -1,6 +1,6 @@
 @use "src/styles/variables" as *;
 
-$button-radius: $border-radius-medium;
+$button-radius: 6px;
 
 .vm-button {
   position: relative;
@@ -8,9 +8,9 @@ $button-radius: $border-radius-medium;
   align-items: center;
   justify-content: center;
   padding: 6px $padding-global;
-  font-size: $font-size;
+  font-size: $font-size-small;
   font-weight: 500;
-  min-height: 32px;
+  min-height: 34px;
   border-radius: $button-radius;
   color: $color-white;
   transform-style: preserve-3d;
@@ -50,7 +50,7 @@ $button-radius: $border-radius-medium;
     justify-content: center;
 
     svg {
-      width: 20px;
+      width: 18px;
     }
   }
 

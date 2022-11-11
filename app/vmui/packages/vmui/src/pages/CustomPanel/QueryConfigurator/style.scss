@@ -3,10 +3,6 @@
 .vm-query-configurator {
   display: grid;
   gap: $padding-small;
-  padding: $padding-medium;
-  background-color: $color-white;
-  border-radius: $border-radius-medium;
-  box-shadow: $box-shadow;
 
   &-list {
     display: grid;

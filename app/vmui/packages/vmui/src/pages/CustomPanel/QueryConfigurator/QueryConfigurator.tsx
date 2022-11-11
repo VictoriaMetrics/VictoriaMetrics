@@ -71,7 +71,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     }
   }, [stateQuery]);
 
-  return <div className="vm-query-configurator">
+  return <div className="vm-query-configurator vm-block">
     <div className="vm-query-configurator-list">
       {stateQuery.map((q, i) => (
         <div

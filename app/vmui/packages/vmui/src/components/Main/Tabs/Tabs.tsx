@@ -6,7 +6,7 @@ import { getVariableColor } from "../../../utils/theme";
 
 interface TabsProps {
   activeItem: string
-  items: {value: string, label: string, icon?: ReactNode}[]
+  items: {value: string, label: string, icon?: ReactNode, className?: string}[]
   color?: string
   onChange: (value: string) => void
 }
@@ -24,14 +24,15 @@ const Tabs: FC<TabsProps> = ({
       const { offsetLeft: left, offsetWidth: width } = activeNavRef.current;
       setIndicatorPosition({ left, width, bottom: 0 });
     }
-  }, [activeItem, activeNavRef]);
+  }, [activeItem, activeNavRef, items]);
 
   return <div className="vm-tabs">
     {items.map(item => (
       <div
         className={classNames({
           "vm-tabs-item": true,
-          "vm-tabs-item_active": activeItem === item.value
+          "vm-tabs-item_active": activeItem === item.value,
+          [item.className || ""]: item.className
         })}
         ref={activeItem === item.value ? activeNavRef : undefined}
         key={item.value}

@@ -2,68 +2,74 @@ import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import getDashboardSettings from "./getDashboardSettings";
 import { DashboardRow, DashboardSettings } from "../../types";
 import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
-import get from "lodash.get";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
+import "./style.scss";
+import Tabs from "../../components/Main/Tabs/Tabs";
 
 const Index: FC = () => {
   useSetQueryParams();
 
-  const [dashboards, setDashboards] = useState<DashboardSettings[]>();
-  const [tab, setTab] = useState(0);
+  const [dashboards, setDashboards] = useState<DashboardSettings[]>([]);
+  const [tab, setTab] = useState("0");
 
-  const filename = useMemo(() => get(dashboards, [tab, "filename"], ""), [dashboards, tab]);
+  const tabs = useMemo(() => dashboards.map((d, i) => ({
+    label: d.title || "",
+    value: `${i}`,
+    className: "vm-predefined-panels-tabs__tab"
+  })), [dashboards]);
 
-  const rows = useMemo(() => {
-    return get(dashboards, [tab, "rows"], []) as DashboardRow[];
-  }, [dashboards, tab]);
+  const activeDashboard = useMemo(() => dashboards[+tab] || {}, [dashboards, tab]);
+  const rows = useMemo(() => activeDashboard?.rows, [activeDashboard]);
+  const filename = useMemo(() => activeDashboard.title || activeDashboard.filename || "", [activeDashboard]);
+  const validDashboardRows = useMemo(() => Array.isArray(rows) && !!rows.length, [rows]);
+
+  const handleChangeTab = (value: string) => {
+    setTab(value);
+  };
 
   useEffect(() => {
     getDashboardSettings().then(d => d.length && setDashboards(d));
   }, []);
 
-  return <>
+  return <div className="vm-predefined-panels">
+    {/* TODO hide route if not dashboards */}
     {/*{!dashboards && <Alert*/}
     {/*  color="info"*/}
     {/*  severity="info"*/}
     {/*  sx={{ m: 4 }}*/}
     {/*>Dashboards not found</Alert>}*/}
-    {dashboards && <>
-      <div>
-        {/* TODO add tabs */}
-        <div>
-          {dashboards && dashboards.map((d, i) =>
-            <div
-              key={i}
-              id={`tab-${i}`}
-            >
-              {d.title || d.filename}
-            </div>
-          )}
-        </div>
+    {tabs.length > 1 && (
+      <div className="vm-predefined-panels-tabs vm-block vm-block_empty-padding">
+        <Tabs
+          activeItem={tab}
+          items={tabs}
+          onChange={handleChangeTab}
+        />
       </div>
-      <div>
-        {Array.isArray(rows) && !!rows.length
-          ? rows.map((r,i) =>
-            <PredefinedDashboard
-              key={`${tab}_${i}`}
-              index={i}
-              filename={filename}
-              title={r.title}
-              panels={r.panels}
-            />)
-          : (
-            <div>error</div>
-            // <Alert
-            //   color="error"
-            //   severity="error"
-            //   sx={{ m: 4 }}
-            // >
-            //   <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
-            // </Alert>
-          )}
-      </div>
-    </>}
-  </>;
+    )}
+    <div className="vm-predefined-panels__dashboards">
+      {validDashboardRows && (
+        rows.map((r,i) =>
+          <PredefinedDashboard
+            key={`${tab}_${i}`}
+            index={i}
+            filename={filename}
+            title={r.title}
+            panels={r.panels}
+          />)
+      )}
+      {!validDashboardRows && (
+        <div>error</div>
+        // <Alert
+        //   color="error"
+        //   severity="error"
+        //   sx={{ m: 4 }}
+        // >
+        //   <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+        // </Alert>
+      )}
+    </div>
+  </div>;
 };
 
 export default Index;

@@ -1,0 +1,12 @@
+@use "src/styles/variables" as *;
+
+.vm-block {
+  padding: $padding-medium;
+  background-color: $color-white;
+  border-radius: $border-radius-medium;
+  box-shadow: $box-shadow;
+
+  &_empty-padding {
+    padding: 0;
+  }
+}

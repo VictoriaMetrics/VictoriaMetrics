@@ -7,9 +7,9 @@ import Spinner from "../../../components/Main/Spinner/Spinner";
 import StepConfigurator from "../../../components/Configurators/StepConfigurator/StepConfigurator";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
 import { marked } from "marked";
-import "../dashboard.css";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import { InfoIcon } from "../../../components/Main/Icons";
+import "./style.scss";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -84,8 +84,11 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
     // </Alert>
   );
 
-  return <div ref={containerRef}>
-    <div >
+  return <div
+    className="vm-predefined-panel"
+    ref={containerRef}
+  >
+    <div className="vm-predefined-panel-header">
       {/*<Tooltip*/}
       {/*  arrow*/}
       {/*  componentsProps={{ tooltip: { sx: { maxWidth: "100%" } } }}*/}
@@ -114,12 +117,14 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       {/*    </Box>*/}
       {/*  </Box>}*/}
       {/*>*/}
-      <InfoIcon />
+      <div className="vm-predefined-panel-header__info">
+        <InfoIcon />
+      </div>
       {/*</Tooltip>*/}
-      <h3 >
+      <h3 className="vm-predefined-panel-header__title">
         {title || ""}
       </h3>
-      <div >
+      <div className="vm-predefined-panel-header__step">
         <StepConfigurator
           defaultStep={period.step}
           setStep={(value) => setCustomStep(value)}
@@ -131,8 +136,8 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         toggleEnableLimits={toggleEnableLimits}
       />
     </div>
-    <div >
-      {isLoading && <Spinner containerStyles={{ height: "500px" }}/>}
+    <div className="vm-predefined-panel-body">
+      {isLoading && <Spinner containerStyles={{ position: "absolute", height: "500px" }}/>}
       {/*{error && <Alert*/}
       {/*  color="error"*/}
       {/*  severity="error"*/}
