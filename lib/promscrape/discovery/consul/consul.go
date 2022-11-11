@@ -14,9 +14,14 @@ type SDConfig struct {
 	Server     string           `yaml:"server,omitempty"`
 	Token      *promauth.Secret `yaml:"token"`
 	Datacenter string           `yaml:"datacenter"`
+
 	// Namespace only supported at enterprise consul.
 	// https://www.consul.io/docs/enterprise/namespaces
-	Namespace         string                     `yaml:"namespace,omitempty"`
+	Namespace string `yaml:"namespace,omitempty"`
+	// Partition only supported at enteprise consul.
+	// https://developer.hashicorp.com/consul/docs/enterprise/admin-partitions
+	Partition string `yaml:"partition,omitempty"`
+
 	Scheme            string                     `yaml:"scheme,omitempty"`
 	Username          string                     `yaml:"username"`
 	Password          *promauth.Secret           `yaml:"password"`

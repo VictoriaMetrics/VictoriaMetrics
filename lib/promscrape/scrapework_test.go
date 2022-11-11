@@ -465,6 +465,358 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`)
 }
 
+func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
+	f := func(row string, cfg *ScrapeWork, dataExpected string) {
+		t.Helper()
+		sw := scrapeWork{
+			Config: cfg,
+		}
+		var wc writeRequestCtx
+		r := parsePromRow(row)
+		sw.addRowToTimeseries(&wc, r, r.Timestamp, false)
+		tss := wc.writeRequest.Timeseries
+		tssExpected := parseData(dataExpected)
+		if err := expectEqualTimeseries(tss, tssExpected); err != nil {
+			t.Fatalf("%s\ngot\n%v\nwant\n%v", err, tss, tssExpected)
+		}
+	}
+
+	// HonorLabels=false, empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric 0 123`)
+	f(`metric{a="f"} 0 123`,
+		&ScrapeWork{
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric{a="f"} 0 123`)
+	// HonorLabels=true, empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric 0 123`)
+	f(`metric{a="f"} 0 123`,
+		&ScrapeWork{
+			Labels:         []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric{a="f"} 0 123`)
+	// HonorLabels=false, non-empty Labels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=true, non-empty Labels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=false, non-empty ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=true, non-empty ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=false, non-empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",x="y"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar",x="y"} 0 123`)
+	// HonorLabels=true, non-empty Labels and ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f",x="y"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "x",
+					Value: "y",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="f",foo="bar",x="y"} 0 123`)
+	// HonorLabels=false, clashing Labels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    false,
+		},
+		`metric{a="f",exported_a="b"} 0 123`)
+	// HonorLabels=true, clashing Labels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{},
+			HonorLabels:    true,
+		},
+		`metric{a="b"} 0 123`)
+	// HonorLabels=false, clashing ExternalLabels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",exported_a="b"} 0 123`)
+	// HonorLabels=true, clashing ExternalLabels and metric label
+	f(`metric{a="b"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="b"} 0 123`)
+	// HonorLabels=false, clashing Labels and ExternalLAbels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "e",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",exported_a="e"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "e",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar",exported_a="e"} 0 123`)
+	// HonorLabels=true, clashing Labels and ExternalLAbels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "e",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="e"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "e",
+				},
+			},
+			ExternalLabels: []prompbmarshal.Label{
+				{
+					Name:  "a",
+					Value: "f",
+				},
+			},
+			HonorLabels: true,
+		},
+		`metric{a="e",foo="bar"} 0 123`)
+}
+
+func parsePromRow(data string) *parser.Row {
+	var rows parser.Rows
+	errLogger := func(s string) {
+		panic(fmt.Errorf("unexpected error when unmarshaling Prometheus rows: %s", s))
+	}
+	rows.UnmarshalWithErrLogger(data, errLogger)
+	if len(rows.Rows) != 1 {
+		panic(fmt.Errorf("unexpected number of rows parsed from %q; got %d; want %d", data, len(rows.Rows), 1))
+	}
+	return &rows.Rows[0]
+}
+
 func parseData(data string) []prompbmarshal.TimeSeries {
 	var rows parser.Rows
 	errLogger := func(s string) {

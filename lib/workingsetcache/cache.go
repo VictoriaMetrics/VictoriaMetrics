@@ -164,7 +164,7 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 
 func (c *Cache) prevCacheWatcher() {
 	// Watch for the usage of the prev cache and drop it whenever it receives
-	// less than 5% of requests comparing to the curr cache during the last 10 seconds.
+	// less than 1% of requests comparing to the curr cache during the last 10 seconds.
 	checkInterval := 10 * time.Second
 	checkInterval += timeJitter(checkInterval / 10)
 	t := time.NewTicker(checkInterval)
@@ -198,7 +198,7 @@ func (c *Cache) prevCacheWatcher() {
 		}
 		currGetCalls = csCurr.GetCalls
 		prevGetCalls = csPrev.GetCalls
-		if currRequests >= 20 && float64(prevRequests)/float64(currRequests) < 0.05 {
+		if currRequests >= 100 && float64(prevRequests)/float64(currRequests) < 0.01 {
 			// The majority of requests are served from the curr cache,
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {
