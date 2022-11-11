@@ -213,7 +213,10 @@ func MustRemoveDirAtomic(dir string) {
 		return
 	}
 	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
-	cDir := filepath.Clean(dir)
+	cDir, err := filepath.Abs(dir)
+	if err != nil {
+		logger.Panicf("FATAL: cannot get abs path %s to %s: %s", cDir, cDir, err)
+	}
 	tmpDir := fmt.Sprintf("%s.must-remove.%d", cDir, n)
 	if err := os.Rename(cDir, tmpDir); err != nil {
 		logger.Panicf("FATAL: cannot move %s to %s: %s", cDir, tmpDir, err)
