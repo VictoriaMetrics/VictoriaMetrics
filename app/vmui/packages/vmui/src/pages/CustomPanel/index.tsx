@@ -10,7 +10,7 @@ import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateCon
 import { AxisRange } from "../../state/graph/reducer";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
-import TraceQuery from "../../components/TraceQuery/TracingsView";
+import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
 import TableSettings from "../../components/Main/Table/TableSettings/TableSettings";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
@@ -71,6 +71,14 @@ const Index: FC = () => {
         error={error}
         queryOptions={queryOptions}
       />
+      {isTracingEnabled && (
+        <div className="vm-custom-panel__trace">
+          <TracingsView
+            traces={tracesState}
+            onDeleteClick={handleTraceDelete}
+          />
+        </div>
+      )}
       <div className="vm-custom-panel-body vm-block">
         {isLoading && <Spinner />}
         <div className="vm-custom-panel-body-header">
@@ -96,11 +104,7 @@ const Index: FC = () => {
         {/*  severity="warning"*/}
         {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
         {/*>{warning}</Alert>}*/}
-        {graphData && period && (displayType === "chart") && <>
-          {isTracingEnabled && <TraceQuery
-            traces={tracesState}
-            onDeleteClick={handleTraceDelete}
-          />}
+        {graphData && period && (displayType === "chart") && (
           <GraphView
             data={graphData}
             period={period}
@@ -110,19 +114,14 @@ const Index: FC = () => {
             setYaxisLimits={setYaxisLimits}
             setPeriod={setPeriod}
           />
-        </>}
+        )}
         {liveData && (displayType === "code") && <JsonView data={liveData}/>}
-        {liveData && (displayType === "table") && <>
-          {isTracingEnabled && <TraceQuery
-            traces={tracesState}
-            onDeleteClick={handleTraceDelete}
-          />}
-            coming soon
-          {/*<TableView*/}
-          {/*  data={liveData}*/}
-          {/*  displayColumns={displayColumns}*/}
-          {/*/>*/}
-        </>}
+        {/*{liveData && (displayType === "table") && (*/}
+        {/*  <TableView*/}
+        {/*    data={liveData}*/}
+        {/*    displayColumns={displayColumns}*/}
+        {/*  />*/}
+        {/*)}*/}
       </div>
     </div>
   );

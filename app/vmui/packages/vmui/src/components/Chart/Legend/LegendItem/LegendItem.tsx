@@ -61,7 +61,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
               handleClickFreeField(f.freeField, f.id);
             }}
           >
-            {f.key}: {legend.freeFormFields[f.key]}
+            {f.freeField}
           </span>))}
         {/*</Tooltip>*/}
         &#125;

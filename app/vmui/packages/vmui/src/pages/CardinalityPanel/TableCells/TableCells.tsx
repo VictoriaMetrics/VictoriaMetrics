@@ -1,7 +1,7 @@
 import { SyntheticEvent } from "react";
 import React, { FC } from "preact/compat";
 import { Data } from "../../../components/Main/Table/types";
-import { BorderLinearProgressWithLabel } from "../../../components/Main/BorderLineProgress/BorderLinearProgress";
+import LineProgress from "../../../components/Main/LineProgress/LineProgress";
 import { PlayCircleOutlineIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 
@@ -17,9 +17,7 @@ const TableCells: FC<CardinalityTableCells> = ({ row, totalSeries, onActionClick
     <td key={row.name}>{row.name}</td>
     <td key={row.value}>{row.value}</td>
     {progress > 0 ? <td key={row.progressValue}>
-      <BorderLinearProgressWithLabel
-        value={progress}
-      />
+      <LineProgress value={progress}/>
     </td> : null}
     <td key={"action"}>
       <div>

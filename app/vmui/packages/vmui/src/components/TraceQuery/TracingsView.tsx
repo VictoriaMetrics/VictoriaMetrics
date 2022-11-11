@@ -1,8 +1,9 @@
 import React, { FC } from "preact/compat";
-import TraceView from "./TraceView";
 import Trace from "./Trace";
 import Button from "../Main/Button/Button";
-import { RemoveCircleIcon } from "../Main/Icons";
+import { DeleteIcon, RemoveCircleIcon } from "../Main/Icons";
+import "./style.scss";
+import NestedNav from "./NestedNav/NestedNav";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -23,15 +24,32 @@ const TracingsView: FC<TraceViewProps> = ({ traces, onDeleteClick }) => {
     onDeleteClick(tracingData);
   };
 
-  return <>{traces.map((trace: Trace) => <>
-    <div>
-      Trace for <b>{trace.queryValue}</b>
-      <Button onClick={handleDeleteClick(trace)}>
-        <RemoveCircleIcon />
-      </Button>
-    </div>
-    <TraceView trace={trace} />
-  </>)}</>;
+  return <div className="vm-tracings-view">
+    {traces.map((trace: Trace) => (
+      <div
+        className="vm-tracings-view-trace vm-block vm-block_empty-padding"
+        key={trace.idValue}
+      >
+        <div className="vm-tracings-view-trace-header">
+          <h3 className="vm-tracings-view-trace-header-title">
+            Trace for <b className="vm-tracings-view-trace-header-title__query">{trace.queryValue}</b>
+          </h3>
+          <Button
+            variant="text"
+            color="error"
+            startIcon={<DeleteIcon/>}
+            onClick={handleDeleteClick(trace)}
+          />
+        </div>
+        <nav className="vm-tracings-view-trace__nav">
+          <NestedNav
+            trace={trace}
+            totalMsec={trace.duration}
+          />
+        </nav>
+      </div>
+    ))}
+  </div>;
 };
 
 export default TracingsView;

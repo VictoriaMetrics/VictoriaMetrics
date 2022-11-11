@@ -3,6 +3,10 @@
 .vm-custom-panel {
   height: 100%;
 
+  &__trace {
+    margin-top: $padding-medium;
+  }
+
   &-body {
     position: relative;
     margin-top: $padding-medium;
