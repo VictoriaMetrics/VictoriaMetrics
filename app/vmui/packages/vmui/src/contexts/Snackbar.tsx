@@ -33,7 +33,6 @@ export const SnackbarProvider: FC = ({ children }) => {
 
   useEffect(() => {
     if (!infoMessage) return;
-    console.log(infoMessage);
     setSnack({
       message: infoMessage.text,
       variant: infoMessage.type,

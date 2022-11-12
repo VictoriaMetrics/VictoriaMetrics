@@ -7,6 +7,7 @@ import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { InfoIcon, RestartIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";
+import Tooltip from "../../Main/Tooltip/Tooltip";
 
 const TenantsConfiguration: FC = () => {
   const { serverURL } = getAppModeParams();
@@ -41,18 +42,16 @@ const TenantsConfiguration: FC = () => {
   return <TextField
     label="Tenant ID"
     type="number"
-    // size="small"
-    // variant="outlined"
     value={tenantId}
     onChange={handleChange}
     endIcon={(
-      // <Tooltip title={"Define tenant id if you need request to another storage"}>
-      <Button
-        variant={"text"}
-        size={"small"}
-        startIcon={<InfoIcon/>}
-      />
-      // </Tooltip>
+      <Tooltip title={"Define tenant id if you need request to another storage"}>
+        <Button
+          variant={"text"}
+          size={"small"}
+          startIcon={<InfoIcon/>}
+        />
+      </Tooltip>
     )}
   />;
 };

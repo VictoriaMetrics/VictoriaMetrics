@@ -9,6 +9,7 @@ import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { DeleteIcon, PlayIcon, PlusIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
@@ -91,16 +92,16 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
             size={"small"}
           />
           {stateQuery.length > 1 && (
-            // <Tooltip title="Remove Query">
-            <div className="vm-query-configurator-list-row__button">
-              <Button
-                variant={"text"}
-                color={"error"}
-                startIcon={<DeleteIcon/>}
-                onClick={() => onRemoveQuery(i)}
-              />
-            </div>
-            // </Tooltip>
+            <Tooltip title="Remove Query">
+              <div className="vm-query-configurator-list-row__button">
+                <Button
+                  variant={"text"}
+                  color={"error"}
+                  startIcon={<DeleteIcon/>}
+                  onClick={() => onRemoveQuery(i)}
+                />
+              </div>
+            </Tooltip>
           )}
         </div>
       ))}

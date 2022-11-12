@@ -4,6 +4,7 @@ import { Data } from "../../../components/Main/Table/types";
 import LineProgress from "../../../components/Main/LineProgress/LineProgress";
 import { PlayCircleOutlineIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 interface CardinalityTableCells {
   row: Data,
@@ -21,13 +22,13 @@ const TableCells: FC<CardinalityTableCells> = ({ row, totalSeries, onActionClick
     </td> : null}
     <td key={"action"}>
       <div>
-        {/*<Tooltip title={`Filter by ${row.name}`}>*/}
-        <Button
-          onClick={onActionClick}
-        >
-          <PlayCircleOutlineIcon/>
-        </Button>
-        {/*</Tooltip>*/}
+        <Tooltip title={`Filter by ${row.name}`}>
+          <Button
+            onClick={onActionClick}
+          >
+            <PlayCircleOutlineIcon/>
+          </Button>
+        </Tooltip>
       </div>
     </td>
   </>;

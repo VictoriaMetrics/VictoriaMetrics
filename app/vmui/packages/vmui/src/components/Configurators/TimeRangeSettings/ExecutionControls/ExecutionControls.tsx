@@ -6,6 +6,7 @@ import { ArrowDownIcon, RefreshIcon } from "../../../Main/Icons";
 import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
 import classNames from "classnames";
+import Tooltip from "../../../Main/Tooltip/Tooltip";
 
 interface AutoRefreshOption {
   seconds: number
@@ -84,28 +85,28 @@ export const ExecutionControls: FC = () => {
           "vm-header-button": !appModeEnable
         })}
       >
-        {/*<Tooltip title="Refresh dashboard">*/}
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={handleUpdate}
-          startIcon={<RefreshIcon/>}
-        />
-        {/*</Tooltip>*/}
-        {/*<Tooltip title="Auto-refresh control">*/}
-        {/* TODO add rotate arrow */}
-        <div ref={optionsButtonRef}>
+        <Tooltip title="Refresh dashboard">
           <Button
             variant="contained"
             color="primary"
-            fullWidth
-            endIcon={<ArrowDownIcon/>}
-            onClick={() => setOpenOptions(prev => !prev)}
-          >
-            {selectedDelay.title}
-          </Button>
-        </div>
-        {/*</Tooltip>*/}
+            onClick={handleUpdate}
+            startIcon={<RefreshIcon/>}
+          />
+        </Tooltip>
+        <Tooltip title="Auto-refresh control">
+          {/* TODO add rotate arrow */}
+          <div ref={optionsButtonRef}>
+            <Button
+              variant="contained"
+              color="primary"
+              fullWidth
+              endIcon={<ArrowDownIcon/>}
+              onClick={() => setOpenOptions(prev => !prev)}
+            >
+              {selectedDelay.title}
+            </Button>
+          </div>
+        </Tooltip>
       </div>
     </div>
     <Popper

@@ -4,6 +4,7 @@ import debounce from "lodash.debounce";
 import { RestartIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";
+import Tooltip from "../../Main/Tooltip/Tooltip";
 
 interface StepConfiguratorProps {
   defaultStep?: number,
@@ -46,12 +47,14 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) =
       error={error ? "step is out of allowed range" : ""}
       onChange={onChangeStep}
       endIcon={(
-        <Button
-          variant={"text"}
-          size={"small"}
-          startIcon={<RestartIcon/>}
-          onClick={() => handleSetStep(defaultStep || 1)}
-        />
+        <Tooltip title="Reset step to default">
+          <Button
+            variant={"text"}
+            size={"small"}
+            startIcon={<RestartIcon/>}
+            onClick={() => handleSetStep(defaultStep || 1)}
+          />
+        </Tooltip>
       )}
     />
   );

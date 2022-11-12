@@ -5,6 +5,7 @@ import { SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";
 import "./style.scss";
+import Tooltip from "../../Main/Tooltip/Tooltip";
 
 const title = "Setting Server URL";
 
@@ -24,15 +25,15 @@ const GlobalSettings: FC = () => {
   const handleClose = () => setOpen(false);
 
   return <>
-    {/*<Tooltip title={title}>*/}
-    <Button
-      className="vm-header-button"
-      variant="contained"
-      color="primary"
-      startIcon={<SettingsIcon/>}
-      onClick={handleOpen}
-    />
-    {/*</Tooltip>*/}
+    <Tooltip title={title}>
+      <Button
+        className="vm-header-button"
+        variant="contained"
+        color="primary"
+        startIcon={<SettingsIcon/>}
+        onClick={handleOpen}
+      />
+    </Tooltip>
     {open && (
       <Modal
         title={title}

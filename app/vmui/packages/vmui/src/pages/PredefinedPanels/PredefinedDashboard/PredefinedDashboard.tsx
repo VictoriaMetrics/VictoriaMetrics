@@ -28,7 +28,6 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
 
   const [expanded, setExpanded] = useState(!index);
   const [panelsWidth, setPanelsWidth] = useState<number[]>([]);
-  console.log(panelsWidth);
 
   useEffect(() => {
     setPanelsWidth(panels && panels.map(p => p.width || 12));

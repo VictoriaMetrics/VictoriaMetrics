@@ -6,7 +6,7 @@
         {
           "title": "Per-job CPU usage",
           "width": 6,
-          "expr": ["{__name__=~\".+\", job!=\"prometheus\"}"]
+          "expr": ["sum(rate(process_cpu_seconds_total)) by (job)"]
         },
         {
           "title": "Per-job RSS usage",

@@ -6,8 +6,9 @@ import Button from "../../Main/Button/Button";
 import useClickOutside from "../../../hooks/useClickOutside";
 import Popper from "../../Main/Popper/Popper";
 import "./style.scss";
+import Tooltip from "../../Main/Tooltip/Tooltip";
 
-const title = "Axes Index";
+const title = "Axes settings";
 
 interface GraphSettingsProps {
   yaxis: YaxisState,
@@ -23,15 +24,15 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
 
   return (
     <div className="vm-graph-settings">
-      {/*<Tooltip title={title}>*/}
-      <div ref={buttonRef}>
-        <Button
-          variant="text"
-          startIcon={<SettingsIcon/>}
-          onClick={() => setOpenPopper(true)}
-        />
-      </div>
-      {/*</Tooltip>*/}
+      <Tooltip title={title}>
+        <div ref={buttonRef}>
+          <Button
+            variant="text"
+            startIcon={<SettingsIcon/>}
+            onClick={() => setOpenPopper(true)}
+          />
+        </div>
+      </Tooltip>
       <Popper
         open={openPopper}
         buttonRef={buttonRef}

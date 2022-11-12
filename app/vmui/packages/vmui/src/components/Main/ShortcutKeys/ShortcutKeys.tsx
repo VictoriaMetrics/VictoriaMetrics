@@ -5,6 +5,7 @@ import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";
 import Modal from "../Modal/Modal";
 import "./style.scss";
+import Tooltip from "../Tooltip/Tooltip";
 
 const ctrlMeta = isMacOs() ? "Cmd" : "Ctrl";
 
@@ -67,15 +68,18 @@ const ShortcutKeys: FC = () => {
   const appModeEnable = getAppModeEnable();
 
   return <>
-    {/*<Tooltip title={"Shortcut keys"}>*/}
-    <Button
-      className={appModeEnable ? "" : "vm-header-button"}
-      variant="contained"
-      color="primary"
-      startIcon={<KeyboardIcon/>}
-      onClick={() => setOpenList(prev => !prev)}
-    />
-    {/*</Tooltip>*/}
+    <Tooltip
+      title="Shortcut keys"
+      placement="bottom-center"
+    >
+      <Button
+        className={appModeEnable ? "" : "vm-header-button"}
+        variant="contained"
+        color="primary"
+        startIcon={<KeyboardIcon/>}
+        onClick={() => setOpenList(prev => !prev)}
+      />
+    </Tooltip>
 
     {openList && (
       <Modal

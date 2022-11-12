@@ -3,6 +3,7 @@ import { LegendItemType } from "../../../../utils/uplot/types";
 import { getLegendLabel } from "../../../../utils/uplot/helpers";
 import "./style.scss";
 import classNames from "classnames";
+import Tooltip from "../../../Main/Tooltip/Tooltip";
 
 interface LegendItemProps {
   legend: LegendItemType;
@@ -46,24 +47,25 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
 
         &#160;&#123;
 
-        {/*<Tooltip*/}
-        {/* arrow*/}
-        {/*  key={f.id}*/}
-        {/*  open={copiedValue === f.id}*/}
-        {/*  title={"Copied!"}*/}
-        {/*>*/}
+
         {freeFormFields.map(f => (
-          <span
-            className="vm-legend-item-info__free-fields"
-            key={f.key}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleClickFreeField(f.freeField, f.id);
-            }}
+          <Tooltip
+            key={f.id}
+            open={copiedValue === f.id}
+            title={"Copied!"}
           >
-            {f.freeField}
-          </span>))}
-        {/*</Tooltip>*/}
+            <span
+              className="vm-legend-item-info__free-fields"
+              key={f.key}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClickFreeField(f.freeField, f.id);
+              }}
+            >
+              {f.freeField}
+            </span>
+          </Tooltip>
+        ))}
         &#125;
       </div>
     </div>

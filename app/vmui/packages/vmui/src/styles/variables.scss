@@ -1,9 +1,4 @@
 /************* colors *************/
-$color-black: #000000;
-$color-silver: #C4C4C4;
-$color-alto: #D8D8D8;
-$color-white: #ffffff;
-
 $color-primary: var(--color-primary);
 $color-secondary: var(--color-secondary);
 $color-error: var(--color-error);
@@ -11,19 +6,23 @@ $color-warning: var(--color-warning);
 $color-info: var(--color-info);
 $color-success: var(--color-success);
 
+$color-black: #000000;
+$color-silver: #C4C4C4;
+$color-alto: #D8D8D8;
+$color-white: #ffffff;
+
 $color-dodger-blue: #1A90FF;
 $color-tropical-blue: #C9E3F6;
 
 $color-text: #333333;
 $color-text-secondary: #62686c;
 $color-text-disabled: #cacfce;
-$color-divider: rgba($color-black, 0.15);
 
 
 /************* background *************/
 $color-background-modal: rgba($color-black, 0.7);
-$color-background-body: rgba(203, 203, 203, 0.01);
-$color-background-tooltip: rgba($color-text, 0.8);
+$color-background-body: rgba(203, 203, 203, 0.02);
+$color-background-tooltip: rgba(97, 97, 97, 0.92);
 
 
 /************* padding *************/

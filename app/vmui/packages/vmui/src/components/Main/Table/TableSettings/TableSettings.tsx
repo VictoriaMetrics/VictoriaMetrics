@@ -6,6 +6,7 @@ import { CloseIcon, SettingsIcon } from "../../Icons";
 import Popper from "../../Popper/Popper";
 import "./style.scss";
 import Checkbox from "../../Checkbox/Checkbox";
+import Tooltip from "../../Tooltip/Tooltip";
 
 const title = "Display columns";
 
@@ -49,16 +50,16 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange 
 
   return (
     <div className="vm-table-settings">
-      {/*<Tooltip title={title}>*/}
-      <div ref={buttonRef}>
-        <Button
-          variant="text"
-          startIcon={<SettingsIcon/>}
-          onClick={() => setOpenSettings(prev => !prev)}
-          disabled={disabledButton}
-        />
-      </div>
-      {/*</Tooltip>*/}
+      <Tooltip title={title}>
+        <div ref={buttonRef}>
+          <Button
+            variant="text"
+            startIcon={<SettingsIcon/>}
+            onClick={() => setOpenSettings(prev => !prev)}
+            disabled={disabledButton}
+          />
+        </div>
+      </Tooltip>
       <Popper
         open={openSettings}
         onClose={handleClose}

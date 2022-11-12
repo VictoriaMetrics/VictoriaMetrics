@@ -21,7 +21,7 @@ const Popper: FC<PopperProps> = ({
   open = false,
   onClose,
   animation,
-  offset = { top: 0, left: 0 }
+  offset = { top: 6, left: 0 }
 }) => {
 
   const [isOpen, setIsOpen] = useState(true);
@@ -69,46 +69,30 @@ const Popper: FC<PopperProps> = ({
       left: 0
     };
 
-    if (placement === "bottom-right") {
-      const top = buttonPos.height + buttonPos.top + 4 + offset.top;
-      const left = buttonPos.right - popperSize.width + offset.left;
-      position.top = top;
-      position.left = left;
-    }
+    const needAlignRight = placement === "bottom-right" || placement === "top-right";
+    const needAlignTop = placement?.includes("top");
 
-    if (placement === "bottom-left") {
-      const top = buttonPos.height + buttonPos.top + 4 + offset.top;
-      const left = buttonPos.left + offset.left;
-      position.top = top;
-      position.left = left;
-    }
+    const offsetTop = offset?.top || 0;
+    const offsetLeft = offset?.left || 0;
 
-    if (placement === "top-left") {
-      const top = buttonPos.top - popperSize.height - 4 - offset.top;
-      const left = buttonPos.left + offset.left;
-      position.top = top;
-      position.left = left;
-    }
+    position.left = position.left = buttonPos.left + offsetLeft;
+    position.top = buttonPos.height + buttonPos.top + offsetTop;
 
-    if (placement === "top-right") {
-      const top = buttonPos.top - popperSize.height - 4 - offset.top;
-      const left = buttonPos.right - popperSize.width + offset.left;
-      position.top = top;
-      position.left = left;
-    }
+    if (needAlignRight) position.left = buttonPos.right - popperSize.width;
+    if (needAlignTop) position.top = buttonPos.top - popperSize.height - offsetTop;
 
-    const { innerWidth, innerHeight, scrollY, scrollX } = window;
+    const { innerWidth, innerHeight } = window;
     const margin = 20;
-    const isOverflowTop = position.top + buttonPos.top + margin < (innerHeight + scrollY);
-    const isOverflowRight = position.left + popperSize.width + margin > (innerWidth + scrollX);
 
-    if (isOverflowTop) {
-      position.top = buttonPos.height + buttonPos.top + 4 + offset.top;
-    }
+    const isOverflowBottom = (position.top + popperSize.height + margin) > innerHeight;
+    const isOverflowTop = (position.top - margin) < 0;
+    const isOverflowRight = (position.left + popperSize.width + margin) > innerWidth;
+    const isOverflowLeft = (position.left - margin) < 0;
 
-    if (isOverflowRight) {
-      position.left = buttonPos.right - popperSize.width;
-    }
+    if (isOverflowBottom) position.top = buttonPos.top - popperSize.height - offsetTop;
+    if (isOverflowTop) position.top = buttonPos.height + buttonPos.top + offsetTop;
+    if (isOverflowRight) position.left = buttonPos.right - popperSize.width - offsetLeft;
+    if (isOverflowLeft) position.left = buttonPos.left + offsetLeft;
 
     return position;
   },[buttonRef, placement, isOpen, children]);

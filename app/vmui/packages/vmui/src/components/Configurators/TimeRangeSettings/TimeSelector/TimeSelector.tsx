@@ -9,6 +9,7 @@ import { AlarmIcon, ClockIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
+import Tooltip from "../../../Main/Tooltip/Tooltip";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
@@ -70,21 +71,21 @@ export const TimeSelector: FC = () => {
 
   return <>
     <div ref={buttonRef}>
-      {/*<Tooltip title="Time range controls">*/}
-      <Button
-        className={appModeEnable ? "" : "vm-header-button"}
-        variant="contained"
-        color="primary"
-        startIcon={<ClockIcon/>}
-        onClick={() => setOpenOptions(prev => !prev)}
-      >
-        {displayFullDate && <span>
-          {relativeTime && relativeTime !== "none"
-            ? relativeTime.replace(/_/g, " ")
-            : `${formatRange.start} - ${formatRange.end}`}
-        </span>}
-      </Button>
-      {/*</Tooltip>*/}
+      <Tooltip title="Time range controls">
+        <Button
+          className={appModeEnable ? "" : "vm-header-button"}
+          variant="contained"
+          color="primary"
+          startIcon={<ClockIcon/>}
+          onClick={() => setOpenOptions(prev => !prev)}
+        >
+          {displayFullDate && <span>
+            {relativeTime && relativeTime !== "none"
+              ? relativeTime.replace(/_/g, " ")
+              : `${formatRange.start} - ${formatRange.end}`}
+          </span>}
+        </Button>
+      </Tooltip>
     </div>
     <Popper
       open={openOptions}
@@ -92,7 +93,6 @@ export const TimeSelector: FC = () => {
       placement="bottom-right"
       onClose={() => setOpenOptions(false)}
     >
-      {/*<ClickAwayListener onClickAway={() => setAnchorEl(null)}>*/}
       <div className="vm-time-selector">
         <div className="vm-time-selector-left">
           <div className="vm-time-selector-left__inputs">
@@ -156,7 +156,6 @@ export const TimeSelector: FC = () => {
           setDuration={setDuration}
         />
       </div>
-      {/*</ClickAwayListener>*/}
     </Popper>
   </>;
 };

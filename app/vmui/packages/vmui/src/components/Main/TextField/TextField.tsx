@@ -48,7 +48,6 @@ const TextField: FC<TextFieldProps> = ({
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
     if (e.key === "Enter" && !e.shiftKey) {
-      console.log("prevent");
       e.preventDefault();
       onEnter && onEnter();
     }

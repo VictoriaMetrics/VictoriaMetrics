@@ -11,6 +11,7 @@ import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateCont
 import { InfoIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import Alert from "../../../components/Main/Alert/Alert";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -80,43 +81,38 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
     </Alert>
   );
 
+  const TooltipContent = () => (
+    <div>
+      {description && (
+        <div>
+          <span>Description:</span>
+          <div
+            className="panelDescription"
+            dangerouslySetInnerHTML={{ __html: marked.parse(description) }}
+          />
+        </div>
+      )}
+      <div>
+        <span>Queries:</span>
+        <div>
+          {expr.map((e, i) => (
+            <div key={`${i}_${e}`} >{e}</div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
   return <div
     className="vm-predefined-panel"
     ref={containerRef}
   >
     <div className="vm-predefined-panel-header">
-      {/*<Tooltip*/}
-      {/*  arrow*/}
-      {/*  componentsProps={{ tooltip: { sx: { maxWidth: "100%" } } }}*/}
-      {/*  title={<Box sx={{ p: 1 }}>*/}
-      {/*    {description && <Box mb={2}>*/}
-      {/*      <Typography*/}
-      {/*        fontWeight={"500"}*/}
-      {/*        sx={{ mb: 0.5, textDecoration: "underline" }}*/}
-      {/*      >Description:</Typography>*/}
-      {/*      <div*/}
-      {/*        className="panelDescription"*/}
-      {/*        dangerouslySetInnerHTML={{ __html: marked.parse(description) }}*/}
-      {/*      />*/}
-      {/*    </Box>}*/}
-      {/*    <Box>*/}
-      {/*      <Typography*/}
-      {/*        fontWeight={"500"}*/}
-      {/*        sx={{ mb: 0.5, textDecoration: "underline" }}*/}
-      {/*      >Queries:</Typography>*/}
-      {/*      <div>*/}
-      {/*        {expr.map((e, i) => <Box*/}
-      {/*          key={`${i}_${e}`}*/}
-      {/*          mb={0.5}*/}
-      {/*        >{e}</Box>)}*/}
-      {/*      </div>*/}
-      {/*    </Box>*/}
-      {/*  </Box>}*/}
-      {/*>*/}
-      <div className="vm-predefined-panel-header__info">
-        <InfoIcon />
-      </div>
-      {/*</Tooltip>*/}
+      <Tooltip title={<TooltipContent/>}>
+        <div className="vm-predefined-panel-header__info">
+          <InfoIcon />
+        </div>
+      </Tooltip>
       <h3 className="vm-predefined-panel-header__title">
         {title || ""}
       </h3>

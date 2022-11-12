@@ -13,6 +13,7 @@ import { PlayCircleOutlineIcon, PlayIcon } from "../../components/Main/Icons";
 import TextField from "../../components/Main/TextField/TextField";
 import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
+import Tooltip from "../../components/Main/Tooltip/Tooltip";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -89,23 +90,17 @@ const Index: FC = () => {
         <div className="vm-top-queries-controls-bottom">
           <div className="vm-top-queries-controls-bottom__info">
             VictoriaMetrics tracks the last&nbsp;
-            {/*<Tooltip*/}
-            {/*  arrow*/}
-            {/*  title={<Typography>search.queryStats.lastQueriesCount</Typography>}*/}
-            {/*>*/}
-            <b>
-              {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
-            </b>
-            {/*</Tooltip>*/}
+            <Tooltip title="search.queryStats.lastQueriesCount">
+              <b>
+                {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
+              </b>
+            </Tooltip>
             &nbsp;queries with durations at least&nbsp;
-            {/*<Tooltip*/}
-            {/*  arrow*/}
-            {/*  title={<Typography>search.queryStats.minQueryDuration</Typography>}*/}
-            {/*>*/}
-            <b>
-              {getQueryStatsTitle("search.queryStats.minQueryDuration")}
-            </b>
-            {/*</Tooltip>*/}
+            <Tooltip title="search.queryStats.minQueryDuration">
+              <b>
+                {getQueryStatsTitle("search.queryStats.minQueryDuration")}
+              </b>
+            </Tooltip>
           </div>
           <div className="vm-top-queries-controls-bottom__button">
             <Button
