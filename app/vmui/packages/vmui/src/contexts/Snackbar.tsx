@@ -19,7 +19,7 @@ type SnackbarContextType = {
 
 export const SnackbarContext = createContext<SnackbarContextType>({
   showInfoMessage: () => {
-    // TODO: default value here makes no sense
+    // default value here makes no sense
   }
 });
 

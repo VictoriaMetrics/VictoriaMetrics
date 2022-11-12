@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useState } from "preact/compat";
-import { ChangeEvent, useEffect } from "react";
+import { useEffect } from "react";
 import debounce from "lodash.debounce";
 import { RestartIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";

@@ -3,11 +3,23 @@
 
 .vm-execution-controls {
 
-  &__buttons {
+  &-buttons {
     display: flex;
     justify-content: space-between;
     border-radius: $button-radius + 1;
     min-width: 107px;
+
+    &__arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: rotate(0);
+      transition: transform 200ms ease-in-out;
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
   }
 
   &-list {

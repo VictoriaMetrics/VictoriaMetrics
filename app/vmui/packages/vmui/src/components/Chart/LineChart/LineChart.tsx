@@ -7,11 +7,11 @@ import { setTooltip } from "../../../utils/uplot/tooltip";
 import { MetricResult } from "../../../api/types";
 import { limitsDurations } from "../../../utils/time";
 import throttle from "lodash.throttle";
-import "uplot/dist/uPlot.min.css";
-import "./tooltip.css";
 import useResize from "../../../hooks/useResize";
 import { TimeParams } from "../../../types";
 import { YaxisState } from "../../../state/graph/reducer";
+import "uplot/dist/uPlot.min.css";
+import "./tooltip.css";
 
 export interface LineChartProps {
   metrics: MetricResult[];

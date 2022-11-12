@@ -80,6 +80,9 @@ const Tooltip: FC<TooltipProps> = ({
     if (isOverflowRight) position.left = buttonPos.right - popperSize.width - offsetLeft;
     if (isOverflowLeft) position.left = buttonPos.left + offsetLeft;
 
+    if (position.top < 0) position.top = 20;
+    if (position.left < 0) position.left = 20;
+
     return position;
   },[buttonRef, placement, isOpen, popperSize]);
 

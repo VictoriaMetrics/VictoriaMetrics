@@ -82,15 +82,15 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   );
 
   const TooltipContent = () => (
-    <div>
+    <div className="vm-predefined-panel-header__description vm-default-styles">
       {description && (
-        <div>
-          <span>Description:</span>
-          <div
-            className="panelDescription"
-            dangerouslySetInnerHTML={{ __html: marked.parse(description) }}
-          />
-        </div>
+        <>
+          <div>
+            <span>Description:</span>
+            <div dangerouslySetInnerHTML={{ __html: marked.parse(description) }}/>
+          </div>
+          <hr/>
+        </>
       )}
       <div>
         <span>Queries:</span>

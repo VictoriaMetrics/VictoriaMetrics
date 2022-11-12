@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import { SetupTooltip } from "./types";
 import { getColorLine, formatPrettyNumber, getLegendLabel } from "./helpers";
 
+// TODO create jsx component
 export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = "" }: SetupTooltip): void => {
   const { seriesIdx, dataIdx } = tooltipIdx;
   if (seriesIdx === null || dataIdx === undefined) return;

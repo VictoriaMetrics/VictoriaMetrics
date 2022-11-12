@@ -81,7 +81,7 @@ export const ExecutionControls: FC = () => {
     <div className="vm-execution-controls">
       <div
         className={classNames({
-          "vm-execution-controls__buttons": true,
+          "vm-execution-controls-buttons": true,
           "vm-header-button": !appModeEnable
         })}
       >
@@ -94,13 +94,21 @@ export const ExecutionControls: FC = () => {
           />
         </Tooltip>
         <Tooltip title="Auto-refresh control">
-          {/* TODO add rotate arrow */}
           <div ref={optionsButtonRef}>
             <Button
               variant="contained"
               color="primary"
               fullWidth
-              endIcon={<ArrowDownIcon/>}
+              endIcon={(
+                <div
+                  className={classNames({
+                    "vm-execution-controls-buttons__arrow": true,
+                    "vm-execution-controls-buttons__arrow_open": openOptions,
+                  })}
+                >
+                  <ArrowDownIcon/>
+                </div>
+              )}
               onClick={() => setOpenOptions(prev => !prev)}
             >
               {selectedDelay.title}
