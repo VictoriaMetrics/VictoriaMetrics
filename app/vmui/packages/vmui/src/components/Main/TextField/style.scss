@@ -23,7 +23,8 @@
   }
 
   &__label,
-  &__error {
+  &__error,
+  &__helper-text, {
     position: absolute;
     left: $padding-global/2;
     padding: 0 3px;
@@ -43,6 +44,11 @@
   &__error {
     bottom: -$font-size-small/2;
     color: $color-error;
+  }
+
+  &__helper-text {
+    bottom: -$font-size-small/2;
+    color: $color-text-secondary;
   }
 
   &__input {

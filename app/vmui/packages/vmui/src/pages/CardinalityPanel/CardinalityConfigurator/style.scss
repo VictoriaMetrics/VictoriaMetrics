@@ -1,0 +1,29 @@
+@use "src/styles/variables" as *;
+
+.vm-cardinality-configurator {
+  display: grid;
+  gap: $padding-small;
+
+  &-controls {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 0 $padding-medium;
+
+    &__query {
+      flex-grow: 1;
+    }
+  }
+
+  &-bottom {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: flex-end;
+    gap: $padding-medium;
+
+    &__info {
+      font-size: $font-size;
+    }
+  }
+}

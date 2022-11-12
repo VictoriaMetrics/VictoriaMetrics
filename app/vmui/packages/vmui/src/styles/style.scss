@@ -6,11 +6,12 @@
 @forward "./components/list";
 @forward "./components/popper-header";
 @forward "./components/block";
+@forward "./components/table-header";
 
 :root {
   --color-primary: #3F51B5;
   --color-secondary: #F50057;
-  --color-error: #ff1111;
+  --color-error: #FF1111;
   --color-warning: #FF9800;
   --color-info: #03A9F4;
   --color-success: #4CAF50;

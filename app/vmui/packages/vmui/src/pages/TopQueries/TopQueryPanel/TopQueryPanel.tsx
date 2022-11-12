@@ -2,8 +2,10 @@ import React, { FC, useState } from "react";
 import { TopQuery } from "../../../types";
 // import TopQueryTable from "../TopQueryTable/TopQueryTable";
 import JsonView from "../../../components/Views/JsonView/JsonView";
-import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
+import { ChartIcon, CodeIcon, TableIcon } from "../../../components/Main/Icons";
 import Accordion from "../../../components/Main/Accordion/Accordion";
+import Tabs from "../../../components/Main/Tabs/Tabs";
+import "./style.scss";
 
 export interface TopQueryPanelProps {
   rows: TopQuery[],
@@ -11,44 +13,44 @@ export interface TopQueryPanelProps {
   columns: {title?: string, key: (keyof TopQuery)}[],
   defaultOrderBy?: keyof TopQuery,
 }
-const tabs = ["table", "JSON"];
+const tabs = ["table", "JSON"].map((t, i) => ({
+  value: String(i),
+  label: t,
+  icon: i === 0 ? <TableIcon /> : <CodeIcon />
+}));
 
 const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOrderBy }) => {
 
   const [activeTab, setActiveTab] = useState(0);
 
-  const onChangeTab = (e: React.SyntheticEvent, val: number) => {
-    setActiveTab(val);
+  const handleChangeTab = (val: string) => {
+    setActiveTab(+val);
   };
 
   return (
-    <Accordion
-      defaultExpanded={true}
-      title={<h3>{title}</h3>}
-    >
-      <div>
-        <div>
-          {/*TODO add tabs*/}
-          <div>
-            {tabs.map((title: string, i: number) =>
-              <div
-                key={title}
-                id={`${title}_${i}`}
-              >
-                { i === 0 ? <TableIcon /> : <CodeIcon />}
-                {title}
-              </div>
-            )}
-          </div>
+    <div className="vm-top-queries-panel vm-block">
+
+      <div className="vm-top-queries-panel-header vm-table-header">
+        <h5 className="vvm-table-header__title">{title}</h5>
+        <div className="vm-table-header__tabs">
+          <Tabs
+            activeItem={String(activeTab)}
+            items={tabs}
+            onChange={handleChangeTab}
+          />
         </div>
+      </div>
+
+      <div>
         {/*{activeTab === 0 && <TopQueryTable*/}
         {/*  rows={rows}*/}
         {/*  columns={columns}*/}
         {/*  defaultOrderBy={defaultOrderBy}*/}
         {/*/>}*/}
+        {activeTab === 0 && <div>table</div>}
         {activeTab === 1 && <div><JsonView data={rows} /></div>}
       </div>
-    </Accordion>
+    </div>
   );
 };
 

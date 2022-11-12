@@ -1,13 +1,21 @@
 import React, { createContext, FC, useContext, useEffect, useState } from "preact/compat";
+import Alert from "../components/Main/Alert/Alert";
 
 export interface SnackModel {
   message?: string;
-  color?: string;
   open?: boolean;
   key?: number;
+  variant?: "success" | "error" | "info" | "warning";
 }
 
-type SnackbarContextType = { showInfoMessage: (value: string) => void };
+type SnackbarItem = undefined | {
+  text: string,
+  type: "success" | "error" | "info" | "warning"
+}
+
+type SnackbarContextType = {
+  showInfoMessage: (item: SnackbarItem) => void
+};
 
 export const SnackbarContext = createContext<SnackbarContextType>({
   showInfoMessage: () => {
@@ -21,16 +29,20 @@ export const SnackbarProvider: FC = ({ children }) => {
   const [snack, setSnack] = useState<SnackModel>({});
   const [open, setOpen] = useState(false);
 
-  const [infoMessage, setInfoMessage] = useState<string | undefined>(undefined);
+  const [infoMessage, setInfoMessage] = useState<SnackbarItem>(undefined);
 
   useEffect(() => {
-    if (infoMessage) {
-      setSnack({
-        message: infoMessage,
-        key: new Date().getTime()
-      });
-      setOpen(true);
-    }
+    if (!infoMessage) return;
+    console.log(infoMessage);
+    setSnack({
+      message: infoMessage.text,
+      variant: infoMessage.type,
+      key: new Date().getTime()
+    });
+    setOpen(true);
+    const timeout = setTimeout(handleClose, 4000);
+
+    return () => clearTimeout(timeout);
   }, [infoMessage]);
 
   const handleClose = (e: unknown, reason: string): void => {
@@ -41,16 +53,11 @@ export const SnackbarProvider: FC = ({ children }) => {
   };
 
   return <SnackbarContext.Provider value={{ showInfoMessage: setInfoMessage }}>
-    {/*<Snackbar*/}
-    {/*  open={open}*/}
-    {/*  key={snack.key}*/}
-    {/*  autoHideDuration={4000}*/}
-    {/*  onClose={handleClose}*/}
-    {/*>*/}
-    {/*  <Alert>*/}
-    {/*    {snack.message}*/}
-    {/*  </Alert>*/}
-    {/*</Snackbar>*/}
+    {open && <div className="vm-snackbar">
+      <Alert variant={snack.variant}>
+        {snack.message}
+      </Alert>
+    </div>}
     {children}
   </SnackbarContext.Provider>;
 };

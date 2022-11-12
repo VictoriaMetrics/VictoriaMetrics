@@ -1,15 +1,16 @@
 @use "src/styles/variables" as *;
 
 .vm-custom-panel {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
   height: 100%;
 
   &__trace {
-    margin-top: $padding-medium;
   }
 
   &-body {
     position: relative;
-    margin-top: $padding-medium;
 
     &-header {
       position: relative;

@@ -9,8 +9,10 @@ import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import Button from "../../components/Main/Button/Button";
-import { PlayCircleOutlineIcon } from "../../components/Main/Icons";
+import { PlayCircleOutlineIcon, PlayIcon } from "../../components/Main/Icons";
 import TextField from "../../components/Main/TextField/TextField";
+import "./style.scss";
+import Alert from "../../components/Main/Alert/Alert";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -62,75 +64,64 @@ const Index: FC = () => {
   }, [data]);
 
   return (
-    <div
-      style={{ minHeight: "calc(100vh - 64px)" }}
-    >
+    <div className="vm-top-queries">
       {loading && <Spinner containerStyles={{ height: "500px" }}/>}
 
-      <div >
-        <div >
-          <div >
-            <TextField
-              label="Max lifetime"
-              // size="medium"
-              value={maxLifetime}
-              error={!maxLifetimeValid ? "Invalid duration value" : `For example ${exampleDuration}`}
-              onChange={onMaxLifetimeChange}
-              onKeyDown={onKeyDown}
-            />
-          </div>
-          <div>
-            <TextField
-              label="Number of returned queries"
-              type="number"
-              // size="medium"
-              value={topN || ""}
-              error={invalidTopN ? "Number must be bigger than zero" : " "}
-              onChange={onTopNChange}
-              onKeyDown={onKeyDown}
-            />
-          </div>
-          <div>
-            {/*<Tooltip title="Apply">*/}
-            <Button
-              onClick={onApplyQuery}
-            >
-              <PlayCircleOutlineIcon/>
-            </Button>
+      <div className="vm-top-queries-controls vm-block">
+        <div className="vm-top-queries-controls__fields">
+          <TextField
+            label="Max lifetime"
+            value={maxLifetime}
+            error={!maxLifetimeValid ? "Invalid duration value" : ""}
+            helperText={`For example ${exampleDuration}`}
+            onChange={onMaxLifetimeChange}
+            onKeyDown={onKeyDown}
+          />
+          <TextField
+            label="Number of returned queries"
+            type="number"
+            value={topN || ""}
+            error={invalidTopN ? "Number must be bigger than zero" : ""}
+            onChange={onTopNChange}
+            onKeyDown={onKeyDown}
+          />
+        </div>
+        <div className="vm-top-queries-controls-bottom">
+          <div className="vm-top-queries-controls-bottom__info">
+            VictoriaMetrics tracks the last&nbsp;
+            {/*<Tooltip*/}
+            {/*  arrow*/}
+            {/*  title={<Typography>search.queryStats.lastQueriesCount</Typography>}*/}
+            {/*>*/}
+            <b>
+              {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
+            </b>
+            {/*</Tooltip>*/}
+            &nbsp;queries with durations at least&nbsp;
+            {/*<Tooltip*/}
+            {/*  arrow*/}
+            {/*  title={<Typography>search.queryStats.minQueryDuration</Typography>}*/}
+            {/*>*/}
+            <b>
+              {getQueryStatsTitle("search.queryStats.minQueryDuration")}
+            </b>
             {/*</Tooltip>*/}
           </div>
-        </div>
-        <div>
-            VictoriaMetrics tracks the last&nbsp;
-          {/*<Tooltip*/}
-          {/*  arrow*/}
-          {/*  title={<Typography>search.queryStats.lastQueriesCount</Typography>}*/}
-          {/*>*/}
-          <b style={{ cursor: "default" }}>
-            {getQueryStatsTitle("search.queryStats.lastQueriesCount")}
-          </b>
-          {/*</Tooltip>*/}
-            &nbsp;queries with durations at least&nbsp;
-          {/*<Tooltip*/}
-          {/*  arrow*/}
-          {/*  title={<Typography>search.queryStats.minQueryDuration</Typography>}*/}
-          {/*>*/}
-          <b style={{ cursor: "default" }}>
-            {getQueryStatsTitle("search.queryStats.minQueryDuration")}
-          </b>
-          {/*</Tooltip>*/}
+          <div className="vm-top-queries-controls-bottom__button">
+            <Button
+              startIcon={<PlayIcon/>}
+              onClick={onApplyQuery}
+            >
+              Execute
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* TODO add alert */}
-      {/*{error && <Alert*/}
-      {/*  color="error"*/}
-      {/*  severity="error"*/}
-      {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
-      {/*>{error}</Alert>}*/}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {data && (<>
-        <div>
+        <div className="vm-top-queries-panels">
           <TopQueryPanel
             rows={data.topByCount}
             title={"Most frequently executed queries"}

@@ -100,10 +100,10 @@ const ShortcutKeys: FC = () => {
                     <div className="vm-shortcuts-section-list-item__key">
                       {l.keys.map((k, i) => (
                         <>
-                          <code
-                            key={k}
-                            className="shortcut-key"
-                          >{k}</code> {i !== l.keys.length - 1 ? "+" : ""}
+                          <code key={k}>
+                            {k}
+                          </code>
+                          {i !== l.keys.length - 1 ? "+" : ""}
                         </>
                       ))}
                     </div>

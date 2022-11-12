@@ -4,6 +4,7 @@ import Button from "../Main/Button/Button";
 import { DeleteIcon, RemoveCircleIcon } from "../Main/Icons";
 import "./style.scss";
 import NestedNav from "./NestedNav/NestedNav";
+import Alert from "../Main/Alert/Alert";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -13,10 +14,9 @@ interface TraceViewProps {
 const TracingsView: FC<TraceViewProps> = ({ traces, onDeleteClick }) => {
   if (!traces.length) {
     return (
-      // TODO add alert
-      <div>
+      <Alert variant="info">
         Please re-run the query to see results of the tracing
-      </div>
+      </Alert>
     );
   }
 

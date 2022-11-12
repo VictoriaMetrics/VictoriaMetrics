@@ -7,6 +7,7 @@ import useResize from "../../../hooks/useResize";
 import Accordion from "../../../components/Main/Accordion/Accordion";
 import "./style.scss";
 import classNames from "classnames";
+import Alert from "../../../components/Main/Alert/Alert";
 
 export interface PredefinedDashboardProps extends DashboardRow {
   filename: string;
@@ -30,7 +31,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
   console.log(panelsWidth);
 
   useEffect(() => {
-    setPanelsWidth(panels.map(p => p.width || 12));
+    setPanelsWidth(panels && panels.map(p => p.width || 12));
   }, [panels]);
 
   const [resize, setResize] = useState({ start: 0, target: 0, enable: false });
@@ -78,7 +79,9 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
         "vm-predefined-dashboard-header_open": expanded
       })}
     >
-      {title && <span className="vm-predefined-dashboard-header__title">{title}</span>}
+      {(title || filename) && <span className="vm-predefined-dashboard-header__title">
+        {title || `${index+1}. ${filename}`}
+      </span>}
       {panels && <span className="vm-predefined-dashboard-header__count">({panels.length} panels)</span>}
     </div>
   );
@@ -112,15 +115,11 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
               />
             </div>
           )
-          : <>
-            {/*<Alert*/}
-            {/*  color="error"*/}
-            {/*  severity="error"*/}
-            {/*  sx={{ m: 4 }}*/}
-            {/*>*/}
-            {/*  <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.*/}
-            {/*</Alert>*/}
-          </>
+          : <div style={{ gridColumn: "span 12" }}>
+            <Alert variant="error">
+              <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+            </Alert>
+          </div>
         }
       </div>
     </Accordion>

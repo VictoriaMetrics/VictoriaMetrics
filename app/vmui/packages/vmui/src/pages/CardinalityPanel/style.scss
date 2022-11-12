@@ -1,0 +1,7 @@
+@use "src/styles/variables" as *;
+
+.vm-cardinality-panel {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
+}

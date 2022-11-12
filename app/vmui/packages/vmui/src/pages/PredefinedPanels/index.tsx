@@ -5,6 +5,7 @@ import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import "./style.scss";
 import Tabs from "../../components/Main/Tabs/Tabs";
+import Alert from "../../components/Main/Alert/Alert";
 
 const Index: FC = () => {
   useSetQueryParams();
@@ -32,12 +33,7 @@ const Index: FC = () => {
   }, []);
 
   return <div className="vm-predefined-panels">
-    {/* TODO hide route if not dashboards */}
-    {/*{!dashboards && <Alert*/}
-    {/*  color="info"*/}
-    {/*  severity="info"*/}
-    {/*  sx={{ m: 4 }}*/}
-    {/*>Dashboards not found</Alert>}*/}
+    {!dashboards.length && <Alert variant="info">Dashboards not found</Alert>}
     {tabs.length > 1 && (
       <div className="vm-predefined-panels-tabs vm-block vm-block_empty-padding">
         <Tabs
@@ -58,15 +54,10 @@ const Index: FC = () => {
             panels={r.panels}
           />)
       )}
-      {!validDashboardRows && (
-        <div>error</div>
-        // <Alert
-        //   color="error"
-        //   severity="error"
-        //   sx={{ m: 4 }}
-        // >
-        //   <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
-        // </Alert>
+      {!!dashboards.length && !validDashboardRows && (
+        <Alert variant="error">
+          <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+        </Alert>
       )}
     </div>
   </div>;

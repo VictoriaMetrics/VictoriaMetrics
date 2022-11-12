@@ -68,15 +68,6 @@ export const TimeSelector: FC = () => {
     }
   };
 
-  // TODO add button styles
-  // sx={{
-  //   color: "white",
-  //     border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-  //     boxShadow: "none",
-  //     minWidth: "34px",
-  //     padding: displayFullDate ? "" : "6px 8px",
-  // }}
-
   return <>
     <div ref={buttonRef}>
       {/*<Tooltip title="Time range controls">*/}

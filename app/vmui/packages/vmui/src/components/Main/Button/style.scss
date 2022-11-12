@@ -7,10 +7,11 @@ $button-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px $padding-global;
+  padding: 6px 14px;
   font-size: $font-size-small;
+  line-height: 15px;
   font-weight: 500;
-  min-height: 34px;
+  min-height: 31px;
   border-radius: $button-radius;
   color: $color-white;
   transform-style: preserve-3d;
@@ -50,16 +51,16 @@ $button-radius: 6px;
     justify-content: center;
 
     svg {
-      width: 18px;
+      width: 15px;
     }
   }
 
   &__start-icon {
-    margin-right: $padding-small;
+    margin-right: 6px;
   }
 
   &__end-icon {
-    margin-left: $padding-small;
+    margin-left: 6px;
   }
 
   &_disabled {
@@ -79,13 +80,11 @@ $button-radius: 6px;
   /* size SMALL */
   &_small {
     padding: 4px 6px;
-    font-size: $font-size;
-    font-weight: 500;
-    min-height: 28px;
+    min-height: 25px;
 
     span {
       svg {
-        width: 16px;
+        width: 13px;
       }
     }
   }

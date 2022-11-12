@@ -12,6 +12,7 @@ interface TextFieldProps {
   startIcon?: ReactNode
   disabled?: boolean
   autofocus?: boolean
+  helperText?: string
   onChange?: (value: string) => void
   onEnter?: () => void
   onKeyDown?: (e: KeyboardEvent) => void
@@ -26,6 +27,7 @@ const TextField: FC<TextFieldProps> = ({
   startIcon,
   disabled = false,
   autofocus = false,
+  helperText,
   onChange,
   onEnter,
   onKeyDown
@@ -100,6 +102,11 @@ const TextField: FC<TextFieldProps> = ({
     >
       {error}
     </span>
+    {helperText && !error && (
+      <span className="vm-text-field__helper-text">
+        {helperText}
+      </span>
+    )}
   </label>;
 };
 

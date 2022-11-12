@@ -18,6 +18,7 @@ import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import "./style.scss";
+import Alert from "../../components/Main/Alert/Alert";
 
 const Index: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -79,6 +80,8 @@ const Index: FC = () => {
           />
         </div>
       )}
+      {error && <Alert variant="error">{error}</Alert>}
+      {warning && <Alert variant="warning">{warning}</Alert>}
       <div className="vm-custom-panel-body vm-block">
         {isLoading && <Spinner />}
         <div className="vm-custom-panel-body-header">
@@ -94,16 +97,6 @@ const Index: FC = () => {
             onChange={setDisplayColumns}
           />}
         </div>
-        {/*{error && <Alert*/}
-        {/*  color="error"*/}
-        {/*  severity="error"*/}
-        {/*  sx={{ whiteSpace: "pre-wrap", mt: 2 }}*/}
-        {/*>{error}</Alert>}*/}
-        {/*{warning && <Alert*/}
-        {/*  color="warning"*/}
-        {/*  severity="warning"*/}
-        {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
-        {/*>{warning}</Alert>}*/}
         {graphData && period && (displayType === "chart") && (
           <GraphView
             data={graphData}

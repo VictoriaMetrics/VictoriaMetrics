@@ -2,6 +2,7 @@ import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import uPlot, { Options as uPlotOptions } from "uplot";
 import useResize from "../../../hooks/useResize";
 import { BarChartProps } from "./types";
+import "./style.scss";
 
 const BarChart: FC<BarChartProps> = ({
   data,

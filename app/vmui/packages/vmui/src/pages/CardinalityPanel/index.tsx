@@ -9,18 +9,11 @@ import { useCardinalityDispatch, useCardinalityState } from "../../state/cardina
 import MetricsContent from "./MetricsContent/MetricsContent";
 import { DefaultActiveTab, Tabs, TSDBStatus, Containers } from "./types";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
+import Alert from "../../components/Main/Alert/Alert";
+import "./style.scss";
 
-const spinnerContainerStyles = (height: string) =>  {
-  return {
-    width: "100%",
-    maxWidth: "100%",
-    position: "absolute",
-    height: height ?? "50%",
-    background: "rgba(255, 255, 255, 0.7)",
-    pointerEvents: "none",
-    zIndex: 1000,
-  };
-};
+const spinnerMessage = `Please wait while cardinality stats is calculated. 
+                        This may take some time if the db contains big number of time series.`;
 
 const Index: FC = () => {
   const { topN, match, date, focusLabel } = useCardinalityState();
@@ -61,10 +54,10 @@ const Index: FC = () => {
   const { isLoading, appConfigurator, error } = useFetchQuery();
   const [stateTabs, setTab] = useState(appConfigurator.defaultState.defaultActiveTab);
   const { tsdbStatusData, defaultState, tablesHeaders } = appConfigurator;
-  const handleTabChange = (e: SyntheticEvent, newValue: number) => {
+  const handleTabChange = (newValue: string, tabId: string) => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
-    setTab({ ...stateTabs, [e.target.id]: newValue });
+    setTab({ ...stateTabs, [tabId]: +newValue });
   };
 
   const handleFilterClick = (key: string) => (e: SyntheticEvent) => {
@@ -83,20 +76,8 @@ const Index: FC = () => {
   };
 
   return (
-    <>
-      {isLoading && <Spinner/>}
-      {/*{isLoading && <Spinner*/}
-      {/*  isLoading={isLoading}*/}
-      {/*  height={"800px"}*/}
-      {/*  containerStyles={spinnerContainerStyles("100%")}*/}
-      {/*  title={<Alert*/}
-      {/*    color="error"*/}
-      {/*    severity="error"*/}
-      {/*    sx={{ whiteSpace: "pre-wrap", mt: 2 }}*/}
-      {/*  >*/}
-      {/*    Please wait while cardinality stats is calculated. This may take some time if the db contains big number of time series*/}
-      {/*  </Alert>}*/}
-      {/*/>}*/}
+    <div className="vm-cardinality-panel">
+      {isLoading && <Spinner message={spinnerMessage}/>}
       <CardinalityConfigurator
         error={configError}
         query={query}
@@ -112,16 +93,9 @@ const Index: FC = () => {
         onTopNChange={onTopNChange}
         onFocusLabelChange={onFocusLabelChange}
       />
-      {/* TODO add Alert*/}
-      {/*{error && (*/}
-      {/*  <Alert*/}
-      {/*    color="error"*/}
-      {/*    severity="error"*/}
-      {/*    sx={{ whiteSpace: "pre-wrap", m: 2 }}*/}
-      {/*  >*/}
-      {/*    {error}*/}
-      {/*  </Alert>*/}
-      {/*)}*/}
+
+      {error && <Alert variant="error">{error}</Alert>}
+
       {appConfigurator.keys(focusLabel).map((keyName) => (
         <MetricsContent
           key={keyName}
@@ -137,7 +111,7 @@ const Index: FC = () => {
           tableHeaderCells={tablesHeaders[keyName]}
         />
       ))}
-    </>
+    </div>
   );
 };
 

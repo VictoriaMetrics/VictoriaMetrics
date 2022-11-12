@@ -22,7 +22,7 @@ const JsonView: FC<JsonViewProps> = ({ data }) => {
           fullWidth={false}
           onClick={(e) => {
             navigator.clipboard.writeText(formattedJson);
-            showInfoMessage("Formatted JSON has been copied");
+            showInfoMessage({ text: "Formatted JSON has been copied", type: "success" });
             e.preventDefault(); // needed to avoid snackbar immediate disappearing
           }}
         >

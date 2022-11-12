@@ -9,40 +9,31 @@ html, body, #root {
   background-color: $color-background-body;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   margin: 0;
 }
 
 * {
   font: inherit;
-  -webkit-overflow-scrolling: touch;
-  -moz-osx-font-smoothing: grayscale; /* Firefox */
-  -webkit-font-smoothing: antialiased; /* WebKit  */
   cursor: inherit;
 }
-
 
 code {
   font-family: $font-family-monospace;
 }
 
-.shortcut-key {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 6px 0;
-  text-align: center;
-  border-radius: 4px;
-  font-size: 10px;
-  line-height: 22px;
-  white-space: nowrap;
-  border: 1px solid #dedede;
-  cursor: default;
+b {
+  font-weight: bold;
 }
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+.vm-snackbar {
+  position: fixed;
+  left: $padding-global;
+  bottom: $padding-global;
+  z-index: 9;
 }

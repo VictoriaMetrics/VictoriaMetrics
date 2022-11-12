@@ -10,6 +10,7 @@ import { marked } from "marked";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import { InfoIcon } from "../../../components/Main/Icons";
 import "./style.scss";
+import Alert from "../../../components/Main/Alert/Alert";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -74,14 +75,9 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   }, []);
 
   if (!validExpr) return (
-    <div>error</div>
-    // <Alert
-    //   color="error"
-    //   severity="error"
-    //   sx={{ m: 4 }}
-    // >
-    //   <code>&quot;expr&quot;</code> not found. Check the configuration file <b>{filename}</b>.
-    // </Alert>
+    <Alert variant="error">
+      <code>&quot;expr&quot;</code> not found. Check the configuration file <b>{filename}</b>.
+    </Alert>
   );
 
   return <div
@@ -137,17 +133,9 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       />
     </div>
     <div className="vm-predefined-panel-body">
-      {isLoading && <Spinner containerStyles={{ position: "absolute", height: "500px" }}/>}
-      {/*{error && <Alert*/}
-      {/*  color="error"*/}
-      {/*  severity="error"*/}
-      {/*  sx={{ whiteSpace: "pre-wrap", mt: 2 }}*/}
-      {/*>{error}</Alert>}*/}
-      {/*{warning && <Alert*/}
-      {/*  color="warning"*/}
-      {/*  severity="warning"*/}
-      {/*  sx={{ whiteSpace: "pre-wrap", my: 2 }}*/}
-      {/*>{warning}</Alert>}*/}
+      {isLoading && <Spinner/>}
+      {error && <Alert variant="error">{error}</Alert>}
+      {warning && <Alert variant="warning">{warning}</Alert>}
       {graphData && <GraphView
         data={graphData}
         period={period}
