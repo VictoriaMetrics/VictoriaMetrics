@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -333,7 +332,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/delete":
 		w.Header().Set("Content-Type", "application/json")
-		snapshotName := filepath.Clean(r.FormValue("snapshot"))
+		snapshotName := r.FormValue("snapshot")
 
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
@@ -343,9 +342,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		for _, snName := range snapshots {
 			if snName == snapshotName {
-				snapshotPath := fmt.Sprintf("%s/snapshots/%s", *DataPath, snName)
-
-				if err := Storage.DeleteSnapshot(snapshotPath); err != nil {
+				if err := Storage.DeleteSnapshot(snName); err != nil {
 					err = fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
 					jsonResponseError(w, err)
 					return true
