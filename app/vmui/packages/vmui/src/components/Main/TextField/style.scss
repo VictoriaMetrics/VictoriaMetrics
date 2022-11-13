@@ -86,6 +86,10 @@
     &:disabled {
       background-color: inherit;
       color: inherit;
+
+      &:hover {
+        border-color: $color-text-disabled;
+      }
     }
   }
 
@@ -94,7 +98,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    max-width: 24px;
+    max-width: 15px;
     top: auto;
     left: $padding-small;
     height: 100%;

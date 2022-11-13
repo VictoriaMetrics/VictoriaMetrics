@@ -79,7 +79,6 @@ const TextField: FC<TextFieldProps> = ({
           onInput={handleChange}
           onKeyDown={handleKeyDown}
           rows={1}
-          placeholder=" "
         />
       )
       : (
@@ -90,7 +89,6 @@ const TextField: FC<TextFieldProps> = ({
           value={value}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder=" "
           type={type}
         />)
     }

@@ -1,6 +1,6 @@
 import qs from "qs";
 import get from "lodash.get";
-import { MAX_QUERY_FIELDS } from "../config";
+import { MAX_QUERY_FIELDS } from "../constants/config";
 
 export const setQueryStringWithoutPageReload = (params: Record<string, unknown>): void => {
   const w = window;

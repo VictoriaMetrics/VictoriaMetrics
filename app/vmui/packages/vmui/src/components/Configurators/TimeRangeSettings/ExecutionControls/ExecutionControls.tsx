@@ -64,17 +64,6 @@ export const ExecutionControls: FC = () => {
   }, [selectedDelay, autoRefresh]);
 
   const [openOptions, setOpenOptions] = useState(false);
-
-  // root={{
-  //   minWidth: "110px",
-  //     color: "white",
-  //     border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-  //     justifyContent: "space-between",
-  //     boxShadow: "none",
-  //     borderRadius: "4px",
-  //     display: "grid",
-  //     gridTemplateColumns: "auto 1fr"
-  // }}
   const optionsButtonRef = useRef<HTMLDivElement>(null);
 
   return <>

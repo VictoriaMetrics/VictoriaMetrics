@@ -20,7 +20,7 @@ import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 
-const Index: FC = () => {
+const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
   const { query } = useQueryState();
   const { period } = useTimeState();
@@ -120,4 +120,4 @@ const Index: FC = () => {
   );
 };
 
-export default Index;
+export default CustomPanel;

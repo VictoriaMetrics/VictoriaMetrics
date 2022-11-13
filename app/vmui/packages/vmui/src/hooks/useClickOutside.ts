@@ -1,4 +1,5 @@
 import { useEffect, RefObject } from "react";
+import { marked } from "marked";
 
 type Event = MouseEvent | TouchEvent;
 
@@ -10,8 +11,17 @@ const useClickOutside = <T extends HTMLElement = HTMLElement>(
   useEffect(() => {
     const listener = (event: Event) => {
       const el = ref?.current;
-      const isPreventRef = preventRef?.current && preventRef.current.contains(event.target as Node);
-      if (!el || el.contains((event?.target as Node) || null) || isPreventRef) {
+      const target = event.target as HTMLElement;
+
+      let checkParents = target.parentNode;
+      const nodes = [];
+      while(checkParents?.parentNode) {
+        nodes.unshift(checkParents.parentNode as HTMLElement);
+        checkParents = checkParents.parentNode;
+      }
+      const hasPopper = nodes.map(node => node.classList ? node.classList.contains("vm-popper") : false).some(el => el);
+      const isPreventRef = preventRef?.current && preventRef.current.contains(target);
+      if (!el || el.contains((event?.target as Node) || null) || isPreventRef || hasPopper) {
         return;
       }
 

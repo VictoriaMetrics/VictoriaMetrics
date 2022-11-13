@@ -7,7 +7,7 @@ import { ErrorTypes } from "../types";
 import debounce from "lodash.debounce";
 import { DisplayType } from "../pages/CustomPanel/DisplayTypeSwitch";
 import Trace from "../components/TraceQuery/Trace";
-import { MAX_SERIES } from "../config";
+import { MAX_SERIES } from "../constants/config";
 import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";

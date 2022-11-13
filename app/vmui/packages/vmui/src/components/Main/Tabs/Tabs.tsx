@@ -6,7 +6,7 @@ import { getVariableColor } from "../../../utils/theme";
 
 interface TabsProps {
   activeItem: string
-  items: {value: string, label: string, icon?: ReactNode, className?: string}[]
+  items: {value: string, label?: string, icon?: ReactNode, className?: string}[]
   color?: string
   onChange: (value: string) => void
 }
@@ -39,7 +39,16 @@ const Tabs: FC<TabsProps> = ({
         style={{ color: color }}
         onClick={() => onChange(item.value)}
       >
-        {item.icon && <div className="vm-tabs-item__icon">{item.icon}</div>}
+        {item.icon && (
+          <div
+            className={classNames({
+              "vm-tabs-item__icon": true,
+              "vm-tabs-item__icon_single": !item.label
+            })}
+          >
+            {item.icon}
+          </div>
+        )}
         {item.label}
       </div>
     ))}

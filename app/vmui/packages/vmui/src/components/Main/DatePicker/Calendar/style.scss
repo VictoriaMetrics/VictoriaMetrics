@@ -1,0 +1,190 @@
+@use "../../../../styles/variables" as *;
+
+.vm-calendar {
+  max-width: 268px;
+  padding: $padding-global;
+  font-size: $font-size;
+  user-select: none;
+  background-color: $color-white;
+  border-radius: $border-radius-medium;
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    justify-content: center;
+    gap: $padding-medium;
+    padding-bottom: $padding-global;
+    min-height: 36px;
+
+    &-left {
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      justify-content: flex-start;
+      gap: $padding-small;
+      cursor: pointer;
+      transition: opacity 200ms ease-in-out;
+
+      &:hover {
+        opacity: 0.8;
+      }
+
+      &__date {
+        font-size: $font-size;
+        color: $color-text;
+        font-weight: bold;
+      }
+
+      &__select-year {
+        display: grid;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+
+        svg {
+          width: 100%;
+        }
+      }
+    }
+
+    &-right {
+      display: grid;
+      grid-template-columns: 18px 18px;
+      align-items: center;
+      justify-content: center;
+      gap: $padding-small;
+
+      &__prev,
+      &__next {
+        cursor: pointer;
+        transition: opacity 200ms ease-in-out;
+
+        &:hover {
+          opacity: 0.8;
+        }
+      }
+
+      &__prev {
+        transform: rotate(90deg);
+      }
+
+      &__next {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+
+  &-body {
+    display: grid;
+    grid-template-columns: repeat(7, 32px);
+    grid-template-rows: repeat(6, 32px);
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+
+    &-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 50%;
+      height: 100%;
+
+      &_weekday {
+        color: $color-text-secondary;
+      }
+
+      &_day {
+        cursor: pointer;
+        transition: color 200ms ease, background-color 300ms ease-in-out;
+
+        &:hover {
+          background-color: rgba($color-black, 0.05);
+        }
+
+        &_empty {
+          pointer-events: none;
+        }
+
+        &_active {
+          background-color: $color-primary;
+          color: $color-white;
+
+          &:hover {
+            background-color: $color-primary;
+          }
+        }
+
+        &_today {
+          border: 1px solid $color-primary;
+        }
+      }
+    }
+  }
+
+  &-years {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $padding-small;
+    height: 204px;
+    overflow: auto;
+
+    &__year {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: $border-radius-medium;
+      cursor: pointer;
+      transition: color 200ms ease, background-color 300ms ease-in-out;
+
+      &:hover {
+        background-color: rgba($color-black, 0.05);
+      }
+
+      &_selected {
+        background-color: $color-primary;
+        color: $color-white;
+
+        &:hover {
+          background-color: $color-primary;
+        }
+      }
+    }
+  }
+
+  &-time-picker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $padding-small;
+    padding: $padding-global $padding-global 0;
+    margin: $padding-small 0-$padding-global 0;
+    border-top: $border-divider;
+
+    &__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      color: $color-primary;
+      margin-right: $padding-global;
+    }
+
+    &__input {
+      width: 64px;
+      height: 32px;
+      border: 1px solid $color-alto;
+      border-radius: $border-radius-small;
+      font-size: $font-size-medium;
+      padding: 2px $padding-small;
+      text-align: center;
+
+      &:focus {
+        border-color: $color-primary;
+      }
+    }
+  }
+}

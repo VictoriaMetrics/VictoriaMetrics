@@ -13,7 +13,7 @@ interface ModalProps {
 
 const Modal: FC<ModalProps> = ({ title, children, onClose }) => {
 
-  const handleKeyUp = (e: globalThis.KeyboardEvent) => {
+  const handleKeyUp = (e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
   };
 

@@ -30,6 +30,10 @@
       display: grid;
       width: 20px;
       margin-right: $padding-small;
+
+      &_single {
+        margin-right: 0;
+      }
     }
   }
 

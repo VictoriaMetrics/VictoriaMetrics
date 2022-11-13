@@ -5,20 +5,26 @@ import TimeDurationSelector from "../TimeDurationSelector/TimeDurationSelector";
 import dayjs from "dayjs";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import { useTimeDispatch, useTimeState } from "../../../../state/time/TimeStateContext";
-import { AlarmIcon, ClockIcon } from "../../../Main/Icons";
+import { AlarmIcon, CalendarIcon, ClockIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
+import { DATE_FULL_FORMAT } from "../../../../constants/config";
+import useResize from "../../../../hooks/useResize";
+import DatePicker from "../../../Main/DatePicker/DatePicker";
 
 const formatDate = "YYYY-MM-DD HH:mm:ss";
 
 export const TimeSelector: FC = () => {
-
-  const displayFullDate = window.innerWidth > 1120;
+  const documentSize = useResize(document.body);
+  const displayFullDate = useMemo(() => documentSize.width > 1120, [documentSize]);
 
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
+
+  const formFormat = useMemo(() => dayjs(from).format(DATE_FULL_FORMAT), [from]);
+  const untilFormat = useMemo(() => dayjs(until).format(DATE_FULL_FORMAT), [until]);
 
   const { period: { end, start }, relativeTime } = useTimeState();
   const dispatch = useTimeDispatch();
@@ -46,27 +52,29 @@ export const TimeSelector: FC = () => {
     };
   }, [start, end]);
 
+  const fromRef = useRef<HTMLDivElement>(null);
+  const untilRef = useRef<HTMLDivElement>(null);
   const [openOptions, setOpenOptions] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
+
   const setTimeAndClosePicker = () => {
     if (from && until) {
       dispatch({ type: "SET_PERIOD", payload: { from: new Date(from), to: new Date(until) } });
     }
     setOpenOptions(false);
   };
-  const onFromChange = (from: dayjs.Dayjs | null) => setFrom(from?.format(formatDate));
-  const onUntilChange = (until: dayjs.Dayjs | null) => setUntil(until?.format(formatDate));
+  const handleFromChange = (from: string) => setFrom(from);
+
+  const handleUntilChange = (until: string) => setUntil(until);
+
   const onApplyClick = () => setTimeAndClosePicker();
+
   const onSwitchToNow = () => dispatch({ type: "RUN_QUERY_TO_NOW" });
+
   const onCancelClick = () => {
     setUntil(formatDateForNativeInput(dateFromSeconds(end)));
     setFrom(formatDateForNativeInput(dateFromSeconds(start)));
     setOpenOptions(false);
-  };
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Enter" || e.keyCode === 13) {
-      setTimeAndClosePicker();
-    }
   };
 
   return <>
@@ -95,41 +103,46 @@ export const TimeSelector: FC = () => {
     >
       <div className="vm-time-selector">
         <div className="vm-time-selector-left">
-          <div className="vm-time-selector-left__inputs">
-            {/*<DateTimePicker*/}
-            {/*  label="From"*/}
-            {/*  ampm={false}*/}
-            {/*  value={from}*/}
-            {/*  onChange={onFromChange}*/}
-            {/*  onError={console.log}*/}
-            {/*  inputFormat={formatDate}*/}
-            {/*  mask="____-__-__ __:__:__"*/}
-            {/*  renderInput={(params) => <TextField*/}
-            {/*    {...params}*/}
-            {/*    variant="standard"*/}
-            {/*    onKeyDown={onKeyDown}*/}
-            {/*  />}*/}
-            {/*  maxDate={dayjs(until)}*/}
-            {/*  PopperProps={{ disablePortal: true }}*/}
-            {/*/>*/}
-            {/*<DateTimePicker*/}
-            {/*  label="To"*/}
-            {/*  ampm={false}*/}
-            {/*  value={until}*/}
-            {/*  onChange={onUntilChange}*/}
-            {/*  onError={console.log}*/}
-            {/*  inputFormat={formatDate}*/}
-            {/*  mask="____-__-__ __:__:__"*/}
-            {/*  renderInput={(params) => <TextField*/}
-            {/*    {...params}*/}
-            {/*    variant="standard"*/}
-            {/*    onKeyDown={onKeyDown}*/}
-            {/*  />}*/}
-            {/*  PopperProps={{ disablePortal: true }}*/}
-            {/*/>*/}
+          <div className="vm-time-selector-left-inputs">
+            <div
+              className="vm-time-selector-left-inputs__date"
+              ref={fromRef}
+            >
+              <label>
+                From:
+              </label>
+              <span>
+                {formFormat}
+              </span>
+              <CalendarIcon/>
+            </div>
+            <div
+              className="vm-time-selector-left-inputs__date"
+              ref={untilRef}
+            >
+              <label>
+                To:
+              </label>
+              <span>
+                {untilFormat}
+              </span>
+              <CalendarIcon/>
+            </div>
+            <DatePicker
+              date={from || ""}
+              onChange={handleFromChange}
+              targetRef={fromRef}
+              timepicker={true}
+            />
+            <DatePicker
+              date={until || ""}
+              onChange={handleUntilChange}
+              targetRef={untilRef}
+              timepicker={true}
+            />
           </div>
           <Button
-            variant="outlined"
+            variant="text"
             startIcon={<AlarmIcon />}
             onClick={onSwitchToNow}
           >

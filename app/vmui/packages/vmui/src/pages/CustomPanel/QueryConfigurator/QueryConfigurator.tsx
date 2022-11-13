@@ -3,7 +3,7 @@ import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEdit
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import { ErrorTypes } from "../../../types";
 import usePrevious from "../../../hooks/usePrevious";
-import { MAX_QUERY_FIELDS } from "../../../config";
+import { MAX_QUERY_FIELDS } from "../../../constants/config";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { DeleteIcon, PlayIcon, PlusIcon } from "../../../components/Main/Icons";
