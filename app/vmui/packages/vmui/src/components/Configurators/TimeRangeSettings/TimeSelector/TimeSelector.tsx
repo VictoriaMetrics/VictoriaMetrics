@@ -50,10 +50,8 @@ export const TimeSelector: FC = () => {
   }, [start, end]);
 
   const dateTitle = useMemo(() => {
-    if (relativeTime && relativeTime !== "none") {
-      return relativeTime.replace(/_/g, " ");
-    }
-    return  `${formatRange.start} - ${formatRange.end}`;
+    const isRelativeTime = relativeTime && relativeTime !== "none";
+    return isRelativeTime ? relativeTime.replace(/_/g, " ") : `${formatRange.start} - ${formatRange.end}`;
   }, [relativeTime, formatRange]);
 
   const fromRef = useRef<HTMLDivElement>(null);
@@ -116,24 +114,8 @@ export const TimeSelector: FC = () => {
               className="vm-time-selector-left-inputs__date"
               ref={fromRef}
             >
-              <label>
-                From:
-              </label>
-              <span>
-                {formFormat}
-              </span>
-              <CalendarIcon/>
-            </div>
-            <div
-              className="vm-time-selector-left-inputs__date"
-              ref={untilRef}
-            >
-              <label>
-                To:
-              </label>
-              <span>
-                {untilFormat}
-              </span>
+              <label>From:</label>
+              <span>{formFormat}</span>
               <CalendarIcon/>
             </div>
             <DatePicker
@@ -142,6 +124,14 @@ export const TimeSelector: FC = () => {
               targetRef={fromRef}
               timepicker={true}
             />
+            <div
+              className="vm-time-selector-left-inputs__date"
+              ref={untilRef}
+            >
+              <label>To:</label>
+              <span>{untilFormat}</span>
+              <CalendarIcon/>
+            </div>
             <DatePicker
               date={until || ""}
               onChange={handleUntilChange}

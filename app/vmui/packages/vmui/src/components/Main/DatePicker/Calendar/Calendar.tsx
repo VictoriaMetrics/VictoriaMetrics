@@ -25,6 +25,10 @@ const Calendar: FC<DatePickerProps> = ({
   const [selectDate, setSelectDate] = useState(dayjs(date));
   const [handleFocusHour, setHandleFocusHour] = useState(0);
 
+  const toggleDisplayYears = () => {
+    setDisplayYears(prev => !prev);
+  };
+
   const handleChangeViewDate = (date: Dayjs) => {
     setViewDate(date);
     setDisplayYears(false);
@@ -33,10 +37,6 @@ const Calendar: FC<DatePickerProps> = ({
   const handleChangeSelectDate = (date: Dayjs) => {
     setSelectDate(date);
     setHandleFocusHour(prev => prev + 1);
-  };
-
-  const toggleDisplayYears = () => {
-    setDisplayYears(prev => !prev);
   };
 
   const handleChangeTime = (time: string) => {

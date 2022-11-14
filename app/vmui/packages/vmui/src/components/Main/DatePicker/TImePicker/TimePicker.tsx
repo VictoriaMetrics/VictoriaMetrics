@@ -15,6 +15,12 @@ const TimePicker: FC<CalendarTimepickerProps>= ({ selectDate, handleFocusHour, o
   const [minutes, setMinutes] = useState(selectDate.format("mm"));
   const [seconds, setSeconds] = useState(selectDate.format("ss"));
 
+  useEffect(() => {
+    setHours(selectDate.format("HH"));
+    setMinutes(selectDate.format("mm"));
+    setSeconds(selectDate.format("ss"));
+  }, [selectDate]);
+
   const hoursRef = useRef<HTMLInputElement>(null);
   const minutesRef = useRef<HTMLInputElement>(null);
   const secondsRef = useRef<HTMLInputElement>(null);
