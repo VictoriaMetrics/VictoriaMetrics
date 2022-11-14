@@ -1,5 +1,4 @@
 import { useEffect, RefObject } from "react";
-import { marked } from "marked";
 
 type Event = MouseEvent | TouchEvent;
 

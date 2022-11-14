@@ -1,5 +1,5 @@
 import React, { FC, useState, useEffect } from "preact/compat";
-import GraphView from "../../components/Views/GraphView";
+import GraphView from "../../components/Views/GraphView/GraphView";
 // import TableView from "../../components/Views/TableView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -12,13 +12,14 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
-import TableSettings from "../../components/Main/Table/TableSettings/TableSettings";
+import TableSettings from "../CardinalityPanel/Table/TableSettings/TableSettings";
 import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
+import TableView from "../../components/Views/TableView/TableView";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -109,12 +110,12 @@ const CustomPanel: FC = () => {
           />
         )}
         {liveData && (displayType === "code") && <JsonView data={liveData}/>}
-        {/*{liveData && (displayType === "table") && (*/}
-        {/*  <TableView*/}
-        {/*    data={liveData}*/}
-        {/*    displayColumns={displayColumns}*/}
-        {/*  />*/}
-        {/*)}*/}
+        {liveData && (displayType === "table") && (
+          <TableView
+            data={liveData}
+            displayColumns={displayColumns}
+          />
+        )}
       </div>
     </div>
   );

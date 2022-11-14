@@ -1,5 +1,5 @@
 import React, { FC } from "preact/compat";
-import dayjs, { Dayjs } from "dayjs";
+import { Dayjs } from "dayjs";
 import { ArrowDownIcon, ArrowDropDownIcon } from "../../../Icons";
 
 interface CalendarHeaderProps {

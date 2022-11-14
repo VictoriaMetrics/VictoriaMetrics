@@ -1,6 +1,6 @@
 import { Containers, DefaultActiveTab, Tabs, TSDBStatus } from "./types";
 import { useRef } from "preact/compat";
-import { HeadCell } from "../../components/Main/Table/types";
+import { HeadCell } from "./Table/types";
 
 interface AppState {
   tabs: Tabs;
@@ -105,76 +105,54 @@ export default class AppConfigurator {
 
 const METRIC_NAMES_HEADERS = [
   {
-    disablePadding: false,
     id: "name",
     label: "Metric name",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "value",
     label: "Number of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "percentage",
     label: "Percent of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "action",
     label: "Action",
-    numeric: false,
   }
 ] as HeadCell[];
 
 const LABEL_NAMES_HEADERS = [
   {
-    disablePadding: false,
     id: "name",
     label: "Label name",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "value",
     label: "Number of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "percentage",
     label: "Percent of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "action",
     label: "Action",
-    numeric: false,
   }
 ] as HeadCell[];
 
 const FOCUS_LABEL_VALUES_HEADERS = [
   {
-    disablePadding: false,
     id: "name",
     label: "Label value",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "value",
     label: "Number of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "percentage",
     label: "Percent of series",
-    numeric: false,
   },
   {
     disablePadding: false,
@@ -186,48 +164,34 @@ const FOCUS_LABEL_VALUES_HEADERS = [
 
 export const LABEL_VALUE_PAIRS_HEADERS = [
   {
-    disablePadding: false,
     id: "name",
     label: "Label=value pair",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "value",
     label: "Number of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "percentage",
     label: "Percent of series",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "action",
     label: "Action",
-    numeric: false,
   }
 ] as HeadCell[];
 
 export const LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS = [
   {
-    disablePadding: false,
     id: "name",
     label: "Label name",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "value",
     label: "Number of unique values",
-    numeric: false,
   },
   {
-    disablePadding: false,
     id: "action",
     label: "Action",
-    numeric: false,
   }
 ] as HeadCell[];

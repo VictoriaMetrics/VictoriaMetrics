@@ -9,11 +9,11 @@ import dayjs from "dayjs";
 import { TopQueryStats } from "../../types";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import Button from "../../components/Main/Button/Button";
-import { PlayCircleOutlineIcon, PlayIcon } from "../../components/Main/Icons";
+import { PlayIcon } from "../../components/Main/Icons";
 import TextField from "../../components/Main/TextField/TextField";
-import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import Tooltip from "../../components/Main/Tooltip/Tooltip";
+import "./style.scss";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
@@ -129,7 +129,6 @@ const Index: FC = () => {
           <TopQueryPanel
             rows={data.topByAvgDuration}
             title={"Most heavy queries"}
-            // columns={["query", "avgDurationSeconds", "timeRangeHours", "count"]}
             columns={[
               { key: "query" },
               { key: "avgDurationSeconds", title: "avg duration, seconds" },

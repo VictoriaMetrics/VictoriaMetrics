@@ -1,11 +1,11 @@
 import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import getDashboardSettings from "./getDashboardSettings";
-import { DashboardRow, DashboardSettings } from "../../types";
+import { DashboardSettings } from "../../types";
 import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
-import "./style.scss";
 import Tabs from "../../components/Main/Tabs/Tabs";
 import Alert from "../../components/Main/Alert/Alert";
+import "./style.scss";
 
 const Index: FC = () => {
   useSetQueryParams();

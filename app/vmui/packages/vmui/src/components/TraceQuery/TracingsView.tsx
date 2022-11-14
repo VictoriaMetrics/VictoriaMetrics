@@ -1,7 +1,7 @@
 import React, { FC } from "preact/compat";
 import Trace from "./Trace";
 import Button from "../Main/Button/Button";
-import { DeleteIcon, RemoveCircleIcon } from "../Main/Icons";
+import { DeleteIcon } from "../Main/Icons";
 import "./style.scss";
 import NestedNav from "./NestedNav/NestedNav";
 import Alert from "../Main/Alert/Alert";

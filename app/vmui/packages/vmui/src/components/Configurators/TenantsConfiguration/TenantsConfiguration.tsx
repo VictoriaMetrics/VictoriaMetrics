@@ -1,10 +1,9 @@
 import React, { FC, useState, useEffect, useCallback } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
-import { ChangeEvent } from "react";
 import debounce from "lodash.debounce";
 import { getAppModeParams } from "../../../utils/app-mode";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
-import { InfoIcon, RestartIcon } from "../../Main/Icons";
+import { InfoIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";
 import Tooltip from "../../Main/Tooltip/Tooltip";

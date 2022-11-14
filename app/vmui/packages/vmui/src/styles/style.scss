@@ -6,7 +6,8 @@
 @forward "./components/list";
 @forward "./components/popper-header";
 @forward "./components/block";
-@forward "./components/table-header";
+@forward "components/sectionheader";
+@forward "./components/table";
 
 :root {
   --color-primary: #3F51B5;

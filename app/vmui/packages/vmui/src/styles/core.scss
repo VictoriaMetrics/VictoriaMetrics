@@ -12,6 +12,10 @@ html, body, #root {
   margin: 0;
 }
 
+body {
+  overflow: scroll;
+}
+
 * {
   font: inherit;
   cursor: inherit;

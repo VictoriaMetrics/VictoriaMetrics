@@ -1,11 +1,10 @@
-import React, { FC, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useMemo, useState } from "preact/compat";
 import { ExecutionControls } from "../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
 import { setQueryStringWithoutPageReload } from "../../utils/query-string";
 import { TimeSelector } from "../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import GlobalSettings from "../Configurators/GlobalSettings/GlobalSettings";
-import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import router, { RouterOptions, routerOptions } from "../../router";
-import { useCardinalityState, useCardinalityDispatch } from "../../state/cardinality/CardinalityStateContext";
 import { useEffect } from "react";
 import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
@@ -14,23 +13,6 @@ import { LogoIcon } from "../Main/Icons";
 import { getVariableColor } from "../../utils/theme";
 import "./style.scss";
 import Tabs from "../Main/Tabs/Tabs";
-
-const classes = {
-  menuLink: {
-    display: "block",
-    padding: "16px 8px",
-    color: "white",
-    fontSize: "11px",
-    textDecoration: "none",
-    cursor: "pointer",
-    textTransform: "uppercase",
-    borderRadius: "4px",
-    transition: ".2s background",
-    "&:hover": {
-      boxShadow: "rgba(0, 0, 0, 0.15) 0px 2px 8px"
-    }
-  }
-};
 
 const Header: FC = () => {
   const primaryColor = getVariableColor("primary");

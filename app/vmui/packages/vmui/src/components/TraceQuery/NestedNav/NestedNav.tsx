@@ -1,7 +1,7 @@
 import React, { FC, useState } from "preact/compat";
 import LineProgress from "../../Main/LineProgress/LineProgress";
 import Trace from "../Trace";
-import { ArrowUpIcon, PlusCircleFillIcon } from "../../Main/Icons";
+import { ArrowUpIcon } from "../../Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 

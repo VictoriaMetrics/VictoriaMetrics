@@ -1,10 +1,9 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useMemo, useRef } from "preact/compat";
 import { useCardinalityState, useCardinalityDispatch } from "../../../state/cardinality/CardinalityStateContext";
 import dayjs from "dayjs";
 import Button from "../../Main/Button/Button";
 import { CalendarIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
-import Popper from "../../Main/Popper/Popper";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import { DATE_FORMAT } from "../../../constants/config";
 import DatePicker from "../../Main/DatePicker/DatePicker";
@@ -21,12 +20,6 @@ const CardinalityDatePicker: FC = () => {
   const handleChangeDate = (val: string) => {
     cardinalityDispatch({ type: "SET_DATE", payload: val });
   };
-
-  useEffect(() => {
-    console.log("buttonRef", buttonRef);
-  }, [buttonRef]);
-
-  console.log(buttonRef.current);
 
   return (
     <div>

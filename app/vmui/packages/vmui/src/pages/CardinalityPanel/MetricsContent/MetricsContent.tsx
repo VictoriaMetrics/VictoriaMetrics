@@ -1,10 +1,10 @@
 import { FC } from "react";
-import EnhancedTable from "../../../components/Main/Table/Table";
-import TableCells from "../TableCells/TableCells";
+import EnhancedTable from "../Table/Table";
+import TableCells from "../Table/TableCells/TableCells";
 import BarChart from "../../../components/Chart/BarChart/BarChart";
 import { barOptions } from "../../../components/Chart/BarChart/consts";
 import React, { SyntheticEvent } from "react";
-import { Data, HeadCell } from "../../../components/Main/Table/types";
+import { Data, HeadCell } from "../Table/types";
 import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import { useMemo } from "preact/compat";
@@ -56,9 +56,9 @@ const MetricsContent: FC<MetricsProperties> = ({
 
   return (
     <div className="vm-metrics-content vm-block">
-      <div className="vm-metrics-content-header vm-table-header">
-        <h5 className="vm-table-header__title">{sectionTitle}</h5>
-        <div className="vvm-table-header__tabs">
+      <div className="vm-metrics-content-header vm-section-header">
+        <h5 className="vm-section-header__title">{sectionTitle}</h5>
+        <div className="vm-section-header__tabs">
           <Tabs
             activeItem={String(activeTab)}
             items={tabs}
@@ -66,10 +66,7 @@ const MetricsContent: FC<MetricsProperties> = ({
           />
         </div>
       </div>
-      <div
-        ref={chartContainer}
-        // style={{ width: "100%", paddingRight: idx !== 0 ? "40px" : 0 }}
-      >
+      <div ref={chartContainer}>
         {activeTab === 0 && (
           <EnhancedTable
             rows={rows}

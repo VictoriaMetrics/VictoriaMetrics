@@ -1,14 +1,16 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
-import { MetricResult } from "../../api/types";
-import LineChart from "../Chart/LineChart/LineChart";
+import { MetricResult } from "../../../api/types";
+import LineChart from "../../Chart/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
-import Legend from "../Chart/Legend/Legend";
-import { getHideSeries, getLegendItem, getSeriesItem } from "../../utils/uplot/series";
-import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../utils/uplot/axes";
-import { LegendItemType } from "../../utils/uplot/types";
-import { TimeParams } from "../../types";
-import { AxisRange, YaxisState } from "../../state/graph/reducer";
-import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../utils/math";
+import Legend from "../../Chart/Legend/Legend";
+import { getHideSeries, getLegendItem, getSeriesItem } from "../../../utils/uplot/series";
+import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
+import { LegendItemType } from "../../../utils/uplot/types";
+import { TimeParams } from "../../../types";
+import { AxisRange, YaxisState } from "../../../state/graph/reducer";
+import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
+import classNames from "classnames";
+import "./style.scss";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -135,29 +137,32 @@ const GraphView: FC<GraphViewProps> = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  return <>
+  return (
     <div
-      // style={{ width: fullWidth ? "calc(100vw - 68px)" : "100%" }}
+      className={classNames({
+        "vm-graph-view": true,
+        "vm-graph-view_full-width": fullWidth
+      })}
       ref={containerRef}
     >
       {containerRef?.current &&
-          <LineChart
-            data={dataChart}
-            series={series}
-            metrics={data}
-            period={period}
-            yaxis={yaxis}
-            unit={unit}
-            setPeriod={setPeriod}
-            container={containerRef?.current}
-          />}
+        <LineChart
+          data={dataChart}
+          series={series}
+          metrics={data}
+          period={period}
+          yaxis={yaxis}
+          unit={unit}
+          setPeriod={setPeriod}
+          container={containerRef?.current}
+        />}
       {showLegend && <Legend
         labels={legend}
         query={query}
         onChange={onChangeLegend}
       />}
     </div>
-  </>;
+  );
 };
 
 export default GraphView;

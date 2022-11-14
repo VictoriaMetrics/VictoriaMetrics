@@ -1,0 +1,85 @@
+@use "src/styles/variables" as *;
+
+.vm-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: -$padding-medium;
+
+  &__row {
+    background-color: $color-white;
+    transition: background-color 200ms ease;
+
+    &:hover:not(&_header) {
+      background-color: rgba($color-black, 0.05);
+    }
+
+    &_header {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    &_selected {
+      background-color: rgba($color-dodger-blue, 0.05);
+    }
+  }
+
+  &-cell {
+    padding: $padding-small;
+    //font-size: $font-size-small;
+    border-bottom: $border-divider;
+    height: 40px;
+    vertical-align: middle;
+
+    &__content {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    &_sort {
+      cursor: pointer;
+
+      &:hover {
+        background-color: rgba($color-black, 0.05);
+      }
+    }
+
+    &_header {
+      font-weight: bold;
+      text-transform: capitalize;
+      text-align: left;
+    }
+
+    &_gray {
+      color: rgba($color-black, 0.4);
+    }
+
+    &_right {
+      text-align: right;
+    }
+
+    &_right &__content {
+      justify-content: flex-end;
+    }
+  }
+
+  &__sort-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    margin: 0 $padding-small;
+    opacity: 0.4;
+    transition: opacity 200ms ease, transform 200ms ease-in-out;
+
+    &_active {
+      opacity: 1;
+    }
+
+    &_desc {
+      transform: rotate(180deg);
+    }
+  }
+}

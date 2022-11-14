@@ -1,8 +1,7 @@
 @use "src/styles/variables" as *;
 
 .vm-predefined-dashboard {
-  margin: 0 0-$padding-medium;
-  box-shadow: $box-shadow;
+  background-color: transparent;
 
   &-header {
     position: relative;
@@ -11,15 +10,17 @@
     justify-content: space-between;
     grid-template-columns: 1fr auto;
     padding: $padding-global;
-    border-radius: $border-radius-small ;
+    border-radius: $border-radius-small;
     font-weight: bold;
     transform-style: preserve-3d;
     overflow: hidden;
     line-height: 14px;
+    box-shadow: $box-shadow;
+    transition: box-shadow 200ms ease-in-out;
 
     &_open {
       border-radius: $border-radius-small $border-radius-small 0 0;
-      border-bottom: $border-divider;
+      box-shadow: none;
     }
 
     &__title {
@@ -37,7 +38,7 @@
     display: grid;
     grid-template-columns: repeat(12, 1fr);
     gap: $padding-global;
-    padding: $padding-global $padding-medium;
+    padding: 0;
 
     &-panel {
       position: relative;

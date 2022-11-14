@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { PanelSettings } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
-import GraphView from "../../../components/Views/GraphView";
+import GraphView from "../../../components/Views/GraphView/GraphView";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import Spinner from "../../../components/Main/Spinner/Spinner";
 import StepConfigurator from "../../../components/Configurators/StepConfigurator/StepConfigurator";

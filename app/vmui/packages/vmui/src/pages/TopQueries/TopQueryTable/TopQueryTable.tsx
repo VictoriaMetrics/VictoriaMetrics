@@ -1,7 +1,9 @@
 import React, { FC, useState, useMemo } from "react";
 import { TopQuery } from "../../../types";
-import { getComparator, stableSort } from "../../../components/Main/Table/helpers";
+import { getComparator, stableSort } from "../../CardinalityPanel/Table/helpers";
 import { TopQueryPanelProps } from "../TopQueryPanel/TopQueryPanel";
+import classNames from "classnames";
+import { ArrowDropDownIcon } from "../../../components/Main/Icons";
 
 const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy }) => {
 
@@ -21,51 +23,49 @@ const TopQueryTable:FC<TopQueryPanelProps> = ({ rows, columns, defaultOrderBy })
   };
 
   return (
-    <div>table</div>
-    // <TableContainer>
-    //   <Table
-    //     sx={{ minWidth: 750 }}
-    //     aria-labelledby="tableTitle"
-    //   >
-    //     <TableHead>
-    //       <TableRow>
-    //         {columns.map((col) => (
-    //           <TableCell
-    //             key={col.key}
-    //             style={{ width: "100%" }}
-    //             sx={{ borderBottomColor: "primary.light", whiteSpace: "nowrap" }}
-    //           >
-    //             <TableSortLabel
-    //               active={orderBy === col.key}
-    //               direction={orderDir}
-    //               id={col.key}
-    //               onClick={createSortHandler(col.key)}
-    //             >
-    //               {col.title || col.key}
-    //             </TableSortLabel>
-    //           </TableCell>
-    //         ))}
-    //       </TableRow>
-    //     </TableHead>
-    //     <TableBody>
-    //       {sortedList.map((row, rowIndex) => (
-    //         <TableRow key={rowIndex}>
-    //           {columns.map((col) => (
-    //             <TableCell
-    //               key={col.key}
-    //               sx={{
-    //                 borderBottom: rowIndex === rows.length - 1 ? "none" : "",
-    //                 borderBottomColor: "primary.light"
-    //               }}
-    //             >
-    //               {row[col.key] || "-"}
-    //             </TableCell>
-    //           ))}
-    //         </TableRow>
-    //       ))}
-    //     </TableBody>
-    //   </Table>
-    // </TableContainer>
+    <table className="vm-table">
+      <thead className="vm-table-header">
+        <tr className="vm-table__row vm-table__row_header">
+          {columns.map((col) => (
+            <th
+              className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
+              onClick={createSortHandler(col.key)}
+              key={col.key}
+            >
+              <div className="vm-table-cell__content">
+                {col.title || col.key}
+                <div
+                  className={classNames({
+                    "vm-table__sort-icon": true,
+                    "vm-table__sort-icon_active": orderBy === col.key,
+                    "vm-table__sort-icon_desc": orderDir === "desc" && orderBy === col.key
+                  })}
+                >
+                  <ArrowDropDownIcon/>
+                </div>
+              </div>
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody className="vm-table-body">
+        {sortedList.map((row, rowIndex) => (
+          <tr
+            className="vm-table__row"
+            key={rowIndex}
+          >
+            {columns.map((col) => (
+              <td
+                className="vm-table-cell"
+                key={col.key}
+              >
+                {row[col.key] || "-"}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 };
 

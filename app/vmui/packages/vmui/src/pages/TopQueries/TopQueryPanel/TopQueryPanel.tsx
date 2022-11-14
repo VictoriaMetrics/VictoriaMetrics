@@ -1,10 +1,9 @@
 import React, { FC, useState } from "react";
 import { TopQuery } from "../../../types";
-// import TopQueryTable from "../TopQueryTable/TopQueryTable";
 import JsonView from "../../../components/Views/JsonView/JsonView";
-import { ChartIcon, CodeIcon, TableIcon } from "../../../components/Main/Icons";
-import Accordion from "../../../components/Main/Accordion/Accordion";
+import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
+import TopQueryTable from "../TopQueryTable/TopQueryTable";
 import "./style.scss";
 
 export interface TopQueryPanelProps {
@@ -30,9 +29,9 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
   return (
     <div className="vm-top-queries-panel vm-block">
 
-      <div className="vm-top-queries-panel-header vm-table-header">
-        <h5 className="vvm-table-header__title">{title}</h5>
-        <div className="vm-table-header__tabs">
+      <div className="vm-top-queries-panel-header vm-section-header">
+        <h5 className="vm-section-header__title">{title}</h5>
+        <div className="vm-section-header__tabs">
           <Tabs
             activeItem={String(activeTab)}
             items={tabs}
@@ -42,13 +41,14 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
       </div>
 
       <div>
-        {/*{activeTab === 0 && <TopQueryTable*/}
-        {/*  rows={rows}*/}
-        {/*  columns={columns}*/}
-        {/*  defaultOrderBy={defaultOrderBy}*/}
-        {/*/>}*/}
-        {activeTab === 0 && <div>table</div>}
-        {activeTab === 1 && <div><JsonView data={rows} /></div>}
+        {activeTab === 0 && (
+          <TopQueryTable
+            rows={rows}
+            columns={columns}
+            defaultOrderBy={defaultOrderBy}
+          />
+        )}
+        {activeTab === 1 && <JsonView data={rows} />}
       </div>
     </div>
   );

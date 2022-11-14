@@ -2,7 +2,7 @@ import React, { FC, useState } from "react";
 import { SyntheticEvent } from "react";
 import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
-import { Data } from "../../components/Main/Table/types";
+import { Data } from "./Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import { useCardinalityDispatch, useCardinalityState } from "../../state/cardinality/CardinalityStateContext";

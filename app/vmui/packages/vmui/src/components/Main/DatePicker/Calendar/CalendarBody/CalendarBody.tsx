@@ -1,6 +1,5 @@
 import React, { FC, useMemo } from "preact/compat";
 import dayjs, { Dayjs } from "dayjs";
-import { ArrowDownIcon, ArrowDropDownIcon } from "../../../Icons";
 import classNames from "classnames";
 
 interface CalendarBodyProps {

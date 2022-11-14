@@ -1,12 +1,12 @@
 import React, { FC, useEffect, useState, useRef, useMemo } from "preact/compat";
 import { useSortedCategories } from "../../../../hooks/useSortedCategories";
 import { InstantMetricResult } from "../../../../api/types";
-import Button from "../../Button/Button";
-import { CloseIcon, SettingsIcon } from "../../Icons";
-import Popper from "../../Popper/Popper";
+import Button from "../../../../components/Main/Button/Button";
+import { CloseIcon, SettingsIcon } from "../../../../components/Main/Icons";
+import Popper from "../../../../components/Main/Popper/Popper";
 import "./style.scss";
-import Checkbox from "../../Checkbox/Checkbox";
-import Tooltip from "../../Tooltip/Tooltip";
+import Checkbox from "../../../../components/Main/Checkbox/Checkbox";
+import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
 
 const title = "Display columns";
 

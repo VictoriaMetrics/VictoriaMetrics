@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useState, useMemo, useRef } from "preact/compat";
-import { KeyboardEvent } from "react";
 import { dateFromSeconds, formatDateForNativeInput } from "../../../../utils/time";
 import TimeDurationSelector from "../TimeDurationSelector/TimeDurationSelector";
 import dayjs from "dayjs";

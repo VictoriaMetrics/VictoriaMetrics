@@ -1,10 +1,10 @@
-import React, { ChangeEvent, FC } from "react";
+import React, { FC } from "react";
 import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEditor";
 import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { ErrorTypes } from "../../../types";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import Switch from "../../../components/Main/Switch/Switch";
-import { PlayCircleOutlineIcon, PlayIcon } from "../../../components/Main/Icons";
+import { PlayIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";

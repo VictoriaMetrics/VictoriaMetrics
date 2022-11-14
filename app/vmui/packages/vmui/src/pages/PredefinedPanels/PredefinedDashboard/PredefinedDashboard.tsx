@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useMemo, useState } from "preact/compat";
-import { CSSProperties } from "react";
 import { MouseEvent as ReactMouseEvent } from "react";
 import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";

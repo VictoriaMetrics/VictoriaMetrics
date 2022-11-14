@@ -1,4 +1,4 @@
-import React, { FC } from "preact/compat";
+import React, { FC, useEffect } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import router from "./router";
 import AppContextProvider from "./contexts/AppContextProvider";
@@ -9,6 +9,13 @@ import CardinalityPanel from "./pages/CardinalityPanel";
 import TopQueries from "./pages/TopQueries";
 
 const App: FC = () => {
+
+  useEffect(() => {
+    const { innerWidth, innerHeight } = window;
+    const { clientWidth, clientHeight } = document.documentElement;
+    document.documentElement.style.setProperty("--scrollbar-width", (innerWidth - clientWidth) + "px");
+    document.documentElement.style.setProperty("--scrollbar-height", (innerHeight - clientHeight) + "px");
+  }, []);
 
   return <>
     <HashRouter>
