@@ -17,6 +17,7 @@
     width: 100%;
     padding: $padding-small $padding-global;
     border: 1px solid $color-text-disabled;
+    background-color: transparent;
     font-size: 12px;
     line-height: 18px;
     grid-area: 1 / 1 / 2 / 2;
@@ -33,7 +34,7 @@
     line-height: $font-size-small;
     pointer-events: none;
     user-select: none;
-    background-color: $color-white;
+    background-color: $color-background-block;
     z-index: 2;
   }
 

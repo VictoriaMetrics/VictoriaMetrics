@@ -53,7 +53,7 @@ $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
       left: $switch-padding;
       min-width: $switch-handle-size;
       min-height: $switch-handle-size;
-      background-color: $color-white;
+      background-color: $color-background-block;
       border-radius: 50%;
       transition: right 200ms ease-out, left 200ms ease-out;
       transform-style: preserve-3d;

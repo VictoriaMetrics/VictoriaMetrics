@@ -7,6 +7,10 @@
   padding: $padding-small $padding-medium;
   gap: $padding-large;
 
+  &_app {
+    padding: $padding-small 0;
+  }
+
   &-logo {
     display: grid;
     align-items: center;
@@ -16,7 +20,6 @@
       position: relative;
       display: flex;
       align-items: center;
-      color: $color-white;
       cursor: pointer;
       width: 100%;
       margin-bottom: 2px;

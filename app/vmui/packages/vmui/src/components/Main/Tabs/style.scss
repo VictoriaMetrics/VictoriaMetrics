@@ -6,13 +6,14 @@
   align-items: center;
   justify-content: center;
   height: 100%;
+  gap: $padding-global;
   user-select: none;
 
   &-item {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: $padding-global;
+    padding: $padding-global $padding-small;
     color: inherit;
     text-decoration: none;
     text-transform: uppercase;

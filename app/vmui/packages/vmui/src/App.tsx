@@ -1,4 +1,4 @@
-import React, { FC, useEffect } from "preact/compat";
+import React, { FC, useState } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import router from "./router";
 import AppContextProvider from "./contexts/AppContextProvider";
@@ -7,15 +7,19 @@ import CustomPanel from "./pages/CustomPanel";
 import DashboardsLayout from "./pages/PredefinedPanels";
 import CardinalityPanel from "./pages/CardinalityPanel";
 import TopQueries from "./pages/TopQueries";
+import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
+import Spinner from "./components/Main/Spinner/Spinner";
 
 const App: FC = () => {
 
-  useEffect(() => {
-    const { innerWidth, innerHeight } = window;
-    const { clientWidth, clientHeight } = document.documentElement;
-    document.documentElement.style.setProperty("--scrollbar-width", (innerWidth - clientWidth) + "px");
-    document.documentElement.style.setProperty("--scrollbar-height", (innerHeight - clientHeight) + "px");
-  }, []);
+  const [loadingTheme, setLoadingTheme] = useState(true);
+
+  if (loadingTheme) return (
+    <>
+      <Spinner/>
+      <ThemeProvider setLoadingTheme={setLoadingTheme}/>;
+    </>
+  );
 
   return <>
     <HashRouter>

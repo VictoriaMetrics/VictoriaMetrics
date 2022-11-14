@@ -92,7 +92,7 @@ $button-radius: 6px;
 
   /* variant CONTAINED */
   &_contained_primary {
-    color: $color-white;
+    color: $color-primary-text;
 
     &:before {
       background-color: $color-primary;
@@ -103,8 +103,20 @@ $button-radius: 6px;
     }
   }
 
+  &_contained_secondary {
+    color: $color-secondary-text;
+
+    &:before {
+      background-color: $color-secondary;
+    }
+
+    &:hover:after {
+      background-color: rgba($color-black, 0.2)
+    }
+  }
+
   &_contained_success {
-    color: $color-white;
+    color: $color-success-text;
 
     &:before {
       background-color: $color-success;
@@ -116,7 +128,7 @@ $button-radius: 6px;
   }
 
   &_contained_error {
-    color: $color-white;
+    color: $color-error-text;
 
     &:before {
       background-color: $color-error;

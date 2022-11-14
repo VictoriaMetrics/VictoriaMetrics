@@ -4,7 +4,7 @@ html, body, #root {
   font-family: $font-family-global;
   font-size: $font-size;
   color: $color-text;
-  height: 100%;
+  min-height: 100%;
   cursor: default;
   background-color: $color-background-body;
   background-repeat: no-repeat;

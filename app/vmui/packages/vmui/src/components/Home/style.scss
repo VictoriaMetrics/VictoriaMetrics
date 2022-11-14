@@ -9,5 +9,9 @@
     flex-grow: 1;
     min-height: 100%;
     padding: $padding-medium;
+
+    &_app {
+      padding: $padding-small 0;
+    }
   }
 }

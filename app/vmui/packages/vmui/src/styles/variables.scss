@@ -6,7 +6,18 @@ $color-warning: var(--color-warning);
 $color-info: var(--color-info);
 $color-success: var(--color-success);
 
-$color-black: #000000;
+$color-primary-text: var(--color-primary-text);
+$color-secondary-text: var(--color-secondary-text);
+$color-error-text: var(--color-error-text);
+$color-warning-text: var(--color-warning-text);
+$color-info-text: var(--color-info-text);
+$color-success-text: var(--color-success-text);
+
+$color-text: #110f0f;
+$color-text-secondary: rgba($color-text, 0.6);
+$color-text-disabled: rgba($color-text, 0.4);
+
+$color-black: #110f0f;
 $color-silver: #C4C4C4;
 $color-alto: #D8D8D8;
 $color-white: #ffffff;
@@ -14,14 +25,11 @@ $color-white: #ffffff;
 $color-dodger-blue: #1A90FF;
 $color-tropical-blue: #C9E3F6;
 
-$color-text: #333333;
-$color-text-secondary: #62686c;
-$color-text-disabled: #cacfce;
-
 
 /************* background *************/
+$color-background-body: var(--color-background-body);
+$color-background-block: var(--color-background-block);
 $color-background-modal: rgba($color-black, 0.7);
-$color-background-body: rgba($color-tropical-blue, 0.02);
 $color-background-tooltip: rgba(97, 97, 97, 0.92);
 
 

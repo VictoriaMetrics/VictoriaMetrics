@@ -10,13 +10,15 @@ import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
 import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
 import CardinalityDatePicker from "../Configurators/CardinalityDatePicker/CardinalityDatePicker";
 import { LogoIcon } from "../Main/Icons";
-import { getVariableColor } from "../../utils/theme";
-import "./style.scss";
+import { getCssVariable } from "../../utils/theme";
 import Tabs from "../Main/Tabs/Tabs";
+import "./style.scss";
+import classNames from "classnames";
 
 const Header: FC = () => {
-  const primaryColor = getVariableColor("primary");
+  const primaryColor = getCssVariable("color-primary");
   const appModeEnable = getAppModeEnable();
+
   const { headerStyles: {
     background = appModeEnable ? "#FFF" : primaryColor,
     color = appModeEnable ? primaryColor : "#FFF",
@@ -70,11 +72,17 @@ const Header: FC = () => {
   }, [pathname]);
 
   return <header
-    className="vm-header"
+    className={classNames({
+      "vm-header": true,
+      "vm-header_app": appModeEnable
+    })}
     style={{ background, color }}
   >
     {!appModeEnable && (
-      <div className="vm-header-logo">
+      <div
+        className="vm-header-logo"
+        style={{ color }}
+      >
         <div
           className="vm-header-logo__icon"
           onClick={onClickLogo}

@@ -2,7 +2,7 @@ import React, { FC, useRef, useState } from "preact/compat";
 import { ReactNode, useEffect } from "react";
 import "./style.scss";
 import classNames from "classnames";
-import { getVariableColor } from "../../../utils/theme";
+import { getCssVariable } from "../../../utils/theme";
 
 interface TabsProps {
   activeItem: string
@@ -14,7 +14,7 @@ interface TabsProps {
 const Tabs: FC<TabsProps> = ({
   activeItem,
   items,
-  color = getVariableColor("primary"),
+  color = getCssVariable("color-primary"),
   onChange
 }) => {
   const activeNavRef = useRef<HTMLDivElement>(null);
