@@ -1,3 +1,12 @@
+# v1.13.0 (2022-11-11)
+
+* **Announcement**: When using the SSOTokenProvider, a previous implementation incorrectly compensated for invalid SSOTokenProvider configurations in the shared profile. This has been fixed via PR #1903 and tracked in issue #1846
+* **Feature**: Adds token refresh support (via SSOTokenProvider) when using the SSOCredentialProvider
+
+# v1.12.24 (2022-11-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.12.23 (2022-10-24)
 
 * **Dependency Update**: Updated to the latest SDK module versions
