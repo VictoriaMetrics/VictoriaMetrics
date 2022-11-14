@@ -369,10 +369,10 @@ github.com/oklog/ulid
 # github.com/pkg/errors v0.9.1
 ## explicit
 github.com/pkg/errors
-# github.com/prometheus/client_golang v1.14.0
 # github.com/pmezard/go-difflib v1.0.0
 ## explicit
 github.com/pmezard/go-difflib/difflib
+# github.com/prometheus/client_golang v1.14.0
 ## explicit; go 1.17
 github.com/prometheus/client_golang/prometheus
 github.com/prometheus/client_golang/prometheus/internal
@@ -436,11 +436,11 @@ github.com/rivo/uniseg
 # github.com/russross/blackfriday/v2 v2.1.0
 ## explicit
 github.com/russross/blackfriday/v2
-# github.com/urfave/cli/v2 v2.23.5
 # github.com/stretchr/testify v1.8.1
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
+# github.com/urfave/cli/v2 v2.23.5
 ## explicit; go 1.18
 github.com/urfave/cli/v2
 # github.com/valyala/bytebufferpool v1.0.0
@@ -519,8 +519,10 @@ go.opentelemetry.io/otel/trace
 # go.uber.org/atomic v1.10.0
 ## explicit; go 1.18
 go.uber.org/atomic
-# go.uber.org/goleak v1.1.11-0.20210813005559-691160354723
-## explicit; go 1.13
+# go.uber.org/goleak v1.2.0
+## explicit; go 1.18
+go.uber.org/goleak
+go.uber.org/goleak/internal/stack
 # golang.org/x/net v0.2.0
 ## explicit; go 1.17
 golang.org/x/net/context
