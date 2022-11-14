@@ -20,6 +20,10 @@ const GlobalSettings: FC = () => {
     handleClose();
   };
 
+  const createSetServer = () => () => {
+    setServer();
+  };
+
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
@@ -56,7 +60,7 @@ const GlobalSettings: FC = () => {
             </Button>
             <Button
               variant="contained"
-              onClick={() => setServer()}
+              onClick={createSetServer()}
             >
                 apply
             </Button>

@@ -18,6 +18,10 @@ const Accordion: FC<AccordionProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(defaultExpanded);
 
+  const toggleOpen = () => {
+    setIsOpen(prev => !prev);
+  };
+
   useEffect(() => {
     onChange && onChange(isOpen);
   }, [isOpen]);
@@ -26,7 +30,7 @@ const Accordion: FC<AccordionProps> = ({
     <>
       <header
         className={`vm-accordion-header ${isOpen && "vm-accordion-header_open"}`}
-        onClick={() => setIsOpen(prev => !prev)}
+        onClick={toggleOpen}
       >
         {title}
         <div className={`vm-accordion-header__arrow ${isOpen && "vm-accordion-header__arrow_open"}`}>

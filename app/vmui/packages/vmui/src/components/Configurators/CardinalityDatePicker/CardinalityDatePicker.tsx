@@ -5,7 +5,7 @@ import Button from "../../Main/Button/Button";
 import { CalendarIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import { getAppModeEnable } from "../../../utils/app-mode";
-import { DATE_FORMAT } from "../../../constants/config";
+import { DATE_FORMAT } from "../../../constants/date";
 import DatePicker from "../../Main/DatePicker/DatePicker";
 
 const CardinalityDatePicker: FC = () => {

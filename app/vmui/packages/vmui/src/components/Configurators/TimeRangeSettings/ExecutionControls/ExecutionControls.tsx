@@ -66,6 +66,18 @@ export const ExecutionControls: FC = () => {
   const [openOptions, setOpenOptions] = useState(false);
   const optionsButtonRef = useRef<HTMLDivElement>(null);
 
+  const toggleOpenOptions = () => {
+    setOpenOptions(prev => !prev);
+  };
+
+  const handleCloseOptions = () => {
+    setOpenOptions(false);
+  };
+
+  const createHandlerChange = (d: AutoRefreshOption) => () => {
+    handleChange(d);
+  };
+
   return <>
     <div className="vm-execution-controls">
       <div
@@ -98,7 +110,7 @@ export const ExecutionControls: FC = () => {
                   <ArrowDownIcon/>
                 </div>
               )}
-              onClick={() => setOpenOptions(prev => !prev)}
+              onClick={toggleOpenOptions}
             >
               {selectedDelay.title}
             </Button>
@@ -109,21 +121,22 @@ export const ExecutionControls: FC = () => {
     <Popper
       open={openOptions}
       placement="bottom-right"
-      onClose={() => setOpenOptions(false)}
+      onClose={handleCloseOptions}
       buttonRef={optionsButtonRef}
     >
       <div className="vm-execution-controls-list">
-        {delayOptions.map(d =>
+        {delayOptions.map(d => (
           <div
             className={classNames({
               "vm-list__item": true,
               "vm-list__item_active": d.seconds === selectedDelay.seconds
             })}
             key={d.seconds}
-            onClick={() => handleChange(d)}
+            onClick={createHandlerChange(d)}
           >
             {d.title}
-          </div>)}
+          </div>
+        ))}
       </div>
     </Popper>
   </>;

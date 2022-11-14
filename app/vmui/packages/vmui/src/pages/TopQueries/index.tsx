@@ -23,8 +23,6 @@ const Index: FC = () => {
   const topQueriesDispatch = useTopQueriesDispatch();
   useSetQueryParams();
 
-  const invalidTopN = useMemo(() => !!topN && topN < 1, [topN]);
-
   const maxLifetimeValid = useMemo(() => {
     const durItems = maxLifetime.trim().split(" ");
     const durObject = durItems.reduce((prev, curr) => {
@@ -34,6 +32,10 @@ const Index: FC = () => {
     const delta = dayjs.duration(durObject).asMilliseconds();
     return !!delta;
   }, [maxLifetime]);
+
+  const invalidTopN = useMemo(() => !!topN && topN < 1, [topN]);
+  const errorTopN = useMemo(() => invalidTopN ? "Number must be bigger than zero" : "", [invalidTopN]);
+  const errorMaxLife = useMemo(() => !maxLifetimeValid ? "Invalid duration value" : "", [maxLifetimeValid]);
 
   const getQueryStatsTitle = (key: keyof TopQueryStats) => {
     if (!data) return key;
@@ -73,7 +75,7 @@ const Index: FC = () => {
           <TextField
             label="Max lifetime"
             value={maxLifetime}
-            error={!maxLifetimeValid ? "Invalid duration value" : ""}
+            error={errorMaxLife}
             helperText={`For example ${exampleDuration}`}
             onChange={onMaxLifetimeChange}
             onKeyDown={onKeyDown}
@@ -82,7 +84,7 @@ const Index: FC = () => {
             label="Number of returned queries"
             type="number"
             value={topN || ""}
-            error={invalidTopN ? "Number must be bigger than zero" : ""}
+            error={errorTopN}
             onChange={onTopNChange}
             onKeyDown={onKeyDown}
           />

@@ -34,6 +34,10 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     });
   }, [sortedColumns, data, orderBy, orderDir]);
 
+  const createSortHandler = (key: string) => () => {
+    sortHandler(key);
+  };
+
   const sortHandler = (key: string) => {
     setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");
     setOrderBy(key);
@@ -47,9 +51,9 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
         <tr className="vm-table__row vm-table__row_header">
           {sortedColumns.map((col, index) => (
             <td
-              className="vm-table-cell vm-table-cell_header"
+              className="vm-table-cell vm-table-cell_header vm-table-cell_sort"
               key={index}
-              onClick={() => sortHandler(col.key)}
+              onClick={createSortHandler(col.key)}
             >
               <div className="vm-table-cell__content">
                 {col.key}
@@ -66,8 +70,8 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
             </td>
           ))}
           <td
-            className="vm-table-cell vm-table-cell_header vm-table-cell_right"
-            onClick={() => sortHandler("Value")}
+            className="vm-table-cell vm-table-cell_header vm-table-cell_right vm-table-cell_sort"
+            onClick={createSortHandler("Value")}
           >
             <div className="vm-table-cell__content">
               <div
@@ -93,10 +97,9 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
             {row.metadata.map((rowMeta, index2) => (
               <td
                 className={classNames({
-                  "vm-table-cell": true,
+                  "vm-table-cell vm-table-cell_no-wrap": true,
                   "vm-table-cell_gray":  rows[index - 1] && rows[index - 1].metadata[index2] === rowMeta
                 })}
-                style={{ whiteSpace: "nowrap" }}
                 key={index2}
               >
                 {rowMeta}

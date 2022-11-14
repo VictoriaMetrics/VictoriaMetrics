@@ -22,6 +22,14 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
   const buttonRef = useRef<HTMLDivElement>(null);
   useClickOutside(popperRef, () => setOpenPopper(false), buttonRef);
 
+  const handleOpen = () => {
+    setOpenPopper(true);
+  };
+
+  const handleClose = () => {
+    setOpenPopper(false);
+  };
+
   return (
     <div className="vm-graph-settings">
       <Tooltip title={title}>
@@ -29,7 +37,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
           <Button
             variant="text"
             startIcon={<SettingsIcon/>}
-            onClick={() => setOpenPopper(true)}
+            onClick={handleOpen}
           />
         </div>
       </Tooltip>
@@ -37,7 +45,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
         open={openPopper}
         buttonRef={buttonRef}
         placement="bottom-right"
-        onClose={() => setOpenPopper(false)}
+        onClose={handleClose}
       >
         <div
           className="vm-graph-settings-popper"
@@ -50,7 +58,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
             <Button
               size="small"
               startIcon={<CloseIcon/>}
-              onClick={() => setOpenPopper(false)}
+              onClick={handleClose}
             />
           </div>
           <div className="vm-graph-settings-popper__body">

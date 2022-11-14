@@ -2,7 +2,7 @@ import React, { FC, Ref, useEffect, useMemo, useState } from "preact/compat";
 import Calendar from "../../Main/DatePicker/Calendar/Calendar";
 import dayjs, { Dayjs } from "dayjs";
 import Popper from "../../Main/Popper/Popper";
-import { DATE_FULL_FORMAT } from "../../../constants/config";
+import { DATE_TIME_FORMAT } from "../../../constants/date";
 
 interface DatePickerProps {
   date: string | Date | Dayjs,
@@ -15,7 +15,7 @@ interface DatePickerProps {
 const DatePicker: FC<DatePickerProps> = ({
   date,
   targetRef,
-  format = DATE_FULL_FORMAT,
+  format = DATE_TIME_FORMAT,
   timepicker,
   onChange
 }) => {

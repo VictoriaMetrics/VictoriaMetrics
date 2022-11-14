@@ -10,7 +10,7 @@ interface CalendarYearsProps {
 const YearsList: FC<CalendarYearsProps> = ({ viewDate, onChangeViewDate }) => {
 
   const currentYear = useMemo(() => viewDate.format("YYYY"), [viewDate]);
-  const years = useMemo(() => {
+  const years: Dayjs[] = useMemo(() => {
     const displayYears = 206;
     const year = dayjs();
     const startYear = year.subtract(displayYears/2, "year");
@@ -23,6 +23,10 @@ const YearsList: FC<CalendarYearsProps> = ({ viewDate, onChangeViewDate }) => {
     selectedEl.scrollIntoView({ block: "center" });
   }, []);
 
+  const createHandlerClick = (year: Dayjs) => () => {
+    onChangeViewDate(year);
+  };
+
   return (
     <div className="vm-calendar-years">
       {years.map(y => (
@@ -33,7 +37,7 @@ const YearsList: FC<CalendarYearsProps> = ({ viewDate, onChangeViewDate }) => {
           })}
           id={`vm-calendar-year-${y.format("YYYY")}`}
           key={y.format("YYYY")}
-          onClick={() => onChangeViewDate(y)}
+          onClick={createHandlerClick(y)}
         >
           {y.format("YYYY")}
         </div>

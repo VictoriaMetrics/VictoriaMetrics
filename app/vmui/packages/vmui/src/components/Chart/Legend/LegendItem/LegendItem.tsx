@@ -1,9 +1,11 @@
 import React, { FC, useState, useMemo } from "preact/compat";
+import { MouseEvent } from "react";
 import { LegendItemType } from "../../../../utils/uplot/types";
 import { getLegendLabel } from "../../../../utils/uplot/helpers";
 import "./style.scss";
 import classNames from "classnames";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
+import { getFreeFields } from "./helpers";
 
 interface LegendItemProps {
   legend: LegendItemType;
@@ -11,16 +13,8 @@ interface LegendItemProps {
 }
 
 const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
-  const freeFormFields = useMemo(() => {
-    const keys = Object.keys(legend.freeFormFields).filter(f => f !== "__name__");
-    return keys.map(f => {
-      const freeField = `${f}="${legend.freeFormFields[f]}"`;
-      const id = `${legend.label}.${freeField}`;
-      return { id, key: f, freeField, };
-    });
-  }, [legend]);
-
   const [copiedValue, setCopiedValue] = useState("");
+  const freeFormFields = useMemo(() => getFreeFields(legend), [legend]);
 
   const handleClickFreeField = async (val: string, id: string) => {
     await navigator.clipboard.writeText(val);
@@ -28,13 +22,23 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
     setTimeout(() => setCopiedValue(""), 2000);
   };
 
+  const createHandlerClick = (legend: LegendItemType) => (e: MouseEvent<HTMLDivElement>) => {
+    onChange(legend, e.ctrlKey || e.metaKey);
+  };
+
+  const createHandlerCopy = (freeField: string, id: string) => (e: MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+    handleClickFreeField(freeField, id);
+  };
+
+
   return (
     <div
       className={classNames({
         "vm-legend-item": true,
         "vm-legend-item_hide": !legend.checked,
       })}
-      onClick={(e) => onChange(legend, e.ctrlKey || e.metaKey)}
+      onClick={createHandlerClick(legend)}
     >
       <div
         className="vm-legend-item__marker"
@@ -46,8 +50,6 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
         </span>
 
         &#160;&#123;
-
-
         {freeFormFields.map(f => (
           <Tooltip
             key={f.id}
@@ -57,10 +59,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
             <span
               className="vm-legend-item-info__free-fields"
               key={f.key}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClickFreeField(f.freeField, f.id);
-              }}
+              onClick={createHandlerCopy(f.freeField, f.id)}
             >
               {f.freeField}
             </span>

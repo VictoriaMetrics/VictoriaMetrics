@@ -13,7 +13,7 @@ const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday
 const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSelectDate }) => {
   const today = dayjs().startOf("day");
 
-  const days = useMemo(() => {
+  const days: (Dayjs|null)[] = useMemo(() => {
     const result = new Array(42).fill(null);
     const startDate = viewDate.startOf("month");
     const endDate = viewDate.endOf("month");
@@ -23,6 +23,10 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSel
     result.splice(startOfWeek, days, ...monthDays);
     return result;
   }, [viewDate]);
+
+  const createHandlerSelectDate = (d: Dayjs | null) => () => {
+    if (d) onChangeSelectDate(d);
+  };
 
   return (
     <div className="vm-calendar-body">
@@ -45,7 +49,7 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSel
             "vm-calendar-body-cell_day_today": (d && d.toISOString()) === today.toISOString()
           })}
           key={d ? d.toISOString() : i}
-          onClick={() => onChangeSelectDate(d)}
+          onClick={createHandlerSelectDate(d)}
         >
           {d && d.format("D")}
         </div>

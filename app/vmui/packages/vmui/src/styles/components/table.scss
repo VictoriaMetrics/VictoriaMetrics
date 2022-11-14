@@ -27,7 +27,6 @@
 
   &-cell {
     padding: $padding-small;
-    //font-size: $font-size-small;
     border-bottom: $border-divider;
     height: 40px;
     vertical-align: middle;
@@ -62,6 +61,10 @@
 
     &_right &__content {
       justify-content: flex-end;
+    }
+
+    &_no-wrap {
+      white-space: nowrap;
     }
   }
 

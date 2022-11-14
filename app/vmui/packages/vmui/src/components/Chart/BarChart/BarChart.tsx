@@ -10,7 +10,6 @@ const BarChart: FC<BarChartProps> = ({
   configs }) => {
 
   const uPlotRef = useRef<HTMLDivElement>(null);
-  const [isPanning] = useState(false);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const layoutSize = useResize(container);
 
@@ -22,7 +21,6 @@ const BarChart: FC<BarChartProps> = ({
   const updateChart = (): void => {
     if (!uPlotInst) return;
     uPlotInst.setData(data);
-    if (!isPanning) uPlotInst.redraw();
   };
 
   useEffect(() => {
@@ -34,7 +32,7 @@ const BarChart: FC<BarChartProps> = ({
 
   useEffect(() => updateChart(), [data]);
 
-  return <div style={{ pointerEvents: isPanning ? "none" : "auto", height: "100%" }}>
+  return <div style={{ height: "100%" }}>
     <div ref={uPlotRef}/>
   </div>;
 };

@@ -2,7 +2,7 @@ import React, { FC, useEffect } from "preact/compat";
 import ReactDOM from "react-dom";
 import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
-import { ReactNode } from "react";
+import { ReactNode, MouseEvent } from "react";
 import "./style.scss";
 
 interface ModalProps {
@@ -15,6 +15,10 @@ const Modal: FC<ModalProps> = ({ title, children, onClose }) => {
 
   const handleKeyUp = (e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
+  };
+
+  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
   };
 
   useEffect(() => {
@@ -49,7 +53,7 @@ const Modal: FC<ModalProps> = ({ title, children, onClose }) => {
         </div>
         <div
           className="vm-modal-content-body"
-          onMouseDown={(e) => e.stopPropagation()}
+          onMouseDown={handleMouseDown}
         >
           {children}
         </div>

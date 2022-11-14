@@ -67,6 +67,14 @@ const ShortcutKeys: FC = () => {
   const [openList, setOpenList] = useState(false);
   const appModeEnable = getAppModeEnable();
 
+  const handleOpen = () => {
+    setOpenList(true);
+  };
+
+  const handleClose = () => {
+    setOpenList(false);
+  };
+
   return <>
     <Tooltip
       title="Shortcut keys"
@@ -77,14 +85,14 @@ const ShortcutKeys: FC = () => {
         variant="contained"
         color="primary"
         startIcon={<KeyboardIcon/>}
-        onClick={() => setOpenList(prev => !prev)}
+        onClick={handleOpen}
       />
     </Tooltip>
 
     {openList && (
       <Modal
         title={"Shortcut keys"}
-        onClose={() => setOpenList(false)}
+        onClose={handleClose}
       >
         <div className="vm-shortcuts">
           {keyList.map(section => (

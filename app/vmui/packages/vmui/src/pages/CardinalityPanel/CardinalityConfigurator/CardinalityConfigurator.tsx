@@ -8,6 +8,7 @@ import { PlayIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
+import { useMemo } from "preact/compat";
 
 export interface CardinalityConfiguratorProps {
   onSetHistory: (step: number) => void;
@@ -45,8 +46,18 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
 
   const { queryOptions } = useFetchQueryOptions();
 
+  const errorTopN = useMemo(() => topN < 1 ? "Number must be bigger than zero" : "", [topN]);
+
   const onChangeAutocomplete = () => {
     queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
+  };
+
+  const handleArrowUp = () => {
+    onSetHistory(-1);
+  };
+
+  const handleArrowDown = () => {
+    onSetHistory(1);
   };
 
   return <div className="vm-cardinality-configurator vm-block">
@@ -57,10 +68,10 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           autocomplete={autocomplete}
           options={queryOptions}
           error={error}
-          onArrowUp={() => onSetHistory(-1)}
-          onArrowDown={() => onSetHistory(1)}
+          onArrowUp={handleArrowUp}
+          onArrowDown={handleArrowDown}
           onEnter={onRunQuery}
-          onChange={(value) => onSetQuery(value)}
+          onChange={onSetQuery}
           label={"Time series selector"}
         />
       </div>
@@ -69,7 +80,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           label="Number of entries per table"
           type="number"
           value={topN}
-          error={topN < 1 ? "Number must be bigger than zero" : ""}
+          error={errorTopN}
           onChange={onTopNChange}
         />
       </div>

@@ -19,6 +19,11 @@ const Tabs: FC<TabsProps> = ({
 }) => {
   const activeNavRef = useRef<HTMLDivElement>(null);
   const [indicatorPosition, setIndicatorPosition] = useState({ left: 0, width: 0, bottom: 0 });
+
+  const createHandlerClickTab = (value: string) => () => {
+    onChange(value);
+  };
+
   useEffect(() => {
     if(activeNavRef.current) {
       const { offsetLeft: left, offsetWidth: width } = activeNavRef.current;
@@ -37,7 +42,7 @@ const Tabs: FC<TabsProps> = ({
         ref={activeItem === item.value ? activeNavRef : undefined}
         key={item.value}
         style={{ color: color }}
-        onClick={() => onChange(item.value)}
+        onClick={createHandlerClickTab(item.value)}
       >
         {item.icon && (
           <div

@@ -61,6 +61,10 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
 
   const handleChangeExpanded = (val: boolean) => setExpanded(val);
 
+  const createHandlerResize = (index: number) => (e: ReactMouseEvent<HTMLButtonElement>) => {
+    handleMouseDown(e, index);
+  };
+
   useEffect(() => {
     window.addEventListener("mousemove", handleMouseMove);
     window.addEventListener("mouseup", handleMouseUp);
@@ -109,11 +113,11 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
               />
               <button
                 className="vm-predefined-dashboard-panels-panel__resizer"
-                onMouseDown={(e) => handleMouseDown(e, i)}
+                onMouseDown={createHandlerResize(i)}
               />
             </div>
           )
-          : <div style={{ gridColumn: "span 12" }}>
+          : <div className="vm-predefined-dashboard-panels-panel__alert">
             <Alert variant="error">
               <code>&quot;panels&quot;</code> not found. Check the configuration file <b>{filename}</b>.
             </Alert>

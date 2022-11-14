@@ -14,7 +14,7 @@ interface StepConfiguratorProps {
 const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) => {
 
   const [customStep, setCustomStep] = useState(defaultStep);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
 
   const handleApply = (step: number) => setStep(step || 1);
   const debouncedHandleApply = useCallback(debounce(handleApply, 700), []);
@@ -29,10 +29,14 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) =
     if (value > 0) {
       setCustomStep(value);
       debouncedHandleApply(value);
-      setError(false);
+      setError("");
     } else {
-      setError(true);
+      setError("step is out of allowed range");
     }
+  };
+
+  const handleReset = () => {
+    handleSetStep(defaultStep || 1);
   };
 
   useEffect(() => {
@@ -44,7 +48,7 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) =
       label="Step value"
       type="number"
       value={customStep}
-      error={error ? "step is out of allowed range" : ""}
+      error={error}
       onChange={onChangeStep}
       endIcon={(
         <Tooltip title="Reset step to default">
@@ -52,7 +56,7 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) =
             variant={"text"}
             size={"small"}
             startIcon={<RestartIcon/>}
-            onClick={() => handleSetStep(defaultStep || 1)}
+            onClick={handleReset}
           />
         </Tooltip>
       )}

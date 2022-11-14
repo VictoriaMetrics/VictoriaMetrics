@@ -1,6 +1,7 @@
 import dayjs from "dayjs";
 import { SetupTooltip } from "./types";
 import { getColorLine, formatPrettyNumber, getLegendLabel } from "./helpers";
+import { DATE_FULL_TIMEZONE_FORMAT } from "../../constants/date";
 
 // TODO create jsx component
 export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = "" }: SetupTooltip): void => {
@@ -24,7 +25,7 @@ export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOff
   tooltip.style.left = `${tooltipOffset.left + lft + 10 - (overflowX ? tooltipWidth + 20 : 0)}px`;
   const metricName = (selectedSeries.label || "").replace(/{.+}/gmi, "").trim();
   const name = getLegendLabel(metricName);
-  const date = dayjs(new Date(dataTime * 1000)).format("YYYY-MM-DD HH:mm:ss:SSS (Z)");
+  const date = dayjs(new Date(dataTime * 1000)).format(DATE_FULL_TIMEZONE_FORMAT);
   const info = Object.keys(metric).filter(k => k !== "__name__").map(k => `<div><b>${k}</b>: ${metric[k]}</div>`).join("");
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
   tooltip.innerHTML = `<div>${date}</div>

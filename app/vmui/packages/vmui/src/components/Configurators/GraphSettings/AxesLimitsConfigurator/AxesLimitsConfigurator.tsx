@@ -23,6 +23,10 @@ const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYax
   };
   const debouncedOnChangeLimit = useCallback(debounce(onChangeLimit, 500), [yaxis.limits.range]);
 
+  const createHandlerOnchangeAxis = (axis: string, index: number) => (val: string) => {
+    debouncedOnChangeLimit(val, axis, index);
+  };
+
   return <div className="vm-axes-limits">
     <Switch
       value={yaxis.limits.enable}
@@ -40,14 +44,14 @@ const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYax
             type="number"
             disabled={!yaxis.limits.enable}
             value={yaxis.limits.range[axis][0]}
-            onChange={(val) => debouncedOnChangeLimit(val, axis, 0)}
+            onChange={createHandlerOnchangeAxis(axis, 0)}
           />
           <TextField
             label={`Max ${axis}`}
             type="number"
             disabled={!yaxis.limits.enable}
             value={yaxis.limits.range[axis][1]}
-            onChange={(val) => debouncedOnChangeLimit(val, axis, 1)}
+            onChange={createHandlerOnchangeAxis(axis, 1)}
           />
         </div>
       ))}

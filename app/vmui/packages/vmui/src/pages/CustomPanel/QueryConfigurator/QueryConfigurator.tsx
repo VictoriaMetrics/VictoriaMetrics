@@ -3,7 +3,7 @@ import QueryEditor from "../../../components/Configurators/QueryEditor/QueryEdit
 import AdditionalSettings from "../../../components/Configurators/AdditionalSettings/AdditionalSettings";
 import { ErrorTypes } from "../../../types";
 import usePrevious from "../../../hooks/usePrevious";
-import { MAX_QUERY_FIELDS } from "../../../constants/config";
+import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
 import { DeleteIcon, PlayIcon, PlusIcon } from "../../../components/Main/Icons";
@@ -66,6 +66,18 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     });
   };
 
+  const createHandlerArrow = (step: number, i: number) => () => {
+    handleHistoryChange(step, i);
+  };
+
+  const createHandlerChangeQuery = (i: number) => (value: string) => {
+    handleChangeQuery(value, i);
+  };
+
+  const createHandlerRemoveQuery = (i: number) => () => {
+    onRemoveQuery(i);
+  };
+
   useEffect(() => {
     if (prevStateQuery && (stateQuery.length < prevStateQuery.filter(q => q).length)) {
       onRunQuery();
@@ -84,10 +96,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
             autocomplete={autocomplete}
             options={queryOptions}
             error={error}
-            onArrowUp={() => handleHistoryChange(-1, i)}
-            onArrowDown={() => handleHistoryChange(1, i)}
+            onArrowUp={createHandlerArrow(-1, i)}
+            onArrowDown={createHandlerArrow(1, i)}
             onEnter={onRunQuery}
-            onChange={(value) => handleChangeQuery(value, i)}
+            onChange={createHandlerChangeQuery(i)}
             label={`Query ${i + 1}`}
             size={"small"}
           />
@@ -98,7 +110,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
                   variant={"text"}
                   color={"error"}
                   startIcon={<DeleteIcon/>}
-                  onClick={() => onRemoveQuery(i)}
+                  onClick={createHandlerRemoveQuery(i)}
                 />
               </div>
             </Tooltip>

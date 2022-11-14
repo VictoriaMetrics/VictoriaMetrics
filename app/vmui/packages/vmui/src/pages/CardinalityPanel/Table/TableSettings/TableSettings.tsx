@@ -44,6 +44,14 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange 
     onChange(checkedColumns);
   };
 
+  const createHandlerChange = (key: string) => () => {
+    handleChange(key);
+  };
+
+  const toggleOpenSettings = () => {
+    setOpenSettings(prev => !prev);
+  };
+
   useEffect(() => {
     setCheckedColumns(columns.map(col => col.key));
   }, [columns]);
@@ -55,7 +63,7 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange 
           <Button
             variant="text"
             startIcon={<SettingsIcon/>}
-            onClick={() => setOpenSettings(prev => !prev)}
+            onClick={toggleOpenSettings}
             disabled={disabledButton}
           />
         </div>
@@ -85,7 +93,7 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange 
               >
                 <Checkbox
                   checked={checkedColumns.includes(col.key)}
-                  onChange={() => handleChange(col.key)}
+                  onChange={createHandlerChange(col.key)}
                   label={col.key}
                 />
               </div>

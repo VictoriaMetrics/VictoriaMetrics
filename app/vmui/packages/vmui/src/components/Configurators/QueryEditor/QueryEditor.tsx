@@ -39,11 +39,6 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
   const wrapperEl = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
-    setOpenAutocomplete(autocomplete && value.length > 2 && words <= 1);
-  }, [autocomplete, value]);
-
   const foundOptions = useMemo(() => {
     setFocusOption(0);
     if (!openAutocomplete) return [];
@@ -98,6 +93,20 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
   };
 
+  const handleCloseAutocomplete = () => {
+    setOpenAutocomplete(false);
+  };
+
+  const createHandlerOnChangeAutocomplete = (item: string) => () => {
+    onChange(item);
+    handleCloseAutocomplete();
+  };
+
+  useEffect(() => {
+    const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
+    setOpenAutocomplete(autocomplete && value.length > 2 && words <= 1);
+  }, [autocomplete, value]);
+
   useEffect(() => {
     if (!wrapperEl.current) return;
     const target = wrapperEl.current.childNodes[focusOption] as HTMLElement;
@@ -118,13 +127,12 @@ const QueryEditor: FC<QueryEditorProps> = ({
       error={error}
       onKeyDown={handleKeyDown}
       onChange={onChange}
-      // size={size}
     />
     <Popper
       open={openAutocomplete}
       buttonRef={autocompleteAnchorEl}
       placement="bottom-left"
-      onClose={() => setOpenAutocomplete(false)}
+      onClose={handleCloseAutocomplete}
     >
       <div
         className="vm-query-editor-autocomplete"
@@ -138,10 +146,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
             })}
             id={`$autocomplete$${item}`}
             key={item}
-            onClick={() => {
-              onChange(item);
-              setOpenAutocomplete(false);
-            }}
+            onClick={createHandlerOnChangeAutocomplete(item)}
           >
             {item}
           </div>)}

@@ -9,11 +9,9 @@ import Button from "../../../Main/Button/Button";
 import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
-import { DATE_FULL_FORMAT } from "../../../../constants/config";
+import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import useResize from "../../../../hooks/useResize";
 import DatePicker from "../../../Main/DatePicker/DatePicker";
-
-const formatDate = "YYYY-MM-DD HH:mm:ss";
 
 export const TimeSelector: FC = () => {
   const documentSize = useResize(document.body);
@@ -22,8 +20,8 @@ export const TimeSelector: FC = () => {
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
 
-  const formFormat = useMemo(() => dayjs(from).format(DATE_FULL_FORMAT), [from]);
-  const untilFormat = useMemo(() => dayjs(until).format(DATE_FULL_FORMAT), [until]);
+  const formFormat = useMemo(() => dayjs(from).format(DATE_TIME_FORMAT), [from]);
+  const untilFormat = useMemo(() => dayjs(until).format(DATE_TIME_FORMAT), [until]);
 
   const { period: { end, start }, relativeTime } = useTimeState();
   const dispatch = useTimeDispatch();
@@ -43,13 +41,20 @@ export const TimeSelector: FC = () => {
   };
 
   const formatRange = useMemo(() => {
-    const startFormat = dayjs(dateFromSeconds(start)).format(formatDate);
-    const endFormat = dayjs(dateFromSeconds(end)).format(formatDate);
+    const startFormat = dayjs(dateFromSeconds(start)).format(DATE_TIME_FORMAT);
+    const endFormat = dayjs(dateFromSeconds(end)).format(DATE_TIME_FORMAT);
     return {
       start: startFormat,
       end: endFormat
     };
   }, [start, end]);
+
+  const dateTitle = useMemo(() => {
+    if (relativeTime && relativeTime !== "none") {
+      return relativeTime.replace(/_/g, " ");
+    }
+    return  `${formatRange.start} - ${formatRange.end}`;
+  }, [relativeTime, formatRange]);
 
   const fromRef = useRef<HTMLDivElement>(null);
   const untilRef = useRef<HTMLDivElement>(null);
@@ -76,6 +81,14 @@ export const TimeSelector: FC = () => {
     setOpenOptions(false);
   };
 
+  const toggleOpenOptions = () => {
+    setOpenOptions(prev => !prev);
+  };
+
+  const handleCloseOptions = () => {
+    setOpenOptions(false);
+  };
+
   return <>
     <div ref={buttonRef}>
       <Tooltip title="Time range controls">
@@ -84,13 +97,9 @@ export const TimeSelector: FC = () => {
           variant="contained"
           color="primary"
           startIcon={<ClockIcon/>}
-          onClick={() => setOpenOptions(prev => !prev)}
+          onClick={toggleOpenOptions}
         >
-          {displayFullDate && <span>
-            {relativeTime && relativeTime !== "none"
-              ? relativeTime.replace(/_/g, " ")
-              : `${formatRange.start} - ${formatRange.end}`}
-          </span>}
+          {displayFullDate && <span>{dateTitle}</span>}
         </Button>
       </Tooltip>
     </div>
@@ -98,7 +107,7 @@ export const TimeSelector: FC = () => {
       open={openOptions}
       buttonRef={buttonRef}
       placement="bottom-right"
-      onClose={() => setOpenOptions(false)}
+      onClose={handleCloseOptions}
     >
       <div className="vm-time-selector">
         <div className="vm-time-selector-left">

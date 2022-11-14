@@ -1,6 +1,5 @@
 import React, { FC, useState, useEffect } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
-// import TableView from "../../components/Views/TableView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
 import JsonView from "../../components/Views/JsonView/JsonView";

@@ -4,7 +4,7 @@ import CalendarHeader from "./CalendarHeader/CalendarHeader";
 import CalendarBody from "./CalendarBody/CalendarBody";
 import YearsList from "./YearsList/YearsList";
 import TimePicker from "../TImePicker/TimePicker";
-import { DATE_FULL_FORMAT } from "../../../../constants/config";
+import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import "./style.scss";
 
 interface DatePickerProps {
@@ -17,7 +17,7 @@ interface DatePickerProps {
 const Calendar: FC<DatePickerProps> = ({
   date,
   timepicker = false,
-  format = DATE_FULL_FORMAT,
+  format = DATE_TIME_FORMAT,
   onChange
 }) => {
   const [displayYears, setDisplayYears] = useState(false);

@@ -14,17 +14,18 @@ const JsonView: FC<JsonViewProps> = ({ data }) => {
 
   const formattedJson = useMemo(() => JSON.stringify(data, null, 2), [data]);
 
+  const handlerCopy = () => {
+    navigator.clipboard.writeText(formattedJson);
+    showInfoMessage({ text: "Formatted JSON has been copied", type: "success" });
+  };
+
   return (
     <div className="vm-json-view">
       <div className="vm-json-view__copy">
         <Button
           variant="outlined"
           fullWidth={false}
-          onClick={(e) => {
-            navigator.clipboard.writeText(formattedJson);
-            showInfoMessage({ text: "Formatted JSON has been copied", type: "success" });
-            e.preventDefault(); // needed to avoid snackbar immediate disappearing
-          }}
+          onClick={handlerCopy}
         >
           Copy JSON
         </Button>

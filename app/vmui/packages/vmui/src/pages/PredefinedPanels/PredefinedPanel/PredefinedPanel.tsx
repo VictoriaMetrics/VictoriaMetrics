@@ -119,7 +119,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       <div className="vm-predefined-panel-header__step">
         <StepConfigurator
           defaultStep={period.step}
-          setStep={(value) => setCustomStep(value)}
+          setStep={setCustomStep}
         />
       </div>
       <GraphSettings

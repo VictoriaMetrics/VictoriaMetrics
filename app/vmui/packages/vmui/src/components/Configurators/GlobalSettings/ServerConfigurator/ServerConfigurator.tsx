@@ -24,14 +24,18 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ setServer , onEnter }
     if (!isValidHttpUrl(value)) setError(ErrorTypes.validServer);
   };
 
+  const handleEnter = () => {
+    onEnter(changedServerUrl);
+  };
+
   return (
     <TextField
       autofocus
       label="Server URL"
-      value={changedServerUrl || ""}
+      value={changedServerUrl}
       error={error}
       onChange={onChangeServer}
-      onEnter={() => onEnter(changedServerUrl)}
+      onEnter={handleEnter}
     />
   );
 };

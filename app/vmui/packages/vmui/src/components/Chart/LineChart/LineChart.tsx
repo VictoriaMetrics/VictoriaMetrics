@@ -11,7 +11,8 @@ import useResize from "../../../hooks/useResize";
 import { TimeParams } from "../../../types";
 import { YaxisState } from "../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
-import "./tooltip.css";
+import "./style.scss";
+import classNames from "classnames";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -186,7 +187,12 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
-  return <div style={{ pointerEvents: isPanning ? "none" : "auto", height: "500px" }}>
+  return <div
+    className={classNames({
+      "vm-line-chart": true,
+      "vm-line-chart_panning": isPanning
+    })}
+  >
     <div ref={uPlotRef}/>
   </div>;
 };
