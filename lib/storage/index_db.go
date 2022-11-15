@@ -947,6 +947,63 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	return nil
 }
 
+// SearchTenants returns all tenants from global index.
+func (db *indexDB) SearchTenants(qt *querytracer.Tracer, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for tenants")
+	defer qt.Done()
+	tenants := make(map[string]struct{})
+	qtChild := qt.NewChild("search for tenants in global index")
+	defer qtChild.Done()
+
+	is := db.getIndexSearch(0, 0, deadline)
+
+	loopsPaceLimiter := 0
+
+	ts := &is.ts
+	kb := &is.kb
+	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], uint64(0))
+	ts.Seek(kb.B)
+	var acctID, projID uint32
+
+	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return nil, err
+			}
+		}
+		loopsPaceLimiter++
+		item := ts.Item
+		if !bytes.HasPrefix(item, kb.B) {
+			var err error
+			_, _, acctID, projID, err = unmarshalCommonPrefix(item)
+			if err != nil {
+				return nil, err
+			}
+
+			tenant := fmt.Sprintf("%d:%d", acctID, projID)
+			if _, ok := tenants[tenant]; ok {
+				break
+			}
+
+			tenants[tenant] = struct{}{}
+			kb.B = marshalCommonPrefix(kb.B[:0], byte(nsPrefixTagToMetricIDs), acctID, projID)
+
+			ts.Seek(kb.B)
+		}
+	}
+
+	if err := ts.Error(); err != nil {
+		return nil, fmt.Errorf("error during search for prefix %q: %w", kb.B, err)
+	}
+
+	tenantsList := make([]string, 0)
+	for tenant := range tenants {
+		tenantsList = append(tenantsList, tenant)
+	}
+
+	return tenantsList, nil
+}
+
 // SearchLabelValuesWithFiltersOnTimeRange returns label values for the given labelName, tfss and tr.
 func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters, tr TimeRange,
 	maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {

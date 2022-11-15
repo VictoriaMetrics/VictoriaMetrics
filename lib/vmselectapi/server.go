@@ -59,6 +59,7 @@ type Server struct {
 	tsdbStatusRequests          *metrics.Counter
 	searchMetricNamesRequests   *metrics.Counter
 	searchRequests              *metrics.Counter
+	tenantsRequests             *metrics.Counter
 
 	metricBlocksRead *metrics.Counter
 	metricRowsRead   *metrics.Counter
@@ -103,6 +104,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		tsdbStatusRequests:          metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tsdbStatus",addr=%q}`, addr)),
 		searchMetricNamesRequests:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="searchMetricNames",addr=%q}`, addr)),
 		searchRequests:              metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="search",addr=%q}`, addr)),
+		tenantsRequests:             metrics.NewCounter(fmt.Sprintf(`vm_vmselect_rpc_requests_total{action="tenants",addr=%q}`, addr)),
 
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
 		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
@@ -485,6 +487,8 @@ func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
 		return s.processDeleteSeries(ctx)
 	case "registerMetricNames_v3":
 		return s.processRegisterMetricNames(ctx)
+	case "tenants_v1":
+		return s.processTenants(ctx)
 	default:
 		return fmt.Errorf("unsupported rpcName: %q", rpcName)
 	}
@@ -763,6 +767,33 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 
 	// Send status to vmselect.
 	return writeTSDBStatus(ctx, status)
+}
+
+func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
+	s.tenantsRequests.Inc()
+
+	// Execute the request
+	tenants, err := s.api.Tenants(ctx.qt, ctx.deadline)
+	if err != nil {
+		return ctx.writeErrorMessage(err)
+	}
+
+	// Send an empty error message to vmselect.
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send empty error message: %w", err)
+	}
+
+	// Send tenants to vmselect
+	for _, tenant := range tenants {
+		if err := ctx.writeString(tenant); err != nil {
+			return fmt.Errorf("cannot write label name %q: %w", tenant, err)
+		}
+	}
+	// Send 'end of response' marker
+	if err := ctx.writeString(""); err != nil {
+		return fmt.Errorf("cannot send 'end of response' marker")
+	}
+	return nil
 }
 
 func writeTSDBStatus(ctx *vmselectRequestCtx, status *storage.TSDBStatus) error {

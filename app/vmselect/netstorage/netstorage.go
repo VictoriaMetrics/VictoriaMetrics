@@ -880,6 +880,57 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 	return labelValues, isPartial, nil
 }
 
+// Tenants returns tenants until the given deadline.
+func Tenants(qt *querytracer.Tracer, denyPartialResponse bool, deadline searchutils.Deadline) ([]string, bool, error) {
+	qt = qt.NewChild("get tenants")
+	defer qt.Done()
+	if deadline.Exceeded() {
+		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+	}
+
+	// Send the query to all the storage nodes in parallel.
+	type nodeResult struct {
+		tenants []string
+		err     error
+	}
+	sns := getStorageNodes()
+	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+		sn.tenantsRequests.Inc()
+		tenants, err := sn.getTenants(qt, nil, deadline)
+		if err != nil {
+			sn.tenantsErrors.Inc()
+			err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
+		}
+		return &nodeResult{
+			tenants: tenants,
+			err:     err,
+		}
+	})
+
+	// Collect results
+	var tenants []string
+	isPartial, err := snr.collectResults(partialLabelValuesResults, func(result interface{}) error {
+		nr := result.(*nodeResult)
+		if nr.err != nil {
+			return nr.err
+		}
+		tenants = append(tenants, nr.tenants...)
+		return nil
+	})
+	qt.Printf("get %d non-duplicated tenants", len(tenants))
+	if err != nil {
+		return nil, isPartial, fmt.Errorf("cannot fetch tenants from vmstorage nodes: %w", err)
+	}
+
+	// Deduplicate label values
+	tenants = deduplicateStrings(tenants)
+	qt.Printf("get %d unique tenants after de-duplication", len(tenants))
+
+	sort.Strings(tenants)
+	qt.Printf("sort %d tenants", len(tenants))
+	return tenants, isPartial, nil
+}
+
 // GraphiteTagValues returns tag values for the given tagName until the given deadline.
 func GraphiteTagValues(qt *querytracer.Tracer, accountID, projectID uint32, denyPartialResponse bool, tagName, filter string, limit int, deadline searchutils.Deadline) ([]string, bool, error) {
 	qt = qt.NewChild("get graphite tag values for tagName=%s, filter=%s, limit=%d", tagName, filter, limit)
@@ -1593,6 +1644,12 @@ type storageNode struct {
 
 	// The number of read metric rows.
 	metricRowsRead *metrics.Counter
+
+	// The number of list tenants requests to storageNode.
+	tenantsRequests *metrics.Counter
+
+	// The number of list tenants errors to storageNode.
+	tenantsErrors *metrics.Counter
 }
 
 func (sn *storageNode) registerMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline searchutils.Deadline) error {
@@ -1651,6 +1708,22 @@ func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, labelName string, 
 		return nil, err
 	}
 	return labelValues, nil
+}
+
+func (sn *storageNode) getTenants(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) ([]string, error) {
+	var tenants []string
+	f := func(bc *handshake.BufferedConn) error {
+		tenant, err := sn.getTenantsOnConn(bc, requestData)
+		if err != nil {
+			return err
+		}
+		tenants = tenant
+		return nil
+	}
+	if err := sn.execOnConnWithPossibleRetry(qt, "tenants_v1", f, deadline); err != nil {
+		return nil, err
+	}
+	return tenants, nil
 }
 
 func (sn *storageNode) getTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr storage.TimeRange, tagKey, tagValuePrefix string,
@@ -1958,6 +2031,7 @@ func (sn *storageNode) getLabelNamesOnConn(bc *handshake.BufferedConn, requestDa
 }
 
 const maxLabelValueSize = 16 * 1024 * 1024
+const maxTenantValueSize = 16 * 1024 * 1024 // TODO: calc 'uint32:uint32'
 
 func (sn *storageNode) getLabelValuesOnConn(bc *handshake.BufferedConn, labelName string, requestData []byte, maxLabelValues int) ([]string, error) {
 	// Send the request to sn.
@@ -2004,6 +2078,45 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 			return labelValues, buf, nil
 		}
 		labelValues = append(labelValues, string(buf))
+	}
+}
+
+// TODO: cleanup
+func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, _ []byte) ([]string, error) {
+	if err := bc.Flush(); err != nil {
+		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
+	}
+
+	// Read response error.
+	buf, err := readBytes(nil, bc, maxErrorMessageSize)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read error message: %w", err)
+	}
+	if len(buf) > 0 {
+		return nil, newErrRemote(buf)
+	}
+
+	// Read response
+	tenants, _, err := readTenants(buf, bc)
+	if err != nil {
+		return nil, err
+	}
+	return tenants, nil
+}
+
+func readTenants(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, error) {
+	var tenants []string
+	for {
+		var err error
+		buf, err = readBytes(buf[:0], bc, maxTenantValueSize)
+		if err != nil {
+			return nil, buf, fmt.Errorf("cannot read tenant: %w", err)
+		}
+		if len(buf) == 0 {
+			// Reached the end of the response
+			return tenants, buf, nil
+		}
+		tenants = append(tenants, string(buf))
 	}
 }
 
@@ -2436,6 +2549,8 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 			searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 			searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+			tenantsErrors:               ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 
 			metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
 			metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),

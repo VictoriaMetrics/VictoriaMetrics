@@ -116,6 +116,10 @@ func (api *vmstorageAPI) SeriesCount(qt *querytracer.Tracer, accountID, projectI
 	return api.s.GetSeriesCount(accountID, projectID, deadline)
 }
 
+func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, deadline uint64) ([]string, error) {
+	return api.s.SearchTenants(qt, deadline)
+}
+
 func (api *vmstorageAPI) TSDBStatus(qt *querytracer.Tracer, sq *storage.SearchQuery, focusLabel string, topN int, deadline uint64) (*storage.TSDBStatus, error) {
 	tr := sq.GetTimeRange()
 	maxMetrics := getMaxMetrics(sq)

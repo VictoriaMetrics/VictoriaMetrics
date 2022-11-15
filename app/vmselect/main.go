@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -245,6 +246,35 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			globalTopQueriesErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
+		}
+		return true
+	}
+	if path == "/admin/tenants" {
+		tenantsRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
+		denyPartial := searchutils.GetDenyPartialResponse(r)
+		tenants, isPartial, err := netstorage.Tenants(qt, denyPartial, deadline)
+		if err != nil {
+			tenantsErrors.Inc()
+			httpserver.Errorf(w, r, "auth error: %s", err)
+			return true
+		}
+
+		response := struct {
+			Data      []string `json:"data"`
+			IsPartial bool     `json:"partial"`
+		}{
+			Data:      tenants,
+			IsPartial: isPartial,
+		}
+
+		if tenants == nil {
+			response.Data = make([]string, 0)
+		}
+
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			logger.Fatalf("cannot marshal tenants: %s", err)
 		}
 		return true
 	}
@@ -734,6 +764,9 @@ var (
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/query_exemplars"}`)
+
+	tenantsRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/tenants"}`)
+	tenantsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/tenants"}`)
 
 	httpRequests         = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_total`)
 	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_duration_ms_total`)
