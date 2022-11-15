@@ -274,7 +274,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 
 		if err := json.NewEncoder(w).Encode(response); err != nil {
-			logger.Fatalf("cannot marshal tenants: %s", err)
+			logger.Warnf("cannot marshal tenants: %s", err)
 		}
 		return true
 	}
