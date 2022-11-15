@@ -334,8 +334,7 @@ func (ib *inmemoryBlock) marshalData(sb *storageBlock, firstItemDst, commonPrefi
 	return firstItemDst, commonPrefixDst, uint32(len(ib.items)), marshalTypeZSTD
 }
 
-// UnmarshalData decodes itemsCount items from sb and firstItem and stores
-// them to ib.
+// UnmarshalData decodes itemsCount items from sb and firstItem and stores them to ib.
 func (ib *inmemoryBlock) UnmarshalData(sb *storageBlock, firstItem, commonPrefix []byte, itemsCount uint32, mt marshalType) error {
 	ib.Reset()
 
