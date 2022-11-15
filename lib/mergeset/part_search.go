@@ -286,7 +286,7 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 		return nil, fmt.Errorf("cannot decompress index block: %w", err)
 	}
 	idxb := &indexBlock{}
-	idxb.bhs, err = unmarshalBlockHeaders(idxb.bhs[:0], ps.indexBuf, int(mr.blockHeadersCount))
+	idxb.bhs, err = unmarshalBlockHeadersNoCopy(idxb.bhs[:0], ps.indexBuf, int(mr.blockHeadersCount))
 	if err != nil {
 		return nil, fmt.Errorf("cannot unmarshal block headers from index block (offset=%d, size=%d): %w", mr.indexBlockOffset, mr.indexBlockSize, err)
 	}
