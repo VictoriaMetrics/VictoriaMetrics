@@ -899,7 +899,7 @@ func Tenants(qt *querytracer.Tracer, denyPartialResponse bool, deadline searchut
 		tenants, err := sn.getTenants(qt, nil, deadline)
 		if err != nil {
 			sn.tenantsErrors.Inc()
-			err = fmt.Errorf("cannot get label values from vmstorage %s: %w", sn.connPool.Addr(), err)
+			err = fmt.Errorf("cannot get tenants from vmstorage %s: %w", sn.connPool.Addr(), err)
 		}
 		return &nodeResult{
 			tenants: tenants,

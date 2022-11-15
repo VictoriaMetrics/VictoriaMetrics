@@ -786,7 +786,7 @@ func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	// Send tenants to vmselect
 	for _, tenant := range tenants {
 		if err := ctx.writeString(tenant); err != nil {
-			return fmt.Errorf("cannot write label name %q: %w", tenant, err)
+			return fmt.Errorf("cannot write tenant %q: %w", tenant, err)
 		}
 	}
 	// Send 'end of response' marker
