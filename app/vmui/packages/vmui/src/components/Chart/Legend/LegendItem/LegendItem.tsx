@@ -55,6 +55,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
             key={f.id}
             open={copiedValue === f.id}
             title={"Copied!"}
+            placement="top-center"
           >
             <span
               className="vm-legend-item-info__free-fields"

@@ -6,24 +6,33 @@ import YearsList from "./YearsList/YearsList";
 import TimePicker from "../TImePicker/TimePicker";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import "./style.scss";
+import { CalendarIcon, ClockIcon } from "../../Icons";
+import Tabs from "../../Tabs/Tabs";
 
 interface DatePickerProps {
   date: Date | Dayjs
   format?: string
   timepicker?: boolean,
   onChange: (date: string) => void
+  onClose?: () => void
 }
+
+const tabs = [
+  { value: "date", icon: <CalendarIcon/> },
+  { value: "time", icon: <ClockIcon/> }
+];
 
 const Calendar: FC<DatePickerProps> = ({
   date,
   timepicker = false,
   format = DATE_TIME_FORMAT,
-  onChange
+  onChange,
+  onClose
 }) => {
   const [displayYears, setDisplayYears] = useState(false);
   const [viewDate, setViewDate] = useState(dayjs(date));
   const [selectDate, setSelectDate] = useState(dayjs(date));
-  const [handleFocusHour, setHandleFocusHour] = useState(0);
+  const [tab, setTab] = useState(tabs[0].value);
 
   const toggleDisplayYears = () => {
     setDisplayYears(prev => !prev);
@@ -36,12 +45,20 @@ const Calendar: FC<DatePickerProps> = ({
 
   const handleChangeSelectDate = (date: Dayjs) => {
     setSelectDate(date);
-    setHandleFocusHour(prev => prev + 1);
+    if (timepicker) setTab("time");
   };
 
   const handleChangeTime = (time: string) => {
     const [hour, minute, second] = time.split(":");
     setSelectDate(prev => prev.set("hour", +hour).set("minute", +minute).set("second", +second));
+  };
+
+  const handleChangeTab = (value: string) => {
+    setTab(value);
+  };
+
+  const handleClose = () => {
+    onClose && onClose();
   };
 
   useEffect(() => {
@@ -51,31 +68,50 @@ const Calendar: FC<DatePickerProps> = ({
 
   return (
     <div className="vm-calendar">
-      <CalendarHeader
-        viewDate={viewDate}
-        onChangeViewDate={handleChangeViewDate}
-        toggleDisplayYears={toggleDisplayYears}
-        displayYears={displayYears}
-      />
-      {!displayYears && (
-        <CalendarBody
-          viewDate={viewDate}
-          selectDate={selectDate}
-          onChangeSelectDate={handleChangeSelectDate}
-        />
-      )}
-      {displayYears && (
-        <YearsList
+      {tab === "date" && (
+        <CalendarHeader
           viewDate={viewDate}
           onChangeViewDate={handleChangeViewDate}
+          toggleDisplayYears={toggleDisplayYears}
+          displayYears={displayYears}
         />
       )}
-      {timepicker && (
+
+      {tab === "date" && (
+        <>
+          {!displayYears && (
+            <CalendarBody
+              viewDate={viewDate}
+              selectDate={selectDate}
+              onChangeSelectDate={handleChangeSelectDate}
+            />
+          )}
+          {displayYears && (
+            <YearsList
+              viewDate={viewDate}
+              onChangeViewDate={handleChangeViewDate}
+            />
+          )}
+        </>
+      )}
+
+      {tab === "time" && (
         <TimePicker
           selectDate={selectDate}
-          handleFocusHour={handleFocusHour}
           onChangeTime={handleChangeTime}
+          onClose={handleClose}
         />
+      )}
+
+      {timepicker && (
+        <div className="vm-calendar__tabs">
+          <Tabs
+            activeItem={tab}
+            items={tabs}
+            onChange={handleChangeTab}
+            indicatorPlacement="top"
+          />
+        </div>
       )}
     </div>
   );

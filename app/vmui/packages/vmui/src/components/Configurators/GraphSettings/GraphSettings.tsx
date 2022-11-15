@@ -22,8 +22,8 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
   const buttonRef = useRef<HTMLDivElement>(null);
   useClickOutside(popperRef, () => setOpenPopper(false), buttonRef);
 
-  const handleOpen = () => {
-    setOpenPopper(true);
+  const toggleOpen = () => {
+    setOpenPopper(prev => !prev);
   };
 
   const handleClose = () => {
@@ -37,7 +37,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
           <Button
             variant="text"
             startIcon={<SettingsIcon/>}
-            onClick={handleOpen}
+            onClick={toggleOpen}
           />
         </div>
       </Tooltip>

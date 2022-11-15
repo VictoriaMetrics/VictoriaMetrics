@@ -9,13 +9,15 @@ interface TabsProps {
   items: {value: string, label?: string, icon?: ReactNode, className?: string}[]
   color?: string
   onChange: (value: string) => void
+  indicatorPlacement?: "bottom" | "top"
 }
 
 const Tabs: FC<TabsProps> = ({
   activeItem,
   items,
   color = getCssVariable("color-primary"),
-  onChange
+  onChange,
+  indicatorPlacement = "bottom"
 }) => {
   const activeNavRef = useRef<HTMLDivElement>(null);
   const [indicatorPosition, setIndicatorPosition] = useState({ left: 0, width: 0, bottom: 0 });
@@ -26,8 +28,9 @@ const Tabs: FC<TabsProps> = ({
 
   useEffect(() => {
     if(activeNavRef.current) {
-      const { offsetLeft: left, offsetWidth: width } = activeNavRef.current;
-      setIndicatorPosition({ left, width, bottom: 0 });
+      const { offsetLeft: left, offsetWidth: width, offsetHeight: height } = activeNavRef.current;
+      const positionTop = indicatorPlacement === "top";
+      setIndicatorPosition({ left, width, bottom: positionTop ? height - 2 : 0 });
     }
   }, [activeItem, activeNavRef, items]);
 

@@ -7,13 +7,15 @@ import { useTimeDispatch, useTimeState } from "../../../../state/time/TimeStateC
 import { AlarmIcon, CalendarIcon, ClockIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import Popper from "../../../Main/Popper/Popper";
-import "./style.scss";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import useResize from "../../../../hooks/useResize";
 import DatePicker from "../../../Main/DatePicker/DatePicker";
+import "./style.scss";
+import useClickOutside from "../../../../hooks/useClickOutside";
 
 export const TimeSelector: FC = () => {
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const documentSize = useResize(document.body);
   const displayFullDate = useMemo(() => documentSize.width > 1120, [documentSize]);
 
@@ -56,6 +58,8 @@ export const TimeSelector: FC = () => {
 
   const fromRef = useRef<HTMLDivElement>(null);
   const untilRef = useRef<HTMLDivElement>(null);
+  const fromPickerRef = useRef<HTMLDivElement>(null);
+  const untilPickerRef = useRef<HTMLDivElement>(null);
   const [openOptions, setOpenOptions] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
 
@@ -87,7 +91,17 @@ export const TimeSelector: FC = () => {
     setOpenOptions(false);
   };
 
-  return <>
+  useClickOutside(wrapperRef, (e) => {
+    const target = e.target as HTMLElement;
+    const isFromButton = fromRef?.current && fromRef.current.contains(target);
+    const isUntilButton = untilRef?.current && untilRef.current.contains(target);
+    const isFromPicker = fromPickerRef?.current && fromPickerRef?.current?.contains(target);
+    const isUntilPicker = untilPickerRef?.current && untilPickerRef?.current?.contains(target);
+    if (isFromButton || isUntilButton || isFromPicker || isUntilPicker) return;
+    handleCloseOptions();
+  });
+
+  return <div ref={wrapperRef}>
     <div ref={buttonRef}>
       <Tooltip title="Time range controls">
         <Button
@@ -106,6 +120,7 @@ export const TimeSelector: FC = () => {
       buttonRef={buttonRef}
       placement="bottom-right"
       onClose={handleCloseOptions}
+      clickOutside={false}
     >
       <div className="vm-time-selector">
         <div className="vm-time-selector-left">
@@ -117,13 +132,14 @@ export const TimeSelector: FC = () => {
               <label>From:</label>
               <span>{formFormat}</span>
               <CalendarIcon/>
+              <DatePicker
+                ref={fromPickerRef}
+                date={from || ""}
+                onChange={handleFromChange}
+                targetRef={fromRef}
+                timepicker={true}
+              />
             </div>
-            <DatePicker
-              date={from || ""}
-              onChange={handleFromChange}
-              targetRef={fromRef}
-              timepicker={true}
-            />
             <div
               className="vm-time-selector-left-inputs__date"
               ref={untilRef}
@@ -131,13 +147,14 @@ export const TimeSelector: FC = () => {
               <label>To:</label>
               <span>{untilFormat}</span>
               <CalendarIcon/>
+              <DatePicker
+                ref={untilPickerRef}
+                date={until || ""}
+                onChange={handleUntilChange}
+                targetRef={untilRef}
+                timepicker={true}
+              />
             </div>
-            <DatePicker
-              date={until || ""}
-              onChange={handleUntilChange}
-              targetRef={untilRef}
-              timepicker={true}
-            />
           </div>
           <Button
             variant="text"
@@ -168,5 +185,5 @@ export const TimeSelector: FC = () => {
         />
       </div>
     </Popper>
-  </>;
+  </div>;
 };

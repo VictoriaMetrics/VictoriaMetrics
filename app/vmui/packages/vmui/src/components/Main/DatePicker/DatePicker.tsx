@@ -1,4 +1,4 @@
-import React, { FC, Ref, useEffect, useMemo, useState } from "preact/compat";
+import React, { Ref, useEffect, useMemo, useState, forwardRef } from "preact/compat";
 import Calendar from "../../Main/DatePicker/Calendar/Calendar";
 import dayjs, { Dayjs } from "dayjs";
 import Popper from "../../Main/Popper/Popper";
@@ -12,13 +12,13 @@ interface DatePickerProps {
   onChange: (val: string) => void
 }
 
-const DatePicker: FC<DatePickerProps> = ({
+const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   date,
   targetRef,
   format = DATE_TIME_FORMAT,
   timepicker,
-  onChange
-}) => {
+  onChange,
+}, ref) => {
   const [openCalendar, setOpenCalendar] = useState(false);
   const dateDayjs = useMemo(() => date ? dayjs(date) : dayjs(), [date]);
 
@@ -62,14 +62,17 @@ const DatePicker: FC<DatePickerProps> = ({
       placement="bottom-right"
       onClose={handleCloseCalendar}
     >
-      <Calendar
-        date={dateDayjs}
-        format={format}
-        timepicker={timepicker}
-        onChange={handleChangeDate}
-      />
+      <div ref={ref}>
+        <Calendar
+          date={dateDayjs}
+          format={format}
+          timepicker={timepicker}
+          onChange={handleChangeDate}
+          onClose={handleCloseCalendar}
+        />
+      </div>
     </Popper>
   </>);
-};
+});
 
 export default DatePicker;

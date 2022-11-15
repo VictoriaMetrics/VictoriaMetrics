@@ -79,7 +79,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
   };
 
   useEffect(() => {
-    if (prevStateQuery && (stateQuery.length < prevStateQuery.filter(q => q).length)) {
+    if (prevStateQuery && (stateQuery.length < prevStateQuery.length)) {
       onRunQuery();
     }
   }, [stateQuery]);

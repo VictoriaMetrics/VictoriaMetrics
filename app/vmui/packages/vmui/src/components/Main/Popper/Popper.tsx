@@ -12,6 +12,7 @@ interface PopperProps {
   placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right"
   animation?: string
   offset?: {top: number, left: number}
+  clickOutside?: boolean
 }
 
 const Popper: FC<PopperProps> = ({
@@ -21,7 +22,8 @@ const Popper: FC<PopperProps> = ({
   open = false,
   onClose,
   animation,
-  offset = { top: 6, left: 0 }
+  offset = { top: 6, left: 0 },
+  clickOutside = true
 }) => {
 
   const [isOpen, setIsOpen] = useState(true);
@@ -97,7 +99,7 @@ const Popper: FC<PopperProps> = ({
     return position;
   },[buttonRef, placement, isOpen, children]);
 
-  useClickOutside(popperRef, () => setIsOpen(false), buttonRef);
+  if (clickOutside) useClickOutside(popperRef, () => setIsOpen(false), buttonRef);
 
   const popperClasses = classNames({
     "vm-popper": true,

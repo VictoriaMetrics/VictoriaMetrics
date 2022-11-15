@@ -8,19 +8,12 @@ const useClickOutside = <T extends HTMLElement = HTMLElement>(
   preventRef?: RefObject<T>
 ) => {
   useEffect(() => {
-    const listener = (event: Event) => {
-      const el = ref?.current;
-      const target = event.target as HTMLElement;
+    const el = ref?.current;
 
-      let checkParents = target.parentNode;
-      const nodes = [];
-      while(checkParents?.parentNode) {
-        nodes.unshift(checkParents.parentNode as HTMLElement);
-        checkParents = checkParents.parentNode;
-      }
-      const hasPopper = nodes.map(node => node.classList ? node.classList.contains("vm-popper") : false).some(el => el);
+    const listener = (event: Event) => {
+      const target = event.target as HTMLElement;
       const isPreventRef = preventRef?.current && preventRef.current.contains(target);
-      if (!el || el.contains((event?.target as Node) || null) || isPreventRef || hasPopper) {
+      if (!el || el.contains((event?.target as Node) || null) || isPreventRef) {
         return;
       }
 
@@ -30,10 +23,13 @@ const useClickOutside = <T extends HTMLElement = HTMLElement>(
     document.addEventListener("mousedown", listener);
     document.addEventListener("touchstart", listener);
 
-    return () => {
+    const removeListeners = () => {
       document.removeEventListener("mousedown", listener);
       document.removeEventListener("touchstart", listener);
     };
+
+    if (!el) removeListeners();
+    return removeListeners;
   }, [ref, handler]); // Reload only if ref or handler changes
 };
 
