@@ -257,7 +257,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		tenants, isPartial, err := netstorage.Tenants(qt, denyPartial, deadline)
 		if err != nil {
 			tenantsErrors.Inc()
-			httpserver.Errorf(w, r, "auth error: %s", err)
+			httpserver.Errorf(w, r, "error getting tenants: %s", err)
 			return true
 		}
 
