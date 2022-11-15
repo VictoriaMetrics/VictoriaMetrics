@@ -2081,7 +2081,6 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 	}
 }
 
-// TODO: cleanup
 func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, _ []byte) ([]string, error) {
 	if err := bc.Flush(); err != nil {
 		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
