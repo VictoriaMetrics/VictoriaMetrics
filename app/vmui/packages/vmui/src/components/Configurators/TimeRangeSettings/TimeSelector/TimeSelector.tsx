@@ -101,7 +101,7 @@ export const TimeSelector: FC = () => {
     handleCloseOptions();
   });
 
-  return <div ref={wrapperRef}>
+  return <>
     <div ref={buttonRef}>
       <Tooltip title="Time range controls">
         <Button
@@ -122,7 +122,10 @@ export const TimeSelector: FC = () => {
       onClose={handleCloseOptions}
       clickOutside={false}
     >
-      <div className="vm-time-selector">
+      <div
+        className="vm-time-selector"
+        ref={wrapperRef}
+      >
         <div className="vm-time-selector-left">
           <div className="vm-time-selector-left-inputs">
             <div
@@ -185,5 +188,5 @@ export const TimeSelector: FC = () => {
         />
       </div>
     </Popper>
-  </div>;
+  </>;
 };

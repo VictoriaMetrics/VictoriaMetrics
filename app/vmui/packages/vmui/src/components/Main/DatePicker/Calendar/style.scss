@@ -194,10 +194,10 @@
       &__arrow {
         position: absolute;
         top: 0;
-        left: $clock-size/2 - 1px;
+        left: calc(($clock-size/2) - 1px);
         width: 2px;
         margin-top: $padding-small;
-        height: ($clock-size/2) - $padding-small;
+        height: calc(($clock-size/2) - $padding-small);
         background-color: $color-primary;
         transform-origin: bottom;
         transition: transform 200ms ease-in-out;
@@ -206,7 +206,7 @@
 
         &_offset {
           margin-top: $clock-offset;
-          height: ($clock-size/2) - $clock-offset;
+          height: calc(($clock-size/2) - $clock-offset);
           z-index: 2;
         }
 
@@ -232,8 +232,8 @@
         position: absolute;
         top: 0;
         width: 30px;
-        left: $clock-size/2 - 15px;
-        height: $clock-size/2;
+        left: calc(($clock-size/2) - 15px);
+        height: calc($clock-size/2);
         transform-origin: bottom;
         cursor: pointer;
         z-index: 1;
@@ -245,7 +245,7 @@
         &_offset {
           padding: 0;
           margin-top: $clock-offset;
-          height: ($clock-size/2) - $clock-offset;
+          height: calc(($clock-size/2) - $clock-offset);
           z-index: 2;
         }
 

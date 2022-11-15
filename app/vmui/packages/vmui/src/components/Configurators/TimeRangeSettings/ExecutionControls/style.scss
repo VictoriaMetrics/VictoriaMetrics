@@ -6,7 +6,7 @@
   &-buttons {
     display: flex;
     justify-content: space-between;
-    border-radius: $button-radius + 1;
+    border-radius: calc($button-radius + 1px);
     min-width: 107px;
 
     &__arrow {

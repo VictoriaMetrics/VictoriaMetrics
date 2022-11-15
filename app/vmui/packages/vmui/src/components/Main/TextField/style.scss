@@ -28,7 +28,7 @@
   &__error,
   &__helper-text, {
     position: absolute;
-    left: $padding-global/2;
+    left: calc($padding-global/2);
     padding: 0 3px;
     font-size: $font-size-small;
     line-height: $font-size-small;
@@ -39,17 +39,17 @@
   }
 
   &__label {
-    top: -$font-size-small/2;
+    top: calc($font-size-small/-2);
     color: $color-text-secondary;
   }
 
   &__error {
-    bottom: -$font-size-small/2;
+    bottom: calc($font-size-small/-2);
     color: $color-error;
   }
 
   &__helper-text {
-    bottom: -$font-size-small/2;
+    bottom: calc($font-size-small/-2);
     color: $color-text-secondary;
   }
 

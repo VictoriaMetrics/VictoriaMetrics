@@ -5,6 +5,7 @@ import { DeleteIcon } from "../Main/Icons";
 import "./style.scss";
 import NestedNav from "./NestedNav/NestedNav";
 import Alert from "../Main/Alert/Alert";
+import Tooltip from "../Main/Tooltip/Tooltip";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -34,12 +35,14 @@ const TracingsView: FC<TraceViewProps> = ({ traces, onDeleteClick }) => {
           <h3 className="vm-tracings-view-trace-header-title">
             Trace for <b className="vm-tracings-view-trace-header-title__query">{trace.queryValue}</b>
           </h3>
-          <Button
-            variant="text"
-            color="error"
-            startIcon={<DeleteIcon/>}
-            onClick={handleDeleteClick(trace)}
-          />
+          <Tooltip title={"Remove trace"}>
+            <Button
+              variant="text"
+              color="error"
+              startIcon={<DeleteIcon/>}
+              onClick={handleDeleteClick(trace)}
+            />
+          </Tooltip>
         </div>
         <nav className="vm-tracings-view-trace__nav">
           <NestedNav
