@@ -187,14 +187,16 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
-  return <div
-    className={classNames({
-      "vm-line-chart": true,
-      "vm-line-chart_panning": isPanning
-    })}
-  >
-    <div ref={uPlotRef}/>
-  </div>;
+  return (
+    <div
+      className={classNames({
+        "vm-line-chart": true,
+        "vm-line-chart_panning": isPanning
+      })}
+    >
+      <div ref={uPlotRef}/>
+    </div>
+  );
 };
 
 export default LineChart;

@@ -98,7 +98,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
         {Array.isArray(panels) && !!panels.length
           ? panels.map((p, i) =>
             <div
-              className="vm-predefined-dashboard-panels-panel"
+              className="vm-predefined-dashboard-panels-panel vm-block vm-block_empty-padding"
               style={{ gridColumn: `span ${panelsWidth[i]}` }}
               key={i}
             >

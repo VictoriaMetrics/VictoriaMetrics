@@ -9,9 +9,11 @@
     flex-grow: 1;
     min-height: 100%;
     padding: $padding-medium;
+    background-color: $color-background-body;
 
     &_app {
       padding: $padding-small 0;
+      background-color: transparent;
     }
   }
 }

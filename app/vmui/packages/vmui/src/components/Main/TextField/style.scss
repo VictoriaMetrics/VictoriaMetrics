@@ -16,7 +16,7 @@
   &::after {
     width: 100%;
     padding: $padding-small $padding-global;
-    border: 1px solid $color-text-disabled;
+    border: $border-divider;
     background-color: transparent;
     font-size: 12px;
     line-height: 18px;
