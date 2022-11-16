@@ -259,6 +259,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
+	case "/api/v1/pushgateway":
+		pushgatewayRequests.Inc()
+		if err := prometheusimport.InsertHandler(nil, r); err != nil {
+			pushgatewayErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	case "/prometheus/api/v1/import/native", "/api/v1/import/native":
 		nativeimportRequests.Inc()
 		if err := native.InsertHandler(nil, r); err != nil {
@@ -525,6 +534,9 @@ var (
 
 	prometheusimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
 	prometheusimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
+
+	pushgatewayRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/pushgateway", protocol="pushgateway"}`)
+	pushgatewayErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/pushgateway", protocol="pushgateway"}`)
 
 	nativeimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 	nativeimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
