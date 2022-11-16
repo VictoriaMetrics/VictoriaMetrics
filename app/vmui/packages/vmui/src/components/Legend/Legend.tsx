@@ -48,7 +48,7 @@ const Legend: FC<LegendProps> = ({labels, query, onChange}) => {
                         e.stopPropagation();
                         handleClickFreeField(freeField, fieldId);
                       }}>
-                        {f}: {legendItem.freeFormFields[f]}
+                        {freeField}
                       </span>
                     </Tooltip>;
                   })}

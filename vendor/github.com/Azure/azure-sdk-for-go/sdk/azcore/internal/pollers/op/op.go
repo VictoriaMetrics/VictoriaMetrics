@@ -91,6 +91,10 @@ func (p *Poller[T]) Done() bool {
 
 func (p *Poller[T]) Poll(ctx context.Context) (*http.Response, error) {
 	err := pollers.PollHelper(ctx, p.OpLocURL, p.pl, func(resp *http.Response) (string, error) {
+		if !pollers.StatusCodeValid(resp) {
+			p.resp = resp
+			return "", exported.NewResponseError(resp)
+		}
 		state, err := pollers.GetStatus(resp)
 		if err != nil {
 			return "", err

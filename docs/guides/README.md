@@ -11,4 +11,4 @@ sort: 26
 5. [Multi Retention Setup within VictoriaMetrics Cluster](https://docs.victoriametrics.com/guides/guide-vmcluster-multiple-retention-setup.html)
 6. [Migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html)
 7. [Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions.html)
-8. [How to delete or replace metrics in VictoriaMetrics](https://docs.victoriametrics.com/guides/guide-delete-and-replace-metrics.html)
+8. [How to delete or replace metrics in VictoriaMetrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html)

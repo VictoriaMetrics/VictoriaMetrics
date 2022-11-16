@@ -49,9 +49,12 @@ func (er *Resource[TResource, TState]) Get(state TState) (TResource, error) {
 	const window = 5 * time.Minute   // This example updates the resource 5 minutes prior to expiration
 	const backoff = 30 * time.Second // Minimum wait time between eager update attempts
 
-	now, acquire, expired, resource := time.Now(), false, false, er.resource
+	now, acquire, expired := time.Now(), false, false
+
 	// acquire exclusive lock
 	er.cond.L.Lock()
+	resource := er.resource
+
 	for {
 		expired = er.expiration.IsZero() || er.expiration.Before(now)
 		if expired {

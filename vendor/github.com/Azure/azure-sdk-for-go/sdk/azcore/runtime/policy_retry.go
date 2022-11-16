@@ -31,8 +31,10 @@ func setDefaults(o *policy.RetryOptions) {
 	} else if o.MaxRetries < 0 {
 		o.MaxRetries = 0
 	}
+
+	// SDK guidelines specify the default MaxRetryDelay is 60 seconds
 	if o.MaxRetryDelay == 0 {
-		o.MaxRetryDelay = 120 * time.Second
+		o.MaxRetryDelay = 60 * time.Second
 	} else if o.MaxRetryDelay < 0 {
 		// not really an unlimited cap, but sufficiently large enough to be considered as such
 		o.MaxRetryDelay = math.MaxInt64
