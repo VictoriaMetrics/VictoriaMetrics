@@ -2162,6 +2162,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
+  -prevCacheRemovalPercent float
+     The previous cache is removed when the percent of requests it serves becomes lower than this value. Higher values reduce average memory usage at the cost of higher CPU usage (default 0.2)
   -promscrape.azureSDCheckInterval duration
      Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string
