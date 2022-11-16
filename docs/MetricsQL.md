@@ -395,7 +395,7 @@ over the given lookbehind window `d` using the given smoothing factor `sf` and t
 Both `sf` and `tf` must be in the range `[0...1]`. It is expected that the [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering)
 returns time series of [gauge type](https://docs.victoriametrics.com/keyConcepts.html#gauge).
 
-This function is supported by PromQL.
+This function is supported by PromQL. See also [range_linear_regression](#range_linear_regression).
 
 #### idelta
 
@@ -533,7 +533,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 linear interpolation over raw samples on the given lookbehind window `d`. The predicted value is calculated individually per each time series
 returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-This function is supported by PromQL.
+This function is supported by PromQL. See also [range_linear_regression](#range_linear_regression).
 
 #### present_over_time
 
@@ -1202,6 +1202,11 @@ See also [rand](#rand) and [rand_exponential](#rand_exponential).
 #### range_last
 
 `range_last(q)` is a [transform function](#transform-functions), which returns the value for the last point per each time series returned by `q`.
+
+#### range_linear_regression
+
+`range_linear_regression(q)` is a [transform function](#transform-functions), which calculates [simple linear regression](https://en.wikipedia.org/wiki/Simple_linear_regression)
+over the selected time range per each time series returned by `q`. This function is useful for capacity planning and predictions.
 
 #### range_max
 
