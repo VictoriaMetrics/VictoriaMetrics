@@ -894,7 +894,7 @@ func newRollupPredictLinear(args []interface{}) (rollupFunc, error) {
 		return nil, err
 	}
 	rf := func(rfa *rollupFuncArg) float64 {
-		v, k := linearRegression(rfa)
+		v, k := linearRegression(rfa.values, rfa.timestamps, rfa.currTimestamp)
 		if math.IsNaN(v) {
 			return nan
 		}
@@ -904,13 +904,8 @@ func newRollupPredictLinear(args []interface{}) (rollupFunc, error) {
 	return rf, nil
 }
 
-func linearRegression(rfa *rollupFuncArg) (float64, float64) {
-	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
-	values := rfa.values
-	timestamps := rfa.timestamps
-	n := float64(len(values))
-	if n == 0 {
+func linearRegression(values []float64, timestamps []int64, interceptTime int64) (float64, float64) {
+	if len(values) == 0 {
 		return nan, nan
 	}
 	if areConstValues(values) {
@@ -918,25 +913,32 @@ func linearRegression(rfa *rollupFuncArg) (float64, float64) {
 	}
 
 	// See https://en.wikipedia.org/wiki/Simple_linear_regression#Numerical_example
-	interceptTime := rfa.currTimestamp
 	vSum := float64(0)
 	tSum := float64(0)
 	tvSum := float64(0)
 	ttSum := float64(0)
+	n := 0
 	for i, v := range values {
+		if math.IsNaN(v) {
+			continue
+		}
 		dt := float64(timestamps[i]-interceptTime) / 1e3
 		vSum += v
 		tSum += dt
 		tvSum += dt * v
 		ttSum += dt * dt
+		n++
+	}
+	if n == 0 {
+		return nan, nan
 	}
 	k := float64(0)
-	tDiff := ttSum - tSum*tSum/n
+	tDiff := ttSum - tSum*tSum/float64(n)
 	if math.Abs(tDiff) >= 1e-6 {
 		// Prevent from incorrect division for too small tDiff values.
-		k = (tvSum - tSum*vSum/n) / tDiff
+		k = (tvSum - tSum*vSum/float64(n)) / tDiff
 	}
-	v := vSum/n - k*tSum/n
+	v := vSum/float64(n) - k*tSum/float64(n)
 	return v, k
 }
 
@@ -1605,7 +1607,7 @@ func rollupIdelta(rfa *rollupFuncArg) float64 {
 func rollupDerivSlow(rfa *rollupFuncArg) float64 {
 	// Use linear regression like Prometheus does.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/73
-	_, k := linearRegression(rfa)
+	_, k := linearRegression(rfa.values, rfa.timestamps, rfa.currTimestamp)
 	return k
 }
 

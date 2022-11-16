@@ -88,6 +88,7 @@ var transformFuncs = map[string]transformFunc{
 	"range_avg":                  newTransformFuncRange(runningAvg),
 	"range_first":                transformRangeFirst,
 	"range_last":                 transformRangeLast,
+	"range_linear_regression":    transformRangeLinearRegression,
 	"range_max":                  newTransformFuncRange(runningMax),
 	"range_min":                  newTransformFuncRange(runningMin),
 	"range_quantile":             transformRangeQuantile,
@@ -136,6 +137,7 @@ var transformFuncsKeepMetricName = map[string]bool{
 	"range_avg":          true,
 	"range_first":        true,
 	"range_last":         true,
+	"range_linear_regression": true,
 	"range_max":          true,
 	"range_min":          true,
 	"range_quantile":     true,
@@ -1232,6 +1234,27 @@ func newTransformFuncRange(rf func(a, b float64, idx int) float64) transformFunc
 		setLastValues(rvs)
 		return rvs, nil
 	}
+}
+
+func transformRangeLinearRegression(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		timestamps := ts.Timestamps
+		if len(timestamps) == 0 {
+			continue
+		}
+		interceptTimestamp := timestamps[0]
+		v, k := linearRegression(values, timestamps, interceptTimestamp)
+		for i, t := range timestamps {
+			values[i] = v + k*float64(t-interceptTimestamp)/1e3
+		}
+	}
+	return rvs, nil
 }
 
 func transformRangeQuantile(tfa *transformFuncArg) ([]*timeseries, error) {
