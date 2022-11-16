@@ -1225,6 +1225,16 @@ over the selected time range per each time series returned by `q`. This function
 `range_quantile(phi, q)` is a [transform function](#transform-functions), which returns `phi`-quantile across points per each time series returned by `q`.
 `phi` must be in the range `[0...1]`.
 
+#### range_stddev
+
+`range_stddev(q)` is a [transform function](#transform-functions), which calculates [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation)
+per each time series returned by `q` on the selected time range.
+
+#### range_stdvar
+
+`range_stdvar(q)` is a [transform function](#transform-functions), which calculates [standard variance](https://en.wikipedia.org/wiki/Variance)
+per each time series returned by `q` on the selected time range.
+
 #### range_sum
 
 `range_sum(q)` is a [transform function](#transform-functions), which calculates the sum of points per each time series returned by `q`.

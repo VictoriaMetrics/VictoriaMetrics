@@ -92,6 +92,8 @@ var transformFuncs = map[string]transformFunc{
 	"range_max":                  newTransformFuncRange(runningMax),
 	"range_min":                  newTransformFuncRange(runningMin),
 	"range_quantile":             transformRangeQuantile,
+	"range_stddev":               transformRangeStddev,
+	"range_stdvar":               transformRangeStdvar,
 	"range_sum":                  newTransformFuncRange(runningSum),
 	"remove_resets":              transformRemoveResets,
 	"round":                      transformRound,
@@ -126,26 +128,28 @@ var transformFuncs = map[string]transformFunc{
 // These functions don't change physical meaning of input time series,
 // so they don't drop metric name
 var transformFuncsKeepMetricName = map[string]bool{
-	"ceil":               true,
-	"clamp":              true,
-	"clamp_max":          true,
-	"clamp_min":          true,
-	"floor":              true,
-	"interpolate":        true,
-	"keep_last_value":    true,
-	"keep_next_value":    true,
-	"range_avg":          true,
-	"range_first":        true,
-	"range_last":         true,
+	"ceil":                    true,
+	"clamp":                   true,
+	"clamp_max":               true,
+	"clamp_min":               true,
+	"floor":                   true,
+	"interpolate":             true,
+	"keep_last_value":         true,
+	"keep_next_value":         true,
+	"range_avg":               true,
+	"range_first":             true,
+	"range_last":              true,
 	"range_linear_regression": true,
-	"range_max":          true,
-	"range_min":          true,
-	"range_quantile":     true,
-	"round":              true,
-	"running_avg":        true,
-	"running_max":        true,
-	"running_min":        true,
-	"smooth_exponential": true,
+	"range_max":               true,
+	"range_min":               true,
+	"range_quantile":          true,
+	"range_stdvar":            true,
+	"range_sddev":             true,
+	"round":                   true,
+	"running_avg":             true,
+	"running_max":             true,
+	"running_min":             true,
+	"smooth_exponential":      true,
 }
 
 func getTransformFunc(s string) transformFunc {
@@ -1252,6 +1256,38 @@ func transformRangeLinearRegression(tfa *transformFuncArg) ([]*timeseries, error
 		v, k := linearRegression(values, timestamps, interceptTimestamp)
 		for i, t := range timestamps {
 			values[i] = v + k*float64(t-interceptTimestamp)/1e3
+		}
+	}
+	return rvs, nil
+}
+
+func transformRangeStddev(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		v := stddev(values)
+		for i := range values {
+			values[i] = v
+		}
+	}
+	return rvs, nil
+}
+
+func transformRangeStdvar(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		v := stdvar(values)
+		for i := range values {
+			values[i] = v
 		}
 	}
 	return rvs, nil

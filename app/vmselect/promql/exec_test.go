@@ -6380,8 +6380,29 @@ func TestExecSuccess(t *testing.T) {
 		q := `range_quantile(0.5, time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			// time() results in [1000 1200 1400 1600 1800 2000]
 			Values:     []float64{1500, 1500, 1500, 1500, 1500, 1500},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_stddev()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_stddev(time()),0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{341.57, 341.57, 341.57, 341.57, 341.57, 341.57},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_stdvar()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_stdvar(time()),0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{116666.67, 116666.67, 116666.67, 116666.67, 116666.67, 116666.67},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6392,7 +6413,6 @@ func TestExecSuccess(t *testing.T) {
 		q := `range_median(time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			// time() results in [1000 1200 1400 1600 1800 2000]
 			Values:     []float64{1500, 1500, 1500, 1500, 1500, 1500},
 			Timestamps: timestampsExpected,
 		}
@@ -8079,6 +8099,8 @@ func TestExecError(t *testing.T) {
 	f(`nonexisting()`)
 
 	// Invalid number of args
+	f(`range_stddev()`)
+	f(`range_stdvar()`)
 	f(`range_quantile()`)
 	f(`range_quantile(1, 2, 3)`)
 	f(`range_median()`)
