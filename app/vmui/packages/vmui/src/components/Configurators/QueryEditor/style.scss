@@ -1,0 +1,9 @@
+@use "src/styles/variables" as *;
+
+.vm-query-editor {
+
+  &-autocomplete {
+    max-height: 300px;
+    overflow: auto;
+  }
+}

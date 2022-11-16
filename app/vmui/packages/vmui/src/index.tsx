@@ -1,7 +1,7 @@
 import React, { render } from "preact/compat";
-import "./index.css";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
+import "./styles/style.scss";
 
 const root = document.getElementById("root");
 if (root) render(<App />, root);

@@ -1,4 +1,4 @@
-import {getQueryStringValue} from "../../utils/query-string";
+import { getQueryStringValue } from "../../utils/query-string";
 
 export interface AxisRange {
   [key: string]: [number, number]
@@ -24,7 +24,7 @@ export type GraphAction =
 export const initialGraphState: GraphState = {
   customStep: parseFloat(getQueryStringValue("g0.step_input", "0") as string),
   yaxis: {
-    limits: {enable: false, range: {"1": [0, 0]}}
+    limits: { enable: false, range: { "1": [0, 0] } }
   }
 };
 

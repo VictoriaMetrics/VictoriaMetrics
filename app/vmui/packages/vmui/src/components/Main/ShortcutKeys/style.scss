@@ -1,0 +1,51 @@
+@use "src/styles/variables" as *;
+
+.vm-shortcuts {
+  min-width: 400px;
+
+  &-section {
+    margin-bottom: $padding-medium;
+
+    &__title {
+      font-weight: bold;
+      padding: $padding-small 0;
+      margin-bottom: $padding-global;
+      border-bottom: $border-divider;
+    }
+
+    &-list {
+      display: grid;
+      gap: $padding-global;
+
+      &-item {
+        display: grid;
+        grid-template-columns: 180px 1fr;
+        align-items: center;
+        gap: $padding-small;
+
+        &__key {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+
+          code {
+            display: inline-block;
+            padding: 2px $padding-small 0;
+            font-size: $font-size-small;
+            line-height: 2;
+            color: $color-text;
+            text-align: center;
+            background-color: $color-white;
+            background-repeat: repeat-x;
+            border: $border-divider;
+            border-radius: 4px;
+          }
+        }
+
+        &__description {
+          font-size: $font-size;
+        }
+      }
+    }
+  }
+}

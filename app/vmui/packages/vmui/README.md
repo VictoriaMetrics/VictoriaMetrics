@@ -56,18 +56,18 @@ VMUI can be used to paste into other applications
 
 #### Options (JSON):
 
-| Name                    |    Default     |                                                                           Description |
-|:------------------------|:--------------:|--------------------------------------------------------------------------------------:|
-| serverURL               |  domain name   |                                                          Can't be changed from the UI |
-| inputTenantID           |       -        |                            If the flag is present, the "Tenant ID" field is displayed |
-| headerStyles.background |   `#FFFFFF`    |                                                               Header background color |
-| headerStyles.color      | `primary.main` |                                                                     Header font color |
-| palette.primary         |   `#3F51B5`    |                               used to represent primary interface elements for a user |
-| palette.secondary       |   `#F50057`    |                             used to represent secondary interface elements for a user |
-| palette.error           |   `#FF4141`    |            used to represent interface elements that the user should be made aware of |
-| palette.warning         |   `#FF9800`    |                 used to represent potentially dangerous actions or important messages |
-| palette.success         |   `#4CAF50`    |           used to indicate the successful completion of an action that user triggered |
-| palette.info            |   `#03A9F4`    | used to present information to the user that is neutral and not necessarily important |
+| Name                    |   Default   |                                                                           Description |
+|:------------------------|:-----------:|--------------------------------------------------------------------------------------:|
+| serverURL               | domain name |                                                          Can't be changed from the UI |
+| inputTenantID           |      -      |                            If the flag is present, the "Tenant ID" field is displayed |
+| headerStyles.background |  `#FFFFFF`  |                                                               Header background color |
+| headerStyles.color      |  `#3F51B5`  |                                                                     Header font color |
+| palette.primary         |  `#3F51B5`  |                               used to represent primary interface elements for a user |
+| palette.secondary       |  `#F50057`  |                             used to represent secondary interface elements for a user |
+| palette.error           |  `#FF4141`  |            used to represent interface elements that the user should be made aware of |
+| palette.warning         |  `#FF9800`  |                 used to represent potentially dangerous actions or important messages |
+| palette.success         |  `#4CAF50`  |           used to indicate the successful completion of an action that user triggered |
+| palette.info            |  `#03A9F4`  | used to present information to the user that is neutral and not necessarily important |
 
 #### JSON example:
 ```json
@@ -75,8 +75,8 @@ VMUI can be used to paste into other applications
   "serverURL": "http://localhost:8428",
   "inputTenantID": "true",
   "headerStyles": {
-    "background": "#fff",
-    "color": "primary.main"
+    "background": "#FFFFFF",
+    "color": "#538DE8"
   },
   "palette": {
     "primary": "#538DE8",
@@ -92,7 +92,7 @@ VMUI can be used to paste into other applications
 
 #### HTML example:
 ```html
-<div id="root" data-params='{"serverURL":"http://localhost:8428","inputTenantID":"true","headerStyles":{"background":"#fff","color":"primary.main"},"palette":{"primary":"#538DE8","secondary":"#F76F8E","error":"#FD151B","warning":"#FFB30F","success":"#7BE622","info":"#0F5BFF"}}'></div>
+<div id="root" data-params='{"serverURL":"http://localhost:8428","inputTenantID":"true","headerStyles":{"background":"#FFFFFF","color":"#538DE8"},"palette":{"primary":"#538DE8","secondary":"#F76F8E","error":"#FD151B","warning":"#FFB30F","success":"#7BE622","info":"#0F5BFF"}}'></div>
 ```
 
 

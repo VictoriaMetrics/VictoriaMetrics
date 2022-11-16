@@ -1,9 +1,11 @@
 import dayjs from "dayjs";
-import {SetupTooltip} from "./types";
-import {getColorLine, formatPrettyNumber, getLegendLabel} from "./helpers";
+import { SetupTooltip } from "./types";
+import { getColorLine, formatPrettyNumber, getLegendLabel } from "./helpers";
+import { DATE_FULL_TIMEZONE_FORMAT } from "../../constants/date";
 
-export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = ""}: SetupTooltip): void => {
-  const {seriesIdx, dataIdx} = tooltipIdx;
+// TODO create jsx component
+export const setTooltip = ({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit = "" }: SetupTooltip): void => {
+  const { seriesIdx, dataIdx } = tooltipIdx;
   if (seriesIdx === null || dataIdx === undefined) return;
   const dataSeries = u.data[seriesIdx][dataIdx];
   const dataTime = u.data[0][dataIdx];
@@ -11,10 +13,10 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   const selectedSeries = series[seriesIdx];
   const color = getColorLine(selectedSeries.label || "");
 
-  const {width, height} = u.over.getBoundingClientRect();
+  const { width, height } = u.over.getBoundingClientRect();
   const top = u.valToPos((dataSeries || 0), series[seriesIdx]?.scale || "1");
   const lft = u.valToPos(dataTime, "x");
-  const {width: tooltipWidth, height: tooltipHeight} = tooltip.getBoundingClientRect();
+  const { width: tooltipWidth, height: tooltipHeight } = tooltip.getBoundingClientRect();
   const overflowX = lft + tooltipWidth >= width;
   const overflowY = top + tooltipHeight >= height;
 
@@ -23,7 +25,7 @@ export const setTooltip = ({u, tooltipIdx, metrics, series, tooltip, tooltipOffs
   tooltip.style.left = `${tooltipOffset.left + lft + 10 - (overflowX ? tooltipWidth + 20 : 0)}px`;
   const metricName = (selectedSeries.label || "").replace(/{.+}/gmi, "").trim();
   const name = getLegendLabel(metricName);
-  const date = dayjs(new Date(dataTime * 1000)).format("YYYY-MM-DD HH:mm:ss:SSS (Z)");
+  const date = dayjs(new Date(dataTime * 1000)).format(DATE_FULL_TIMEZONE_FORMAT);
   const info = Object.keys(metric).filter(k => k !== "__name__").map(k => `<div><b>${k}</b>: ${metric[k]}</div>`).join("");
   const marker = `<div class="u-tooltip__marker" style="background: ${color}"></div>`;
   tooltip.innerHTML = `<div>${date}</div>

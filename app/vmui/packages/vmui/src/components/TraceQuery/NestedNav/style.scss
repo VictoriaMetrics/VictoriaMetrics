@@ -1,0 +1,46 @@
+@use "src/styles/variables" as *;
+
+.vm-nested-nav {
+  margin-left: $padding-medium;
+  border-radius: $border-radius-small;
+  background-color: rgba($color-tropical-blue, 0.4);
+
+  &-header {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: $padding-small;
+    padding: $padding-small;
+    border-radius: $border-radius-small;
+    transition: background-color 200ms ease-in-out;
+    cursor: pointer;
+
+    &:hover {
+      background-color: rgba($color-black, 0.06);
+    }
+
+    &__icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      transition: transform 200ms ease-in-out;
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
+
+    &__progress {
+      grid-column: 2;
+    }
+
+    &__message {
+      grid-column: 2;
+    }
+
+    &__duration {
+      grid-column: 2;
+      color: $color-text-secondary;
+    }
+  }
+}

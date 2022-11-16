@@ -1,0 +1,51 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-item {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-gap: $padding-small;
+  align-items: start;
+  justify-content: start;
+  padding: $padding-small $padding-large $padding-small $padding-small;
+  background-color: $color-background-block;
+  cursor: pointer;
+  transition: 0.2s ease;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.1);
+  }
+
+  &_hide {
+    text-decoration: line-through;
+    opacity: 0.5;
+  }
+
+  &__marker {
+    width: 14px;
+    height: 14px;
+    box-sizing: border-box;
+    transition: 0.2s ease;
+    border-radius: 2px;
+  }
+
+  &-info {
+    font-weight: normal;
+
+    &__label {
+
+    }
+
+    &__free-fields {
+      padding: 3px;
+      cursor: pointer;
+
+      &:hover {
+        text-decoration: underline;
+      }
+
+      &:not(:last-child):after {
+        content: ",";
+      }
+    }
+  }
+}
