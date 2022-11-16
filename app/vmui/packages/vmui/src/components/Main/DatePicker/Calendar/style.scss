@@ -1,0 +1,295 @@
+@use "../../../../styles/variables" as *;
+
+.vm-calendar {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: $padding-global;
+  font-size: $font-size;
+  user-select: none;
+  background-color: $color-background-block;
+  border-radius: $border-radius-medium;
+
+  &__tabs {
+    margin: 0 0-$padding-global 0-$padding-global;
+    border-top: $border-divider;
+    margin-top: $padding-global;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    justify-content: center;
+    gap: $padding-medium;
+    padding-bottom: $padding-global;
+    min-height: 36px;
+
+    &-left {
+      display: grid;
+      grid-template-columns: auto auto;
+      align-items: center;
+      justify-content: flex-start;
+      gap: $padding-small;
+      cursor: pointer;
+      transition: opacity 200ms ease-in-out;
+
+      &:hover {
+        opacity: 0.8;
+      }
+
+      &__date {
+        font-size: $font-size;
+        color: $color-text;
+        font-weight: bold;
+      }
+
+      &__select-year {
+        display: grid;
+        align-items: center;
+        justify-content: center;
+        width: 14px;
+        height: 14px;
+
+        svg {
+          width: 100%;
+        }
+      }
+    }
+
+    &-right {
+      display: grid;
+      grid-template-columns: 18px 18px;
+      align-items: center;
+      justify-content: center;
+      gap: $padding-small;
+
+      &__prev,
+      &__next {
+        cursor: pointer;
+        transition: opacity 200ms ease-in-out;
+
+        &:hover {
+          opacity: 0.8;
+        }
+      }
+
+      &__prev {
+        transform: rotate(90deg);
+      }
+
+      &__next {
+        transform: rotate(-90deg);
+      }
+    }
+  }
+
+  &-body {
+    display: grid;
+    grid-template-columns: repeat(7, 32px);
+    grid-template-rows: repeat(6, 32px);
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+
+    &-cell {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-radius: 50%;
+      height: 100%;
+
+      &_weekday {
+        color: $color-text-secondary;
+      }
+
+      &_day {
+        cursor: pointer;
+        transition: color 200ms ease, background-color 300ms ease-in-out;
+
+        &:hover {
+          background-color: rgba($color-black, 0.05);
+        }
+
+        &_empty {
+          pointer-events: none;
+        }
+
+        &_active {
+          background-color: $color-primary;
+          color: $color-white;
+
+          &:hover {
+            background-color: $color-primary;
+          }
+        }
+
+        &_today {
+          border: 1px solid $color-primary;
+        }
+      }
+    }
+  }
+
+  &-years {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: $padding-small;
+    overflow: auto;
+
+    &__year {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 16px;
+      border-radius: $border-radius-medium;
+      cursor: pointer;
+      transition: color 200ms ease, background-color 300ms ease-in-out;
+
+      &:hover {
+        background-color: rgba($color-black, 0.05);
+      }
+
+      &_selected {
+        background-color: $color-primary;
+        color: $color-white;
+
+        &:hover {
+          background-color: $color-primary;
+        }
+      }
+    }
+  }
+
+  &-time-picker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    &-clock {
+      $clock-size: 230px;
+      $clock-offset: 42px;
+
+      position: relative;
+      height: $clock-size;
+      width: $clock-size;
+      border-radius: 50%;
+      border: $border-divider;
+      box-shadow: $box-shadow;
+      box-sizing: content-box;
+
+      &:after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 6px;
+        height: 6px;
+        background-color: $color-primary;
+        border-radius: 50%;
+      }
+
+      &__arrow {
+        position: absolute;
+        top: 0;
+        left: calc(($clock-size/2) - 1px);
+        width: 2px;
+        margin-top: $padding-small;
+        height: calc(($clock-size/2) - $padding-small);
+        background-color: $color-primary;
+        transform-origin: bottom;
+        transition: transform 200ms ease-in-out;
+        opacity: 0.8;
+        z-index: 0;
+
+        &_offset {
+          margin-top: $clock-offset;
+          height: calc(($clock-size/2) - $clock-offset);
+          z-index: 2;
+        }
+
+        &:after {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 30px;
+          height: 30px;
+          background-color: $color-primary;
+          border-radius: 50%;
+        }
+      }
+
+      &__time {
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        text-align: center;
+        padding-top: $padding-small;
+        position: absolute;
+        top: 0;
+        width: 30px;
+        left: calc(($clock-size/2) - 15px);
+        height: calc($clock-size/2);
+        transform-origin: bottom;
+        cursor: pointer;
+        z-index: 1;
+
+        &_hide {
+          display: none;
+        }
+
+        &_offset {
+          padding: 0;
+          margin-top: $clock-offset;
+          height: calc(($clock-size/2) - $clock-offset);
+          z-index: 2;
+        }
+
+        &:hover span {
+          background-color: rgba($color-black, 0.1);
+        }
+
+        span {
+          position: relative;
+          display: grid;
+          align-items: center;
+          justify-content: center;
+          min-width: 30px;
+          min-height: 30px;
+          border-radius: 50%;
+          transform-origin: center;
+          transition: background-color 300ms ease;
+        }
+      }
+    }
+
+    &-fields {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: $padding-global;
+
+      span {
+        margin: 0 $padding-small;
+      }
+
+      &__input {
+        width: 64px;
+        height: 32px;
+        border: 1px solid $color-alto;
+        border-radius: $border-radius-small;
+        font-size: $font-size-medium;
+        padding: 2px $padding-small;
+        text-align: center;
+
+        &:focus {
+          border-color: $color-primary;
+        }
+      }
+    }
+  }
+}

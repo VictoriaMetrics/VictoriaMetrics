@@ -27,4 +27,4 @@ const getAppModeParams = (): AppParams => {
 
 const getAppModeEnable = (): boolean => !!Object.keys(getAppModeParams()).length;
 
-export {getAppModeEnable, getAppModeParams};
+export { getAppModeEnable, getAppModeParams };

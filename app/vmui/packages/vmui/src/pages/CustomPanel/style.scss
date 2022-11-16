@@ -1,0 +1,27 @@
+@use "src/styles/variables" as *;
+
+.vm-custom-panel {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
+  height: 100%;
+
+  &__trace {
+  }
+
+  &-body {
+    position: relative;
+
+    &-header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: $font-size-small;
+      margin: -$padding-medium 0-$padding-medium $padding-medium;
+      padding: 0 $padding-medium;
+      border-bottom: $border-divider;
+      z-index: 1;
+    }
+  }
+}

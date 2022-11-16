@@ -1,74 +1,31 @@
-import React, {FC, useMemo, useState} from "preact/compat";
-import AppBar from "@mui/material/AppBar";
-import Box from "@mui/material/Box";
-import Link from "@mui/material/Link";
-import Toolbar from "@mui/material/Toolbar";
-import {ExecutionControls} from "../CustomPanel/Configurator/Time/ExecutionControls";
-import Logo from "../common/Logo";
-import {setQueryStringWithoutPageReload} from "../../utils/query-string";
-import {TimeSelector} from "../CustomPanel/Configurator/Time/TimeSelector";
-import GlobalSettings from "../CustomPanel/Configurator/Settings/GlobalSettings";
-import {Link as RouterLink, useLocation, useNavigate} from "react-router-dom";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import router, {RouterOptions, routerOptions} from "../../router/index";
-import DatePicker from "../Main/DatePicker/DatePicker";
-import {useCardinalityState, useCardinalityDispatch} from "../../state/cardinality/CardinalityStateContext";
-import {useEffect} from "react";
-import ShortcutKeys from "../ShortcutKeys/ShortcutKeys";
-import {getAppModeEnable, getAppModeParams} from "../../utils/app-mode";
-
-const classes = {
-  logo: {
-    position: "relative",
-    display: "flex",
-    alignItems: "center",
-    color: "#fff",
-    cursor: "pointer",
-    width: "100%",
-    marginBottom: "2px"
-  },
-  issueLink: {
-    textAlign: "center",
-    fontSize: "10px",
-    opacity: ".4",
-    color: "inherit",
-    textDecoration: "underline",
-    transition: ".2s opacity",
-    whiteSpace: "nowrap",
-    "&:hover": {
-      opacity: ".8",
-    }
-  },
-  menuLink: {
-    display: "block",
-    padding: "16px 8px",
-    color: "white",
-    fontSize: "11px",
-    textDecoration: "none",
-    cursor: "pointer",
-    textTransform: "uppercase",
-    borderRadius: "4px",
-    transition: ".2s background",
-    "&:hover": {
-      boxShadow: "rgba(0, 0, 0, 0.15) 0px 2px 8px"
-    }
-  }
-};
+import React, { FC, useMemo, useState } from "preact/compat";
+import { ExecutionControls } from "../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
+import { setQueryStringWithoutPageReload } from "../../utils/query-string";
+import { TimeSelector } from "../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
+import GlobalSettings from "../Configurators/GlobalSettings/GlobalSettings";
+import { useLocation, useNavigate } from "react-router-dom";
+import router, { RouterOptions, routerOptions } from "../../router";
+import { useEffect } from "react";
+import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
+import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
+import CardinalityDatePicker from "../Configurators/CardinalityDatePicker/CardinalityDatePicker";
+import { LogoIcon } from "../Main/Icons";
+import { getCssVariable } from "../../utils/theme";
+import Tabs from "../Main/Tabs/Tabs";
+import "./style.scss";
+import classNames from "classnames";
 
 const Header: FC = () => {
-
+  const primaryColor = getCssVariable("color-primary");
   const appModeEnable = getAppModeEnable();
-  const {headerStyles: {
-    background = appModeEnable ? "#FFF" : "primary.main",
-    color = appModeEnable ? "primary.main" : "#FFF",
-  } = {}} = getAppModeParams();
 
-  const {date} = useCardinalityState();
-  const cardinalityDispatch = useCardinalityDispatch();
+  const { headerStyles: {
+    background = appModeEnable ? "#FFF" : primaryColor,
+    color = appModeEnable ? primaryColor : "#FFF",
+  } = {} } = getAppModeParams();
 
   const navigate = useNavigate();
-  const {search, pathname} = useLocation();
+  const { search, pathname } = useLocation();
   const routes = useMemo(() => ([
     {
       label: "Custom panel",
@@ -91,66 +48,73 @@ const Header: FC = () => {
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
+  const handleChangeTab = (value: string) => {
+    setActiveMenu(value);
+    navigate(value);
+  };
+
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
 
   const onClickLogo = () => {
     navigateHandler(router.home);
-    setQueryStringWithoutPageReload("");
+    setQueryStringWithoutPageReload({});
     window.location.reload();
   };
 
   const navigateHandler = (pathname: string) => {
-    navigate({pathname, search: search});
+    navigate({ pathname, search: search });
   };
 
   useEffect(() => {
     setActiveMenu(pathname);
   }, [pathname]);
 
-  return <AppBar position="static" sx={{px: 1, boxShadow: "none", bgcolor: background, color}}>
-    <Toolbar>
-      {!appModeEnable && (
-        <Box display="grid" alignItems="center" justifyContent="center">
-          <Box onClick={onClickLogo} sx={classes.logo}>
-            <Logo style={{color: "inherit", width: "100%"}}/>
-          </Box>
-          <Link sx={classes.issueLink} target="_blank"
-            href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new">
+  return <header
+    className={classNames({
+      "vm-header": true,
+      "vm-header_app": appModeEnable
+    })}
+    style={{ background, color }}
+  >
+    {!appModeEnable && (
+      <div
+        className="vm-header-logo"
+        style={{ color }}
+      >
+        <div
+          className="vm-header-logo__icon"
+          onClick={onClickLogo}
+        >
+          <LogoIcon/>
+        </div>
+        <a
+          className="vm-header-logo__issue"
+          target="_blank"
+          href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
+          rel="noreferrer"
+        >
             create an issue
-          </Link>
-        </Box>
-      )}
-      <Box ml={appModeEnable ? 0 : 8} flexGrow={1}>
-        <Tabs value={activeMenu} textColor="inherit" TabIndicatorProps={{style: {background: color}}}
-          onChange={(e, val) => setActiveMenu(val)}>
-          {routes.filter(r => !r.hide).map(r => (
-            <Tab
-              key={`${r.label}_${r.value}`}
-              label={r.label}
-              value={r.value}
-              component={RouterLink}
-              to={`${r.value}${search}`}
-              sx={{color}}
-            />
-          ))}
-        </Tabs>
-      </Box>
-      <Box display="flex" gap={1} alignItems="center" mr={0} ml={4}>
-        {headerSetup?.timeSelector && <TimeSelector/>}
-        {headerSetup?.datePicker && (
-          <DatePicker
-            date={date}
-            onChange={(val) => cardinalityDispatch({type: "SET_DATE", payload: val})}
-          />
-        )}
-        {headerSetup?.executionControls && <ExecutionControls/>}
-        {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
-        <ShortcutKeys/>
-      </Box>
-    </Toolbar>
-  </AppBar>;
+        </a>
+      </div>
+    )}
+    <div className="vm-header-nav">
+      <Tabs
+        activeItem={activeMenu}
+        items={routes.filter(r => !r.hide)}
+        color={color}
+        onChange={handleChangeTab}
+      />
+    </div>
+    <div className="vm-header__settings">
+      {headerSetup?.timeSelector && <TimeSelector/>}
+      {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
+      {headerSetup?.executionControls && <ExecutionControls/>}
+      {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
+      <ShortcutKeys/>
+    </div>
+  </header>;
 };
 
 export default Header;

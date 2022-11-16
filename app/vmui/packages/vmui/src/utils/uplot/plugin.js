@@ -51,7 +51,7 @@ export const seriesBarsPlugin = (opts) => {
     }));
 
     distr(groupCount, groupWidth, groupDistr, null, (groupIdx, groupOffPct, groupDimPct) => {
-      distr(barCount, barWidth, barDistr, null, (barIdx, barOffPct, barDimPct) => {
+      distr(barCount, barWidth, barDistr, null, (barIdx) => {
         out[barIdx].offs[groupIdx] = groupOffPct;
         out[barIdx].size[groupIdx] = groupDimPct;
       });
@@ -68,11 +68,11 @@ export const seriesBarsPlugin = (opts) => {
     disp: {
       x0: {
         unit: 2,
-        values: (u, seriesIdx, idx0, idx1) => barsPctLayout[seriesIdx].offs,
+        values: (u, seriesIdx) => barsPctLayout[seriesIdx].offs,
       },
       size: {
         unit: 2,
-        values: (u, seriesIdx, idx0, idx1) => barsPctLayout[seriesIdx].size,
+        values: (u, seriesIdx) => barsPctLayout[seriesIdx].size,
       },
       ...opts.disp,
     },
@@ -84,7 +84,7 @@ export const seriesBarsPlugin = (opts) => {
     },
   });
 
-  function drawPoints(u, sidx, i0, i1) {
+  function drawPoints(u, sidx) {
     u.ctx.save();
 
     u.ctx.font         = font;
@@ -101,7 +101,7 @@ export const seriesBarsPlugin = (opts) => {
       xOff,
       yOff,
       xDim,
-      yDim, moveTo, lineTo, rect) => {
+      yDim) => {
       const _dir = dir * (ori === 0 ? 1 : -1);
 
       const wid = Math.round(barsPctLayout[sidx].size[0] * xDim);
@@ -129,8 +129,7 @@ export const seriesBarsPlugin = (opts) => {
   }
 
   function range(u, dataMin, dataMax) {
-    let [min, max] = uPlot.rangeNum(0, dataMax, 0.05, true);
-    return [0, max];
+    return [0, uPlot.rangeNum(0, dataMax, 0.05, true)[1]];
   }
 
   let qt;
@@ -154,7 +153,7 @@ export const seriesBarsPlugin = (opts) => {
         else
           barsPctLayout = [null].concat(distrTwo(u.data[0].length, u.data.length - 1 - ignore.length, u.data[0].length === 1 ? 1 : groupWidth));
 
-        // TODOL only do on setData, not every redraw
+        // TODO only do on setData, not every redraw
         if (opts.disp?.fill != null) {
           barsColors = [null];
 
@@ -255,7 +254,7 @@ export const seriesBarsPlugin = (opts) => {
       }
 
       uPlot.assign(opts.axes[0], {
-        splits: (u, axisIdx) => {
+        splits: (u) => {
           const _dir = dir * (ori === 0 ? 1 : -1);
           let splits = u._data[0].slice();
           return _dir === 1 ? splits : splits.reverse();
