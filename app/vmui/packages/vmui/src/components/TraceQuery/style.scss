@@ -1,0 +1,29 @@
+@use "src/styles/variables" as *;
+
+.vm-tracings-view {
+  display: grid;
+  gap: $padding-medium;
+
+  &-trace {
+    &-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: $border-divider;
+      padding: $padding-small $padding-small $padding-small $padding-medium;
+
+      &-title {
+        font-size: $font-size-medium;
+        margin-right: $padding-small;
+
+        &__query {
+          font-weight: bold;
+        }
+      }
+    }
+
+    &__nav {
+      padding: $padding-medium $padding-medium $padding-medium 0;
+    }
+  }
+}

@@ -1,13 +1,16 @@
-import {useCallback, useEffect, useMemo, useState} from "preact/compat";
-import {getQueryRangeUrl, getQueryUrl} from "../api/query-range";
-import {useAppState} from "../state/common/StateContext";
-import {InstantMetricResult, MetricBase, MetricResult} from "../api/types";
-import {isValidHttpUrl} from "../utils/url";
-import {ErrorTypes} from "../types";
+import { useCallback, useEffect, useMemo, useState } from "preact/compat";
+import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
+import { useAppState } from "../state/common/StateContext";
+import { InstantMetricResult, MetricBase, MetricResult } from "../api/types";
+import { isValidHttpUrl } from "../utils/url";
+import { ErrorTypes } from "../types";
 import debounce from "lodash.debounce";
-import {DisplayType} from "../components/CustomPanel/Configurator/DisplayTypeSwitch";
-import Trace from "../components/CustomPanel/Trace/Trace";
-import {MAX_SERIES} from "../config";
+import { DisplayType } from "../pages/CustomPanel/DisplayTypeSwitch";
+import Trace from "../components/TraceQuery/Trace";
+import { MAX_SERIES } from "../constants/graph";
+import { useQueryState } from "../state/query/QueryStateContext";
+import { useTimeState } from "../state/time/TimeStateContext";
+import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -16,7 +19,7 @@ interface FetchQueryParams {
   customStep: number,
 }
 
-export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: FetchQueryParams): {
+export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }: FetchQueryParams): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -25,7 +28,10 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
   warning?: string,
   traces?: Trace[],
 } => {
-  const {query, displayType, serverUrl, time: {period}, queryControls: {nocache, isTracingEnabled}} = useAppState();
+  const { query } = useQueryState();
+  const { period } = useTimeState();
+  const { displayType, nocache, isTracingEnabled } = useCustomPanelState();
+  const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
   const [graphData, setGraphData] = useState<MetricResult[]>();
@@ -55,7 +61,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
       let totalLength = 0;
 
       for await (const url of fetchUrl) {
-        const response = await fetch(url, {signal: controller.signal});
+        const response = await fetch(url, { signal: controller.signal });
         const resp = await response.json();
 
         if (response.ok) {
@@ -103,7 +109,7 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     } else if (expr.every(q => !q.trim())) {
       setError(ErrorTypes.validQuery);
     } else if (isValidHttpUrl(serverUrl)) {
-      const updatedPeriod = {...period};
+      const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
       return expr.filter(q => q.trim()).map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
@@ -128,5 +134,5 @@ export const useFetchQuery = ({predefinedQuery, visible, display, customStep}: F
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return {fetchUrl, isLoading, graphData, liveData, error, warning, traces};
+  return { fetchUrl, isLoading, graphData, liveData, error, warning, traces };
 };

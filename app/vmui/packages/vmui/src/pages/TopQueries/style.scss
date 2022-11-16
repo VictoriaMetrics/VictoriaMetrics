@@ -1,0 +1,40 @@
+@use "src/styles/variables" as *;
+
+.vm-top-queries {
+  display: grid;
+  align-items: flex-start;
+  gap: $padding-medium;
+
+  &-controls {
+    display: grid;
+    gap: $padding-small;
+
+    &__fields {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: $padding-medium;
+    }
+
+    &-bottom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: $padding-medium;
+
+      &__info {
+      }
+
+      &__button {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+    }
+  }
+
+  &-panels {
+    display: grid;
+    gap: $padding-medium;
+  }
+}

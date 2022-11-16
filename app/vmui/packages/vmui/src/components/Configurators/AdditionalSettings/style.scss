@@ -1,0 +1,14 @@
+@use "src/styles/variables" as *;
+
+.vm-additional-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 24px;
+
+  &__input {
+    flex-basis: 160px;
+    margin-bottom: -6px;
+  }
+}

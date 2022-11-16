@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve structure project, change state management, reduce bundle size, remove Material-UI. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3298)
+
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): save the value of the switches "Trace request" and "Disable cache" after page reload.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): correct display of the tab from the Prometheus URL.
 
 ## [v1.83.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.1)
 
