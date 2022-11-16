@@ -1,69 +1,78 @@
-import React, {FC} from "react";
-import TextField from "@mui/material/TextField";
-import {useState} from "preact/compat";
-import StaticDatePicker from "@mui/lab/StaticDatePicker";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import Tooltip from "@mui/material/Tooltip";
-import dayjs from "dayjs";
-import Popper from "@mui/material/Popper";
-import ClickAwayListener from "@mui/material/ClickAwayListener";
-import Paper from "@mui/material/Paper";
-import EventIcon from "@mui/icons-material/Event";
-import {getAppModeEnable} from "../../../utils/app-mode";
-
-const formatDate = "YYYY-MM-DD";
+import React, { Ref, useEffect, useMemo, useState, forwardRef } from "preact/compat";
+import Calendar from "../../Main/DatePicker/Calendar/Calendar";
+import dayjs, { Dayjs } from "dayjs";
+import Popper from "../../Main/Popper/Popper";
+import { DATE_TIME_FORMAT } from "../../../constants/date";
 
 interface DatePickerProps {
-  date: string | null,
-  onChange: (val: string | null) => void
+  date: string | Date | Dayjs,
+  targetRef: Ref<HTMLElement>
+  format?: string
+  timepicker?: boolean
+  onChange: (val: string) => void
 }
 
-const DatePicker: FC<DatePickerProps> = ({date, onChange}) => {
+const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
+  date,
+  targetRef,
+  format = DATE_TIME_FORMAT,
+  timepicker,
+  onChange,
+}, ref) => {
+  const [openCalendar, setOpenCalendar] = useState(false);
+  const dateDayjs = useMemo(() => date ? dayjs(date) : dayjs(), [date]);
 
-  const appModeEnable = getAppModeEnable();
-  const dateFormatted = date ? dayjs(date).format(formatDate) : null;
+  const toggleOpenCalendar = () => {
+    setOpenCalendar(prev => !prev);
+  };
 
-  const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
-  const open = Boolean(anchorEl);
+  const handleCloseCalendar = () => {
+    setOpenCalendar(false);
+  };
 
-  return <>
-    <Tooltip title="Date control">
-      <Button variant="contained" color="primary"
-        sx={{
-          color: "white",
-          border: appModeEnable ? "none" : "1px solid rgba(0, 0, 0, 0.2)",
-          boxShadow: "none"
-        }}
-        startIcon={<EventIcon/>}
-        onClick={(e) => setAnchorEl(e.currentTarget)}>
-        {dateFormatted}
-      </Button>
-    </Tooltip>
+  const handleChangeDate = (val: string) => {
+    if (!timepicker) handleCloseCalendar();
+    onChange(val);
+  };
+
+  const handleKeyUp = (e: KeyboardEvent) => {
+    if (e.key === "Escape" || e.key === "Enter") handleCloseCalendar();
+  };
+
+  useEffect(() => {
+    targetRef.current?.addEventListener("click", toggleOpenCalendar);
+
+    return () => {
+      targetRef.current?.removeEventListener("click", toggleOpenCalendar);
+    };
+  }, [targetRef]);
+
+  useEffect(() => {
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, []);
+
+  return (<>
     <Popper
-      open={open}
-      anchorEl={anchorEl}
-      placement="bottom-end"
-      modifiers={[{name: "offset", options: {offset: [0, 6]}}]}>
-      <ClickAwayListener onClickAway={() => setAnchorEl(null)}>
-        <Paper elevation={3}>
-          <Box>
-            <StaticDatePicker
-              displayStaticWrapperAs="desktop"
-              inputFormat={formatDate}
-              mask="____-__-__"
-              value={date}
-              onChange={(newDate) => {
-                onChange(newDate ? dayjs(newDate).format(formatDate) : null);
-                setAnchorEl(null);
-              }}
-              renderInput={(params) => <TextField {...params}/>}
-            />
-          </Box>
-        </Paper>
-      </ClickAwayListener>
+      open={openCalendar}
+      buttonRef={targetRef}
+      placement="bottom-right"
+      onClose={handleCloseCalendar}
+    >
+      <div ref={ref}>
+        <Calendar
+          date={dateDayjs}
+          format={format}
+          timepicker={timepicker}
+          onChange={handleChangeDate}
+          onClose={handleCloseCalendar}
+        />
+      </div>
     </Popper>
-  </>;
-};
+  </>);
+});
 
 export default DatePicker;

@@ -1,0 +1,18 @@
+@use "src/styles/variables" as *;
+
+.vm-list {
+  &__item {
+    padding: 12px $padding-global;
+    cursor: pointer;
+    background-color: transparent;
+    transition: background-color 200ms ease;
+
+    &_active {
+      background-color: rgba($color-black, 0.1);
+    }
+
+    &:hover {
+      background-color: rgba($color-black, 0.1);
+    }
+  }
+}

@@ -136,6 +136,9 @@ func (p *part) MustClose() {
 
 type indexBlock struct {
 	bhs []blockHeader
+
+	// The buffer for holding the data referrred by bhs
+	buf []byte
 }
 
 func (idxb *indexBlock) SizeBytes() int {

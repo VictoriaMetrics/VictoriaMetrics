@@ -1,0 +1,120 @@
+@use "src/styles/variables" as *;
+
+.vm-text-field {
+  position: relative;
+  display: grid;
+  margin: 6px 0;
+  width: 100%;
+
+  &::after {
+    content: attr(data-replicated-value) " ";
+    white-space: pre-wrap;
+    visibility: hidden;
+  }
+
+  &__input,
+  &::after {
+    width: 100%;
+    padding: $padding-small $padding-global;
+    border: $border-divider;
+    background-color: transparent;
+    font-size: 12px;
+    line-height: 18px;
+    grid-area: 1 / 1 / 2 / 2;
+    overflow: hidden;
+  }
+
+  &__label,
+  &__error,
+  &__helper-text, {
+    position: absolute;
+    left: calc($padding-global/2);
+    padding: 0 3px;
+    font-size: $font-size-small;
+    line-height: $font-size-small;
+    pointer-events: none;
+    user-select: none;
+    background-color: $color-background-block;
+    z-index: 2;
+  }
+
+  &__label {
+    top: calc($font-size-small/-2);
+    color: $color-text-secondary;
+  }
+
+  &__error {
+    bottom: calc($font-size-small/-2);
+    color: $color-error;
+  }
+
+  &__helper-text {
+    bottom: calc($font-size-small/-2);
+    color: $color-text-secondary;
+  }
+
+  &__input {
+    display: block;
+    border-radius: $border-radius-small;
+    transition: border 200ms ease;
+    min-height: 34px;
+    resize: none;
+    overflow: hidden;
+
+    &:focus {
+      border: 1px solid $color-primary;
+    }
+
+    &:hover {
+      border: 1px solid $color-primary;
+    }
+
+    &_error {
+      border: 1px solid $color-error;
+
+      &:hover {
+        border: 1px solid $color-error;
+      }
+
+      &:focus {
+        border: 1px solid $color-error;
+      }
+    }
+
+    &_icon-start {
+      padding-left: 42px;
+    }
+
+    &:disabled {
+      background-color: inherit;
+      color: inherit;
+
+      &:hover {
+        border-color: $color-text-disabled;
+      }
+    }
+  }
+
+  &__icon-start,
+  &__icon-end {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 15px;
+    top: auto;
+    left: $padding-small;
+    height: 100%;
+    position: absolute;
+    color: $color-text-secondary;
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  &__icon-end {
+    left: auto;
+    right: $padding-small;
+  }
+}

@@ -1,6 +1,7 @@
 package workingsetcache
 
 import (
+	"flag"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -9,6 +10,9 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/fastcache"
 )
+
+var prevCacheRemovalPercent = flag.Float64("prevCacheRemovalPercent", 0.2, "The previous cache is removed when the percent of requests it serves becomes lower than this value. "+
+	"Higher values reduce average memory usage at the cost of higher CPU usage")
 
 // Cache modes.
 const (
@@ -163,9 +167,16 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 }
 
 func (c *Cache) prevCacheWatcher() {
+	p := *prevCacheRemovalPercent / 100
+	if p <= 0 {
+		// There is no need in removing the previous cache.
+		return
+	}
+	minCurrRequests := uint64(1 / p)
+
 	// Watch for the usage of the prev cache and drop it whenever it receives
-	// less than 1% of requests comparing to the curr cache during the last 10 seconds.
-	checkInterval := 10 * time.Second
+	// less than prevCacheRemovalPercent requests comparing to the curr cache during the last 30 seconds.
+	checkInterval := 30 * time.Second
 	checkInterval += timeJitter(checkInterval / 10)
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
@@ -198,7 +209,7 @@ func (c *Cache) prevCacheWatcher() {
 		}
 		currGetCalls = csCurr.GetCalls
 		prevGetCalls = csPrev.GetCalls
-		if currRequests >= 100 && float64(prevRequests)/float64(currRequests) < 0.01 {
+		if currRequests >= minCurrRequests && float64(prevRequests)/float64(currRequests) < p {
 			// The majority of requests are served from the curr cache,
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {

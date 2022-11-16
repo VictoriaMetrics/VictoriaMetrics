@@ -7,8 +7,8 @@ const useResize = (node: HTMLElement | null): {width: number, height: number} =>
   });
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
-      const {width, height} = entries[0].contentRect;
-      setWindowSize({width, height});
+      const { width, height } = entries[0].contentRect;
+      setWindowSize({ width, height });
     });
     if (node) observer.observe(node);
     return () => {

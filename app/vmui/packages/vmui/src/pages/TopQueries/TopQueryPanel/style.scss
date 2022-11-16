@@ -1,0 +1,7 @@
+@use "src/styles/variables" as *;
+
+.vm-top-queries-panel {
+  &-header {
+    margin: -$padding-medium 0-$padding-medium $padding-medium;
+  }
+}

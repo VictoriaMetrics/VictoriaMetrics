@@ -1,6 +1,6 @@
-import {DragArgs} from "./types";
+import { DragArgs } from "./types";
 
-export const dragChart = ({e, factor = 0.85, u, setPanning, setPlotScale}: DragArgs): void => {
+export const dragChart = ({ e, factor = 0.85, u, setPanning, setPlotScale }: DragArgs): void => {
   e.preventDefault();
   setPanning(true);
   const leftStart = e.clientX;
@@ -11,7 +11,7 @@ export const dragChart = ({e, factor = 0.85, u, setPanning, setPlotScale}: DragA
   const mouseMove = (e: MouseEvent) => {
     e.preventDefault();
     const dx = xUnitsPerPx * ((e.clientX - leftStart) * factor);
-    setPlotScale({u, min: scXMin - dx, max: scXMax - dx});
+    setPlotScale({ u, min: scXMin - dx, max: scXMax - dx });
   };
   const mouseUp = () => {
     setPanning(false);

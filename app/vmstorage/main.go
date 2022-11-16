@@ -337,12 +337,27 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/delete":
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
-		if err := Storage.DeleteSnapshot(snapshotName); err != nil {
-			err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
+
+		snapshots, err := Storage.ListSnapshots()
+		if err != nil {
+			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
-		fmt.Fprintf(w, `{"status":"ok"}`)
+		for _, snName := range snapshots {
+			if snName == snapshotName {
+				if err := Storage.DeleteSnapshot(snName); err != nil {
+					err = fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
+					jsonResponseError(w, err)
+					return true
+				}
+				fmt.Fprintf(w, `{"status":"ok"}`)
+				return true
+			}
+		}
+
+		err = fmt.Errorf("cannot find snapshot %q: %w", snapshotName, err)
+		jsonResponseError(w, err)
 		return true
 	case "/delete_all":
 		w.Header().Set("Content-Type", "application/json")
