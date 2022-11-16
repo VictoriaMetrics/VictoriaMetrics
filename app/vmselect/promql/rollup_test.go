@@ -388,7 +388,7 @@ func TestRollupPredictLinear(t *testing.T) {
 func TestLinearRegression(t *testing.T) {
 	f := func(values []float64, timestamps []int64, expV, expK float64) {
 		t.Helper()
-		v, k := linearRegression(values, timestamps, timestamps[0] + 100)
+		v, k := linearRegression(values, timestamps, timestamps[0]+100)
 		if err := compareValues([]float64{v}, []float64{expV}); err != nil {
 			t.Fatalf("unexpected v err: %s", err)
 		}

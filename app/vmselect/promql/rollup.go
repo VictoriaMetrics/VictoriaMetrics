@@ -1475,16 +1475,20 @@ func rollupStaleSamples(rfa *rollupFuncArg) float64 {
 }
 
 func rollupStddev(rfa *rollupFuncArg) float64 {
-	stdvar := rollupStdvar(rfa)
-	return math.Sqrt(stdvar)
+	return stddev(rfa.values)
 }
 
 func rollupStdvar(rfa *rollupFuncArg) float64 {
-	// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
+	return stdvar(rfa.values)
+}
 
-	// There is no need in handling NaNs here, since they must be cleaned up
-	// before calling rollup funcs.
-	values := rfa.values
+func stddev(values []float64) float64 {
+	v := stdvar(values)
+	return math.Sqrt(v)
+}
+
+func stdvar(values []float64) float64 {
+	// See `Rapid calculation methods` at https://en.wikipedia.org/wiki/Standard_deviation
 	if len(values) == 0 {
 		return nan
 	}
@@ -1496,10 +1500,16 @@ func rollupStdvar(rfa *rollupFuncArg) float64 {
 	var count float64
 	var q float64
 	for _, v := range values {
+		if math.IsNaN(v) {
+			continue
+		}
 		count++
 		avgNew := avg + (v-avg)/count
 		q += (v - avg) * (v - avgNew)
 		avg = avgNew
+	}
+	if count == 0 {
+		return nan
 	}
 	return q / count
 }
