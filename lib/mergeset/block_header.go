@@ -167,7 +167,7 @@ func unmarshalBlockHeadersNoCopy(dst []blockHeader, src []byte, blockHeadersCoun
 	for i := 0; i < blockHeadersCount; i++ {
 		tail, err := dst[dstLen+i].UnmarshalNoCopy(src)
 		if err != nil {
-			return dst, fmt.Errorf("cannot unmarshal block header: %w", err)
+			return dst, fmt.Errorf("cannot unmarshal block header #%d out of %d: %w", i, blockHeadersCount, err)
 		}
 		src = tail
 	}
