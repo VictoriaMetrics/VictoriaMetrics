@@ -297,8 +297,9 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	// Unmarshal the unpacked index block into bsr.bhs.
 	bsr.bhs, err = unmarshalBlockHeadersNoCopy(bsr.bhs[:0], bsr.unpackedBuf, int(mr.blockHeadersCount))
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal blockHeader #%d in the index block #%d: %w", len(bsr.bhs), bsr.mrIdx, err)
+		return fmt.Errorf("cannot unmarshal blockHeaders in the index block #%d: %w", bsr.mrIdx, err)
 	}
+	bsr.bhIdx = 0
 	return nil
 }
 
