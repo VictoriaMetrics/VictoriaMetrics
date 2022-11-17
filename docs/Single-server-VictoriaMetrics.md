@@ -293,7 +293,10 @@ When querying the [backfilled data](https://docs.victoriametrics.com/#backfillin
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
 
-VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button, enter an additional query in the newly appeared input field and press `Ctrl+Enter`. Results for all the queries should be displayed simultaneously on the same graph.
+VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
+enter an additional query in the newly appeared input field and press `Enter`.
+Results for all the queries are displayed simultaneously on the same graph.
+Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -2166,6 +2169,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
+  -prevCacheRemovalPercent float
+     The previous cache is removed when the percent of requests it serves becomes lower than this value. Higher values reduce average memory usage at the cost of higher CPU usage (default 0.2)
   -promscrape.azureSDCheckInterval duration
      Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string

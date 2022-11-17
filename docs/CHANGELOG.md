@@ -17,11 +17,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [range_linear_regression](https://docs.victoriametrics.com/MetricsQL.html#range_linear_regression) function for calculating [simple linear regression](https://en.wikipedia.org/wiki/Simple_linear_regression) over the input time series on the selected time range. This function is useful for predictions and capacity planning. For example, `range_linear_regression(process_resident_memory_bytes)` can predict future memory usage based on the past memory usage.
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [range_stddev](https://docs.victoriametrics.com/MetricsQL.html#range_stddev) and [range_stdvar](https://docs.victoriametrics.com/MetricsQL.html#range_stdvar) functions.
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve structure project, change state management, reduce bundle size, remove Material-UI. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3298)
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to hide the query.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): reduce JS bundle size from 200Kb to 100Kb. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3298).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to hide results of a particular query by clicking the `eye` icon. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3359).
 
-* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): save the value of the switches "Trace request" and "Disable cache" after page reload.
-* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show the tab when navigating from the Prometheus URL in Grafana.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display the requested graph on the requested time range when navigating from Prometheus URL in Grafana.
 
 ## [v1.83.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.1)
 
