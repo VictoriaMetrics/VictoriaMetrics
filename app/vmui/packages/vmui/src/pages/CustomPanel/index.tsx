@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, useState, useEffect, useMemo } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -29,9 +29,26 @@ const CustomPanel: FC = () => {
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
+  const [hideQuery, setHideQuery] = useState<number[]>([]);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
+
+  const { queryOptions } = useFetchQueryOptions();
+  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
+    visible: true,
+    customStep
+  });
+
+  const liveDataFiltered = useMemo(() => {
+    if (!liveData) return liveData;
+    return liveData.filter(d => !hideQuery.includes(d.group));
+  }, [hideQuery, liveData]);
+
+  const graphDataFiltered = useMemo(() => {
+    if (!graphData) return graphData;
+    return graphData.filter(d => !hideQuery.includes(d.group));
+  }, [hideQuery, graphData]);
 
   const setYaxisLimits = (limits: AxisRange) => {
     graphDispatch({ type: "SET_YAXIS_LIMITS", payload: limits });
@@ -45,15 +62,13 @@ const CustomPanel: FC = () => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
-  const { queryOptions } = useFetchQueryOptions();
-  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
-    visible: true,
-    customStep
-  });
-
   const handleTraceDelete = (trace: Trace) => {
     const updatedTraces = tracesState.filter((data) => data.idValue !== trace.idValue);
     setTracesState([...updatedTraces]);
+  };
+
+  const handleHideQuery = (queries: number[]) => {
+    setHideQuery(queries.map(q => q + 1));
   };
 
   useEffect(() => {
@@ -71,6 +86,7 @@ const CustomPanel: FC = () => {
       <QueryConfigurator
         error={error}
         queryOptions={queryOptions}
+        onHideQuery={handleHideQuery}
       />
       {isTracingEnabled && (
         <div className="vm-custom-panel__trace">
@@ -80,26 +96,30 @@ const CustomPanel: FC = () => {
           />
         </div>
       )}
+      {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">{warning}</Alert>}
       <div className="vm-custom-panel-body vm-block">
-        {isLoading && <Spinner />}
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && <GraphSettings
-            yaxis={yaxis}
-            setYaxisLimits={setYaxisLimits}
-            toggleEnableLimits={toggleEnableLimits}
-          />}
-          {displayType === "table" && <TableSettings
-            data={liveData || []}
-            defaultColumns={displayColumns}
-            onChange={setDisplayColumns}
-          />}
+          {displayType === "chart" && (
+            <GraphSettings
+              yaxis={yaxis}
+              setYaxisLimits={setYaxisLimits}
+              toggleEnableLimits={toggleEnableLimits}
+            />
+          )}
+          {displayType === "table" && (
+            <TableSettings
+              data={liveDataFiltered || []}
+              defaultColumns={displayColumns}
+              onChange={setDisplayColumns}
+            />
+          )}
         </div>
-        {graphData && period && (displayType === "chart") && (
+        {graphDataFiltered && period && (displayType === "chart") && (
           <GraphView
-            data={graphData}
+            data={graphDataFiltered}
             period={period}
             customStep={customStep}
             query={query}
@@ -108,10 +128,12 @@ const CustomPanel: FC = () => {
             setPeriod={setPeriod}
           />
         )}
-        {liveData && (displayType === "code") && <JsonView data={liveData}/>}
-        {liveData && (displayType === "table") && (
+        {liveDataFiltered && (displayType === "code") && (
+          <JsonView data={liveDataFiltered}/>
+        )}
+        {liveDataFiltered && (displayType === "table") && (
           <TableView
-            data={liveData}
+            data={liveDataFiltered}
             displayColumns={displayColumns}
           />
         )}
