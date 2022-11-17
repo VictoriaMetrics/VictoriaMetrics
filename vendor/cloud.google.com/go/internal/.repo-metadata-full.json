@@ -1052,6 +1052,24 @@
     "release_level": "ga",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/maps/addressvalidation/apiv1": {
+    "distribution_name": "cloud.google.com/go/maps/addressvalidation/apiv1",
+    "description": "Address Validation API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/maps/latest/addressvalidation/apiv1",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
+  "cloud.google.com/go/maps/routing/apiv2": {
+    "distribution_name": "cloud.google.com/go/maps/routing/apiv2",
+    "description": "Routes API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/maps/latest/routing/apiv2",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/mediatranslation/apiv1beta1": {
     "distribution_name": "cloud.google.com/go/mediatranslation/apiv1beta1",
     "description": "Media Translation API",

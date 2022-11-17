@@ -12,11 +12,11 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.23.0
-	github.com/VictoriaMetrics/metricsql v0.45.0
+	github.com/VictoriaMetrics/metricsql v0.47.0
 	github.com/aws/aws-sdk-go-v2 v1.17.1
-	github.com/aws/aws-sdk-go-v2/config v1.17.10
-	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.37
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.1
+	github.com/aws/aws-sdk-go-v2/config v1.18.1
+	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.40
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.3
 	github.com/cespare/xxhash/v2 v2.1.2
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/golang/snappy v0.0.4
@@ -38,14 +38,14 @@ require (
 )
 
 require (
-	cloud.google.com/go v0.106.0 // indirect
+	cloud.google.com/go v0.107.0 // indirect
 	cloud.google.com/go/compute v1.12.1 // indirect
 	cloud.google.com/go/compute/metadata v0.2.1 // indirect
 	cloud.google.com/go/iam v0.7.0 // indirect
 	github.com/Azure/azure-sdk-for-go/sdk/internal v1.1.1 // indirect
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.9 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.12.23 // indirect
+	github.com/aws/aws-sdk-go-v2/credentials v1.13.1 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.12.19 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.25 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.19 // indirect
@@ -57,7 +57,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.13.19 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.11.25 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.13.8 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.17.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.17.3 // indirect
 	github.com/aws/smithy-go v1.13.4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
@@ -81,7 +81,7 @@ require (
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.37.0 // indirect
 	github.com/prometheus/procfs v0.8.0 // indirect
-	github.com/rivo/uniseg v0.4.2 // indirect
+	github.com/rivo/uniseg v0.4.3 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/histogram v1.2.0 // indirect
@@ -93,7 +93,7 @@ require (
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto v0.0.0-20221109142239-94d6d90a7d66 // indirect
+	google.golang.org/genproto v0.0.0-20221116193143-41c2ba794472 // indirect
 	google.golang.org/grpc v1.50.1 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 )

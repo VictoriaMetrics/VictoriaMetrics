@@ -1,4 +1,4 @@
-# cloud.google.com/go v0.106.0
+# cloud.google.com/go v0.107.0
 ## explicit; go 1.19
 cloud.google.com/go/internal
 cloud.google.com/go/internal/optional
@@ -69,7 +69,7 @@ github.com/VictoriaMetrics/fasthttp/stackless
 # github.com/VictoriaMetrics/metrics v1.23.0
 ## explicit; go 1.15
 github.com/VictoriaMetrics/metrics
-# github.com/VictoriaMetrics/metricsql v0.45.0
+# github.com/VictoriaMetrics/metricsql v0.47.0
 ## explicit; go 1.13
 github.com/VictoriaMetrics/metricsql
 github.com/VictoriaMetrics/metricsql/binaryop
@@ -102,10 +102,10 @@ github.com/aws/aws-sdk-go-v2/internal/timeconv
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
-# github.com/aws/aws-sdk-go-v2/config v1.17.10
+# github.com/aws/aws-sdk-go-v2/config v1.18.1
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/config
-# github.com/aws/aws-sdk-go-v2/credentials v1.12.23
+# github.com/aws/aws-sdk-go-v2/credentials v1.13.1
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/credentials
 github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds
@@ -118,7 +118,7 @@ github.com/aws/aws-sdk-go-v2/credentials/stscreds
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.37
+# github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.40
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/s3/manager
 # github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.25
@@ -149,7 +149,7 @@ github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared/arn
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared/config
-# github.com/aws/aws-sdk-go-v2/service/s3 v1.29.1
+# github.com/aws/aws-sdk-go-v2/service/s3 v1.29.3
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/s3
 github.com/aws/aws-sdk-go-v2/service/s3/internal/arn
@@ -166,7 +166,7 @@ github.com/aws/aws-sdk-go-v2/service/sso/types
 github.com/aws/aws-sdk-go-v2/service/ssooidc
 github.com/aws/aws-sdk-go-v2/service/ssooidc/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/ssooidc/types
-# github.com/aws/aws-sdk-go-v2/service/sts v1.17.1
+# github.com/aws/aws-sdk-go-v2/service/sts v1.17.3
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/sts
 github.com/aws/aws-sdk-go-v2/service/sts/internal/endpoints
@@ -327,7 +327,7 @@ github.com/prometheus/prometheus/tsdb/record
 github.com/prometheus/prometheus/tsdb/tombstones
 github.com/prometheus/prometheus/tsdb/tsdbutil
 github.com/prometheus/prometheus/tsdb/wal
-# github.com/rivo/uniseg v0.4.2
+# github.com/rivo/uniseg v0.4.3
 ## explicit; go 1.18
 github.com/rivo/uniseg
 # github.com/russross/blackfriday/v2 v2.1.0
@@ -458,8 +458,9 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20221109142239-94d6d90a7d66
+# google.golang.org/genproto v0.0.0-20221116193143-41c2ba794472
 ## explicit; go 1.19
+google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/iam/v1
 google.golang.org/genproto/googleapis/rpc/code
