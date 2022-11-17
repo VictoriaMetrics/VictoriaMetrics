@@ -289,7 +289,10 @@ When querying the [backfilled data](https://docs.victoriametrics.com/#backfillin
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
 
-VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button, enter an additional query in the newly appeared input field and press `Ctrl+Enter`. Results for all the queries should be displayed simultaneously on the same graph.
+VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
+enter an additional query in the newly appeared input field and press `Enter`.
+Results for all the queries are displayed simultaneously on the same graph.
+Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -1641,7 +1644,9 @@ All the durations and timestamps in traces are in milliseconds.
 
 Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
 
-[VMUI](#vmui) provides an UI for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
+[VMUI](#vmui) provides an UI:
+- for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
+- for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
 
 
 ## Cardinality limiter

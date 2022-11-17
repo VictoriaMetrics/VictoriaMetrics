@@ -18,7 +18,7 @@ export interface QueryEditorProps {
   error?: ErrorTypes | string;
   options: string[];
   label: string;
-  size?: "small" | "medium" | undefined;
+  disabled?: boolean
 }
 
 const QueryEditor: FC<QueryEditorProps> = ({
@@ -31,6 +31,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   error,
   options,
   label,
+  disabled = false
 }) => {
 
   const [focusOption, setFocusOption] = useState(-1);
@@ -86,6 +87,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
     // Enter
     if (enter && hasAutocomplete && !shiftKey && !ctrlMetaKey) {
+      if (disabled) return;
       onChange(foundOptions[focusOption]);
       setOpenAutocomplete(false);
     } else if (enter && !shiftKey) {
@@ -98,6 +100,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   const createHandlerOnChangeAutocomplete = (item: string) => () => {
+    if (disabled) return;
     onChange(item);
     handleCloseAutocomplete();
   };
@@ -127,6 +130,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
       error={error}
       onKeyDown={handleKeyDown}
       onChange={onChange}
+      disabled={disabled}
     />
     <Popper
       open={openAutocomplete}
