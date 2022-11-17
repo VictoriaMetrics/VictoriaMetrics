@@ -52,10 +52,10 @@ func extractLabelsFromPath(pushgatewayPath string) ([]prompbmarshal.Label, error
 	// With an arbitrary number of /<LABEL_NAME>/<LABEL_VALUE> pairs
 	// Source:https://github.com/prometheus/pushgateway#url
 	var result []prompbmarshal.Label
-	if !strings.HasPrefix(pushgatewayPath, "/metric/job/") {
+	if !strings.HasPrefix(pushgatewayPath, "/metrics/job/") {
 		return nil, fmt.Errorf("pushgateway endpoint format is incorrect. Expected /metrics/job/<JOB_NAME>{/<LABEL_NAME>/<LABEL_VALUE>}, got %q ", pushgatewayPath)
 	}
-	labelsString := strings.Replace(pushgatewayPath, "/metric/job/", "", 1)
+	labelsString := strings.Replace(pushgatewayPath, "/metrics/job/", "", 1)
 	labelsSlice := strings.Split(labelsString, "/")
 	if len(labelsSlice) == 1 && labelsSlice[0] == "" {
 		return nil, fmt.Errorf("pushgateway path has to contain a job name after /job/. Expected /metrics/job/<JOB_NAME>{/<LABEL_NAME>/<LABEL_VALUE>}, got %q ", pushgatewayPath)
