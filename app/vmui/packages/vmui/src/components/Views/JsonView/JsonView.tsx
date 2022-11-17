@@ -24,7 +24,6 @@ const JsonView: FC<JsonViewProps> = ({ data }) => {
       <div className="vm-json-view__copy">
         <Button
           variant="outlined"
-          fullWidth={false}
           onClick={handlerCopy}
         >
           Copy JSON
