@@ -41,7 +41,6 @@ const QueryEditor: FC<QueryEditorProps> = ({
   const wrapperEl = useRef<HTMLDivElement>(null);
 
   const foundOptions = useMemo(() => {
-    setFocusOption(0);
     if (!openAutocomplete) return [];
     try {
       const regexp = new RegExp(String(value), "i");
@@ -50,7 +49,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
     } catch (e) {
       return [];
     }
-  }, [openAutocomplete, options]);
+  }, [openAutocomplete, options, value]);
+
+  const handleCloseAutocomplete = () => {
+    setOpenAutocomplete(false);
+  };
 
   const handleKeyDown = (e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
@@ -59,8 +62,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
     const arrowUp = key === "ArrowUp";
     const arrowDown = key === "ArrowDown";
     const enter = key === "Enter";
+    const escape = key === "Escape";
 
     const hasAutocomplete = openAutocomplete && foundOptions.length;
+    const valueAutocomplete = foundOptions[focusOption];
 
     const isArrows = arrowUp || arrowDown;
     const arrowsByOptions = isArrows && hasAutocomplete;
@@ -86,17 +91,19 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
 
     // Enter
-    if (enter && hasAutocomplete && !shiftKey && !ctrlMetaKey) {
+    if (valueAutocomplete && enter && hasAutocomplete && !shiftKey && !ctrlMetaKey) {
       if (disabled) return;
-      onChange(foundOptions[focusOption]);
-      setOpenAutocomplete(false);
+      onChange(valueAutocomplete);
+      handleCloseAutocomplete();
     } else if (enter && !shiftKey) {
       onEnter();
+      handleCloseAutocomplete();
     }
-  };
 
-  const handleCloseAutocomplete = () => {
-    setOpenAutocomplete(false);
+    // Escape
+    if (escape && openAutocomplete) {
+      handleCloseAutocomplete();
+    }
   };
 
   const createHandlerOnChangeAutocomplete = (item: string) => () => {
@@ -106,9 +113,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   useEffect(() => {
+    if (!autocomplete || !foundOptions.length) return;
+    setFocusOption(-1);
     const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
     setOpenAutocomplete(autocomplete && value.length > 2 && words <= 1);
-  }, [autocomplete, value]);
+  }, [autocomplete, value, foundOptions]);
 
   useEffect(() => {
     if (!wrapperEl.current) return;
@@ -116,7 +125,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     if (target?.scrollIntoView) target.scrollIntoView({ block: "center" });
   }, [focusOption]);
 
-  useClickOutside(autocompleteAnchorEl, () => setOpenAutocomplete(false), wrapperEl);
+  useClickOutside(autocompleteAnchorEl, handleCloseAutocomplete, wrapperEl);
 
   return <div
     className="vm-query-editor"
