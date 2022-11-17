@@ -6,24 +6,28 @@ import usePrevious from "../../../hooks/usePrevious";
 import { MAX_QUERY_FIELDS } from "../../../constants/graph";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import { useTimeDispatch } from "../../../state/time/TimeStateContext";
-import { DeleteIcon, PlayIcon, PlusIcon } from "../../../components/Main/Icons";
+import { DeleteIcon, PlayIcon, PlusIcon, VisibilityIcon, VisibilityOffIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import classNames from "classnames";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
   queryOptions: string[]
+  onHideQuery: (queries: number[]) => void
 }
 
-const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) => {
+const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, onHideQuery }) => {
 
   const { query, queryHistory, autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
   const timeDispatch = useTimeDispatch();
 
   const [stateQuery, setStateQuery] = useState(query || []);
+  const [hideQuery, setHideQuery] = useState<number[]>([]);
   const prevStateQuery = usePrevious(stateQuery) as (undefined | string[]);
+
   const updateHistory = () => {
     queryDispatch({
       type: "SET_QUERY_HISTORY", payload: stateQuery.map((q, i) => {
@@ -51,6 +55,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
+  const onToggleHideQuery = (index: number) => {
+    setHideQuery(prev => prev.includes(index) ? prev.filter(n => n !== index) : [...prev, index]);
+  };
+
   const handleChangeQuery = (value: string, index: number) => {
     setStateQuery(prev => prev.map((q, i) => i === index ? value : q));
   };
@@ -76,6 +84,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
 
   const createHandlerRemoveQuery = (i: number) => () => {
     onRemoveQuery(i);
+    setHideQuery(prev => prev.map(n => n > i ? n - 1: n));
+  };
+
+  const createHandlerHideQuery = (i: number) => () => {
+    onToggleHideQuery(i);
   };
 
   useEffect(() => {
@@ -84,11 +97,18 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
     }
   }, [stateQuery]);
 
+  useEffect(() => {
+    onHideQuery(hideQuery);
+  }, [hideQuery]);
+
   return <div className="vm-query-configurator vm-block">
     <div className="vm-query-configurator-list">
       {stateQuery.map((q, i) => (
         <div
-          className="vm-query-configurator-list-row"
+          className={classNames({
+            "vm-query-configurator-list-row": true,
+            "vm-query-configurator-list-row_disabled": hideQuery.includes(i)
+          })}
           key={i}
         >
           <QueryEditor
@@ -101,8 +121,18 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions }) 
             onEnter={onRunQuery}
             onChange={createHandlerChangeQuery(i)}
             label={`Query ${i + 1}`}
-            size={"small"}
+            disabled={hideQuery.includes(i)}
           />
+          <Tooltip title={hideQuery.includes(i) ? "Enable query" : "Disable query"}>
+            <div className="vm-query-configurator-list-row__button">
+              <Button
+                variant={"text"}
+                color={"gray"}
+                startIcon={hideQuery.includes(i) ? <VisibilityOffIcon/> : <VisibilityIcon/>}
+                onClick={createHandlerHideQuery(i)}
+              />
+            </div>
+          </Tooltip>
           {stateQuery.length > 1 && (
             <Tooltip title="Remove Query">
               <div className="vm-query-configurator-list-row__button">

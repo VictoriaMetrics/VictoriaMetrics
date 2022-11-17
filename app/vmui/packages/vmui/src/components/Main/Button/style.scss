@@ -135,6 +135,14 @@ $button-radius: 6px;
     }
   }
 
+  &_contained_gray {
+    color: $color-text-secondary;
+
+    &:before {
+      background-color: $color-text-secondary;
+    }
+  }
+
 
   /* variant TEXT */
   &_text_primary {
@@ -151,6 +159,10 @@ $button-radius: 6px;
 
   &_text_error {
     color: $color-error;
+  }
+
+  &_text_gray {
+    color: $color-text-secondary;
   }
 
 
@@ -173,5 +185,10 @@ $button-radius: 6px;
   &_outlined_success {
     border: 1px solid $color-success;
     color: $color-success;
+  }
+
+  &_outlined_gray {
+    border: 1px solid $color-text-secondary;
+    color: $color-text-secondary;
   }
 }
