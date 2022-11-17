@@ -29,9 +29,17 @@ const CustomPanel: FC = () => {
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
+  const [hideQuery, setHideQuery] = useState<number[]>([]);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
+
+  const { queryOptions } = useFetchQueryOptions();
+  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
+    visible: true,
+    customStep,
+    hideQuery
+  });
 
   const setYaxisLimits = (limits: AxisRange) => {
     graphDispatch({ type: "SET_YAXIS_LIMITS", payload: limits });
@@ -45,15 +53,13 @@ const CustomPanel: FC = () => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
-  const { queryOptions } = useFetchQueryOptions();
-  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
-    visible: true,
-    customStep
-  });
-
   const handleTraceDelete = (trace: Trace) => {
     const updatedTraces = tracesState.filter((data) => data.idValue !== trace.idValue);
     setTracesState([...updatedTraces]);
+  };
+
+  const handleHideQuery = (queries: number[]) => {
+    setHideQuery(queries);
   };
 
   useEffect(() => {
@@ -71,6 +77,7 @@ const CustomPanel: FC = () => {
       <QueryConfigurator
         error={error}
         queryOptions={queryOptions}
+        onHideQuery={handleHideQuery}
       />
       {isTracingEnabled && (
         <div className="vm-custom-panel__trace">
@@ -80,22 +87,26 @@ const CustomPanel: FC = () => {
           />
         </div>
       )}
+      {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">{warning}</Alert>}
       <div className="vm-custom-panel-body vm-block">
-        {isLoading && <Spinner />}
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && <GraphSettings
-            yaxis={yaxis}
-            setYaxisLimits={setYaxisLimits}
-            toggleEnableLimits={toggleEnableLimits}
-          />}
-          {displayType === "table" && <TableSettings
-            data={liveData || []}
-            defaultColumns={displayColumns}
-            onChange={setDisplayColumns}
-          />}
+          {displayType === "chart" && (
+            <GraphSettings
+              yaxis={yaxis}
+              setYaxisLimits={setYaxisLimits}
+              toggleEnableLimits={toggleEnableLimits}
+            />
+          )}
+          {displayType === "table" && (
+            <TableSettings
+              data={liveData || []}
+              defaultColumns={displayColumns}
+              onChange={setDisplayColumns}
+            />
+          )}
         </div>
         {graphData && period && (displayType === "chart") && (
           <GraphView
@@ -108,7 +119,9 @@ const CustomPanel: FC = () => {
             setPeriod={setPeriod}
           />
         )}
-        {liveData && (displayType === "code") && <JsonView data={liveData}/>}
+        {liveData && (displayType === "code") && (
+          <JsonView data={liveData}/>
+        )}
         {liveData && (displayType === "table") && (
           <TableView
             data={liveData}
