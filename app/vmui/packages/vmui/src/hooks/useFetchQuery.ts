@@ -112,7 +112,6 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep, h
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
-      console.log(expr, hideQuery);
       return expr.filter((q, i) => q.trim() && !hideQuery.includes(i)).map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
