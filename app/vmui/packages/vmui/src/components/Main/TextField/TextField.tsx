@@ -64,7 +64,10 @@ const TextField: FC<TextFieldProps> = ({
   }, [fieldRef, autofocus]);
 
   return <label
-    className="vm-text-field"
+    className={classNames({
+      "vm-text-field": true,
+      "vm-text-field_textarea": type === "textarea",
+    })}
     data-replicated-value={value}
   >
     {startIcon && <div className="vm-text-field__icon-start">{startIcon}</div>}

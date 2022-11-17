@@ -1,0 +1,66 @@
+@use "src/styles/variables" as *;
+
+.vm-trace-page {
+  display: flex;
+  flex-direction: column;
+  padding: $padding-global;
+  min-height: 100%;
+
+  &-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $padding-global;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: $padding-global;
+    margin-bottom: $padding-medium;
+
+    &-errors {
+      display: grid;
+      align-items: flex-start;
+      justify-content: stretch;
+      grid-template-columns: 1fr;
+      gap: $padding-medium;
+
+      &-item {
+        position: relative;
+        display: grid;
+        align-items: center;
+        justify-content: stretch;
+
+        &__filename {
+          min-height: 20px;
+        }
+
+        &__close {
+          position: absolute;
+          top: auto;
+          right: $padding-small;
+          z-index: 2;
+        }
+      }
+    }
+  }
+
+  &-preview {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+
+    &__text {
+      margin-bottom: $padding-small;
+      font-size: $font-size-medium;
+      white-space: pre-line;
+      text-align: center;
+      line-height: 1.8;
+    }
+  }
+}

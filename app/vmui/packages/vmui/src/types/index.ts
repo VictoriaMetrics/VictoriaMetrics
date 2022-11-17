@@ -40,7 +40,9 @@ export interface InstantDataSeries {
 export enum ErrorTypes {
   emptyServer = "Please enter Server URL",
   validServer = "Please provide a valid Server URL",
-  validQuery = "Please enter a valid Query and execute it"
+  validQuery = "Please enter a valid Query and execute it",
+  traceNotFound = "Not found the tracing information",
+  emptyTitle = "Please enter title",
 }
 
 export interface PanelSettings {

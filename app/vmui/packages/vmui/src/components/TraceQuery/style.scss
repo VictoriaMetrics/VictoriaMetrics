@@ -13,6 +13,7 @@
       padding: $padding-small $padding-small $padding-small $padding-medium;
 
       &-title {
+        flex-grow: 1;
         font-size: $font-size-medium;
         margin-right: $padding-small;
 

@@ -6,7 +6,7 @@
   margin: 6px 0;
   width: 100%;
 
-  &::after {
+  &_textarea:after {
     content: attr(data-replicated-value) " ";
     white-space: pre-wrap;
     visibility: hidden;

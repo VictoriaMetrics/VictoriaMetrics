@@ -1644,7 +1644,9 @@ All the durations and timestamps in traces are in milliseconds.
 
 Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
 
-[VMUI](#vmui) provides an UI for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
+[VMUI](#vmui) provides an UI:
+- for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
+- for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
 
 
 ## Cardinality limiter
