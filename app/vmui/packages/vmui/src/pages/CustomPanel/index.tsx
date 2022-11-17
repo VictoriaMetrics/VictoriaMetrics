@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useMemo } from "preact/compat";
+import React, { FC, useState, useEffect } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -37,18 +37,9 @@ const CustomPanel: FC = () => {
   const { queryOptions } = useFetchQueryOptions();
   const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
     visible: true,
-    customStep
+    customStep,
+    hideQuery
   });
-
-  const liveDataFiltered = useMemo(() => {
-    if (!liveData) return liveData;
-    return liveData.filter(d => !hideQuery.includes(d.group));
-  }, [hideQuery, liveData]);
-
-  const graphDataFiltered = useMemo(() => {
-    if (!graphData) return graphData;
-    return graphData.filter(d => !hideQuery.includes(d.group));
-  }, [hideQuery, graphData]);
 
   const setYaxisLimits = (limits: AxisRange) => {
     graphDispatch({ type: "SET_YAXIS_LIMITS", payload: limits });
@@ -68,7 +59,7 @@ const CustomPanel: FC = () => {
   };
 
   const handleHideQuery = (queries: number[]) => {
-    setHideQuery(queries.map(q => q + 1));
+    setHideQuery(queries);
   };
 
   useEffect(() => {
@@ -111,15 +102,15 @@ const CustomPanel: FC = () => {
           )}
           {displayType === "table" && (
             <TableSettings
-              data={liveDataFiltered || []}
+              data={liveData || []}
               defaultColumns={displayColumns}
               onChange={setDisplayColumns}
             />
           )}
         </div>
-        {graphDataFiltered && period && (displayType === "chart") && (
+        {graphData && period && (displayType === "chart") && (
           <GraphView
-            data={graphDataFiltered}
+            data={graphData}
             period={period}
             customStep={customStep}
             query={query}
@@ -128,12 +119,12 @@ const CustomPanel: FC = () => {
             setPeriod={setPeriod}
           />
         )}
-        {liveDataFiltered && (displayType === "code") && (
-          <JsonView data={liveDataFiltered}/>
+        {liveData && (displayType === "code") && (
+          <JsonView data={liveData}/>
         )}
-        {liveDataFiltered && (displayType === "table") && (
+        {liveData && (displayType === "table") && (
           <TableView
-            data={liveDataFiltered}
+            data={liveData}
             displayColumns={displayColumns}
           />
         )}

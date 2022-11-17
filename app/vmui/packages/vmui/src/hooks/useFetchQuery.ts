@@ -17,9 +17,10 @@ interface FetchQueryParams {
   visible: boolean
   display?: DisplayType,
   customStep: number,
+  hideQuery?: number[]
 }
 
-export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }: FetchQueryParams): {
+export const useFetchQuery = ({ predefinedQuery, visible, display, customStep, hideQuery = [] }: FetchQueryParams): {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -111,14 +112,15 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }:
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
-      return expr.filter(q => q.trim()).map(q => displayChart
+      console.log(expr, hideQuery);
+      return expr.filter((q, i) => q.trim() && !hideQuery.includes(i)).map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
   },
-  [serverUrl, period, displayType, customStep]);
+  [serverUrl, period, displayType, customStep, hideQuery]);
 
   useEffect(() => {
     if (!visible || !fetchUrl?.length) return;
