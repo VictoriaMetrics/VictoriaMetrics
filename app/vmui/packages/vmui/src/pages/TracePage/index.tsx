@@ -1,31 +1,44 @@
-import React, {FC, useState} from "preact/compat";
-import {ChangeEvent} from "react";
-import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
-import {Alert} from "@mui/material";
-import Trace from "../../components/CustomPanel/Trace/Trace";
-import TracingsView from "../../components/CustomPanel/Views/TracingsView";
-import Tooltip from "@mui/material/Tooltip";
-import Typography from "@mui/material/Typography";
+import React, { FC, useMemo, useState } from "preact/compat";
+import { ChangeEvent } from "react";
+import Trace from "../../components/TraceQuery/Trace";
+import TracingsView from "../../components/TraceQuery/TracingsView";
+import Tooltip from "../../components/Main/Tooltip/Tooltip";
+import Button from "../../components/Main/Button/Button";
+import Alert from "../../components/Main/Alert/Alert";
+import "./style.scss";
+import { CloseIcon } from "../../components/Main/Icons";
+import Modal from "../../components/Main/Modal/Modal";
+import JsonForm from "./JsonForm/JsonForm";
+import { ErrorTypes } from "../../types";
 
 const TracePage: FC = () => {
+  const [openModal, setOpenModal] = useState(false);
   const [tracesState, setTracesState] = useState<Trace[]>([]);
-  const [errors, setErrors] = useState<string[]>([]);
+  const [errors, setErrors] = useState<{filename: string, text: string}[]>([]);
+  const hasTraces = useMemo(() => !!tracesState.length, [tracesState]);
 
-  const handleError = (e: Error, filename?: string) => {
-    setErrors(prev => [...prev, `[${filename}] ${e.name}: ${e.message}`]);
+  const handleOpenModal = () => {
+    setOpenModal(true);
   };
 
-  const handleOnload = (e: ProgressEvent<FileReader>, filename: string) => {
+  const handleCloseModal = () => {
+    setOpenModal(false);
+  };
+
+  const handleError = (e: Error, filename = "") => {
+    setErrors(prev => [{ filename, text: `: ${e.message}` }, ...prev]);
+  };
+
+  const handleOnload = (result: string, filename: string) => {
     try {
-      const result = String(e.target?.result);
       const resp = JSON.parse(result);
       const traceData = resp.trace || resp;
       if (!traceData.duration_msec) {
-        handleError(new Error("Not found the tracing information"), filename);
+        handleError(new Error(ErrorTypes.traceNotFound), filename);
         return;
       }
-      setTracesState(prev => [...prev, new Trace(traceData, filename)]);
+      const trace = new Trace(traceData, filename);
+      setTracesState(prev => [trace, ...prev]);
     } catch (e) {
       if (e instanceof Error) handleError(e, filename);
     }
@@ -37,7 +50,10 @@ const TracePage: FC = () => {
     files.map(f => {
       const reader = new FileReader();
       const filename = f?.name || "";
-      reader.onload = (e) => handleOnload(e, filename);
+      reader.onload = (e) => {
+        const result = String(e.target?.result);
+        handleOnload(result, filename);
+      };
       reader.readAsText(f);
     });
     e.target.value = "";
@@ -48,92 +64,113 @@ const TracePage: FC = () => {
     setTracesState([...updatedTraces]);
   };
 
-  return (
-    <Box p={4} display={"flex"} flexDirection={"column"} minHeight={"calc(100vh - 64px)"}>
-      <Box display="grid" gridTemplateColumns="1fr auto" alignItems="start" gap={4} mb={4}>
-        {!!errors.length && (
-          <Alert
-            color="error"
-            severity="error"
-            sx={{width: "100%", whiteSpace: "pre-wrap"}}
-          >
-            {errors.map((error, i) => <Box mb={1} key={`${error}_${i}`}>{error}</Box>)}
-          </Alert>
-        )}
-        <Box
-          gridColumn={2}
-          display="flex"
-          gap={1}
-          flexDirection="column"
-          justifyContent="flex-end"
-          alignItems="flex-end"
-          justifySelf="center"
-        >
-          <Tooltip title="The file must contain tracing information in JSON format">
-            <Button
-              variant="contained"
-              component="label"
-            >
-              Upload File
-              <input
-                type="file"
-                hidden
-                accept="application/json"
-                multiple
-                onChange={handleChange}
-              />
-            </Button>
-          </Tooltip>
-        </Box>
-      </Box>
+  const handleCloseError = (index: number) => {
+    setErrors(prev => prev.filter((e,i) => i !== index));
+  };
 
-      {!!tracesState.length && (
-        <Box>
-          <TracingsView traces={tracesState} onDeleteClick={handleTraceDelete}/>
-        </Box>
+  const createHandlerCloseError = (index: number) => () => {
+    handleCloseError(index);
+  };
+
+  const UploadButtons = () => (
+    <div className="vm-trace-page-controls">
+      <Button
+        variant="outlined"
+        onClick={handleOpenModal}
+      >
+        Paste JSON
+      </Button>
+      <Tooltip title="The file must contain tracing information in JSON format">
+        <Button>
+          Upload Files
+          <input
+            id="json"
+            type="file"
+            accept="application/json"
+            multiple
+            title=" "
+            onChange={handleChange}
+          />
+        </Button>
+      </Tooltip>
+    </div>
+  );
+
+  return (
+    <div className="vm-trace-page">
+      <div className="vm-trace-page-header">
+        <div className="vm-trace-page-header-errors">
+          {errors.map((error, i) => (
+            <div
+              className="vm-trace-page-header-errors-item"
+              key={`${error}_${i}`}
+            >
+              <Alert variant="error">
+                <b className="vm-trace-page-header-errors-item__filename">{error.filename}</b>
+                <span>{error.text}</span>
+              </Alert>
+              <Button
+                className="vm-trace-page-header-errors-item__close"
+                startIcon={<CloseIcon/>}
+                variant="text"
+                color="error"
+                onClick={createHandlerCloseError(i)}
+              />
+            </div>
+          ))}
+        </div>
+        <div>
+          {hasTraces && <UploadButtons/>}
+        </div>
+      </div>
+
+      {hasTraces && (
+        <div>
+          <TracingsView
+            jsonEditor={true}
+            traces={tracesState}
+            onDeleteClick={handleTraceDelete}
+          />
+        </div>
       )}
 
-      {!tracesState.length && (
-        <Box
-          display={"flex"}
-          flexDirection={"column"}
-          alignItems={"center"}
-          justifyContent={"center"}
-          flexGrow={"1"}
-          paddingBottom={"64px"}
-        >
-          <Typography sx={{fontSize: 16, whiteSpace: "pre-line", textAlign: "center", lineHeight: "26px"}}>
+      {!hasTraces && (
+        <div className="vm-trace-page-preview">
+          <p className="vm-trace-page-preview__text">
             Please, upload file with JSON response content.
             {"\n"}
             The file must contain tracing information in JSON format.
             {"\n"}
             In order to use tracing please refer to the doc:&nbsp;
-            <a href="https://docs.victoriametrics.com/#query-tracing" target="_blank" rel="noreferrer">
+            <a
+              href="https://docs.victoriametrics.com/#query-tracing"
+              target="_blank"
+              rel="noreferrer"
+            >
               https://docs.victoriametrics.com/#query-tracing
             </a>
             {"\n"}
             Tracing graph will be displayed after file upload.
-          </Typography>
-          <Tooltip title="The file must contain tracing information in JSON format">
-            <Button
-              variant="contained"
-              component="label"
-              size={"large"}
-              sx={{mt: 2}}
-            >
-              Upload File
-              <input
-                type="file"
-                hidden
-                accept="application/json"
-                multiple
-                onChange={handleChange}
-              />
-            </Button>
-          </Tooltip>
-        </Box>
+          </p>
+          <UploadButtons/>
+        </div>
       )}
-    </Box>
+
+      {openModal && (
+        <Modal
+          title="Paste JSON"
+          onClose={handleCloseModal}
+        >
+          <JsonForm
+            editable
+            displayTitle
+            defaultTile={`JSON ${tracesState.length + 1}`}
+            onClose={handleCloseModal}
+            onUpload={handleOnload}
+          />
+        </Modal>
+      )}
+    </div>
   );
 };
 

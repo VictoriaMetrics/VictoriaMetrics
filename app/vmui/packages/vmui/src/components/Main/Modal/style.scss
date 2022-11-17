@@ -16,11 +16,9 @@ $padding-modal: 22px;
 
   &-content {
     padding: $padding-modal;
-    max-height: 85vh;
     background: $color-white;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
     border-radius: $border-radius-small;
-    overflow: hidden;
 
     &-header {
       display: grid;

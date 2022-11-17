@@ -9,6 +9,7 @@ import CardinalityPanel from "./pages/CardinalityPanel";
 import TopQueries from "./pages/TopQueries";
 import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
 import Spinner from "./components/Main/Spinner/Spinner";
+import TracePage from "./pages/TracePage";
 
 const App: FC = () => {
 
@@ -44,6 +45,10 @@ const App: FC = () => {
             <Route
               path={router.topQueries}
               element={<TopQueries/>}
+            />
+            <Route
+              path={router.trace}
+              element={<TracePage/>}
             />
           </Route>
         </Routes>

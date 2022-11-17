@@ -16,6 +16,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve structure project, change state management, reduce bundle size, remove Material-UI. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3298)
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to upload a custom JSON file to investigate the trace. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3308) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3310).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): save the value of the switches "Trace request" and "Disable cache" after page reload.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): correct display of the tab from the Prometheus URL.
@@ -75,7 +76,6 @@ Released at 29-10-2022
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): limit the number of plotted series. This should prevent from browser crashes or hangs when the query returns big number of time series. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3155).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): reduce memory usage when querying big number of time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3240).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add responsive styles for small screens. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3239) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3256).
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to upload a custom JSON file to investigate the trace. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3308) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3310).
 * FEATURE: log error if some environment variables referred at `-promscrape.config` via `%{ENV_VAR}` aren't found. This should prevent from silent using incorrect config files.
 * FEATURE: immediately shut down VictoriaMetrics apps on the second SIGINT or SIGTERM signal if they couldn't be finished gracefully for some reason after receiving the first signal.
 * FEATURE: improve the performance of [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series) endpoint by eliminating loading of unused `TSID` data during the API call.
