@@ -1011,7 +1011,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	startTime := time.Now()
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
-	m := make(map[string][]blockRef, maxSeriesCount)
+	type blockRefs struct {
+		brs []blockRef
+	}
+	m := make(map[string]*blockRefs, maxSeriesCount)
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
 	blocksRead := 0
 	samples := 0
@@ -1040,13 +1043,14 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		}
 		metricName := sr.MetricBlockRef.MetricName
 		brs := m[string(metricName)]
-		brs = append(brs, blockRef{
+		if brs == nil {
+			brs = &blockRefs{}
+		}
+		brs.brs = append(brs.brs, blockRef{
 			partRef: br.PartRef(),
 			addr:    addr,
 		})
-		if len(brs) > 1 {
-			m[string(metricName)] = brs
-		} else {
+		if len(brs.brs) == 1 {
 			// An optimization for big number of time series with long metricName values:
 			// use only a single copy of metricName for both orderedMetricNames and m.
 			orderedMetricNames = append(orderedMetricNames, string(metricName))
@@ -1075,7 +1079,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			brs:        m[metricName],
+			brs:        m[metricName].brs,
 		}
 	}
 	rss.packedTimeseries = pts
