@@ -83,19 +83,18 @@ func (m *manager) close() {
 }
 
 func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) error {
-	if restore && m.rr != nil {
-		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
-		if err != nil {
-			if !*remoteReadIgnoreRestoreErrors {
-				return fmt.Errorf("failed to restore ruleState for group %q: %w", group.Name, err)
-			}
-			logger.Errorf("error while restoring ruleState for group %q: %s", group.Name, err)
-		}
-	}
-
 	m.wg.Add(1)
 	id := group.ID()
 	go func() {
+                if restore && m.rr != nil {
+                        err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
+                        if err != nil {
+                                if !*remoteReadIgnoreRestoreErrors {
+                                        return fmt.Errorf("failed to restore ruleState for group %q: %w", group.Name, err)
+                                }
+                                logger.Errorf("error while restoring ruleState for group %q: %s", group.Name, err)
+                        }
+                }
 		group.start(ctx, m.notifiers, m.rw)
 		m.wg.Done()
 	}()
