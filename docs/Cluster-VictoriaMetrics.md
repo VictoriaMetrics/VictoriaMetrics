@@ -984,7 +984,7 @@ Below is the output for `/path/to/vmselect -help`:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -replicationFactor int
-     How many copies of every time series is available on vmstorage nodes. See -replicationFactor command-line flag for vminsert nodes (default 1)
+     How many copies of every time series is available on vmstorage nodes. vmselect cancels responses from the slowest -replicationFactor-1 vmstorage nodes if -replicationFactor is set by assuming it already received complete data. It isn't recommended setting this flag to values other than 1 at vmselect nodes, since it may result in incomplete responses after adding new vmstorage nodes even if the replication is enabled at vminsert nodes (default 1)
   -search.cacheTimestampOffset duration
      The maximum duration since the current time for response data, which is always queried from the original raw data, without using the response cache. Increase this value if you see gaps in responses due to time synchronization issues between VictoriaMetrics and data sources (default 5m0s)
   -search.denyPartialResponse
