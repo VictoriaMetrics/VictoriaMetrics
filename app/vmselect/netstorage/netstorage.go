@@ -1125,8 +1125,12 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 
 type tmpBlocksFileWrapper struct {
 	tbfs                []*tmpBlocksFile
-	ms                  []map[string][]tmpBlockAddr
+	ms                  []map[string]*blockAddrs
 	orderedMetricNamess [][]string
+}
+
+type blockAddrs struct {
+	addrs []tmpBlockAddr
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
@@ -1135,9 +1139,9 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	for i := range tbfs {
 		tbfs[i] = getTmpBlocksFile()
 	}
-	ms := make([]map[string][]tmpBlockAddr, n)
+	ms := make([]map[string]*blockAddrs, n)
 	for i := range ms {
-		ms[i] = make(map[string][]tmpBlockAddr)
+		ms[i] = make(map[string]*blockAddrs)
 	}
 	return &tmpBlocksFileWrapper{
 		tbfs:                tbfs,
@@ -1157,10 +1161,11 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	metricName := mb.MetricName
 	m := tbfw.ms[workerID]
 	addrs := m[string(metricName)]
-	addrs = append(addrs, addr)
-	if len(addrs) > 1 {
-		m[string(metricName)] = addrs
-	} else {
+	if addrs == nil {
+		addrs = &blockAddrs{}
+	}
+	addrs.addrs = append(addrs.addrs, addr)
+	if len(addrs.addrs) == 1 {
 		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 		// in both tbfw.orderedMetricNamess and tbfw.ms.
 		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
@@ -1172,7 +1177,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	return nil
 }
 
-func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string][]tmpBlockAddr, uint64, error) {
+func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, uint64, error) {
 	var bytesTotal uint64
 	for i, tbf := range tbfw.tbfs {
 		if err := tbf.Finalize(); err != nil {
@@ -1188,8 +1193,10 @@ func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string][]tmpBlockAdd
 			dstAddrs, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
+				dstAddrs := &blockAddrs{}
+				addrsByMetricName[metricName] = dstAddrs
 			}
-			addrsByMetricName[metricName] = append(dstAddrs, m[metricName]...)
+			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
 		}
 	}
 	return orderedMetricNames, addrsByMetricName, bytesTotal, nil
@@ -1349,7 +1356,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			addrs:      addrsByMetricName[metricName],
+			addrs:      addrsByMetricName[metricName].addrs,
 		}
 	}
 	rss.packedTimeseries = pts
