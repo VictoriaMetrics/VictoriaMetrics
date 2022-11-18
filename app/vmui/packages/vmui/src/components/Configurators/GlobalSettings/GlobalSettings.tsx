@@ -6,27 +6,33 @@ import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";
 import "./style.scss";
 import Tooltip from "../../Main/Tooltip/Tooltip";
+import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
+import { SeriesLimits } from "../../../types";
+import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 
-const title = "Setting Server URL";
+const title = "Settings";
 
 const GlobalSettings: FC = () => {
 
-  const { serverUrl } = useAppState();
+  const { serverUrl: stateServerUrl } = useAppState();
+  const { seriesLimits } = useCustomPanelState();
+
   const dispatch = useAppDispatch();
-  const [changedServerUrl, setChangedServerUrl] = useState(serverUrl);
+  const customPanelDispatch = useCustomPanelDispatch();
 
-  const setServer = (url?: string) => {
-    dispatch({ type: "SET_SERVER", payload: url || changedServerUrl });
-    handleClose();
-  };
-
-  const createSetServer = () => () => {
-    setServer();
-  };
+  const [serverUrl, setServerUrl] = useState(stateServerUrl);
+  const [limits, setLimits] = useState<SeriesLimits>(seriesLimits);
 
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
+
+  const handlerApply = () => {
+    console.log("limits", limits);
+    dispatch({ type: "SET_SERVER", payload: serverUrl });
+    customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
+    handleClose();
+  };
 
   return <>
     <Tooltip title={title}>
@@ -46,8 +52,16 @@ const GlobalSettings: FC = () => {
         <div className="vm-server-configurator">
           <div className="vm-server-configurator__input">
             <ServerConfigurator
-              setServer={setChangedServerUrl}
-              onEnter={setServer}
+              serverUrl={serverUrl}
+              onChange={setServerUrl}
+              onEnter={handlerApply}
+            />
+          </div>
+          <div className="vm-server-configurator__input">
+            <LimitsConfigurator
+              limits={limits}
+              onChange={setLimits}
+              onEnter={handlerApply}
             />
           </div>
           <div className="vm-server-configurator__footer">
@@ -60,7 +74,7 @@ const GlobalSettings: FC = () => {
             </Button>
             <Button
               variant="contained"
-              onClick={createSetServer()}
+              onClick={handlerApply}
             >
                 apply
             </Button>
