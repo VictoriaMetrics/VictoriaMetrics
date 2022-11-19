@@ -17,9 +17,10 @@ interface FetchQueryParams {
   display?: DisplayType,
   customStep: number,
   hideQuery?: number[]
+  showAllSeries?: boolean
 }
 
-export const useFetchQuery = ({ predefinedQuery, visible, display, customStep, hideQuery = [] }: FetchQueryParams): {
+interface FetchQueryReturn {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -27,7 +28,25 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep, h
   error?: ErrorTypes | string,
   warning?: string,
   traces?: Trace[],
-} => {
+}
+
+interface FetchDataParams {
+  fetchUrl: string[],
+  fetchQueue: AbortController[],
+  displayType: DisplayType,
+  query: string[],
+  stateSeriesLimits: SeriesLimits,
+  showAllSeries?: boolean,
+}
+
+export const useFetchQuery = ({
+  predefinedQuery,
+  visible,
+  display,
+  customStep,
+  hideQuery = [],
+  showAllSeries
+}: FetchQueryParams): FetchQueryReturn => {
   const { query } = useQueryState();
   const { period } = useTimeState();
   const { displayType, nocache, isTracingEnabled, seriesLimits: stateSeriesLimits } = useCustomPanelState();
@@ -49,18 +68,19 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep, h
     }
   }, [error]);
 
-  const fetchData = async (
-    fetchUrl: string[],
-    fetchQueue: AbortController[],
-    displayType: DisplayType,
-    query: string[],
-    stateSeriesLimits: SeriesLimits
-  ) => {
+  const fetchData = async ({
+    fetchUrl,
+    fetchQueue,
+    displayType,
+    query,
+    stateSeriesLimits,
+    showAllSeries,
+  }: FetchDataParams) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      const seriesLimit = stateSeriesLimits[displayType];
+      const seriesLimit = showAllSeries ? Infinity : stateSeriesLimits[displayType];
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
@@ -130,8 +150,15 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep, h
     if (!visible || !fetchUrl?.length) return;
     setIsLoading(true);
     const expr = predefinedQuery ?? query;
-    throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr, stateSeriesLimits);
-  }, [fetchUrl, visible, stateSeriesLimits]);
+    throttledFetchData({
+      fetchUrl,
+      fetchQueue,
+      displayType: display || displayType,
+      query: expr,
+      stateSeriesLimits,
+      showAllSeries,
+    });
+  }, [fetchUrl, visible, stateSeriesLimits, showAllSeries]);
 
   useEffect(() => {
     const fetchPast = fetchQueue.slice(0, -1);

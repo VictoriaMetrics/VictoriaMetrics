@@ -6,6 +6,13 @@
   gap: $padding-medium;
   height: 100%;
 
+  &__warning {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    justify-content: space-between;
+  }
+
   &__trace {
   }
 
