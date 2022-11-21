@@ -1,5 +1,4 @@
 import { DisplayType, displayTypeTabs } from "../../pages/CustomPanel/DisplayTypeSwitch";
-import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { getQueryStringValue } from "../../utils/query-string";
 
 export interface CustomPanelState {
@@ -18,8 +17,8 @@ const displayType = displayTypeTabs.find(t => t.prometheusCode === +queryTab || 
 
 export const initialCustomPanelState: CustomPanelState = {
   displayType: (displayType?.value || "chart") as DisplayType,
-  nocache: getFromStorage("NO_CACHE") as boolean || false,
-  isTracingEnabled: getFromStorage("QUERY_TRACING") as boolean || false,
+  nocache: false,
+  isTracingEnabled: false,
 };
 
 export function reducer(state: CustomPanelState, action: CustomPanelAction): CustomPanelState {
@@ -30,14 +29,12 @@ export function reducer(state: CustomPanelState, action: CustomPanelAction): Cus
         displayType: action.payload
       };
     case "TOGGLE_QUERY_TRACING":
-      saveToStorage("QUERY_TRACING", !state.isTracingEnabled);
       return {
         ...state,
         isTracingEnabled: !state.isTracingEnabled,
 
       };
     case "TOGGLE_NO_CACHE":
-      saveToStorage("NO_CACHE", !state.nocache);
       return {
         ...state,
         nocache: !state.nocache
