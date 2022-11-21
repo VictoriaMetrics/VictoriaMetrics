@@ -479,24 +479,19 @@ func (p *parser) parsePositiveNumberExpr() (*NumberExpr, error) {
 	if !isPositiveNumberPrefix(p.lex.Token) && !isInfOrNaN(p.lex.Token) {
 		return nil, fmt.Errorf(`positiveNumberExpr: unexpected token %q; want "number"`, p.lex.Token)
 	}
-	var ne NumberExpr
-	if isSpecialIntegerPrefix(p.lex.Token) {
-		in, err := strconv.ParseInt(p.lex.Token, 0, 64)
-		if err != nil {
-			return nil, fmt.Errorf(`positiveNumberExpr: cannot parse integer %q: %s`, p.lex.Token, err)
-		}
-		ne.N = float64(in)
-	} else {
-		n, err := strconv.ParseFloat(p.lex.Token, 64)
-		if err != nil {
-			return nil, fmt.Errorf(`positiveNumberExpr: cannot parse %q: %s`, p.lex.Token, err)
-		}
-		ne.N = n
+	s := p.lex.Token
+	n, err := parsePositiveNumber(s)
+	if err != nil {
+		return nil, fmt.Errorf(`positivenumberExpr: cannot parse %q: %s`, s, err)
 	}
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
-	return &ne, nil
+	ne := &NumberExpr{
+		N: n,
+		s: s,
+	}
+	return ne, nil
 }
 
 func (p *parser) parseStringExpr() (*StringExpr, error) {
@@ -1499,10 +1494,16 @@ func (se *StringExpr) AppendString(dst []byte) []byte {
 type NumberExpr struct {
 	// N is the parsed number, i.e. `1.23`, `-234`, etc.
 	N float64
+
+	// s contains the original string representation for N.
+	s string
 }
 
 // AppendString appends string representation of ne to dst and returns the result.
 func (ne *NumberExpr) AppendString(dst []byte) []byte {
+	if ne.s != "" {
+		return append(dst, ne.s...)
+	}
 	return strconv.AppendFloat(dst, ne.N, 'g', -1, 64)
 }
 

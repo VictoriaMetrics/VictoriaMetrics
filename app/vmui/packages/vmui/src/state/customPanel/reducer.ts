@@ -23,8 +23,8 @@ const limitsStorage = getFromStorage("SERIES_LIMITS") as string;
 
 export const initialCustomPanelState: CustomPanelState = {
   displayType: (displayType?.value || "chart") as DisplayType,
-  nocache: getFromStorage("NO_CACHE") as boolean || false,
-  isTracingEnabled: getFromStorage("QUERY_TRACING") as boolean || false,
+  nocache: false,
+  isTracingEnabled: false,
   seriesLimits: limitsStorage ? JSON.parse(getFromStorage("SERIES_LIMITS") as string) : DEFAULT_MAX_SERIES
 };
 
@@ -42,14 +42,12 @@ export function reducer(state: CustomPanelState, action: CustomPanelAction): Cus
         seriesLimits: action.payload
       };
     case "TOGGLE_QUERY_TRACING":
-      saveToStorage("QUERY_TRACING", !state.isTracingEnabled);
       return {
         ...state,
         isTracingEnabled: !state.isTracingEnabled,
 
       };
     case "TOGGLE_NO_CACHE":
-      saveToStorage("NO_CACHE", !state.nocache);
       return {
         ...state,
         nocache: !state.nocache

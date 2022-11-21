@@ -18,6 +18,7 @@ $color-text-secondary: rgba($color-text, 0.6);
 $color-text-disabled: rgba($color-text, 0.4);
 
 $color-black: #110f0f;
+$color-dove-gray: #616161;
 $color-silver: #C4C4C4;
 $color-alto: #D8D8D8;
 $color-white: #ffffff;
@@ -30,7 +31,7 @@ $color-tropical-blue: #C9E3F6;
 $color-background-body: var(--color-background-body);
 $color-background-block: var(--color-background-block);
 $color-background-modal: rgba($color-black, 0.7);
-$color-background-tooltip: rgba(97, 97, 97, 0.92);
+$color-background-tooltip: rgba($color-dove-gray, 0.92);
 
 
 /************* padding *************/

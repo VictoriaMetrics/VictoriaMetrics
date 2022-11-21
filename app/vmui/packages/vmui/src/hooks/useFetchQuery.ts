@@ -126,6 +126,12 @@ export const useFetchQuery = ({
 
   const throttledFetchData = useCallback(debounce(fetchData, 800), []);
 
+  const filterExpr = (q: string, i: number) => {
+    const byQuery = q.trim();
+    const byHideQuery = hideQuery ? !hideQuery.includes(i) : true;
+    return byQuery && byHideQuery;
+  };
+
   const fetchUrl = useMemo(() => {
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
@@ -137,7 +143,7 @@ export const useFetchQuery = ({
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
-      return expr.filter((q, i) => q.trim() && !hideQuery.includes(i)).map(q => displayChart
+      return expr.filter(filterExpr).map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
     } else {

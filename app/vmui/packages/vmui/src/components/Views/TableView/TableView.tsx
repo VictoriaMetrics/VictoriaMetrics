@@ -4,7 +4,10 @@ import { InstantDataSeries } from "../../../types";
 import { useSortedCategories } from "../../../hooks/useSortedCategories";
 import Alert from "../../Main/Alert/Alert";
 import classNames from "classnames";
-import { ArrowDropDownIcon } from "../../Main/Icons";
+import { ArrowDropDownIcon, CopyIcon } from "../../Main/Icons";
+import Tooltip from "../../Main/Tooltip/Tooltip";
+import Button from "../../Main/Button/Button";
+import { useSnack } from "../../../contexts/Snackbar";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -12,16 +15,24 @@ export interface GraphViewProps {
 }
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
+  const { showInfoMessage } = useSnack();
 
   const sortedColumns = useSortedCategories(data, displayColumns);
 
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
 
+  const getCopyValue = (metric: {[p: string]: string}) => {
+    const { __name__, ...fields } = metric;
+    if (!__name__ && !Object.keys(fields).length) return "";
+    return `${__name__} ${JSON.stringify(fields)}`;
+  };
+
   const rows: InstantDataSeries[] = useMemo(() => {
     const rows = data?.map(d => ({
       metadata: sortedColumns.map(c => d.metric[c.key] || "-"),
-      value: d.value ? d.value[1] : "-"
+      value: d.value ? d.value[1] : "-",
+      copyValue: getCopyValue(d.metric)
     }));
     const orderByValue = orderBy === "Value";
     const rowIndex = sortedColumns.findIndex(c => c.key === orderBy);
@@ -34,13 +45,24 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     });
   }, [sortedColumns, data, orderBy, orderDir]);
 
-  const createSortHandler = (key: string) => () => {
-    sortHandler(key);
-  };
+  const hasCopyValue = useMemo(() => rows.some(r => r.copyValue), [rows]);
 
   const sortHandler = (key: string) => {
     setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");
     setOrderBy(key);
+  };
+
+  const copyHandler = async (copyValue: string) => {
+    await navigator.clipboard.writeText(copyValue);
+    showInfoMessage({ text: "Row has been copied", type: "success" });
+  };
+
+  const createSortHandler = (key: string) => () => {
+    sortHandler(key);
+  };
+
+  const createCopyHandler = (copyValue: string) => () => {
+    copyHandler(copyValue);
   };
 
   if (!rows.length) return <Alert variant="warning">No data to show</Alert>;
@@ -86,6 +108,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
               Value
             </div>
           </td>
+          {hasCopyValue && <td className="vm-table-cell vm-table-cell_header"/>}
         </tr>
       </thead>
       <tbody className="vm-table-body">
@@ -108,6 +131,23 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
             <td className="vm-table-cell vm-table-cell_right">
               {row.value}
             </td>
+            {hasCopyValue && (
+              <td className="vm-table-cell vm-table-cell_right">
+                {row.copyValue && (
+                  <div className="vm-table-cell__content">
+                    <Tooltip title="Copy row">
+                      <Button
+                        variant="text"
+                        color="gray"
+                        size="small"
+                        startIcon={<CopyIcon/>}
+                        onClick={createCopyHandler(row.copyValue)}
+                      />
+                    </Tooltip>
+                  </div>
+                )}
+              </td>
+            )}
           </tr>
         ))}
       </tbody>
