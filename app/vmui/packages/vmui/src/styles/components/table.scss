@@ -7,6 +7,10 @@
   margin-top: -$padding-medium;
   background-color: $color-background-block;
 
+  &-additional-settings {
+    margin-bottom: $padding-medium*1.5;
+  }
+
   &__row {
     background-color: $color-background-block;
     transition: background-color 200ms ease;

@@ -5,6 +5,8 @@ import { useSortedCategories } from "../../../hooks/useSortedCategories";
 import Alert from "../../Main/Alert/Alert";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../Main/Icons";
+import { getNameForMetric } from "../../../utils/metric";
+import Switch from "../../Main/Switch/Switch";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -13,14 +15,21 @@ export interface GraphViewProps {
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
 
-  const sortedColumns = useSortedCategories(data, displayColumns);
-
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
+  const [compact, setCompact] = useState(false);
+
+  const sortedColumns = (compact 
+    ? useSortedCategories([{ group: 0, metric: { "Data": "Data" } }], displayColumns)
+    : useSortedCategories(data, displayColumns)
+  );
 
   const rows: InstantDataSeries[] = useMemo(() => {
     const rows = data?.map(d => ({
-      metadata: sortedColumns.map(c => d.metric[c.key] || "-"),
+      metadata: sortedColumns.map(c => (compact 
+        ? getNameForMetric(d, undefined, "=", true) 
+        : (d.metric[c.key] || "-")
+      )),
       value: d.value ? d.value[1] : "-"
     }));
     const orderByValue = orderBy === "Value";
@@ -45,7 +54,14 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
 
   if (!rows.length) return <Alert variant="warning">No data to show</Alert>;
 
-  return (
+  return (<>
+    <div className="vm-table-additional-settings">
+      <Switch
+        label={"Compact"}
+        value={compact}
+        onChange={() => setCompact(!compact)}
+      />
+    </div>
     <table className="vm-table">
       <thead className="vm-table-header">
         <tr className="vm-table__row vm-table__row_header">
@@ -112,7 +128,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
         ))}
       </tbody>
     </table>
-  );
+  </>);
 };
 
 export default TableView;
