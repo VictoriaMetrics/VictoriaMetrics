@@ -176,10 +176,10 @@ func Init() {
 }
 
 var (
-	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
-	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_relabel_config_last_reload_successful`)
-	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
+	configReloads      = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
+	configReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
+	configSuccess      = metrics.NewCounter(`vmagent_relabel_config_last_reload_successful`)
+	configTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
 )
 
 func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {

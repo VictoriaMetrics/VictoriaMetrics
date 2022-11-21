@@ -125,7 +125,7 @@ groups:
         expr: |
           vm_promscrape_config_last_reload_successful != 1
           or
-          vm_relabel_config_last_reload_successful != 1
+          vmagent_relabel_config_last_reload_successful != 1
         labels:
           severity: warning
         annotations:
