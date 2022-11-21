@@ -6,7 +6,7 @@ import Alert from "../../Main/Alert/Alert";
 import classNames from "classnames";
 import { ArrowDropDownIcon } from "../../Main/Icons";
 import { getNameForMetric } from "../../../utils/metric";
-import Switch from "../../Main/Switch/Switch";
+import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -15,19 +15,19 @@ export interface GraphViewProps {
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
 
+  const { tableCompact } = useCustomPanelState();
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
-  const [compact, setCompact] = useState(false);
 
-  const sortedColumns = (compact 
-    ? useSortedCategories([{ group: 0, metric: { "Data": "Data" } }], displayColumns)
+  const sortedColumns = (tableCompact
+    ? useSortedCategories([{ group: 0, metric: { "Data": "Data" } }], ["Data"])
     : useSortedCategories(data, displayColumns)
   );
 
   const rows: InstantDataSeries[] = useMemo(() => {
     const rows = data?.map(d => ({
-      metadata: sortedColumns.map(c => (compact 
-        ? getNameForMetric(d, undefined, "=", true) 
+      metadata: sortedColumns.map(c => (tableCompact
+        ? getNameForMetric(d, undefined, "=", true)
         : (d.metric[c.key] || "-")
       )),
       value: d.value ? d.value[1] : "-"
@@ -41,7 +41,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
       const asc = orderDir === "asc" ? n1 < n2 : n1 > n2;
       return asc ? -1 : 1;
     });
-  }, [sortedColumns, data, orderBy, orderDir]);
+  }, [sortedColumns, data, orderBy, orderDir, tableCompact]);
 
   const createSortHandler = (key: string) => () => {
     sortHandler(key);
@@ -54,14 +54,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
 
   if (!rows.length) return <Alert variant="warning">No data to show</Alert>;
 
-  return (<>
-    <div className="vm-table-additional-settings">
-      <Switch
-        label={"Compact"}
-        value={compact}
-        onChange={() => setCompact(!compact)}
-      />
-    </div>
+  return (
     <table className="vm-table">
       <thead className="vm-table-header">
         <tr className="vm-table__row vm-table__row_header">
@@ -99,7 +92,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
               >
                 <ArrowDropDownIcon/>
               </div>
-              Value
+            Value
             </div>
           </td>
         </tr>
@@ -128,7 +121,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
         ))}
       </tbody>
     </table>
-  </>);
+  );
 };
 
 export default TableView;
