@@ -2035,6 +2035,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 ```
   -bigMergeConcurrency int
      The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+  -cacheExpireDuration duration
+     Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
      Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
@@ -2053,7 +2055,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in enterprise version of VictoriaMetrics
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
      Whether to check only -promscrape.config and then exit. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
@@ -2064,7 +2066,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -finalMergeDelay duration
      The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -flagsAuthKey string
@@ -2168,7 +2170,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
   -prevCacheRemovalPercent float
-     The previous cache is removed when the percent of requests it serves becomes lower than this value. Higher values reduce average memory usage at the cost of higher CPU usage (default 0.2)
+     Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
   -promscrape.azureSDCheckInterval duration
      Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string
@@ -2263,7 +2265,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -relabelDebug
      Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -retentionFilter array
-     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in enterprise version of VictoriaMetrics
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter
@@ -2277,9 +2279,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.disableCache
      Whether to disable response caching. This may be useful during data backfilling
   -search.graphiteMaxPointsPerSeries int
-     The maximum number of points per series Graphite render API can return. This flag is available only in enterprise version of VictoriaMetrics (default 1000000)
+     The maximum number of points per series Graphite render API can return. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in enterprise version of VictoriaMetrics (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
@@ -2293,7 +2295,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in enterprise version of VictoriaMetrics (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 300000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxMemoryPerQuery size

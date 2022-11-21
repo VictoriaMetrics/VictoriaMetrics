@@ -303,6 +303,13 @@ The shortlist of configuration flags is the following:
 ```
 vmbackupmanager performs regular backups according to the provided configs.
 
+subcommands:
+ backup: provides auxiliary backup-related commands
+ restore: restores backup specified by restore mark if it exists
+
+command-line flags:
+  -apiURL string
+     vmbackupmanager address to perform API requests (default "http://127.0.0.1:8300")
   -concurrency int
      The number of concurrent workers. Higher concurrency may reduce backup duration (default 10)
   -configFilePath string
@@ -332,7 +339,7 @@ vmbackupmanager performs regular backups according to the provided configs.
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -396,8 +403,6 @@ vmbackupmanager performs regular backups according to the provided configs.
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
-  -restoreOnStart
-     Check if backup restore was requested and restore requested backup.
   -runOnStart
      Upload backups immediately after start of the service. Otherwise the backup starts on new hour
   -s3ForcePathStyle
