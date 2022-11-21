@@ -505,6 +505,12 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	if err != nil {
 		return nil, nil, err
 	}
+	if len(tssFirst) == 0 && strings.ToLower(be.Op) != "or" {
+		// Fast path: there is no sense in executing the exprSecond when exprFirst returns an empty result,
+		// since the "exprFirst op exprSecond" would return an empty result in any case.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3349
+		return nil, nil, nil
+	}
 	lfs := getCommonLabelFilters(tssFirst)
 	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
 	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
