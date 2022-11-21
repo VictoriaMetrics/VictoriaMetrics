@@ -1943,6 +1943,8 @@ func transformLimitOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	rvs := removeEmptySeries(args[2])
 	if len(rvs) >= offset {
 		rvs = rvs[offset:]
+	} else {
+		rvs = nil
 	}
 	if len(rvs) > limit {
 		rvs = rvs[:limit]

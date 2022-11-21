@@ -24,6 +24,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to hide results of a particular query by clicking the `eye` icon. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3359).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add default alert list for vmalert's metrics. See [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml).
 
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly return an empty result from [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset) if the `offset` arg exceeds the number of inner time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3312).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display the requested graph on the requested time range when navigating from Prometheus URL in Grafana.
 * BUGFIX: reduce CPU usage spikes and memory usage spikes under high data ingestion rate introduced in [v1.83.0](https://docs.victoriametrics.com/CHANGELOG.html#v1830). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3343).
 
