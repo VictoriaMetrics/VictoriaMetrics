@@ -91,6 +91,7 @@ services:
       - ./alerts-cluster.yml:/etc/alerts/alerts.yml
       - ./alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
       - '--datasource.url=http://vmselect:8481/select/0/prometheus'
       - '--remoteRead.url=http://vmselect:8481/select/0/prometheus'
