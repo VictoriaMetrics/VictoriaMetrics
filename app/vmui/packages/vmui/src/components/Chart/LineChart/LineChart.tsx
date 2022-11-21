@@ -1,9 +1,15 @@
-import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
-import uPlot, { AlignedData as uPlotData, Options as uPlotOptions, Series as uPlotSeries, Range, Scales, Scale } from "uplot";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import uPlot, {
+  AlignedData as uPlotData,
+  Options as uPlotOptions,
+  Series as uPlotSeries,
+  Range,
+  Scales,
+  Scale,
+} from "uplot";
 import { defaultOptions } from "../../../utils/uplot/helpers";
 import { dragChart } from "../../../utils/uplot/events";
 import { getAxes, getMinMaxBuffer } from "../../../utils/uplot/axes";
-import { setTooltip } from "../../../utils/uplot/tooltip";
 import { MetricResult } from "../../../api/types";
 import { limitsDurations } from "../../../utils/time";
 import throttle from "lodash.throttle";
@@ -13,6 +19,7 @@ import { YaxisState } from "../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
 import "./style.scss";
 import classNames from "classnames";
+import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -24,21 +31,30 @@ export interface LineChartProps {
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
   container: HTMLDivElement | null
 }
+
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
 
-const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
-  period, yaxis, unit, setPeriod, container }) => {
-
+const LineChart: FC<LineChartProps> = ({
+  data,
+  series,
+  metrics = [],
+  period,
+  yaxis,
+  unit,
+  setPeriod,
+  container
+}) => {
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const layoutSize = useResize(container);
 
-  const tooltip = document.createElement("div");
-  tooltip.className = "u-tooltip";
-  const tooltipIdx: {seriesIdx: number | null, dataIdx: number | undefined} = { seriesIdx: null, dataIdx: undefined };
-  const tooltipOffset = { left: 0, top: 0 };
+  const [showTooltip, setShowTooltip] = useState(false);
+  const [tooltipIdx, setTooltipIdx] = useState({ seriesIdx: -1, dataIdx: -1 });
+  const [tooltipOffset, setTooltipOffset] = useState({ left: 0, top: 0 });
+  const [stickyTooltips, setStickyToolTips] = useState<ChartTooltipProps[]>([]);
+  const tooltipId = useMemo(() => `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`, [tooltipIdx]);
 
   const setScale = ({ min, max }: { min: number, max: number }): void => {
     setPeriod({ from: new Date(min * 1000), to: new Date(max * 1000) });
@@ -54,12 +70,13 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
 
   const onReadyChart = (u: uPlot) => {
     const factor = 0.9;
-    tooltipOffset.left = parseFloat(u.over.style.left);
-    tooltipOffset.top = parseFloat(u.over.style.top);
-    u.root.querySelector(".u-wrap")?.appendChild(tooltip);
+    setTooltipOffset({
+      left: parseFloat(u.over.style.left),
+      top: parseFloat(u.over.style.top)
+    });
     u.over.addEventListener("mousedown", e => {
-      const { ctrlKey, metaKey } = e;
-      const leftClick = e.button === 0;
+      const { ctrlKey, metaKey, button } = e;
+      const leftClick = button === 0;
       const leftClickWithMeta = leftClick && (ctrlKey || metaKey);
       if (leftClickWithMeta) {
         // drag pan
@@ -98,21 +115,37 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
     }
   };
 
-  const setCursor = (u: uPlot) => {
-    if (tooltipIdx.dataIdx === u.cursor.idx) return;
-    tooltipIdx.dataIdx = u.cursor.idx || 0;
-    if (tooltipIdx.seriesIdx !== null && tooltipIdx.dataIdx !== undefined) {
-      setTooltip({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit });
+  const handleClick = () => {
+    const id = `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`;
+    const props = {
+      id,
+      unit,
+      series,
+      metrics,
+      tooltipIdx,
+      tooltipOffset,
+    };
+
+    if (!stickyTooltips.find(t => t.id === id)) {
+      const tooltipProps = JSON.parse(JSON.stringify(props));
+      setStickyToolTips(prev => [...prev, tooltipProps]);
     }
   };
 
-  const seriesFocus = (u: uPlot, sidx: (number | null)) => {
-    if (tooltipIdx.seriesIdx === sidx) return;
-    tooltipIdx.seriesIdx = sidx;
-    sidx && tooltipIdx.dataIdx !== undefined
-      ? setTooltip({ u, tooltipIdx, metrics, series, tooltip, tooltipOffset, unit })
-      : tooltip.style.display = "none";
+  const handleUnStick = (id:string) => {
+    setStickyToolTips(prev => prev.filter(t => t.id !== id));
   };
+
+  const setCursor = (u: uPlot) => {
+    const dataIdx = u.cursor.idx ?? -1;
+    setTooltipIdx(prev => ({ ...prev, dataIdx }));
+  };
+
+  const seriesFocus = (u: uPlot, sidx: (number | null)) => {
+    const seriesIdx = sidx ?? -1;
+    setTooltipIdx(prev => ({ ...prev, seriesIdx }));
+  };
+
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
@@ -168,6 +201,8 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
   useEffect(() => setXRange({ min: period.start, max: period.end }), [period]);
 
   useEffect(() => {
+    setStickyToolTips([]);
+    setTooltipIdx({ seriesIdx: -1, dataIdx: -1 });
     if (!uPlotRef.current) return;
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
@@ -187,6 +222,17 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
+  useEffect(() => {
+    const show = tooltipIdx.dataIdx !== -1 && tooltipIdx.seriesIdx !== -1;
+    setShowTooltip(show);
+
+    if (show) window.addEventListener("click", handleClick);
+
+    return () => {
+      window.removeEventListener("click", handleClick);
+    };
+  }, [tooltipIdx, stickyTooltips]);
+
   return (
     <div
       className={classNames({
@@ -194,7 +240,31 @@ const LineChart: FC<LineChartProps> = ({ data, series, metrics = [],
         "vm-line-chart_panning": isPanning
       })}
     >
-      <div ref={uPlotRef}/>
+      <div
+        className="vm-line-chart__u-plot"
+        ref={uPlotRef}
+      />
+      {uPlotInst && showTooltip && (
+        <ChartTooltip
+          unit={unit}
+          u={uPlotInst}
+          series={series}
+          metrics={metrics}
+          tooltipIdx={tooltipIdx}
+          tooltipOffset={tooltipOffset}
+          id={tooltipId}
+        />
+      )}
+
+      {uPlotInst && stickyTooltips.map(t => (
+        <ChartTooltip
+          {...t}
+          isSticky
+          u={uPlotInst}
+          key={t.id}
+          onClose={handleUnStick}
+        />
+      ))}
     </div>
   );
 };
