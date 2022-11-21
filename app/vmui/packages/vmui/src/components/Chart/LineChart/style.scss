@@ -7,45 +7,8 @@
   &_panning {
     pointer-events: none;
   }
-}
 
-.u-tooltip {
-  position: absolute;
-  display: none;
-  grid-gap: $padding-global;
-  max-width: 300px;
-  padding: $padding-small;
-  border-radius: $border-radius-medium;
-  background: $color-background-tooltip;
-  color: $color-white;
-  font-size: $font-size-small;
-  font-weight: normal;
-  line-height: 1.4;
-  word-wrap: break-word;
-  font-family: monospace;
-  pointer-events: none;
-  z-index: 100;
-
-  &-data {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    line-height: 150%;
-
-    &__value {
-      padding: 4px;
-      font-weight: bold;
-    }
-  }
-
-  &__info {
-    display: grid;
-    grid-gap: 4px;
-  }
-
-  &__marker {
-    width: 12px;
-    height: 12px;
-    margin-right: $padding-small;
+  &__u-plot {
+    position: relative;
   }
 }
