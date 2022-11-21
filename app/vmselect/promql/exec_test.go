@@ -6912,6 +6912,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_normalize(time(),alias(-time(),"negative"))`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_normalize(time(),alias(-time(), "negative"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0.2, 0.4, 0.6, 0.8, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 0.8, 0.6, 0.4, 0.2, 0},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("negative")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`range_first(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_first(time())`
