@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -38,22 +39,37 @@ func Init() {
 		logger.Fatalf("cannot load relabelConfig: %s", err)
 	}
 	pcsGlobal.Store(pcs)
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
+
 	if len(*relabelConfig) == 0 {
 		return
 	}
 	go func() {
 		for range sighupCh {
+			configReloads.Inc()
 			logger.Infof("received SIGHUP; reloading -relabelConfig=%q...", *relabelConfig)
 			pcs, err := loadRelabelConfig()
 			if err != nil {
+				configReloadErrors.Inc()
+				configSuccess.Set(0)
 				logger.Errorf("cannot load the updated relabelConfig: %s; preserving the previous config", err)
 				continue
 			}
 			pcsGlobal.Store(pcs)
+			configSuccess.Set(1)
+			configTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("successfully reloaded -relabelConfig=%q", *relabelConfig)
 		}
 	}()
 }
+
+var (
+	configReloads      = metrics.NewCounter(`vm_relabel_config_reloads_total`)
+	configReloadErrors = metrics.NewCounter(`vm_relabel_config_reloads_errors_total`)
+	configSuccess      = metrics.NewCounter(`vm_relabel_config_last_reload_successful`)
+	configTimestamp    = metrics.NewCounter(`vm_relabel_config_last_reload_success_timestamp_seconds`)
+)
 
 var pcsGlobal atomic.Value
 
