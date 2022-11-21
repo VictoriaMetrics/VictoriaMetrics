@@ -6,7 +6,7 @@ groups:
   # https://grafana.com/grafana/dashboards/14950-victoriametrics-vmalert is installed.
   # Pls update the `dashboard` annotation according to your setup.
   - name: vmalert
-    interval: 5s
+    interval: 30s
     rules:
       - alert: ConfigurationReloadFailure
         expr: vmalert_config_last_reload_successful != 1
