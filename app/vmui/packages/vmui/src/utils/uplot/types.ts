@@ -1,21 +1,4 @@
 import uPlot, { Series } from "uplot";
-import { MetricResult } from "../../api/types";
-
-export interface SetupTooltip {
-    u: uPlot,
-    metrics: MetricResult[],
-    series: Series[],
-    tooltip: HTMLDivElement,
-    unit?: string,
-    tooltipOffset: {
-        left: number,
-        top: number
-    },
-    tooltipIdx: {
-        seriesIdx: number | null,
-        dataIdx: number | undefined
-    }
-}
 
 export interface HideSeriesArgs {
     hideSeries: string[],
