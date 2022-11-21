@@ -2291,6 +2291,16 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset(too-big-offset)`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 10, sort_by_label((
+			label_set(time()*1, "foo", "y"),
+			label_set(time()*2, "foo", "a"),
+			label_set(time()*3, "foo", "x"),
+		), "foo"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`limit_offset NaN`, func(t *testing.T) {
 		t.Parallel()
 		// q returns 3 time series, where foo=3 contains only NaN values
