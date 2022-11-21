@@ -1221,6 +1221,11 @@ over the selected time range per each time series returned by `q`. This function
 
 `range_min(q)` is a [transform function](#transform-functions), which calculates the min value across points per each time series returned by `q`.
 
+#### range_normalize
+
+`range_normalize(q1, ...)` is a [transform function](#transform-functions), which normalizes values for time series returned by `q1, ...` into `[0 ... 1]` range.
+This function is useful for correlating time series with distinct value ranges.
+
 #### range_quantile
 
 `range_quantile(phi, q)` is a [transform function](#transform-functions), which returns `phi`-quantile across points per each time series returned by `q`.

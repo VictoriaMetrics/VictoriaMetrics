@@ -386,7 +386,7 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 		return -1
 	}
 	switch funcName {
-	case "", "absent", "scalar", "union", "vector":
+	case "", "absent", "scalar", "union", "vector", "range_normalize":
 		return -1
 	case "end", "now", "pi", "ru", "start", "step", "time":
 		return -1
