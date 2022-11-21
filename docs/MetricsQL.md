@@ -73,6 +73,7 @@ The list of MetricsQL features:
 * The duration suffix is optional. The duration is in seconds if the suffix is missing.
   For example, `rate(m[300] offset 1800)` is equivalent to `rate(m[5m]) offset 30m`.
 * The duration can be placed anywhere in the query. For example, `sum_over_time(m[1h]) / 1h` is equivalent to `sum_over_time(m[1h]) / 3600`.
+* Numeric values can have `K`, `Ki`, `M`, `Mi`, `G`, `Gi`, `T` and `Ti` suffixes. For example, `8K` is equivalent to `8000`, while `1.2Mi` is equvalent to `1.2*1024*1024`.
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
