@@ -108,6 +108,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 ### Other articles
 
-* [How ClickHouse inspired us to build a high performance time series database](https://www.youtube.com/watch?v=p9qjb_yoBro). See also [slides](https://docs.google.com/presentation/d/1SdFrwsyR-HMXfbzrY8xfDZH_Dg6E7E5NJ84tQozMn3w/edit?usp=sharing).
+* [How ClickHouse inspired us to build a high performance time series database](https://www.youtube.com/watch?v=p9qjb_yoBro). See also [slides](https://docs.google.com/presentation/d/1SdFrwsyR-HMXfbzrY8xfDZH_Dg6E7E5NJ84tQozMn3w/edit?usp=sharing)
+* [OSA Con 2022: Specifics of data analysis in Time Series Databases](https://www.youtube.com/watch?v=_zORxrgLtec)
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
