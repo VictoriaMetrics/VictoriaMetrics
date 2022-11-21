@@ -120,3 +120,15 @@ groups:
           summary: "Instance {{ $labels.instance }} reached 90% of the limit"
           description: "Max series limit set via -remoteWrite.maxDailySeries flag is close to reaching the max value. 
             Then samples for new time series will be dropped instead of sending them to remote storage systems."
+
+      - alert: ConfigurationReloadFailure
+        expr: |
+          vm_promscrape_config_last_reload_successful != 1
+          or
+          vm_relabel_config_last_reload_successful != 1
+        labels:
+          severity: warning
+        annotations:
+          summary: "Configuration reload failed for vmagent instance {{ $labels.instance }}"
+          description: "Configuration hot-reload failed for vmagent on instance {{ $labels.instance }}.
+          Check vmagent's logs for detailed error message."
