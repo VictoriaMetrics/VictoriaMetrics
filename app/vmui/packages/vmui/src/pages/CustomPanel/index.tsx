@@ -19,6 +19,7 @@ import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import TableView from "../../components/Views/TableView/TableView";
+import Button from "../../components/Main/Button/Button";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -30,6 +31,7 @@ const CustomPanel: FC = () => {
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
+  const [showAllSeries, setShowAllSeries] = useState(false);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -38,7 +40,8 @@ const CustomPanel: FC = () => {
   const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
     visible: true,
     customStep,
-    hideQuery
+    hideQuery,
+    showAllSeries
   });
 
   const setYaxisLimits = (limits: AxisRange) => {
@@ -51,6 +54,10 @@ const CustomPanel: FC = () => {
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
+  };
+
+  const handleShowAll = () => {
+    setShowAllSeries(true);
   };
 
   const handleTraceDelete = (trace: Trace) => {
@@ -72,6 +79,10 @@ const CustomPanel: FC = () => {
     setTracesState([]);
   }, [displayType]);
 
+  useEffect(() => {
+    setShowAllSeries(false);
+  }, [query]);
+
   return (
     <div className="vm-custom-panel">
       <QueryConfigurator
@@ -89,7 +100,18 @@ const CustomPanel: FC = () => {
       )}
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
-      {warning && <Alert variant="warning">{warning}</Alert>}
+      {warning && <Alert variant="warning">
+        <div className="vm-custom-panel__warning">
+          <p>{warning}</p>
+          <Button
+            color="warning"
+            variant="outlined"
+            onClick={handleShowAll}
+          >
+              Show all
+          </Button>
+        </div>
+      </Alert>}
       <div className="vm-custom-panel-body vm-block">
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
