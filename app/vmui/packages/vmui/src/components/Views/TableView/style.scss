@@ -2,8 +2,8 @@
 
 .vm-table-view {
   margin-top: -$padding-medium;
-  max-width: calc(100vw - ($padding-medium*4) - var(--scrollbar-width));
-  overflow-x: auto;
+  max-width: 100%;
+  overflow: auto;
 
   table {
     margin-top: 0;

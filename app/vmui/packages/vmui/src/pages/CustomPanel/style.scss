@@ -2,6 +2,7 @@
 
 .vm-custom-panel {
   display: grid;
+  grid-template-columns: 100%;
   align-items: flex-start;
   gap: $padding-medium;
   height: 100%;
