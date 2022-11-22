@@ -5,7 +5,7 @@ import "./style.scss";
 
 interface ButtonProps {
   variant?: "contained" | "outlined" | "text"
-  color?: "primary" | "secondary" | "success" | "error" | "gray"
+  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning"
   size?: "small" | "medium" | "large"
   endIcon?: ReactNode
   startIcon?: ReactNode

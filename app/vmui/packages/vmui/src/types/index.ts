@@ -44,6 +44,7 @@ export enum ErrorTypes {
   validQuery = "Please enter a valid Query and execute it",
   traceNotFound = "Not found the tracing information",
   emptyTitle = "Please enter title",
+  positiveNumber = "Please enter positive number"
 }
 
 export interface PanelSettings {
@@ -97,4 +98,10 @@ export interface TopQueriesData extends TopQueryStats{
   topByAvgDuration: TopQuery[]
   topByCount: TopQuery[]
   topBySumDuration: TopQuery[]
+}
+
+export interface SeriesLimits {
+  table: number,
+  chart: number,
+  code: number,
 }

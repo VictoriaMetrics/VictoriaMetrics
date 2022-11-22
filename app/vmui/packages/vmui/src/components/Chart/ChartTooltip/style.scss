@@ -1,9 +1,10 @@
 @use "src/styles/variables" as *;
 $chart-tooltip-width: 300px;
 $chart-tooltip-icon-width: 25px;
+$chart-tooltip-half-icon: calc($chart-tooltip-icon-width/2);
 $chart-tooltip-date-width: $chart-tooltip-width - (2*$chart-tooltip-icon-width) - (2*$padding-global) - $padding-small;
-$chart-tooltip-x: -1 * ($padding-small + $padding-global + $chart-tooltip-date-width + ($chart-tooltip-icon-width/2));
-$chart-tooltip-y: -1 * ($padding-small + ($chart-tooltip-icon-width/2));
+$chart-tooltip-x: -1 * ($padding-small + $padding-global + $chart-tooltip-date-width + $chart-tooltip-half-icon);
+$chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
 
 .vm-chart-tooltip {
   position: absolute;
@@ -54,9 +55,12 @@ $chart-tooltip-y: -1 * ($padding-small + ($chart-tooltip-icon-width/2));
   }
 
   &-data {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: $padding-small;
+    align-items: flex-start;
+    word-break: break-all;
+    line-height: 12px;
 
     &__value {
       padding: 4px;
@@ -66,7 +70,6 @@ $chart-tooltip-y: -1 * ($padding-small + ($chart-tooltip-icon-width/2));
     &__marker {
       width: 12px;
       height: 12px;
-      margin-right: $padding-small;
     }
   }
 
