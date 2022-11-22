@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
@@ -139,6 +140,8 @@ func Init() {
 		logger.Fatalf("cannot load relabel configs: %s", err)
 	}
 	allRelabelConfigs.Store(rcs)
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
 
 	if len(*remoteWriteURLs) > 0 {
 		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
@@ -154,17 +157,30 @@ func Init() {
 			case <-stopCh:
 				return
 			}
+			configReloads.Inc()
 			logger.Infof("SIGHUP received; reloading relabel configs pointed by -remoteWrite.relabelConfig and -remoteWrite.urlRelabelConfig")
 			rcs, err := loadRelabelConfigs()
 			if err != nil {
+				configReloadErrors.Inc()
+				configSuccess.Set(0)
 				logger.Errorf("cannot reload relabel configs; preserving the previous configs; error: %s", err)
 				continue
 			}
+
 			allRelabelConfigs.Store(rcs)
+			configSuccess.Set(1)
+			configTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("Successfully reloaded relabel configs")
 		}
 	}()
 }
+
+var (
+	configReloads      = metrics.NewCounter(`vmagent_relabel_config_reloads_total`)
+	configReloadErrors = metrics.NewCounter(`vmagent_relabel_config_reloads_errors_total`)
+	configSuccess      = metrics.NewCounter(`vmagent_relabel_config_last_reload_successful`)
+	configTimestamp    = metrics.NewCounter(`vmagent_relabel_config_last_reload_success_timestamp_seconds`)
+)
 
 func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	if len(urls) == 0 {

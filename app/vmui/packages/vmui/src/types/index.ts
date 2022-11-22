@@ -35,6 +35,7 @@ export interface DataSeries extends MetricBase{
 export interface InstantDataSeries {
   metadata: string[]; // just ordered columns
   value: string;
+  copyValue: string;
 }
 
 export enum ErrorTypes {

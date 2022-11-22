@@ -1,0 +1,77 @@
+@use "src/styles/variables" as *;
+$chart-tooltip-width: 300px;
+$chart-tooltip-icon-width: 25px;
+$chart-tooltip-date-width: $chart-tooltip-width - (2*$chart-tooltip-icon-width) - (2*$padding-global) - $padding-small;
+$chart-tooltip-x: -1 * ($padding-small + $padding-global + $chart-tooltip-date-width + ($chart-tooltip-icon-width/2));
+$chart-tooltip-y: -1 * ($padding-small + ($chart-tooltip-icon-width/2));
+
+.vm-chart-tooltip {
+  position: absolute;
+  display: grid;
+  gap: $padding-global;
+  width: $chart-tooltip-width;
+  padding: $padding-small;
+  border-radius: $border-radius-medium;
+  background: $color-background-tooltip;
+  color: $color-white;
+  font-size: $font-size-small;
+  font-weight: normal;
+  line-height: 150%;
+  word-wrap: break-word;
+  font-family: $font-family-monospace;
+  z-index: 98;
+  user-select: text;
+  pointer-events: none;
+
+  &_sticky {
+    background-color: $color-dove-gray;
+    pointer-events: auto;
+    z-index: 99;
+  }
+
+  &_moved {
+    position: fixed;
+    margin-top: $chart-tooltip-y;
+    margin-left: $chart-tooltip-x;
+  }
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr $chart-tooltip-icon-width $chart-tooltip-icon-width;
+    gap: $padding-small;
+    align-items: center;
+    justify-content: center;
+    min-height: 25px;
+
+    &__close {
+      color: $color-white;
+    }
+
+    &__drag {
+      color: $color-white;
+      cursor: move;
+    }
+  }
+
+  &-data {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+
+    &__value {
+      padding: 4px;
+      font-weight: bold;
+    }
+
+    &__marker {
+      width: 12px;
+      height: 12px;
+      margin-right: $padding-small;
+    }
+  }
+
+  &-info {
+    display: grid;
+    grid-gap: 4px;
+  }
+}
