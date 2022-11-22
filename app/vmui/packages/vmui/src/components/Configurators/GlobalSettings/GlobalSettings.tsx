@@ -28,7 +28,6 @@ const GlobalSettings: FC = () => {
   const handleClose = () => setOpen(false);
 
   const handlerApply = () => {
-    console.log("limits", limits);
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
     handleClose();

@@ -44,7 +44,7 @@ export const useFetchQuery = ({
   visible,
   display,
   customStep,
-  hideQuery = [],
+  hideQuery,
   showAllSeries
 }: FetchQueryParams): FetchQueryReturn => {
   const { query } = useQueryState();

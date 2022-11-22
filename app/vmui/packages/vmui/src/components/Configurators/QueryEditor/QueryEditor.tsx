@@ -113,11 +113,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
   };
 
   useEffect(() => {
-    if (!autocomplete || !foundOptions.length) return;
+    if (!autocomplete) return;
     setFocusOption(-1);
     const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
     setOpenAutocomplete(autocomplete && value.length > 2 && words <= 1);
-  }, [autocomplete, value, foundOptions]);
+  }, [autocomplete, value]);
 
   useEffect(() => {
     if (!wrapperEl.current) return;
