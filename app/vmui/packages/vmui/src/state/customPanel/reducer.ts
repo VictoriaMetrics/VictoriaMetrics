@@ -1,5 +1,6 @@
 import { DisplayType, displayTypeTabs } from "../../pages/CustomPanel/DisplayTypeSwitch";
 import { getQueryStringValue } from "../../utils/query-string";
+import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 export interface CustomPanelState {
   displayType: DisplayType;
