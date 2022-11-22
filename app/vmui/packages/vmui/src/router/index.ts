@@ -3,6 +3,7 @@ const router = {
   dashboards: "/dashboards",
   cardinality: "/cardinality",
   topQueries: "/top-queries",
+  trace: "/trace"
 };
 
 export interface RouterOptions {
@@ -10,7 +11,7 @@ export interface RouterOptions {
     timeSelector?: boolean,
     executionControls?: boolean,
     globalSettings?: boolean,
-    datePicker?: boolean
+    cardinalityDatePicker?: boolean
   }
 }
 
@@ -27,7 +28,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.dashboards]: routerOptionsDefault,
   [router.cardinality]: {
     header: {
-      datePicker: true,
+      cardinalityDatePicker: true,
       globalSettings: true,
     }
   }

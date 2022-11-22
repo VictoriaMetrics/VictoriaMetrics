@@ -1,0 +1,47 @@
+@use "src/styles/variables" as *;
+
+html, body, #root {
+  font-family: $font-family-global;
+  font-size: $font-size;
+  color: $color-text;
+  min-height: 100%;
+  cursor: default;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  margin: 0;
+}
+
+body {
+  overflow: scroll;
+}
+
+* {
+  font: inherit;
+  cursor: inherit;
+}
+
+code {
+  font-family: $font-family-monospace;
+}
+
+b {
+  font-weight: bold;
+}
+
+textarea,
+input {
+  cursor: text;
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.vm-snackbar {
+  position: fixed;
+  left: $padding-global;
+  bottom: $padding-global;
+  z-index: 999;
+}

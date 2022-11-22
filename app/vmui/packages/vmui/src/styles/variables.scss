@@ -1,0 +1,66 @@
+/************* colors *************/
+$color-primary: var(--color-primary);
+$color-secondary: var(--color-secondary);
+$color-error: var(--color-error);
+$color-warning: var(--color-warning);
+$color-info: var(--color-info);
+$color-success: var(--color-success);
+
+$color-primary-text: var(--color-primary-text);
+$color-secondary-text: var(--color-secondary-text);
+$color-error-text: var(--color-error-text);
+$color-warning-text: var(--color-warning-text);
+$color-info-text: var(--color-info-text);
+$color-success-text: var(--color-success-text);
+
+$color-text: #110f0f;
+$color-text-secondary: rgba($color-text, 0.6);
+$color-text-disabled: rgba($color-text, 0.4);
+
+$color-black: #110f0f;
+$color-dove-gray: #616161;
+$color-silver: #C4C4C4;
+$color-alto: #D8D8D8;
+$color-white: #ffffff;
+
+$color-dodger-blue: #1A90FF;
+$color-tropical-blue: #C9E3F6;
+
+
+/************* background *************/
+$color-background-body: var(--color-background-body);
+$color-background-block: var(--color-background-block);
+$color-background-modal: rgba($color-black, 0.7);
+$color-background-tooltip: rgba($color-dove-gray, 0.92);
+
+
+/************* padding *************/
+$padding-global: 16px;
+$padding-large: 48px;
+$padding-medium: 24px;
+$padding-small: 8px;
+
+
+/************* fonts *************/
+$font-family-global: 'Lato', sans-serif;
+$font-family-monospace: 'JetBrains Mono', monospace;
+$font-size-large: 16px;
+$font-size-medium: 14px;
+$font-size: 12px;
+$font-size-small: 10px;
+
+
+/************* border *************/
+$border-divider: 1px solid rgba($color-black, 0.15);
+
+
+/************* border-radius *************/
+$border-radius-small: 4px;
+$border-radius-medium: 8px;
+$border-radius-large: 16px;
+
+
+/************* box-shadows *************/
+$box-shadow: 1px 2px 12px rgba($color-black, 0.08);
+$box-shadow-bottom: rgba($color-black, 0.04) 0px 3px 5px;
+$box-shadow-popper: rgba($color-black, 0.2) 0px 2px 8px 0px;

@@ -1,0 +1,14 @@
+@use "src/styles/variables" as *;
+
+.vm-line-chart {
+  height: 500px;
+  pointer-events: auto;
+
+  &_panning {
+    pointer-events: none;
+  }
+
+  &__u-plot {
+    position: relative;
+  }
+}

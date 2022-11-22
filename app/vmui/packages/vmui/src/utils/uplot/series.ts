@@ -1,9 +1,9 @@
-import {MetricResult} from "../../api/types";
-import {Series} from "uplot";
-import {getNameForMetric} from "../metric";
-import {BarSeriesItem, Disp, Fill, LegendItem, Stroke} from "./types";
-import {getColorLine} from "./helpers";
-import {HideSeriesArgs} from "./types";
+import { MetricResult } from "../../api/types";
+import { Series } from "uplot";
+import { getNameForMetric } from "../metric";
+import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
+import { getColorLine } from "./helpers";
+import { HideSeriesArgs } from "./types";
 
 interface SeriesItem extends Series {
   freeFormFields: {[key: string]: string};
@@ -26,7 +26,7 @@ export const getSeriesItem = (d: MetricResult, hideSeries: string[], alias: stri
   };
 };
 
-export const getLegendItem = (s: SeriesItem, group: number): LegendItem => ({
+export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => ({
   group,
   label: s.label || "",
   color: s.stroke as string,
@@ -34,8 +34,8 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItem => ({
   freeFormFields: s.freeFormFields,
 });
 
-export const getHideSeries = ({hideSeries, legend, metaKey, series}: HideSeriesArgs): string[] => {
-  const {label} = legend;
+export const getHideSeries = ({ hideSeries, legend, metaKey, series }: HideSeriesArgs): string[] => {
+  const { label } = legend;
   const include = includesHideSeries(label, hideSeries);
   const labels = series.map(s => s.label || "");
   if (metaKey) {

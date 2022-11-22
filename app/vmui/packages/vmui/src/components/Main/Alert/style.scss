@@ -1,0 +1,78 @@
+@use "src/styles/variables" as *;
+
+.vm-alert {
+  position: relative;
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  align-items: center;
+  gap: $padding-small;
+  padding: $padding-global;
+  background-color: $color-background-block;
+  border-radius: $border-radius-medium;
+  box-shadow: $box-shadow;
+  font-size: $font-size-medium;
+  font-weight: 500;
+  color: $color-text;
+  line-height: 20px;
+
+  &:after {
+    position: absolute;
+    content: '';
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: $border-radius-medium;
+    z-index: 1;
+    opacity: 0.1;
+  }
+
+  &__icon,
+  &__content {
+    position: relative;
+    z-index: 2;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__content {
+    filter: brightness(0.6);
+    white-space: pre-line;
+  }
+
+  &_success {
+    color: $color-success;
+
+    &:after {
+     background-color: $color-success;
+   }
+  }
+
+  &_error {
+    color: $color-error;
+
+    &:after {
+      background-color: $color-error;
+    }
+  }
+
+  &_info {
+    color: $color-info;
+
+    &:after {
+      background-color: $color-info;
+    }
+  }
+
+  &_warning {
+    color: $color-warning;
+
+    &:after {
+      background-color: $color-warning;
+    }
+  }
+}

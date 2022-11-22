@@ -1,25 +1,8 @@
-import uPlot, {Series} from "uplot";
-import {MetricResult} from "../../api/types";
-
-export interface SetupTooltip {
-    u: uPlot,
-    metrics: MetricResult[],
-    series: Series[],
-    tooltip: HTMLDivElement,
-    unit?: string,
-    tooltipOffset: {
-        left: number,
-        top: number
-    },
-    tooltipIdx: {
-        seriesIdx: number | null,
-        dataIdx: number | undefined
-    }
-}
+import uPlot, { Series } from "uplot";
 
 export interface HideSeriesArgs {
     hideSeries: string[],
-    legend: LegendItem,
+    legend: LegendItemType,
     metaKey: boolean,
     series: Series[]
 }
@@ -29,10 +12,10 @@ export interface DragArgs {
     u: uPlot,
     factor: number,
     setPanning: (enable: boolean) => void,
-    setPlotScale: ({u, min, max}: { u: uPlot, min: number, max: number }) => void
+    setPlotScale: ({ u, min, max }: { u: uPlot, min: number, max: number }) => void
 }
 
-export interface LegendItem {
+export interface LegendItemType {
     group: number;
     label: string;
     color: string;

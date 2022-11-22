@@ -2281,6 +2281,16 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset(too-big-offset)`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 10, sort_by_label((
+			label_set(time()*1, "foo", "y"),
+			label_set(time()*2, "foo", "a"),
+			label_set(time()*3, "foo", "x"),
+		), "foo"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`limit_offset NaN`, func(t *testing.T) {
 		t.Parallel()
 		// q returns 3 time series, where foo=3 contains only NaN values
@@ -6380,8 +6390,29 @@ func TestExecSuccess(t *testing.T) {
 		q := `range_quantile(0.5, time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			// time() results in [1000 1200 1400 1600 1800 2000]
 			Values:     []float64{1500, 1500, 1500, 1500, 1500, 1500},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_stddev()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_stddev(time()),0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{341.57, 341.57, 341.57, 341.57, 341.57, 341.57},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_stdvar()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_stdvar(time()),0.01)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{116666.67, 116666.67, 116666.67, 116666.67, 116666.67, 116666.67},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6392,7 +6423,6 @@ func TestExecSuccess(t *testing.T) {
 		q := `range_median(time())`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			// time() results in [1000 1200 1400 1600 1800 2000]
 			Values:     []float64{1500, 1500, 1500, 1500, 1500, 1500},
 			Timestamps: timestampsExpected,
 		}
@@ -6872,6 +6902,23 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_normalize(time(),alias(-time(),"negative"))`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_normalize(time(),alias(-time(), "negative"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0.2, 0.4, 0.6, 0.8, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 0.8, 0.6, 0.4, 0.2, 0},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("negative")
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`range_first(time())`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_first(time())`
@@ -6903,6 +6950,51 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_linear_regression(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_linear_regression(time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_linear_regression(-time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_linear_regression(-time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-1000, -1200, -1400, -1600, -1800, -2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_linear_regression(100/time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(round((
+				alias(range_linear_regression(100/time()), "regress"),
+				alias(100/time(), "orig"),
+			),
+			0.001
+		))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.1, 0.083, 0.071, 0.062, 0.056, 0.05},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.MetricGroup = []byte("orig")
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.095, 0.085, 0.075, 0.066, 0.056, 0.046},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("regress")
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`deriv(N)`, func(t *testing.T) {
@@ -8034,6 +8126,8 @@ func TestExecError(t *testing.T) {
 	f(`nonexisting()`)
 
 	// Invalid number of args
+	f(`range_stddev()`)
+	f(`range_stdvar()`)
 	f(`range_quantile()`)
 	f(`range_quantile(1, 2, 3)`)
 	f(`range_median()`)
@@ -8097,6 +8191,7 @@ func TestExecError(t *testing.T) {
 	f(`range_sum(1, 2)`)
 	f(`range_first(1,  2)`)
 	f(`range_last(1, 2)`)
+	f(`range_linear_regression(1, 2)`)
 	f(`smooth_exponential()`)
 	f(`smooth_exponential(1)`)
 	f(`remove_resets()`)
