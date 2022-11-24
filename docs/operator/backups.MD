@@ -6,16 +6,16 @@ sort: 5
 
 ## vmbackupmanager
 
-More details about `vmbackupmanager` can be found [here](https://docs.victoriametrics.com/vmbackupmanager.html).
+You can check vmbackupmanager [documentation](https://docs.victoriametrics.com/vmbackupmanager.html). It contains a description of the service and its features. This documentation covers vmbackumanager integration in vmoperator
 
-### vmbackupmanager is proprietary software. 
+### vmbackupmanager is a part of VictoriaMetrics Enterprise offer
 
-Before using it, you must have signed contract and accept EULA https://victoriametrics.com/assets/VM_EULA.pdf
+*Before using it, you must have signed contract and accept EULA https://victoriametrics.com/assets/VM_EULA.pdf*
 
 ## Usage examples
 
 `VMSingle` and `VMCluster` has built-in backup configuration, it uses `vmbackupmanager` - proprietary tool for backups.
-It supports incremental backups (hours, daily, etc) with popular object storages (aws s3, google cloud storage).
+It supports incremental backups (hourly, daily, weekly, monthly) with popular object storages (aws s3, google cloud storage).
 
 You can enable it with the simple configuration, define secret
 
