@@ -14,7 +14,7 @@ import (
 	"github.com/prometheus/prometheus/prompb"
 )
 
-type remotereadProcessor struct {
+type remoteReadProcessor struct {
 	filter remoteReadFilter
 
 	dst *vm.Importer
@@ -24,24 +24,28 @@ type remotereadProcessor struct {
 }
 
 type remoteReadFilter struct {
-	label      string
-	labelValue string
-	timeStart  *time.Time
-	timeEnd    *time.Time
-	chunk      string
+	timeStart *time.Time
+	timeEnd   *time.Time
+	chunk     string
 }
 
-func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) error {
+func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) error {
+	rrp.dst.ResetStats()
 	if rrp.filter.timeEnd == nil {
-		t := time.Now()
+		t := time.Now().In(rrp.filter.timeStart.Location())
 		rrp.filter.timeEnd = &t
 	}
+	if rrp.cc < 1 {
+		rrp.cc = 1
+	}
+
 	ranges, err := stepper.SplitDateRange(*rrp.filter.timeStart, *rrp.filter.timeEnd, rrp.filter.chunk)
 	if err != nil {
 		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 	}
 
-	question := fmt.Sprintf("Split defined times into %d ranges to import. Continue?", len(ranges))
+	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
+		rrp.filter.timeStart.String(), rrp.filter.timeEnd.String(), len(ranges), rrp.filter.chunk)
 	if !silent && !prompt(question) {
 		return nil
 	}
@@ -58,11 +62,6 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 
 	rangeC := make(chan *remoteread.Filter)
 	errCh := make(chan error)
-	rrp.dst.ResetStats()
-
-	if err := rrp.dst.Ping(); err != nil {
-		return fmt.Errorf("destination source not ready: %s", err)
-	}
 
 	var wg sync.WaitGroup
 	wg.Add(rrp.cc)
@@ -88,8 +87,7 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 		case rangeC <- &remoteread.Filter{
 			StartTimestampMs: r[0].UnixMilli(),
 			EndTimestampMs:   r[1].UnixMilli(),
-			Label:            rrp.filter.label,
-			LabelValue:       rrp.filter.labelValue}:
+		}:
 		}
 	}
 
@@ -110,7 +108,7 @@ func (rrp *remotereadProcessor) run(ctx context.Context, silent, verbose bool) e
 	return nil
 }
 
-func (rrp *remotereadProcessor) do(ctx context.Context, filter *remoteread.Filter) error {
+func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filter) error {
 	return rrp.src.Read(ctx, filter, func(series prompb.TimeSeries) error {
 		ts := convertTimeseries(series)
 		if err := rrp.dst.Input(ts); err != nil {

@@ -442,28 +442,18 @@ Found 2 blocks to import. Continue? [Y/n] y
 
 ## Migrating data by remote read protocol
 
-`vmctl` supports the `remote-read` mode for migrating data from any database which supports
+`vmctl` supports the `remote-read` mode for migrating data from databases which support 
 [Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/)
 
 See `./vmctl remote-read --help` for details and full list of flags.
 
-Please note, vmctl expects the source TSDB to support
-[STREAMED_XOR_CHUNKS](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks) mode
-for response streaming. [SAMPLES](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#samples) mode
-is not supported due to its inefficiency.
-See more details [here](https://prometheus.io/blog/2019/10/10/remote-read-meets-streaming/).
-
-To start the migration process some flags should be defined:
-1. `--remote-read-src-addr` - address to perform read from;
-2. `--vm-addr` - address for single-node VM is usually equal to `--httpListenAddr`, and for cluster version;
-   is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
-3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
-4. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
-
-As soon as required flags are provided and all endpoints are accessible, `vmctl` will start the fetch process
-from remote read API. Basically, it just fetches all timeseries from the provided database and sends import requests
-for each timeseries and pass results to VM importer. VM importer then accumulates received samples in batches and
-sends import requests to VM.
+To start the migration process configure the following flags:
+1. `--remote-read-src-addr` - data source address to read from;
+2. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
+and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
+3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
+4. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
+5. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
 
 The importing process example for local installation of Prometheus
 and single-node VictoriaMetrics(`http://localhost:8428`):
@@ -499,26 +489,14 @@ Processing ranges: 8798 / 8798 [████████████████
 
 ### Filtering
 
-The filtering consists of two parts: by label and label value, and time.
+The filtering consists of two parts: by labels and time.
 
-Filtering by time may be configured via flags `--remote-read-filter-time-start` and `--remote-read-filter-time-end`
+Filtering by time can be configured via flags `--remote-read-filter-time-start` and `--remote-read-filter-time-end`
 in RFC3339 format.
 
-Also, you can add flags for filtering by label and label value via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`
-in string format. For example, you can provide `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value=".*"`, and
-timeseries with label `tenant` and value which not empty will be collected from provided source database.
-As example this flags will filter next time series
-```
-continuous_app_metric0  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
-continuous_app_metric1  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
-continuous_app_metric2  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
-continuous_app_metric3  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
-continuous_app_metric4  {__blockgen_target__: 1, cluster: eu1, replica: 0, tenant: team-eu}
-```
-
-### Configuration
-
-The configuration flags should contain self-explanatory descriptions.
+Filtering by labels can be configured via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`.
+For example, `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value="team-eu"` will select only series
+with `tenant="team-eu"` label-value pair.
 
 ## Migrating data from Thanos
 
@@ -569,12 +547,12 @@ then import it into VM using `vmctl` in `prometheus` mode.
 ### Remote read protocol
 
 Currently, Thanos doesn't support streaming remote read protocol. It is [recommended](https://thanos.io/tip/thanos/integrations.md/#storeapi-as-prometheus-remote-read)
-to use [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) a proxy, that allows exposing any Thanos
+to use [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) a proxy, that allows exposing any Thanos 
 service (or anything that exposes gRPC StoreAPI e.g. Querier) via Prometheus remote read protocol.
 
 If you want to migrate data, you should run [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy
-and define the Thanos store address `./thanos-remote-read -store 127.0.0.1:19194`.
-It is important to know that `store` flag is Thanos Store API gRPC endpoint.
+and define the Thanos store address `./thanos-remote-read -store 127.0.0.1:19194`. 
+It is important to know that `store` flag is Thanos Store API gRPC endpoint. 
 Also, it is important to know that thanos-remote-read proxy  doesn't support `STREAMED_XOR_CHUNKS` mode.
 When you run thanos-remote-read proxy, it exposes port to serve HTTP on `10080 by default`.
 
@@ -641,7 +619,7 @@ By default, Cortex uses the `prometheus` path prefix, so you should define the f
 It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
 When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
 
-The importing process example for the local installation of Thanos
+The importing process example for the local installation of Cortex
 and single-node VictoriaMetrics(`http://localhost:8428`):
 
 ```
@@ -649,7 +627,6 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-concurrency=4 \
 --remote-read-src-check-alive=false \
 --vm-addr=http://127.0.0.1:8428 \
 --vm-concurrency=6 
@@ -677,10 +654,8 @@ Processing ranges: 8842 / 8842 [████████████████
   import requests retries: 0;
 2022/10/21 12:09:49 Total time: 4.71824253s
 ```
-
 It is important to know that if you run your Cortex installation in multi-tenant mode, remote read protocol
 requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
-
 
 ## Migrating data from Mimir
 

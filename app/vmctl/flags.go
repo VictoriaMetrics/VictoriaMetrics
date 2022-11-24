@@ -437,6 +437,7 @@ var (
 		&cli.StringFlag{
 			Name:  remoteReadFilterLabel,
 			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+			Value: "__name__",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadFilterLabelValue,
@@ -450,7 +451,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadUseStream,
-			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode",
+			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
 			Value: false,
 		},
 		&cli.StringFlag{
@@ -475,7 +476,7 @@ var (
 		},
 		&cli.DurationFlag{
 			Name:  remoteReadHTTPTimeout,
-			Usage: "ReadTimeout defines timeout for HTTP write request to remote storage",
+			Usage: "Timeout defines timeout for HTTP write request to remote storage",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadHeaders,

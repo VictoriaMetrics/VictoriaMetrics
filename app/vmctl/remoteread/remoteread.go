@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
-	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/storage/remote"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
@@ -36,31 +36,35 @@ type Client struct {
 	password  string
 	useStream bool
 	headers   []keyValue
+	matchers  []*prompb.LabelMatcher
 }
 
 // Config is config for remote read.
 type Config struct {
 	// Addr of remote storage
 	Addr string
-	// ReadTimeout defines timeout for HTTP write request
-	// to remote storage
-	ReadTimeout time.Duration
+	// Timeout defines timeout for HTTP requests
+	// made by remote read client
+	Timeout time.Duration
 	// Username is the remote read username, optional.
 	Username string
 	// Password is the remote read password, optional.
 	Password string
 	// UseStream defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode
+	// see https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#samples
+	// https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks
 	UseStream bool
-	// Headers optional HTTP headers to send with each request to the corresponding remote source storage
+	// Headers optional HTTP headers to send with each request to the corresponding remote storage
 	Headers string
+	// LabelName, LabelValue stands for label=~value pair used for read requests.
+	// Is optional.
+	LabelName, LabelValue string
 }
 
-// Filter is used for request remote read data by filter
+// Filter defines a list of filters applied to requested data
 type Filter struct {
 	StartTimestampMs int64
 	EndTimestampMs   int64
-	Label            string
-	LabelValue       string
 }
 
 // NewClient returns client for
@@ -69,8 +73,8 @@ func NewClient(cfg Config) (*Client, error) {
 	if cfg.Addr == "" {
 		return nil, fmt.Errorf("config.Addr can't be empty")
 	}
-	if cfg.ReadTimeout == 0 {
-		cfg.ReadTimeout = defaultReadTimeout
+	if cfg.Timeout == 0 {
+		cfg.Timeout = defaultReadTimeout
 	}
 
 	var hdrs []string
@@ -83,9 +87,18 @@ func NewClient(cfg Config) (*Client, error) {
 		return nil, err
 	}
 
+	var m *prompb.LabelMatcher
+	if cfg.LabelName != "" && cfg.LabelValue != "" {
+		m = &prompb.LabelMatcher{
+			Type:  prompb.LabelMatcher_RE,
+			Name:  cfg.LabelName,
+			Value: cfg.LabelValue,
+		}
+	}
+
 	c := &Client{
 		c: &http.Client{
-			Timeout:   cfg.ReadTimeout,
+			Timeout:   cfg.Timeout,
 			Transport: http.DefaultTransport.(*http.Transport).Clone(),
 		},
 		addr:      strings.TrimSuffix(cfg.Addr, "/"),
@@ -93,32 +106,48 @@ func NewClient(cfg Config) (*Client, error) {
 		password:  cfg.Password,
 		useStream: cfg.UseStream,
 		headers:   headers,
+		matchers:  []*prompb.LabelMatcher{m},
 	}
 	return c, nil
 }
 
 // Read fetch data from remote read source
 func (c *Client) Read(ctx context.Context, filter *Filter, streamCb StreamCallback) error {
-	query, err := c.query(filter)
-	if err != nil {
-		return fmt.Errorf("error prepare stream query: %w", err)
+	req := &prompb.ReadRequest{
+		Queries: []*prompb.Query{
+			{
+				StartTimestampMs: filter.StartTimestampMs,
+				EndTimestampMs:   filter.EndTimestampMs - 1,
+				Matchers:         c.matchers,
+			},
+		},
 	}
-	req := c.request(query)
+	if c.useStream {
+		req.AcceptedResponseTypes = []prompb.ReadRequest_ResponseType{prompb.ReadRequest_STREAMED_XOR_CHUNKS}
+	}
 	data, err := proto.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("unable to marshal read request: %w", err)
 	}
 
 	b := snappy.Encode(nil, data)
-
-	err = c.fetch(ctx, b, streamCb)
-	if err != nil {
+	if err := c.fetch(ctx, b, streamCb); err != nil {
 		if errors.Is(err, context.Canceled) {
-			return fmt.Errorf("process stopped")
+			return fmt.Errorf("fetch request has ben cancelled")
 		}
-		return fmt.Errorf("error to fetch data from remote read storage: %s", err)
+		return fmt.Errorf("error while fetching data from remote storage: %s", err)
 	}
 	return nil
+}
+
+func (c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.user != "" {
+		req.SetBasicAuth(c.user, c.password)
+	}
+	for _, h := range c.headers {
+		req.Header.Add(h.key, h.value)
+	}
+	return c.c.Do(req)
 }
 
 // Ping checks the health of the read source
@@ -128,10 +157,7 @@ func (c *Client) Ping() error {
 	if err != nil {
 		return fmt.Errorf("cannot create request to %q: %s", url, err)
 	}
-	if c.user != "" {
-		req.SetBasicAuth(c.user, c.password)
-	}
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := c.do(req)
 	if err != nil {
 		return err
 	}
@@ -154,15 +180,7 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	req.Header.Set("Content-Type", "application/x-protobuf")
 	req.Header.Set("X-Prometheus-Remote-Read-Version", "0.1.0")
 
-	if c.user != "" {
-		req.SetBasicAuth(c.user, c.password)
-	}
-
-	for _, h := range c.headers {
-		req.Header.Add(h.key, h.value)
-	}
-
-	resp, err := c.c.Do(req.WithContext(ctx))
+	resp, err := c.do(req.WithContext(ctx))
 	if err != nil {
 		return fmt.Errorf("error while sending request to %s: %w; Data len %d(%d)",
 			req.URL.Redacted(), err, len(data), r.Size())
@@ -189,31 +207,34 @@ func processResponse(body io.ReadCloser, callback StreamCallback) error {
 	}
 	uncompressed, err := snappy.Decode(nil, d)
 	if err != nil {
-		return fmt.Errorf("error decode response: %w", err)
+		return fmt.Errorf("error decoding response: %w", err)
 	}
 	var readResp prompb.ReadResponse
 	err = proto.Unmarshal(uncompressed, &readResp)
 	if err != nil {
 		return fmt.Errorf("unable to unmarshal response body: %w", err)
 	}
-	if len(readResp.Results) == 0 {
-		return fmt.Errorf("got empty response")
-	}
-	for _, ts := range readResp.Results[0].Timeseries {
-		if err := callback(*ts); err != nil {
-			return err
+	// response could have no results for the given filter, but that
+	// shouldn't be accounted as an error.
+	for _, res := range readResp.Results {
+		for _, ts := range res.Timeseries {
+			if err := callback(*ts); err != nil {
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
-func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
-	var b bytes.Buffer
-	bb := b.Bytes()
-	stream := remote.NewChunkedReader(body, remote.DefaultChunkedReadLimit, bb)
+var bbPool bytesutil.ByteBufferPool
 
+func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
+	bb := bbPool.Get()
+	defer func() { bbPool.Put(bb) }()
+
+	stream := remote.NewChunkedReader(body, remote.DefaultChunkedReadLimit, bb.B)
 	for {
-		var ts prompb.TimeSeries
 		res := &prompb.ChunkedReadResponse{}
 		err := stream.NextProto(res)
 		if err == io.EOF {
@@ -222,14 +243,17 @@ func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 		if err != nil {
 			return err
 		}
+
 		for _, series := range res.ChunkedSeries {
-			ts.Labels = append(ts.Labels, series.Labels...)
+			var ts prompb.TimeSeries
+			ts.Labels = series.Labels
 			for _, chunk := range series.Chunks {
+				// TODO: verify it is not a double conversion here and in callback
 				samples, err := parseSamples(chunk.Data)
 				if err != nil {
 					return err
 				}
-				ts.Samples = append(ts.Samples, samples...)
+				ts.Samples = samples
 			}
 			if err := callback(ts); err != nil {
 				return err
@@ -237,63 +261,6 @@ func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 		}
 	}
 	return nil
-}
-
-func (c *Client) query(filter *Filter) (*prompb.Query, error) {
-	var ms *labels.Matcher
-	var err error
-	if filter.Label == "" && filter.LabelValue == "" {
-		ms = labels.MustNewMatcher(labels.MatchRegexp, labels.MetricName, ".+")
-	} else {
-		ms, err = labels.NewMatcher(labels.MatchRegexp, filter.Label, filter.LabelValue)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	m, err := toLabelMatchers(ms)
-	if err != nil {
-		return nil, err
-	}
-	return &prompb.Query{
-		StartTimestampMs: filter.StartTimestampMs,
-		EndTimestampMs:   filter.EndTimestampMs - 1,
-		Matchers:         []*prompb.LabelMatcher{m},
-	}, nil
-}
-
-func (c *Client) request(query *prompb.Query) *prompb.ReadRequest {
-	req := &prompb.ReadRequest{
-		Queries: []*prompb.Query{
-			query,
-		},
-	}
-
-	if c.useStream {
-		req.AcceptedResponseTypes = []prompb.ReadRequest_ResponseType{prompb.ReadRequest_STREAMED_XOR_CHUNKS}
-	}
-	return req
-}
-
-func toLabelMatchers(matcher *labels.Matcher) (*prompb.LabelMatcher, error) {
-	var mType prompb.LabelMatcher_Type
-	switch matcher.Type {
-	case labels.MatchEqual:
-		mType = prompb.LabelMatcher_EQ
-	case labels.MatchNotEqual:
-		mType = prompb.LabelMatcher_NEQ
-	case labels.MatchRegexp:
-		mType = prompb.LabelMatcher_RE
-	case labels.MatchNotRegexp:
-		mType = prompb.LabelMatcher_NRE
-	default:
-		return nil, fmt.Errorf("invalid matcher type")
-	}
-	return &prompb.LabelMatcher{
-		Type:  mType,
-		Name:  matcher.Name,
-		Value: matcher.Value,
-	}, nil
 }
 
 func parseSamples(chunk []byte) ([]prompb.Sample, error) {
