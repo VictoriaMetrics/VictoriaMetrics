@@ -136,6 +136,12 @@ Steps:
 
 3. remove initContainers and apply crd.
 
+Note that using `VMRestore` will require adjusting `src` for each pod because restore will be handled per-pod.
+
 ### Using VMBackupmanager init container
 
 Using VMBackupmanager restore in Kubernetes environment is described [here](https://docs.victoriametrics.com/vmbackupmanager.html#how-to-restore-in-kubernetes).
+
+Advantages of using `VMBackupmanager` include:
+- automatic adjustment of `src` for each pod when backup is requested
+- graceful handling of case when no restore is required - `VMBackupmanager` will exit with successful status code and won't prevent pod from starting
