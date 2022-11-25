@@ -1,14 +1,5 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_VICTORIAMETRICS",
-      "label": "VictoriaMetrics",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
+  "__inputs": [],
   "__elements": [],
   "__requires": [
     {
@@ -116,7 +107,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS}"
+            "uid": "${ds}"
           },
           "expr": "sum(increase(vm_tenant_inserted_rows_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\", projectID=~\"$project\"}[1m])/60) by (accountID,projectID) ",
           "interval": "",
@@ -214,7 +205,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS}"
+            "uid": "${ds}"
           },
           "editorMode": "code",
           "expr": "sum(rate(vm_tenant_select_requests_total{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
@@ -320,7 +311,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS}"
+            "uid": "${ds}"
           },
           "expr": "sum(vm_tenant_active_timeseries{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
           "format": "time_series",
@@ -418,7 +409,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS}"
+            "uid": "${ds}"
           },
           "expr": "sum(increase(vm_tenant_timeseries_created_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\", projectID=~\"$project\"}[1m])/60) by(accountID,projectID)",
           "interval": "",
@@ -513,7 +504,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_VICTORIAMETRICS}"
+            "uid": "${ds}"
           },
           "editorMode": "code",
           "expr": "sum(vm_tenant_used_tenant_bytes{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
