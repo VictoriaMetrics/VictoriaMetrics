@@ -1713,7 +1713,6 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
-        "uid": "P4169E866C3094E38"
       },
       "gridPos": {
         "h": 1,
@@ -2031,7 +2030,6 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "P4169E866C3094E38"
           },
           "refId": "A"
         }
