@@ -5,6 +5,7 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "NO_CACHE"
     | "QUERY_TRACING"
     | "SERIES_LIMITS"
+    | "TABLE_COMPACT"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {

@@ -2,13 +2,16 @@ import React, { FC, useEffect, useState, useRef, useMemo } from "preact/compat";
 import { useSortedCategories } from "../../../../hooks/useSortedCategories";
 import { InstantMetricResult } from "../../../../api/types";
 import Button from "../../../../components/Main/Button/Button";
-import { CloseIcon, SettingsIcon } from "../../../../components/Main/Icons";
+import { CloseIcon, RestartIcon, SettingsIcon } from "../../../../components/Main/Icons";
 import Popper from "../../../../components/Main/Popper/Popper";
 import "./style.scss";
 import Checkbox from "../../../../components/Main/Checkbox/Checkbox";
 import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
+import { useCustomPanelDispatch, useCustomPanelState } from "../../../../state/customPanel/CustomPanelStateContext";
+import Switch from "../../../../components/Main/Switch/Switch";
+import { arrayEquals } from "../../../../utils/array";
 
-const title = "Display columns";
+const title = "Table settings";
 
 interface TableSettingsProps {
   data: InstantMetricResult[];
@@ -16,32 +19,33 @@ interface TableSettingsProps {
   onChange: (arr: string[]) => void
 }
 
-const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange }) => {
-  const buttonRef = useRef<HTMLDivElement>(null);
-  const [openSettings, setOpenSettings] = useState(false);
+const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onChange }) => {
+
+  const { tableCompact } = useCustomPanelState();
+  const customPanelDispatch = useCustomPanelDispatch();
   const columns = useSortedCategories(data);
+
+  const buttonRef = useRef<HTMLDivElement>(null);
+
+  const [openSettings, setOpenSettings] = useState(false);
+
   const disabledButton = useMemo(() => !columns.length, [columns]);
-  const [checkedColumns, setCheckedColumns] = useState(columns.map(col => col.key));
 
   const handleChange = (key: string) => {
-    setCheckedColumns(prev => checkedColumns.includes(key) ? prev.filter(col => col !== key) : [...prev, key]);
+    onChange(defaultColumns.includes(key) ? defaultColumns.filter(col => col !== key) : [...defaultColumns, key]);
   };
 
   const handleClose = () => {
     setOpenSettings(false);
-    setCheckedColumns(defaultColumns || columns.map(col => col.key));
   };
 
-  const handleReset = () => {
-    setOpenSettings(false);
-    const value = columns.map(col => col.key);
-    setCheckedColumns(value);
-    onChange(value);
+  const toggleTableCompact = () => {
+    customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
   };
 
-  const handleApply = () => {
+  const handleResetColumns = () => {
     setOpenSettings(false);
-    onChange(checkedColumns);
+    onChange(columns.map(col => col.key));
   };
 
   const createHandlerChange = (key: string) => () => {
@@ -53,7 +57,9 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange 
   };
 
   useEffect(() => {
-    setCheckedColumns(columns.map(col => col.key));
+    const values = columns.map(col => col.key);
+    if (arrayEquals(values, defaultColumns)) return;
+    onChange(values);
   }, [columns]);
 
   return (
@@ -86,35 +92,38 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns, onChange 
             />
           </div>
           <div className="vm-table-settings-popper-list">
+            <Switch
+              label={"Compact view"}
+              value={tableCompact}
+              onChange={toggleTableCompact}
+            />
+          </div>
+          <div className="vm-table-settings-popper-list">
+            <div className="vm-table-settings-popper-list-header">
+              <h3 className="vm-table-settings-popper-list-header__title">Display columns</h3>
+              <Tooltip title="Reset to default">
+                <Button
+                  color="primary"
+                  variant="text"
+                  size="small"
+                  onClick={handleResetColumns}
+                  startIcon={<RestartIcon/>}
+                />
+              </Tooltip>
+            </div>
             {columns.map(col => (
               <div
                 className="vm-table-settings-popper-list__item"
                 key={col.key}
               >
                 <Checkbox
-                  checked={checkedColumns.includes(col.key)}
+                  checked={defaultColumns.includes(col.key)}
                   onChange={createHandlerChange(col.key)}
                   label={col.key}
+                  disabled={tableCompact}
                 />
               </div>
             ))}
-          </div>
-          <div className="vm-table-settings-popper__footer">
-            <Button
-              color="error"
-              variant="outlined"
-              size="small"
-              onClick={handleReset}
-            >
-                Reset
-            </Button>
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleApply}
-            >
-                apply
-            </Button>
           </div>
         </div>
       </Popper>
