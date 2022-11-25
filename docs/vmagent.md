@@ -549,7 +549,7 @@ The following articles contain useful information about Prometheus relabeling:
 
   * `keep_metrics`: keeps all the metrics with names matching the given `regex`,
     while dropping all the other metrics. For example, the following relabeling config keeps metrics
-    with `fo` and `bar` names, while dropping all the other metrics:
+    with `foo` and `bar` names, while dropping all the other metrics:
 
     ```yaml
     - action: keep_metrics
