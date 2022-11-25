@@ -109,7 +109,6 @@
       "collapsed": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "P4169E866C3094E38"
       },
       "gridPos": {
         "h": 1,
@@ -319,7 +318,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance.*\", path=~\"/select/.*\"}[$__rate_interval]))",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path=~\"/select/.*\"}[$__rate_interval]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -459,7 +458,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(max_over_time(vm_cache_entries{job=~\"$job\", instance=~\"$instance.*\", type=\"storage/hour_metric_ids\"}[1h]))",
+          "expr": "sum(max_over_time(vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}[1h]))",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -1099,7 +1098,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance.*\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
+          "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__rate_interval])) by (path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}}",
@@ -1208,7 +1207,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance.*\", type=\"storage/hour_metric_ids\"})",
+          "expr": "sum(vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"})",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "Active time series",
@@ -1417,7 +1416,7 @@
             "uid": "$ds"
           },
           "editorMode": "code",
-          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance.*\"}[$__rate_interval])) by (job, path) > 0",
+          "expr": "sum(rate(vm_http_request_errors_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (job, path) > 0",
           "format": "time_series",
           "intervalFactor": 1,
           "legendFormat": "{{path}} ({{job}})",
@@ -1523,7 +1522,7 @@
           },
           "editorMode": "code",
           "exemplar": true,
-          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance.*\", level!=\"info\"}[$__rate_interval])) by (job, level) > 0",
+          "expr": "sum(rate(vm_log_messages_total{job=~\"$job\",instance=~\"$instance\", level!=\"info\"}[$__rate_interval])) by (job, level) > 0",
           "format": "time_series",
           "hide": false,
           "interval": "5m",
@@ -5882,7 +5881,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance.*\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_select\", instance=~\"$instance\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "__auto",
@@ -6988,7 +6987,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance.*\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
+              "expr": "sum(rate(vm_http_requests_total{job=~\"$job_insert\", instance=~\"$instance\", path!~\"/favicon.ico|/metrics\"}[$__rate_interval])) by (path) > 0",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "__auto",
