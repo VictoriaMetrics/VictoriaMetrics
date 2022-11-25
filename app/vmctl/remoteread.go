@@ -11,7 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/prometheus/prometheus/prompb"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type remoteReadProcessor struct {
@@ -50,12 +50,17 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 		return nil
 	}
 
-	bar := barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
-	if err := barpool.Start(); err != nil {
-		return err
+	var bar *pb.ProgressBar
+	if !silent {
+		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
+		if err := barpool.Start(); err != nil {
+			return err
+		}
 	}
 	defer func() {
-		barpool.Stop()
+		if !silent {
+			barpool.Stop()
+		}
 		log.Println("Import finished!")
 		log.Print(rrp.dst.Stats())
 	}()
@@ -73,7 +78,9 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
-				bar.Increment()
+				if bar != nil {
+					bar.Increment()
+				}
 			}
 		}()
 	}
@@ -109,34 +116,12 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 }
 
 func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filter) error {
-	return rrp.src.Read(ctx, filter, func(series prompb.TimeSeries) error {
-		ts := convertTimeseries(series)
-		if err := rrp.dst.Input(ts); err != nil {
+	return rrp.src.Read(ctx, filter, func(series *vm.TimeSeries) error {
+		if err := rrp.dst.Input(series); err != nil {
 			return fmt.Errorf(
 				"failed to read data for time range start: %d, end: %d, %s",
 				filter.StartTimestampMs, filter.EndTimestampMs, err)
 		}
 		return nil
 	})
-}
-
-func convertTimeseries(series prompb.TimeSeries) *vm.TimeSeries {
-	labelPairs := make([]vm.LabelPair, 0, len(series.Labels))
-	for _, label := range series.Labels {
-		labelPairs = append(labelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})
-	}
-
-	n := len(series.Samples)
-	values := make([]float64, 0, n)
-	timestamps := make([]int64, 0, n)
-	for _, sample := range series.Samples {
-		values = append(values, sample.Value)
-		timestamps = append(timestamps, sample.Timestamp)
-	}
-
-	return &vm.TimeSeries{
-		LabelPairs: labelPairs,
-		Timestamps: timestamps,
-		Values:     values,
-	}
 }

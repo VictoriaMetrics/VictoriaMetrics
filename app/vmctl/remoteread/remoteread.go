@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/gogo/protobuf/proto"
 	"github.com/golang/snappy"
@@ -25,7 +26,7 @@ const (
 )
 
 // StreamCallback is a callback function for processing time series
-type StreamCallback func(series prompb.TimeSeries) error
+type StreamCallback func(series *vm.TimeSeries) error
 
 // Client is an HTTP client for reading
 // time series via remote read protocol.
@@ -178,6 +179,9 @@ func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback
 	req.Header.Add("Content-Encoding", "snappy")
 	req.Header.Add("Accept-Encoding", "snappy")
 	req.Header.Set("Content-Type", "application/x-protobuf")
+	if c.useStream {
+		req.Header.Set("Content-Type", "application/x-streamed-protobuf; proto=prometheus.ChunkedReadResponse")
+	}
 	req.Header.Set("X-Prometheus-Remote-Read-Version", "0.1.0")
 
 	resp, err := c.do(req.WithContext(ctx))
@@ -218,7 +222,8 @@ func processResponse(body io.ReadCloser, callback StreamCallback) error {
 	// shouldn't be accounted as an error.
 	for _, res := range readResp.Results {
 		for _, ts := range res.Timeseries {
-			if err := callback(*ts); err != nil {
+			vmTs := convertSamples(ts.Samples, ts.Labels)
+			if err := callback(vmTs); err != nil {
 				return err
 			}
 		}
@@ -245,16 +250,16 @@ func processStreamResponse(body io.ReadCloser, callback StreamCallback) error {
 		}
 
 		for _, series := range res.ChunkedSeries {
-			var ts prompb.TimeSeries
-			ts.Labels = series.Labels
+			samples := make([]prompb.Sample, 0)
 			for _, chunk := range series.Chunks {
-				// TODO: verify it is not a double conversion here and in callback
-				samples, err := parseSamples(chunk.Data)
+				s, err := parseSamples(chunk.Data)
 				if err != nil {
 					return err
 				}
-				ts.Samples = samples
+				samples = append(samples, s...)
 			}
+
+			ts := convertSamples(samples, series.Labels)
 			if err := callback(ts); err != nil {
 				return err
 			}
@@ -307,4 +312,30 @@ func parseHeaders(headers []string) ([]keyValue, error) {
 		kv.value = strings.TrimSpace(h[n+1:])
 	}
 	return kvs, nil
+}
+
+func convertSamples(samples []prompb.Sample, labels []prompb.Label) *vm.TimeSeries {
+	labelPairs := make([]vm.LabelPair, 0, len(labels))
+	nameValue := ""
+	for _, label := range labels {
+		if label.Name == "__name__" {
+			nameValue = label.Value
+			continue
+		}
+		labelPairs = append(labelPairs, vm.LabelPair{Name: label.Name, Value: label.Value})
+	}
+
+	n := len(samples)
+	values := make([]float64, 0, n)
+	timestamps := make([]int64, 0, n)
+	for _, sample := range samples {
+		values = append(values, sample.Value)
+		timestamps = append(timestamps, sample.Timestamp)
+	}
+	return &vm.TimeSeries{
+		Name:       nameValue,
+		LabelPairs: labelPairs,
+		Timestamps: timestamps,
+		Values:     values,
+	}
 }
