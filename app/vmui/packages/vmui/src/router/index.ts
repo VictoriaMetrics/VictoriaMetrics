@@ -19,7 +19,6 @@ const routerOptionsDefault = {
   header: {
     timeSelector: true,
     executionControls: true,
-    globalSettings: true,
   }
 };
 
@@ -29,7 +28,6 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.cardinality]: {
     header: {
       cardinalityDatePicker: true,
-      globalSettings: true,
     }
   }
 };
