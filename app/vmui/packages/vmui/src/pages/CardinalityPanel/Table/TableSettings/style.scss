@@ -1,0 +1,28 @@
+@use "../../../../styles/variables" as *;
+
+.vm-table-settings-popper {
+  display: grid;
+
+  &-list {
+    display: grid;
+    gap: $padding-small;
+    padding: $padding-global $padding-global $padding-medium;
+    max-height: 350px;
+    overflow: auto;
+
+    &__item {
+      font-size: $font-size;
+      text-transform: capitalize;
+    }
+  }
+
+  &__footer {
+    min-width: 200px;
+    display: inline-grid;
+    grid-template-columns: 1fr 1fr;
+    gap: $padding-small;
+    align-items: center;
+    justify-content: center;
+    padding: 0 $padding-global $padding-global;
+  }
+}

@@ -1,6 +1,7 @@
 package workingsetcache
 
 import (
+	"flag"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -10,14 +11,19 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 )
 
+var (
+	prevCacheRemovalPercent = flag.Float64("prevCacheRemovalPercent", 0.1, "Items in the previous caches are removed when the percent of requests it serves "+
+		"becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration")
+	cacheExpireDuration = flag.Duration("cacheExpireDuration", 30*time.Minute, "Items are removed from in-memory caches after they aren't accessed for this duration. "+
+		"Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent")
+)
+
 // Cache modes.
 const (
 	split     = 0
 	switching = 1
 	whole     = 2
 )
-
-const defaultExpireDuration = 20 * time.Minute
 
 // Cache is a cache for working set entries.
 //
@@ -54,14 +60,10 @@ type Cache struct {
 //
 // Stop must be called on the returned cache when it is no longer needed.
 func Load(filePath string, maxBytes int) *Cache {
-	return LoadWithExpire(filePath, maxBytes, defaultExpireDuration)
+	return loadWithExpire(filePath, maxBytes, *cacheExpireDuration)
 }
 
-// LoadWithExpire loads the cache from filePath and limits its size to maxBytes
-// and evicts inactive entires after expireDuration.
-//
-// Stop must be called on the returned cache when it is no longer needed.
-func LoadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
+func loadWithExpire(filePath string, maxBytes int, expireDuration time.Duration) *Cache {
 	curr := fastcache.LoadFromFileOrNew(filePath, maxBytes)
 	var cs fastcache.Stats
 	curr.UpdateStats(&cs)
@@ -90,14 +92,10 @@ func LoadWithExpire(filePath string, maxBytes int, expireDuration time.Duration)
 //
 // Stop must be called on the returned cache when it is no longer needed.
 func New(maxBytes int) *Cache {
-	return NewWithExpire(maxBytes, defaultExpireDuration)
+	return newWithExpire(maxBytes, *cacheExpireDuration)
 }
 
-// NewWithExpire creates new cache with the given maxBytes capacity and the given expireDuration
-// for inactive entries.
-//
-// Stop must be called on the returned cache when it is no longer needed.
-func NewWithExpire(maxBytes int, expireDuration time.Duration) *Cache {
+func newWithExpire(maxBytes int, expireDuration time.Duration) *Cache {
 	curr := fastcache.New(maxBytes / 2)
 	prev := fastcache.New(1024)
 	c := newCacheInternal(curr, prev, split, maxBytes)
@@ -163,9 +161,16 @@ func (c *Cache) expirationWatcher(expireDuration time.Duration) {
 }
 
 func (c *Cache) prevCacheWatcher() {
+	p := *prevCacheRemovalPercent / 100
+	if p <= 0 {
+		// There is no need in removing the previous cache.
+		return
+	}
+	minCurrRequests := uint64(1 / p)
+
 	// Watch for the usage of the prev cache and drop it whenever it receives
-	// less than 5% of requests comparing to the curr cache during the last 10 seconds.
-	checkInterval := 10 * time.Second
+	// less than prevCacheRemovalPercent requests comparing to the curr cache during the last 60 seconds.
+	checkInterval := 60 * time.Second
 	checkInterval += timeJitter(checkInterval / 10)
 	t := time.NewTicker(checkInterval)
 	defer t.Stop()
@@ -198,7 +203,7 @@ func (c *Cache) prevCacheWatcher() {
 		}
 		currGetCalls = csCurr.GetCalls
 		prevGetCalls = csPrev.GetCalls
-		if currRequests >= 20 && float64(prevRequests)/float64(currRequests) < 0.05 {
+		if currRequests >= minCurrRequests && float64(prevRequests)/float64(currRequests) < p {
 			// The majority of requests are served from the curr cache,
 			// so the prev cache can be deleted in order to free up memory.
 			if csPrev.EntriesCount > 0 {

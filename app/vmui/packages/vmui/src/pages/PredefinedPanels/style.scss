@@ -1,0 +1,32 @@
+@use "src/styles/variables" as *;
+
+.vm-predefined-panels {
+  display: grid;
+  gap: $padding-global;
+  align-items: flex-start;
+
+  &-tabs {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: $font-size-small;
+    overflow: hidden;
+
+    &__tab {
+      padding: $padding-global;
+      cursor: pointer;
+      transition: opacity 200ms ease-in-out, color 150ms ease-in;
+      border-right: $border-divider;
+      text-transform: uppercase;
+
+      &:hover {
+        opacity: 1;
+      }
+    }
+  }
+
+  &__dashboards {
+    display: grid;
+    gap: $padding-global;
+  }
+}

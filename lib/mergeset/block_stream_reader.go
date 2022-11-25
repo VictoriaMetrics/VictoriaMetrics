@@ -295,22 +295,11 @@ func (bsr *blockStreamReader) readNextBHS() error {
 	}
 
 	// Unmarshal the unpacked index block into bsr.bhs.
-	if n := int(mr.blockHeadersCount) - cap(bsr.bhs); n > 0 {
-		bsr.bhs = append(bsr.bhs[:cap(bsr.bhs)], make([]blockHeader, n)...)
+	bsr.bhs, err = unmarshalBlockHeadersNoCopy(bsr.bhs[:0], bsr.unpackedBuf, int(mr.blockHeadersCount))
+	if err != nil {
+		return fmt.Errorf("cannot unmarshal blockHeaders in the index block #%d: %w", bsr.mrIdx, err)
 	}
-	bsr.bhs = bsr.bhs[:mr.blockHeadersCount]
 	bsr.bhIdx = 0
-	b := bsr.unpackedBuf
-	for i := 0; i < int(mr.blockHeadersCount); i++ {
-		tail, err := bsr.bhs[i].Unmarshal(b)
-		if err != nil {
-			return fmt.Errorf("cannot unmarshal blockHeader #%d in the index block #%d: %w", len(bsr.bhs), bsr.mrIdx, err)
-		}
-		b = tail
-	}
-	if len(b) > 0 {
-		return fmt.Errorf("unexpected non-empty tail left after unmarshaling block headers; len(tail)=%d", len(b))
-	}
 	return nil
 }
 

@@ -200,7 +200,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
@@ -290,7 +290,7 @@ It is recommended using [binary releases](https://github.com/VictoriaMetrics/Vic
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.2.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
 2. Run `make vmbackup` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmbackup` binary and puts it into the `bin` folder.
 

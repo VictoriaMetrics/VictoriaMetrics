@@ -50,7 +50,7 @@ func (sn *storageNode) isReady() bool {
 // if sn is currently unavailable or overloaded.
 //
 // rows must match the number of rows in the buf.
-func (sn *storageNode) push(sns []*storageNode, buf []byte, rows int) error {
+func (sn *storageNode) push(snb *storageNodesBucket, buf []byte, rows int) error {
 	if len(buf) > maxBufSizePerStorageNode {
 		logger.Panicf("BUG: len(buf)=%d cannot exceed %d", len(buf), maxBufSizePerStorageNode)
 	}
@@ -66,7 +66,7 @@ func (sn *storageNode) push(sns []*storageNode, buf []byte, rows int) error {
 		return nil
 	}
 	// Slow path - sn cannot accept buf now, so re-route it to other vmstorage nodes.
-	if err := sn.rerouteBufToOtherStorageNodes(sns, buf, rows); err != nil {
+	if err := sn.rerouteBufToOtherStorageNodes(snb, buf, rows); err != nil {
 		return fmt.Errorf("error when re-routing rows from %s: %w", sn.dialer.Addr(), err)
 	}
 	return nil
@@ -74,7 +74,8 @@ func (sn *storageNode) push(sns []*storageNode, buf []byte, rows int) error {
 
 var dropSamplesOnOverloadLogger = logger.WithThrottler("droppedSamplesOnOverload", 5*time.Second)
 
-func (sn *storageNode) rerouteBufToOtherStorageNodes(sns []*storageNode, buf []byte, rows int) error {
+func (sn *storageNode) rerouteBufToOtherStorageNodes(snb *storageNodesBucket, buf []byte, rows int) error {
+	sns := snb.sns
 	sn.brLock.Lock()
 again:
 	select {
@@ -91,7 +92,7 @@ again:
 		}
 		sn.brLock.Unlock()
 		// The vmstorage node isn't ready for data processing. Re-route buf to healthy vmstorage nodes even if disableRerouting is set.
-		rowsProcessed, err := rerouteRowsToReadyStorageNodes(sns, sn, buf)
+		rowsProcessed, err := rerouteRowsToReadyStorageNodes(snb, sn, buf)
 		rows -= rowsProcessed
 		if err != nil {
 			return fmt.Errorf("%d rows dropped because the current vsmtorage is unavailable and %w", rows, err)
@@ -111,7 +112,7 @@ again:
 		goto again
 	}
 	sn.brLock.Unlock()
-	rowsProcessed, err := rerouteRowsToFreeStorageNodes(sns, sn, buf)
+	rowsProcessed, err := rerouteRowsToFreeStorageNodes(snb, sn, buf)
 	rows -= rowsProcessed
 	if err != nil {
 		return fmt.Errorf("%d rows dropped because the current vmstorage buf is full and %w", rows, err)
@@ -125,11 +126,12 @@ var closedCh = func() <-chan struct{} {
 	return ch
 }()
 
-func (sn *storageNode) run(sns []*storageNode, snIdx int) {
+func (sn *storageNode) run(snb *storageNodesBucket, snIdx int) {
 	replicas := *replicationFactor
 	if replicas <= 0 {
 		replicas = 1
 	}
+	sns := snb.sns
 	if replicas > len(sns) {
 		replicas = len(sns)
 	}
@@ -180,7 +182,7 @@ func (sn *storageNode) run(sns []*storageNode, snIdx int) {
 			continue
 		}
 		// Send br to replicas storage nodes starting from snIdx.
-		for !sendBufToReplicasNonblocking(sns, &br, snIdx, replicas) {
+		for !sendBufToReplicasNonblocking(snb, &br, snIdx, replicas) {
 			t := timerpool.Get(200 * time.Millisecond)
 			select {
 			case <-sn.stopCh:
@@ -195,8 +197,9 @@ func (sn *storageNode) run(sns []*storageNode, snIdx int) {
 	}
 }
 
-func sendBufToReplicasNonblocking(sns []*storageNode, br *bufRows, snIdx, replicas int) bool {
+func sendBufToReplicasNonblocking(snb *storageNodesBucket, br *bufRows, snIdx, replicas int) bool {
 	usedStorageNodes := make(map[*storageNode]struct{}, replicas)
+	sns := snb.sns
 	for i := 0; i < replicas; i++ {
 		idx := snIdx + i
 		attempts := 0
@@ -460,8 +463,14 @@ type storageNode struct {
 }
 
 type storageNodesBucket struct {
-	ms     *metrics.Set
-	sns    []*storageNode
+	ms *metrics.Set
+
+	// nodesHash is used for consistently selecting a storage node by key.
+	nodesHash *consistentHash
+
+	// sns is a list of storage nodes.
+	sns []*storageNode
+
 	stopCh chan struct{}
 	wg     *sync.WaitGroup
 }
@@ -476,14 +485,6 @@ func getStorageNodesBucket() *storageNodesBucket {
 func setStorageNodesBucket(snb *storageNodesBucket) {
 	storageNodes.Store(snb)
 }
-
-func getStorageNodes() []*storageNode {
-	snb := getStorageNodesBucket()
-	return snb.sns
-}
-
-// nodesHash is used for consistently selecting a storage node by key.
-var nodesHash *consistentHash
 
 // Init initializes vmstorage nodes' connections to the given addrs.
 //
@@ -506,7 +507,7 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
 	ms := metrics.NewSet()
-	nodesHash = newConsistentHash(addrs, hashSeed)
+	nodesHash := newConsistentHash(addrs, hashSeed)
 	sns := make([]*storageNode, 0, len(addrs))
 	stopCh := make(chan struct{})
 	for _, addr := range addrs {
@@ -559,22 +560,25 @@ func initStorageNodes(addrs []string, hashSeed uint64) *storageNodesBucket {
 		maxBufSizePerStorageNode = consts.MaxInsertPacketSizeForVMInsert
 	}
 
+	metrics.RegisterSet(ms)
 	var wg sync.WaitGroup
+	snb := &storageNodesBucket{
+		ms:        ms,
+		nodesHash: nodesHash,
+		sns:       sns,
+		stopCh:    stopCh,
+		wg:        &wg,
+	}
+
 	for idx, sn := range sns {
 		wg.Add(1)
 		go func(sn *storageNode, idx int) {
-			sn.run(sns, idx)
+			sn.run(snb, idx)
 			wg.Done()
 		}(sn, idx)
 	}
 
-	metrics.RegisterSet(ms)
-	return &storageNodesBucket{
-		ms:     ms,
-		sns:    sns,
-		stopCh: stopCh,
-		wg:     &wg,
-	}
+	return snb
 }
 
 func mustStopStorageNodes(snb *storageNodesBucket) {
@@ -590,11 +594,13 @@ func mustStopStorageNodes(snb *storageNodesBucket) {
 // rerouteRowsToReadyStorageNodes reroutes src from not ready snSource to ready storage nodes.
 //
 // The function blocks until src is fully re-routed.
-func rerouteRowsToReadyStorageNodes(sns []*storageNode, snSource *storageNode, src []byte) (int, error) {
+func rerouteRowsToReadyStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
 	reroutesTotal.Inc()
 	rowsProcessed := 0
 	var idxsExclude, idxsExcludeNew []int
-	idxsExclude = getNotReadyStorageNodeIdxsBlocking(sns, idxsExclude[:0], nil)
+	nodesHash := snb.nodesHash
+	sns := snb.sns
+	idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0], nil)
 	var mr storage.MetricRow
 	for len(src) > 0 {
 		tail, err := mr.UnmarshalX(src)
@@ -614,7 +620,7 @@ func rerouteRowsToReadyStorageNodes(sns []*storageNode, snSource *storageNode, s
 				break
 			}
 			// re-generate idxsExclude list, since sn must be put there.
-			idxsExclude = getNotReadyStorageNodeIdxsBlocking(sns, idxsExclude[:0], nil)
+			idxsExclude = getNotReadyStorageNodeIdxsBlocking(snb, idxsExclude[:0], nil)
 		}
 		if *disableRerouting {
 			if !sn.sendBufMayBlock(rowBuf) {
@@ -637,7 +643,7 @@ func rerouteRowsToReadyStorageNodes(sns []*storageNode, snSource *storageNode, s
 			continue
 		}
 		// If the re-routing is enabled, then try sending the row to another storage node.
-		idxsExcludeNew = getNotReadyStorageNodeIdxs(sns, idxsExcludeNew[:0], sn)
+		idxsExcludeNew = getNotReadyStorageNodeIdxs(snb, idxsExcludeNew[:0], sn)
 		idx := nodesHash.getNodeIdx(h, idxsExcludeNew)
 		snNew := sns[idx]
 		if snNew.trySendBuf(rowBuf, 1) {
@@ -660,14 +666,16 @@ func rerouteRowsToReadyStorageNodes(sns []*storageNode, snSource *storageNode, s
 //
 // It is expected that snSource has no enough buffer for sending src.
 // It is expected than *dsableRerouting isn't set when calling this function.
-func rerouteRowsToFreeStorageNodes(sns []*storageNode, snSource *storageNode, src []byte) (int, error) {
+func rerouteRowsToFreeStorageNodes(snb *storageNodesBucket, snSource *storageNode, src []byte) (int, error) {
 	if *disableRerouting {
 		logger.Panicf("BUG: disableRerouting must be disabled when calling rerouteRowsToFreeStorageNodes")
 	}
 	reroutesTotal.Inc()
 	rowsProcessed := 0
 	var idxsExclude []int
-	idxsExclude = getNotReadyStorageNodeIdxs(sns, idxsExclude[:0], snSource)
+	nodesHash := snb.nodesHash
+	sns := snb.sns
+	idxsExclude = getNotReadyStorageNodeIdxs(snb, idxsExclude[:0], snSource)
 	var mr storage.MetricRow
 	for len(src) > 0 {
 		tail, err := mr.UnmarshalX(src)
@@ -694,7 +702,7 @@ func rerouteRowsToFreeStorageNodes(sns []*storageNode, snSource *storageNode, sr
 				break
 			}
 			// re-generate idxsExclude list, since sn must be put there.
-			idxsExclude = getNotReadyStorageNodeIdxs(sns, idxsExclude[:0], snSource)
+			idxsExclude = getNotReadyStorageNodeIdxs(snb, idxsExclude[:0], snSource)
 		}
 		if sn.trySendBuf(rowBuf, 1) {
 			rowsProcessed++
@@ -710,15 +718,16 @@ func rerouteRowsToFreeStorageNodes(sns []*storageNode, snSource *storageNode, sr
 	return rowsProcessed, nil
 }
 
-func getNotReadyStorageNodeIdxsBlocking(sns []*storageNode, dst []int, snExtra *storageNode) []int {
-	dst = getNotReadyStorageNodeIdxs(sns, dst[:0], snExtra)
+func getNotReadyStorageNodeIdxsBlocking(snb *storageNodesBucket, dst []int, snExtra *storageNode) []int {
+	dst = getNotReadyStorageNodeIdxs(snb, dst[:0], snExtra)
+	sns := snb.sns
 	if len(dst) < len(sns) {
 		return dst
 	}
 	noStorageNodesLogger.Warnf("all the vmstorage nodes are unavailable; stopping data processing util at least a single node becomes available")
 	for {
 		time.Sleep(time.Second)
-		dst = getNotReadyStorageNodeIdxs(sns, dst[:0], snExtra)
+		dst = getNotReadyStorageNodeIdxs(snb, dst[:0], snExtra)
 		if availableNodes := len(sns) - len(dst); availableNodes > 0 {
 			storageNodesBecameAvailableLogger.Warnf("%d vmstorage nodes became available, so continue data processing", availableNodes)
 			return dst
@@ -730,9 +739,9 @@ var storageNodesBecameAvailableLogger = logger.WithThrottler("storageNodesBecame
 
 var noStorageNodesLogger = logger.WithThrottler("storageNodesUnavailable", 5*time.Second)
 
-func getNotReadyStorageNodeIdxs(sns []*storageNode, dst []int, snExtra *storageNode) []int {
+func getNotReadyStorageNodeIdxs(snb *storageNodesBucket, dst []int, snExtra *storageNode) []int {
 	dst = dst[:0]
-	for i, sn := range sns {
+	for i, sn := range snb.sns {
 		if sn == snExtra || !sn.isReady() {
 			dst = append(dst, i)
 		}

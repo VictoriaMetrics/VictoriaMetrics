@@ -149,6 +149,73 @@ func scanString(s string) (string, error) {
 	}
 }
 
+func parsePositiveNumber(s string) (float64, error) {
+	if isSpecialIntegerPrefix(s) {
+		n, err := strconv.ParseInt(s, 0, 64)
+		if err != nil {
+			return 0, err
+		}
+		return float64(n), nil
+	}
+	s = strings.ToLower(s)
+	m := float64(1)
+	switch true {
+	case strings.HasSuffix(s, "kib"):
+		s = s[:len(s)-3]
+		m = 1024
+	case strings.HasSuffix(s, "ki"):
+		s = s[:len(s)-2]
+		m = 1024
+	case strings.HasSuffix(s, "kb"):
+		s = s[:len(s)-2]
+		m = 1000
+	case strings.HasSuffix(s, "k"):
+		s = s[:len(s)-1]
+		m = 1000
+	case strings.HasSuffix(s, "mib"):
+		s = s[:len(s)-3]
+		m = 1024 * 1024
+	case strings.HasSuffix(s, "mi"):
+		s = s[:len(s)-2]
+		m = 1024 * 1024
+	case strings.HasSuffix(s, "mb"):
+		s = s[:len(s)-2]
+		m = 1000 * 1000
+	case strings.HasSuffix(s, "m"):
+		s = s[:len(s)-1]
+		m = 1000 * 1000
+	case strings.HasSuffix(s, "gib"):
+		s = s[:len(s)-3]
+		m = 1024 * 1024 * 1024
+	case strings.HasSuffix(s, "gi"):
+		s = s[:len(s)-2]
+		m = 1024 * 1024 * 1024
+	case strings.HasSuffix(s, "gb"):
+		s = s[:len(s)-2]
+		m = 1000 * 1000 * 1000
+	case strings.HasSuffix(s, "g"):
+		s = s[:len(s)-1]
+		m = 1000 * 1000 * 1000
+	case strings.HasSuffix(s, "tib"):
+		s = s[:len(s)-3]
+		m = 1024 * 1024 * 1024 * 1024
+	case strings.HasSuffix(s, "ti"):
+		s = s[:len(s)-2]
+		m = 1024 * 1024 * 1024 * 1024
+	case strings.HasSuffix(s, "tb"):
+		s = s[:len(s)-2]
+		m = 1000 * 1000 * 1000 * 1000
+	case strings.HasSuffix(s, "t"):
+		s = s[:len(s)-1]
+		m = 1000 * 1000 * 1000 * 1000
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, err
+	}
+	return v * m, nil
+}
+
 func scanPositiveNumber(s string) (string, error) {
 	// Scan integer part. It may be empty if fractional part exists.
 	i := 0
@@ -171,7 +238,14 @@ func scanPositiveNumber(s string) (string, error) {
 		}
 		return s, nil
 	}
+	if sLen := scanNumMultiplier(s[i:]); sLen > 0 {
+		i += sLen
+		return s[:i], nil
+	}
 	if s[i] != '.' && s[i] != 'e' && s[i] != 'E' {
+		if i == 0 {
+			return "", fmt.Errorf("missing positive number")
+		}
 		return s[:i], nil
 	}
 
@@ -182,13 +256,14 @@ func scanPositiveNumber(s string) (string, error) {
 		for j < len(s) && isDecimalChar(s[j]) {
 			j++
 		}
-		if j == i {
-			return "", fmt.Errorf("missing fractional part in %q", s)
-		}
 		i = j
 		if i == len(s) {
 			return s, nil
 		}
+	}
+	if sLen := scanNumMultiplier(s[i:]); sLen > 0 {
+		i += sLen
+		return s[:i], nil
 	}
 
 	if s[i] != 'e' && s[i] != 'E' {
@@ -211,6 +286,46 @@ func scanPositiveNumber(s string) (string, error) {
 		return "", fmt.Errorf("missing exponent part in %q", s)
 	}
 	return s[:j], nil
+}
+
+func scanNumMultiplier(s string) int {
+	s = strings.ToLower(s)
+	switch true {
+	case strings.HasPrefix(s, "kib"):
+		return 3
+	case strings.HasPrefix(s, "ki"):
+		return 2
+	case strings.HasPrefix(s, "kb"):
+		return 2
+	case strings.HasPrefix(s, "k"):
+		return 1
+	case strings.HasPrefix(s, "mib"):
+		return 3
+	case strings.HasPrefix(s, "mi"):
+		return 2
+	case strings.HasPrefix(s, "mb"):
+		return 2
+	case strings.HasPrefix(s, "m"):
+		return 1
+	case strings.HasPrefix(s, "gib"):
+		return 3
+	case strings.HasPrefix(s, "gi"):
+		return 2
+	case strings.HasPrefix(s, "gb"):
+		return 2
+	case strings.HasPrefix(s, "g"):
+		return 1
+	case strings.HasPrefix(s, "tib"):
+		return 3
+	case strings.HasPrefix(s, "ti"):
+		return 2
+	case strings.HasPrefix(s, "tb"):
+		return 2
+	case strings.HasPrefix(s, "t"):
+		return 1
+	default:
+		return 0
+	}
 }
 
 func scanIdent(s string) string {

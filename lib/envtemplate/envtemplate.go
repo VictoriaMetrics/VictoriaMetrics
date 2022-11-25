@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/valyala/fasttemplate"
@@ -93,14 +94,23 @@ func expand(m map[string]string, s string) (string, error) {
 		return s, nil
 	}
 	result, err := fasttemplate.ExecuteFuncStringWithErr(s, "%{", "}", func(w io.Writer, tag string) (int, error) {
+		if !isValidEnvVarName(tag) {
+			return fmt.Fprintf(w, "%%{%s}", tag)
+		}
 		v, ok := m[tag]
 		if !ok {
 			return 0, fmt.Errorf("missing %q env var", tag)
 		}
-		return w.Write([]byte(v))
+		return fmt.Fprintf(w, "%s", v)
 	})
 	if err != nil {
 		return "", err
 	}
 	return result, nil
 }
+
+func isValidEnvVarName(s string) bool {
+	return envVarNameRegex.MatchString(s)
+}
+
+var envVarNameRegex = regexp.MustCompile("^[a-zA-Z0-9_]+$")

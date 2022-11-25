@@ -1,0 +1,22 @@
+@use "src/styles/variables" as *;
+
+.vm-server-configurator {
+  display: grid;
+  align-items: center;
+  gap: $padding-medium;
+  width: 600px;
+
+  &__input {
+
+  }
+
+  &__footer {
+    display: inline-grid;
+    grid-template-columns: repeat(2, 1fr);
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    margin-left: auto;
+    margin-right: 0;
+  }
+}

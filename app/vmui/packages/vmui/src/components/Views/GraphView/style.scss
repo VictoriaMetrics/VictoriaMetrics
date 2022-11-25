@@ -1,0 +1,10 @@
+@use "src/styles/variables" as *;
+$all-paddings: $padding-medium * 4;
+
+.vm-graph-view {
+  width: 100%;
+
+  &_full-width {
+    width: calc(100vw - $all-paddings - var(--scrollbar-width));
+  }
+}

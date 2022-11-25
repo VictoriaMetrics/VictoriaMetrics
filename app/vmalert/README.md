@@ -673,10 +673,12 @@ See full description for these flags in `./vmalert -help`.
 ## Monitoring
 
 `vmalert` exports various metrics in Prometheus exposition format at `http://vmalert-host:8880/metrics` page.
+The default list of alerting rules for these metric can be found [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker).
 We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
 metrics may be analyzed later.
 
-Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. 
+Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
 
@@ -781,7 +783,7 @@ The shortlist of configuration flags is the following:
 {% raw  %}
 ```
   -clusterMode
-     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in enterprise version of VictoriaMetrics
+     If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -configCheckInterval duration
      Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
@@ -805,11 +807,11 @@ The shortlist of configuration flags is the following:
   -datasource.maxIdleConnections int
      Defines the number of idle (keep-alive connections) to each configured datasource. Consider setting this value equal to the value: groups_total * group.concurrency. Too low a value may result in a high number of sockets in TIME_WAIT state. (default 100)
   -datasource.oauth2.clientID string
-     Optional OAuth2 clientID to use for -datasource.url.
+     Optional OAuth2 clientID to use for -datasource.url. 
   -datasource.oauth2.clientSecret string
      Optional OAuth2 clientSecret to use for -datasource.url.
   -datasource.oauth2.clientSecretFile string
-     Optional OAuth2 clientSecretFile to use for -datasource.url.
+     Optional OAuth2 clientSecretFile to use for -datasource.url. 
   -datasource.oauth2.scopes string
      Optional OAuth2 scopes to use for -datasource.url. Scopes must be delimited by ';'
   -datasource.oauth2.tokenUrl string
@@ -835,9 +837,9 @@ The shortlist of configuration flags is the following:
   -datasource.url string
      Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also '-datasource.disablePathAppend', '-datasource.showURL'.
   -defaultTenant.graphite string
-     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in enterprise version of VictoriaMetrics
+     Default tenant for Graphite alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy .This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -defaultTenant.prometheus string
-     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in enterprise version of VictoriaMetrics
+     Default tenant for Prometheus alerting groups. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -disableAlertgroupLabel
      Whether to disable adding group's Name as label to generated alerts and time series.
   -dryRun
@@ -849,12 +851,11 @@ The shortlist of configuration flags is the following:
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' . If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used
-     If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
+     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' . If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1002,7 +1003,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.oauth2.scopes string
      Optional OAuth2 scopes to use for -remoteRead.url. Scopes must be delimited by ';'.
   -remoteRead.oauth2.tokenUrl string
-     Optional OAuth2 tokenURL to use for -remoteRead.url.
+     Optional OAuth2 tokenURL to use for -remoteRead.url. 
   -remoteRead.showURL
      Whether to show -remoteRead.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteRead.tlsCAFile string
@@ -1314,7 +1315,7 @@ spec:
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.2.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
 2. Run `make vmalert` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert` binary and puts it into the `bin` folder.
 
@@ -1330,7 +1331,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.2.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
 2. Run `make vmalert-linux-arm` or `make vmalert-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds `vmalert-linux-arm` or `vmalert-linux-arm64` binary respectively and puts it into the `bin` folder.
 

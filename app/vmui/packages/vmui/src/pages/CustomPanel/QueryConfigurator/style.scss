@@ -1,0 +1,41 @@
+@use "src/styles/variables" as *;
+
+.vm-query-configurator {
+  display: grid;
+  gap: $padding-small;
+
+  &-list {
+    display: grid;
+
+    &-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: $padding-small;
+
+      &_disabled {
+        filter: grayscale(100%);
+        opacity: 0.5;
+      }
+
+      &__button {
+        display: grid;
+        width: 36px;
+        min-height: 36px;
+      }
+    }
+  }
+
+  &-settings {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: $padding-medium;
+
+    &__buttons {
+      display: grid;
+      grid-template-columns: repeat(2, auto);
+      gap: $padding-small;
+    }
+  }
+}

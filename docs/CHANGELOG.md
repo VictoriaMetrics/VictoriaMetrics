@@ -15,6 +15,39 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html): add `-storageNode.filter` command-line flag for filtering the [discovered vmstorage nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) with arbitrary regular expressions. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3353).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow using numeric values with `K`, `Ki`, `M`, `Mi`, `G`, `Gi`, `T` and `Ti` suffixes inside MetricsQL queries. For example `8Ki` equals to `8*1024`, while `8.2M` equals to `8.2*1000*1000`.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [range_normalize](https://docs.victoriametrics.com/MetricsQL.html#range_normalize) function for normalizing multiple time series into `[0...1]` value range. This function is useful for correlation analysis of time series with distinct value ranges. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3167).
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [range_linear_regression](https://docs.victoriametrics.com/MetricsQL.html#range_linear_regression) function for calculating [simple linear regression](https://en.wikipedia.org/wiki/Simple_linear_regression) over the input time series on the selected time range. This function is useful for predictions and capacity planning. For example, `range_linear_regression(process_resident_memory_bytes)` can predict future memory usage based on the past memory usage.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add [range_stddev](https://docs.victoriametrics.com/MetricsQL.html#range_stddev) and [range_stdvar](https://docs.victoriametrics.com/MetricsQL.html#range_stdvar) functions.
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): optimize `expr1 op expr2` query when `expr1` returns an empty result. In this case there is no sense in executing `expr2` for `op` not equal to `or`, since the end result will be empty according to [PromQL series matching rules](https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3349). Thanks to @jianglinjian for pointing to this case.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to upload/paste JSON to investigate the trace. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3308) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3310).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): reduce JS bundle size from 200Kb to 100Kb. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3298).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to hide results of a particular query by clicking the `eye` icon. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3359).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add copy button to row on Table view. The button copies row in MetricQL format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2815).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to "stick" a tooltip on the chart by clicking on a data point. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3321) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3376)
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to set up series custom limits. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3297).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add default alert list for vmalert's metrics. See [alerts-vmalert.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-vmalert.yml).
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `vmagent_relabel_config_*`, `vm_relabel_config_*` and `vm_promscrape_config_*` metrics for tracking relabel and scrape configuration hot-reloads. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3345).
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly return an empty result from [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset) if the `offset` arg exceeds the number of inner time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3312).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly discover GCE zones when `filter` option is set at [gce_sd_configs](https://docs.victoriametrics.com/sd_configs.html#gce_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3202).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display the requested graph on the requested time range when navigating from Prometheus URL in Grafana.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display wide tables. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3153).
+* BUGFIX: reduce CPU usage spikes and memory usage spikes under high data ingestion rate introduced in [v1.83.0](https://docs.victoriametrics.com/CHANGELOG.html#v1830). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3343).
+
+## [v1.83.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.1)
+
+Released at 10-11-2022
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `__meta_consul_partition` label for targets discovered via [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs) in the same way as [Prometheus 2.40 does](https://github.com/prometheus/prometheus/pull/11482).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show the [query trace](https://docs.victoriametrics.com/#query-tracing) in JSON view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2814). Thanks to @michal-kralik for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3316).
+
+* BUGFIX: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html): fix a panic at `vminsert` when the discovered list of `vmstorage` nodes is changed during [automatic vmstorage discovery](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3329).
+* BUGFIX: properly register new time series in per-day inverted index if they were ingested during the last 10 seconds of the day. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309). Thanks to @lmarszal for the bugreport and for the [initial fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3320).
+* BUGFIX: reduce the increased memory usage spikes for some workloads. The issue was introduced in [v1.83.0](https://docs.victoriametrics.com/CHANGELOG.html#v1830).
+* BUGFIX: properly accept [OpenTSDB telnet put lines](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol) without tags without the need to specify the trailing whitespace. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290).
+
 
 ## [v1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0)
 
@@ -228,6 +261,24 @@ Released at 08-08-2022
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): return series from `q1` if `q2` doesn't return matching time series in the query `q1 ifnot q2`. Previously series from `q1` weren't returned in this case.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show date picker at `Table` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2874).
 * BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
+
+## [v1.79.5](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.5)
+
+Released at 10-11-2022
+
+**v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
+
+**Update note 1:** [vmalert](https://docs.victoriametrics.com/vmalert.html): the `crlfEscape` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions) becames obsolete starting from this release. It can be safely removed from alerting templates, since `\n` chars are properly escaped with other `*Escape` functions now. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3139) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890) issue for details.
+
+* SECURITY: update Go builder to v1.19.3. This fixes [CVE-2022 security issue](https://github.com/golang/go/issues/56328). See [the changelog](https://github.com/golang/go/issues?q=milestone%3AGo1.19.3+label%3ACherryPickApproved).
+
+* BUGFIX: properly register new time series in per-day inverted index if they were ingested during the last 10 seconds of the day. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309). Thanks to @lmarszal for the bugreport and for the [initial fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3320).
+* BUGFIX: properly accept [OpenTSDB telnet put lines](https://docs.victoriametrics.com/#sending-data-via-telnet-put-protocol) without tags without the need to specify the trailing whitespace. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3290).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly merge buckets with identical `le` values, but with different string representation of these values when calculating [histogram_quantile](https://docs.victoriametrics.com/MetricsQL.html#histogram_quantile) and [histogram_share](https://docs.victoriametrics.com/MetricsQL.html#histogram_share). For example, `http_request_duration_seconds_bucket{le="5"}` and `http_requests_duration_seconds_bucket{le="5.0"}`. Such buckets may be returned from distinct targets. Thanks to @647-coder for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3225).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): change severity level for log messages about failed attempts for sending data to remote storage from `error` to `warn`. The message for about all failed send attempts remains at `error` severity level.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly escape string passed to `quotesEscape` [template function](https://docs.victoriametrics.com/vmalert.html#template-functions), so it can be safely embedded into JSON string. This makes obsolete the `crlfEscape` function. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3139) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/890) issue.
+* BUGFIX: `vmselect`: expose missing metric `vm_cache_size_max_bytes{type="promql/rollupResult"}` . This metric is used for monitoring rollup cache usage with the query `vm_cache_size_bytes{type="promql/rollupResult"} / vm_cache_size_max_bytes{type="promql/rollupResult"}` in the same way as this is done for other cache types.
 
 ## [v1.79.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.4)
 

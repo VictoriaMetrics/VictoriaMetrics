@@ -715,10 +715,12 @@ func (s *Storage) currHourMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stop:
-			s.updateCurrHourMetricIDs()
+			hour := fasttime.UnixHour()
+			s.updateCurrHourMetricIDs(hour)
 			return
 		case <-ticker.C:
-			s.updateCurrHourMetricIDs()
+			hour := fasttime.UnixHour()
+			s.updateCurrHourMetricIDs(hour)
 		}
 	}
 }
@@ -731,10 +733,12 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 	for {
 		select {
 		case <-s.stop:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 			return
 		case <-ticker.C:
-			s.updateNextDayMetricIDs()
+			date := fasttime.UnixDate()
+			s.updateNextDayMetricIDs(date)
 		}
 	}
 }
@@ -910,14 +914,12 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
 	srcOrigLen := len(src)
-	if len(src) < 24 {
-		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 24)
+	if len(src) < 16 {
+		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 16)
 		return hm
 	}
 
 	// Unmarshal header
-	isFull := encoding.UnmarshalUint64(src)
-	src = src[8:]
 	hourLoaded := encoding.UnmarshalUint64(src)
 	src = src[8:]
 	if hourLoaded != hour {
@@ -971,7 +973,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 
 	hm.m = m
 	hm.byTenant = byTenant
-	hm.isFull = isFull != 0
 	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), m.Len(), srcOrigLen)
 	return hm
 }
@@ -1000,13 +1001,8 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	logger.Infof("saving %s to %q...", name, path)
 	startTime := time.Now()
 	dst := make([]byte, 0, hm.m.Len()*8+24)
-	isFull := uint64(0)
-	if hm.isFull {
-		isFull = 1
-	}
 
 	// Marshal header
-	dst = encoding.MarshalUint64(dst, isFull)
 	dst = encoding.MarshalUint64(dst, hm.hour)
 
 	// Marshal hm.m
@@ -2424,8 +2420,7 @@ type byDateMetricIDEntry struct {
 	v    uint64set.Set
 }
 
-func (s *Storage) updateNextDayMetricIDs() {
-	date := fasttime.UnixDate()
+func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	e := s.nextDayMetricIDs.Load().(*byDateMetricIDEntry)
 	s.pendingNextDayMetricIDsLock.Lock()
 	pendingMetricIDs := s.pendingNextDayMetricIDs
@@ -2439,6 +2434,11 @@ func (s *Storage) updateNextDayMetricIDs() {
 	// Slow path: union pendingMetricIDs with e.v
 	if e.date == date {
 		pendingMetricIDs.Union(&e.v)
+	} else {
+		// Do not add pendingMetricIDs from the previous day to the cyrrent day,
+		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
+		pendingMetricIDs = &uint64set.Set{}
 	}
 	eNew := &byDateMetricIDEntry{
 		date: date,
@@ -2447,7 +2447,7 @@ func (s *Storage) updateNextDayMetricIDs() {
 	s.nextDayMetricIDs.Store(eNew)
 }
 
-func (s *Storage) updateCurrHourMetricIDs() {
+func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 	hm := s.currHourMetricIDs.Load().(*hourMetricIDs)
 	var newEntries []pendingHourMetricIDEntry
 	s.pendingHourEntriesLock.Lock()
@@ -2466,7 +2466,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	}
 	s.pendingHourEntriesLock.Unlock()
 
-	hour := fasttime.UnixHour()
 	if len(newEntries) == 0 && hm.hour == hour {
 		// Fast path: nothing to update.
 		return
@@ -2475,7 +2474,6 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	// Slow path: hm.m must be updated with non-empty s.pendingHourEntries.
 	var m *uint64set.Set
 	var byTenant map[accountProjectKey]*uint64set.Set
-	isFull := hm.isFull
 	if hm.hour == hour {
 		m = hm.m.Clone()
 		byTenant = make(map[accountProjectKey]*uint64set.Set, len(hm.byTenant))
@@ -2485,28 +2483,31 @@ func (s *Storage) updateCurrHourMetricIDs() {
 	} else {
 		m = &uint64set.Set{}
 		byTenant = make(map[accountProjectKey]*uint64set.Set)
-		isFull = true
 	}
 
-	for _, x := range newEntries {
-		m.Add(x.MetricID)
-		k := accountProjectKey{
-			AccountID: x.AccountID,
-			ProjectID: x.ProjectID,
+	if hour%24 != 0 {
+		// Do not add pending metricIDs from the previous hour to the current hour on the next day,
+		// since this may result in missing registration of the metricIDs in the per-day inverted index.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
+		for _, x := range newEntries {
+			m.Add(x.MetricID)
+			k := accountProjectKey{
+				AccountID: x.AccountID,
+				ProjectID: x.ProjectID,
+			}
+			e := byTenant[k]
+			if e == nil {
+				e = &uint64set.Set{}
+				byTenant[k] = e
+			}
+			e.Add(x.MetricID)
 		}
-		e := byTenant[k]
-		if e == nil {
-			e = &uint64set.Set{}
-			byTenant[k] = e
-		}
-		e.Add(x.MetricID)
 	}
 
 	hmNew := &hourMetricIDs{
 		m:        m,
 		byTenant: byTenant,
 		hour:     hour,
-		isFull:   isFull,
 	}
 	s.currHourMetricIDs.Store(hmNew)
 	if hm.hour != hour {
@@ -2518,7 +2519,6 @@ type hourMetricIDs struct {
 	m        *uint64set.Set
 	byTenant map[accountProjectKey]*uint64set.Set
 	hour     uint64
-	isFull   bool
 }
 
 type generationTSID struct {

@@ -1,5 +1,5 @@
-import uPlot, {Axis} from "uplot";
-import {getColorFromString} from "../color";
+import uPlot, { Axis } from "uplot";
+import { getColorFromString } from "../color";
 
 export const defaultOptions = {
   height: 500,

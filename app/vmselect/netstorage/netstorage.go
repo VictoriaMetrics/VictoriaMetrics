@@ -36,7 +36,9 @@ import (
 
 var (
 	replicationFactor = flag.Int("replicationFactor", 1, "How many copies of every time series is available on vmstorage nodes. "+
-		"See -replicationFactor command-line flag for vminsert nodes")
+		"vmselect cancels responses from the slowest -replicationFactor-1 vmstorage nodes if -replicationFactor is set by assuming it already received complete data. "+
+		"It isn't recommended setting this flag to values other than 1 at vmselect nodes, since it may result in incomplete responses "+
+		"after adding new vmstorage nodes even if the replication is enabled at vminsert nodes")
 	maxSamplesPerSeries  = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
 	maxSamplesPerQuery   = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
 	vmstorageDialTimeout = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vmselect to vmstorage")
@@ -1176,8 +1178,12 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 
 type tmpBlocksFileWrapper struct {
 	tbfs                []*tmpBlocksFile
-	ms                  []map[string][]tmpBlockAddr
+	ms                  []map[string]*blockAddrs
 	orderedMetricNamess [][]string
+}
+
+type blockAddrs struct {
+	addrs []tmpBlockAddr
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
@@ -1186,9 +1192,9 @@ func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
 	for i := range tbfs {
 		tbfs[i] = getTmpBlocksFile()
 	}
-	ms := make([]map[string][]tmpBlockAddr, n)
+	ms := make([]map[string]*blockAddrs, n)
 	for i := range ms {
-		ms[i] = make(map[string][]tmpBlockAddr)
+		ms[i] = make(map[string]*blockAddrs)
 	}
 	return &tmpBlocksFileWrapper{
 		tbfs:                tbfs,
@@ -1208,10 +1214,11 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	metricName := mb.MetricName
 	m := tbfw.ms[workerID]
 	addrs := m[string(metricName)]
-	addrs = append(addrs, addr)
-	if len(addrs) > 1 {
-		m[string(metricName)] = addrs
-	} else {
+	if addrs == nil {
+		addrs = &blockAddrs{}
+	}
+	addrs.addrs = append(addrs.addrs, addr)
+	if len(addrs.addrs) == 1 {
 		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 		// in both tbfw.orderedMetricNamess and tbfw.ms.
 		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
@@ -1223,7 +1230,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	return nil
 }
 
-func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string][]tmpBlockAddr, uint64, error) {
+func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, uint64, error) {
 	var bytesTotal uint64
 	for i, tbf := range tbfw.tbfs {
 		if err := tbf.Finalize(); err != nil {
@@ -1239,8 +1246,10 @@ func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string][]tmpBlockAdd
 			dstAddrs, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
+				dstAddrs = &blockAddrs{}
+				addrsByMetricName[metricName] = dstAddrs
 			}
-			addrsByMetricName[metricName] = append(dstAddrs, m[metricName]...)
+			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
 		}
 	}
 	return orderedMetricNames, addrsByMetricName, bytesTotal, nil
@@ -1400,7 +1409,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 	for i, metricName := range orderedMetricNames {
 		pts[i] = packedTimeseries{
 			metricName: metricName,
-			addrs:      addrsByMetricName[metricName],
+			addrs:      addrsByMetricName[metricName].addrs,
 		}
 	}
 	rss.packedTimeseries = pts
@@ -1486,37 +1495,66 @@ func processBlocks(qt *querytracer.Tracer, sns []*storageNode, denyPartialRespon
 
 type storageNodesRequest struct {
 	denyPartialResponse bool
-	resultsCh           chan interface{}
+	resultsCh           chan rpcResult
+	qts                 map[*querytracer.Tracer]struct{}
 	sns                 []*storageNode
+}
+
+type rpcResult struct {
+	data interface{}
+	qt   *querytracer.Tracer
 }
 
 func startStorageNodesRequest(qt *querytracer.Tracer, sns []*storageNode, denyPartialResponse bool,
 	f func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{}) *storageNodesRequest {
-	resultsCh := make(chan interface{}, len(sns))
+	resultsCh := make(chan rpcResult, len(sns))
+	qts := make(map[*querytracer.Tracer]struct{}, len(sns))
 	for idx, sn := range sns {
 		qtChild := qt.NewChild("rpc at vmstorage %s", sn.connPool.Addr())
+		qts[qtChild] = struct{}{}
 		go func(workerID uint, sn *storageNode) {
-			result := f(qtChild, workerID, sn)
-			resultsCh <- result
-			qtChild.Done()
+			data := f(qtChild, workerID, sn)
+			resultsCh <- rpcResult{
+				data: data,
+				qt:   qtChild,
+			}
 		}(uint(idx), sn)
 	}
 	return &storageNodesRequest{
 		denyPartialResponse: denyPartialResponse,
 		resultsCh:           resultsCh,
+		qts:                 qts,
 		sns:                 sns,
 	}
+}
+
+func (snr *storageNodesRequest) finishQueryTracers(msg string) {
+	for qt := range snr.qts {
+		snr.finishQueryTracer(qt, msg)
+	}
+}
+
+func (snr *storageNodesRequest) finishQueryTracer(qt *querytracer.Tracer, msg string) {
+	if msg == "" {
+		qt.Done()
+	} else {
+		qt.Donef("%s", msg)
+	}
+	delete(snr.qts, qt)
 }
 
 func (snr *storageNodesRequest) collectAllResults(f func(result interface{}) error) error {
 	sns := snr.sns
 	for i := 0; i < len(sns); i++ {
 		result := <-snr.resultsCh
-		if err := f(result); err != nil {
+		if err := f(result.data); err != nil {
+			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
 			// Immediately return the error to the caller without waiting for responses from other vmstorage nodes -
 			// they will be processed in brackground.
+			snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
 			return err
 		}
+		snr.finishQueryTracer(result.qt, "")
 	}
 	return nil
 }
@@ -1529,12 +1567,14 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		// There is no need in timer here, since all the goroutines executing the f function
 		// passed to startStorageNodesRequest must be finished until the deadline.
 		result := <-snr.resultsCh
-		if err := f(result); err != nil {
+		if err := f(result.data); err != nil {
+			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
 			var er *errRemote
 			if errors.As(err, &er) {
 				// Immediately return the error reported by vmstorage to the caller,
 				// since such errors usually mean misconfiguration at vmstorage.
 				// The misconfiguration must be known by the caller, so it is fixed ASAP.
+				snr.finishQueryTracers("cancel request because of error in other vmstorage nodes")
 				return false, err
 			}
 			errsPartial = append(errsPartial, err)
@@ -1542,10 +1582,12 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 				// Return the error to the caller if partial responses are denied
 				// and the number of partial responses reach -replicationFactor,
 				// since this means that the response is partial.
+				snr.finishQueryTracers("cancel request because partial responses are denied and some vmstorage nodes failed to return response")
 				return false, err
 			}
 			continue
 		}
+		snr.finishQueryTracer(result.qt, "")
 		resultsCollected++
 		if resultsCollected > len(sns)-*replicationFactor {
 			// There is no need in waiting for the remaining results,
@@ -1554,6 +1596,8 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
 			//
 			// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
+			snr.finishQueryTracers(fmt.Sprintf("cancel request because %d out of %d nodes already returned response according to -replicationFactor=%d",
+				resultsCollected, len(sns), *replicationFactor))
 			return false, nil
 		}
 	}

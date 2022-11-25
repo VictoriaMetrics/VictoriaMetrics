@@ -2,7 +2,7 @@ version: '3.5'
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.83.0
+    image: victoriametrics/vmagent:v1.83.1
     depends_on:
       - "vminsert"
     ports:
@@ -32,7 +32,7 @@ services:
 
   vmstorage-1:
     container_name: vmstorage-1
-    image: victoriametrics/vmstorage:v1.83.0-cluster
+    image: victoriametrics/vmstorage:v1.83.1-cluster
     ports:
       - 8482
       - 8400
@@ -44,7 +44,7 @@ services:
     restart: always
   vmstorage-2:
     container_name: vmstorage-2
-    image: victoriametrics/vmstorage:v1.83.0-cluster
+    image: victoriametrics/vmstorage:v1.83.1-cluster
     ports:
       - 8482
       - 8400
@@ -56,7 +56,7 @@ services:
     restart: always
   vminsert:
     container_name: vminsert
-    image: victoriametrics/vminsert:v1.83.0-cluster
+    image: victoriametrics/vminsert:v1.83.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -68,7 +68,7 @@ services:
     restart: always
   vmselect:
     container_name: vmselect
-    image: victoriametrics/vmselect:v1.83.0-cluster
+    image: victoriametrics/vmselect:v1.83.1-cluster
     depends_on:
       - "vmstorage-1"
       - "vmstorage-2"
@@ -82,7 +82,7 @@ services:
 
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.83.0
+    image: victoriametrics/vmalert:v1.83.1
     depends_on:
       - "vmselect"
     ports:
@@ -91,6 +91,7 @@ services:
       - ./alerts-cluster.yml:/etc/alerts/alerts.yml
       - ./alerts-health.yml:/etc/alerts/alerts-health.yml
       - ./alerts-vmagent.yml:/etc/alerts/alerts-vmagent.yml
+      - ./alerts-vmalert.yml:/etc/alerts/alerts-vmalert.yml
     command:
       - '--datasource.url=http://vmselect:8481/select/0/prometheus'
       - '--remoteRead.url=http://vmselect:8481/select/0/prometheus'
