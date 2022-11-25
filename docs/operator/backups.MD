@@ -17,7 +17,7 @@ You can check vmbackupmanager [documentation](https://docs.victoriametrics.com/v
 `VMSingle` and `VMCluster` has built-in backup configuration, it uses `vmbackupmanager` - proprietary tool for backups.
 It supports incremental backups (hourly, daily, weekly, monthly) with popular object storages (aws s3, google cloud storage).
 
-You can enable it with the simple configuration, define secret
+The configuration example is the following:
 
 
 ```yaml
