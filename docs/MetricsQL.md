@@ -1052,6 +1052,8 @@ See also [histogram_quantile](#histogram_quantile).
 `histogram_share(le, buckets)` is a [transform function](#transform-functions), which calculates the share (in the range `[0...1]`)
 for `buckets` that fall below `le`. This function is useful for calculating SLI and SLO. This is inverse to [histogram_quantile](#histogram_quantile).
 
+The function accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated share with the given `boundsLabel` label.
+
 #### histogram_stddev
 
 `histogram_stddev(buckets)` is a [transform function](#transform-functions), which calculates standard deviation for the given `buckets`.
