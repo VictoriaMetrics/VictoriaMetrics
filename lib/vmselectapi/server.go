@@ -772,8 +772,14 @@ func (s *Server) processTSDBStatus(ctx *vmselectRequestCtx) error {
 func (s *Server) processTenants(ctx *vmselectRequestCtx) error {
 	s.tenantsRequests.Inc()
 
+	// Read request
+	tr, err := ctx.readTimeRange()
+	if err != nil {
+		return err
+	}
+
 	// Execute the request
-	tenants, err := s.api.Tenants(ctx.qt, ctx.deadline)
+	tenants, err := s.api.Tenants(ctx.qt, tr, ctx.deadline)
 	if err != nil {
 		return ctx.writeErrorMessage(err)
 	}

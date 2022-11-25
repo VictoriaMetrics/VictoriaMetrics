@@ -947,61 +947,132 @@ func (is *indexSearch) getLabelNamesForMetricIDs(qt *querytracer.Tracer, metricI
 	return nil
 }
 
-// SearchTenants returns all tenants from global index.
-func (db *indexDB) SearchTenants(qt *querytracer.Tracer, deadline uint64) ([]string, error) {
-	qt = qt.NewChild("search for tenants")
+// SearchTenants returns all tenants on the given tr.
+func (db *indexDB) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline uint64) ([]string, error) {
+	qt = qt.NewChild("search for tenants on timeRange=%s", &tr)
 	defer qt.Done()
 	tenants := make(map[string]struct{})
-	qtChild := qt.NewChild("search for tenants in global index")
-	defer qtChild.Done()
-
+	qtChild := qt.NewChild("search for tenants in the current indexdb")
 	is := db.getIndexSearch(0, 0, deadline)
-
-	loopsPaceLimiter := 0
-
-	ts := &is.ts
-	kb := &is.kb
-	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], uint64(0))
-	ts.Seek(kb.B)
-	var acctID, projID uint32
-
-	for ts.NextItem() {
-		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return nil, err
-			}
-		}
-		loopsPaceLimiter++
-		item := ts.Item
-		if !bytes.HasPrefix(item, kb.B) {
-			var err error
-			_, _, acctID, projID, err = unmarshalCommonPrefix(item)
-			if err != nil {
-				return nil, err
-			}
-
-			tenant := fmt.Sprintf("%d:%d", acctID, projID)
-			if _, ok := tenants[tenant]; ok {
-				break
-			}
-
-			tenants[tenant] = struct{}{}
-			kb.B = marshalCommonPrefix(kb.B[:0], byte(nsPrefixTagToMetricIDs), acctID, projID)
-
-			ts.Seek(kb.B)
-		}
+	err := is.searchTenantsOnTimeRange(qtChild, tenants, tr)
+	db.putIndexSearch(is)
+	qtChild.Donef("found %d tenants", len(tenants))
+	if err != nil {
+		return nil, err
+	}
+	ok := db.doExtDB(func(extDB *indexDB) {
+		qtChild := qt.NewChild("search for tenants in the previous indexdb")
+		tenantsLen := len(tenants)
+		is := extDB.getIndexSearch(0, 0, deadline)
+		err = is.searchTenantsOnTimeRange(qtChild, tenants, tr)
+		extDB.putIndexSearch(is)
+		qtChild.Donef("found %d additional tenants", len(tenants)-tenantsLen)
+	})
+	if ok && err != nil {
+		return nil, err
 	}
 
-	if err := ts.Error(); err != nil {
-		return nil, fmt.Errorf("error during search for prefix %q: %w", kb.B, err)
-	}
-
-	tenantsList := make([]string, 0)
+	tenantsList := make([]string, 0, len(tenants))
 	for tenant := range tenants {
 		tenantsList = append(tenantsList, tenant)
 	}
-
+	// Do not sort tenants, since they must be sorted by vmselect.
+	qt.Printf("found %d tenants in the current and the previous indexdb", len(tenantsList))
 	return tenantsList, nil
+}
+
+func (is *indexSearch) searchTenantsOnTimeRange(qt *querytracer.Tracer, tenants map[string]struct{}, tr TimeRange) error {
+	minDate := uint64(tr.MinTimestamp) / msecPerDay
+	maxDate := uint64(tr.MaxTimestamp-1) / msecPerDay
+	if maxDate == 0 || minDate > maxDate || maxDate-minDate > maxDaysForPerDaySearch {
+		qtChild := qt.NewChild("search for tenants in global index")
+		err := is.searchTenantsOnDate(qtChild, tenants, 0)
+		qtChild.Done()
+		return err
+	}
+	var mu sync.Mutex
+	wg := getWaitGroup()
+	var errGlobal error
+	qt = qt.NewChild("parallel search for tenants on timeRange=%s", &tr)
+	for date := minDate; date <= maxDate; date++ {
+		wg.Add(1)
+		qtChild := qt.NewChild("search for tenants on date=%s", dateToString(date))
+		go func(date uint64) {
+			defer func() {
+				qtChild.Done()
+				wg.Done()
+			}()
+			tenantsLocal := make(map[string]struct{})
+			isLocal := is.db.getIndexSearch(0, 0, is.deadline)
+			err := isLocal.searchTenantsOnDate(qtChild, tenantsLocal, date)
+			is.db.putIndexSearch(isLocal)
+			mu.Lock()
+			defer mu.Unlock()
+			if errGlobal != nil {
+				return
+			}
+			if err != nil {
+				errGlobal = err
+				return
+			}
+			for tenant := range tenantsLocal {
+				tenants[tenant] = struct{}{}
+			}
+		}(date)
+	}
+	wg.Wait()
+	putWaitGroup(wg)
+	qt.Done()
+	return errGlobal
+}
+
+func (is *indexSearch) searchTenantsOnDate(qt *querytracer.Tracer, tenants map[string]struct{}, date uint64) error {
+	loopsPaceLimiter := 0
+	ts := &is.ts
+	kb := &is.kb
+	is.accountID = 0
+	is.projectID = 0
+	kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+	_, prefixNeeded, _, _, err := unmarshalCommonPrefix(kb.B)
+	if err != nil {
+		logger.Panicf("BUG: cannot unmarshal common prefix from %q: %s", kb.B, err)
+	}
+	ts.Seek(kb.B)
+	for ts.NextItem() {
+		if loopsPaceLimiter&paceLimiterFastIterationsMask == 0 {
+			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+				return err
+			}
+		}
+		loopsPaceLimiter++
+		_, prefix, accountID, projectID, err := unmarshalCommonPrefix(ts.Item)
+		if err != nil {
+			return err
+		}
+		if prefix != prefixNeeded {
+			// Reached the end of enteris with the needed prefix.
+			break
+		}
+		tenant := fmt.Sprintf("%d:%d", accountID, projectID)
+		tenants[tenant] = struct{}{}
+		// Seek for the next (accountID, projectID)
+		projectID++
+		if projectID == 0 {
+			accountID++
+			if accountID == 0 {
+				// Reached the end (accountID, projectID) space
+				break
+			}
+		}
+		is.accountID = accountID
+		is.projectID = projectID
+		kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+		ts.Seek(kb.B)
+	}
+	if err := ts.Error(); err != nil {
+		return fmt.Errorf("error during search for prefix %q: %w", kb.B, err)
+	}
+	return nil
 }
 
 // SearchLabelValuesWithFiltersOnTimeRange returns label values for the given labelName, tfss and tr.

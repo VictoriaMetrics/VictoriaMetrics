@@ -883,11 +883,11 @@ func LabelValues(qt *querytracer.Tracer, denyPartialResponse bool, labelName str
 }
 
 // Tenants returns tenants until the given deadline.
-func Tenants(qt *querytracer.Tracer, denyPartialResponse bool, deadline searchutils.Deadline) ([]string, bool, error) {
-	qt = qt.NewChild("get tenants")
+func Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+	qt = qt.NewChild("get tenants on timeRange=%s", &tr)
 	defer qt.Done()
 	if deadline.Exceeded() {
-		return nil, false, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
+		return nil, fmt.Errorf("timeout exceeded before starting the query processing: %s", deadline.String())
 	}
 
 	// Send the query to all the storage nodes in parallel.
@@ -896,9 +896,10 @@ func Tenants(qt *querytracer.Tracer, denyPartialResponse bool, deadline searchut
 		err     error
 	}
 	sns := getStorageNodes()
-	snr := startStorageNodesRequest(qt, sns, denyPartialResponse, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
+	// Deny partial responses when obtaining the list of tenants, since partial tenants have little sense.
+	snr := startStorageNodesRequest(qt, sns, true, func(qt *querytracer.Tracer, workerID uint, sn *storageNode) interface{} {
 		sn.tenantsRequests.Inc()
-		tenants, err := sn.getTenants(qt, nil, deadline)
+		tenants, err := sn.getTenants(qt, tr, deadline)
 		if err != nil {
 			sn.tenantsErrors.Inc()
 			err = fmt.Errorf("cannot get tenants from vmstorage %s: %w", sn.connPool.Addr(), err)
@@ -911,7 +912,7 @@ func Tenants(qt *querytracer.Tracer, denyPartialResponse bool, deadline searchut
 
 	// Collect results
 	var tenants []string
-	isPartial, err := snr.collectResults(partialLabelValuesResults, func(result interface{}) error {
+	_, err := snr.collectResults(partialLabelValuesResults, func(result interface{}) error {
 		nr := result.(*nodeResult)
 		if nr.err != nil {
 			return nr.err
@@ -921,16 +922,16 @@ func Tenants(qt *querytracer.Tracer, denyPartialResponse bool, deadline searchut
 	})
 	qt.Printf("get %d non-duplicated tenants", len(tenants))
 	if err != nil {
-		return nil, isPartial, fmt.Errorf("cannot fetch tenants from vmstorage nodes: %w", err)
+		return nil, fmt.Errorf("cannot fetch tenants from vmstorage nodes: %w", err)
 	}
 
-	// Deduplicate label values
+	// Deduplicate tenants
 	tenants = deduplicateStrings(tenants)
 	qt.Printf("get %d unique tenants after de-duplication", len(tenants))
 
 	sort.Strings(tenants)
 	qt.Printf("sort %d tenants", len(tenants))
-	return tenants, isPartial, nil
+	return tenants, nil
 }
 
 // GraphiteTagValues returns tag values for the given tagName until the given deadline.
@@ -1754,14 +1755,14 @@ func (sn *storageNode) getLabelValues(qt *querytracer.Tracer, labelName string, 
 	return labelValues, nil
 }
 
-func (sn *storageNode) getTenants(qt *querytracer.Tracer, requestData []byte, deadline searchutils.Deadline) ([]string, error) {
+func (sn *storageNode) getTenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
 	var tenants []string
 	f := func(bc *handshake.BufferedConn) error {
-		tenant, err := sn.getTenantsOnConn(bc, requestData)
+		result, err := sn.getTenantsOnConn(bc, tr)
 		if err != nil {
 			return err
 		}
-		tenants = tenant
+		tenants = result
 		return nil
 	}
 	if err := sn.execOnConnWithPossibleRetry(qt, "tenants_v1", f, deadline); err != nil {
@@ -2125,9 +2126,12 @@ func readLabelValues(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, 
 	}
 }
 
-func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, _ []byte) ([]string, error) {
+func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, tr storage.TimeRange) ([]string, error) {
+	if err := writeTimeRange(bc, tr); err != nil {
+		return nil, err
+	}
 	if err := bc.Flush(); err != nil {
-		return nil, fmt.Errorf("cannot flush labelName to conn: %w", err)
+		return nil, fmt.Errorf("cannot flush request to conn: %w", err)
 	}
 
 	// Read response error.
@@ -2140,24 +2144,16 @@ func (sn *storageNode) getTenantsOnConn(bc *handshake.BufferedConn, _ []byte) ([
 	}
 
 	// Read response
-	tenants, _, err := readTenants(buf, bc)
-	if err != nil {
-		return nil, err
-	}
-	return tenants, nil
-}
-
-func readTenants(buf []byte, bc *handshake.BufferedConn) ([]string, []byte, error) {
 	var tenants []string
 	for {
 		var err error
 		buf, err = readBytes(buf[:0], bc, maxTenantValueSize)
 		if err != nil {
-			return nil, buf, fmt.Errorf("cannot read tenant: %w", err)
+			return nil, fmt.Errorf("cannot read tenant #%d: %w", len(tenants), err)
 		}
 		if len(buf) == 0 {
 			// Reached the end of the response
-			return tenants, buf, nil
+			return tenants, nil
 		}
 		tenants = append(tenants, string(buf))
 	}

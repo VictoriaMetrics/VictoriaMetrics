@@ -508,6 +508,36 @@ var httpClient = &http.Client{
 	Timeout: time.Second * 5,
 }
 
+// Tenants processes /admin/tenants request.
+func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
+	start, err := searchutils.GetTime(r, "start", 0)
+	if err != nil {
+		return err
+	}
+	ct := startTime.UnixNano() / 1e6
+	end, err := searchutils.GetTime(r, "end", ct)
+	if err != nil {
+		return err
+	}
+	tr := storage.TimeRange{
+		MinTimestamp: start,
+		MaxTimestamp: end,
+	}
+	tenants, err := netstorage.Tenants(qt, tr, deadline)
+	if err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteTenantsResponse(bw, tenants, qt)
+	if err := bw.Flush(); err != nil {
+		return fmt.Errorf("canot flush label values to remote client: %w", err)
+	}
+	return nil
+}
+
 // LabelValuesHandler processes /api/v1/label/<labelName>/values request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#querying-label-values

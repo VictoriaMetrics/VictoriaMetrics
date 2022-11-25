@@ -2,7 +2,6 @@ package main
 
 import (
 	"embed"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -252,33 +251,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if path == "/admin/tenants" {
 		tenantsRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-		denyPartial := searchutils.GetDenyPartialResponse(r)
-		tenants, isPartial, err := netstorage.Tenants(qt, denyPartial, deadline)
-		if err != nil {
+		if err := prometheus.Tenants(qt, startTime, w, r); err != nil {
 			tenantsErrors.Inc()
 			httpserver.Errorf(w, r, "error getting tenants: %s", err)
 			return true
 		}
-
-		response := struct {
-			Data      []string `json:"data"`
-			IsPartial bool     `json:"partial"`
-		}{
-			Data:      tenants,
-			IsPartial: isPartial,
-		}
-
-		if tenants == nil {
-			response.Data = make([]string, 0)
-		}
-
-		if err := json.NewEncoder(w).Encode(response); err != nil {
-			logger.Warnf("cannot marshal tenants: %s", err)
-		}
 		return true
 	}
-
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)

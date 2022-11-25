@@ -35,18 +35,16 @@ func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
 // vmstorageAPI impelements vmselectapi.API
 type vmstorageAPI struct{}
 
-func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, deadline uint64) ([]string, error) {
-	denyPartialResponse := searchutils.GetDenyPartialResponse(nil)
-	dl := searchutils.DeadlineFromTimestamp(deadline)
-	metricNames, _, err := netstorage.Tenants(qt, denyPartialResponse, dl)
-	return metricNames, err
-}
-
 func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) (vmselectapi.BlockIterator, error) {
 	denyPartialResponse := searchutils.GetDenyPartialResponse(nil)
 	dl := searchutils.DeadlineFromTimestamp(deadline)
 	bi := newBlockIterator(qt, denyPartialResponse, sq, dl)
 	return bi, nil
+}
+
+func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+	dl := searchutils.DeadlineFromTimestamp(deadline)
+	return netstorage.Tenants(qt, tr, dl)
 }
 
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {

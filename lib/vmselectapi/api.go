@@ -36,8 +36,8 @@ type API interface {
 	// RegisterMetricNames registers the given mrs in the storage.
 	RegisterMetricNames(qt *querytracer.Tracer, mrs []storage.MetricRow, deadline uint64) error
 
-	// Tenants returns list of tenants in the storage.
-	Tenants(qt *querytracer.Tracer, deadline uint64) ([]string, error)
+	// Tenants returns list of tenants in the storage on the given tr.
+	Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error)
 }
 
 // BlockIterator must iterate through series blocks found by VMSelect.InitSearch.
