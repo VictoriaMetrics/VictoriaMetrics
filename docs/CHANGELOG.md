@@ -34,6 +34,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly return an empty result from [limit_offset](https://docs.victoriametrics.com/MetricsQL.html#limit_offset) if the `offset` arg exceeds the number of inner time series. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3312).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): properly discover GCE zones when `filter` option is set at [gce_sd_configs](https://docs.victoriametrics.com/sd_configs.html#gce_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3202).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display the requested graph on the requested time range when navigating from Prometheus URL in Grafana.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display wide tables. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3153).
 * BUGFIX: reduce CPU usage spikes and memory usage spikes under high data ingestion rate introduced in [v1.83.0](https://docs.victoriametrics.com/CHANGELOG.html#v1830). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3343).
 
 ## [v1.83.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.1)
