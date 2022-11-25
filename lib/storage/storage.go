@@ -1511,6 +1511,11 @@ func (s *Storage) GetSeriesCount(accountID, projectID uint32, deadline uint64) (
 	return s.idb().GetSeriesCount(accountID, projectID, deadline)
 }
 
+// SearchTenants returns list of registered tenants on the given tr.
+func (s *Storage) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline uint64) ([]string, error) {
+	return s.idb().SearchTenants(qt, tr, deadline)
+}
+
 // GetTSDBStatus returns TSDB status data for /api/v1/status/tsdb
 func (s *Storage) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, date uint64, focusLabel string, topN, maxMetrics int, deadline uint64) (*TSDBStatus, error) {
 	return s.idb().GetTSDBStatus(qt, accountID, projectID, tfss, date, focusLabel, topN, maxMetrics, deadline)

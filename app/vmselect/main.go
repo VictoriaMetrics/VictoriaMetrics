@@ -248,7 +248,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
-
+	if path == "/admin/tenants" {
+		tenantsRequests.Inc()
+		httpserver.EnableCORS(w, r)
+		if err := prometheus.Tenants(qt, startTime, w, r); err != nil {
+			tenantsErrors.Inc()
+			httpserver.Errorf(w, r, "error getting tenants: %s", err)
+			return true
+		}
+		return true
+	}
 	p, err := httpserver.ParsePath(path)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot parse path %q: %s", path, err)
@@ -734,6 +743,9 @@ var (
 	metadataRequests       = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/metadata"}`)
 	buildInfoRequests      = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/buildinfo"}`)
 	queryExemplarsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/query_exemplars"}`)
+
+	tenantsRequests = metrics.NewCounter(`vm_http_requests_total{path="/admin/tenants"}`)
+	tenantsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/admin/tenants"}`)
 
 	httpRequests         = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_total`)
 	httpRequestsDuration = tenantmetrics.NewCounterMap(`vm_tenant_select_requests_duration_ms_total`)

@@ -42,6 +42,11 @@ func (api *vmstorageAPI) InitSearch(qt *querytracer.Tracer, sq *storage.SearchQu
 	return bi, nil
 }
 
+func (api *vmstorageAPI) Tenants(qt *querytracer.Tracer, tr storage.TimeRange, deadline uint64) ([]string, error) {
+	dl := searchutils.DeadlineFromTimestamp(deadline)
+	return netstorage.Tenants(qt, tr, dl)
+}
+
 func (api *vmstorageAPI) SearchMetricNames(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline uint64) ([]string, error) {
 	denyPartialResponse := searchutils.GetDenyPartialResponse(nil)
 	dl := searchutils.DeadlineFromTimestamp(deadline)
