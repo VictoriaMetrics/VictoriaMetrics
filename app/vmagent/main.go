@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/promremotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/pushgateway"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -387,6 +388,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			staticServer.ServeHTTP(w, r)
 			return true
 		}
+		if strings.HasPrefix(r.URL.Path, "/api/v1/pushgateway") {
+			pushgatewayRequests.Inc()
+			if err := pushgateway.InsertHandler(nil, r); err != nil {
+				pushgatewayErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		}
 		if remotewrite.MultitenancyEnabled() {
 			return processMultitenantRequest(w, r, path)
 		}
@@ -508,6 +519,16 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		fmt.Fprintf(w, `{}`)
 		return true
 	default:
+		if strings.HasPrefix(r.URL.Path, "/api/v1/pushgateway") {
+			pushgatewayRequests.Inc()
+			if err := pushgateway.InsertHandler(nil, r); err != nil {
+				pushgatewayErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			w.WriteHeader(http.StatusNoContent)
+			return true
+		}
 		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
 		return true
 	}
@@ -525,6 +546,9 @@ var (
 
 	prometheusimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
 	prometheusimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
+
+	pushgatewayRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/pushgateway", protocol="pushgateway"}`)
+	pushgatewayErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/pushgateway", protocol="pushgateway"}`)
 
 	nativeimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 	nativeimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
