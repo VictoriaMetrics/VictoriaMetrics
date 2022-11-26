@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/prometheusimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/promremotewrite"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/pushgateway"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
@@ -218,6 +217,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	if strings.HasPrefix(path, "/prometheus/api/v1/import/prometheus") || strings.HasPrefix(path, "/api/v1/import/prometheus") {
+		prometheusimportRequests.Inc()
+		if err := prometheusimport.InsertHandler(nil, r); err != nil {
+			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
 	if strings.HasPrefix(path, "datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
@@ -246,15 +255,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(nil, r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return true
-	case "/prometheus/api/v1/import/prometheus", "/api/v1/import/prometheus":
-		prometheusimportRequests.Inc()
-		if err := prometheusimport.InsertHandler(nil, r); err != nil {
-			prometheusimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -388,16 +388,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			staticServer.ServeHTTP(w, r)
 			return true
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/v1/pushgateway") {
-			pushgatewayRequests.Inc()
-			if err := pushgateway.InsertHandler(nil, r); err != nil {
-				pushgatewayErrors.Inc()
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			w.WriteHeader(http.StatusNoContent)
-			return true
-		}
 		if remotewrite.MultitenancyEnabled() {
 			return processMultitenantRequest(w, r, path)
 		}
@@ -418,6 +408,16 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 	at, err := auth.NewToken(p.AuthToken)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
+		return true
+	}
+	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/import/prometheus") {
+		prometheusimportRequests.Inc()
+		if err := prometheusimport.InsertHandler(at, r); err != nil {
+			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "datadog/") {
@@ -448,15 +448,6 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(at, r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return true
-	case "prometheus/api/v1/import/prometheus":
-		prometheusimportRequests.Inc()
-		if err := prometheusimport.InsertHandler(at, r); err != nil {
-			prometheusimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -519,16 +510,6 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		fmt.Fprintf(w, `{}`)
 		return true
 	default:
-		if strings.HasPrefix(r.URL.Path, "/api/v1/pushgateway") {
-			pushgatewayRequests.Inc()
-			if err := pushgateway.InsertHandler(nil, r); err != nil {
-				pushgatewayErrors.Inc()
-				httpserver.Errorf(w, r, "%s", err)
-				return true
-			}
-			w.WriteHeader(http.StatusNoContent)
-			return true
-		}
 		httpserver.Errorf(w, r, "unsupported multitenant path suffix: %q", p.Suffix)
 		return true
 	}
@@ -546,9 +527,6 @@ var (
 
 	prometheusimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
 	prometheusimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/prometheus", protocol="prometheusimport"}`)
-
-	pushgatewayRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/pushgateway", protocol="pushgateway"}`)
-	pushgatewayErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/pushgateway", protocol="pushgateway"}`)
 
 	nativeimportRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/import/native", protocol="nativeimport"}`)
 	nativeimportErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/api/v1/import/native", protocol="nativeimport"}`)
