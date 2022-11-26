@@ -19,6 +19,7 @@ import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import TableView from "../../components/Views/TableView/TableView";
+import Button from "../../components/Main/Button/Button";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -29,9 +30,19 @@ const CustomPanel: FC = () => {
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
+  const [hideQuery, setHideQuery] = useState<number[]>([]);
+  const [showAllSeries, setShowAllSeries] = useState(false);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
+
+  const { queryOptions } = useFetchQueryOptions();
+  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
+    visible: true,
+    customStep,
+    hideQuery,
+    showAllSeries
+  });
 
   const setYaxisLimits = (limits: AxisRange) => {
     graphDispatch({ type: "SET_YAXIS_LIMITS", payload: limits });
@@ -45,15 +56,17 @@ const CustomPanel: FC = () => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
-  const { queryOptions } = useFetchQueryOptions();
-  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
-    visible: true,
-    customStep
-  });
+  const handleShowAll = () => {
+    setShowAllSeries(true);
+  };
 
   const handleTraceDelete = (trace: Trace) => {
     const updatedTraces = tracesState.filter((data) => data.idValue !== trace.idValue);
     setTracesState([...updatedTraces]);
+  };
+
+  const handleHideQuery = (queries: number[]) => {
+    setHideQuery(queries);
   };
 
   useEffect(() => {
@@ -66,11 +79,16 @@ const CustomPanel: FC = () => {
     setTracesState([]);
   }, [displayType]);
 
+  useEffect(() => {
+    setShowAllSeries(false);
+  }, [query]);
+
   return (
     <div className="vm-custom-panel">
       <QueryConfigurator
         error={error}
         queryOptions={queryOptions}
+        onHideQuery={handleHideQuery}
       />
       {isTracingEnabled && (
         <div className="vm-custom-panel__trace">
@@ -80,22 +98,37 @@ const CustomPanel: FC = () => {
           />
         </div>
       )}
+      {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
-      {warning && <Alert variant="warning">{warning}</Alert>}
+      {warning && <Alert variant="warning">
+        <div className="vm-custom-panel__warning">
+          <p>{warning}</p>
+          <Button
+            color="warning"
+            variant="outlined"
+            onClick={handleShowAll}
+          >
+              Show all
+          </Button>
+        </div>
+      </Alert>}
       <div className="vm-custom-panel-body vm-block">
-        {isLoading && <Spinner />}
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && <GraphSettings
-            yaxis={yaxis}
-            setYaxisLimits={setYaxisLimits}
-            toggleEnableLimits={toggleEnableLimits}
-          />}
-          {displayType === "table" && <TableSettings
-            data={liveData || []}
-            defaultColumns={displayColumns}
-            onChange={setDisplayColumns}
-          />}
+          {displayType === "chart" && (
+            <GraphSettings
+              yaxis={yaxis}
+              setYaxisLimits={setYaxisLimits}
+              toggleEnableLimits={toggleEnableLimits}
+            />
+          )}
+          {displayType === "table" && (
+            <TableSettings
+              data={liveData || []}
+              defaultColumns={displayColumns}
+              onChange={setDisplayColumns}
+            />
+          )}
         </div>
         {graphData && period && (displayType === "chart") && (
           <GraphView
@@ -108,7 +141,9 @@ const CustomPanel: FC = () => {
             setPeriod={setPeriod}
           />
         )}
-        {liveData && (displayType === "code") && <JsonView data={liveData}/>}
+        {liveData && (displayType === "code") && (
+          <JsonView data={liveData}/>
+        )}
         {liveData && (displayType === "table") && (
           <TableView
             data={liveData}

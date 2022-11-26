@@ -73,6 +73,7 @@ The list of MetricsQL features:
 * The duration suffix is optional. The duration is in seconds if the suffix is missing.
   For example, `rate(m[300] offset 1800)` is equivalent to `rate(m[5m]) offset 30m`.
 * The duration can be placed anywhere in the query. For example, `sum_over_time(m[1h]) / 1h` is equivalent to `sum_over_time(m[1h]) / 3600`.
+* Numeric values can have `K`, `Ki`, `M`, `Mi`, `G`, `Gi`, `T` and `Ti` suffixes. For example, `8K` is equivalent to `8000`, while `1.2Mi` is equvalent to `1.2*1024*1024`.
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
@@ -1051,6 +1052,8 @@ See also [histogram_quantile](#histogram_quantile).
 `histogram_share(le, buckets)` is a [transform function](#transform-functions), which calculates the share (in the range `[0...1]`)
 for `buckets` that fall below `le`. This function is useful for calculating SLI and SLO. This is inverse to [histogram_quantile](#histogram_quantile).
 
+The function accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated share with the given `boundsLabel` label.
+
 #### histogram_stddev
 
 `histogram_stddev(buckets)` is a [transform function](#transform-functions), which calculates standard deviation for the given `buckets`.
@@ -1219,6 +1222,11 @@ over the selected time range per each time series returned by `q`. This function
 #### range_min
 
 `range_min(q)` is a [transform function](#transform-functions), which calculates the min value across points per each time series returned by `q`.
+
+#### range_normalize
+
+`range_normalize(q1, ...)` is a [transform function](#transform-functions), which normalizes values for time series returned by `q1, ...` into `[0 ... 1]` range.
+This function is useful for correlating time series with distinct value ranges.
 
 #### range_quantile
 

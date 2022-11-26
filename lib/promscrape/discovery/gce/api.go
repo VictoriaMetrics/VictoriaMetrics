@@ -58,7 +58,9 @@ func newAPIConfig(sdc *SDConfig) (*apiConfig, error) {
 		logger.Infof("autodetected the current GCE zone: %q", zone)
 	} else if len(zones) == 1 && zones[0] == "*" {
 		// Autodetect zones for project.
-		zs, err := getZonesForProject(client, project, sdc.Filter)
+		// Do not pass sdc.Filter when discovering zones, since GCE doesn't support it.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3202
+		zs, err := getZonesForProject(client, project)
 		if err != nil {
 			return nil, fmt.Errorf("cannot obtain zones for project %q: %w", project, err)
 		}

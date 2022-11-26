@@ -293,7 +293,10 @@ When querying the [backfilled data](https://docs.victoriametrics.com/#backfillin
 
 VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
 
-VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button, enter an additional query in the newly appeared input field and press `Ctrl+Enter`. Results for all the queries should be displayed simultaneously on the same graph.
+VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
+enter an additional query in the newly appeared input field and press `Enter`.
+Results for all the queries are displayed simultaneously on the same graph.
+Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -1049,7 +1052,8 @@ Time series data can be imported into VictoriaMetrics via any supported data ing
 * `/api/v1/import/native` for importing data obtained from [/api/v1/export/native](#how-to-export-data-in-native-format).
   See [these docs](#how-to-import-data-in-native-format) for details.
 * `/api/v1/import/csv` for importing arbitrary CSV data. See [these docs](#how-to-import-csv-data) for details.
-* `/api/v1/import/prometheus` for importing data in Prometheus exposition format. See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
+* `/api/v1/import/prometheus` for importing data in Prometheus exposition format and in [Pushgateway format](https://github.com/prometheus/pushgateway#url).
+  See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
 ### How to import data in JSON line format
 
@@ -1154,9 +1158,11 @@ Note that it could be required to flush response cache after importing historica
 
 ### How to import data in Prometheus exposition format
 
-VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format)
-and in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
-via `/api/v1/import/prometheus` path. For example, the following line imports a single line in Prometheus exposition format into VictoriaMetrics:
+VictoriaMetrics accepts data in [Prometheus exposition format](https://github.com/prometheus/docs/blob/master/content/docs/instrumenting/exposition_formats.md#text-based-format),
+in [OpenMetrics format](https://github.com/OpenObservability/OpenMetrics/blob/master/specification/OpenMetrics.md)
+and in [Pushgateway format](https://github.com/prometheus/pushgateway#url) via `/api/v1/import/prometheus` path.
+
+For example, the following command imports a single line in Prometheus exposition format into VictoriaMetrics:
 
 <div class="with-copy" markdown="1">
 
@@ -1182,6 +1188,16 @@ It should return something like the following:
 {"metric":{"__name__":"foo","bar":"baz"},"values":[123],"timestamps":[1594370496905]}
 ```
 
+The following command imports a single metric via [Pushgateway format](https://github.com/prometheus/pushgateway#url) with `{job="my_app",instance="host123"}` labels:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -d 'metric{label="abc"} 123' -X POST 'http://localhost:8428/api/v1/import/prometheus/metrics/job/my_app/instance/host123'
+```
+
+</div>
+
 Pass `Content-Encoding: gzip` HTTP request header to `/api/v1/import/prometheus` for importing gzipped data:
 
 <div class="with-copy" markdown="1">
@@ -1193,8 +1209,8 @@ curl -X POST -H 'Content-Encoding: gzip' http://destination-victoriametrics:8428
 
 </div>
 
-Extra labels may be added to all the imported metrics by passing `extra_label=name=value` query args.
-For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
+Extra labels may be added to all the imported metrics either via [Pushgateway format](https://github.com/prometheus/pushgateway#url)
+or by passing `extra_label=name=value` query args. For example, `/api/v1/import/prometheus?extra_label=foo=bar` would add `{foo="bar"}` label to all the imported metrics.
 
 If timestamp is missing in `<metric> <value> <timestamp>` Prometheus exposition format line, then the current timestamp is used during data ingestion.
 It can be overridden by passing unix timestamp in *milliseconds* via `timestamp` query arg. For example, `/api/v1/import/prometheus?timestamp=1594370496905`.
@@ -1645,7 +1661,9 @@ All the durations and timestamps in traces are in milliseconds.
 
 Query tracing is allowed by default. It can be denied by passing `-denyQueryTracing` command-line flag to VictoriaMetrics.
 
-[VMUI](#vmui) provides an UI for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
+[VMUI](#vmui) provides an UI:
+- for query tracing - just click `Trace query` checkbox and re-run the query in order to investigate its' trace.
+- for exploring custom trace - go to the tab `Trace analyzer` and upload or paste JSON with trace information.
 
 
 ## Cardinality limiter
@@ -2034,6 +2052,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 ```
   -bigMergeConcurrency int
      The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+  -cacheExpireDuration duration
+     Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
      Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
@@ -2052,7 +2072,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in enterprise version of VictoriaMetrics
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
      Whether to check only -promscrape.config and then exit. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
@@ -2063,7 +2083,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -envflag.prefix string
      Prefix for environment variables if -envflag.enable is set
   -eula
-     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in enterprise version of VictoriaMetrics
+     By specifying this flag, you confirm that you have an enterprise license and accept the EULA https://victoriametrics.com/assets/VM_EULA.pdf . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -finalMergeDelay duration
      The delay before starting final merge for per-month partition after no new data is ingested into it. Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. Zero value disables final merge
   -flagsAuthKey string
@@ -2166,6 +2186,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -precisionBits int
      The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss (default 64)
+  -prevCacheRemovalPercent float
+     Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
   -promscrape.azureSDCheckInterval duration
      Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string
@@ -2260,7 +2282,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -relabelDebug
      Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, then the metrics aren't sent to storage. This is useful for debugging the relabeling configs
   -retentionFilter array
-     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in enterprise version of VictoriaMetrics
+     Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter
@@ -2274,9 +2296,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.disableCache
      Whether to disable response caching. This may be useful during data backfilling
   -search.graphiteMaxPointsPerSeries int
-     The maximum number of points per series Graphite render API can return. This flag is available only in enterprise version of VictoriaMetrics (default 1000000)
+     The maximum number of points per series Graphite render API can return. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in enterprise version of VictoriaMetrics (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
@@ -2290,7 +2312,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in enterprise version of VictoriaMetrics (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 300000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxMemoryPerQuery size

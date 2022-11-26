@@ -3,11 +3,10 @@ import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
 import { InstantMetricResult, MetricBase, MetricResult } from "../api/types";
 import { isValidHttpUrl } from "../utils/url";
-import { ErrorTypes } from "../types";
+import { ErrorTypes, SeriesLimits } from "../types";
 import debounce from "lodash.debounce";
 import { DisplayType } from "../pages/CustomPanel/DisplayTypeSwitch";
 import Trace from "../components/TraceQuery/Trace";
-import { MAX_SERIES } from "../constants/graph";
 import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
@@ -17,9 +16,11 @@ interface FetchQueryParams {
   visible: boolean
   display?: DisplayType,
   customStep: number,
+  hideQuery?: number[]
+  showAllSeries?: boolean
 }
 
-export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }: FetchQueryParams): {
+interface FetchQueryReturn {
   fetchUrl?: string[],
   isLoading: boolean,
   graphData?: MetricResult[],
@@ -27,10 +28,28 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }:
   error?: ErrorTypes | string,
   warning?: string,
   traces?: Trace[],
-} => {
+}
+
+interface FetchDataParams {
+  fetchUrl: string[],
+  fetchQueue: AbortController[],
+  displayType: DisplayType,
+  query: string[],
+  stateSeriesLimits: SeriesLimits,
+  showAllSeries?: boolean,
+}
+
+export const useFetchQuery = ({
+  predefinedQuery,
+  visible,
+  display,
+  customStep,
+  hideQuery,
+  showAllSeries
+}: FetchQueryParams): FetchQueryReturn => {
   const { query } = useQueryState();
   const { period } = useTimeState();
-  const { displayType, nocache, isTracingEnabled } = useCustomPanelState();
+  const { displayType, nocache, isTracingEnabled, seriesLimits: stateSeriesLimits } = useCustomPanelState();
   const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -49,12 +68,19 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }:
     }
   }, [error]);
 
-  const fetchData = async (fetchUrl: string[], fetchQueue: AbortController[], displayType: DisplayType, query: string[]) => {
+  const fetchData = async ({
+    fetchUrl,
+    fetchQueue,
+    displayType,
+    query,
+    stateSeriesLimits,
+    showAllSeries,
+  }: FetchDataParams) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      const seriesLimit = MAX_SERIES[displayType];
+      const seriesLimit = showAllSeries ? Infinity : stateSeriesLimits[displayType];
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
@@ -100,6 +126,12 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }:
 
   const throttledFetchData = useCallback(debounce(fetchData, 800), []);
 
+  const filterExpr = (q: string, i: number) => {
+    const byQuery = q.trim();
+    const byHideQuery = hideQuery ? !hideQuery.includes(i) : true;
+    return byQuery && byHideQuery;
+  };
+
   const fetchUrl = useMemo(() => {
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
@@ -111,21 +143,28 @@ export const useFetchQuery = ({ predefinedQuery, visible, display, customStep }:
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
-      return expr.filter(q => q.trim()).map(q => displayChart
+      return expr.filter(filterExpr).map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
     } else {
       setError(ErrorTypes.validServer);
     }
   },
-  [serverUrl, period, displayType, customStep]);
+  [serverUrl, period, displayType, customStep, hideQuery]);
 
   useEffect(() => {
     if (!visible || !fetchUrl?.length) return;
     setIsLoading(true);
     const expr = predefinedQuery ?? query;
-    throttledFetchData(fetchUrl, fetchQueue, (display || displayType), expr);
-  }, [fetchUrl, visible]);
+    throttledFetchData({
+      fetchUrl,
+      fetchQueue,
+      displayType: display || displayType,
+      query: expr,
+      stateSeriesLimits,
+      showAllSeries,
+    });
+  }, [fetchUrl, visible, stateSeriesLimits, showAllSeries]);
 
   useEffect(() => {
     const fetchPast = fetchQueue.slice(0, -1);

@@ -54,6 +54,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          show_at: dashboard
         annotations:
           dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=52&var-instance={{ $labels.instance }}"
           summary: "Too many errors served for {{ $labels.job }} path {{ $labels.path }} (instance {{ $labels.instance }})"
@@ -72,6 +73,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          show_at: dashboard
         annotations:
           dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=44&var-instance={{ $labels.instance }}"
           summary: "Too many RPC errors for {{ $labels.job }} (instance {{ $labels.instance }})"
@@ -83,6 +85,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          show_at: dashboard
         annotations:
           dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=133&var-instance={{ $labels.instance }}"
           summary: "vmstorage on instance {{ $labels.instance }} is constantly hitting concurrent flushes limit"
@@ -179,6 +182,7 @@ groups:
         for: 15m
         labels:
           severity: warning
+          show_at: dashboard
         annotations:
           dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=139&var-instance={{ $labels.instance }}"
           summary: "Connection between vminsert on {{ $labels.instance }} and vmstorage on {{ $labels.addr }} is saturated"
@@ -186,3 +190,4 @@ groups:
             is saturated by more than 90% and vminsert won't be able to keep up.\n
             This usually means that more vminsert or vmstorage nodes must be added to the cluster in order to increase
             the total number of vminsert -> vmstorage links."
+

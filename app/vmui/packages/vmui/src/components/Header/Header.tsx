@@ -43,6 +43,10 @@ const Header: FC = () => {
     {
       label: "Top queries",
       value: router.topQueries,
+    },
+    {
+      label: "Trace analyzer",
+      value: router.trace,
     }
   ]), [appModeEnable]);
 
@@ -111,7 +115,7 @@ const Header: FC = () => {
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
       {headerSetup?.executionControls && <ExecutionControls/>}
-      {headerSetup?.globalSettings && !appModeEnable && <GlobalSettings/>}
+      <GlobalSettings/>
       <ShortcutKeys/>
     </div>
   </header>;

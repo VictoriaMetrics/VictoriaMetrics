@@ -6,7 +6,7 @@
   margin: 6px 0;
   width: 100%;
 
-  &::after {
+  &_textarea:after {
     content: attr(data-replicated-value) " ";
     white-space: pre-wrap;
     visibility: hidden;
@@ -29,6 +29,7 @@
   &__helper-text, {
     position: absolute;
     left: calc($padding-global/2);
+    max-width: calc(100% - $padding-global);
     padding: 0 3px;
     font-size: $font-size-small;
     line-height: $font-size-small;
@@ -36,6 +37,12 @@
     user-select: none;
     background-color: $color-background-block;
     z-index: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2; /* number of lines to show */
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 
   &__label {
@@ -44,7 +51,7 @@
   }
 
   &__error {
-    bottom: calc($font-size-small/-2);
+    top: calc(100% - ($font-size-small/2));
     color: $color-error;
   }
 

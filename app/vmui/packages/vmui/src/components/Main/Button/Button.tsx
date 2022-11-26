@@ -5,7 +5,7 @@ import "./style.scss";
 
 interface ButtonProps {
   variant?: "contained" | "outlined" | "text"
-  color?: "primary" | "secondary" | "success" | "error"
+  color?: "primary" | "secondary" | "success" | "error" | "gray"  | "warning"
   size?: "small" | "medium" | "large"
   endIcon?: ReactNode
   startIcon?: ReactNode
@@ -14,6 +14,7 @@ interface ButtonProps {
   children?: ReactNode
   className?: string
   onClick?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
+  onMouseDown?: (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => void
 }
 
 const Button: FC<ButtonProps> = ({
@@ -27,6 +28,7 @@ const Button: FC<ButtonProps> = ({
   className,
   disabled,
   onClick,
+  onMouseDown,
 }) => {
 
   const classesButton = classNames({
@@ -45,6 +47,7 @@ const Button: FC<ButtonProps> = ({
       className={classesButton}
       disabled={disabled}
       onClick={onClick}
+      onMouseDown={onMouseDown}
     >
       <>
         {startIcon && <span className="vm-button__start-icon">{startIcon}</span>}

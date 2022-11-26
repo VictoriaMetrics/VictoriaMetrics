@@ -2,27 +2,31 @@
 
 .vm-table-settings-popper {
   display: grid;
+  min-width: 250px;
 
   &-list {
     display: grid;
     gap: $padding-small;
-    padding: $padding-global $padding-global $padding-medium;
+    padding: $padding-global;
     max-height: 350px;
     overflow: auto;
+    border-bottom: $border-divider;
+
+    &-header {
+      display: grid;
+      align-items: center;
+      justify-content: space-between;
+      grid-template-columns: 1fr auto;
+      min-height: 25px;
+
+      &__title {
+        font-weight: bold;
+      }
+    }
 
     &__item {
       font-size: $font-size;
       text-transform: capitalize;
     }
-  }
-
-  &__footer {
-    min-width: 200px;
-    display: inline-grid;
-    grid-template-columns: 1fr 1fr;
-    gap: $padding-small;
-    align-items: center;
-    justify-content: center;
-    padding: 0 $padding-global $padding-global;
   }
 }

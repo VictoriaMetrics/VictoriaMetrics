@@ -135,6 +135,23 @@ $button-radius: 6px;
     }
   }
 
+  &_contained_gray {
+    color: $color-text-secondary;
+
+    &:before {
+      background-color: $color-text-secondary;
+    }
+  }
+
+  &_contained_warning {
+    color: $color-warning;
+
+    &:before {
+      background-color: $color-warning;
+      opacity: 0.2;
+    }
+   }
+
 
   /* variant TEXT */
   &_text_primary {
@@ -151,6 +168,14 @@ $button-radius: 6px;
 
   &_text_error {
     color: $color-error;
+  }
+
+  &_text_gray {
+    color: $color-text-secondary;
+  }
+
+  &_text_warning {
+    color: $color-warning;
   }
 
 
@@ -173,5 +198,15 @@ $button-radius: 6px;
   &_outlined_success {
     border: 1px solid $color-success;
     color: $color-success;
+  }
+
+  &_outlined_gray {
+    border: 1px solid $color-text-secondary;
+    color: $color-text-secondary;
+  }
+
+  &_outlined_warning {
+    border: 1px solid $color-warning;
+    color: $color-warning;
   }
 }

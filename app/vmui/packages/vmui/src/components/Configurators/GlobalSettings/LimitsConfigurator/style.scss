@@ -1,0 +1,28 @@
+@use "src/styles/variables" as *;
+
+.vm-limits-configurator {
+
+  &-title {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: $font-size;
+    font-weight: bold;
+    margin-bottom: $padding-global;
+
+    &__reset {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      flex-grow: 1;
+    }
+  }
+
+  &__inputs {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    align-items: center;
+    justify-content: space-between;
+    gap: $padding-global;
+  }
+}

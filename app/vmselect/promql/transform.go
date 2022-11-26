@@ -91,6 +91,7 @@ var transformFuncs = map[string]transformFunc{
 	"range_linear_regression":    transformRangeLinearRegression,
 	"range_max":                  newTransformFuncRange(runningMax),
 	"range_min":                  newTransformFuncRange(runningMin),
+	"range_normalize":            transformRangeNormalize,
 	"range_quantile":             transformRangeQuantile,
 	"range_stddev":               transformRangeStddev,
 	"range_stdvar":               transformRangeStdvar,
@@ -142,6 +143,7 @@ var transformFuncsKeepMetricName = map[string]bool{
 	"range_linear_regression": true,
 	"range_max":               true,
 	"range_min":               true,
+	"range_normalize":         true,
 	"range_quantile":          true,
 	"range_stdvar":            true,
 	"range_sddev":             true,
@@ -1240,6 +1242,38 @@ func newTransformFuncRange(rf func(a, b float64, idx int) float64) transformFunc
 	}
 }
 
+func transformRangeNormalize(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	var rvs []*timeseries
+	for _, tss := range args {
+		for _, ts := range tss {
+			values := ts.Values
+			vMin := inf
+			vMax := -inf
+			for _, v := range values {
+				if math.IsNaN(v) {
+					continue
+				}
+				if v < vMin {
+					vMin = v
+				}
+				if v > vMax {
+					vMax = v
+				}
+			}
+			d := vMax - vMin
+			if math.IsInf(d, 0) {
+				continue
+			}
+			for i, v := range values {
+				values[i] = (v - vMin) / d
+			}
+			rvs = append(rvs, ts)
+		}
+	}
+	return rvs, nil
+}
+
 func transformRangeLinearRegression(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 1); err != nil {
@@ -1943,6 +1977,8 @@ func transformLimitOffset(tfa *transformFuncArg) ([]*timeseries, error) {
 	rvs := removeEmptySeries(args[2])
 	if len(rvs) >= offset {
 		rvs = rvs[offset:]
+	} else {
+		rvs = nil
 	}
 	if len(rvs) > limit {
 		rvs = rvs[:limit]

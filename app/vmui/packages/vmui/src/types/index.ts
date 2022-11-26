@@ -35,12 +35,16 @@ export interface DataSeries extends MetricBase{
 export interface InstantDataSeries {
   metadata: string[]; // just ordered columns
   value: string;
+  copyValue: string;
 }
 
 export enum ErrorTypes {
   emptyServer = "Please enter Server URL",
   validServer = "Please provide a valid Server URL",
-  validQuery = "Please enter a valid Query and execute it"
+  validQuery = "Please enter a valid Query and execute it",
+  traceNotFound = "Not found the tracing information",
+  emptyTitle = "Please enter title",
+  positiveNumber = "Please enter positive number"
 }
 
 export interface PanelSettings {
@@ -94,4 +98,10 @@ export interface TopQueriesData extends TopQueryStats{
   topByAvgDuration: TopQuery[]
   topByCount: TopQuery[]
   topBySumDuration: TopQuery[]
+}
+
+export interface SeriesLimits {
+  table: number,
+  chart: number,
+  code: number,
 }

@@ -2281,6 +2281,16 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`limit_offset(too-big-offset)`, func(t *testing.T) {
+		t.Parallel()
+		q := `limit_offset(1, 10, sort_by_label((
+			label_set(time()*1, "foo", "y"),
+			label_set(time()*2, "foo", "a"),
+			label_set(time()*3, "foo", "x"),
+		), "foo"))`
+		resultExpected := []netstorage.Result{}
+		f(q, resultExpected)
+	})
 	t.Run(`limit_offset NaN`, func(t *testing.T) {
 		t.Parallel()
 		// q returns 3 time series, where foo=3 contains only NaN values
@@ -6890,6 +6900,23 @@ func TestExecSuccess(t *testing.T) {
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_normalize(time(),alias(-time(),"negative"))`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_normalize(time(),alias(-time(), "negative"))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0.2, 0.4, 0.6, 0.8, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 0.8, 0.6, 0.4, 0.2, 0},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.MetricGroup = []byte("negative")
+		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
 	t.Run(`range_first(time())`, func(t *testing.T) {

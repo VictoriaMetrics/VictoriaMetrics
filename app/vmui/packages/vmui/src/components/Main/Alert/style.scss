@@ -13,7 +13,7 @@
   font-size: $font-size-medium;
   font-weight: 500;
   color: $color-text;
-  line-height: 1.3;
+  line-height: 20px;
 
   &:after {
     position: absolute;
@@ -41,6 +41,7 @@
 
   &__content {
     filter: brightness(0.6);
+    white-space: pre-line;
   }
 
   &_success {

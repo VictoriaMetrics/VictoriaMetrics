@@ -1,8 +1,8 @@
 import React, { FC } from "preact/compat";
 import { ReactNode } from "react";
 import classNames from "classnames";
-import "./style.scss";
 import { ErrorIcon, InfoIcon, SuccessIcon, WarningIcon } from "../Icons";
+import "./style.scss";
 
 interface AlertProps {
   variant?: "success" | "error" | "info" | "warning"

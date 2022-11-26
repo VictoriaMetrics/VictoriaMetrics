@@ -1,6 +1,6 @@
 import { MetricBase } from "../api/types";
 
-export const getNameForMetric = (result: MetricBase, alias?: string): string => {
+export const getNameForMetric = (result: MetricBase, alias?: string, connector = ": ", quoteValue = false): string => {
   const { __name__, ...freeFormFields } = result.metric;
   const name = alias || __name__ || "";
 
@@ -8,5 +8,7 @@ export const getNameForMetric = (result: MetricBase, alias?: string): string => 
     return name || `Result ${result.group}`; // a bit better than just {} for case of aggregation functions
   }
 
-  return `${name} {${Object.entries(freeFormFields).map(e => `${e[0]}: ${e[1]}`).join(", ")}}`;
+  return `${name} {${Object.entries(freeFormFields).map(e => 
+    `${e[0]}${connector}${(quoteValue ? `"${e[1]}"` : e[1])}`
+  ).join(", ")}}`;
 };
