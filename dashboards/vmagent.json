@@ -99,6 +99,7 @@
     {
       "collapsed": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -112,6 +113,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -173,6 +175,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -239,6 +242,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -254,6 +258,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows total number of all configured scrape targets in state \"up\".\n\nSee `http://vmagent-host:8429/targets` to get list of all targets. \n",
@@ -298,6 +303,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"up\"})",
@@ -311,6 +317,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows total number of all configured scrape targets in state \"down\".\n\nSee `http://vmagent-host:8429/targets` to get list of all targets. \n",
@@ -365,6 +372,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(vm_promscrape_targets{job=~\"$job\", instance=~\"$instance\", status=\"down\"})",
@@ -378,6 +386,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows number of generated  error messages in  logs over last 30m. Non-zero value may be a sign of connectivity or missconfiguration errors.",
@@ -435,6 +444,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(increase(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\", level!=\"info\"}[30m]))",
@@ -448,6 +458,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Persistent queue size shows size of pending samples in bytes which hasn't been flushed to remote storage yet. \nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.",
@@ -497,6 +508,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(vm_persistentqueue_bytes_pending{job=~\"$job\", instance=~\"$instance\"})",
@@ -607,6 +619,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -658,6 +671,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sort(sum(up{job=~\"$job\", instance=~\"$instance\"}) by (job, instance))",
@@ -1064,6 +1078,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the persistent queue size of pending samples in bytes which hasn't been flushed to remote storage yet. \n\nIncreasing of value might be a sign of connectivity issues. In such cases, vmagent starts to flush pending data on disk with attempt to send it later once connection is restored.\n\nRemote write URLs are hidden by default but might be unveiled once `-remoteWrite.showURL` is set to true.",
@@ -1119,6 +1134,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -1165,6 +1181,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the rate of dropped data blocks in cases when remote storage replies with `400 Bad Request` and `409 Conflict` HTTP responses.\n\nSee https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1149",
@@ -1215,6 +1232,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -1261,6 +1279,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows rate of dropped samples from persistent queue. VMagent drops samples from queue if in-memory and on-disk queues are full and it is unable to flush them to remote storage.\nThe max size of on-disk queue is configured by `-remoteWrite.maxDiskUsagePerURL` flag.",
@@ -1317,6 +1336,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(increase(vm_persistentqueue_bytes_dropped_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by (path)",
@@ -1476,6 +1496,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
@@ -1526,6 +1547,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -1573,6 +1595,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1589,6 +1612,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1637,6 +1661,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -1684,6 +1709,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1732,6 +1758,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -2017,6 +2044,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2065,6 +2093,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "histogram_quantile(0.95, sum(rate(vm_promscrape_scrape_response_size_bytes_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange))  ",
@@ -2075,6 +2104,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "histogram_quantile(0.5, sum(rate(vm_promscrape_scrape_response_size_bytes_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange)) ",
@@ -2178,6 +2208,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -2189,6 +2220,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2622,6 +2654,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -2633,6 +2666,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2945,6 +2979,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows current number of established connections to remote write endpoints.\n\n",
@@ -2994,6 +3029,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3045,6 +3081,7 @@
           },
           "dataFormat": "tsbuckets",
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the remote write request duration distribution in seconds. Value depends on block size, network quality and remote storage performance.",
@@ -3065,6 +3102,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3213,6 +3251,7 @@
           },
           "dataFormat": "tsbuckets",
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the remote write request block size distribution in rows.",
@@ -3233,6 +3272,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3272,6 +3312,7 @@
           },
           "dataFormat": "tsbuckets",
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the remote write request block size distribution in bytes.",
@@ -3292,6 +3333,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "buckets_limit(12, prometheus_buckets(sum(rate(vmagent_remotewrite_block_size_bytes_bucket{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by(vmrange)))",
@@ -3324,6 +3366,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the current limit usage of unique series over an hourly period. Vmagent will start to drop series once the limit is reached.\n\nPlease note, panel will be blank if `remoteWrite.maxHourlySeries` is not set.",
@@ -3364,6 +3407,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3374,6 +3418,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3433,6 +3478,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the current limit usage of unique series over a daily period. Vmagent will start to drop series once the limit is reached.\n\nPlease note, panel will be blank if `remoteWrite.maxDailySeries` is not set.",
@@ -3473,6 +3519,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3483,6 +3530,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3540,6 +3588,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -3613,6 +3662,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": false,
@@ -3703,6 +3753,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": false,
@@ -3976,6 +4027,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -4100,6 +4152,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Amount of used memory\n\nIf you think that usage is abnormal or unexpected, please file an issue and attach memory profile if possible.",
@@ -4156,6 +4209,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -4166,6 +4220,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -4213,6 +4268,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the number of bytes read/write from the storage layer when vmagent has to buffer data on disk or read already buffered data.",
@@ -4269,6 +4325,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -4281,6 +4338,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -4331,6 +4389,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Network usage shows the bytes rate for data accepted by vmagent and pushed via remotewrite protocol.\nDiscrepancies are possible because of different protocols used for ingesting, scraping and writing data.",
@@ -4386,6 +4445,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_tcplistener_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) * 8\n+ sum(rate(vm_promscrape_conn_bytes_read_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) * 8",
@@ -4395,6 +4455,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vmagent_remotewrite_conn_bytes_written_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) * 8",
@@ -4490,6 +4551,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4543,6 +4605,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -4592,6 +4655,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
@@ -4640,6 +4704,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -4689,6 +4754,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "max(go_gc_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=\"1\"}) by(instance)",
@@ -4735,6 +4801,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -4784,6 +4851,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"}) by(instance)",
@@ -4829,6 +4897,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -4869,6 +4938,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmagent.*\"}, job)",
@@ -4894,6 +4964,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -4919,6 +4990,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vmagent_remotewrite_requests_total{job=~\"$job\", instance=~\"$instance\"}, url)",
@@ -4941,7 +5013,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "filters": [],
         "hide": 0,

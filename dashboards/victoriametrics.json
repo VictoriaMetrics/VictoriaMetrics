@@ -94,6 +94,7 @@
     {
       "collapsed": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -107,6 +108,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -117,6 +119,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "",
@@ -135,6 +138,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -145,6 +149,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "How many datapoints are in storage",
@@ -195,6 +200,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -332,6 +338,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -349,6 +356,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Total size of allowed memory via flag `-memory.allowedPercent`",
@@ -399,6 +407,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -416,6 +425,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -467,6 +477,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -482,6 +493,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee more details here https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series",
@@ -532,6 +544,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -549,6 +562,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "The minimum free disk space left",
@@ -599,6 +613,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -616,6 +631,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Total number of available CPUs for VM process",
@@ -670,6 +686,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -687,6 +704,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Total size of available memory for VM process",
@@ -737,6 +755,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": true,
@@ -755,6 +774,7 @@
     {
       "collapsed": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -768,6 +788,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -782,6 +803,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -832,6 +854,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(rate(vm_http_requests_total{job=~\"$job\", instance=~\"$instance\", path!~\"/favicon.ico\"}[$__interval])) by (path) > 0",
@@ -882,6 +905,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -932,6 +956,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "max(vm_request_duration_seconds{job=~\"$job\", instance=~\"$instance\", quantile=~\"(0.5|0.99)\"}) by (path, quantile) > 0",
@@ -979,6 +1004,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
@@ -1035,6 +1061,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
@@ -1082,6 +1109,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1132,6 +1160,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "exemplar": false,
@@ -1181,6 +1210,7 @@
       "dashLength": 10,
       "dashes": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. However, these two actions are separated and controlled via different concurrency limiters. The `max` on this panel can't be changed and always equal to number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.\n\n",
@@ -1239,6 +1269,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(vm_concurrent_addrows_capacity{job=~\"$job\", instance=~\"$instance\"})",
@@ -1250,6 +1281,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "expr": "sum(vm_concurrent_addrows_current{job=~\"$job\", instance=~\"$instance\"})",
@@ -1713,6 +1745,7 @@
       "collapsed": true,
       "datasource": {
         "type": "prometheus",
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -2030,6 +2063,7 @@
         {
           "datasource": {
             "type": "prometheus",
+            "uid": "$ds"
           },
           "refId": "A"
         }
@@ -2040,6 +2074,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2056,6 +2091,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "How many datapoints are inserted into storage per second",
@@ -2107,6 +2143,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__interval])) by (type) > 0",
@@ -2155,6 +2192,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the time needed to reach the 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.\n\n",
@@ -2206,6 +2244,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"} / ignoring(path) ((rate(vm_rows_added_to_storage_total{job=~\"$job\", instance=~\"$instance\"}[1d]) - ignoring(type) rate(vm_deduplicated_samples_total{job=~\"$job\", instance=~\"$instance\", type=\"merge\"}[1d])) * scalar(sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"})))",
@@ -2257,6 +2296,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows how many datapoints are in the storage and what is average disk usage per datapoint.",
@@ -2313,6 +2353,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type != \"indexdb\"})",
@@ -2324,6 +2365,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"}) / sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type != \"indexdb\"})",
@@ -2375,6 +2417,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second.",
@@ -2430,6 +2473,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "vm_pending_rows{job=~\"$job\", instance=~\"$instance\", type=\"storage\"}",
@@ -2441,6 +2485,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "vm_pending_rows{job=~\"$job\", instance=~\"$instance\", type=\"indexdb\"}",
@@ -2490,6 +2535,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`",
@@ -2541,6 +2587,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"})",
@@ -2552,6 +2599,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}",
@@ -2602,6 +2650,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Data parts of LSM tree.\nHigh number of parts could be an evidence of slow merge performance - check the resource utilization.\n* `indexdb` - inverted index\n* `storage/small` - recently added parts of data ingested into storage(hot data)\n* `storage/big` -  small parts gradually merged into big parts (cold data)",
@@ -2652,6 +2701,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\"}) by (type)",
@@ -2701,6 +2751,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows amount of on-disk space occupied by inverted index.",
@@ -2751,6 +2802,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -2800,6 +2852,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
@@ -2849,6 +2902,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(vm_active_merges{job=~\"$job\", instance=~\"$instance\"}) by(type)",
@@ -2897,6 +2951,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
@@ -2947,6 +3002,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -2997,6 +3053,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "The number of rows merged per second by storage nodes.",
@@ -3046,6 +3103,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
@@ -3094,6 +3152,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
@@ -3144,6 +3203,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_log_messages_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (level) ",
@@ -3190,6 +3250,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -3201,6 +3262,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -3217,6 +3279,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
@@ -3271,6 +3334,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -3280,6 +3344,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(increase(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
@@ -3426,6 +3491,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
@@ -3476,6 +3542,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_slow_row_inserts_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) / sum(rate(vm_rows_inserted_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -3536,6 +3603,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Slow queries rate according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
@@ -3586,6 +3654,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -3723,6 +3792,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
@@ -3771,6 +3841,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -3820,6 +3891,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -3831,6 +3903,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -3847,6 +3920,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "",
@@ -3897,6 +3971,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -3908,6 +3983,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -3919,6 +3995,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -3930,6 +4007,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -3942,6 +4020,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "exemplar": true,
@@ -4116,6 +4195,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Panel shows the number of open file descriptors in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
@@ -4172,6 +4252,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(process_open_fds{job=~\"$job\", instance=~\"$instance\"})",
@@ -4183,6 +4264,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "min(process_max_fds{job=~\"$job\", instance=~\"$instance\"})",
@@ -4234,6 +4316,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the number of bytes read/write from the storage layer.",
@@ -4289,6 +4372,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -4301,6 +4385,7 @@
             },
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -4349,6 +4434,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -4398,6 +4484,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
@@ -4446,6 +4533,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows avg GC duration",
@@ -4496,6 +4584,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -4543,6 +4632,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -4592,6 +4682,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"})",
@@ -4640,6 +4731,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "",
@@ -4690,6 +4782,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"})",
@@ -4738,6 +4831,7 @@
           "dashLength": 10,
           "dashes": false,
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "",
@@ -4788,6 +4882,7 @@
           "targets": [
             {
               "datasource": {
+                "type": "prometheus",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_tcplistener_accepts_total{job=~\"$job\", instance=~\"$instance\"}[$__interval]))",
@@ -4834,6 +4929,7 @@
       "targets": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "refId": "A"
@@ -4873,6 +4969,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
@@ -4897,6 +4994,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\"},  version)",
@@ -4921,6 +5019,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -4945,7 +5044,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "filters": [],
         "hide": 0,
