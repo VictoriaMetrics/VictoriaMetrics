@@ -107,7 +107,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "expr": "sum(increase(vm_tenant_inserted_rows_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\", projectID=~\"$project\"}[1m])/60) by (accountID,projectID) ",
           "interval": "",
@@ -205,7 +205,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(vm_tenant_select_requests_total{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$account\", projectID=~\"$project\"}[$__rate_interval])) by (accountID,projectID) ",
@@ -311,7 +311,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "expr": "sum(vm_tenant_active_timeseries{job=~\"$job\", instance=~\"$instance.*\",accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
           "format": "time_series",
@@ -409,7 +409,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "expr": "sum(increase(vm_tenant_timeseries_created_total{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\", projectID=~\"$project\"}[1m])/60) by(accountID,projectID)",
           "interval": "",
@@ -504,7 +504,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(vm_tenant_used_tenant_bytes{job=~\"$job\", instance=~\"$instance\",accountID=~\"$account\",projectID=~\"$project\"}) by(accountID,projectID)",
@@ -579,6 +579,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
@@ -604,6 +605,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -629,6 +631,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_tenant_active_timeseries{job=~\"$job\"},accountID)",
@@ -654,6 +657,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_tenant_active_timeseries{accountID=~\"$accountID\"},projectID)",
