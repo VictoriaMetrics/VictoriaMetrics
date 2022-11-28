@@ -108,7 +108,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "prometheus",
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
