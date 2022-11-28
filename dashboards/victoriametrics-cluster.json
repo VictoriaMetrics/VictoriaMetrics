@@ -62,7 +62,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "enable": true,
         "expr": "sum(ALERTS{alertgroup=\"vmcluster\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
@@ -109,6 +109,7 @@
       "collapsed": false,
       "datasource": {
         "type": "prometheus",
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -123,6 +124,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "How many datapoints are in storage",
@@ -541,6 +543,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Average disk usage per datapoint.",
@@ -882,6 +885,7 @@
     {
       "collapsed": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1111,6 +1115,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the number of active time series with new data points inserted during the last hour across all storage nodes. High value may result in ingestion slowdown. \n\nSee following link for details:",
@@ -1538,6 +1543,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2564,6 +2570,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2576,6 +2583,7 @@
       "panels": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
@@ -2918,6 +2926,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
@@ -3121,6 +3130,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
@@ -3435,7 +3445,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "fieldConfig": {
             "defaults": {
@@ -3516,7 +3526,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -3565,6 +3575,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -4026,6 +4037,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
@@ -4250,6 +4262,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -5777,6 +5790,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -6883,6 +6897,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -7867,7 +7882,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "gridPos": {
             "h": 2,
@@ -8327,6 +8342,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
@@ -8351,6 +8367,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
@@ -8375,6 +8392,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
@@ -8399,6 +8417,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
@@ -8424,6 +8443,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -8445,7 +8465,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "filters": [],
         "hide": 0,
