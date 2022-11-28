@@ -962,7 +962,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	}
 	metricNames, err := s.SearchMetricNames(nil, []*TagFilters{tfs}, tr, metricsPerAdd*addsCount*100+100, noDeadline)
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal metric names: %w", err)
+		return fmt.Errorf("error in SearchMetricNames: %w", err)
 	}
 	if len(metricNames) < metricsPerAdd {
 		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(metricNames), int(metricsPerAdd))
