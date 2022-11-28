@@ -1712,7 +1712,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -2029,7 +2029,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "uid": "$ds"
           },
           "refId": "A"
         }
