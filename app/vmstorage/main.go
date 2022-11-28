@@ -195,15 +195,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 
 		w.Header().Set("Content-Type", "application/json")
 		now := time.Now().UnixNano() / 1e6
-		start := now - 60*1000
-		end := now + 60*1000
+		start := now - 5*60*1000
+		end := now
 		tr := storage.TimeRange{
 			MinTimestamp: start,
 			MaxTimestamp: end,
 		}
 		// Verify that SearchMetricNames returns correct result.
 		tfs := storage.NewTagFilters(accountID, projectID)
-		if err := tfs.Add([]byte("__name__"), []byte("up"), false, false); err != nil {
+		if err := tfs.Add(nil, []byte("up"), false, false); err != nil {
 			err = fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 			jsonResponseError(w, err)
 			return true
