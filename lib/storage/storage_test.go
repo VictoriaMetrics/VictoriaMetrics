@@ -964,9 +964,6 @@ func testStorageRegisterMetricNames(s *Storage) error {
 	if err != nil {
 		return fmt.Errorf("error in SearchMetricNames: %w", err)
 	}
-	if err != nil {
-		return fmt.Errorf("cannot unmarshal metric names: %w", err)
-	}
 	if len(metricNames) < metricsPerAdd {
 		return fmt.Errorf("unexpected number of metricNames returned from SearchMetricNames; got %d; want at least %d", len(metricNames), int(metricsPerAdd))
 	}
