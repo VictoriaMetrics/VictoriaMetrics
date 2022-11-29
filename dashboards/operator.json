@@ -46,7 +46,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 3,
@@ -66,7 +66,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "description": "Number of objects at kubernetes cluster per each controller",
       "fieldConfig": {
@@ -118,7 +118,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(operator_controller_objects_count{job=~\"$job\",instance=~\"$instance\"}) by (controller)",
@@ -133,7 +133,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -184,7 +184,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -207,7 +207,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "fill": 1,
       "fillGradient": 0,
@@ -248,7 +248,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=~\"requeue_after|requeue|success\"}[$__rate_interval])) by(controller)",
@@ -294,7 +294,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "description": "",
       "fill": 1,
@@ -336,7 +336,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(operator_log_messages_total{job=~\"$job\",instance=~\"$instance\"}[$__rate_interval])) by (level)",
@@ -395,7 +395,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "description": "Non zero metrics indicates about error with CR object definition (typos or incorrect values) or errors with kubernetes API connection.",
       "fill": 1,
@@ -437,7 +437,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -450,7 +450,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(controller_runtime_reconcile_total{job=~\"$job\",instance=~\"$instance\",result=\"error\"}[$__rate_interval])) by(controller) > 0",
@@ -497,7 +497,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "description": "Operator limits number of reconcilation events to 5 events per 2 seconds.\n For now, this limit is applied only for vmalert and vmagent controllers.\n It should reduce load at kubernetes cluster and increase operator performance.",
       "fill": 1,
@@ -538,7 +538,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(operator_reconcile_throttled_events_total[$__rate_interval])) by(controller)",
@@ -584,7 +584,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "description": "Number of objects waiting in the queue for reconciliation. Non-zero values indicate that operator cannot process CR objects changes with the given resources.",
       "fill": 1,
@@ -626,7 +626,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "max(workqueue_depth{job=~\"$job\",instance=~\"$instance\"}) by (name)",
@@ -672,7 +672,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "description": " For controllers with StatefulSet it's ok to see latency greater then 3 seconds. It could be vmalertmanager,vmcluster or vmagent in statefulMode.\n\n For other controllers, latency greater then 1 second may indicate issues with kubernetes cluster or operator's performance.\n ",
       "fieldConfig": {
@@ -721,7 +721,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "histogram_quantile(0.99,sum(rate(controller_runtime_reconcile_time_seconds_bucket[$__rate_interval])) by(le,controller) )",
@@ -780,7 +780,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -827,7 +827,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
@@ -838,7 +838,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) ",
@@ -850,7 +850,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -862,7 +862,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -909,7 +909,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "fill": 1,
       "fillGradient": 0,
@@ -949,7 +949,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
@@ -995,7 +995,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "fill": 1,
       "fillGradient": 0,
@@ -1035,7 +1035,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
@@ -1081,7 +1081,7 @@
       "dashes": false,
       "datasource": {
         "type": "prometheus",
-        "uid": "${datasource}"
+        "uid": "$ds"
       },
       "fieldConfig": {
         "defaults": {
@@ -1128,7 +1128,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${datasource}"
+            "uid": "$ds"
           },
           "editorMode": "code",
           "expr": "sum(rate(go_gc_duration_seconds_sum{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))\n/\nsum(rate(go_gc_duration_seconds_count{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -1203,7 +1203,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "${datasource}"
+          "uid": "$ds"
         },
         "definition": "label_values(operator_log_messages_total,job)",
         "hide": 0,
@@ -1229,7 +1229,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "${datasource}"
+          "uid": "$ds"
         },
         "definition": "label_values(operator_log_messages_total{job=~\"$job\"},instance)",
         "hide": 0,
@@ -1256,7 +1256,7 @@
         },
         "datasource": {
           "type": "prometheus",
-          "uid": "${datasource}"
+          "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=\"$job\", instance=\"$instance\"},  version)",
         "hide": 2,

@@ -9,6 +9,8 @@ import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
 import { SeriesLimits } from "../../../types";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
+import { getAppModeEnable } from "../../../utils/app-mode";
+import classNames from "classnames";
 import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 
@@ -16,6 +18,7 @@ const title = "Settings";
 
 const GlobalSettings: FC = () => {
 
+  const appModeEnable = getAppModeEnable();
   const { serverUrl: stateServerUrl } = useAppState();
   const { timezone: stateTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
@@ -42,7 +45,9 @@ const GlobalSettings: FC = () => {
   return <>
     <Tooltip title={title}>
       <Button
-        className="vm-header-button"
+        className={classNames({
+          "vm-header-button": !appModeEnable
+        })}
         variant="contained"
         color="primary"
         startIcon={<SettingsIcon/>}
@@ -55,13 +60,15 @@ const GlobalSettings: FC = () => {
         onClose={handleClose}
       >
         <div className="vm-server-configurator">
-          <div className="vm-server-configurator__input">
-            <ServerConfigurator
-              serverUrl={serverUrl}
-              onChange={setServerUrl}
-              onEnter={handlerApply}
-            />
-          </div>
+          {!appModeEnable && (
+            <div className="vm-server-configurator__input">
+              <ServerConfigurator
+                serverUrl={serverUrl}
+                onChange={setServerUrl}
+                onEnter={handlerApply}
+              />
+            </div>
+          )}
           <div className="vm-server-configurator__input">
             <LimitsConfigurator
               limits={limits}

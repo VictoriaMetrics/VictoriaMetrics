@@ -811,6 +811,18 @@ type autoMetrics struct {
 	seriesLimitSamplesDropped int
 }
 
+func isAutoMetric(s string) bool {
+	switch s {
+	case "up", "scrape_duration_seconds", "scrape_samples_scraped",
+		"scrape_samples_post_metric_relabeling", "scrape_series_added",
+		"scrape_timeout_seconds", "scrape_samples_limit",
+		"scrape_series_limit_samples_dropped", "scrape_series_limit",
+		"scrape_series_current":
+		return true
+	}
+	return false
+}
+
 func (sw *scrapeWork) addAutoMetrics(am *autoMetrics, wc *writeRequestCtx, timestamp int64) {
 	sw.addAutoTimeseries(wc, "up", float64(am.up), timestamp)
 	sw.addAutoTimeseries(wc, "scrape_duration_seconds", am.scrapeDurationSeconds, timestamp)
@@ -842,8 +854,16 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value 
 }
 
 func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, timestamp int64, needRelabel bool) {
+	metric := r.Metric
+	if needRelabel && isAutoMetric(metric) {
+		bb := bbPool.Get()
+		bb.B = append(bb.B, "exported_"...)
+		bb.B = append(bb.B, metric...)
+		metric = bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		bbPool.Put(bb)
+	}
 	labelsLen := len(wc.labels)
-	wc.labels = appendLabels(wc.labels, r.Metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
+	wc.labels = appendLabels(wc.labels, metric, r.Tags, sw.Config.Labels, sw.Config.HonorLabels)
 	if needRelabel {
 		wc.labels = sw.Config.MetricRelabelConfigs.Apply(wc.labels, labelsLen)
 	}
@@ -869,6 +889,8 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		Samples: wc.samples[len(wc.samples)-1:],
 	})
 }
+
+var bbPool bytesutil.ByteBufferPool
 
 func appendLabels(dst []prompbmarshal.Label, metric string, src []parser.Tag, extraLabels []prompbmarshal.Label, honorLabels bool) []prompbmarshal.Label {
 	dstLen := len(dst)

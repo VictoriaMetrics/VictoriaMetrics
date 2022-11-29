@@ -1,0 +1,6 @@
+@use "src/styles/variables" as *;
+
+.vm-autocomplete {
+  max-height: 300px;
+  overflow: auto;
+}

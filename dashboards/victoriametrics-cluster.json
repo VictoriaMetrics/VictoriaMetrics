@@ -6,7 +6,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "9.1.0"
+      "version": "9.2.6"
     },
     {
       "type": "datasource",
@@ -62,7 +62,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "enable": true,
         "expr": "sum(ALERTS{alertgroup=\"vmcluster\",alertstate=\"firing\",show_at=\"dashboard\"}) by(alertname)",
@@ -109,6 +109,7 @@
       "collapsed": false,
       "datasource": {
         "type": "prometheus",
+        "uid": "$ds"
       },
       "gridPos": {
         "h": 1,
@@ -123,6 +124,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "How many datapoints are in storage",
@@ -169,7 +171,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -238,7 +240,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -309,7 +311,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -379,7 +381,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -449,7 +451,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -519,7 +521,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -541,6 +543,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Average disk usage per datapoint.",
@@ -588,7 +591,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -657,7 +660,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -759,7 +762,7 @@
           }
         ]
       },
-      "pluginVersion": "9.1.0",
+      "pluginVersion": "9.2.6",
       "targets": [
         {
           "datasource": {
@@ -882,6 +885,7 @@
     {
       "collapsed": false,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1111,6 +1115,7 @@
     },
     {
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "description": "Shows the number of active time series with new data points inserted during the last hour across all storage nodes. High value may result in ingestion slowdown. \n\nSee following link for details:",
@@ -1156,7 +1161,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1265,7 +1271,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1370,7 +1377,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1475,7 +1483,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -1538,6 +1547,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1593,7 +1603,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=${__field.labels.job}﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1602,7 +1612,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1618,7 +1629,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 3
+            "y": 14
           },
           "id": 66,
           "links": [],
@@ -1704,7 +1715,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=190﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=${__field.labels.job}﻿&var-ds=$ds&var-instance=$instance&﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=190&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1713,7 +1724,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1729,7 +1741,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 3
+            "y": 14
           },
           "id": 138,
           "links": [],
@@ -1814,7 +1826,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=${__field.labels.job}﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=${__field.labels.job}&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -1823,7 +1835,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1839,7 +1852,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 22
           },
           "id": 64,
           "links": [],
@@ -1929,7 +1942,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1958,7 +1972,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 22
           },
           "id": 122,
           "links": [],
@@ -2066,7 +2080,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2098,7 +2113,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 19
+            "y": 30
           },
           "id": 117,
           "links": [],
@@ -2186,7 +2201,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2202,7 +2218,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 19
+            "y": 30
           },
           "id": 119,
           "options": {
@@ -2290,7 +2306,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2306,7 +2323,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 38
           },
           "id": 68,
           "links": [],
@@ -2394,7 +2411,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2410,7 +2428,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 38
           },
           "id": 120,
           "options": {
@@ -2498,7 +2516,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2514,7 +2533,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 46
           },
           "id": 70,
           "links": [],
@@ -2564,6 +2583,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2576,6 +2596,7 @@
       "panels": [
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nTo investigate stats about most expensive series use `api/v1/status/tsdb` handler. More details here https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://valyala.medium.com/high-cardinality-tsdb-benchmarks-victoriametrics-vs-timescaledb-vs-influxdb-13e6ee64dd6b",
@@ -2918,6 +2939,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "Slow queries according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
@@ -3121,6 +3143,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
@@ -3435,7 +3458,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "fieldConfig": {
             "defaults": {
@@ -3516,7 +3539,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${ds}"
+                "uid": "$ds"
               },
               "editorMode": "code",
               "exemplar": false,
@@ -3565,6 +3588,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -4026,6 +4050,7 @@
         },
         {
           "datasource": {
+            "type": "prometheus",
             "uid": "$ds"
           },
           "description": "The number of rows or bytes that vminesrt internal buffer contains at the moment.",
@@ -4250,6 +4275,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -4410,7 +4436,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=196&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿${__all_variables}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=196&${__url_time_range}${__all_variables}"
                 }
               ],
               "mappings": [],
@@ -4522,7 +4548,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=$job_storage﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_storage&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -4667,7 +4693,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=$job_storage﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=$job_storage&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -5777,6 +5803,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -5835,7 +5862,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5851,7 +5879,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 7
+            "y": 82
           },
           "id": 92,
           "links": [],
@@ -5941,7 +5969,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -5977,7 +6006,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 7
+            "y": 82
           },
           "id": 95,
           "links": [],
@@ -6074,7 +6103,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=$job_s﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿elect﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_select&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -6083,7 +6112,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6099,7 +6129,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 15
+            "y": 90
           },
           "id": 163,
           "links": [],
@@ -6218,7 +6248,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=$job_s﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿elect﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=$job_select&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -6227,7 +6257,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6243,7 +6274,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 15
+            "y": 90
           },
           "id": 165,
           "links": [],
@@ -6367,7 +6398,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6383,7 +6415,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 23
+            "y": 98
           },
           "id": 178,
           "links": [],
@@ -6474,7 +6506,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -6490,7 +6523,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 23
+            "y": 98
           },
           "id": 180,
           "links": [],
@@ -6597,7 +6630,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 31
+            "y": 106
           },
           "id": 179,
           "links": [],
@@ -6704,7 +6737,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 31
+            "y": 106
           },
           "id": 181,
           "links": [],
@@ -6822,7 +6855,7 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 114
           },
           "id": 93,
           "links": [],
@@ -6883,6 +6916,7 @@
     {
       "collapsed": true,
       "datasource": {
+        "type": "prometheus",
         "uid": "$ds"
       },
       "gridPos": {
@@ -7182,7 +7216,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=192﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=$job_insert&var-ds=$ds&var-instance=$instance&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=192&var-job=$job_insert&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -7326,7 +7360,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=189﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿var-job=$job_insert﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿&var-ds=$ds&var-instance=$instance&﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿${__url_time_range}﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿﻿"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=189&var-job=$job_insert&var-ds=$ds&var-instance=$instance&${__url_time_range}"
                 }
               ],
               "mappings": [],
@@ -7867,7 +7901,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${ds}"
+            "uid": "$ds"
           },
           "gridPos": {
             "h": 2,
@@ -8327,6 +8361,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
@@ -8351,6 +8386,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
@@ -8375,6 +8411,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
@@ -8399,6 +8436,7 @@
       {
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
@@ -8424,6 +8462,7 @@
         "allValue": ".*",
         "current": {},
         "datasource": {
+          "type": "prometheus",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -8445,7 +8484,7 @@
       {
         "datasource": {
           "type": "prometheus",
-          "uid": "${ds}"
+          "uid": "$ds"
         },
         "filters": [],
         "hide": 0,

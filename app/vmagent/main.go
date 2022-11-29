@@ -217,6 +217,16 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
+	if strings.HasPrefix(path, "/prometheus/api/v1/import/prometheus") || strings.HasPrefix(path, "/api/v1/import/prometheus") {
+		prometheusimportRequests.Inc()
+		if err := prometheusimport.InsertHandler(nil, r); err != nil {
+			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
 	if strings.HasPrefix(path, "datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
@@ -245,15 +255,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(nil, r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return true
-	case "/prometheus/api/v1/import/prometheus", "/api/v1/import/prometheus":
-		prometheusimportRequests.Inc()
-		if err := prometheusimport.InsertHandler(nil, r); err != nil {
-			prometheusimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
@@ -409,6 +410,16 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		httpserver.Errorf(w, r, "cannot obtain auth token: %s", err)
 		return true
 	}
+	if strings.HasPrefix(p.Suffix, "prometheus/api/v1/import/prometheus") {
+		prometheusimportRequests.Inc()
+		if err := prometheusimport.InsertHandler(at, r); err != nil {
+			prometheusimportErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusNoContent)
+		return true
+	}
 	if strings.HasPrefix(p.Suffix, "datadog/") {
 		// Trim suffix from paths starting from /datadog/ in order to support legacy DataDog agent.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2670
@@ -437,15 +448,6 @@ func processMultitenantRequest(w http.ResponseWriter, r *http.Request, path stri
 		csvimportRequests.Inc()
 		if err := csvimport.InsertHandler(at, r); err != nil {
 			csvimportErrors.Inc()
-			httpserver.Errorf(w, r, "%s", err)
-			return true
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return true
-	case "prometheus/api/v1/import/prometheus":
-		prometheusimportRequests.Inc()
-		if err := prometheusimport.InsertHandler(at, r); err != nil {
-			prometheusimportErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
