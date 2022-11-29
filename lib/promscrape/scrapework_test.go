@@ -12,6 +12,30 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
+func TestIsAutoMetric(t *testing.T) {
+	f := func(metric string, resultExpected bool) {
+		t.Helper()
+		result := isAutoMetric(metric)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for isAutoMetric(%q); got %v; want %v", metric, result, resultExpected)
+		}
+	}
+	f("up", true)
+	f("scrape_duration_seconds", true)
+	f("scrape_samples_scraped", true)
+	f("scrape_samples_post_metric_relabeling", true)
+	f("scrape_series_added", true)
+	f("scrape_timeout_seconds", true)
+	f("scrape_samples_limit", true)
+	f("scrape_series_limit_samples_dropped", true)
+	f("scrape_series_limit", true)
+	f("scrape_series_current", true)
+
+	f("foobar", false)
+	f("exported_up", false)
+	f("upx", false)
+}
+
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(sourceLabels, extraLabels string, honorLabels bool, resultExpected string) {
 		t.Helper()
@@ -384,6 +408,25 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
 		scrape_series_added{job="xx",instance="foo.com"} 4 123
 		scrape_timeout_seconds{job="xx",instance="foo.com"} 42 123
+	`)
+	// Scrape metrics with names clashing with auto metrics
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
+	f(`
+		up{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+		scrape_series_added 3.435
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+	}, `
+		exported_up{bar="baz"} 34.44 123
+		exported_scrape_series_added 3.435 123
+		bar{a="b",c="d"} -3e4 123
+		up 1 123
+		scrape_samples_scraped 3 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 3 123
+		scrape_series_added 3 123
+		scrape_timeout_seconds 42 123
 	`)
 	// Scrape success with the given SampleLimit.
 	f(`
