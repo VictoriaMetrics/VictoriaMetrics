@@ -1,12 +1,7 @@
-import { RelativeTimeOption, TimeParams, TimePeriod } from "../types";
+import { RelativeTimeOption, TimeParams, TimePeriod, Timezone } from "../types";
 import dayjs, { UnitTypeShort } from "dayjs";
-import duration from "dayjs/plugin/duration";
-import utc from "dayjs/plugin/utc";
 import { getQueryStringValue } from "./query-string";
 import { DATE_ISO_FORMAT } from "../constants/date";
-
-dayjs.extend(duration);
-dayjs.extend(utc);
 
 const MAX_ITEMS_PER_CHART = window.innerWidth / 4;
 
@@ -38,7 +33,7 @@ export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, 
 };
 
 export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams => {
-  const n = (date || new Date()).valueOf() / 1000;
+  const n = (date || dayjs().tz().toDate()).valueOf() / 1000;
 
   const durItems = dur.trim().split(" ");
 
@@ -64,24 +59,24 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
     start: n - delta,
     end: n,
     step: step,
-    date: formatDateToUTC(date || new Date())
+    date: formatDateToUTC(date || dayjs().tz().toDate())
   };
 };
 
-export const formatDateToLocal = (date: Date): string => {
-  return dayjs(date).utcOffset(0, true).local().format(DATE_ISO_FORMAT);
+export const formatDateToLocal = (date: Date): Date => {
+  return dayjs(date).utcOffset(0, true).tz().toDate();
 };
 
 export const formatDateToUTC = (date: Date): string => {
-  return dayjs(date).utc().format(DATE_ISO_FORMAT);
+  return dayjs.tz(date).utc().format(DATE_ISO_FORMAT);
 };
 
 export const formatDateForNativeInput = (date: Date): string => {
-  return dayjs(date).format(DATE_ISO_FORMAT);
+  return dayjs.tz(date).format(DATE_ISO_FORMAT);
 };
 
 export const getDateNowUTC = (): Date => {
-  return  new Date(dayjs().utc().format(DATE_ISO_FORMAT));
+  return dayjs().utc().toDate();
 };
 
 export const getDurationFromMilliseconds = (ms: number): string => {
@@ -115,7 +110,7 @@ export const checkDurationLimit = (dur: string): string => {
   return dur;
 };
 
-export const dateFromSeconds = (epochTimeInSeconds: number): Date => new Date(epochTimeInSeconds * 1000);
+export const dateFromSeconds = (epochTimeInSeconds: number): Date => dayjs.tz(epochTimeInSeconds * 1000).toDate();
 
 export const relativeTimeOptions: RelativeTimeOption[] = [
   { title: "Last 5 minutes", duration: "5m" },
@@ -132,11 +127,11 @@ export const relativeTimeOptions: RelativeTimeOption[] = [
   { title: "Last 90 days", duration: "90d" },
   { title: "Last 180 days", duration: "180d" },
   { title: "Last 1 year", duration: "1y" },
-  { title: "Yesterday", duration: "1d", until: () => dayjs().subtract(1, "day").endOf("day").toDate() },
-  { title: "Today", duration: "1d", until: () => dayjs().endOf("day").toDate() },
+  { title: "Yesterday", duration: "1d", until: () => dayjs().tz().subtract(1, "day").endOf("day").toDate() },
+  { title: "Today", duration: "1d", until: () => dayjs().tz().endOf("day").toDate() },
 ].map(o => ({
   id: o.title.replace(/\s/g, "_").toLocaleLowerCase(),
-  until: o.until ? o.until : () => dayjs().toDate(),
+  until: o.until ? o.until : () => dayjs().tz().toDate(),
   ...o
 }));
 
@@ -150,4 +145,32 @@ export const getRelativeTime = ({ relativeTimeId, defaultDuration, defaultEndInp
     duration: target ? target.duration : defaultDuration,
     endInput: target ? target.until() : defaultEndInput
   };
+};
+
+export const getUTCByTimezone = (timezone: string) => {
+  const date = dayjs().tz(timezone);
+  return `UTC${date.format("Z")}`;
+};
+
+export const getTimezoneList = (search = "") => {
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  const arrTimezone = Intl.supportedValuesOf("timeZone") as string[];
+  const regexp = new RegExp(search, "i");
+
+  return arrTimezone.reduce((acc: {[key: string]: Timezone[]}, region) => {
+    const zone = (region.match(/^(.*?)\//) || [])[1] || "unknown";
+    const utc = getUTCByTimezone(region);
+    const item = {
+      region,
+      utc,
+      search: `${region} ${utc} ${region.replace(/[/_]/gmi, " ")}`
+    };
+
+    if (!search || (search && regexp.test(item.search))) {
+      acc[zone] ? acc[zone].push(item) : acc[zone] = [item];
+    }
+
+    return acc;
+  }, {});
 };

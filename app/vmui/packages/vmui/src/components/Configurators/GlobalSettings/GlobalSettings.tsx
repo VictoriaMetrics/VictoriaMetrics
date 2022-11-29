@@ -9,19 +9,24 @@ import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
 import { SeriesLimits } from "../../../types";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
+import Timezones from "./Timezones/Timezones";
+import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 
 const title = "Settings";
 
 const GlobalSettings: FC = () => {
 
   const { serverUrl: stateServerUrl } = useAppState();
+  const { timezone: stateTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
 
   const dispatch = useAppDispatch();
+  const timeDispatch = useTimeDispatch();
   const customPanelDispatch = useCustomPanelDispatch();
 
   const [serverUrl, setServerUrl] = useState(stateServerUrl);
   const [limits, setLimits] = useState<SeriesLimits>(seriesLimits);
+  const [timezone, setTimezone] = useState(stateTimezone);
 
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
@@ -29,6 +34,7 @@ const GlobalSettings: FC = () => {
 
   const handlerApply = () => {
     dispatch({ type: "SET_SERVER", payload: serverUrl });
+    timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
     handleClose();
   };
@@ -61,6 +67,12 @@ const GlobalSettings: FC = () => {
               limits={limits}
               onChange={setLimits}
               onEnter={handlerApply}
+            />
+          </div>
+          <div className="vm-server-configurator__input">
+            <Timezones
+              timezoneState={timezone}
+              onChange={setTimezone}
             />
           </div>
           <div className="vm-server-configurator__footer">

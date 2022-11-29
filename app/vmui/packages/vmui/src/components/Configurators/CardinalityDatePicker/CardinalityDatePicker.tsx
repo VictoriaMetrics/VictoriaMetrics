@@ -15,7 +15,7 @@ const CardinalityDatePicker: FC = () => {
   const { date } = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
 
-  const dateFormatted = useMemo(() => dayjs(date).format(DATE_FORMAT), [date]);
+  const dateFormatted = useMemo(() => dayjs.tz(date).format(DATE_FORMAT), [date]);
 
   const handleChangeDate = (val: string) => {
     cardinalityDispatch({ type: "SET_DATE", payload: val });

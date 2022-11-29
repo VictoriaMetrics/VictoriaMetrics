@@ -20,6 +20,8 @@ import "uplot/dist/uPlot.min.css";
 import "./style.scss";
 import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
+import dayjs from "dayjs";
+import { useTimeState } from "../../../state/time/TimeStateContext";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -44,6 +46,8 @@ const LineChart: FC<LineChartProps> = ({
   setPeriod,
   container
 }) => {
+  const { timezone } = useTimeState();
+
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
@@ -57,7 +61,10 @@ const LineChart: FC<LineChartProps> = ({
   const tooltipId = useMemo(() => `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`, [tooltipIdx]);
 
   const setScale = ({ min, max }: { min: number, max: number }): void => {
-    setPeriod({ from: new Date(min * 1000), to: new Date(max * 1000) });
+    setPeriod({
+      from: dayjs(min * 1000).tz().toDate(),
+      to: dayjs(max * 1000).tz().toDate()
+    });
   };
   const throttledSetScale = useCallback(throttle(setScale, 500), []);
   const setPlotScale = ({ u, min, max }: { u: uPlot, min: number, max: number }) => {
@@ -163,6 +170,7 @@ const LineChart: FC<LineChartProps> = ({
 
   const options: uPlotOptions = {
     ...defaultOptions,
+    tzDate: ts => uPlot.tzDate(new Date(ts * 1e3), timezone),
     series,
     axes: getAxes( [{}, { scale: "1" }], unit),
     scales: { ...getScales() },

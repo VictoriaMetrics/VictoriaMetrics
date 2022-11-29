@@ -49,7 +49,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const value = useMemo(() => get(u, ["data", seriesIdx, dataIdx], 0), [u, seriesIdx, dataIdx]);
   const valueFormat = useMemo(() => formatPrettyNumber(value), [value]);
   const dataTime = useMemo(() => u.data[0][dataIdx], [u, dataIdx]);
-  const date = useMemo(() => dayjs(new Date(dataTime * 1000)).format(DATE_FULL_TIMEZONE_FORMAT), [dataTime]);
+  const date = useMemo(() => dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT), [dataTime]);
 
   const color = useMemo(() => getColorLine(series[seriesIdx]?.label || ""), [series, seriesIdx]);
 
