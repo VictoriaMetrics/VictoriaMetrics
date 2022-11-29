@@ -608,7 +608,7 @@ Additional information:
 
 ## TCP and UDP
 
-**How to send data from OpenTSDB-compatible agents to VictoriaMetrics**
+###How to send data from OpenTSDB-compatible agents to VictoriaMetrics
 
 Turned off by default. Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command-line flag.
 *If run from docker, '-opentsdbListenAddr' port should be exposed*
@@ -656,7 +656,7 @@ Additional information:
 * [OpenTSDB http put API](http://opentsdb.net/docs/build/html/api_http/put.html)
 * [How to send data OpenTSDB data to VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-send-data-from-opentsdb-compatible-agents)
 
-**How to send Graphite data to VictoriaMetrics**
+### How to send Graphite data to VictoriaMetrics
 
 Enable Graphite receiver in VictoriaMetrics by setting `-graphiteListenAddr` command-line flag.
 
