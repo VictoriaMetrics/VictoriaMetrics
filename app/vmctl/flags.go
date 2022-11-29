@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -396,6 +397,93 @@ var (
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
 				"By default the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+		},
+	}
+)
+
+const (
+	remoteRead                 = "remote-read"
+	remoteReadUseStream        = "remote-read-use-stream"
+	remoteReadConcurrency      = "remote-read-concurrency"
+	remoteReadFilterTimeStart  = "remote-read-filter-time-start"
+	remoteReadFilterTimeEnd    = "remote-read-filter-time-end"
+	remoteReadFilterLabel      = "remote-read-filter-label"
+	remoteReadFilterLabelValue = "remote-read-filter-label-value"
+	remoteReadStepInterval     = "remote-read-step-interval"
+	remoteReadSrcAddr          = "remote-read-src-addr"
+	remoteReadUser             = "remote-read-user"
+	remoteReadPassword         = "remote-read-password"
+	remoteReadHTTPTimeout      = "remote-read-http-timeout"
+	remoteReadHeaders          = "remote-read-headers"
+)
+
+var (
+	remoteReadFlags = []cli.Flag{
+		&cli.IntFlag{
+			Name:  remoteReadConcurrency,
+			Usage: "Number of concurrently running remote read readers",
+			Value: 1,
+		},
+		&cli.TimestampFlag{
+			Name:   remoteReadFilterTimeStart,
+			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout: time.RFC3339,
+		},
+		&cli.TimestampFlag{
+			Name:   remoteReadFilterTimeEnd,
+			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout: time.RFC3339,
+		},
+		&cli.StringFlag{
+			Name:  remoteReadFilterLabel,
+			Usage: "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.",
+			Value: "__name__",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadFilterLabelValue,
+			Usage: fmt.Sprintf("Prometheus regular expression to filter label from %q flag.", remoteReadFilterLabelValue),
+			Value: ".*",
+		},
+		&cli.BoolFlag{
+			Name:  remoteRead,
+			Usage: "Use Prometheus remote read protocol",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadUseStream,
+			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
+			Value: false,
+		},
+		&cli.StringFlag{
+			Name:     remoteReadStepInterval,
+			Usage:    fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", remoteReadFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:     remoteReadSrcAddr,
+			Usage:    "Remote read address to perform read from.",
+			Required: true,
+		},
+		&cli.StringFlag{
+			Name:    remoteReadUser,
+			Usage:   "Remote read username for basic auth",
+			EnvVars: []string{"REMOTE_READ_USERNAME"},
+		},
+		&cli.StringFlag{
+			Name:    remoteReadPassword,
+			Usage:   "Remote read password for basic auth",
+			EnvVars: []string{"REMOTE_READ_PASSWORD"},
+		},
+		&cli.DurationFlag{
+			Name:  remoteReadHTTPTimeout,
+			Usage: "Timeout defines timeout for HTTP write request to remote storage",
+		},
+		&cli.StringFlag{
+			Name:  remoteReadHeaders,
+			Value: "",
+			Usage: "Optional HTTP headers to send with each request to the corresponding remote source storage \n" +
+				"For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. \n" +
+				"Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'",
 		},
 	}
 )
