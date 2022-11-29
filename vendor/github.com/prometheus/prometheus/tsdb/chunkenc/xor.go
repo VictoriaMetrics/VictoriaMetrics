@@ -88,6 +88,8 @@ func (c *XORChunk) Compact() {
 }
 
 // Appender implements the Chunk interface.
+// It is not valid to call Appender() multiple times concurrently or to use multiple
+// Appenders on the same chunk.
 func (c *XORChunk) Appender() (Appender, error) {
 	it := c.iterator(nil)
 
@@ -115,9 +117,6 @@ func (c *XORChunk) Appender() (Appender, error) {
 }
 
 func (c *XORChunk) iterator(it Iterator) *xorIterator {
-	// Should iterators guarantee to act on a copy of the data so it doesn't lock append?
-	// When using striped locks to guard access to chunks, probably yes.
-	// Could only copy data if the chunk is not completed yet.
 	if xorIter, ok := it.(*xorIterator); ok {
 		xorIter.Reset(c.b.bytes())
 		return xorIter
@@ -132,6 +131,9 @@ func (c *XORChunk) iterator(it Iterator) *xorIterator {
 }
 
 // Iterator implements the Chunk interface.
+// Iterator() must not be called concurrently with any modifications to the chunk,
+// but after it returns you can use an Iterator concurrently with an Appender or
+// other Iterators.
 func (c *XORChunk) Iterator(it Iterator) Iterator {
 	return c.iterator(it)
 }
@@ -178,16 +180,16 @@ func (a *xorAppender) Append(t int64, v float64) {
 		case dod == 0:
 			a.b.writeBit(zero)
 		case bitRange(dod, 14):
-			a.b.writeBits(0x02, 2) // '10'
+			a.b.writeBits(0b10, 2)
 			a.b.writeBits(uint64(dod), 14)
 		case bitRange(dod, 17):
-			a.b.writeBits(0x06, 3) // '110'
+			a.b.writeBits(0b110, 3)
 			a.b.writeBits(uint64(dod), 17)
 		case bitRange(dod, 20):
-			a.b.writeBits(0x0e, 4) // '1110'
+			a.b.writeBits(0b1110, 4)
 			a.b.writeBits(uint64(dod), 20)
 		default:
-			a.b.writeBits(0x0f, 4) // '1111'
+			a.b.writeBits(0b1111, 4)
 			a.b.writeBits(uint64(dod), 64)
 		}
 
@@ -200,6 +202,8 @@ func (a *xorAppender) Append(t int64, v float64) {
 	a.tDelta = tDelta
 }
 
+// bitRange returns whether the given integer can be represented by nbits.
+// See docs/bstream.md.
 func bitRange(x int64, nbits uint8) bool {
 	return -((1<<(nbits-1))-1) <= x && x <= 1<<(nbits-1)
 }
@@ -344,15 +348,15 @@ func (it *xorIterator) Next() bool {
 	var sz uint8
 	var dod int64
 	switch d {
-	case 0x00:
+	case 0b0:
 		// dod == 0
-	case 0x02:
+	case 0b10:
 		sz = 14
-	case 0x06:
+	case 0b110:
 		sz = 17
-	case 0x0e:
+	case 0b1110:
 		sz = 20
-	case 0x0f:
+	case 0b1111:
 		// Do not use fast because it's very unlikely it will succeed.
 		bits, err := it.br.readBits(64)
 		if err != nil {
@@ -372,9 +376,11 @@ func (it *xorIterator) Next() bool {
 			it.err = err
 			return false
 		}
+
+		// Account for negative numbers, which come back as high unsigned numbers.
+		// See docs/bstream.md.
 		if bits > (1 << (sz - 1)) {
-			// or something
-			bits = bits - (1 << sz)
+			bits -= 1 << sz
 		}
 		dod = int64(bits)
 	}
@@ -452,4 +458,13 @@ func (it *xorIterator) readValue() bool {
 
 	it.numRead++
 	return true
+}
+
+// OOOXORChunk holds a XORChunk and overrides the Encoding() method.
+type OOOXORChunk struct {
+	*XORChunk
+}
+
+func (c *OOOXORChunk) Encoding() Encoding {
+	return EncOOOXOR
 }

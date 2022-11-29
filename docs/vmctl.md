@@ -11,9 +11,12 @@ vmctl provides various useful actions with VictoriaMetrics components.
 Features:
 - migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
 - migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
+- migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
+- migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
 - migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
 - migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
 - migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
+- migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 - [verify](#verifying-exported-blocks-from-victoriametrics) exported blocks from VictoriaMetrics single or cluster version.
 
 To see the full list of supported modes
@@ -32,6 +35,7 @@ COMMANDS:
    influx      Migrate timeseries from InfluxDB
    prometheus  Migrate timeseries from Prometheus
    vm-native   Migrate time series between VictoriaMetrics installations via native binary format
+   remote-read Migrate timeseries by Prometheus remote read protocol
    verify-block  Verifies correctness of data blocks exported via VictoriaMetrics Native format. See https://docs.victoriametrics.com/#how-to-export-data-in-native-format
 ```
 
@@ -436,6 +440,64 @@ Found 2 blocks to import. Continue? [Y/n] y
 2020/02/23 15:51:07 Total time: 7.153158218s
 ```
 
+## Migrating data by remote read protocol
+
+`vmctl` supports the `remote-read` mode for migrating data from databases which support 
+[Prometheus remote read API](https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/)
+
+See `./vmctl remote-read --help` for details and full list of flags.
+
+To start the migration process configure the following flags:
+1. `--remote-read-src-addr` - data source address to read from;
+2. `--vm-addr` - VictoriaMetrics address to write to. For single-node VM is usually equal to `--httpListenAddr`, 
+and for cluster version is equal to `--httpListenAddr` flag of vminsert component (for example `http://<vminsert>:8480/insert/<accountID>/prometheus`);
+3. `--remote-read-filter-time-start` - the time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z';
+4. `--remote-read-filter-time-end` - the time filter in RFC3339 format to select time series with timestamp equal or smaller than provided value. E.g. '2020-01-01T20:07:00Z'. Current time is used when omitted.;
+5. `--remote-read-step-interval` - split export data into chunks. Valid values are `month, day, hour, minute`;
+
+The importing process example for local installation of Prometheus
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read \
+--remote-read-src-addr=http://127.0.0.1:9091 \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6
+
+Split defined times into 8798 ranges to import. Continue? [Y/n]
+VM worker 0:↘ 127177 samples/s
+VM worker 1:↘ 140137 samples/s
+VM worker 2:↘ 151606 samples/s
+VM worker 3:↘ 130765 samples/s
+VM worker 4:↘ 131904 samples/s
+VM worker 5:↘ 132693 samples/s
+Processing ranges: 8798 / 8798 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/19 16:45:37 Import finished!
+2022/10/19 16:45:37 VictoriaMetrics importer stats:
+  idle duration: 6m57.793987511s;
+  time spent while importing: 1m18.463744801s;
+  total samples: 25348208;
+  samples/s: 323056.31;
+  total bytes: 669.7 MB;
+  bytes/s: 8.5 MB;
+  import requests: 127;
+  import requests retries: 0;
+2022/10/19 16:45:37 Total time: 1m19.406283424s
+```
+
+### Filtering
+
+The filtering consists of two parts: by labels and time.
+
+Filtering by time can be configured via flags `--remote-read-filter-time-start` and `--remote-read-filter-time-end`
+in RFC3339 format.
+
+Filtering by labels can be configured via flags `--remote-read-filter-label` and `--remote-read-filter-label-value`.
+For example, `--remote-read-filter-label=tenant` and `--remote-read-filter-label-value="team-eu"` will select only series
+with `tenant="team-eu"` label-value pair.
+
 ## Migrating data from Thanos
 
 Thanos uses the same storage engine as Prometheus and the data layout on-disk should be the same. That means
@@ -481,6 +543,187 @@ then import it into VM using `vmctl` in `prometheus` mode.
     ```
     vmctl prometheus --prom-snapshot thanos-data --vm-addr http://victoria-metrics:8428
     ```
+
+### Remote read protocol
+
+Currently, Thanos doesn't support streaming remote read protocol. It is [recommended](https://thanos.io/tip/thanos/integrations.md/#storeapi-as-prometheus-remote-read)
+to use [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) a proxy, that allows exposing any Thanos 
+service (or anything that exposes gRPC StoreAPI e.g. Querier) via Prometheus remote read protocol.
+
+If you want to migrate data, you should run [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy
+and define the Thanos store address `./thanos-remote-read -store 127.0.0.1:19194`. 
+It is important to know that `store` flag is Thanos Store API gRPC endpoint. 
+Also, it is important to know that thanos-remote-read proxy  doesn't support `STREAMED_XOR_CHUNKS` mode.
+When you run thanos-remote-read proxy, it exposes port to serve HTTP on `10080 by default`.
+
+The importing process example for local installation of Thanos
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read \
+--remote-read-src-addr=http://127.0.0.1:10080 \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6
+```
+
+On the [thanos-remote-read](https://github.com/G-Research/thanos-remote-read) proxy side you will see logs like:
+```
+ts=2022-10-19T15:05:04.193916Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666180800000 max_time:1666184399999 matchers:<type:RE value:\".*\" > aggregates:RAW "
+ts=2022-10-19T15:05:04.468852Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666184400000 max_time:1666187999999 matchers:<type:RE value:\".*\" > aggregates:RAW "
+ts=2022-10-19T15:05:04.553914Z caller=main.go:278 level=info traceID=00000000000000000000000000000000 msg="thanos request" request="min_time:1666188000000 max_time:1666191364863 matchers:<type:RE value:\".*\" > aggregates:RAW "
+```
+
+And when process will finish you will see:
+```
+Split defined times into 8799 ranges to import. Continue? [Y/n]
+VM worker 0:↓ 98183 samples/s
+VM worker 1:↓ 114640 samples/s
+VM worker 2:↓ 131710 samples/s
+VM worker 3:↓ 114256 samples/s
+VM worker 4:↓ 105671 samples/s
+VM worker 5:↓ 124000 samples/s
+Processing ranges: 8799 / 8799 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/19 18:05:07 Import finished!
+2022/10/19 18:05:07 VictoriaMetrics importer stats:
+  idle duration: 52m13.987637229s;
+  time spent while importing: 9m1.728983776s;
+  total samples: 70836111;
+  samples/s: 130759.32;
+  total bytes: 2.2 GB;
+  bytes/s: 4.0 MB;
+  import requests: 356;
+  import requests retries: 0;
+2022/10/19 18:05:07 Total time: 9m2.607521618s
+```
+
+## Migrating data from Cortex
+
+Cortex has an implementation of the Prometheus remote read protocol. That means
+`vmctl` in mode `remote-read` may also be used for Cortex historical data migration.
+These instructions may vary based on the details of your Cortex configuration.
+Please read carefully and verify as you go.
+
+### Remote read protocol
+
+If you want to migrate data, you should check your cortex configuration in the section
+```yaml
+api:
+  prometheus_http_prefix:
+```
+
+If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
+By default, Cortex uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
+
+It is important to know that Cortex doesn't support the `STREAMED_XOR_CHUNKS` mode.
+When you run Cortex, it exposes a port to serve HTTP on `9009 by default`.
+
+The importing process example for the local installation of Cortex
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read \ 
+--remote-read-src-addr=http://127.0.0.1:9009/prometheus \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--remote-read-src-check-alive=false \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6 
+```
+And when the process finishes, you will see the following:
+
+```
+Split defined times into 8842 ranges to import. Continue? [Y/n]
+VM worker 0:↗ 3863 samples/s
+VM worker 1:↗ 2686 samples/s
+VM worker 2:↗ 2620 samples/s
+VM worker 3:↗ 2705 samples/s
+VM worker 4:↗ 2643 samples/s
+VM worker 5:↗ 2593 samples/s
+Processing ranges: 8842 / 8842 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/21 12:09:49 Import finished!
+2022/10/21 12:09:49 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 3.82640757s;
+  total samples: 160232;
+  samples/s: 41875.31;
+  total bytes: 11.3 MB;
+  bytes/s: 3.0 MB;
+  import requests: 6;
+  import requests retries: 0;
+2022/10/21 12:09:49 Total time: 4.71824253s
+```
+It is important to know that if you run your Cortex installation in multi-tenant mode, remote read protocol
+requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
+
+## Migrating data from Mimir
+
+Mimir has similar implemintation as Cortex and also support of the Prometheus remote read protocol. That means
+`vmctl` in mode `remote-read` may also be used for Mimir historical data migration.
+These instructions may vary based on the details of your Mimir configuration.
+Please read carefully and verify as you go.
+
+### Remote read protocol
+
+If you want to migrate data, you should check your Mimir configuration in the section
+```yaml
+api:
+  prometheus_http_prefix:
+```
+
+If you defined some prometheus prefix, you should use it when you define flag `--remote-read-src-addr=http://127.0.0.1:9009/{prometheus_http_prefix}`.
+By default, Mimir uses the `prometheus` path prefix, so you should define the flag `--remote-read-src-addr=http://127.0.0.1:9009/prometheus`.
+
+Mimir supports both remote read mode, so you can use `STREAMED_XOR_CHUNKS` mode and `SAMPLES` mode.
+When you run Mimir, it exposes a port to serve HTTP on `8080 by default`.
+
+Next example of the local installation was in multi-tenant mode (3 instances of mimir) with nginx as load balancer.
+Load balancer expose single port `:9090`.
+
+As you can see in the example we call `:9009` instead of `:8080` because of proxy.
+
+The importing process example for the local installation of Mimir
+and single-node VictoriaMetrics(`http://localhost:8428`):
+
+```
+./vmctl remote-read 
+--remote-read-src-addr=http://127.0.0.1:9009/prometheus \
+--remote-read-filter-time-start=2021-10-18T00:00:00Z \
+--remote-read-step-interval=hour \
+--remote-read-src-check-alive=false \
+--remote-read-headers=X-Scope-OrgID:demo \
+--remote-read-use-stream=true \
+--vm-addr=http://127.0.0.1:8428 \
+--vm-concurrency=6
+```
+
+And when the process finishes, you will see the following:
+
+```
+Split defined times into 8847 ranges to import. Continue? [Y/n]
+VM worker 0:→ 12176 samples/s
+VM worker 1:→ 11918 samples/s
+VM worker 2:→ 11261 samples/s
+VM worker 3:→ 12861 samples/s
+VM worker 4:→ 11096 samples/s
+VM worker 5:→ 11575 samples/s
+Processing ranges: 8847 / 8847 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2022/10/21 17:22:23 Import finished!
+2022/10/21 17:22:23 VictoriaMetrics importer stats:
+  idle duration: 0s;
+  time spent while importing: 15.379614356s;
+  total samples: 81243;
+  samples/s: 5282.51;
+  total bytes: 6.1 MB;
+  bytes/s: 397.8 kB;
+  import requests: 6;
+  import requests retries: 0;
+2022/10/21 17:22:23 Total time: 16.287405248s
+```
+
+It is important to know that if you run your Mimir installation in multi-tenant mode, remote read protocol
+requires an Authentication header like `X-Scope-OrgID`. You can define it via the flag `--remote-read-headers=X-Scope-OrgID:demo`
 
 ## Migrating data from VictoriaMetrics
 

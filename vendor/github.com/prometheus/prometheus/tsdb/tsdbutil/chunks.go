@@ -57,6 +57,19 @@ func ChunkFromSamplesGeneric(s Samples) chunks.Meta {
 	}
 }
 
+type sample struct {
+	t int64
+	v float64
+}
+
+func (s sample) T() int64 {
+	return s.t
+}
+
+func (s sample) V() float64 {
+	return s.v
+}
+
 // PopulatedChunk creates a chunk populated with samples every second starting at minTime
 func PopulatedChunk(numSamples int, minTime int64) chunks.Meta {
 	samples := make([]Sample, numSamples)
@@ -64,4 +77,16 @@ func PopulatedChunk(numSamples int, minTime int64) chunks.Meta {
 		samples[i] = sample{minTime + int64(i*1000), 1.0}
 	}
 	return ChunkFromSamples(samples)
+}
+
+// GenerateSamples starting at start and counting up numSamples.
+func GenerateSamples(start, numSamples int) []Sample {
+	samples := make([]Sample, 0, numSamples)
+	for i := start; i < start+numSamples; i++ {
+		samples = append(samples, sample{
+			t: int64(i),
+			v: float64(i),
+		})
+	}
+	return samples
 }
