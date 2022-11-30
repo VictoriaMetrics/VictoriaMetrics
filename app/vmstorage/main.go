@@ -203,19 +203,28 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		}
 		// Verify that SearchMetricNames returns correct result.
 		tfs := storage.NewTagFilters(accountID, projectID)
-		if err := tfs.Add(nil, []byte("up"), false, false); err != nil {
+		//flag built-in metric of vm ,and time series is controlled so use flag metric
+		if err := tfs.Add(nil, []byte("flag"), false, false); err != nil {
 			err = fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
-		metricNames, err := strg.SearchMetricNames(nil, []*storage.TagFilters{tfs}, tr, 1, fasttime.UnixTimestamp()+uint64(5))
+		//time series with the metric flag and the given name label is search.logSlowQueryDuration (avoid too many time series):
+		if err := tfs.Add([]byte("name"), []byte("search.logSlowQueryDuration"), false, false); err != nil {
+			err = fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
+			jsonResponseError(w, err)
+			return true
+		}
+		//although use maxMetrics big to query but it's not a problem
+		//flag{name="search.logSlowQueryDuration"} time series is equal vmstorage instance
+		metricNames, err := strg.SearchMetricNames(nil, []*storage.TagFilters{tfs}, tr, 30000, fasttime.UnixTimestamp()+uint64(5))
 		if err != nil {
 			err = fmt.Errorf("error in SearchMetricNames: %w", err)
 			jsonResponseError(w, err)
 			return true
 		}
 
-		fmt.Fprintf(w, `{"status":"ok","data":%v}`, metricNames)
+		fmt.Fprintf(w, `{"status":"ok","count":%d}`, len(metricNames))
 		return true
 	}
 	if path == "/internal/force_merge" {
