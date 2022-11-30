@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // configWatcher supports dynamic reload of Notifier objects
@@ -123,7 +124,7 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 	var errors []error
 	duplicates := make(map[string]struct{})
 	for _, labels := range metaLabels {
-		target := labels["__address__"]
+		target := labels.Get("__address__")
 		u, processedLabels, err := parseLabels(target, labels, cfg)
 		if err != nil {
 			errors = append(errors, err)
@@ -156,7 +157,7 @@ func targetsFromLabels(labelsFn getLabels, cfg *Config, genFn AlertURLGenerator)
 	return targets, errors
 }
 
-type getLabels func() ([]map[string]string, error)
+type getLabels func() ([]*promutils.Labels, error)
 
 func (cw *configWatcher) start() error {
 	if len(cw.cfg.StaticConfigs) > 0 {
@@ -182,8 +183,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.ConsulSDConfigs) > 0 {
-		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]map[string]string, error) {
-			var labels []map[string]string
+		err := cw.add(TargetConsul, *consul.SDCheckInterval, func() ([]*promutils.Labels, error) {
+			var labels []*promutils.Labels
 			for i := range cw.cfg.ConsulSDConfigs {
 				sdc := &cw.cfg.ConsulSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)
@@ -200,8 +201,8 @@ func (cw *configWatcher) start() error {
 	}
 
 	if len(cw.cfg.DNSSDConfigs) > 0 {
-		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]map[string]string, error) {
-			var labels []map[string]string
+		err := cw.add(TargetDNS, *dns.SDCheckInterval, func() ([]*promutils.Labels, error) {
+			var labels []*promutils.Labels
 			for i := range cw.cfg.DNSSDConfigs {
 				sdc := &cw.cfg.DNSSDConfigs[i]
 				targetLabels, err := sdc.GetLabels(cw.cfg.baseDir)

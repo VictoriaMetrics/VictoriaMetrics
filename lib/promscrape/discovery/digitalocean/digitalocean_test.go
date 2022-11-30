@@ -1,11 +1,10 @@
 package digitalocean
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_addDropletLabels(t *testing.T) {
@@ -16,7 +15,7 @@ func Test_addDropletLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "base labels add test",
@@ -62,8 +61,8 @@ func Test_addDropletLabels(t *testing.T) {
 				},
 				defaultPort: 9100,
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                      "100.100.100.100:9100",
 					"__meta_digitalocean_droplet_id":   "15",
 					"__meta_digitalocean_droplet_name": "ubuntu-1",
@@ -85,14 +84,7 @@ func Test_addDropletLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addDropletLabels(tt.args.droplets, tt.args.defaultPort)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addTasksLabels() \ngot  \n%v\n, \nwant \n%v\n", sortedLabelss, tt.want)
-			}
-
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

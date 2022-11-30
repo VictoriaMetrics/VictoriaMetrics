@@ -4,8 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestParseEndpointSliceListFail(t *testing.T) {
@@ -165,8 +164,8 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__": "10.244.0.3:53",
 			"__meta_kubernetes_endpointslice_address_target_kind":                                                "Pod",
 			"__meta_kubernetes_endpointslice_address_target_name":                                                "coredns-66bff467f8-z8czk",
@@ -186,7 +185,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_port_protocol":                                                      "UDP",
 			"__meta_kubernetes_namespace":                                                                        "kube-system",
 		}),
-		discoveryutils.GetSortedLabels(map[string]string{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__": "10.244.0.3:9153",
 			"__meta_kubernetes_endpointslice_address_target_kind":                                                "Pod",
 			"__meta_kubernetes_endpointslice_address_target_name":                                                "coredns-66bff467f8-z8czk",
@@ -206,7 +205,7 @@ func TestParseEndpointSliceListSuccess(t *testing.T) {
 			"__meta_kubernetes_endpointslice_port_protocol":                                                      "TCP",
 			"__meta_kubernetes_namespace":                                                                        "kube-system",
 		}),
-		discoveryutils.GetSortedLabels(map[string]string{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__": "172.18.0.2:6443",
 			"__meta_kubernetes_endpointslice_address_type":                            "IPv4",
 			"__meta_kubernetes_endpointslice_endpoint_conditions_ready":               "true",
@@ -230,13 +229,13 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		containerPorts map[string][]ContainerPort
 		endpointPorts  []EndpointPort
 	}
-	f := func(t *testing.T, args testArgs, wantLabels [][]prompbmarshal.Label) {
+	f := func(t *testing.T, args testArgs, wantLabels []*promutils.Labels) {
 		t.Helper()
 		eps := EndpointSlice{
 			Metadata: ObjectMeta{
 				Name:      "test-eps",
 				Namespace: "default",
-				Labels: discoveryutils.GetSortedLabels(map[string]string{
+				Labels: promutils.NewLabelsFromMap(map[string]string{
 					"kubernetes.io/service-name": "test-svc",
 				}),
 			},
@@ -295,12 +294,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 		}
 		node := Node{
 			Metadata: ObjectMeta{
-				Labels: []prompbmarshal.Label{
-					{
-						Name:  "node-label",
-						Value: "xyz",
-					},
-				},
+				Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 			},
 		}
 		for cn, ports := range args.containerPorts {
@@ -332,10 +326,11 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 			},
 		}
 		gw.attachNodeMetadata = true
-		var sortedLabelss [][]prompbmarshal.Label
+		var sortedLabelss []*promutils.Labels
 		gotLabels := eps.getTargetLabels(&gw)
 		for _, lbs := range gotLabels {
-			sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(lbs))
+			lbs.Sort()
+			sortedLabelss = append(sortedLabelss, lbs)
 		}
 		if !areEqualLabelss(sortedLabelss, wantLabels) {
 			t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, wantLabels)
@@ -351,8 +346,8 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					Protocol: "foobar",
 				},
 			},
-		}, [][]prompbmarshal.Label{
-			discoveryutils.GetSortedLabels(map[string]string{
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
@@ -399,8 +394,8 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					Protocol: "https",
 				},
 			},
-		}, [][]prompbmarshal.Label{
-			discoveryutils.GetSortedLabels(map[string]string{
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8081",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",
@@ -430,7 +425,7 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 				"__meta_kubernetes_service_name":                                          "test-svc",
 				"__meta_kubernetes_service_type":                                          "service-type",
 			}),
-			discoveryutils.GetSortedLabels(map[string]string{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__":                                    "192.168.15.1:8428",
 				"__meta_kubernetes_namespace":                    "default",
 				"__meta_kubernetes_node_label_node_label":        "xyz",
@@ -469,8 +464,8 @@ func TestGetEndpointsliceLabels(t *testing.T) {
 					Protocol: "xabc",
 				},
 			},
-		}, [][]prompbmarshal.Label{
-			discoveryutils.GetSortedLabels(map[string]string{
+		}, []*promutils.Labels{
+			promutils.NewLabelsFromMap(map[string]string{
 				"__address__": "10.13.15.15:8428",
 				"__meta_kubernetes_endpointslice_address_target_kind":                     "Pod",
 				"__meta_kubernetes_endpointslice_address_target_name":                     "test-pod",

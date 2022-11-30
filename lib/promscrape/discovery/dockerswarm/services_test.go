@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_parseServicesResponse(t *testing.T) {
@@ -172,27 +172,27 @@ func Test_parseServicesResponse(t *testing.T) {
 func Test_addServicesLabels(t *testing.T) {
 	type args struct {
 		services       []service
-		networksLabels map[string]map[string]string
+		networksLabels map[string]*promutils.Labels
 		port           int
 	}
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "add 2 services with network labels join",
 			args: args{
 				port: 9100,
-				networksLabels: map[string]map[string]string{
-					"qs0hog6ldlei9ct11pr3c77v1": {
+				networksLabels: map[string]*promutils.Labels{
+					"qs0hog6ldlei9ct11pr3c77v1": promutils.NewLabelsFromMap(map[string]string{
 						"__meta_dockerswarm_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 						"__meta_dockerswarm_network_ingress":    "true",
 						"__meta_dockerswarm_network_internal":   "false",
 						"__meta_dockerswarm_network_label_key1": "value1",
 						"__meta_dockerswarm_network_name":       "ingress",
 						"__meta_dockerswarm_network_scope":      "swarm",
-					},
+					}),
 				},
 				services: []service{
 					{
@@ -259,8 +259,8 @@ func Test_addServicesLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                           "10.0.0.3:0",
 					"__meta_dockerswarm_network_id":                         "qs0hog6ldlei9ct11pr3c77v1",
 					"__meta_dockerswarm_network_ingress":                    "true",
@@ -282,13 +282,7 @@ func Test_addServicesLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addServicesLabels(tt.args.services, tt.args.networksLabels, tt.args.port)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addServicesLabels() \ngot  %v, \nwant %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

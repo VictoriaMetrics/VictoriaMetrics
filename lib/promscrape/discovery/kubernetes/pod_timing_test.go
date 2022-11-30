@@ -29,6 +29,7 @@ func BenchmarkPodGetTargetLabels(b *testing.B) {
 			if len(labelss) != 1 {
 				panic(fmt.Errorf("BUG: unexpected number of labelss returned: %d; want 1", len(labelss)))
 			}
+			putLabelssToPool(labelss)
 		}
 	})
 }

@@ -1,14 +1,14 @@
 package discoveryutils
 
 import (
-	"encoding/json"
-	"net"
+	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
+	"strings"
+	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // SanitizeLabelName replaces anything that doesn't match
@@ -29,44 +29,37 @@ var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 //
 // Host may be dns name, ipv4 or ipv6 address.
 func JoinHostPort(host string, port int) string {
-	portStr := strconv.Itoa(port)
-	return net.JoinHostPort(host, portStr)
+	bb := bbPool.Get()
+	b := bb.B[:0]
+	isIPv6 := strings.IndexByte(host, ':') >= 0
+	if isIPv6 {
+		b = append(b, '[')
+	}
+	b = append(b, host...)
+	if isIPv6 {
+		b = append(b, ']')
+	}
+	b = append(b, ':')
+	b = strconv.AppendInt(b, int64(port), 10)
+	s := bytesutil.ToUnsafeString(b)
+	s = bytesutil.InternString(s)
+	bb.B = b
+	bbPool.Put(bb)
+	return s
 }
 
-// SortedLabels represents sorted labels.
-type SortedLabels []prompbmarshal.Label
+var bbPool bytesutil.ByteBufferPool
 
-// GetByName returns the label with the given name from sls.
-func (sls *SortedLabels) GetByName(name string) string {
-	for _, lb := range *sls {
-		if lb.Name == name {
-			return lb.Value
-		}
+// TestEqualLabelss tests whether got are equal to want.
+func TestEqualLabelss(t *testing.T, got, want []*promutils.Labels) {
+	t.Helper()
+	var gotCopy []*promutils.Labels
+	for _, labels := range got {
+		labels = labels.Clone()
+		labels.Sort()
+		gotCopy = append(gotCopy, labels)
 	}
-	return ""
-}
-
-// UnmarshalJSON unmarshals JSON from data.
-func (sls *SortedLabels) UnmarshalJSON(data []byte) error {
-	var m map[string]string
-	if err := json.Unmarshal(data, &m); err != nil {
-		return err
+	if !reflect.DeepEqual(gotCopy, want) {
+		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", gotCopy, want)
 	}
-	*sls = GetSortedLabels(m)
-	return nil
-}
-
-// GetSortedLabels returns SortedLabels built from m.
-func GetSortedLabels(m map[string]string) SortedLabels {
-	a := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		a = append(a, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
-	}
-	sort.Slice(a, func(i, j int) bool {
-		return a[i].Name < a[j].Name
-	})
-	return a
 }

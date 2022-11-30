@@ -7,6 +7,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func (eps *Endpoints) key() string {
@@ -91,13 +92,13 @@ type EndpointPort struct {
 // getTargetLabels returns labels for each endpoint in eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpoints
-func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
+func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 	var svc *Service
 	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, eps.Metadata.Name); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
-	var ms []map[string]string
+	var ms []*promutils.Labels
 	for _, ess := range eps.Subsets {
 		for _, epp := range ess.Ports {
 			ms = appendEndpointLabelsForAddresses(ms, gw, podPortsSeen, eps, ess.Addresses, epp, svc, "true")
@@ -106,7 +107,7 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
 	}
 	// See https://kubernetes.io/docs/reference/labels-annotations-taints/#endpoints-kubernetes-io-over-capacity
 	// and https://github.com/kubernetes/kubernetes/pull/99975
-	switch eps.Metadata.Annotations.GetByName("endpoints.kubernetes.io/over-capacity") {
+	switch eps.Metadata.Annotations.Get("endpoints.kubernetes.io/over-capacity") {
 	case "truncated":
 		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and has been truncated; please use "role: endpointslice" instead`, eps.Metadata.key())
 	case "warning":
@@ -129,14 +130,14 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
 					continue
 				}
 				addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
-				m := map[string]string{
-					"__address__": addr,
-				}
+				m := promutils.GetLabels()
+				m.Add("__address__", addr)
 				p.appendCommonLabels(m, gw)
 				p.appendContainerLabels(m, c, &cp)
 				if svc != nil {
 					svc.appendCommonLabels(m)
 				}
+				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
 		}
@@ -144,8 +145,8 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []map[string]string {
 	return ms
 }
 
-func appendEndpointLabelsForAddresses(ms []map[string]string, gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
-	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []map[string]string {
+func appendEndpointLabelsForAddresses(ms []*promutils.Labels, gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
+	eas []EndpointAddress, epp EndpointPort, svc *Service, ready string) []*promutils.Labels {
 	for _, ea := range eas {
 		var p *Pod
 		if ea.TargetRef.Name != "" {
@@ -154,13 +155,14 @@ func appendEndpointLabelsForAddresses(ms []map[string]string, gw *groupWatcher, 
 			}
 		}
 		m := getEndpointLabelsForAddressAndPort(gw, podPortsSeen, eps, ea, epp, p, svc, ready)
+		m.RemoveDuplicates()
 		ms = append(ms, m)
 	}
 	return ms
 }
 
 func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints, ea EndpointAddress, epp EndpointPort,
-	p *Pod, svc *Service, ready string) map[string]string {
+	p *Pod, svc *Service, ready string) *promutils.Labels {
 	m := getEndpointLabels(eps.Metadata, ea, epp, ready)
 	if svc != nil {
 		svc.appendCommonLabels(m)
@@ -188,26 +190,24 @@ func getEndpointLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod]
 	return m
 }
 
-func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, ready string) map[string]string {
+func getEndpointLabels(om ObjectMeta, ea EndpointAddress, epp EndpointPort, ready string) *promutils.Labels {
 	addr := discoveryutils.JoinHostPort(ea.IP, epp.Port)
-	m := map[string]string{
-		"__address__":                      addr,
-		"__meta_kubernetes_namespace":      om.Namespace,
-		"__meta_kubernetes_endpoints_name": om.Name,
-
-		"__meta_kubernetes_endpoint_ready":         ready,
-		"__meta_kubernetes_endpoint_port_name":     epp.Name,
-		"__meta_kubernetes_endpoint_port_protocol": epp.Protocol,
-	}
+	m := promutils.GetLabels()
+	m.Add("__address__", addr)
+	m.Add("__meta_kubernetes_namespace", om.Namespace)
+	m.Add("__meta_kubernetes_endpoints_name", om.Name)
+	m.Add("__meta_kubernetes_endpoint_ready", ready)
+	m.Add("__meta_kubernetes_endpoint_port_name", epp.Name)
+	m.Add("__meta_kubernetes_endpoint_port_protocol", epp.Protocol)
 	if ea.TargetRef.Kind != "" {
-		m["__meta_kubernetes_endpoint_address_target_kind"] = ea.TargetRef.Kind
-		m["__meta_kubernetes_endpoint_address_target_name"] = ea.TargetRef.Name
+		m.Add("__meta_kubernetes_endpoint_address_target_kind", ea.TargetRef.Kind)
+		m.Add("__meta_kubernetes_endpoint_address_target_name", ea.TargetRef.Name)
 	}
 	if ea.NodeName != "" {
-		m["__meta_kubernetes_endpoint_node_name"] = ea.NodeName
+		m.Add("__meta_kubernetes_endpoint_node_name", ea.NodeName)
 	}
 	if ea.Hostname != "" {
-		m["__meta_kubernetes_endpoint_hostname"] = ea.Hostname
+		m.Add("__meta_kubernetes_endpoint_hostname", ea.Hostname)
 	}
 	return m
 }

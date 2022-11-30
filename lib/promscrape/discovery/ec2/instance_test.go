@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestDescribeAvailabilityZonesResponse(t *testing.T) {
@@ -241,12 +241,8 @@ func TestParseInstancesResponse(t *testing.T) {
 	labelss := inst.appendTargetLabels(nil, ownerID, "region-a", port, map[string]string{
 		"eu-west-2c": "foobar-zone",
 	})
-	var sortedLabelss [][]prompbmarshal.Label
-	for _, labels := range labelss {
-		sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-	}
-	expectedLabels := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabels := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__":                     "172.31.11.152:423",
 			"__meta_ec2_architecture":         "x86_64",
 			"__meta_ec2_availability_zone":    "eu-west-2c",
@@ -269,7 +265,5 @@ func TestParseInstancesResponse(t *testing.T) {
 			"__meta_ec2_vpc_id":               "vpc-f1eaad99",
 		}),
 	}
-	if !reflect.DeepEqual(sortedLabelss, expectedLabels) {
-		t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabels)
-	}
+	discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
 }
