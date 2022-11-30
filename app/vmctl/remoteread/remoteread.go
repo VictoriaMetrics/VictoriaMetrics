@@ -276,7 +276,15 @@ func parseSamples(chunk []byte) ([]prompb.Sample, error) {
 
 	var samples []prompb.Sample
 	it := c.Iterator(nil)
-	for it.Next() {
+	for {
+		typ := it.Next()
+		if typ == chunkenc.ValNone {
+			break
+		}
+		if typ != chunkenc.ValFloat {
+			// Skip unsupported values
+			continue
+		}
 		if it.Err() != nil {
 			return nil, fmt.Errorf("error iterate over chunks: %w", it.Err())
 		}
