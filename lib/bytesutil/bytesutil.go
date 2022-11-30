@@ -6,51 +6,51 @@ import (
 	"unsafe"
 )
 
-// ResizeWithCopyMayOverallocate resizes b to minimum n bytes and returns the resized buffer (which may be newly allocated).
+// ResizeWithCopyMayOverallocate resizes b to minimum n elements and returns the resized buffer (which may be newly allocated).
 //
 // If newly allocated buffer is returned then b contents is copied to it.
-func ResizeWithCopyMayOverallocate(b []byte, n int) []byte {
+func ResizeWithCopyMayOverallocate[T any](b []T, n int) []T {
 	if n <= cap(b) {
 		return b[:n]
 	}
 	nNew := roundToNearestPow2(n)
-	bNew := make([]byte, nNew)
+	bNew := make([]T, nNew)
 	copy(bNew, b)
 	return bNew[:n]
 }
 
-// ResizeWithCopyNoOverallocate resizes b to exactly n bytes and returns the resized buffer (which may be newly allocated).
+// ResizeWithCopyNoOverallocate resizes b to exactly n elements and returns the resized buffer (which may be newly allocated).
 //
 // If newly allocated buffer is returned then b contents is copied to it.
-func ResizeWithCopyNoOverallocate(b []byte, n int) []byte {
+func ResizeWithCopyNoOverallocate[T any](b []T, n int) []T {
 	if n <= cap(b) {
 		return b[:n]
 	}
-	bNew := make([]byte, n)
+	bNew := make([]T, n)
 	copy(bNew, b)
 	return bNew
 }
 
-// ResizeNoCopyMayOverallocate resizes b to minimum n bytes and returns the resized buffer (which may be newly allocated).
+// ResizeNoCopyMayOverallocate resizes b to minimum n elements and returns the resized buffer (which may be newly allocated).
 //
 // If newly allocated buffer is returned then b contents isn't copied to it.
-func ResizeNoCopyMayOverallocate(b []byte, n int) []byte {
+func ResizeNoCopyMayOverallocate[T any](b []T, n int) []T {
 	if n <= cap(b) {
 		return b[:n]
 	}
 	nNew := roundToNearestPow2(n)
-	bNew := make([]byte, nNew)
+	bNew := make([]T, nNew)
 	return bNew[:n]
 }
 
-// ResizeNoCopyNoOverallocate resizes b to exactly n bytes and returns the resized buffer (which may be newly allocated).
+// ResizeNoCopyNoOverallocate resizes b to exactly n elements and returns the resized buffer (which may be newly allocated).
 //
 // If newly allocated buffer is returned then b contents isn't copied to it.
-func ResizeNoCopyNoOverallocate(b []byte, n int) []byte {
+func ResizeNoCopyNoOverallocate[T any](b []T, n int) []T {
 	if n <= cap(b) {
 		return b[:n]
 	}
-	return make([]byte, n)
+	return make([]T, n)
 }
 
 // roundToNearestPow2 rounds n to the nearest power of 2
