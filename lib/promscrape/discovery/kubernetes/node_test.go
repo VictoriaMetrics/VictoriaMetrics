@@ -289,6 +289,18 @@ func TestParseNodeListSuccess(t *testing.T) {
 }
 
 func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
+	gw := newTestGroupWatcher()
+	var result [][]prompbmarshal.Label
+	for _, o := range objectsByKey {
+		labelss := o.getTargetLabels(gw)
+		for _, labels := range labelss {
+			result = append(result, discoveryutils.GetSortedLabels(labels))
+		}
+	}
+	return result
+}
+
+func newTestGroupWatcher() *groupWatcher {
 	var gw groupWatcher
 	gw.m = map[string]*urlWatcher{
 		"node": {
@@ -308,14 +320,7 @@ func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
 		},
 	}
 	gw.attachNodeMetadata = true
-	var result [][]prompbmarshal.Label
-	for _, o := range objectsByKey {
-		labelss := o.getTargetLabels(&gw)
-		for _, labels := range labelss {
-			result = append(result, discoveryutils.GetSortedLabels(labels))
-		}
-	}
-	return result
+	return &gw
 }
 
 func areEqualLabelss(a, b [][]prompbmarshal.Label) bool {
