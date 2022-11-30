@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
@@ -130,24 +129,24 @@ func parseConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
-func parseLabels(target string, metaLabels map[string]string, cfg *Config) (string, []prompbmarshal.Label, error) {
+func parseLabels(target string, metaLabels *promutils.Labels, cfg *Config) (string, *promutils.Labels, error) {
 	labels := mergeLabels(target, metaLabels, cfg)
-	labels = cfg.parsedRelabelConfigs.Apply(labels, 0)
-	labels = promrelabel.RemoveMetaLabels(labels[:0], labels)
-	promrelabel.SortLabels(labels)
+	labels.Labels = cfg.parsedRelabelConfigs.Apply(labels.Labels, 0)
+	labels.RemoveMetaLabels()
+	labels.Sort()
 	// Remove references to already deleted labels, so GC could clean strings for label name and label value past len(labels).
 	// This should reduce memory usage when relabeling creates big number of temporary labels with long names and/or values.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825 for details.
-	labels = append([]prompbmarshal.Label{}, labels...)
+	labels = labels.Clone()
 
-	if len(labels) == 0 {
+	if labels.Len() == 0 {
 		return "", nil, nil
 	}
-	schemeRelabeled := promrelabel.GetLabelValueByName(labels, "__scheme__")
+	schemeRelabeled := labels.Get("__scheme__")
 	if len(schemeRelabeled) == 0 {
 		schemeRelabeled = "http"
 	}
-	addressRelabeled := promrelabel.GetLabelValueByName(labels, "__address__")
+	addressRelabeled := labels.Get("__address__")
 	if len(addressRelabeled) == 0 {
 		return "", nil, nil
 	}
@@ -155,7 +154,7 @@ func parseLabels(target string, metaLabels map[string]string, cfg *Config) (stri
 		return "", nil, nil
 	}
 	addressRelabeled = addMissingPort(schemeRelabeled, addressRelabeled)
-	alertsPathRelabeled := promrelabel.GetLabelValueByName(labels, "__alerts_path__")
+	alertsPathRelabeled := labels.Get("__alerts_path__")
 	if !strings.HasPrefix(alertsPathRelabeled, "/") {
 		alertsPathRelabeled = "/" + alertsPathRelabeled
 	}
@@ -179,21 +178,12 @@ func addMissingPort(scheme, target string) string {
 	return target
 }
 
-func mergeLabels(target string, metaLabels map[string]string, cfg *Config) []prompbmarshal.Label {
+func mergeLabels(target string, metaLabels *promutils.Labels, cfg *Config) *promutils.Labels {
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
-	m := make(map[string]string)
-	m["__address__"] = target
-	m["__scheme__"] = cfg.Scheme
-	m["__alerts_path__"] = path.Join("/", cfg.PathPrefix, alertManagerPath)
-	for k, v := range metaLabels {
-		m[k] = v
-	}
-	result := make([]prompbmarshal.Label, 0, len(m))
-	for k, v := range m {
-		result = append(result, prompbmarshal.Label{
-			Name:  k,
-			Value: v,
-		})
-	}
-	return result
+	m := promutils.NewLabels(3 + metaLabels.Len())
+	m.Add("__address__", target)
+	m.Add("__scheme__", cfg.Scheme)
+	m.Add("__alerts_path__", path.Join("/", cfg.PathPrefix, alertManagerPath))
+	m.AddFrom(metaLabels)
+	return m
 }

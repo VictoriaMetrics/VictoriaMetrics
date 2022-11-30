@@ -5,8 +5,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_addNetworkLabels(t *testing.T) {
@@ -16,7 +16,7 @@ func Test_addNetworkLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "ingress network",
@@ -33,8 +33,8 @@ func Test_addNetworkLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__meta_docker_network_id":         "qs0hog6ldlei9ct11pr3c77v1",
 					"__meta_docker_network_ingress":    "true",
 					"__meta_docker_network_internal":   "false",
@@ -52,14 +52,11 @@ func Test_addNetworkLabels(t *testing.T) {
 				networkIDs = append(networkIDs, networkID)
 			}
 			sort.Strings(networkIDs)
-			var sortedLabelss [][]prompbmarshal.Label
+			var labelss []*promutils.Labels
 			for _, networkID := range networkIDs {
-				labels := got[networkID]
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
+				labelss = append(labelss, got[networkID])
 			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addNetworkLabels() \ngot %v, \nwant %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, labelss, tt.want)
 		})
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_parseHypervisorDetail(t *testing.T) {
@@ -107,7 +107,7 @@ func Test_addHypervisorLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "",
@@ -124,8 +124,8 @@ func Test_addHypervisorLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                          "1.2.2.2:9100",
 					"__meta_openstack_hypervisor_host_ip":  "1.2.2.2",
 					"__meta_openstack_hypervisor_hostname": "fakehost",
@@ -140,13 +140,7 @@ func Test_addHypervisorLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addHypervisorLabels(tt.args.hvs, tt.args.port)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addHypervisorLabels() = %v, want %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

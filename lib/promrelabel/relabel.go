@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/regexutil"
 	"github.com/cespare/xxhash/v2"
 )
@@ -48,8 +49,6 @@ func (prc *parsedRelabelConfig) String() string {
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
-//
-// If isFinalize is set, then FinalizeLabels is called on the labels[labelsOffset:].
 func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	var inStr string
 	relabelDebug := false
@@ -111,32 +110,6 @@ func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbm
 	return dst
 }
 
-// RemoveMetaLabels removes all the `__meta_` labels from src and puts the rest of labels to dst.
-//
-// See https://www.robustperception.io/life-of-a-label fo details.
-func RemoveMetaLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
-	for _, label := range src {
-		if strings.HasPrefix(label.Name, "__meta_") {
-			continue
-		}
-		dst = append(dst, label)
-	}
-	return dst
-}
-
-// RemoveLabelsWithDoubleDashPrefix removes labels with "__" prefix from src, appends the remaining lables to dst and returns the result.
-func RemoveLabelsWithDoubleDashPrefix(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
-	for _, label := range src {
-		name := label.Name
-		// A hack: do not delete __vm_filepath label, since it is used by internal logic for FileSDConfig.
-		if strings.HasPrefix(name, "__") && name != "__vm_filepath" {
-			continue
-		}
-		dst = append(dst, label)
-	}
-	return dst
-}
-
 // FinalizeLabels removes labels with "__" in the beginning (except of "__name__").
 func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 	for _, label := range src {
@@ -164,7 +137,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	}
 	switch prc.Action {
 	case "graphite":
-		metricName := GetLabelValueByName(src, "__name__")
+		metricName := getLabelValue(src, "__name__")
 		gm := graphiteMatchesPool.Get().(*graphiteMatches)
 		var ok bool
 		gm.a, ok = prc.graphiteMatchTemplate.Match(gm.a[:0], metricName)
@@ -464,9 +437,9 @@ func areEqualLabelValues(labels []prompbmarshal.Label, labelNames []string) bool
 		logger.Panicf("BUG: expecting at least 2 labelNames; got %d", len(labelNames))
 		return false
 	}
-	labelValue := GetLabelValueByName(labels, labelNames[0])
+	labelValue := getLabelValue(labels, labelNames[0])
 	for _, labelName := range labelNames[1:] {
-		v := GetLabelValueByName(labels, labelName)
+		v := getLabelValue(labels, labelName)
 		if v != labelValue {
 			return false
 		}
@@ -500,6 +473,15 @@ func setLabelValue(labels []prompbmarshal.Label, labelsOffset int, name, value s
 	return labels
 }
 
+func getLabelValue(labels []prompbmarshal.Label, name string) string {
+	for _, label := range labels {
+		if label.Name == name {
+			return label.Value
+		}
+	}
+	return ""
+}
+
 // GetLabelByName returns label with the given name from labels.
 func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.Label {
 	for i := range labels {
@@ -509,17 +491,6 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 		}
 	}
 	return nil
-}
-
-// GetLabelValueByName returns value for label with the given name from labels.
-//
-// It returns empty string for non-existing label.
-func GetLabelValueByName(labels []prompbmarshal.Label, name string) string {
-	label := GetLabelByName(labels, name)
-	if label == nil {
-		return ""
-	}
-	return label.Value
 }
 
 // CleanLabels sets label.Name and label.Value to an empty string for all the labels.
@@ -563,6 +534,14 @@ func labelsToString(labels []prompbmarshal.Label) string {
 	return string(b)
 }
 
+// SortLabels sorts labels in alphabetical order.
+func SortLabels(labels []prompbmarshal.Label) {
+	x := &promutils.Labels{
+		Labels: labels,
+	}
+	x.Sort()
+}
+
 func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.Label) []byte {
 	s := replacement
 	for len(s) > 0 {
@@ -579,7 +558,7 @@ func fillLabelReferences(dst []byte, replacement string, labels []prompbmarshal.
 		}
 		labelName := s[:n]
 		s = s[n+2:]
-		labelValue := GetLabelValueByName(labels, labelName)
+		labelValue := getLabelValue(labels, labelName)
 		dst = append(dst, labelValue...)
 	}
 	return dst

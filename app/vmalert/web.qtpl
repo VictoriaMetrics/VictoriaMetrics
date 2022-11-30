@@ -248,7 +248,7 @@
                  {% for _, n := range ns %}
                      <tr>
                          <td>
-                              {% for _, l := range n.Labels %}
+                              {% for _, l := range n.Labels.GetLabels() %}
                                       <span class="ms-1 badge bg-primary">{%s l.Name %}={%s l.Value %}</span>
                               {% endfor %}
                           </td>

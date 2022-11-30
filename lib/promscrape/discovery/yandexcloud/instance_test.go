@@ -1,11 +1,10 @@
 package yandexcloud
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_addInstanceLabels(t *testing.T) {
@@ -15,7 +14,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "empty_response",
@@ -48,8 +47,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                         "server-1.ru-central1.internal",
 					"__meta_yandexcloud_instance_name":                    "server-1",
 					"__meta_yandexcloud_instance_fqdn":                    "server-1.ru-central1.internal",
@@ -94,8 +93,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                         "server-1.ru-central1.internal",
 					"__meta_yandexcloud_instance_fqdn":                    "server-1.ru-central1.internal",
 					"__meta_yandexcloud_instance_name":                    "server-1",
@@ -147,8 +146,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                         "server-1.ru-central1.internal",
 					"__meta_yandexcloud_instance_name":                    "server-1",
 					"__meta_yandexcloud_instance_fqdn":                    "server-1.ru-central1.internal",
@@ -170,13 +169,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addInstanceLabels(tt.args.instances)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addInstanceLabels() = \n got: %v,\nwant: %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

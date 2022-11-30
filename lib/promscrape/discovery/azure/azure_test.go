@@ -1,24 +1,17 @@
 package azure
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestAppendMachineLabels(t *testing.T) {
-	f := func(name string, vms []virtualMachine, expectedLabels [][]prompbmarshal.Label) {
+	f := func(name string, vms []virtualMachine, expectedLabels []*promutils.Labels) {
 		t.Run(name, func(t *testing.T) {
 			labelss := appendMachineLabels(vms, 80, &SDConfig{SubscriptionID: "some-id"})
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range labelss {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, expectedLabels) {
-				t.Fatalf("unexpected labels:\ngot\n%v\nwant\n%v", sortedLabelss, expectedLabels)
-			}
+			discoveryutils.TestEqualLabelss(t, labelss, expectedLabels)
 		})
 	}
 	f("single vm", []virtualMachine{
@@ -33,8 +26,8 @@ func TestAppendMachineLabels(t *testing.T) {
 				{privateIP: "10.10.10.1"},
 			},
 		},
-	}, [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	}, []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"__address__":                        "10.10.10.1:80",
 			"__meta_azure_machine_id":            "id-2",
 			"__meta_azure_subscription_id":       "some-id",
