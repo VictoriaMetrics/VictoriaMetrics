@@ -168,9 +168,12 @@ func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookb
 		if rr.For < 1 {
 			continue
 		}
-		// ignore g.ExtraFilterLabels on purpose, so it
-		// won't affect the restore procedure.
-		q := qb.BuildWithParams(datasource.QuerierParams{})
+		// ignore QueryParams on purpose, because they could contain
+		// query filters. This may affect the restore procedure.
+		q := qb.BuildWithParams(datasource.QuerierParams{
+			DataSourceType: g.Type.String(),
+			Headers:        g.Headers,
+		})
 		if err := rr.Restore(ctx, q, lookback, labels); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
