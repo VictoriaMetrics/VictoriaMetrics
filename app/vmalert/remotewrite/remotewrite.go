@@ -22,6 +22,7 @@ import (
 
 var (
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
+	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
 )
 
 // Client is an asynchronous HTTP client for writing
