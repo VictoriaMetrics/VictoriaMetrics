@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestSanitizeName(t *testing.T) {
@@ -77,8 +78,8 @@ func TestApplyRelabelConfigs(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", config, err)
 		}
-		labels := MustParseMetricWithLabels(metric)
-		resultLabels := pcs.Apply(labels, 0)
+		labels := promutils.NewLabelsFromString(metric)
+		resultLabels := pcs.Apply(labels.GetLabels(), 0)
 		if isFinalize {
 			resultLabels = FinalizeLabels(resultLabels[:0], resultLabels)
 		}
@@ -725,8 +726,8 @@ func TestApplyRelabelConfigs(t *testing.T) {
 func TestFinalizeLabels(t *testing.T) {
 	f := func(metric, resultExpected string) {
 		t.Helper()
-		labels := MustParseMetricWithLabels(metric)
-		resultLabels := FinalizeLabels(nil, labels)
+		labels := promutils.NewLabelsFromString(metric)
+		resultLabels := FinalizeLabels(nil, labels.GetLabels())
 		result := labelsToString(resultLabels)
 		if result != resultExpected {
 			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
@@ -738,27 +739,11 @@ func TestFinalizeLabels(t *testing.T) {
 	f(`{foo="bar",abc="def",__address__="foo.com"}`, `{abc="def",foo="bar"}`)
 }
 
-func TestRemoveMetaLabels(t *testing.T) {
-	f := func(metric, resultExpected string) {
-		t.Helper()
-		labels := MustParseMetricWithLabels(metric)
-		resultLabels := RemoveMetaLabels(nil, labels)
-		result := labelsToString(resultLabels)
-		if result != resultExpected {
-			t.Fatalf("unexpected result of RemoveMetaLabels;\ngot\n%s\nwant\n%s", result, resultExpected)
-		}
-	}
-	f(`{}`, `{}`)
-	f(`{foo="bar"}`, `{foo="bar"}`)
-	f(`{__meta_foo="bar"}`, `{}`)
-	f(`{__meta_foo="bdffr",foo="bar",__meta_xxx="basd"}`, `{foo="bar"}`)
-}
-
 func TestFillLabelReferences(t *testing.T) {
 	f := func(replacement, metric, resultExpected string) {
 		t.Helper()
-		labels := MustParseMetricWithLabels(metric)
-		result := fillLabelReferences(nil, replacement, labels)
+		labels := promutils.NewLabelsFromString(metric)
+		result := fillLabelReferences(nil, replacement, labels.GetLabels())
 		if string(result) != resultExpected {
 			t.Fatalf("unexpected result; got\n%q\nwant\n%q", result, resultExpected)
 		}

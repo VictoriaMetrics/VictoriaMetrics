@@ -27,6 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -351,7 +352,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 
 	additionsCount := 0
 	deletionsCount := 0
-	swsMap := make(map[string][]prompbmarshal.Label, len(sws))
+	swsMap := make(map[string]*promutils.Labels, len(sws))
 	var swsToStart []*ScrapeWork
 	for _, sw := range sws {
 		key := sw.key()
@@ -362,7 +363,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 					"make sure service discovery and relabeling is set up properly; "+
 					"see also https://docs.victoriametrics.com/vmagent.html#troubleshooting; "+
 					"original labels for target1: %s; original labels for target2: %s",
-					sw.ScrapeURL, sw.LabelsString(), promLabelsString(originalLabels), promLabelsString(sw.OriginalLabels))
+					sw.ScrapeURL, sw.LabelsString(), originalLabels.String(), sw.OriginalLabels.String())
 			}
 			droppedTargetsMap.Register(sw.OriginalLabels)
 			continue

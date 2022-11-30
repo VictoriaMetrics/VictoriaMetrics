@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // See https://docs.docker.com/engine/api/v1.40/#tag/Node
@@ -37,7 +38,7 @@ type node struct {
 	}
 }
 
-func getNodesLabels(cfg *apiConfig) ([]map[string]string, error) {
+func getNodesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	nodes, err := getNodes(cfg)
 	if err != nil {
 		return nil, err
@@ -61,26 +62,25 @@ func parseNodes(data []byte) ([]node, error) {
 	return nodes, nil
 }
 
-func addNodeLabels(nodes []node, port int) []map[string]string {
-	var ms []map[string]string
+func addNodeLabels(nodes []node, port int) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for _, node := range nodes {
-		m := map[string]string{
-			"__address__":                                   discoveryutils.JoinHostPort(node.Status.Addr, port),
-			"__meta_dockerswarm_node_address":               node.Status.Addr,
-			"__meta_dockerswarm_node_availability":          node.Spec.Availability,
-			"__meta_dockerswarm_node_engine_version":        node.Description.Engine.EngineVersion,
-			"__meta_dockerswarm_node_hostname":              node.Description.Hostname,
-			"__meta_dockerswarm_node_id":                    node.ID,
-			"__meta_dockerswarm_node_manager_address":       node.ManagerStatus.Addr,
-			"__meta_dockerswarm_node_manager_leader":        fmt.Sprintf("%t", node.ManagerStatus.Leader),
-			"__meta_dockerswarm_node_manager_reachability":  node.ManagerStatus.Reachability,
-			"__meta_dockerswarm_node_platform_architecture": node.Description.Platform.Architecture,
-			"__meta_dockerswarm_node_platform_os":           node.Description.Platform.OS,
-			"__meta_dockerswarm_node_role":                  node.Spec.Role,
-			"__meta_dockerswarm_node_status":                node.Status.State,
-		}
+		m := promutils.NewLabels(16)
+		m.Add("__address__", discoveryutils.JoinHostPort(node.Status.Addr, port))
+		m.Add("__meta_dockerswarm_node_address", node.Status.Addr)
+		m.Add("__meta_dockerswarm_node_availability", node.Spec.Availability)
+		m.Add("__meta_dockerswarm_node_engine_version", node.Description.Engine.EngineVersion)
+		m.Add("__meta_dockerswarm_node_hostname", node.Description.Hostname)
+		m.Add("__meta_dockerswarm_node_id", node.ID)
+		m.Add("__meta_dockerswarm_node_manager_address", node.ManagerStatus.Addr)
+		m.Add("__meta_dockerswarm_node_manager_leader", fmt.Sprintf("%t", node.ManagerStatus.Leader))
+		m.Add("__meta_dockerswarm_node_manager_reachability", node.ManagerStatus.Reachability)
+		m.Add("__meta_dockerswarm_node_platform_architecture", node.Description.Platform.Architecture)
+		m.Add("__meta_dockerswarm_node_platform_os", node.Description.Platform.OS)
+		m.Add("__meta_dockerswarm_node_role", node.Spec.Role)
+		m.Add("__meta_dockerswarm_node_status", node.Status.State)
 		for k, v := range node.Spec.Labels {
-			m[discoveryutils.SanitizeLabelName("__meta_dockerswarm_node_label_"+k)] = v
+			m.Add(discoveryutils.SanitizeLabelName("__meta_dockerswarm_node_label_"+k), v)
 		}
 		ms = append(ms, m)
 	}

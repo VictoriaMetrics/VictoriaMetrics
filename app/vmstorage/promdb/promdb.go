@@ -11,9 +11,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/go-kit/kit/log"
 	"github.com/oklog/ulid"
-	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/model/labels"
 	promstorage "github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
+	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
 
 var prometheusDataPath = flag.String("prometheusDataPath", "", "Optional path to readonly historical Prometheus data")
@@ -68,7 +69,7 @@ func Init(retentionMsecs int64) {
 		}
 		return m
 	}
-	pdb, err := tsdb.Open(*prometheusDataPath, l, nil, opts)
+	pdb, err := tsdb.Open(*prometheusDataPath, l, nil, opts, nil)
 	if err != nil {
 		logger.Panicf("FATAL: cannot open Prometheus data at -prometheusDataPath=%q: %s", *prometheusDataPath, err)
 	}
@@ -179,7 +180,15 @@ func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f Serie
 		values = values[:0]
 		timestamps = timestamps[:0]
 		it := s.Iterator()
-		for it.Next() {
+		for {
+			typ := it.Next()
+			if typ == chunkenc.ValNone {
+				break
+			}
+			if typ != chunkenc.ValFloat {
+				// Skip unsupported values
+				continue
+			}
 			ts, v := it.At()
 			values = append(values, v)
 			timestamps = append(timestamps, ts)

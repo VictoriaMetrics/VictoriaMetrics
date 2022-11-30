@@ -560,13 +560,17 @@ func DurationValue(s string, step int64) (int64, error) {
 	if len(s) == 0 {
 		return 0, fmt.Errorf("duration cannot be empty")
 	}
-	// Try parsing floating-point duration
-	d, err := strconv.ParseFloat(s, 64)
-	if err == nil {
-		// Convert the duration to milliseconds.
-		return int64(d * 1000), nil
+	lastChar := s[len(s)-1]
+	if lastChar >= '0' && lastChar <= '9' || lastChar == '.' {
+		// Try parsing floating-point duration
+		d, err := strconv.ParseFloat(s, 64)
+		if err == nil {
+			// Convert the duration to milliseconds.
+			return int64(d * 1000), nil
+		}
 	}
 	isMinus := false
+	d := float64(0)
 	for len(s) > 0 {
 		n := scanSingleDuration(s, true)
 		if n <= 0 {

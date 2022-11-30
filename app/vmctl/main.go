@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -40,7 +41,7 @@ func main() {
 		Commands: []*cli.Command{
 			{
 				Name:  "opentsdb",
-				Usage: "Migrate timeseries from OpenTSDB",
+				Usage: "Migrate time series from OpenTSDB",
 				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
@@ -75,7 +76,7 @@ func main() {
 			},
 			{
 				Name:  "influx",
-				Usage: "Migrate timeseries from InfluxDB",
+				Usage: "Migrate time series from InfluxDB",
 				Flags: mergeFlags(globalFlags, influxFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
@@ -115,8 +116,47 @@ func main() {
 				},
 			},
 			{
+				Name:  "remote-read",
+				Usage: "Migrate time series via Prometheus remote-read protocol",
+				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
+				Action: func(c *cli.Context) error {
+					rr, err := remoteread.NewClient(remoteread.Config{
+						Addr:       c.String(remoteReadSrcAddr),
+						Username:   c.String(remoteReadUser),
+						Password:   c.String(remoteReadPassword),
+						Timeout:    c.Duration(remoteReadHTTPTimeout),
+						UseStream:  c.Bool(remoteReadUseStream),
+						Headers:    c.String(remoteReadHeaders),
+						LabelName:  c.String(remoteReadFilterLabel),
+						LabelValue: c.String(remoteReadFilterLabelValue),
+					})
+					if err != nil {
+						return fmt.Errorf("error create remote read client: %s", err)
+					}
+
+					vmCfg := initConfigVM(c)
+
+					importer, err := vm.NewImporter(vmCfg)
+					if err != nil {
+						return fmt.Errorf("failed to create VM importer: %s", err)
+					}
+
+					rmp := remoteReadProcessor{
+						src: rr,
+						dst: importer,
+						filter: remoteReadFilter{
+							timeStart: c.Timestamp(remoteReadFilterTimeStart),
+							timeEnd:   c.Timestamp(remoteReadFilterTimeEnd),
+							chunk:     c.String(remoteReadStepInterval),
+						},
+						cc: c.Int(remoteReadConcurrency),
+					}
+					return rmp.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
+				},
+			},
+			{
 				Name:  "prometheus",
-				Usage: "Migrate timeseries from Prometheus",
+				Usage: "Migrate time series from Prometheus",
 				Flags: mergeFlags(globalFlags, promFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")

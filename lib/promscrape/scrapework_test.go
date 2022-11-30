@@ -9,16 +9,42 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
+
+func TestIsAutoMetric(t *testing.T) {
+	f := func(metric string, resultExpected bool) {
+		t.Helper()
+		result := isAutoMetric(metric)
+		if result != resultExpected {
+			t.Fatalf("unexpected result for isAutoMetric(%q); got %v; want %v", metric, result, resultExpected)
+		}
+	}
+	f("up", true)
+	f("scrape_duration_seconds", true)
+	f("scrape_samples_scraped", true)
+	f("scrape_samples_post_metric_relabeling", true)
+	f("scrape_series_added", true)
+	f("scrape_timeout_seconds", true)
+	f("scrape_samples_limit", true)
+	f("scrape_series_limit_samples_dropped", true)
+	f("scrape_series_limit", true)
+	f("scrape_series_current", true)
+
+	f("foobar", false)
+	f("exported_up", false)
+	f("upx", false)
+}
 
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(sourceLabels, extraLabels string, honorLabels bool, resultExpected string) {
 		t.Helper()
-		src := promrelabel.MustParseMetricWithLabels(sourceLabels)
-		extra := promrelabel.MustParseMetricWithLabels(extraLabels)
-		labels := appendExtraLabels(src, extra, 0, honorLabels)
-		result := promLabelsString(labels)
+		src := promutils.NewLabelsFromString(sourceLabels)
+		extra := promutils.NewLabelsFromString(extraLabels)
+		var labels promutils.Labels
+		labels.Labels = appendExtraLabels(src.GetLabels(), extra.GetLabels(), 0, honorLabels)
+		result := labels.String()
 		if result != resultExpected {
 			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
 		}
@@ -43,33 +69,6 @@ func TestAppendExtraLabels(t *testing.T) {
 	f(`{foo="a",exported_foo="b"}`, `{exported_foo="c",bar="x"}`, false, `{foo="a",exported_exported_foo="b",exported_foo="c",bar="x"}`)
 	f(`{foo="a",exported_foo="b"}`, `{exported_foo="c",foo="d"}`, true, `{foo="a",exported_foo="b"}`)
 	f(`{foo="a",exported_foo="b"}`, `{exported_foo="c",foo="d"}`, false, `{exported_foo="a",exported_exported_foo="b",exported_foo="c",foo="d"}`)
-}
-
-func TestPromLabelsString(t *testing.T) {
-	f := func(labels []prompbmarshal.Label, resultExpected string) {
-		t.Helper()
-		result := promLabelsString(labels)
-		if result != resultExpected {
-			t.Fatalf("unexpected result; got\n%s\nwant\n%s", result, resultExpected)
-		}
-	}
-	f([]prompbmarshal.Label{}, "{}")
-	f([]prompbmarshal.Label{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-	}, `{foo="bar"}`)
-	f([]prompbmarshal.Label{
-		{
-			Name:  "foo",
-			Value: "bar",
-		},
-		{
-			Name:  "a",
-			Value: `"b"`,
-		},
-	}, `{foo="bar",a="\"b\""}`)
 }
 
 func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
@@ -202,12 +201,9 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout:   time.Second * 42,
 		HonorTimestamps: true,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "foo",
-				Value: "x",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"foo": "x",
+		}),
 	}, `
 		foo{bar="baz",foo="x"} 34.45 3
 		abc{foo="x"} -2 123
@@ -224,12 +220,9 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "job",
-				Value: "override",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"job": "override",
+		}),
 	}, `
 		foo{exported_job="orig",job="override",bar="baz"} 34.45 123
 		bar{exported_job="aa",job="override",x="1",a="b",y="2"} -3e4 123
@@ -247,16 +240,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "instance",
-				Value: "foobar",
-			},
-			{
-				Name:  "job",
-				Value: "xxx",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"instance": "foobar",
+			"job":      "xxx",
+		}),
 	}, `
 		no_instance{job="some_job",label="val1"} 5555 123
 		test_with_instance{instance="some_instance",job="some_job",label="val2"} 1555 123
@@ -273,16 +260,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   false,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "instance",
-				Value: "foobar",
-			},
-			{
-				Name:  "job",
-				Value: "xxx",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"instance": "foobar",
+			"job":      "xxx",
+		}),
 	}, `
 		no_instance{exported_job="some_job",instance="foobar",job="xxx",label="val1"} 5555 123
 		test_with_instance{exported_instance="some_instance",exported_job="some_job",instance="foobar",job="xxx",label="val2"} 1555 123
@@ -299,12 +280,9 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "job",
-				Value: "override",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"job": "override",
+		}),
 	}, `
 		foo{job="orig",bar="baz"} 34.45 123
 		bar{job="aa",a="b"} -3e4 123
@@ -321,16 +299,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "job",
-				Value: "xx",
-			},
-			{
-				Name:  "__address__",
-				Value: "foo.com",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"job":         "xx",
+			"__address__": "foo.com",
+		}),
 		MetricRelabelConfigs: mustParseRelabelConfigs(`
 - action: replace
   source_labels: ["__address__", "job"]
@@ -357,16 +329,10 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		HonorLabels:   true,
-		Labels: []prompbmarshal.Label{
-			{
-				Name:  "job",
-				Value: "xx",
-			},
-			{
-				Name:  "instance",
-				Value: "foo.com",
-			},
-		},
+		Labels: promutils.NewLabelsFromMap(map[string]string{
+			"job":      "xx",
+			"instance": "foo.com",
+		}),
 		MetricRelabelConfigs: mustParseRelabelConfigs(`
 - action: drop
   separator: ""
@@ -384,6 +350,25 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_samples_post_metric_relabeling{job="xx",instance="foo.com"} 1 123
 		scrape_series_added{job="xx",instance="foo.com"} 4 123
 		scrape_timeout_seconds{job="xx",instance="foo.com"} 42 123
+	`)
+	// Scrape metrics with names clashing with auto metrics
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
+	f(`
+		up{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+		scrape_series_added 3.435
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+	}, `
+		exported_up{bar="baz"} 34.44 123
+		exported_scrape_series_added 3.435 123
+		bar{a="b",c="d"} -3e4 123
+		up 1 123
+		scrape_samples_scraped 3 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 3 123
+		scrape_series_added 3 123
+		scrape_timeout_seconds 42 123
 	`)
 	// Scrape success with the given SampleLimit.
 	f(`
@@ -484,322 +469,218 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 	// HonorLabels=false, empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels:         []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    false,
+			HonorLabels: false,
 		},
 		`metric 0 123`)
 	f(`metric{a="f"} 0 123`,
 		&ScrapeWork{
-			Labels:         []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    false,
+			HonorLabels: false,
 		},
 		`metric{a="f"} 0 123`)
 	// HonorLabels=true, empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels:         []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    true,
+			HonorLabels: true,
 		},
 		`metric 0 123`)
 	f(`metric{a="f"} 0 123`,
 		&ScrapeWork{
-			Labels:         []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    true,
+			HonorLabels: true,
 		},
 		`metric{a="f"} 0 123`)
 	// HonorLabels=false, non-empty Labels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    false,
-		},
-		`metric{a="f"} 0 123`)
-	f(`metric{foo="bar"} 0 123`,
-		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    false,
-		},
-		`metric{a="f",foo="bar"} 0 123`)
-	// HonorLabels=true, non-empty Labels
-	f(`metric 0 123`,
-		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    true,
-		},
-		`metric{a="f"} 0 123`)
-	f(`metric{foo="bar"} 0 123`,
-		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    true,
-		},
-		`metric{a="f",foo="bar"} 0 123`)
-	// HonorLabels=false, non-empty ExternalLabels
-	f(`metric 0 123`,
-		&ScrapeWork{
-			Labels: []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
+			HonorLabels: false,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=true, non-empty Labels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
+			HonorLabels: true,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
+			HonorLabels: true,
+		},
+		`metric{a="f",foo="bar"} 0 123`)
+	// HonorLabels=false, non-empty ExternalLabels
+	f(`metric 0 123`,
+		&ScrapeWork{
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
+			HonorLabels: false,
+		},
+		`metric{a="f"} 0 123`)
+	f(`metric{foo="bar"} 0 123`,
+		&ScrapeWork{
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f",foo="bar"} 0 123`)
 	// HonorLabels=true, non-empty ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="f"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="f",foo="bar"} 0 123`)
 	// HonorLabels=false, non-empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "x",
-					Value: "y",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"x": "y",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f",x="y"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "x",
-					Value: "y",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"x": "y",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f",foo="bar",x="y"} 0 123`)
 	// HonorLabels=true, non-empty Labels and ExternalLabels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "x",
-					Value: "y",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"x": "y",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="f",x="y"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "x",
-					Value: "y",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"x": "y",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="f",foo="bar",x="y"} 0 123`)
 	// HonorLabels=false, clashing Labels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    false,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
+			HonorLabels: false,
 		},
 		`metric{a="f",exported_a="b"} 0 123`)
 	// HonorLabels=true, clashing Labels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{},
-			HonorLabels:    true,
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
+			HonorLabels: true,
 		},
 		`metric{a="b"} 0 123`)
 	// HonorLabels=false, clashing ExternalLabels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f",exported_a="b"} 0 123`)
 	// HonorLabels=true, clashing ExternalLabels and metric label
 	f(`metric{a="b"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="b"} 0 123`)
 	// HonorLabels=false, clashing Labels and ExternalLAbels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "e",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "e",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f",exported_a="e"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "e",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "e",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: false,
 		},
 		`metric{a="f",foo="bar",exported_a="e"} 0 123`)
 	// HonorLabels=true, clashing Labels and ExternalLAbels
 	f(`metric 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "e",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "e",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="e"} 0 123`)
 	f(`metric{foo="bar"} 0 123`,
 		&ScrapeWork{
-			Labels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "e",
-				},
-			},
-			ExternalLabels: []prompbmarshal.Label{
-				{
-					Name:  "a",
-					Value: "f",
-				},
-			},
+			Labels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "e",
+			}),
+			ExternalLabels: promutils.NewLabelsFromMap(map[string]string{
+				"a": "f",
+			}),
 			HonorLabels: true,
 		},
 		`metric{a="e",foo="bar"} 0 123`)

@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_addInstanceLabels(t *testing.T) {
@@ -16,7 +16,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "empty_response",
@@ -55,8 +55,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                      "192.168.0.1:9100",
 					"__meta_openstack_address_pool":    "test",
 					"__meta_openstack_instance_flavor": "5",
@@ -112,8 +112,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                      "10.10.0.1:9100",
 					"__meta_openstack_address_pool":    "internal",
 					"__meta_openstack_instance_flavor": "5",
@@ -124,7 +124,7 @@ func Test_addInstanceLabels(t *testing.T) {
 					"__meta_openstack_project_id":      "some-tenant-id",
 					"__meta_openstack_user_id":         "some-user-id",
 				}),
-				discoveryutils.GetSortedLabels(map[string]string{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                      "192.168.0.1:9100",
 					"__meta_openstack_address_pool":    "test",
 					"__meta_openstack_instance_flavor": "5",
@@ -142,13 +142,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addInstanceLabels(tt.args.servers, tt.args.port)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Errorf("addInstanceLabels() = \n got: %v,\nwant: %v", sortedLabelss, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

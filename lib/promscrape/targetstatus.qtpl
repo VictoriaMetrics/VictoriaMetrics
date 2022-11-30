@@ -2,8 +2,7 @@
 	"net/url"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 ) %}
 
 {% stripspace %}
@@ -22,8 +21,8 @@
 		{%s= "\t" %}
 		state={% if ts.up %}up{% else %}down{% endif %},{% space %}
 		endpoint={%s= ts.sw.Config.ScrapeURL %},{% space %}
-		labels={%s= promLabelsString(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %},{% space %}
-		{% if filter.showOriginalLabels %}originalLabels={%s= promLabelsString(ts.sw.Config.OriginalLabels) %},{% space %}{% endif %}
+		labels={%s= ts.sw.Config.Labels.String() %},{% space %}
+		{% if filter.showOriginalLabels %}originalLabels={%s= ts.sw.Config.OriginalLabels.String() %},{% space %}{% endif %}
 		scrapes_total={%d ts.scrapesTotal %},{% space %}
 		scrapes_failed={%d ts.scrapesFailed %},{% space %}
 		last_scrape={%d int(ts.getDurationFromLastScrape().Milliseconds()) %}ms ago,{% space %}
@@ -258,10 +257,10 @@
                             <td class="labels">
                                 <div title="click to show original labels"
                                   onclick="document.getElementById('original-labels-{%s targetID %}').style.display='block'">
-                                    {%= formatLabel(promrelabel.FinalizeLabels(nil, ts.sw.Config.Labels)) %}
+                                    {%= formatLabels(ts.sw.Config.Labels) %}
                                 </div>
                                 <div style="display:none" id="original-labels-{%s targetID %}">
-                                    {%= formatLabel(ts.sw.Config.OriginalLabels) %}
+                                    {%= formatLabels(ts.sw.Config.OriginalLabels) %}
                                 </div>
                             </td>
                             <td>{%d ts.scrapesTotal %}</td>
@@ -314,7 +313,7 @@
                 <tr
                     {% if !t.up %}
                         {% space %}role="alert"{% space %}
-                        {% if len(t.labels) > 0 %}
+                        {% if t.labels.Len() > 0 %}
                             class="alert alert-danger"
                         {% else %}
                             class="alert alert-warning"
@@ -324,17 +323,17 @@
                     <td>
                         {% if t.up %}
                             <span class="badge bg-success">UP</span>
-                        {% elseif len(t.labels) > 0 %}
+                        {% elseif t.labels.Len() > 0 %}
                             <span class="badge bg-danger">DOWN</span>
                         {% else %}
                             <span class="badge bg-warning">DROPPED</span>
                         {% endif %}
                     </td>
                     <td class="labels">
-                        {%= formatLabel(t.discoveredLabels) %}
+                        {%= formatLabels(t.discoveredLabels) %}
                     </td>
                     <td class="labels">
-                        {%= formatLabel(promrelabel.FinalizeLabels(nil, t.labels)) %}
+                        {%= formatLabels(t.labels) %}
                     </td>
                 </tr>
             {% endfor %}
@@ -376,11 +375,12 @@
 	{%s qa.Encode() %}
 {% endfunc %}
 
-{% func formatLabel(labels []prompbmarshal.Label) %}
+{% func formatLabels(labels *promutils.Labels) %}
+{% code labelsList := labels.GetLabels() %}
 {
-  {% for i, label := range labels %}
+  {% for i, label := range labelsList %}
       {%s label.Name %}={%q label.Value %}
-      {% if i+1 < len(labels) %},{% space %}{% endif %}
+      {% if i+1 < len(labelsList) %},{% space %}{% endif %}
   {% endfor %}
 }
 {% endfunc %}
