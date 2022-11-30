@@ -26,8 +26,7 @@ func TestParsePodListFailure(t *testing.T) {
 	f(`{"items":[{"metadata":{"labels":[1]}}]}`)
 }
 
-func TestParsePodListSuccess(t *testing.T) {
-	data := `
+const testPodsList = `
 {
   "kind": "PodList",
   "apiVersion": "v1",
@@ -229,7 +228,9 @@ func TestParsePodListSuccess(t *testing.T) {
   ]
 }
 `
-	r := bytes.NewBufferString(data)
+
+func TestParsePodListSuccess(t *testing.T) {
+	r := bytes.NewBufferString(testPodsList)
 	objectsByKey, meta, err := parsePodList(r)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
