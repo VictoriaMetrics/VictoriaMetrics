@@ -216,7 +216,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			return true
 		}
 		//although use maxMetrics big to query but it's not a problem
-		//flag{name="search.logSlowQueryDuration"} time series is equal vmstorage instance
+		//flag{name="search.logSlowQueryDuration"} time series is equal vmselect instance
 		metricNames, err := strg.SearchMetricNames(nil, []*storage.TagFilters{tfs}, tr, 30000, fasttime.UnixTimestamp()+uint64(5))
 		if err != nil {
 			err = fmt.Errorf("error in SearchMetricNames: %w", err)
