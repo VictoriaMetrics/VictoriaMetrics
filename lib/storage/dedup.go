@@ -34,20 +34,37 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 	tsNext -= tsNext % dedupInterval
 	dstTimestamps := srcTimestamps[:0]
 	dstValues := srcValues[:0]
+
+	var tsPrev int64
+	var value, valuePrev float64
 	for i, ts := range srcTimestamps[1:] {
+		value = srcValues[i]
+		tsCur := srcTimestamps[i]
+		if tsCur == tsPrev && value < valuePrev {
+			// prefer biggest value on timestamp conflict
+			value = valuePrev
+		}
+		valuePrev = value
+		tsPrev = tsCur
 		if ts <= tsNext {
 			continue
 		}
-		dstTimestamps = append(dstTimestamps, srcTimestamps[i])
-		dstValues = append(dstValues, srcValues[i])
+		dstTimestamps = append(dstTimestamps, tsCur)
+		dstValues = append(dstValues, value)
 		tsNext += dedupInterval
 		if tsNext < ts {
 			tsNext = ts + dedupInterval - 1
 			tsNext -= tsNext % dedupInterval
 		}
 	}
-	dstTimestamps = append(dstTimestamps, srcTimestamps[len(srcTimestamps)-1])
-	dstValues = append(dstValues, srcValues[len(srcValues)-1])
+
+	ts := srcTimestamps[len(srcTimestamps)-1]
+	v := srcValues[len(srcValues)-1]
+	dstTimestamps = append(dstTimestamps, ts)
+	if ts == tsPrev && v < value {
+		v = value
+	}
+	dstValues = append(dstValues, v)
 	return dstTimestamps, dstValues
 }
 
@@ -60,20 +77,36 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64, dedupInterv
 	tsNext -= tsNext % dedupInterval
 	dstTimestamps := srcTimestamps[:0]
 	dstValues := srcValues[:0]
+
+	var tsPrev int64
+	var value, valuePrev int64
 	for i, ts := range srcTimestamps[1:] {
+		value = srcValues[i]
+		tsCur := srcTimestamps[i]
+		if tsCur == tsPrev && value < valuePrev {
+			// prefer biggest value on timestamp conflict
+			value = valuePrev
+		}
+		valuePrev = value
+		tsPrev = tsCur
 		if ts <= tsNext {
 			continue
 		}
-		dstTimestamps = append(dstTimestamps, srcTimestamps[i])
-		dstValues = append(dstValues, srcValues[i])
+		dstTimestamps = append(dstTimestamps, tsCur)
+		dstValues = append(dstValues, value)
 		tsNext += dedupInterval
 		if tsNext < ts {
 			tsNext = ts + dedupInterval - 1
 			tsNext -= tsNext % dedupInterval
 		}
 	}
-	dstTimestamps = append(dstTimestamps, srcTimestamps[len(srcTimestamps)-1])
-	dstValues = append(dstValues, srcValues[len(srcValues)-1])
+	ts := srcTimestamps[len(srcTimestamps)-1]
+	v := srcValues[len(srcValues)-1]
+	dstTimestamps = append(dstTimestamps, ts)
+	if ts == tsPrev && v < value {
+		v = value
+	}
+	dstValues = append(dstValues, v)
 	return dstTimestamps, dstValues
 }
 
