@@ -7,17 +7,18 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/awsapi"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 // getInstancesLabels returns labels for ec2 instances obtained from the given cfg
-func getInstancesLabels(cfg *apiConfig) ([]map[string]string, error) {
+func getInstancesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 	rs, err := getReservations(cfg)
 	if err != nil {
 		return nil, err
 	}
 	azMap := getAZMap(cfg)
 	region := cfg.awsConfig.GetRegion()
-	var ms []map[string]string
+	var ms []*promutils.Labels
 	for _, r := range rs {
 		for _, inst := range r.InstanceSet.Items {
 			ms = inst.appendTargetLabels(ms, r.OwnerID, region, cfg.port, azMap)
@@ -135,32 +136,31 @@ func parseInstancesResponse(data []byte) (*InstancesResponse, error) {
 	return &v, nil
 }
 
-func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID, region string, port int, azMap map[string]string) []map[string]string {
+func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, ownerID, region string, port int, azMap map[string]string) []*promutils.Labels {
 	if len(inst.PrivateIPAddress) == 0 {
 		// Cannot scrape instance without private IP address
 		return ms
 	}
 	addr := discoveryutils.JoinHostPort(inst.PrivateIPAddress, port)
-	m := map[string]string{
-		"__address__":                     addr,
-		"__meta_ec2_architecture":         inst.Architecture,
-		"__meta_ec2_ami":                  inst.ImageID,
-		"__meta_ec2_availability_zone":    inst.Placement.AvailabilityZone,
-		"__meta_ec2_availability_zone_id": azMap[inst.Placement.AvailabilityZone],
-		"__meta_ec2_instance_id":          inst.ID,
-		"__meta_ec2_instance_lifecycle":   inst.Lifecycle,
-		"__meta_ec2_instance_state":       inst.State.Name,
-		"__meta_ec2_instance_type":        inst.Type,
-		"__meta_ec2_owner_id":             ownerID,
-		"__meta_ec2_platform":             inst.Platform,
-		"__meta_ec2_primary_subnet_id":    inst.SubnetID,
-		"__meta_ec2_private_dns_name":     inst.PrivateDNSName,
-		"__meta_ec2_private_ip":           inst.PrivateIPAddress,
-		"__meta_ec2_public_dns_name":      inst.PublicDNSName,
-		"__meta_ec2_public_ip":            inst.PublicIPAddress,
-		"__meta_ec2_region":               region,
-		"__meta_ec2_vpc_id":               inst.VPCID,
-	}
+	m := promutils.NewLabels(24)
+	m.Add("__address__", addr)
+	m.Add("__meta_ec2_architecture", inst.Architecture)
+	m.Add("__meta_ec2_ami", inst.ImageID)
+	m.Add("__meta_ec2_availability_zone", inst.Placement.AvailabilityZone)
+	m.Add("__meta_ec2_availability_zone_id", azMap[inst.Placement.AvailabilityZone])
+	m.Add("__meta_ec2_instance_id", inst.ID)
+	m.Add("__meta_ec2_instance_lifecycle", inst.Lifecycle)
+	m.Add("__meta_ec2_instance_state", inst.State.Name)
+	m.Add("__meta_ec2_instance_type", inst.Type)
+	m.Add("__meta_ec2_owner_id", ownerID)
+	m.Add("__meta_ec2_platform", inst.Platform)
+	m.Add("__meta_ec2_primary_subnet_id", inst.SubnetID)
+	m.Add("__meta_ec2_private_dns_name", inst.PrivateDNSName)
+	m.Add("__meta_ec2_private_ip", inst.PrivateIPAddress)
+	m.Add("__meta_ec2_public_dns_name", inst.PublicDNSName)
+	m.Add("__meta_ec2_public_ip", inst.PublicIPAddress)
+	m.Add("__meta_ec2_region", region)
+	m.Add("__meta_ec2_vpc_id", inst.VPCID)
 	if len(inst.VPCID) > 0 {
 		subnets := make([]string, 0, len(inst.NetworkInterfaceSet.Items))
 		seenSubnets := make(map[string]bool, len(inst.NetworkInterfaceSet.Items))
@@ -179,16 +179,16 @@ func (inst *Instance) appendTargetLabels(ms []map[string]string, ownerID, region
 		}
 		// We surround the separated list with the separator as well. This way regular expressions
 		// in relabeling rules don't have to consider tag positions.
-		m["__meta_ec2_subnet_id"] = "," + strings.Join(subnets, ",") + ","
+		m.Add("__meta_ec2_subnet_id", ","+strings.Join(subnets, ",")+",")
 		if len(ipv6Addrs) > 0 {
-			m["__meta_ec2_ipv6_addresses"] = "," + strings.Join(ipv6Addrs, ",") + ","
+			m.Add("__meta_ec2_ipv6_addresses", ","+strings.Join(ipv6Addrs, ",")+",")
 		}
 	}
 	for _, t := range inst.TagSet.Items {
 		if len(t.Key) == 0 || len(t.Value) == 0 {
 			continue
 		}
-		m[discoveryutils.SanitizeLabelName("__meta_ec2_tag_"+t.Key)] = t.Value
+		m.Add(discoveryutils.SanitizeLabelName("__meta_ec2_tag_"+t.Key), t.Value)
 	}
 	ms = append(ms, m)
 	return ms

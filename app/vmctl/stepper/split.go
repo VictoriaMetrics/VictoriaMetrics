@@ -12,6 +12,8 @@ const (
 	StepDay string = "day"
 	// StepHour represents a one hour interval
 	StepHour string = "hour"
+	// StepMinute represents a one minute interval
+	StepMinute string = "minute"
 )
 
 // SplitDateRange splits start-end range in a subset of ranges respecting the given step
@@ -42,8 +44,13 @@ func SplitDateRange(start, end time.Time, step string) ([][]time.Time, error) {
 		nextStep = func(t time.Time) (time.Time, time.Time) {
 			return t, t.Add(time.Hour * 1)
 		}
+	case StepMinute:
+		nextStep = func(t time.Time) (time.Time, time.Time) {
+			return t, t.Add(time.Minute * 1)
+		}
 	default:
-		return nil, fmt.Errorf("failed to parse step value, valid values are: '%s', '%s', '%s'. provided: '%s'", StepMonth, StepDay, StepHour, step)
+		return nil, fmt.Errorf("failed to parse step value, valid values are: '%s', '%s', '%s', '%s'. provided: '%s'",
+			StepMonth, StepDay, StepHour, StepMinute, step)
 	}
 
 	currentStep := start

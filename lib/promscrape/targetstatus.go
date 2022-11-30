@@ -14,8 +14,8 @@ import (
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cespare/xxhash/v2"
 )
 
@@ -181,8 +181,8 @@ func (tsm *targetStatusMap) getActiveTargetStatuses() []targetStatus {
 	tsm.mu.Unlock()
 	// Sort discovered targets by __address__ label, so they stay in consistent order across calls
 	sort.Slice(tss, func(i, j int) bool {
-		addr1 := promrelabel.GetLabelValueByName(tss[i].sw.Config.OriginalLabels, "__address__")
-		addr2 := promrelabel.GetLabelValueByName(tss[j].sw.Config.OriginalLabels, "__address__")
+		addr1 := tss[i].sw.Config.OriginalLabels.Get("__address__")
+		addr2 := tss[j].sw.Config.OriginalLabels.Get("__address__")
 		return addr1 < addr2
 	})
 	return tss
@@ -219,11 +219,12 @@ func (tsm *targetStatusMap) WriteActiveTargetsJSON(w io.Writer) {
 	fmt.Fprintf(w, `]`)
 }
 
-func writeLabelsJSON(w io.Writer, labels []prompbmarshal.Label) {
+func writeLabelsJSON(w io.Writer, labels *promutils.Labels) {
 	fmt.Fprintf(w, `{`)
-	for i, label := range labels {
+	labelsList := labels.GetLabels()
+	for i, label := range labelsList {
 		fmt.Fprintf(w, "%q:%q", label.Name, label.Value)
-		if i+1 < len(labels) {
+		if i+1 < len(labelsList) {
 			fmt.Fprintf(w, `,`)
 		}
 	}
@@ -252,27 +253,27 @@ type droppedTargets struct {
 }
 
 type droppedTarget struct {
-	originalLabels []prompbmarshal.Label
+	originalLabels *promutils.Labels
 	deadline       uint64
 }
 
-func (dt *droppedTargets) getTargetsLabels() [][]prompbmarshal.Label {
+func (dt *droppedTargets) getTargetsLabels() []*promutils.Labels {
 	dt.mu.Lock()
-	dtls := make([][]prompbmarshal.Label, 0, len(dt.m))
+	dtls := make([]*promutils.Labels, 0, len(dt.m))
 	for _, v := range dt.m {
 		dtls = append(dtls, v.originalLabels)
 	}
 	dt.mu.Unlock()
 	// Sort discovered targets by __address__ label, so they stay in consistent order across calls
 	sort.Slice(dtls, func(i, j int) bool {
-		addr1 := promrelabel.GetLabelValueByName(dtls[i], "__address__")
-		addr2 := promrelabel.GetLabelValueByName(dtls[j], "__address__")
+		addr1 := dtls[i].Get("__address__")
+		addr2 := dtls[j].Get("__address__")
 		return addr1 < addr2
 	})
 	return dtls
 }
 
-func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
+func (dt *droppedTargets) Register(originalLabels *promutils.Labels) {
 	// It is better to have hash collisions instead of spending additional CPU on promLabelsString() call.
 	key := labelsHash(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
@@ -297,9 +298,9 @@ func (dt *droppedTargets) Register(originalLabels []prompbmarshal.Label) {
 	dt.mu.Unlock()
 }
 
-func labelsHash(labels []prompbmarshal.Label) uint64 {
+func labelsHash(labels *promutils.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
-	for _, label := range labels {
+	for _, label := range labels.Labels {
 		_, _ = d.WriteString(label.Name)
 		_, _ = d.WriteString(label.Value)
 	}
@@ -431,7 +432,8 @@ func filterTargetsByLabels(jts []*jobTargetsStatuses, searchQuery string) ([]*jo
 	for _, job := range jts {
 		var tss []targetStatus
 		for _, ts := range job.targetsStatus {
-			if ie.Match(ts.sw.Config.Labels) {
+			labels := ts.sw.Config.Labels.GetLabels()
+			if ie.Match(labels) {
 				tss = append(tss, ts)
 			}
 		}
@@ -496,15 +498,15 @@ func getRequestFilter(r *http.Request) *requestFilter {
 
 type targetsStatusResult struct {
 	jobTargetsStatuses   []*jobTargetsStatuses
-	droppedTargetsLabels [][]prompbmarshal.Label
+	droppedTargetsLabels []*promutils.Labels
 	emptyJobs            []string
 	err                  error
 }
 
 type targetLabels struct {
 	up               bool
-	discoveredLabels []prompbmarshal.Label
-	labels           []prompbmarshal.Label
+	discoveredLabels *promutils.Labels
+	labels           *promutils.Labels
 }
 type targetLabelsByJob struct {
 	jobName        string
@@ -534,7 +536,7 @@ func (tsr *targetsStatusResult) getTargetLabelsByJob() []*targetLabelsByJob {
 		}
 	}
 	for _, labels := range tsr.droppedTargetsLabels {
-		jobName := promrelabel.GetLabelValueByName(labels, "job")
+		jobName := labels.Get("job")
 		m := byJob[jobName]
 		if m == nil {
 			m = &targetLabelsByJob{

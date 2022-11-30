@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -30,7 +31,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns Digital Ocean droplet labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	cfg, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -39,7 +40,6 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return addDropletLabels(droplets, cfg.port), nil
 }
 
@@ -115,8 +115,8 @@ func (r *listDropletResponse) nextURLPath() (string, error) {
 	return u.RequestURI(), nil
 }
 
-func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
-	var ms []map[string]string
+func addDropletLabels(droplets []droplet, defaultPort int) []*promutils.Labels {
+	var ms []*promutils.Labels
 	for _, droplet := range droplets {
 		if len(droplet.Networks.V4) == 0 {
 			continue
@@ -127,27 +127,26 @@ func addDropletLabels(droplets []droplet, defaultPort int) []map[string]string {
 		publicIPv6 := droplet.getIPByNet("v6", "public")
 
 		addr := discoveryutils.JoinHostPort(publicIPv4, defaultPort)
-		m := map[string]string{
-			"__address__":                      addr,
-			"__meta_digitalocean_droplet_id":   fmt.Sprintf("%d", droplet.ID),
-			"__meta_digitalocean_droplet_name": droplet.Name,
-			"__meta_digitalocean_image":        droplet.Image.Slug,
-			"__meta_digitalocean_image_name":   droplet.Image.Name,
-			"__meta_digitalocean_private_ipv4": privateIPv4,
-			"__meta_digitalocean_public_ipv4":  publicIPv4,
-			"__meta_digitalocean_public_ipv6":  publicIPv6,
-			"__meta_digitalocean_region":       droplet.Region.Slug,
-			"__meta_digitalocean_size":         droplet.SizeSlug,
-			"__meta_digitalocean_status":       droplet.Status,
-			"__meta_digitalocean_vpc":          droplet.VpcUUID,
-		}
+		m := promutils.NewLabels(16)
+		m.Add("__address__", addr)
+		m.Add("__meta_digitalocean_droplet_id", fmt.Sprintf("%d", droplet.ID))
+		m.Add("__meta_digitalocean_droplet_name", droplet.Name)
+		m.Add("__meta_digitalocean_image", droplet.Image.Slug)
+		m.Add("__meta_digitalocean_image_name", droplet.Image.Name)
+		m.Add("__meta_digitalocean_private_ipv4", privateIPv4)
+		m.Add("__meta_digitalocean_public_ipv4", publicIPv4)
+		m.Add("__meta_digitalocean_public_ipv6", publicIPv6)
+		m.Add("__meta_digitalocean_region", droplet.Region.Slug)
+		m.Add("__meta_digitalocean_size", droplet.SizeSlug)
+		m.Add("__meta_digitalocean_status", droplet.Status)
+		m.Add("__meta_digitalocean_vpc", droplet.VpcUUID)
 		if len(droplet.Features) > 0 {
 			features := fmt.Sprintf(",%s,", strings.Join(droplet.Features, ","))
-			m["__meta_digitalocean_features"] = features
+			m.Add("__meta_digitalocean_features", features)
 		}
 		if len(droplet.Tags) > 0 {
 			tags := fmt.Sprintf(",%s,", strings.Join(droplet.Tags, ","))
-			m["__meta_digitalocean_tags"] = tags
+			m.Add("__meta_digitalocean_tags", tags)
 		}
 		ms = append(ms, m)
 	}

@@ -824,7 +824,7 @@ func StreamListTargets(qw422016 *qt422016.Writer, r *http.Request, targets map[n
                          <td>
                               `)
 //line app/vmalert/web.qtpl:251
-				for _, l := range n.Labels {
+				for _, l := range n.Labels.GetLabels() {
 //line app/vmalert/web.qtpl:251
 					qw422016.N().S(`
                                       <span class="ms-1 badge bg-primary">`)

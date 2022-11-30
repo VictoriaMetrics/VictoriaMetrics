@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func (eps *EndpointSlice) key() string {
@@ -37,16 +38,16 @@ func parseEndpointSlice(data []byte) (object, error) {
 // getTargetLabels returns labels for eps.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#endpointslices
-func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string {
+func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 	// The associated service name is stored in kubernetes.io/service-name label.
 	// See https://kubernetes.io/docs/reference/labels-annotations-taints/#kubernetesioservice-name
-	svcName := eps.Metadata.Labels.GetByName("kubernetes.io/service-name")
+	svcName := eps.Metadata.Labels.Get("kubernetes.io/service-name")
 	var svc *Service
 	if o := gw.getObjectByRoleLocked("service", eps.Metadata.Namespace, svcName); o != nil {
 		svc = o.(*Service)
 	}
 	podPortsSeen := make(map[*Pod][]int)
-	var ms []map[string]string
+	var ms []*promutils.Labels
 	for _, ess := range eps.Endpoints {
 		var p *Pod
 		if o := gw.getObjectByRoleLocked("pod", ess.TargetRef.Namespace, ess.TargetRef.Name); o != nil {
@@ -55,6 +56,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string 
 		for _, epp := range eps.Ports {
 			for _, addr := range ess.Addresses {
 				m := getEndpointSliceLabelsForAddressAndPort(gw, podPortsSeen, addr, eps, ess, epp, p, svc)
+				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
 
@@ -77,14 +79,14 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string 
 					continue
 				}
 				addr := discoveryutils.JoinHostPort(p.Status.PodIP, cp.ContainerPort)
-				m := map[string]string{
-					"__address__": addr,
-				}
+				m := promutils.GetLabels()
+				m.Add("__address__", addr)
 				p.appendCommonLabels(m, gw)
 				p.appendContainerLabels(m, c, &cp)
 				if svc != nil {
 					svc.appendCommonLabels(m)
 				}
+				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
 		}
@@ -98,7 +100,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []map[string]string 
 // p appended to seen Ports
 // if TargetRef matches
 func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[*Pod][]int, addr string, eps *EndpointSlice, ea Endpoint, epp EndpointPort,
-	p *Pod, svc *Service) map[string]string {
+	p *Pod, svc *Service) *promutils.Labels {
 	m := getEndpointSliceLabels(eps, addr, ea, epp)
 	if svc != nil {
 		svc.appendCommonLabels(m)
@@ -128,31 +130,30 @@ func getEndpointSliceLabelsForAddressAndPort(gw *groupWatcher, podPortsSeen map[
 }
 
 // //getEndpointSliceLabels builds labels for given EndpointSlice
-func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp EndpointPort) map[string]string {
+func getEndpointSliceLabels(eps *EndpointSlice, addr string, ea Endpoint, epp EndpointPort) *promutils.Labels {
 	addr = discoveryutils.JoinHostPort(addr, epp.Port)
-	m := map[string]string{
-		"__address__":                                               addr,
-		"__meta_kubernetes_namespace":                               eps.Metadata.Namespace,
-		"__meta_kubernetes_endpointslice_name":                      eps.Metadata.Name,
-		"__meta_kubernetes_endpointslice_address_type":              eps.AddressType,
-		"__meta_kubernetes_endpointslice_endpoint_conditions_ready": strconv.FormatBool(ea.Conditions.Ready),
-		"__meta_kubernetes_endpointslice_port_name":                 epp.Name,
-		"__meta_kubernetes_endpointslice_port_protocol":             epp.Protocol,
-		"__meta_kubernetes_endpointslice_port":                      strconv.Itoa(epp.Port),
-	}
+	m := promutils.GetLabels()
+	m.Add("__address__", addr)
+	m.Add("__meta_kubernetes_namespace", eps.Metadata.Namespace)
+	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
+	m.Add("__meta_kubernetes_endpointslice_address_type", eps.AddressType)
+	m.Add("__meta_kubernetes_endpointslice_endpoint_conditions_ready", strconv.FormatBool(ea.Conditions.Ready))
+	m.Add("__meta_kubernetes_endpointslice_port_name", epp.Name)
+	m.Add("__meta_kubernetes_endpointslice_port_protocol", epp.Protocol)
+	m.Add("__meta_kubernetes_endpointslice_port", strconv.Itoa(epp.Port))
 	if epp.AppProtocol != "" {
-		m["__meta_kubernetes_endpointslice_port_app_protocol"] = epp.AppProtocol
+		m.Add("__meta_kubernetes_endpointslice_port_app_protocol", epp.AppProtocol)
 	}
 	if ea.TargetRef.Kind != "" {
-		m["__meta_kubernetes_endpointslice_address_target_kind"] = ea.TargetRef.Kind
-		m["__meta_kubernetes_endpointslice_address_target_name"] = ea.TargetRef.Name
+		m.Add("__meta_kubernetes_endpointslice_address_target_kind", ea.TargetRef.Kind)
+		m.Add("__meta_kubernetes_endpointslice_address_target_name", ea.TargetRef.Name)
 	}
 	if ea.Hostname != "" {
-		m["__meta_kubernetes_endpointslice_endpoint_hostname"] = ea.Hostname
+		m.Add("__meta_kubernetes_endpointslice_endpoint_hostname", ea.Hostname)
 	}
 	for k, v := range ea.Topology {
-		m[discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_"+k)] = v
-		m[discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_present_"+k)] = "true"
+		m.Add(discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_"+k), v)
+		m.Add(discoveryutils.SanitizeLabelName("__meta_kubernetes_endpointslice_endpoint_topology_present_"+k), "true")
 	}
 	return m
 }

@@ -62,9 +62,21 @@ func addMissingPort(addr string, isTLS bool) string {
 		return addr
 	}
 	if isTLS {
-		return addr + ":443"
+		return concatTwoStrings(addr, ":443")
 	}
-	return addr + ":80"
+	return concatTwoStrings(addr, ":80")
+}
+
+func concatTwoStrings(x, y string) string {
+	bb := bbPool.Get()
+	b := bb.B[:0]
+	b = append(b, x...)
+	b = append(b, y...)
+	s := bytesutil.ToUnsafeString(b)
+	s = bytesutil.InternString(s)
+	bb.B = b
+	bbPool.Put(bb)
+	return s
 }
 
 func newClient(sw *ScrapeWork) *client {

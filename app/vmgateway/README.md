@@ -229,7 +229,7 @@ The shortlist of configuration flags include the following:
   -datasource.tlsServerName string
      Optional TLS server name to use for connections to -datasource.url. By default, the server name from -datasource.url is used
   -datasource.url string
-     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also '-datasource.disablePathAppend', '-datasource.showURL'.
+     Datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect URL. Required parameter. E.g. http://127.0.0.1:8428 . See also -remoteRead.disablePathAppend and -datasource.showURL
   -enable.auth
      enables auth with jwt token
   -enable.rateLimit

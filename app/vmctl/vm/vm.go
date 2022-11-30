@@ -182,6 +182,8 @@ func (im *Importer) Errors() chan *ImportError { return im.errors }
 // that need to be imported
 func (im *Importer) Input(ts *TimeSeries) error {
 	select {
+	case <-im.close:
+		return fmt.Errorf("importer is closed")
 	case im.input <- ts:
 		return nil
 	case err := <-im.errors:
@@ -197,6 +199,7 @@ func (im *Importer) Input(ts *TimeSeries) error {
 func (im *Importer) Close() {
 	im.once.Do(func() {
 		close(im.close)
+		close(im.input)
 		im.wg.Wait()
 		close(im.errors)
 	})
@@ -209,6 +212,10 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 	for {
 		select {
 		case <-im.close:
+			for ts := range im.input {
+				ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
+				batch = append(batch, ts)
+			}
 			exitErr := &ImportError{
 				Batch: batch,
 			}
@@ -217,24 +224,17 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 			}
 			im.errors <- exitErr
 			return
-		case ts := <-im.input:
+		case ts, ok := <-im.input:
+			if !ok {
+				continue
+			}
 			// init waitForBatch when first
 			// value was received
 			if waitForBatch.IsZero() {
 				waitForBatch = time.Now()
 			}
 
-			if significantFigures > 0 {
-				for i, v := range ts.Values {
-					ts.Values[i] = decimal.RoundToSignificantFigures(v, significantFigures)
-				}
-			}
-			if roundDigits < 100 {
-				for i, v := range ts.Values {
-					ts.Values[i] = decimal.RoundToDecimalDigits(v, roundDigits)
-				}
-			}
-
+			ts = roundTimeseriesValue(ts, significantFigures, roundDigits)
 			batch = append(batch, ts)
 			dataPoints += len(ts.Values)
 
@@ -417,4 +417,19 @@ func byteCountSI(b int64) string {
 	}
 	return fmt.Sprintf("%.1f %cB",
 		float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+func roundTimeseriesValue(ts *TimeSeries, significantFigures, roundDigits int) *TimeSeries {
+	if significantFigures > 0 {
+		for i, v := range ts.Values {
+			ts.Values[i] = decimal.RoundToSignificantFigures(v, significantFigures)
+		}
+	}
+	if roundDigits < 100 {
+		for i, v := range ts.Values {
+			ts.Values[i] = decimal.RoundToDecimalDigits(v, roundDigits)
+		}
+	}
+
+	return ts
 }

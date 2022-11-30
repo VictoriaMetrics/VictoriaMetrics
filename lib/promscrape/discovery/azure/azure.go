@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 )
 
@@ -43,7 +44,7 @@ type SDConfig struct {
 }
 
 // GetLabels returns Consul labels according to sdc.
-func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
+func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
@@ -60,8 +61,8 @@ func (sdc *SDConfig) MustStop() {
 	configMap.Delete(sdc)
 }
 
-func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []map[string]string {
-	ms := make([]map[string]string, 0, len(vms))
+func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promutils.Labels {
+	ms := make([]*promutils.Labels, 0, len(vms))
 	for i := range vms {
 		vm := &vms[i]
 		for _, ips := range vm.ipAddresses {
@@ -69,36 +70,35 @@ func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []map[st
 				continue
 			}
 			addr := discoveryutils.JoinHostPort(ips.privateIP, port)
-			m := map[string]string{
-				"__address__":                     addr,
-				"__meta_azure_subscription_id":    sdc.SubscriptionID,
-				"__meta_azure_machine_id":         vm.ID,
-				"__meta_azure_machine_name":       vm.Name,
-				"__meta_azure_machine_location":   vm.Location,
-				"__meta_azure_machine_private_ip": ips.privateIP,
-			}
+			m := promutils.NewLabels(16)
+			m.Add("__address__", addr)
+			m.Add("__meta_azure_subscription_id", sdc.SubscriptionID)
+			m.Add("__meta_azure_machine_id", vm.ID)
+			m.Add("__meta_azure_machine_name", vm.Name)
+			m.Add("__meta_azure_machine_location", vm.Location)
+			m.Add("__meta_azure_machine_private_ip", ips.privateIP)
 			if sdc.TenantID != "" {
-				m["__meta_azure_tenant_id"] = sdc.TenantID
+				m.Add("__meta_azure_tenant_id", sdc.TenantID)
 			}
 			// /subscriptions/SUBSCRIPTION_ID/resourceGroups/RESOURCE_GROUP/providers/PROVIDER/TYPE/NAME
 			idPath := strings.Split(vm.ID, "/")
 			if len(idPath) > 4 {
-				m["__meta_azure_machine_resource_group"] = idPath[4]
+				m.Add("__meta_azure_machine_resource_group", idPath[4])
 			}
 			if vm.Properties.StorageProfile.OsDisk.OsType != "" {
-				m["__meta_azure_machine_os_type"] = vm.Properties.StorageProfile.OsDisk.OsType
+				m.Add("__meta_azure_machine_os_type", vm.Properties.StorageProfile.OsDisk.OsType)
 			}
 			if vm.Properties.OsProfile.ComputerName != "" {
-				m["__meta_azure_machine_computer_name"] = vm.Properties.OsProfile.ComputerName
+				m.Add("__meta_azure_machine_computer_name", vm.Properties.OsProfile.ComputerName)
 			}
 			if ips.publicIP != "" {
-				m["__meta_azure_machine_public_ip"] = ips.publicIP
+				m.Add("__meta_azure_machine_public_ip", ips.publicIP)
 			}
 			if vm.scaleSet != "" {
-				m["__meta_azure_machine_scale_set"] = vm.scaleSet
+				m.Add("__meta_azure_machine_scale_set", vm.scaleSet)
 			}
 			for k, v := range vm.Tags {
-				m[discoveryutils.SanitizeLabelName("__meta_azure_machine_tag_"+k)] = v
+				m.Add(discoveryutils.SanitizeLabelName("__meta_azure_machine_tag_"+k), v)
 			}
 			ms = append(ms, m)
 		}

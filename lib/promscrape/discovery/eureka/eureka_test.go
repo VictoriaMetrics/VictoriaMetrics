@@ -1,11 +1,10 @@
 package eureka
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func Test_addInstanceLabels(t *testing.T) {
@@ -15,7 +14,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want [][]prompbmarshal.Label
+		want []*promutils.Labels
 	}{
 		{
 			name: "1 application",
@@ -50,8 +49,8 @@ func Test_addInstanceLabels(t *testing.T) {
 					},
 				},
 			},
-			want: [][]prompbmarshal.Label{
-				discoveryutils.GetSortedLabels(map[string]string{
+			want: []*promutils.Labels{
+				promutils.NewLabelsFromMap(map[string]string{
 					"__address__":                                   "host-1:9100",
 					"instance":                                      "some-id",
 					"__meta_eureka_app_instance_hostname":           "host-1",
@@ -75,13 +74,7 @@ func Test_addInstanceLabels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := addInstanceLabels(tt.args.applications)
-			var sortedLabelss [][]prompbmarshal.Label
-			for _, labels := range got {
-				sortedLabelss = append(sortedLabelss, discoveryutils.GetSortedLabels(labels))
-			}
-			if !reflect.DeepEqual(sortedLabelss, tt.want) {
-				t.Fatalf("unexpected labels \ngot : %v, \nwant: %v", got, tt.want)
-			}
+			discoveryutils.TestEqualLabelss(t, got, tt.want)
 		})
 	}
 }

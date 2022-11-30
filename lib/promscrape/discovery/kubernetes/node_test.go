@@ -7,8 +7,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestParseNodeListFailure(t *testing.T) {
@@ -242,8 +241,8 @@ func TestParseNodeListSuccess(t *testing.T) {
 		t.Fatalf("unexpected resource version; got %s; want %s", meta.ResourceVersion, expectedResourceVersion)
 	}
 	sortedLabelss := getSortedLabelss(objectsByKey)
-	expectedLabelss := [][]prompbmarshal.Label{
-		discoveryutils.GetSortedLabels(map[string]string{
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
 			"instance":                           "m01",
 			"__address__":                        "172.17.0.2:10250",
 			"__meta_kubernetes_node_name":        "m01",
@@ -288,7 +287,20 @@ func TestParseNodeListSuccess(t *testing.T) {
 	}
 }
 
-func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
+func getSortedLabelss(objectsByKey map[string]object) []*promutils.Labels {
+	gw := newTestGroupWatcher()
+	var result []*promutils.Labels
+	for _, o := range objectsByKey {
+		labelss := o.getTargetLabels(gw)
+		for _, labels := range labelss {
+			labels.Sort()
+			result = append(result, labels)
+		}
+	}
+	return result
+}
+
+func newTestGroupWatcher() *groupWatcher {
 	var gw groupWatcher
 	gw.m = map[string]*urlWatcher{
 		"node": {
@@ -296,43 +308,31 @@ func getSortedLabelss(objectsByKey map[string]object) [][]prompbmarshal.Label {
 			objectsByKey: map[string]object{
 				"/test-node": &Node{
 					Metadata: ObjectMeta{
-						Labels: []prompbmarshal.Label{
-							{
-								Name:  "node-label",
-								Value: "xyz",
-							},
-						},
+						Labels: promutils.NewLabelsFromMap(map[string]string{"node-label": "xyz"}),
 					},
 				},
 			},
 		},
 	}
 	gw.attachNodeMetadata = true
-	var result [][]prompbmarshal.Label
-	for _, o := range objectsByKey {
-		labelss := o.getTargetLabels(&gw)
-		for _, labels := range labelss {
-			result = append(result, discoveryutils.GetSortedLabels(labels))
-		}
-	}
-	return result
+	return &gw
 }
 
-func areEqualLabelss(a, b [][]prompbmarshal.Label) bool {
+func areEqualLabelss(a, b []*promutils.Labels) bool {
 	sortLabelss(a)
 	sortLabelss(b)
 	return reflect.DeepEqual(a, b)
 }
 
-func sortLabelss(a [][]prompbmarshal.Label) {
+func sortLabelss(a []*promutils.Labels) {
 	sort.Slice(a, func(i, j int) bool {
 		return marshalLabels(a[i]) < marshalLabels(a[j])
 	})
 }
 
-func marshalLabels(a []prompbmarshal.Label) string {
+func marshalLabels(a *promutils.Labels) string {
 	var b []byte
-	for _, label := range a {
+	for _, label := range a.Labels {
 		b = strconv.AppendQuote(b, label.Name)
 		b = append(b, ':')
 		b = strconv.AppendQuote(b, label.Value)
