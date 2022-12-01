@@ -56,6 +56,7 @@ func TestRequestUnmarshalSuccess(t *testing.T) {
       "host": "test.example.com",
       "interval": 20,
       "metric": "system.load.1",
+      "device": "/dev/sda",
       "points": [[
         1575317847,
         0.5
@@ -71,6 +72,7 @@ func TestRequestUnmarshalSuccess(t *testing.T) {
 		Series: []Series{{
 			Host:   "test.example.com",
 			Metric: "system.load.1",
+			Device: "/dev/sda",
 			Points: []Point{{
 				1575317847,
 				0.5,

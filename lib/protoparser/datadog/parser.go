@@ -67,6 +67,10 @@ type Series struct {
 	Metric string   `json:"metric"`
 	Points []Point  `json:"points"`
 	Tags   []string `json:"tags"`
+	// The device field does not appear in the datadog docs, but datadog-agent does use it.
+	// Datadog agent (v7 at least), removes the tag "device" and adds it as its own field. Why? That I don't know!
+	// https://github.com/DataDog/datadog-agent/blob/0ada7a97fed6727838a6f4d9c87123d2aafde735/pkg/metrics/series.go#L84-L105
+	Device string `json:"device"`
 
 	// Do not decode Type, since it isn't used by VictoriaMetrics
 	// Type string `json:"type"`

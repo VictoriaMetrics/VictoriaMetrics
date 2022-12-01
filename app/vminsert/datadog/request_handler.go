@@ -55,6 +55,9 @@ func insertRows(series []parser.Series, extraLabels []prompbmarshal.Label) error
 		ctx.Labels = ctx.Labels[:0]
 		ctx.AddLabel("", ss.Metric)
 		ctx.AddLabel("host", ss.Host)
+		if len(ss.Device) > 0 {
+			ctx.AddLabel("device", ss.Device)
+		}
 		for _, tag := range ss.Tags {
 			name, value := parser.SplitTag(tag)
 			if name == "host" {
