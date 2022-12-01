@@ -77,13 +77,12 @@ func Init(ctx context.Context) (*Client, error) {
 	}
 
 	return NewClient(ctx, Config{
-		Addr:              *addr,
-		AuthCfg:           authCfg,
-		Concurrency:       *concurrency,
-		MaxQueueSize:      *maxQueueSize,
-		MaxBatchSize:      *maxBatchSize,
-		FlushInterval:     *flushInterval,
-		DisablePathAppend: *disablePathAppend,
-		Transport:         t,
+		Addr:          *addr,
+		AuthCfg:       authCfg,
+		Concurrency:   *concurrency,
+		MaxQueueSize:  *maxQueueSize,
+		MaxBatchSize:  *maxBatchSize,
+		FlushInterval: *flushInterval,
+		Transport:     t,
 	})
 }
