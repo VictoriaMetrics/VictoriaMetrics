@@ -586,21 +586,13 @@ func (tb *Table) convertToV1280() {
 }
 
 func (tb *Table) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
-	defer func() {
-		// Remove isInMerge flag from pws.
-		tb.partsLock.Lock()
-		for _, pw := range pws {
-			// Do not check for pws.isInMerge set to false,
-			// since it may be set to false in mergeParts below.
-			pw.isInMerge = false
-		}
-		tb.partsLock.Unlock()
-	}()
 	for len(pws) > defaultPartsToMerge {
-		if err := tb.mergeParts(pws[:defaultPartsToMerge], stopCh, false); err != nil {
+		pwsChunk := pws[:defaultPartsToMerge]
+		pws = pws[defaultPartsToMerge:]
+		if err := tb.mergeParts(pwsChunk, stopCh, false); err != nil {
+			tb.releasePartsToMerge(pws)
 			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
-		pws = pws[defaultPartsToMerge:]
 	}
 	if len(pws) == 0 {
 		return nil
@@ -874,6 +866,17 @@ func (tb *Table) partMerger() error {
 
 var errNothingToMerge = fmt.Errorf("nothing to merge")
 
+func (tb *Table) releasePartsToMerge(pws []*partWrapper) {
+	tb.partsLock.Lock()
+	for _, pw := range pws {
+		if !pw.isInMerge {
+			logger.Panicf("BUG: missing isInMerge flag on the part %q", pw.p.path)
+		}
+		pw.isInMerge = false
+	}
+	tb.partsLock.Unlock()
+}
+
 // mergeParts merges pws.
 //
 // Merging is immediately stopped if stopCh is closed.
@@ -884,24 +887,13 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 		// Nothing to merge.
 		return errNothingToMerge
 	}
+	defer tb.releasePartsToMerge(pws)
 
 	atomic.AddUint64(&tb.mergesCount, 1)
 	atomic.AddUint64(&tb.activeMerges, 1)
 	defer atomic.AddUint64(&tb.activeMerges, ^uint64(0))
 
 	startTime := time.Now()
-
-	defer func() {
-		// Remove isInMerge flag from pws.
-		tb.partsLock.Lock()
-		for _, pw := range pws {
-			if !pw.isInMerge {
-				logger.Panicf("BUG: missing isInMerge flag on the part %q", pw.p.path)
-			}
-			pw.isInMerge = false
-		}
-		tb.partsLock.Unlock()
-	}()
 
 	// Prepare blockStreamReaders for source parts.
 	bsrs := make([]*blockStreamReader, 0, len(pws))
