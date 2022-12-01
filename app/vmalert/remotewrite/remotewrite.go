@@ -58,9 +58,6 @@ type Config struct {
 	MaxQueueSize int
 	// FlushInterval defines time interval for flushing batches
 	FlushInterval time.Duration
-	// WriteTimeout defines timeout for HTTP write request
-	// to remote storage
-	WriteTimeout time.Duration
 	// Transport will be used by the underlying http.Client
 	Transport *http.Transport
 	// DisablePathAppend can be used to not automatically append '/api/v1/write' to the remote write url
@@ -90,9 +87,6 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	if cfg.FlushInterval == 0 {
 		cfg.FlushInterval = defaultFlushInterval
 	}
-	if cfg.WriteTimeout == 0 {
-		cfg.WriteTimeout = defaultWriteTimeout
-	}
 	if cfg.Transport == nil {
 		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
 	}
@@ -102,7 +96,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 	}
 	c := &Client{
 		c: &http.Client{
-			Timeout:   cfg.WriteTimeout,
+			Timeout:   *sendTimeout,
 			Transport: cfg.Transport,
 		},
 		addr:          strings.TrimSuffix(cfg.Addr, "/"),

@@ -84,7 +84,6 @@ func Init(ctx context.Context) (*Client, error) {
 		MaxBatchSize:      *maxBatchSize,
 		FlushInterval:     *flushInterval,
 		DisablePathAppend: *disablePathAppend,
-		WriteTimeout:      *sendTimeout,
 		Transport:         t,
 	})
 }
