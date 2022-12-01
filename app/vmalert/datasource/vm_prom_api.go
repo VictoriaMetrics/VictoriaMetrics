@@ -149,6 +149,16 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		timestamp = timestamp.Truncate(s.evaluationInterval)
 	}
 	q.Set("time", fmt.Sprintf("%d", timestamp.Unix()))
+	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
+		// always convert to seconds to keep compatibility with older
+		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
+		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
+	}
+	if s.queryStep > 0 { // override step with user-specified value
+		// always convert to seconds to keep compatibility with older
+		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
+		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
+	}
 	r.URL.RawQuery = q.Encode()
 	s.setPrometheusReqParams(r, query)
 }
@@ -163,6 +173,11 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 	q := r.URL.Query()
 	q.Add("start", fmt.Sprintf("%d", start.Unix()))
 	q.Add("end", fmt.Sprintf("%d", end.Unix()))
+	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
+		// always convert to seconds to keep compatibility with older
+		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
+		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
+	}
 	r.URL.RawQuery = q.Encode()
 	s.setPrometheusReqParams(r, query)
 }
@@ -178,15 +193,5 @@ func (s *VMStorage) setPrometheusReqParams(r *http.Request, query string) {
 		}
 	}
 	q.Set("query", query)
-	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
-		// always convert to seconds to keep compatibility with older
-		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
-		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
-	}
-	if s.queryStep > 0 { // override step with user-specified value
-		// always convert to seconds to keep compatibility with older
-		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
-		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
-	}
 	r.URL.RawQuery = q.Encode()
 }
