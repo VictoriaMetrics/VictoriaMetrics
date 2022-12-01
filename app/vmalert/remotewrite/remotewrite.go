@@ -60,8 +60,6 @@ type Config struct {
 	FlushInterval time.Duration
 	// Transport will be used by the underlying http.Client
 	Transport *http.Transport
-	// DisablePathAppend can be used to not automatically append '/api/v1/write' to the remote write url
-	DisablePathAppend bool
 }
 
 const (
