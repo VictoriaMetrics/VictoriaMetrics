@@ -4436,7 +4436,7 @@
                 {
                   "targetBlank": true,
                   "title": "Drilldown",
-                  "url": "/d/oS7Bi_0Wz?viewPanel=196&${__url_time_range}${__all_variables}"
+                  "url": "/d/oS7Bi_0Wz?viewPanel=196&${__url_time_range}&${__all_variables}"
                 }
               ],
               "mappings": [],
