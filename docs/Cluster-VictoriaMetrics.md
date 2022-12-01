@@ -209,8 +209,8 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 ## Automatic vmstorage discovery
 
 [Entrprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports [dns+srv](https://en.wikipedia.org/wiki/SRV_record) names
-at `-storageNode` command-line flag passed to `vminsert` and `vmstorage`. In this case the provided `dns+srv` names are resolved
-into tcp addresses of `vmstorage` nodes to connect to. The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmstorage`
+at `-storageNode` command-line flag passed to `vminsert` and `vmselect`. In this case the provided `dns+srv` names are resolved
+into tcp addresses of `vmstorage` nodes to connect to. The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmselect`
 when it changes behind the corresponding `dns+srv` names. The `dns+srv` names must be prefixed with `dns+srv:` prefix.
 
 It is possible passing multiple `dns+srv` names to `-storageNode` command-line flag. In this case all these names are resolved to tcp addresses of `vmstorage` nodes to connect to.
