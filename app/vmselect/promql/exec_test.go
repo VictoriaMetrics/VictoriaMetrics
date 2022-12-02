@@ -67,7 +67,7 @@ func TestExecSuccess(t *testing.T) {
 			RoundDigits:        100,
 		}
 		for i := 0; i < 5; i++ {
-			result, err := Exec(nil, ec, q, false)
+			result, _, err := Exec(nil, ec, q, false)
 			if err != nil {
 				t.Fatalf(`unexpected error when executing %q: %s`, q, err)
 			}
@@ -8098,14 +8098,14 @@ func TestExecError(t *testing.T) {
 			RoundDigits:        100,
 		}
 		for i := 0; i < 4; i++ {
-			rv, err := Exec(nil, ec, q, false)
+			rv, _, err := Exec(nil, ec, q, false)
 			if err == nil {
 				t.Fatalf(`expecting non-nil error on %q`, q)
 			}
 			if rv != nil {
 				t.Fatalf(`expecting nil rv`)
 			}
-			rv, err = Exec(nil, ec, q, true)
+			rv, _, err = Exec(nil, ec, q, true)
 			if err == nil {
 				t.Fatalf(`expecting non-nil error on %q`, q)
 			}
