@@ -56,7 +56,7 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 			Name:  "host",
 			Value: ss.Host,
 		})
-		if len(ss.Device) > 0 {
+		if ss.Device != "" {
 			labels = append(labels, prompbmarshal.Label{
 				Name:  "device",
 				Value: ss.Device,
