@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -36,6 +37,7 @@ var (
 		"limit is reached; see also -search.maxQueryDuration")
 	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
 	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+	logQueryMemoryUsage  = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log queries with memory usage exceeding this value. Zero disables memory usage logging")
 	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
 )
 
@@ -92,6 +94,8 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+	var rollupMemorySize int64
+
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := searchutils.GetBool(r, "trace")
@@ -136,9 +140,20 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			if d >= *logSlowQueryDuration {
 				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 				requestURI := httpserver.GetRequestURI(r)
-				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestURI: %q",
-					*logSlowQueryDuration, remoteAddr, d.Seconds(), requestURI)
+				logger.Warnf("slow query according to -search.logSlowQueryDuration=%s: remoteAddr=%s, duration=%.3f seconds; requestedMemory=%d bytes; requestURI: %q",
+					*logSlowQueryDuration, remoteAddr, d.Seconds(), rollupMemorySize, requestURI)
 				slowQueries.Inc()
+			}
+		}()
+	}
+
+	if logQueryMemoryUsage.N > 0 {
+		defer func() {
+			if rollupMemorySize >= logQueryMemoryUsage.N {
+				remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+				requestURI := httpserver.GetRequestURI(r)
+				logger.Warnf("memory usage exceeded -search.logQueryMemoryUsage=%s: remoteAddr=%s, requestedMemory=%d bytes; requestURI: %q",
+					logQueryMemoryUsage, remoteAddr, rollupMemorySize, requestURI)
 			}
 		}()
 	}
@@ -252,7 +267,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/query":
 		queryRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryHandler(qt, startTime, w, r); err != nil {
+		var err error
+		rollupMemorySize, err = prometheus.QueryHandler(qt, startTime, w, r)
+		if err != nil {
 			queryErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
@@ -261,7 +278,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/api/v1/query_range":
 		queryRangeRequests.Inc()
 		httpserver.EnableCORS(w, r)
-		if err := prometheus.QueryRangeHandler(qt, startTime, w, r); err != nil {
+		var err error
+		rollupMemorySize, err = prometheus.QueryRangeHandler(qt, startTime, w, r)
+		if err != nil {
 			queryRangeErrors.Inc()
 			sendPrometheusError(w, r, err)
 			return true
