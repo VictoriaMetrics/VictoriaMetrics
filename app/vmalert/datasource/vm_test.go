@@ -199,6 +199,10 @@ func TestVMRangeQuery(t *testing.T) {
 		if _, err := strconv.ParseInt(endTS, 10, 64); err != nil {
 			t.Errorf("failed to parse 'end' query param: %s", err)
 		}
+		step := r.URL.Query().Get("step")
+		if step != "15s" {
+			t.Errorf("expected 'step' query param to be 15s; got %q instead", step)
+		}
 		switch c {
 		case 0:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[{"metric":{"__name__":"vm_rows"},"values":[[1583786142,"13763"]]}]}}`))
@@ -212,7 +216,7 @@ func TestVMRangeQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected: %s", err)
 	}
-	s := NewVMStorage(srv.URL, authCfg, time.Minute, 0, false, srv.Client())
+	s := NewVMStorage(srv.URL, authCfg, time.Minute, *queryStep, false, srv.Client())
 
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus), EvaluationInterval: 15 * time.Second})
 
