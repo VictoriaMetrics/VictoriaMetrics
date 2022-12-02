@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -33,6 +34,11 @@ type Tracer struct {
 	// span contains span for the given Tracer. It is added via Tracer.AddSpan().
 	// If span is non-nil, then the remaining fields aren't used.
 	span *span
+	// enabled is true when query tracing shall be enabled.
+	// False value does not prevent tracking memory usage.
+	enabled bool
+	// memoryUsageBytes holds query memory usage reported to the tracer in bytes.
+	memoryUsageBytes int64
 }
 
 // New creates a new instance of the tracer with the given fmt.Sprintf(format, args...) message.
@@ -41,12 +47,10 @@ type Tracer struct {
 //
 // Done or Donef must be called when the tracer should be finished.
 func New(enabled bool, format string, args ...interface{}) *Tracer {
-	if *denyQueryTracing || !enabled {
-		return nil
-	}
 	message := fmt.Sprintf(format, args...)
 	message = buildinfo.Version + ": " + message
 	return &Tracer{
+		enabled:   *denyQueryTracing || !enabled,
 		message:   message,
 		startTime: time.Now(),
 	}
@@ -54,7 +58,7 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 
 // Enabled returns true if the t is enabled.
 func (t *Tracer) Enabled() bool {
-	return t != nil
+	return t.enabled
 }
 
 // NewChild adds a new child Tracer to t with the given fmt.Sprintf(format, args...) message.
@@ -74,6 +78,7 @@ func (t *Tracer) NewChild(format string, args ...interface{}) *Tracer {
 	child := &Tracer{
 		message:   fmt.Sprintf(format, args...),
 		startTime: time.Now(),
+		enabled:   t.enabled,
 	}
 	t.children = append(t.children, child)
 	return child
@@ -84,7 +89,7 @@ func (t *Tracer) NewChild(format string, args ...interface{}) *Tracer {
 // Done cannot be called multiple times.
 // Other Tracer functions cannot be called after Done call.
 func (t *Tracer) Done() {
-	if t == nil {
+	if t == nil || !t.enabled {
 		return
 	}
 	if !t.doneTime.IsZero() {
@@ -98,7 +103,7 @@ func (t *Tracer) Done() {
 // Donef cannot be called multiple times.
 // Other Tracer functions cannot be called after Donef call.
 func (t *Tracer) Donef(format string, args ...interface{}) {
-	if t == nil {
+	if t == nil || !t.enabled {
 		return
 	}
 	if !t.doneTime.IsZero() {
@@ -112,7 +117,7 @@ func (t *Tracer) Donef(format string, args ...interface{}) {
 //
 // Printf cannot be called from concurrent goroutines.
 func (t *Tracer) Printf(format string, args ...interface{}) {
-	if t == nil {
+	if t == nil || !t.enabled {
 		return
 	}
 	if !t.doneTime.IsZero() {
@@ -133,7 +138,7 @@ func (t *Tracer) Printf(format string, args ...interface{}) {
 //
 // AddJSON cannot be called from concurrent goroutines.
 func (t *Tracer) AddJSON(jsonTrace []byte) error {
-	if t == nil {
+	if t == nil || !t.enabled {
 		return nil
 	}
 	if len(jsonTrace) == 0 {
@@ -154,7 +159,7 @@ func (t *Tracer) AddJSON(jsonTrace []byte) error {
 //
 // String must be called when t methods aren't called by other goroutines.
 func (t *Tracer) String() string {
-	if t == nil {
+	if t == nil || !t.enabled {
 		return ""
 	}
 	s := t.toSpan()
@@ -167,7 +172,7 @@ func (t *Tracer) String() string {
 //
 // ToJSON must be called when t methods aren't called by other goroutines.
 func (t *Tracer) ToJSON() string {
-	if t == nil {
+	if t == nil || !t.enabled {
 		return ""
 	}
 	s := t.toSpan()
@@ -225,6 +230,20 @@ func (t *Tracer) getLastChildDoneTime(defaultTime time.Time) time.Time {
 	}
 	lastChild := t.children[len(t.children)-1]
 	return lastChild.getLastChildDoneTime(lastChild.startTime)
+}
+
+// AddMemoryUsage adds memory usage in bytes used by a query.
+func (t *Tracer) AddMemoryUsage(memoryBytes int64) {
+	atomic.AddInt64(&t.memoryUsageBytes, memoryBytes)
+}
+
+// SumMemoryUsageChildren returns sum of memory usage as reported by tracer and all children in bytes.
+func (t *Tracer) SumMemoryUsageChildren() int64 {
+	m := t.memoryUsageBytes
+	for _, c := range t.children {
+		m += c.SumMemoryUsageChildren()
+	}
+	return m
 }
 
 // span represents a single trace span
