@@ -649,7 +649,7 @@ var seriesDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/
 // QueryHandler processes /api/v1/query request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries
-func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) (int64, error) {
 	defer queryDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
@@ -657,30 +657,30 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	mayCache := !searchutils.GetBool(r, "nocache")
 	query := r.FormValue("query")
 	if len(query) == 0 {
-		return fmt.Errorf("missing `query` arg")
+		return 0, fmt.Errorf("missing `query` arg")
 	}
 	start, err := searchutils.GetTime(r, "time", ct)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	step, err := searchutils.GetDuration(r, "step", lookbackDelta)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if step <= 0 {
 		step = defaultStep
 	}
 
 	if len(query) > maxQueryLen.N {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
+		return 0, fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	if childQuery, windowExpr, offsetExpr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
 		window := windowExpr.Duration(step)
@@ -696,7 +696,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 
 		tagFilterss, err := getTagFilterssFromMatches([]string{childQuery})
 		if err != nil {
-			return err
+			return 0, err
 		}
 		filterss := searchutils.JoinTagFilterss(tagFilterss, etfs)
 
@@ -707,10 +707,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 			filterss: filterss,
 		}
 		if err := exportHandler(qt, w, cp, "promapi", 0, false); err != nil {
-			return fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
+			return 0, fmt.Errorf("error when exporting data for query=%q on the time range (start=%d, end=%d): %w", childQuery, start, end, err)
 		}
 		queryDuration.UpdateDuration(startTime)
-		return nil
+		return 0, nil
 	}
 	if childQuery, windowExpr, stepExpr, offsetExpr := promql.IsRollup(query); childQuery != "" {
 		newStep := stepExpr.Duration(step)
@@ -722,11 +722,12 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		start -= offset
 		end := start
 		start = end - window
-		if err := queryRangeHandler(qt, startTime, w, childQuery, start, end, step, r, ct, etfs); err != nil {
-			return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
+		rollupMemorySize, err := queryRangeHandler(qt, startTime, w, childQuery, start, end, step, r, ct, etfs)
+		if err != nil {
+			return rollupMemorySize, fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", childQuery, start, end, step, err)
 		}
 		queryDuration.UpdateDuration(startTime)
-		return nil
+		return rollupMemorySize, nil
 	}
 
 	queryOffset := getLatencyOffsetMilliseconds()
@@ -752,9 +753,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
 	}
-	result, err := promql.Exec(qt, &ec, query, true)
+	result, rollupMemorySize, err := promql.Exec(qt, &ec, query, true)
 	if err != nil {
-		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
+		return rollupMemorySize, fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
 	if queryOffset > 0 {
 		for i := range result {
@@ -773,9 +774,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 	}
 	WriteQueryResponse(bw, result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("cannot flush query response to remote client: %w", err)
+		return rollupMemorySize, fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
-	return nil
+	return rollupMemorySize, nil
 }
 
 var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v1/query"}`)
@@ -783,54 +784,55 @@ var queryDuration = metrics.NewSummary(`vm_request_duration_seconds{path="/api/v
 // QueryRangeHandler processes /api/v1/query_range request.
 //
 // See https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries
-func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
+func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) (int64, error) {
 	defer queryRangeDuration.UpdateDuration(startTime)
 
 	ct := startTime.UnixNano() / 1e6
 	query := r.FormValue("query")
 	if len(query) == 0 {
-		return fmt.Errorf("missing `query` arg")
+		return 0, fmt.Errorf("missing `query` arg")
 	}
 	start, err := searchutils.GetTime(r, "start", ct-defaultStep)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	end, err := searchutils.GetTime(r, "end", ct)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	step, err := searchutils.GetDuration(r, "step", defaultStep)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	if err := queryRangeHandler(qt, startTime, w, query, start, end, step, r, ct, etfs); err != nil {
-		return fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
+	rollupMemorySize, err := queryRangeHandler(qt, startTime, w, query, start, end, step, r, ct, etfs)
+	if err != nil {
+		return rollupMemorySize, fmt.Errorf("error when executing query=%q on the time range (start=%d, end=%d, step=%d): %w", query, start, end, step, err)
 	}
-	return nil
+	return rollupMemorySize, nil
 }
 
 func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, query string,
-	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
+	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) (int64, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
 	mayCache := !searchutils.GetBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	// Validate input args.
 	if len(query) > maxQueryLen.N {
-		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
+		return 0, fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	if start > end {
 		end = start + defaultStep
 	}
 	if err := promql.ValidateMaxPointsPerSeries(start, end, step, *maxPointsPerTimeseries); err != nil {
-		return fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
+		return 0, fmt.Errorf("%w; (see -search.maxPointsPerTimeseries command-line flag)", err)
 	}
 	if mayCache {
 		start, end = promql.AdjustStartEnd(start, end, step)
@@ -849,9 +851,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
 	}
-	result, err := promql.Exec(qt, &ec, query, false)
+	result, rollupMemorySize, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
-		return err
+		return rollupMemorySize, err
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
 		queryOffset := getLatencyOffsetMilliseconds()
@@ -872,9 +874,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 	WriteQueryRangeResponse(bw, result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
-		return fmt.Errorf("cannot send query range response to remote client: %w", err)
+		return rollupMemorySize, fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
-	return nil
+	return rollupMemorySize, nil
 }
 
 func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result {

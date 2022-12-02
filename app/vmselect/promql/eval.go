@@ -207,16 +207,16 @@ func getTimestamps(start, end, step int64, maxPointsPerSeries int) []int64 {
 	return timestamps
 }
 
-func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
+func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, int64, error) {
 	if qt.Enabled() {
 		query := string(e.AppendString(nil))
 		query = bytesutil.LimitStringLen(query, 300)
 		mayCache := ec.mayCache()
 		qt = qt.NewChild("eval: query=%s, timeRange=%s, step=%d, mayCache=%v", query, ec.timeRangeString(), ec.Step, mayCache)
 	}
-	rv, err := evalExprInternal(qt, ec, e)
+	rv, rollupMemorySize, err := evalExprInternal(qt, ec, e)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	if qt.Enabled() {
 		seriesCount := len(rv)
@@ -227,82 +227,83 @@ func evalExpr(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*time
 		pointsCount := seriesCount * pointsPerSeries
 		qt.Donef("series=%d, points=%d, pointsPerSeries=%d", seriesCount, pointsCount, pointsPerSeries)
 	}
-	return rv, nil
+	return rv, rollupMemorySize, nil
 }
 
-func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, error) {
+func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) ([]*timeseries, int64, error) {
 	if me, ok := e.(*metricsql.MetricExpr); ok {
 		re := &metricsql.RollupExpr{
 			Expr: me,
 		}
-		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
+		rv, rollupMemorySize, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %w`, me.AppendString(nil), err)
+			return nil, rollupMemorySize, fmt.Errorf(`cannot evaluate %q: %w`, me.AppendString(nil), err)
 		}
-		return rv, nil
+		return rv, rollupMemorySize, nil
 	}
 	if re, ok := e.(*metricsql.RollupExpr); ok {
-		rv, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
+		rv, rollupMemorySize, err := evalRollupFunc(qt, ec, "default_rollup", rollupDefault, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %w`, re.AppendString(nil), err)
+			return nil, rollupMemorySize, fmt.Errorf(`cannot evaluate %q: %w`, re.AppendString(nil), err)
 		}
-		return rv, nil
+		return rv, rollupMemorySize, nil
 	}
 	if fe, ok := e.(*metricsql.FuncExpr); ok {
 		nrf := getRollupFunc(fe.Name)
 		if nrf == nil {
 			qtChild := qt.NewChild("transform %s()", fe.Name)
-			rv, err := evalTransformFunc(qtChild, ec, fe)
+			rv, rollupMemorySize, err := evalTransformFunc(qtChild, ec, fe)
 			qtChild.Donef("series=%d", len(rv))
-			return rv, err
+			return rv, rollupMemorySize, err
 		}
-		args, re, err := evalRollupFuncArgs(qt, ec, fe)
+		args, re, rollupMemorySize, err := evalRollupFuncArgs(qt, ec, fe)
 		if err != nil {
-			return nil, err
+			return nil, rollupMemorySize, err
 		}
 		rf, err := nrf(args)
 		if err != nil {
-			return nil, err
+			return nil, rollupMemorySize, err
 		}
-		rv, err := evalRollupFunc(qt, ec, fe.Name, rf, e, re, nil)
+		rv, rollupMemorySize, err := evalRollupFunc(qt, ec, fe.Name, rf, e, re, nil)
 		if err != nil {
-			return nil, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
+			return nil, rollupMemorySize, fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err)
 		}
-		return rv, nil
+		return rv, rollupMemorySize, nil
 	}
 	if ae, ok := e.(*metricsql.AggrFuncExpr); ok {
 		qtChild := qt.NewChild("aggregate %s()", ae.Name)
-		rv, err := evalAggrFunc(qtChild, ec, ae)
+		rv, rollupMemorySize, err := evalAggrFunc(qtChild, ec, ae)
 		qtChild.Donef("series=%d", len(rv))
-		return rv, err
+		return rv, rollupMemorySize, err
 	}
 	if be, ok := e.(*metricsql.BinaryOpExpr); ok {
 		qtChild := qt.NewChild("binary op %q", be.Op)
-		rv, err := evalBinaryOp(qtChild, ec, be)
+		rv, rollupMemorySize, err := evalBinaryOp(qtChild, ec, be)
 		qtChild.Donef("series=%d", len(rv))
-		return rv, err
+		return rv, rollupMemorySize, err
 	}
 	if ne, ok := e.(*metricsql.NumberExpr); ok {
 		rv := evalNumber(ec, ne.N)
-		return rv, nil
+		return rv, 0, nil
 	}
 	if se, ok := e.(*metricsql.StringExpr); ok {
 		rv := evalString(ec, se.S)
-		return rv, nil
+		return rv, 0, nil
 	}
 	if de, ok := e.(*metricsql.DurationExpr); ok {
 		d := de.Duration(ec.Step)
 		dSec := float64(d) / 1000
 		rv := evalNumber(ec, dSec)
-		return rv, nil
+		return rv, 0, nil
 	}
-	return nil, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
+	return nil, 0, fmt.Errorf("unexpected expression %q", e.AppendString(nil))
 }
 
-func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, error) {
+func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]*timeseries, int64, error) {
+	var rollupMemorySize int64
 	tf := getTransformFunc(fe.Name)
 	if tf == nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf(`unknown func %q`, fe.Name),
 		}
 	}
@@ -310,12 +311,12 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	var err error
 	switch fe.Name {
 	case "", "union":
-		args, err = evalExprsInParallel(qt, ec, fe.Args)
+		args, rollupMemorySize, err = evalExprsInParallel(qt, ec, fe.Args)
 	default:
-		args, err = evalExprsSequentially(qt, ec, fe.Args)
+		args, rollupMemorySize, err = evalExprsSequentially(qt, ec, fe.Args)
 	}
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	tfa := &transformFuncArg{
 		ec:   ec,
@@ -324,38 +325,38 @@ func evalTransformFunc(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.Fun
 	}
 	rv, err := tf(tfa)
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf(`cannot evaluate %q: %w`, fe.AppendString(nil), err),
 		}
 	}
-	return rv, nil
+	return rv, rollupMemorySize, nil
 }
 
-func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFuncExpr) ([]*timeseries, error) {
+func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFuncExpr) ([]*timeseries, int64, error) {
 	if callbacks := getIncrementalAggrFuncCallbacks(ae.Name); callbacks != nil {
 		fe, nrf := tryGetArgRollupFuncWithMetricExpr(ae)
 		if fe != nil {
 			// There is an optimized path for calculating metricsql.AggrFuncExpr over rollupFunc over metricsql.MetricExpr.
 			// The optimized path saves RAM for aggregates over big number of time series.
-			args, re, err := evalRollupFuncArgs(qt, ec, fe)
+			args, re, rollupMemorySize, err := evalRollupFuncArgs(qt, ec, fe)
 			if err != nil {
-				return nil, err
+				return nil, rollupMemorySize, err
 			}
 			rf, err := nrf(args)
 			if err != nil {
-				return nil, err
+				return nil, rollupMemorySize, err
 			}
 			iafc := newIncrementalAggrFuncContext(ae, callbacks)
 			return evalRollupFunc(qt, ec, fe.Name, rf, ae, re, iafc)
 		}
 	}
-	args, err := evalExprsInParallel(qt, ec, ae.Args)
+	args, rollupMemorySize, err := evalExprsInParallel(qt, ec, ae.Args)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	af := getAggrFunc(ae.Name)
 	if af == nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf(`unknown func %q`, ae.Name),
 		}
 	}
@@ -366,15 +367,16 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 	}
 	rv, err := af(afa)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot evaluate %q: %w`, ae.AppendString(nil), err)
+		return nil, rollupMemorySize, fmt.Errorf(`cannot evaluate %q: %w`, ae.AppendString(nil), err)
 	}
-	return rv, nil
+	return rv, rollupMemorySize, nil
 }
 
-func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOpExpr) ([]*timeseries, error) {
+func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOpExpr) ([]*timeseries, int64, error) {
+	var rollupMemorySize int64
 	bf := getBinaryOpFunc(be.Op)
 	if bf == nil {
-		return nil, fmt.Errorf(`unknown binary op %q`, be.Op)
+		return nil, rollupMemorySize, fmt.Errorf(`unknown binary op %q`, be.Op)
 	}
 	var err error
 	var tssLeft, tssRight []*timeseries
@@ -384,12 +386,12 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 		// lower number of time series for `and` and `if` operator.
 		// This should produce more specific label filters for the left side of the query.
 		// This, in turn, should reduce the time to select series for the left side of the query.
-		tssRight, tssLeft, err = execBinaryOpArgs(qt, ec, be.Right, be.Left, be)
+		tssRight, tssLeft, rollupMemorySize, err = execBinaryOpArgs(qt, ec, be.Right, be.Left, be)
 	default:
-		tssLeft, tssRight, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be)
+		tssLeft, tssRight, rollupMemorySize, err = execBinaryOpArgs(qt, ec, be.Left, be.Right, be)
 	}
 	if err != nil {
-		return nil, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
+		return nil, rollupMemorySize, fmt.Errorf("cannot execute %q: %w", be.AppendString(nil), err)
 	}
 	bfa := &binaryOpFuncArg{
 		be:    be,
@@ -398,9 +400,9 @@ func evalBinaryOp(qt *querytracer.Tracer, ec *EvalConfig, be *metricsql.BinaryOp
 	}
 	rv, err := bf(bfa)
 	if err != nil {
-		return nil, fmt.Errorf(`cannot evaluate %q: %w`, be.AppendString(nil), err)
+		return nil, rollupMemorySize, fmt.Errorf(`cannot evaluate %q: %w`, be.AppendString(nil), err)
 	}
-	return rv, nil
+	return rv, rollupMemorySize, nil
 }
 
 func canPushdownCommonFilters(be *metricsql.BinaryOpExpr) bool {
@@ -422,7 +424,7 @@ func isAggrFuncWithoutGrouping(e metricsql.Expr) bool {
 	return len(afe.Modifier.Args) == 0
 }
 
-func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, error) {
+func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSecond metricsql.Expr, be *metricsql.BinaryOpExpr) ([]*timeseries, []*timeseries, int64, error) {
 	if !canPushdownCommonFilters(be) {
 		// Execute exprFirst and exprSecond in parallel, since it is impossible to pushdown common filters
 		// from exprFirst to exprSecond.
@@ -433,32 +435,35 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 
 		var tssFirst []*timeseries
 		var errFirst error
+		var rollupMemorySizeFirst int64
 		qtFirst := qt.NewChild("expr1")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tssFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
+			tssFirst, rollupMemorySizeFirst, errFirst = evalExpr(qtFirst, ec, exprFirst)
 			qtFirst.Done()
 		}()
 
 		var tssSecond []*timeseries
 		var errSecond error
+		var rollupMemorySizeSecond int64
 		qtSecond := qt.NewChild("expr2")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			tssSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
+			tssSecond, rollupMemorySizeSecond, errSecond = evalExpr(qtSecond, ec, exprSecond)
 			qtSecond.Done()
 		}()
 
 		wg.Wait()
+		rollupMemorySize := rollupMemorySizeFirst + rollupMemorySizeSecond
 		if errFirst != nil {
-			return nil, nil, errFirst
+			return nil, nil, rollupMemorySize, errFirst
 		}
 		if errSecond != nil {
-			return nil, nil, errSecond
+			return nil, nil, rollupMemorySize, errSecond
 		}
-		return tssFirst, tssSecond, nil
+		return tssFirst, tssSecond, rollupMemorySize, nil
 	}
 
 	// Execute binary operation in the following way:
@@ -484,24 +489,27 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	//
 	// - Queries, which get additional labels from `info` metrics.
 	//   See https://www.robustperception.io/exposing-the-software-version-to-prometheus
-	tssFirst, err := evalExpr(qt, ec, exprFirst)
+	tssFirst, rollupMemorySizeFirst, err := evalExpr(qt, ec, exprFirst)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, rollupMemorySizeFirst, err
 	}
 	if len(tssFirst) == 0 && strings.ToLower(be.Op) != "or" {
 		// Fast path: there is no sense in executing the exprSecond when exprFirst returns an empty result,
 		// since the "exprFirst op exprSecond" would return an empty result in any case.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3349
-		return nil, nil, nil
+		return nil, nil, rollupMemorySizeFirst, nil
 	}
 	lfs := getCommonLabelFilters(tssFirst)
 	lfs = metricsql.TrimFiltersByGroupModifier(lfs, be)
 	exprSecond = metricsql.PushdownBinaryOpFilters(exprSecond, lfs)
-	tssSecond, err := evalExpr(qt, ec, exprSecond)
+	tssSecond, rollupMemorySizeSecond, err := evalExpr(qt, ec, exprSecond)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, rollupMemorySizeFirst + rollupMemorySizeSecond, err
 	}
-	return tssFirst, tssSecond, nil
+
+	rollupMemorySize := rollupMemorySizeFirst + rollupMemorySizeSecond
+
+	return tssFirst, tssSecond, rollupMemorySize, nil
 }
 
 func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
@@ -634,25 +642,28 @@ func tryGetArgRollupFuncWithMetricExpr(ae *metricsql.AggrFuncExpr) (*metricsql.F
 	return nil, nil
 }
 
-func evalExprsSequentially(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
+func evalExprsSequentially(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, int64, error) {
 	var rvs [][]*timeseries
+	var totalMemorySize int64
 	for _, e := range es {
-		rv, err := evalExpr(qt, ec, e)
+		rv, rollupMemorySize, err := evalExpr(qt, ec, e)
 		if err != nil {
-			return nil, err
+			return nil, totalMemorySize + rollupMemorySize, err
 		}
 		rvs = append(rvs, rv)
+		totalMemorySize += rollupMemorySize
 	}
-	return rvs, nil
+	return rvs, totalMemorySize, nil
 }
 
-func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, error) {
+func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.Expr) ([][]*timeseries, int64, error) {
 	if len(es) < 2 {
 		return evalExprsSequentially(qt, ec, es)
 	}
 	rvs := make([][]*timeseries, len(es))
 	errs := make([]error, len(es))
 	var wg sync.WaitGroup
+	var totalMemorySize int64
 	for i, e := range es {
 		qt.Printf("eval function args in parallel")
 		wg.Add(1)
@@ -662,40 +673,43 @@ func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.
 				qtChild.Done()
 				wg.Done()
 			}()
-			rv, err := evalExpr(qtChild, ec, e)
+			rv, rollupMemorySize, err := evalExpr(qtChild, ec, e)
 			rvs[i] = rv
 			errs[i] = err
+			atomic.AddInt64(&totalMemorySize, rollupMemorySize)
 		}(e, i)
 	}
 	wg.Wait()
 	for _, err := range errs {
 		if err != nil {
-			return nil, err
+			return nil, totalMemorySize, err
 		}
 	}
-	return rvs, nil
+	return rvs, totalMemorySize, nil
 }
 
-func evalRollupFuncArgs(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, *metricsql.RollupExpr, error) {
+func evalRollupFuncArgs(qt *querytracer.Tracer, ec *EvalConfig, fe *metricsql.FuncExpr) ([]interface{}, *metricsql.RollupExpr, int64, error) {
 	var re *metricsql.RollupExpr
 	rollupArgIdx := metricsql.GetRollupArgIdx(fe)
 	if len(fe.Args) <= rollupArgIdx {
-		return nil, nil, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx+1, fe.Name, len(fe.Args), fe.AppendString(nil))
+		return nil, nil, 0, fmt.Errorf("expecting at least %d args to %q; got %d args; expr: %q", rollupArgIdx+1, fe.Name, len(fe.Args), fe.AppendString(nil))
 	}
 	args := make([]interface{}, len(fe.Args))
+	var totalMemorySize int64
 	for i, arg := range fe.Args {
 		if i == rollupArgIdx {
 			re = getRollupExprArg(arg)
 			args[i] = re
 			continue
 		}
-		ts, err := evalExpr(qt, ec, arg)
+		ts, rollupMemorySize, err := evalExpr(qt, ec, arg)
 		if err != nil {
-			return nil, nil, fmt.Errorf("cannot evaluate arg #%d for %q: %w", i+1, fe.AppendString(nil), err)
+			return nil, nil, totalMemorySize + rollupMemorySize, fmt.Errorf("cannot evaluate arg #%d for %q: %w", i+1, fe.AppendString(nil), err)
 		}
 		args[i] = ts
+		totalMemorySize += rollupMemorySize
 	}
-	return args, re, nil
+	return args, re, totalMemorySize, nil
 }
 
 func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
@@ -730,18 +744,18 @@ func getRollupExprArg(arg metricsql.Expr) *metricsql.RollupExpr {
 // - rollupFunc(m) if iafc is nil
 // - aggrFunc(rollupFunc(m)) if iafc isn't nil
 func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr,
-	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, int64, error) {
 	if re.At == nil {
 		return evalRollupFuncWithoutAt(qt, ec, funcName, rf, expr, re, iafc)
 	}
-	tssAt, err := evalExpr(qt, ec, re.At)
+	tssAt, rollupMemorySize, err := evalExpr(qt, ec, re.At)
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf("cannot evaluate `@` modifier: %w", err),
 		}
 	}
 	if len(tssAt) != 1 {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf("`@` modifier must return a single series; it returns %d series instead", len(tssAt)),
 		}
 	}
@@ -749,9 +763,9 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 	ecNew := copyEvalConfig(ec)
 	ecNew.Start = atTimestamp
 	ecNew.End = atTimestamp
-	tss, err := evalRollupFuncWithoutAt(qt, ecNew, funcName, rf, expr, re, iafc)
+	tss, rollupMemorySize, err := evalRollupFuncWithoutAt(qt, ecNew, funcName, rf, expr, re, iafc)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	// expand single-point tss to the original time range.
 	timestamps := ec.getSharedTimestamps()
@@ -764,11 +778,11 @@ func evalRollupFunc(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf 
 		ts.Timestamps = timestamps
 		ts.Values = values
 	}
-	return tss, nil
+	return tss, rollupMemorySize, nil
 }
 
 func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, error) {
+	expr metricsql.Expr, re *metricsql.RollupExpr, iafc *incrementalAggrFuncContext) ([]*timeseries, int64, error) {
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64
@@ -794,16 +808,17 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	}
 	var rvs []*timeseries
 	var err error
+	var rollupMemorySize int64
 	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
-		rvs, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window)
+		rvs, rollupMemorySize, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window)
 	} else {
 		if iafc != nil {
 			logger.Panicf("BUG: iafc must be nil for rollup %q over subquery %q", funcName, re.AppendString(nil))
 		}
-		rvs, err = evalRollupFuncWithSubquery(qt, ecNew, funcName, rf, expr, re)
+		rvs, rollupMemorySize, err = evalRollupFuncWithSubquery(qt, ecNew, funcName, rf, expr, re)
 	}
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: err,
 		}
 	}
@@ -821,7 +836,7 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 			ts.Timestamps = dstTimestamps
 		}
 	}
-	return rvs, nil
+	return rvs, rollupMemorySize, nil
 }
 
 // aggregateAbsentOverTime collapses tss to a single time series with 1 and nan values.
@@ -845,7 +860,7 @@ func aggregateAbsentOverTime(ec *EvalConfig, expr metricsql.Expr, tss []*timeser
 	return rvs
 }
 
-func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, error) {
+func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc, expr metricsql.Expr, re *metricsql.RollupExpr) ([]*timeseries, int64, error) {
 	// TODO: determine whether to use rollupResultCacheV here.
 	qt = qt.NewChild("subquery")
 	defer qt.Done()
@@ -861,21 +876,21 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	ecSQ.Step = step
 	ecSQ.MaxPointsPerSeries = *maxPointsSubqueryPerTimeseries
 	if err := ValidateMaxPointsPerSeries(ecSQ.Start, ecSQ.End, ecSQ.Step, ecSQ.MaxPointsPerSeries); err != nil {
-		return nil, fmt.Errorf("%w; (see -search.maxPointsSubqueryPerTimeseries command-line flag)", err)
+		return nil, 0, fmt.Errorf("%w; (see -search.maxPointsSubqueryPerTimeseries command-line flag)", err)
 	}
 	// unconditionally align start and end args to step for subquery as Prometheus does.
 	ecSQ.Start, ecSQ.End = alignStartEnd(ecSQ.Start, ecSQ.End, ecSQ.Step)
-	tssSQ, err := evalExpr(qt, ecSQ, re.Expr)
+	tssSQ, rollupMemorySize, err := evalExpr(qt, ecSQ, re.Expr)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	if len(tssSQ) == 0 {
-		return nil, nil
+		return nil, rollupMemorySize, nil
 	}
 	sharedTimestamps := getTimestamps(ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries)
 	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, ec.Start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
 	var tssLock sync.Mutex
@@ -904,7 +919,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	})
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
 	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal)
-	return tss, nil
+	return tss, rollupMemorySize, nil
 }
 
 var rowsScannedPerQuery = metrics.NewHistogram(`vm_rows_scanned_per_query`)
@@ -982,7 +997,7 @@ var (
 )
 
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
-	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
+	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, int64, error) {
 	var rollupMemorySize int64
 	window := windowExpr.Duration(ec.Step)
 	if qt.Enabled() {
@@ -992,7 +1007,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		}()
 	}
 	if me.IsEmpty() {
-		return evalNumber(ec, nan), nil
+		return evalNumber(ec, nan), rollupMemorySize, nil
 	}
 
 	// Search for partial results in cache.
@@ -1000,7 +1015,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	if start > ec.End {
 		// The result is fully cached.
 		rollupResultCacheFullHits.Inc()
-		return tssCached, nil
+		return tssCached, rollupMemorySize, nil
 	}
 	if start > ec.Start {
 		rollupResultCachePartialHits.Inc()
@@ -1013,7 +1028,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	sharedTimestamps := getTimestamps(start, ec.End, ec.Step, ec.MaxPointsPerSeries)
 	preFunc, rcs, err := getRollupConfigs(funcName, rf, expr, start, ec.End, ec.Step, ec.MaxPointsPerSeries, window, ec.LookbackDelta, sharedTimestamps)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 
 	// Fetch the remaining part of the result.
@@ -1028,7 +1043,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	sq := storage.NewSearchQuery(minTimestamp, ec.End, tfss, ec.MaxSeries)
 	rss, err := netstorage.ProcessSearchQuery(qt, sq, ec.Deadline)
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: err,
 		}
 	}
@@ -1036,7 +1051,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	if rssLen == 0 {
 		rss.Cancel()
 		tss := mergeTimeseries(tssCached, nil, start, ec)
-		return tss, nil
+		return tss, rollupMemorySize, nil
 	}
 
 	// Verify timeseries fit available memory after the rollup.
@@ -1065,7 +1080,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	rollupMemorySize = sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
 	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		rss.Cancel()
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series "+
 				"according to -search.maxMemoryPerQuery=%d; requested memory: %d bytes; "+
 				"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
@@ -1076,7 +1091,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
 				"total available memory for concurrent requests: %d bytes; "+
 				"requested memory: %d bytes; "+
@@ -1096,13 +1111,13 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		tss, err = evalRollupNoIncrementalAggregate(qt, funcName, keepMetricNames, rss, rcs, preFunc, sharedTimestamps)
 	}
 	if err != nil {
-		return nil, &UserReadableError{
+		return nil, rollupMemorySize, &UserReadableError{
 			Err: err,
 		}
 	}
 	tss = mergeTimeseries(tssCached, tss, start, ec)
 	rollupResultCacheV.Put(qt, ec, expr, window, tss)
-	return tss, nil
+	return tss, rollupMemorySize, nil
 }
 
 var (

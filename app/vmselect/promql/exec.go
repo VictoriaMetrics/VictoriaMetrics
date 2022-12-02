@@ -45,7 +45,7 @@ func (ure *UserReadableError) Error() string {
 }
 
 // Exec executes q for the given ec.
-func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, error) {
+func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly bool) ([]netstorage.Result, int64, error) {
 	if querystats.Enabled() {
 		startTime := time.Now()
 		defer querystats.RegisterQuery(q, ec.End-ec.Start, startTime)
@@ -55,14 +55,14 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 
 	e, err := parsePromQLWithCache(q)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	qid := activeQueriesV.Add(ec, q)
-	rv, err := evalExpr(qt, ec, e)
+	rv, rollupMemorySize, err := evalExpr(qt, ec, e)
 	activeQueriesV.Remove(qid)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	if isFirstPointOnly {
 		// Remove all the points except the first one from every time series.
@@ -75,7 +75,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 	maySort := maySortResults(e, rv)
 	result, err := timeseriesToResult(rv, maySort)
 	if err != nil {
-		return nil, err
+		return nil, rollupMemorySize, err
 	}
 	if maySort {
 		qt.Printf("sort series by metric name and labels")
@@ -91,7 +91,7 @@ func Exec(qt *querytracer.Tracer, ec *EvalConfig, q string, isFirstPointOnly boo
 		}
 		qt.Printf("round series values to %d decimal digits after the point", n)
 	}
-	return result, nil
+	return result, rollupMemorySize, nil
 }
 
 func maySortResults(e metricsql.Expr, tss []*timeseries) bool {
