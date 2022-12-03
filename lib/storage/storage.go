@@ -2435,7 +2435,7 @@ func (s *Storage) updateNextDayMetricIDs(date uint64) {
 	if e.date == date {
 		pendingMetricIDs.Union(&e.v)
 	} else {
-		// Do not add pendingMetricIDs from the previous day to the cyrrent day,
+		// Do not add pendingMetricIDs from the previous day to the current day,
 		// since this may result in missing registration of the metricIDs in the per-day inverted index.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
 		pendingMetricIDs = &uint64set.Set{}
@@ -2484,9 +2484,8 @@ func (s *Storage) updateCurrHourMetricIDs(hour uint64) {
 		m = &uint64set.Set{}
 		byTenant = make(map[accountProjectKey]*uint64set.Set)
 	}
-
-	if hour%24 != 0 {
-		// Do not add pending metricIDs from the previous hour to the current hour on the next day,
+	if hm.hour == hour || hour%24 != 0 {
+		// Do not add pending metricIDs from the previous hour on the previous day to the current hour,
 		// since this may result in missing registration of the metricIDs in the per-day inverted index.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309
 		for _, x := range newEntries {
