@@ -157,9 +157,12 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 	t.Run("empty_pending_metric_ids_stale_curr_hour", func(t *testing.T) {
 		s := newStorage()
 		hour := fasttime.UnixHour()
+		if hour%24 == 0 {
+			hour++
+		}
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			hour: 123,
+			hour: hour - 1,
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
@@ -220,9 +223,12 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		s.pendingHourEntries = pendingHourEntries
 
 		hour := fasttime.UnixHour()
+		if hour%24 == 0 {
+			hour++
+		}
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
-			hour: 123,
+			hour: hour - 1,
 		}
 		hmOrig.m.Add(12)
 		hmOrig.m.Add(34)
@@ -254,6 +260,49 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 		s.pendingHourEntries = pendingHourEntries
 
 		hour := fasttime.UnixHour()
+		hmOrig := &hourMetricIDs{
+			m:    &uint64set.Set{},
+			hour: hour,
+		}
+		hmOrig.m.Add(12)
+		hmOrig.m.Add(34)
+		s.currHourMetricIDs.Store(hmOrig)
+		s.updateCurrHourMetricIDs(hour)
+		hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
+		if hmCurr.hour != hour {
+			t.Fatalf("unexpected hmCurr.hour; got %d; want %d", hmCurr.hour, hour)
+		}
+		m := pendingHourEntries.Clone()
+		hmOrig.m.ForEach(func(part []uint64) bool {
+			for _, metricID := range part {
+				m.Add(metricID)
+			}
+			return true
+		})
+		if !hmCurr.m.Equal(m) {
+			t.Fatalf("unexpected hm.m; got %v; want %v", hmCurr.m, m)
+		}
+
+		hmPrev := s.prevHourMetricIDs.Load().(*hourMetricIDs)
+		hmEmpty := &hourMetricIDs{}
+		if !reflect.DeepEqual(hmPrev, hmEmpty) {
+			t.Fatalf("unexpected hmPrev; got %v; want %v", hmPrev, hmEmpty)
+		}
+
+		if s.pendingHourEntries.Len() != 0 {
+			t.Fatalf("unexpected s.pendingHourEntries.Len(); got %d; want %d", s.pendingHourEntries.Len(), 0)
+		}
+	})
+	t.Run("nonempty_pending_metric_ids_valid_curr_hour_start_of_day", func(t *testing.T) {
+		s := newStorage()
+		pendingHourEntries := &uint64set.Set{}
+		pendingHourEntries.Add(343)
+		pendingHourEntries.Add(32424)
+		pendingHourEntries.Add(8293432)
+		s.pendingHourEntries = pendingHourEntries
+
+		hour := fasttime.UnixHour()
+		hour -= hour % 24
 		hmOrig := &hourMetricIDs{
 			m:    &uint64set.Set{},
 			hour: hour,
