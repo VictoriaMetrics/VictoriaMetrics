@@ -800,21 +800,13 @@ func (pt *partition) flushInmemoryParts(dstPws []*partWrapper, force bool) ([]*p
 }
 
 func (pt *partition) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{}) error {
-	defer func() {
-		// Remove isInMerge flag from pws.
-		pt.partsLock.Lock()
-		for _, pw := range pws {
-			// Do not check for pws.isInMerge set to false,
-			// since it may be set to false in mergeParts below.
-			pw.isInMerge = false
-		}
-		pt.partsLock.Unlock()
-	}()
 	for len(pws) > defaultPartsToMerge {
-		if err := pt.mergeParts(pws[:defaultPartsToMerge], stopCh); err != nil {
+		pwsChunk := pws[:defaultPartsToMerge]
+		pws = pws[defaultPartsToMerge:]
+		if err := pt.mergeParts(pwsChunk, stopCh); err != nil {
+			pt.releasePartsToMerge(pws)
 			return fmt.Errorf("cannot merge %d parts: %w", defaultPartsToMerge, err)
 		}
-		pws = pws[defaultPartsToMerge:]
 	}
 	if len(pws) == 0 {
 		return nil
