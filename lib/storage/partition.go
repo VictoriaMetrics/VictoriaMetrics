@@ -145,11 +145,7 @@ type partition struct {
 
 	stopCh chan struct{}
 
-	smallPartsMergerWG     sync.WaitGroup
-	bigPartsMergerWG       sync.WaitGroup
-	rawRowsFlusherWG       sync.WaitGroup
-	inmemoryPartsFlusherWG sync.WaitGroup
-	stalePartsRemoverWG    sync.WaitGroup
+	wg sync.WaitGroup
 }
 
 // partWrapper is a wrapper for the part.
@@ -620,30 +616,10 @@ func (pt *partition) MustClose() {
 	// Wait until all the pending transaction deletions are finished.
 	pendingTxnDeletionsWG.Wait()
 
-	logger.Infof("waiting for stale parts remover to stop on %q...", pt.smallPartsPath)
+	logger.Infof("waiting for service workers to stop on %q...", pt.smallPartsPath)
 	startTime := time.Now()
-	pt.stalePartsRemoverWG.Wait()
-	logger.Infof("stale parts remover stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
-
-	logger.Infof("waiting for inmemory parts flusher to stop on %q...", pt.smallPartsPath)
-	startTime = time.Now()
-	pt.inmemoryPartsFlusherWG.Wait()
-	logger.Infof("inmemory parts flusher stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
-
-	logger.Infof("waiting for raw rows flusher to stop on %q...", pt.smallPartsPath)
-	startTime = time.Now()
-	pt.rawRowsFlusherWG.Wait()
-	logger.Infof("raw rows flusher stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
-
-	logger.Infof("waiting for small part mergers to stop on %q...", pt.smallPartsPath)
-	startTime = time.Now()
-	pt.smallPartsMergerWG.Wait()
-	logger.Infof("small part mergers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
-
-	logger.Infof("waiting for big part mergers to stop on %q...", pt.bigPartsPath)
-	startTime = time.Now()
-	pt.bigPartsMergerWG.Wait()
-	logger.Infof("big part mergers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.bigPartsPath)
+	pt.wg.Wait()
+	logger.Infof("service workers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	logger.Infof("flushing inmemory parts to files on %q...", pt.smallPartsPath)
 	startTime = time.Now()
@@ -695,10 +671,10 @@ func (pt *partition) MustClose() {
 }
 
 func (pt *partition) startRawRowsFlusher() {
-	pt.rawRowsFlusherWG.Add(1)
+	pt.wg.Add(1)
 	go func() {
 		pt.rawRowsFlusher()
-		pt.rawRowsFlusherWG.Done()
+		pt.wg.Done()
 	}()
 }
 
@@ -748,10 +724,10 @@ func (rrs *rawRowsShard) appendRawRowsToFlush(dst []rawRow, pt *partition, isFin
 }
 
 func (pt *partition) startInmemoryPartsFlusher() {
-	pt.inmemoryPartsFlusherWG.Add(1)
+	pt.wg.Add(1)
 	go func() {
 		pt.inmemoryPartsFlusher()
-		pt.inmemoryPartsFlusherWG.Done()
+		pt.wg.Done()
 	}()
 }
 
@@ -909,17 +885,17 @@ func SetSmallMergeWorkersCount(n int) {
 
 func (pt *partition) startMergeWorkers() {
 	for i := 0; i < smallMergeWorkersCount; i++ {
-		pt.smallPartsMergerWG.Add(1)
+		pt.wg.Add(1)
 		go func() {
 			pt.smallPartsMerger()
-			pt.smallPartsMergerWG.Done()
+			pt.wg.Done()
 		}()
 	}
 	for i := 0; i < bigMergeWorkersCount; i++ {
-		pt.bigPartsMergerWG.Add(1)
+		pt.wg.Add(1)
 		go func() {
 			pt.bigPartsMerger()
-			pt.bigPartsMergerWG.Done()
+			pt.wg.Done()
 		}()
 	}
 }
@@ -1346,10 +1322,10 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool, isBig 
 }
 
 func (pt *partition) startStalePartsRemover() {
-	pt.stalePartsRemoverWG.Add(1)
+	pt.wg.Add(1)
 	go func() {
 		pt.stalePartsRemover()
-		pt.stalePartsRemoverWG.Done()
+		pt.wg.Done()
 	}()
 }
 

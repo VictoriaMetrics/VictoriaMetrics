@@ -107,10 +107,7 @@ type Table struct {
 
 	stopCh chan struct{}
 
-	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
-	partMergersWG syncwg.WaitGroup
-
-	rawItemsFlusherWG sync.WaitGroup
+	wg sync.WaitGroup
 
 	// Use syncwg instead of sync, since Add/Wait may be called from concurrent goroutines.
 	rawItemsPendingFlushesWG syncwg.WaitGroup
@@ -332,15 +329,10 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 func (tb *Table) MustClose() {
 	close(tb.stopCh)
 
-	logger.Infof("waiting for raw items flusher to stop on %q...", tb.path)
+	logger.Infof("waiting for background workers to stop on %q...", tb.path)
 	startTime := time.Now()
-	tb.rawItemsFlusherWG.Wait()
-	logger.Infof("raw items flusher stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
-
-	logger.Infof("waiting for part mergers to stop on %q...", tb.path)
-	startTime = time.Now()
-	tb.partMergersWG.Wait()
-	logger.Infof("part mergers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
+	tb.wg.Wait()
+	logger.Infof("background workers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
 
 	logger.Infof("flushing inmemory parts to files on %q...", tb.path)
 	startTime = time.Now()
@@ -500,10 +492,10 @@ func (tb *Table) putParts(pws []*partWrapper) {
 }
 
 func (tb *Table) startRawItemsFlusher() {
-	tb.rawItemsFlusherWG.Add(1)
+	tb.wg.Add(1)
 	go func() {
 		tb.rawItemsFlusher()
-		tb.rawItemsFlusherWG.Done()
+		tb.wg.Done()
 	}()
 }
 
@@ -592,8 +584,6 @@ func (tb *Table) mergeRawItemsBlocks(ibs []*inmemoryBlock, isFinal bool) {
 	if len(ibs) == 0 {
 		return
 	}
-	tb.partMergersWG.Add(1)
-	defer tb.partMergersWG.Done()
 
 	pws := make([]*partWrapper, 0, (len(ibs)+defaultPartsToMerge-1)/defaultPartsToMerge)
 	var pwsLock sync.Mutex
@@ -720,12 +710,12 @@ func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
 
 func (tb *Table) startPartMergers() {
 	for i := 0; i < mergeWorkersCount; i++ {
-		tb.partMergersWG.Add(1)
+		tb.wg.Add(1)
 		go func() {
 			if err := tb.partMerger(); err != nil {
 				logger.Panicf("FATAL: unrecoverable error when merging parts in %q: %s", tb.path, err)
 			}
-			tb.partMergersWG.Done()
+			tb.wg.Done()
 		}()
 	}
 }
