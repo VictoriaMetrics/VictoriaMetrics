@@ -49,9 +49,12 @@ func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 // It is safe calling NewPart multiple times.
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() (*part, error) {
-	ph := mp.ph
-	size := uint64(len(mp.timestampsData.B) + len(mp.valuesData.B) + len(mp.indexData.B) + len(mp.metaindexData.B))
-	return newPart(&ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
+	size := mp.size()
+	return newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
+}
+
+func (mp *inmemoryPart) size() uint64 {
+	return uint64(cap(mp.timestampsData.B) + cap(mp.valuesData.B) + cap(mp.indexData.B) + cap(mp.metaindexData.B))
 }
 
 func getInmemoryPart() *inmemoryPart {
