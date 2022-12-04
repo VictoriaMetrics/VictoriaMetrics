@@ -346,7 +346,7 @@ func (tb *Table) MustClose() {
 	startTime = time.Now()
 
 	// Flush raw items the last time before exit.
-	tb.flushRawItems(true)
+	tb.flushPendingItems(true)
 
 	// Flush inmemory parts to disk.
 	var pws []*partWrapper
@@ -515,7 +515,7 @@ func (tb *Table) rawItemsFlusher() {
 		case <-tb.stopCh:
 			return
 		case <-ticker.C:
-			tb.flushRawItems(false)
+			tb.flushPendingItems(false)
 		}
 	}
 }
@@ -543,13 +543,13 @@ func (tb *Table) mergePartsOptimal(pws []*partWrapper) error {
 //
 // This function is only for debugging and testing.
 func (tb *Table) DebugFlush() {
-	tb.flushRawItems(true)
+	tb.flushPendingItems(true)
 
 	// Wait for background flushers to finish.
 	tb.rawItemsPendingFlushesWG.Wait()
 }
 
-func (tb *Table) flushRawItems(isFinal bool) {
+func (tb *Table) flushPendingItems(isFinal bool) {
 	tb.rawItems.flush(tb, isFinal)
 }
 
@@ -1099,7 +1099,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	}
 
 	// Flush inmemory items to disk.
-	tb.flushRawItems(true)
+	tb.flushPendingItems(true)
 
 	// The snapshot must be created under the lock in order to prevent from
 	// concurrent modifications via runTransaction.
