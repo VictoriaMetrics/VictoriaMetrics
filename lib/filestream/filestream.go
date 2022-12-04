@@ -79,7 +79,7 @@ func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
 func Open(path string, nocache bool) (*Reader, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open file %q: %w", path, err)
+		return nil, err
 	}
 	r := &Reader{
 		f:  f,
@@ -179,7 +179,7 @@ type Writer struct {
 func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", path, err)
+		return nil, err
 	}
 	n, err := f.Seek(offset, io.SeekStart)
 	if err != nil {
