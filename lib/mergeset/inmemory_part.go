@@ -76,9 +76,8 @@ var inmemoryPartBytePool bytesutil.ByteBufferPool
 // It is safe calling NewPart multiple times.
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
-	ph := mp.ph
 	size := mp.size()
-	p, err := newPart(&ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
+	p, err := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
 	if err != nil {
 		logger.Panicf("BUG: cannot create a part from inmemoryPart: %s", err)
 	}
@@ -86,5 +85,5 @@ func (mp *inmemoryPart) NewPart() *part {
 }
 
 func (mp *inmemoryPart) size() uint64 {
-	return uint64(len(mp.metaindexData.B) + len(mp.indexData.B) + len(mp.itemsData.B) + len(mp.lensData.B))
+	return uint64(cap(mp.metaindexData.B) + cap(mp.indexData.B) + cap(mp.itemsData.B) + cap(mp.lensData.B))
 }
