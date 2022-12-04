@@ -107,12 +107,12 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	// Cannot create hardlink. Just copy file contents
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot open file %q: %w", srcPath, err)
+		return fmt.Errorf("cannot open source file: %w", err)
 	}
 	dstFile, err := os.Create(dstPath)
 	if err != nil {
 		_ = srcFile.Close()
-		return fmt.Errorf("cannot create file %q: %w", dstPath, err)
+		return fmt.Errorf("cannot create destination file: %w", err)
 	}
 	n, err := io.Copy(dstFile, srcFile)
 	if err1 := dstFile.Close(); err1 != nil {
@@ -141,7 +141,7 @@ func (fs *FS) DownloadPart(p common.Part, w io.Writer) error {
 	path := fs.path(p)
 	r, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("cannot open %q: %w", path, err)
+		return err
 	}
 	n, err := io.Copy(w, r)
 	if err1 := r.Close(); err1 != nil && err == nil {
