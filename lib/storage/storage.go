@@ -393,13 +393,13 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 	snapshotsPath := s.path + "/snapshots"
 	d, err := os.Open(snapshotsPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot open snapshots directory: %w", err)
 	}
 	defer fs.MustClose(d)
 
 	fnames, err := d.Readdirnames(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read contents of %q: %w", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot read snapshots directory at %q: %w", snapshotsPath, err)
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
