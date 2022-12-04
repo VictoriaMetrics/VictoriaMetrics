@@ -106,7 +106,7 @@ func (gmt *graphiteMatchTemplate) Match(dst []string, s string) ([]string, bool)
 			dst = append(dst, s)
 			return dst, true
 		}
-		// Search for the the start of the next part.
+		// Search for the start of the next part.
 		p = parts[i+1]
 		i++
 		n := strings.Index(s, p)
