@@ -252,7 +252,7 @@ func (bsr *blockStreamReader) readBlock() error {
 			if err == io.EOF {
 				return io.EOF
 			}
-			return fmt.Errorf("cannot read index block from index data: %w", err)
+			return fmt.Errorf("cannot read index block: %w", err)
 		}
 	}
 
@@ -354,11 +354,11 @@ func (bsr *blockStreamReader) readIndexBlock() error {
 	// Read index block.
 	bsr.compressedIndexData = bytesutil.ResizeNoCopyMayOverallocate(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
 	if err := fs.ReadFullData(bsr.indexReader, bsr.compressedIndexData); err != nil {
-		return fmt.Errorf("cannot read index block from index data at offset %d: %w", bsr.indexBlockOffset, err)
+		return fmt.Errorf("cannot read index block at offset %d: %w", bsr.indexBlockOffset, err)
 	}
 	tmpData, err := encoding.DecompressZSTD(bsr.indexData[:0], bsr.compressedIndexData)
 	if err != nil {
-		return fmt.Errorf("cannot decompress index block read at offset %d: %w", bsr.indexBlockOffset, err)
+		return fmt.Errorf("cannot decompress index block at offset %d: %w", bsr.indexBlockOffset, err)
 	}
 	bsr.indexData = tmpData
 	bsr.indexCursor = bsr.indexData
