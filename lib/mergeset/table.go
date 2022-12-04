@@ -138,12 +138,11 @@ func (riss *rawItemsShards) init() {
 	riss.shards = make([]rawItemsShard, rawItemsShardsPerTable)
 }
 
-func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) error {
+func (riss *rawItemsShards) addItems(tb *Table, items [][]byte) {
 	n := atomic.AddUint32(&riss.shardIdx, 1)
 	shards := riss.shards
 	idx := n % uint32(len(shards))
-	shard := &shards[idx]
-	return shard.addItems(tb, items)
+	shards[idx].addItems(tb, items)
 }
 
 func (riss *rawItemsShards) Len() int {
@@ -180,8 +179,7 @@ func (ris *rawItemsShard) Len() int {
 	return n
 }
 
-func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
-	var err error
+func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) {
 	var blocksToFlush []*inmemoryBlock
 
 	ris.mu.Lock()
@@ -193,17 +191,18 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
 	}
 	ib := ibs[len(ibs)-1]
 	for _, item := range items {
-		if !ib.Add(item) {
-			ib = getInmemoryBlock()
-			if !ib.Add(item) {
-				putInmemoryBlock(ib)
-				err = fmt.Errorf("cannot insert an item %q into an empty inmemoryBlock; it looks like the item is too large? len(item)=%d", item, len(item))
-				break
-			}
-			ibs = append(ibs, ib)
-			ris.ibs = ibs
+		if ib.Add(item) {
+			continue
 		}
+		ib = getInmemoryBlock()
+		if ib.Add(item) {
+			ibs = append(ibs, ib)
+			continue
+		}
+		putInmemoryBlock(ib)
+		logger.Panicf("BUG: cannot insert too big item into an empty inmemoryBlock len(item)=%d; the caller should be responsible for avoiding too big items", len(item))
 	}
+	ris.ibs = ibs
 	if len(ibs) >= maxBlocksPerShard {
 		blocksToFlush = append(blocksToFlush, ibs...)
 		for i := range ibs {
@@ -215,7 +214,6 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) error {
 	ris.mu.Unlock()
 
 	tb.mergeRawItemsBlocks(blocksToFlush, false)
-	return err
 }
 
 type partWrapper struct {
@@ -457,17 +455,17 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 }
 
 // AddItems adds the given items to the tb.
-func (tb *Table) AddItems(items [][]byte) error {
-	if err := tb.rawItems.addItems(tb, items); err != nil {
-		return fmt.Errorf("cannot insert data into %q: %w", tb.path, err)
-	}
+//
+// The function panics when items contains an item with length exceeding maxInmemoryBlockSize.
+// It is caller's responsibility to make sure there are no too long items.
+func (tb *Table) AddItems(items [][]byte) {
+	tb.rawItems.addItems(tb, items)
 	atomic.AddUint64(&tb.itemsAdded, uint64(len(items)))
 	n := 0
 	for _, item := range items {
 		n += len(item)
 	}
 	atomic.AddUint64(&tb.itemsAddedSizeBytes, uint64(n))
-	return nil
 }
 
 // getParts appends parts snapshot to dst and returns it.

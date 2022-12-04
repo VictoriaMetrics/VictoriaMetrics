@@ -408,12 +408,8 @@ func (is *indexSearch) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte, date
 		return false, fmt.Errorf("cannot unmarshal metricNameRaw %q: %w", metricNameRaw, err)
 	}
 	mn.sortTags()
-	if err := is.createGlobalIndexes(tsid, mn); err != nil {
-		return false, fmt.Errorf("cannot create global indexes: %w", err)
-	}
-	if err := is.createPerDayIndexes(date, tsid.MetricID, mn); err != nil {
-		return false, fmt.Errorf("cannot create per-day indexes for date=%s: %w", dateToString(date), err)
-	}
+	is.createGlobalIndexes(tsid, mn)
+	is.createPerDayIndexes(date, tsid.MetricID, mn)
 	PutMetricName(mn)
 	atomic.AddUint64(&is.db.timeseriesRepopulated, 1)
 	return true, nil
@@ -619,12 +615,8 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName, metricNameRaw []b
 	if err := is.db.s.registerSeriesCardinality(dst.MetricID, metricNameRaw); err != nil {
 		return err
 	}
-	if err := is.createGlobalIndexes(dst, mn); err != nil {
-		return fmt.Errorf("cannot create global indexes: %w", err)
-	}
-	if err := is.createPerDayIndexes(date, dst.MetricID, mn); err != nil {
-		return fmt.Errorf("cannot create per-day indexes for date=%s: %w", dateToString(date), err)
-	}
+	is.createGlobalIndexes(dst, mn)
+	is.createPerDayIndexes(date, dst.MetricID, mn)
 
 	// There is no need in invalidating tag cache, since it is invalidated
 	// on db.tb flush via invalidateTagFiltersCache flushCallback passed to OpenTable.
@@ -690,7 +682,7 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	dst.MetricID = generateUniqueMetricID()
 }
 
-func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) error {
+func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 	// The order of index items is important.
 	// It guarantees index consistency.
 
@@ -721,7 +713,7 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) error {
 	ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)
 	kbPool.Put(prefix)
 
-	return is.db.tb.AddItems(ii.Items)
+	is.db.tb.AddItems(ii.Items)
 }
 
 type indexItems struct {
@@ -1792,9 +1784,7 @@ func (db *indexDB) searchMetricNameWithCache(dst []byte, metricID uint64, accoun
 
 	// Mark the metricID as deleted, so it will be created again when new data point
 	// for the given time series will arrive.
-	if err := db.deleteMetricIDs([]uint64{metricID}); err != nil {
-		return dst, fmt.Errorf("cannot delete metricID for missing metricID->metricName entry; metricID=%d; error: %w", metricID, err)
-	}
+	db.deleteMetricIDs([]uint64{metricID})
 	return dst, io.EOF
 }
 
@@ -1821,9 +1811,7 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	if err != nil {
 		return 0, err
 	}
-	if err := db.deleteMetricIDs(metricIDs); err != nil {
-		return 0, err
-	}
+	db.deleteMetricIDs(metricIDs)
 
 	// Delete TSIDs in the extDB.
 	deletedCount := len(metricIDs)
@@ -1841,10 +1829,10 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 	return deletedCount, nil
 }
 
-func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
+func (db *indexDB) deleteMetricIDs(metricIDs []uint64) {
 	if len(metricIDs) == 0 {
 		// Nothing to delete
-		return nil
+		return
 	}
 
 	// atomically add deleted metricIDs to an inmemory map.
@@ -1869,9 +1857,8 @@ func (db *indexDB) deleteMetricIDs(metricIDs []uint64) error {
 		items.B = encoding.MarshalUint64(items.B, metricID)
 		items.Next()
 	}
-	err := db.tb.AddItems(items.Items)
+	db.tb.AddItems(items.Items)
 	putIndexItems(items)
-	return err
 }
 
 func (db *indexDB) loadDeletedMetricIDs() (*uint64set.Set, error) {
@@ -2947,7 +2934,7 @@ const (
 	int64Max = int64((1 << 63) - 1)
 )
 
-func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName) error {
+func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
@@ -2962,12 +2949,8 @@ func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs, mn.AccountID, mn.ProjectID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	ii.registerTagIndexes(kb.B, mn, metricID)
-
-	if err := is.db.tb.AddItems(ii.Items); err != nil {
-		return fmt.Errorf("cannot add per-day entires for metricID %d: %w", metricID, err)
-	}
+	is.db.tb.AddItems(ii.Items)
 	is.db.s.dateMetricIDCache.Set(date, metricID)
-	return nil
 }
 
 func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {

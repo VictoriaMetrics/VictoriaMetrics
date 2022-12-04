@@ -2196,12 +2196,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				continue
 			}
 			mn.sortTags()
-			if err := is.createPerDayIndexes(date, metricID, mn); err != nil {
-				if firstError == nil {
-					firstError = fmt.Errorf("error when storing per-date inverted index for (date=%s, metricID=%d): %w", dateToString(date), metricID, err)
-				}
-				continue
-			}
+			is.createPerDayIndexes(date, metricID, mn)
 		}
 		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
 			date:     date,
