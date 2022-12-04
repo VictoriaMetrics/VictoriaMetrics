@@ -204,14 +204,18 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.tr.fromPartitionTimestamp(timestamp)
-	pt.startMergeWorkers()
-	pt.startRawRowsFlusher()
-	pt.startInmemoryPartsFlusher()
-	pt.startStalePartsRemover()
+	pt.startBackgroundWorkers()
 
 	logger.Infof("partition %q has been created", name)
 
 	return pt, nil
+}
+
+func (pt *partition) startBackgroundWorkers() {
+	pt.startMergeWorkers()
+	pt.startRawRowsFlusher()
+	pt.startInmemoryPartsFlusher()
+	pt.startStalePartsRemover()
 }
 
 // Drop drops all the data on the storage for the given pt.
@@ -258,10 +262,7 @@ func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition,
 	if err := pt.tr.fromPartitionName(name); err != nil {
 		return nil, fmt.Errorf("cannot obtain partition time range from smallPartsPath %q: %w", smallPartsPath, err)
 	}
-	pt.startMergeWorkers()
-	pt.startRawRowsFlusher()
-	pt.startInmemoryPartsFlusher()
-	pt.startStalePartsRemover()
+	pt.startBackgroundWorkers()
 
 	return pt, nil
 }
