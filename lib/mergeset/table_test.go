@@ -31,7 +31,7 @@ func TestTableOpenClose(t *testing.T) {
 	tb.MustClose()
 
 	// Re-open created table multiple times.
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 4; i++ {
 		tb, err := OpenTable(path, nil, nil, &isReadOnly)
 		if err != nil {
 			t.Fatalf("cannot open created table: %s", err)
@@ -53,7 +53,7 @@ func TestTableOpenMultipleTimes(t *testing.T) {
 	}
 	defer tb1.MustClose()
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 4; i++ {
 		tb2, err := OpenTable(path, nil, nil, &isReadOnly)
 		if err == nil {
 			tb2.MustClose()
@@ -62,8 +62,8 @@ func TestTableOpenMultipleTimes(t *testing.T) {
 	}
 }
 
-func TestTableAddItemSerial(t *testing.T) {
-	const path = "TestTableAddItemSerial"
+func TestTableAddItemsSerial(t *testing.T) {
+	const path = "TestTableAddItemsSerial"
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
@@ -81,7 +81,7 @@ func TestTableAddItemSerial(t *testing.T) {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
 
-	const itemsCount = 1e5
+	const itemsCount = 10e3
 	testAddItemsSerial(tb, itemsCount)
 
 	// Verify items count after pending items flush.
@@ -98,7 +98,7 @@ func TestTableAddItemSerial(t *testing.T) {
 
 	tb.MustClose()
 
-	// Re-open the table and make sure ItemsCount remains the same.
+	// Re-open the table and make sure itemsCount remains the same.
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
@@ -110,7 +110,7 @@ func TestTableAddItemSerial(t *testing.T) {
 	testAddItemsSerial(tb, moreItemsCount)
 	tb.MustClose()
 
-	// Re-open the table and verify ItemsCount again.
+	// Re-open the table and verify itemsCount again.
 	testReopenTable(t, path, itemsCount+moreItemsCount)
 }
 
@@ -221,9 +221,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 	flushCallback := func() {
 		atomic.AddUint64(&flushes, 1)
 	}
-	var itemsMerged uint64
 	prepareBlock := func(data []byte, items []Item) ([]byte, []Item) {
-		atomic.AddUint64(&itemsMerged, uint64(len(items)))
 		return data, items
 	}
 	var isReadOnly uint32
@@ -232,17 +230,13 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
 
-	const itemsCount = 1e5
+	const itemsCount = 10e3
 	testAddItemsConcurrent(tb, itemsCount)
 
 	// Verify items count after pending items flush.
 	tb.DebugFlush()
 	if atomic.LoadUint64(&flushes) == 0 {
 		t.Fatalf("unexpected zero flushes")
-	}
-	n := atomic.LoadUint64(&itemsMerged)
-	if n < itemsCount {
-		t.Fatalf("too low number of items merged; got %v; must be at least %v", n, itemsCount)
 	}
 
 	var m TableMetrics
@@ -253,7 +247,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 
 	tb.MustClose()
 
-	// Re-open the table and make sure ItemsCount remains the same.
+	// Re-open the table and make sure itemsCount remains the same.
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
@@ -265,7 +259,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 	testAddItemsConcurrent(tb, moreItemsCount)
 	tb.MustClose()
 
-	// Re-open the table and verify ItemsCount again.
+	// Re-open the table and verify itemsCount again.
 	testReopenTable(t, path, itemsCount+moreItemsCount)
 }
 

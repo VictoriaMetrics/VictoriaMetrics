@@ -47,7 +47,9 @@ func (it Item) String(data []byte) string {
 	return *(*string)(unsafe.Pointer(sh))
 }
 
-func (ib *inmemoryBlock) Len() int { return len(ib.items) }
+func (ib *inmemoryBlock) Len() int {
+	return len(ib.items)
+}
 
 func (ib *inmemoryBlock) Less(i, j int) bool {
 	items := ib.items
