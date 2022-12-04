@@ -25,10 +25,37 @@ func MustSyncPath(path string) {
 	mustSyncPath(path)
 }
 
+// WriteFileAndSync writes data to the file at path and then calls fsync on the created file.
+//
+// The fsync guarantees that the written data survives hardware reset after successful call.
+//
+// This function may leave the file at the path in inconsistent state on app crash
+// in the middle of the write.
+// Use WriteFileAtomically if the file at the path must be either written in full
+// or not written at all on app crash in the middle of the write.
+func WriteFileAndSync(path string, data []byte) error {
+	f, err := filestream.Create(path, false)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(data); err != nil {
+		f.MustClose()
+		// Do not call MustRemoveAll(path), so the user could inpsect
+		// the file contents during investigation of the issue.
+		return fmt.Errorf("cannot write %d bytes to %q: %w", len(data), path, err)
+	}
+	// Sync and close the file.
+	f.MustClose()
+	return nil
+}
+
 // WriteFileAtomically atomically writes data to the given file path.
 //
-// WriteFileAtomically returns only after the file is fully written and synced
+// This function returns only after the file is fully written and synced
 // to the underlying storage.
+//
+// This function guarantees that the file at path either fully written or not written at all on app crash
+// in the middle of the write.
 //
 // If the file at path already exists, then the file is overwritten atomically if canOverwrite is true.
 // Otherwise error is returned.
@@ -40,26 +67,18 @@ func WriteFileAtomically(path string, data []byte, canOverwrite bool) error {
 		return fmt.Errorf("cannot create file %q, since it already exists", path)
 	}
 
+	// Write data to a temporary file.
 	n := atomic.AddUint64(&tmpFileNum, 1)
 	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
-	f, err := filestream.Create(tmpPath, false)
-	if err != nil {
-		return fmt.Errorf("cannot create file %q: %w", tmpPath, err)
-	}
-	if _, err := f.Write(data); err != nil {
-		f.MustClose()
-		MustRemoveAll(tmpPath)
-		return fmt.Errorf("cannot write %d bytes to file %q: %w", len(data), tmpPath, err)
+	if err := WriteFileAndSync(tmpPath, data); err != nil {
+		return fmt.Errorf("cannot write data to temporary file: %w", err)
 	}
 
-	// Sync and close the file.
-	f.MustClose()
-
-	// Atomically move the file from tmpPath to path.
+	// Atomically move the temporary file from tmpPath to path.
 	if err := os.Rename(tmpPath, path); err != nil {
 		// do not call MustRemoveAll(tmpPath) here, so the user could inspect
-		// the file contents during investigating the issue.
-		return fmt.Errorf("cannot move %q to %q: %w", tmpPath, path, err)
+		// the file contents during investigation of the issue.
+		return fmt.Errorf("cannot move temporary file %q to %q: %w", tmpPath, path, err)
 	}
 
 	// Sync the containing directory, so the file is guaranteed to appear in the directory.
@@ -123,7 +142,7 @@ func RemoveDirContents(dir string) {
 	}
 	d, err := os.Open(dir)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open dir %q: %s", dir, err)
+		logger.Panicf("FATAL: cannot open dir: %s", err)
 	}
 	defer MustClose(d)
 	names, err := d.Readdirnames(-1)
@@ -185,7 +204,7 @@ func IsEmptyDir(path string) bool {
 	// See https://stackoverflow.com/a/30708914/274937
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Panicf("FATAL: unexpected error when opening directory %q: %s", path, err)
+		logger.Panicf("FATAL: cannot open dir: %s", err)
 	}
 	_, err = f.Readdirnames(1)
 	MustClose(f)
@@ -230,7 +249,7 @@ var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
 func MustRemoveTemporaryDirs(dir string) {
 	d, err := os.Open(dir)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open dir %q: %s", dir, err)
+		logger.Panicf("FATAL: cannot open dir: %s", err)
 	}
 	defer MustClose(d)
 	fis, err := d.Readdir(-1)
@@ -259,7 +278,7 @@ func HardLinkFiles(srcDir, dstDir string) error {
 
 	d, err := os.Open(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot open srcDir=%q: %w", srcDir, err)
+		return fmt.Errorf("cannot open srcDir: %w", err)
 	}
 	defer func() {
 		if err := d.Close(); err != nil {
