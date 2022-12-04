@@ -649,7 +649,7 @@ func (pt *partition) MustClose() {
 	startTime = time.Now()
 
 	// Flush raw rows the last time before exit.
-	pt.flushRawRows(true)
+	pt.flushPendingRows(true)
 
 	// Flush inmemory parts to disk.
 	var pws []*partWrapper
@@ -710,12 +710,12 @@ func (pt *partition) rawRowsFlusher() {
 		case <-pt.stopCh:
 			return
 		case <-ticker.C:
-			pt.flushRawRows(false)
+			pt.flushPendingRows(false)
 		}
 	}
 }
 
-func (pt *partition) flushRawRows(isFinal bool) {
+func (pt *partition) flushPendingRows(isFinal bool) {
 	pt.rawRows.flush(pt, isFinal)
 }
 
@@ -1639,7 +1639,7 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 	startTime := time.Now()
 
 	// Flush inmemory data to disk.
-	pt.flushRawRows(true)
+	pt.flushPendingRows(true)
 	if _, err := pt.flushInmemoryParts(nil, true); err != nil {
 		return fmt.Errorf("cannot flush inmemory parts: %w", err)
 	}

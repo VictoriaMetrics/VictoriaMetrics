@@ -306,7 +306,7 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 
 // DebugFlush flushes recently added storage data, so it becomes visible to search.
 func (s *Storage) DebugFlush() {
-	s.tb.flushRawRows()
+	s.tb.flushPendingRows()
 	s.idb().tb.DebugFlush()
 }
 

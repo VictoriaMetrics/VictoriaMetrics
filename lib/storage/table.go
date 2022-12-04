@@ -215,15 +215,15 @@ func (tb *table) MustClose() {
 	}
 }
 
-// flushRawRows flushes all the pending rows, so they become visible to search.
+// flushPendingRows flushes all the pending rows, so they become visible to search.
 //
 // This function is for debug purposes only.
-func (tb *table) flushRawRows() {
+func (tb *table) flushPendingRows() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
 	for _, ptw := range ptws {
-		ptw.pt.flushRawRows(true)
+		ptw.pt.flushPendingRows(true)
 	}
 }
 
