@@ -1,12 +1,16 @@
 package netstorage
 
 import (
+	"flag"
 	"reflect"
 	"runtime"
 	"testing"
 )
 
 func TestInitStopNodes(t *testing.T) {
+	if err := flag.Set("vmstorageDialTimeout", "1ms"); err != nil {
+		t.Fatalf("cannot set vmstorageDialTimeout flag: %s", err)
+	}
 	for i := 0; i < 3; i++ {
 		Init([]string{"host1", "host2"})
 		runtime.Gosched()
