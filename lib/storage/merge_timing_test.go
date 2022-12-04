@@ -41,7 +41,7 @@ func benchmarkMergeBlockStreams(b *testing.B, mps []*inmemoryPart, rowsPerLoop i
 				bsrs[i].InitFromInmemoryPart(mp)
 			}
 			mpOut.Reset()
-			bsw.InitFromInmemoryPart(&mpOut)
+			bsw.InitFromInmemoryPart(&mpOut, -5)
 			if err := mergeBlockStreams(&mpOut.ph, &bsw, bsrs, nil, strg, 0, &rowsMerged, &rowsDeleted); err != nil {
 				panic(fmt.Errorf("cannot merge block streams: %w", err))
 			}

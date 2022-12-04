@@ -661,6 +661,11 @@ func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
 	atomic.AddUint64(&tb.activeMerges, 1)
 	defer atomic.AddUint64(&tb.activeMerges, ^uint64(0))
 
+	outItemsCount := uint64(0)
+	for _, ib := range ibs {
+		outItemsCount += uint64(ib.Len())
+	}
+
 	// Prepare blockStreamReaders for source blocks.
 	bsrs := make([]*blockStreamReader, 0, len(ibs))
 	for _, ib := range ibs {
@@ -688,9 +693,10 @@ func (tb *Table) mergeInmemoryBlocks(ibs []*inmemoryBlock) *partWrapper {
 	}
 
 	// Prepare blockStreamWriter for destination part.
+	compressLevel := getCompressLevel(outItemsCount)
 	bsw := getBlockStreamWriter()
 	mpDst := &inmemoryPart{}
-	bsw.InitFromInmemoryPart(mpDst)
+	bsw.InitFromInmemoryPart(mpDst, compressLevel)
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
@@ -869,7 +875,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	mergeIdx := tb.nextMergeIdx()
 	tmpPartPath := fmt.Sprintf("%s/tmp/%016X", tb.path, mergeIdx)
 	bsw := getBlockStreamWriter()
-	compressLevel := getCompressLevelForPartItems(outItemsCount, outBlocksCount)
+	compressLevel := getCompressLevel(outItemsCount)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
 		return fmt.Errorf("cannot create destination part %q: %w", tmpPartPath, err)
 	}
@@ -958,9 +964,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isOuterP
 	return nil
 }
 
-func getCompressLevelForPartItems(itemsCount, blocksCount uint64) int {
-	// There is no need in using blocksCount here, since mergeset blocks are usually full.
-
+func getCompressLevel(itemsCount uint64) int {
 	if itemsCount <= 1<<16 {
 		// -5 is the minimum supported compression for zstd.
 		// See https://github.com/facebook/zstd/releases/tag/v1.3.4

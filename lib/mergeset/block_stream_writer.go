@@ -63,13 +63,10 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.mrFirstItemCaught = false
 }
 
-func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart) {
+func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
 	bsw.reset()
 
-	// Use the minimum compression level for in-memory blocks,
-	// since they are going to be re-compressed during the merge into file-based blocks.
-	bsw.compressLevel = -5 // See https://github.com/facebook/zstd/releases/tag/v1.3.4
-
+	bsw.compressLevel = compressLevel
 	bsw.metaindexWriter = &mp.metaindexData
 	bsw.indexWriter = &mp.indexData
 	bsw.itemsWriter = &mp.itemsData
