@@ -60,14 +60,14 @@ func (mp *inmemoryPart) Init(ib *inmemoryBlock) {
 
 	bb := inmemoryPartBytePool.Get()
 	bb.B = mp.bh.Marshal(bb.B[:0])
-	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, 0)
+	mp.indexData.B = encoding.CompressZSTDLevel(mp.indexData.B[:0], bb.B, compressLevel)
 
 	mp.mr.firstItem = append(mp.mr.firstItem[:0], mp.bh.firstItem...)
 	mp.mr.blockHeadersCount = 1
 	mp.mr.indexBlockOffset = 0
 	mp.mr.indexBlockSize = uint32(len(mp.indexData.B))
 	bb.B = mp.mr.Marshal(bb.B[:0])
-	mp.metaindexData.B = encoding.CompressZSTDLevel(mp.metaindexData.B[:0], bb.B, 0)
+	mp.metaindexData.B = encoding.CompressZSTDLevel(mp.metaindexData.B[:0], bb.B, compressLevel)
 	inmemoryPartBytePool.Put(bb)
 }
 
