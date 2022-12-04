@@ -76,5 +76,6 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
   &-info {
     display: grid;
     grid-gap: 4px;
+    word-break: break-all;
   }
 }
