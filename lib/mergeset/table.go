@@ -291,8 +291,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		stopCh:        make(chan struct{}),
 	}
 	tb.rawItems.init()
-	tb.startPartMergers()
-	tb.startRawItemsFlusher()
+	tb.startBackgroundWorkers()
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
@@ -321,6 +320,11 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	}
 
 	return tb, nil
+}
+
+func (tb *Table) startBackgroundWorkers() {
+	tb.startPartMergers()
+	tb.startRawItemsFlusher()
 }
 
 // MustClose closes the table.
