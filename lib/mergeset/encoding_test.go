@@ -115,7 +115,7 @@ func TestInmemoryBlockMarshalUnmarshal(t *testing.T) {
 	var itemsLen uint32
 	var mt marshalType
 
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 1000; i += 10 {
 		var items []string
 		totalLen := 0
 		ib.Reset()

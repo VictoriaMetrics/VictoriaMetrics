@@ -30,14 +30,14 @@ func TestMultilevelMerge(t *testing.T) {
 	// First level merge
 	var dstIP1 inmemoryPart
 	var bsw1 blockStreamWriter
-	bsw1.InitFromInmemoryPart(&dstIP1)
+	bsw1.InitFromInmemoryPart(&dstIP1, -5)
 	if err := mergeBlockStreams(&dstIP1.ph, &bsw1, bsrs[:5], nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge first level part 1: %s", err)
 	}
 
 	var dstIP2 inmemoryPart
 	var bsw2 blockStreamWriter
-	bsw2.InitFromInmemoryPart(&dstIP2)
+	bsw2.InitFromInmemoryPart(&dstIP2, -5)
 	if err := mergeBlockStreams(&dstIP2.ph, &bsw2, bsrs[5:], nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge first level part 2: %s", err)
 	}
@@ -54,7 +54,7 @@ func TestMultilevelMerge(t *testing.T) {
 		newTestBlockStreamReader(&dstIP1),
 		newTestBlockStreamReader(&dstIP2),
 	}
-	bsw.InitFromInmemoryPart(&dstIP)
+	bsw.InitFromInmemoryPart(&dstIP, 1)
 	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrsTop, nil, nil, &itemsMerged); err != nil {
 		t.Fatalf("cannot merge second level: %s", err)
 	}
@@ -73,7 +73,7 @@ func TestMergeForciblyStop(t *testing.T) {
 	bsrs, _ := newTestInmemoryBlockStreamReaders(20, 4000)
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&dstIP)
+	bsw.InitFromInmemoryPart(&dstIP, 1)
 	ch := make(chan struct{})
 	var itemsMerged uint64
 	close(ch)
@@ -120,7 +120,7 @@ func testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock int) error {
 	var itemsMerged uint64
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&dstIP)
+	bsw.InitFromInmemoryPart(&dstIP, -4)
 	if err := mergeBlockStreams(&dstIP.ph, &bsw, bsrs, nil, nil, &itemsMerged); err != nil {
 		return fmt.Errorf("cannot merge block streams: %w", err)
 	}

@@ -89,7 +89,7 @@ func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 func MustOpenReaderAt(path string) *ReaderAt {
 	f, err := os.Open(path)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open file %q for reading: %s", path, err)
+		logger.Panicf("FATAL: cannot open file for reading: %s", err)
 	}
 	var r ReaderAt
 	r.f = f

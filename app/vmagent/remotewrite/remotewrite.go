@@ -251,7 +251,7 @@ func Stop() {
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
 // If at is nil, then the data is pushed to the configured `-remoteWrite.url`.
-// If at isn't nil, the the data is pushed to the configured `-remoteWrite.multitenantURL`.
+// If at isn't nil, the data is pushed to the configured `-remoteWrite.multitenantURL`.
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
 func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {

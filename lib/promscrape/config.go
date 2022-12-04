@@ -137,7 +137,7 @@ func (cfg *Config) mustRestart(prevCfg *Config) {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2884
 	needGlobalRestart := !areEqualGlobalConfigs(&cfg.Global, &prevCfg.Global)
 
-	// Loop over the the new jobs, start new ones and restart updated ones.
+	// Loop over the new jobs, start new ones and restart updated ones.
 	var started, stopped, restarted int
 	currentJobNames := make(map[string]struct{}, len(cfg.ScrapeConfigs))
 	for i, sc := range cfg.ScrapeConfigs {

@@ -197,7 +197,7 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 		}
 
 		// Flush rows to parts.
-		tb.flushRawRows()
+		tb.flushPendingRows()
 	}
 	testTableSearch(t, tb, tsids, trSearch, rbsExpected, -1)
 	tb.MustClose()

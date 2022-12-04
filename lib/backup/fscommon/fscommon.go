@@ -45,7 +45,7 @@ func fsync(path string) error {
 func AppendFiles(dst []string, dir string) ([]string, error) {
 	d, err := os.Open(dir)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", dir, err)
+		return nil, fmt.Errorf("cannot open directory: %w", err)
 	}
 	dst, err = appendFilesInternal(dst, d)
 	if err1 := d.Close(); err1 != nil {

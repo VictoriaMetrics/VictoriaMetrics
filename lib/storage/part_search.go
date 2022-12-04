@@ -228,24 +228,29 @@ func (ps *partSearch) readIndexBlock(mr *metaindexRow) (*indexBlock, error) {
 }
 
 func (ps *partSearch) searchBHS() bool {
-	for i := range ps.bhs {
-		bh := &ps.bhs[i]
-
-	nextTSID:
-		if bh.TSID.Less(&ps.BlockRef.bh.TSID) {
-			// Skip blocks with small tsid values.
-			continue
+	bhs := ps.bhs
+	for len(bhs) > 0 {
+		// Skip block headers with tsids smaller than the given tsid.
+		tsid := &ps.BlockRef.bh.TSID
+		n := sort.Search(len(bhs), func(i int) bool {
+			return !bhs[i].TSID.Less(tsid)
+		})
+		if n == len(bhs) {
+			// Nothing found.
+			break
 		}
+		bhs = bhs[n:]
 
-		// Invariant: ps.BlockRef.bh.TSID <= bh.TSID
+		// Invariant: tsid <= bh.TSID
 
-		if bh.TSID.MetricID != ps.BlockRef.bh.TSID.MetricID {
-			// ps.BlockRef.bh.TSID < bh.TSID: no more blocks with the given tsid.
+		bh := &bhs[0]
+		if bh.TSID.MetricID != tsid.MetricID {
+			// tsid < bh.TSID: no more blocks with the given tsid.
 			// Proceed to the next (bigger) tsid.
 			if !ps.nextTSID() {
 				return false
 			}
-			goto nextTSID
+			continue
 		}
 
 		// Found the block with the given tsid. Verify timestamp range.
@@ -254,6 +259,7 @@ func (ps *partSearch) searchBHS() bool {
 		// So use linear search instead of binary search.
 		if bh.MaxTimestamp < ps.tr.MinTimestamp {
 			// Skip the block with too small timestamps.
+			bhs = bhs[1:]
 			continue
 		}
 		if bh.MinTimestamp > ps.tr.MaxTimestamp {
@@ -269,10 +275,9 @@ func (ps *partSearch) searchBHS() bool {
 		// Read it.
 		ps.BlockRef.init(ps.p, bh)
 
-		ps.bhs = ps.bhs[i+1:]
+		ps.bhs = bhs[1:]
 		return true
 	}
-
 	ps.bhs = nil
 	return false
 }
