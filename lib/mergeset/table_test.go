@@ -7,8 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 func TestTableOpenClose(t *testing.T) {
@@ -120,9 +118,7 @@ func testAddItemsSerial(tb *Table, itemsCount int) {
 		if len(item) > maxInmemoryBlockSize {
 			item = item[:maxInmemoryBlockSize]
 		}
-		if err := tb.AddItems([][]byte{item}); err != nil {
-			logger.Panicf("BUG: cannot add item to table: %s", err)
-		}
+		tb.AddItems([][]byte{item})
 	}
 }
 
@@ -146,9 +142,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	const itemsCount = 3e5
 	for i := 0; i < itemsCount; i++ {
 		item := []byte(fmt.Sprintf("item %d", i))
-		if err := tb.AddItems([][]byte{item}); err != nil {
-			t.Fatalf("cannot add item to table: %s", err)
-		}
+		tb.AddItems([][]byte{item})
 	}
 	tb.DebugFlush()
 
@@ -276,9 +270,7 @@ func testAddItemsConcurrent(tb *Table, itemsCount int) {
 				if len(item) > maxInmemoryBlockSize {
 					item = item[:maxInmemoryBlockSize]
 				}
-				if err := tb.AddItems([][]byte{item}); err != nil {
-					logger.Panicf("BUG: cannot add item to table: %s", err)
-				}
+				tb.AddItems([][]byte{item})
 			}
 		}()
 	}

@@ -523,20 +523,11 @@ func TestIndexDB(t *testing.T) {
 			}
 		}()
 
-		if err := testIndexDBBigMetricName(db); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
 		mns, tsids, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := testIndexDBBigMetricName(db); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
 		if err := testIndexDBCheckTSIDByName(db, mns, tsids, false); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if err := testIndexDBBigMetricName(db); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
@@ -546,13 +537,7 @@ func TestIndexDB(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot open indexDB: %s", err)
 		}
-		if err := testIndexDBBigMetricName(db); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
 		if err := testIndexDBCheckTSIDByName(db, mns, tsids, false); err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-		if err := testIndexDBBigMetricName(db); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 	})
@@ -577,24 +562,12 @@ func TestIndexDB(t *testing.T) {
 		ch := make(chan error, 3)
 		for i := 0; i < cap(ch); i++ {
 			go func() {
-				if err := testIndexDBBigMetricName(db); err != nil {
-					ch <- err
-					return
-				}
 				mns, tsid, err := testIndexDBGetOrCreateTSIDByName(db, metricGroups)
 				if err != nil {
 					ch <- err
 					return
 				}
-				if err := testIndexDBBigMetricName(db); err != nil {
-					ch <- err
-					return
-				}
 				if err := testIndexDBCheckTSIDByName(db, mns, tsid, true); err != nil {
-					ch <- err
-					return
-				}
-				if err := testIndexDBBigMetricName(db); err != nil {
 					ch <- err
 					return
 				}
@@ -616,74 +589,6 @@ func TestIndexDB(t *testing.T) {
 			t.Fatal(errors[0])
 		}
 	})
-}
-
-func testIndexDBBigMetricName(db *indexDB) error {
-	var bigBytes []byte
-	for i := 0; i < 128*1000; i++ {
-		bigBytes = append(bigBytes, byte(i))
-	}
-	var mn MetricName
-	var tsid TSID
-
-	is := db.getIndexSearch(noDeadline)
-	defer db.putIndexSearch(is)
-
-	// Try creating too big metric group
-	mn.Reset()
-	mn.MetricGroup = append(mn.MetricGroup[:0], bigBytes...)
-	mn.sortTags()
-	metricName := mn.Marshal(nil)
-	metricNameRaw := mn.marshalRaw(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
-		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big MetricGroup")
-	}
-
-	// Try creating too big tag key
-	mn.Reset()
-	mn.MetricGroup = append(mn.MetricGroup[:0], "xxx"...)
-	mn.Tags = []Tag{{
-		Key:   append([]byte(nil), bigBytes...),
-		Value: []byte("foobar"),
-	}}
-	mn.sortTags()
-	metricName = mn.Marshal(nil)
-	metricNameRaw = mn.marshalRaw(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
-		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big tag key")
-	}
-
-	// Try creating too big tag value
-	mn.Reset()
-	mn.MetricGroup = append(mn.MetricGroup[:0], "xxx"...)
-	mn.Tags = []Tag{{
-		Key:   []byte("foobar"),
-		Value: append([]byte(nil), bigBytes...),
-	}}
-	mn.sortTags()
-	metricName = mn.Marshal(nil)
-	metricNameRaw = mn.marshalRaw(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
-		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too big tag value")
-	}
-
-	// Try creating metric name with too many tags
-	mn.Reset()
-	mn.MetricGroup = append(mn.MetricGroup[:0], "xxx"...)
-	for i := 0; i < 60000; i++ {
-		mn.Tags = append(mn.Tags, Tag{
-			Key:   []byte(fmt.Sprintf("foobar %d", i)),
-			Value: []byte(fmt.Sprintf("sdfjdslkfj %d", i)),
-		})
-	}
-	mn.sortTags()
-	metricName = mn.Marshal(nil)
-	metricNameRaw = mn.marshalRaw(nil)
-	if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err == nil {
-		return fmt.Errorf("expecting non-nil error on an attempt to insert metric with too many tags")
-	}
-
-	return nil
 }
 
 func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricName, []TSID, error) {
@@ -727,9 +632,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 	for i := range tsids {
 		tsid := &tsids[i]
-		if err := is.createPerDayIndexes(date, tsid.MetricID, &mns[i]); err != nil {
-			return nil, nil, fmt.Errorf("error in createPerDayIndexes(%d, %d): %w", date, tsid.MetricID, err)
-		}
+		is.createPerDayIndexes(date, tsid.MetricID, &mns[i])
 	}
 
 	// Flush index to disk, so it becomes visible for search
@@ -1720,9 +1623,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for i := range tsids {
 			tsid := &tsids[i]
 			metricIDs.Add(tsid.MetricID)
-			if err := is.createPerDayIndexes(date, tsid.MetricID, &mns[i]); err != nil {
-				t.Fatalf("error in createPerDayIndexes(%d, %d): %s", date, tsid.MetricID, err)
-			}
+			is.createPerDayIndexes(date, tsid.MetricID, &mns[i])
 		}
 		allMetricIDs.Union(&metricIDs)
 		perDayMetricIDs[date] = &metricIDs

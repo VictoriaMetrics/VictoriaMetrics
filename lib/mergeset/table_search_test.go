@@ -161,9 +161,7 @@ func newTestTable(path string, itemsCount int) (*Table, []string, error) {
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
 		item := fmt.Sprintf("%d:%d", rand.Intn(1e9), i)
-		if err := tb.AddItems([][]byte{[]byte(item)}); err != nil {
-			return nil, nil, fmt.Errorf("cannot add item: %w", err)
-		}
+		tb.AddItems([][]byte{[]byte(item)})
 		items[i] = item
 	}
 	tb.DebugFlush()
