@@ -1157,7 +1157,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	mergeIdx := pt.nextMergeIdx()
 	tmpPartPath := fmt.Sprintf("%s/tmp/%016X", ptPath, mergeIdx)
 	bsw := getBlockStreamWriter()
-	compressLevel := getCompressLevel(outRowsCount, outBlocksCount)
+	rowsPerBlock := float64(outRowsCount) / float64(outBlocksCount)
+	compressLevel := getCompressLevel(rowsPerBlock)
 	if err := bsw.InitFromFilePart(tmpPartPath, nocache, compressLevel); err != nil {
 		return fmt.Errorf("cannot create destination part %q: %w", tmpPartPath, err)
 	}
@@ -1277,28 +1278,27 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}) erro
 	return nil
 }
 
-func getCompressLevel(rowsCount, blocksCount uint64) int {
-	avgRowsPerBlock := rowsCount / blocksCount
+func getCompressLevel(rowsPerBlock float64) int {
 	// See https://github.com/facebook/zstd/releases/tag/v1.3.4 about negative compression levels.
-	if avgRowsPerBlock <= 10 {
+	if rowsPerBlock <= 10 {
 		return -5
 	}
-	if avgRowsPerBlock <= 50 {
+	if rowsPerBlock <= 50 {
 		return -2
 	}
-	if avgRowsPerBlock <= 200 {
+	if rowsPerBlock <= 200 {
 		return -1
 	}
-	if avgRowsPerBlock <= 500 {
+	if rowsPerBlock <= 500 {
 		return 1
 	}
-	if avgRowsPerBlock <= 1000 {
+	if rowsPerBlock <= 1000 {
 		return 2
 	}
-	if avgRowsPerBlock <= 2000 {
+	if rowsPerBlock <= 2000 {
 		return 3
 	}
-	if avgRowsPerBlock <= 4000 {
+	if rowsPerBlock <= 4000 {
 		return 4
 	}
 	return 5
