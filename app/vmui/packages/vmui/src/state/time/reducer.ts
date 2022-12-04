@@ -5,7 +5,8 @@ import {
   getDateNowUTC,
   getDurationFromPeriod,
   getTimeperiodForDuration,
-  getRelativeTime
+  getRelativeTime,
+  setTimezone
 } from "../../utils/time";
 import { getQueryStringValue } from "../../utils/query-string";
 import dayjs from "dayjs";
@@ -26,15 +27,16 @@ export type TimeAction =
   | { type: "RUN_QUERY_TO_NOW"}
   | { type: "SET_TIMEZONE", payload: string }
 
+const timezone = getFromStorage("TIMEZONE") as string || dayjs.tz.guess();
+setTimezone(timezone);
+
 const defaultDuration = getQueryStringValue("g0.range_input") as string;
 
 const { duration, endInput, relativeTimeId } = getRelativeTime({
   defaultDuration: defaultDuration || "1h",
-  defaultEndInput: formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as Date),
+  defaultEndInput: formatDateToLocal(getQueryStringValue("g0.end_input", getDateNowUTC()) as string),
   relativeTimeId: defaultDuration ? getQueryStringValue("g0.relative_time", "none") as string : undefined
 });
-const timezone = getFromStorage("TIMEZONE") as string || dayjs.tz.guess();
-dayjs.tz.setDefault(timezone);
 
 export const initialTimeState: TimeState = {
   duration,
@@ -57,7 +59,7 @@ export function reducer(state: TimeState, action: TimeAction): TimeState {
       return {
         ...state,
         duration: action.payload.duration,
-        period: getTimeperiodForDuration(action.payload.duration, dayjs.tz(action.payload.until).toDate()),
+        period: getTimeperiodForDuration(action.payload.duration, action.payload.until),
         relativeTime: action.payload.id,
       };
     case "SET_PERIOD":
@@ -86,7 +88,7 @@ export function reducer(state: TimeState, action: TimeAction): TimeState {
         period: getTimeperiodForDuration(state.duration)
       };
     case "SET_TIMEZONE":
-      dayjs.tz.setDefault(action.payload);
+      setTimezone(action.payload);
       saveToStorage("TIMEZONE", action.payload);
       return {
         ...state,

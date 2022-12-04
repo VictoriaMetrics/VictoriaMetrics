@@ -7,6 +7,10 @@ const MAX_ITEMS_PER_CHART = window.innerWidth / 4;
 
 export const limitsDurations = { min: 1, max: 1.578e+11 }; // min: 1 ms, max: 5 years
 
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore
+export const supportedTimezones = Intl.supportedValuesOf("timeZone") as string[];
+
 export const supportedDurations = [
   { long: "days", short: "d", possible: "day" },
   { long: "weeks", short: "w", possible: "week" },
@@ -33,7 +37,7 @@ export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, 
 };
 
 export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams => {
-  const n = (date || dayjs().tz().toDate()).valueOf() / 1000;
+  const n = (date || dayjs().toDate()).valueOf() / 1000;
 
   const durItems = dur.trim().split(" ");
 
@@ -59,12 +63,12 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
     start: n - delta,
     end: n,
     step: step,
-    date: formatDateToUTC(date || dayjs().tz().toDate())
+    date: formatDateToUTC(date || dayjs().toDate())
   };
 };
 
-export const formatDateToLocal = (date: Date): Date => {
-  return dayjs(date).utcOffset(0, true).tz().toDate();
+export const formatDateToLocal = (date: string): Date => {
+  return dayjs(date).utcOffset(0, true).toDate();
 };
 
 export const formatDateToUTC = (date: Date): string => {
@@ -75,8 +79,8 @@ export const formatDateForNativeInput = (date: Date): string => {
   return dayjs.tz(date).format(DATE_ISO_FORMAT);
 };
 
-export const getDateNowUTC = (): Date => {
-  return dayjs().utc().toDate();
+export const getDateNowUTC = (): string => {
+  return dayjs().utc().format(DATE_ISO_FORMAT);
 };
 
 export const getDurationFromMilliseconds = (ms: number): string => {
@@ -110,7 +114,10 @@ export const checkDurationLimit = (dur: string): string => {
   return dur;
 };
 
-export const dateFromSeconds = (epochTimeInSeconds: number): Date => dayjs.tz(epochTimeInSeconds * 1000).toDate();
+export const dateFromSeconds = (epochTimeInSeconds: number): Date => dayjs(epochTimeInSeconds * 1000).toDate();
+
+const getYesterday = () => dayjs().tz().subtract(1, "day").endOf("day").toDate();
+const getToday = () => dayjs().tz().endOf("day").toDate();
 
 export const relativeTimeOptions: RelativeTimeOption[] = [
   { title: "Last 5 minutes", duration: "5m" },
@@ -127,8 +134,8 @@ export const relativeTimeOptions: RelativeTimeOption[] = [
   { title: "Last 90 days", duration: "90d" },
   { title: "Last 180 days", duration: "180d" },
   { title: "Last 1 year", duration: "1y" },
-  { title: "Yesterday", duration: "1d", until: () => dayjs().tz().subtract(1, "day").endOf("day").toDate() },
-  { title: "Today", duration: "1d", until: () => dayjs().tz().endOf("day").toDate() },
+  { title: "Yesterday", duration: "1d", until: getYesterday },
+  { title: "Today", duration: "1d", until: getToday },
 ].map(o => ({
   id: o.title.replace(/\s/g, "_").toLocaleLowerCase(),
   until: o.until ? o.until : () => dayjs().tz().toDate(),
@@ -153,12 +160,9 @@ export const getUTCByTimezone = (timezone: string) => {
 };
 
 export const getTimezoneList = (search = "") => {
-  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-  // @ts-ignore
-  const arrTimezone = Intl.supportedValuesOf("timeZone") as string[];
   const regexp = new RegExp(search, "i");
 
-  return arrTimezone.reduce((acc: {[key: string]: Timezone[]}, region) => {
+  return supportedTimezones.reduce((acc: {[key: string]: Timezone[]}, region) => {
     const zone = (region.match(/^(.*?)\//) || [])[1] || "unknown";
     const utc = getUTCByTimezone(region);
     const item = {
@@ -166,11 +170,18 @@ export const getTimezoneList = (search = "") => {
       utc,
       search: `${region} ${utc} ${region.replace(/[/_]/gmi, " ")}`
     };
+    const includeZone = !search || (search && regexp.test(item.search));
 
-    if (!search || (search && regexp.test(item.search))) {
-      acc[zone] ? acc[zone].push(item) : acc[zone] = [item];
+    if (includeZone && acc[zone]) {
+      acc[zone].push(item);
+    } else if (includeZone) {
+      acc[zone] = [item];
     }
 
     return acc;
   }, {});
+};
+
+export const setTimezone = (timezone: string) => {
+  dayjs.tz.setDefault(timezone);
 };

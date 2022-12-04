@@ -11,7 +11,7 @@ import { defaultOptions } from "../../../utils/uplot/helpers";
 import { dragChart } from "../../../utils/uplot/events";
 import { getAxes, getMinMaxBuffer } from "../../../utils/uplot/axes";
 import { MetricResult } from "../../../api/types";
-import { limitsDurations } from "../../../utils/time";
+import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../utils/time";
 import throttle from "lodash.throttle";
 import useResize from "../../../hooks/useResize";
 import { TimeParams } from "../../../types";
@@ -21,7 +21,6 @@ import "./style.scss";
 import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
-import { useTimeState } from "../../../state/time/TimeStateContext";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -46,8 +45,6 @@ const LineChart: FC<LineChartProps> = ({
   setPeriod,
   container
 }) => {
-  const { timezone } = useTimeState();
-
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
@@ -62,8 +59,8 @@ const LineChart: FC<LineChartProps> = ({
 
   const setScale = ({ min, max }: { min: number, max: number }): void => {
     setPeriod({
-      from: dayjs(min * 1000).tz().toDate(),
-      to: dayjs(max * 1000).tz().toDate()
+      from: dayjs(min * 1000).toDate(),
+      to: dayjs(max * 1000).toDate()
     });
   };
   const throttledSetScale = useCallback(throttle(setScale, 500), []);
@@ -170,7 +167,7 @@ const LineChart: FC<LineChartProps> = ({
 
   const options: uPlotOptions = {
     ...defaultOptions,
-    tzDate: ts => uPlot.tzDate(new Date(ts * 1e3), timezone),
+    tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
     series,
     axes: getAxes( [{}, { scale: "1" }], unit),
     scales: { ...getScales() },
