@@ -17,7 +17,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.18.3
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.42
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.29.4
-	github.com/cespare/xxhash/v2 v2.1.2
+	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
