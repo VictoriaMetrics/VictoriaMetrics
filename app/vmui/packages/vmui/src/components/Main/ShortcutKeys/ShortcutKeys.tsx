@@ -28,6 +28,10 @@ const keyList = [
       {
         keys: [ctrlMeta, "Arrow Down"],
         description: "Next command from the Query history"
+      },
+      {
+        keys: [ctrlMeta, "Click by 'Eye'"],
+        description: "Toggle multiple queries"
       }
     ]
   },
@@ -36,10 +40,12 @@ const keyList = [
     list: [
       {
         keys: [ctrlMeta, "Scroll Up"],
+        alt: ["+"],
         description: "Zoom in"
       },
       {
         keys: [ctrlMeta, "Scroll Down"],
+        alt: ["-"],
         description: "Zoom out"
       },
       {
@@ -116,6 +122,15 @@ const ShortcutKeys: FC = () => {
                             {k}
                           </code>
                           {i !== l.keys.length - 1 ? "+" : ""}
+                        </>
+                      ))}
+                      {l.alt && l.alt.map((alt, i) => (
+                        <>
+                          or
+                          <code key={alt}>
+                            {alt}
+                          </code>
+                          {i !== l.alt.length - 1 ? "+" : ""}
                         </>
                       ))}
                     </div>
