@@ -44,6 +44,8 @@ const (
 	// also used in vm-native
 	vmExtraLabel = "vm-extra-label"
 	vmRateLimit  = "vm-rate-limit"
+
+	vmInterCluster = "vm-intercluster"
 )
 
 var (
@@ -397,6 +399,12 @@ var (
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
 				"By default the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+		},
+		&cli.BoolFlag{
+			Name: vmInterCluster,
+			Usage: "Enables cluster-to-cluster migration mode with automatic tenants data migration.\n" +
+				fmt.Sprintf(" In this mode --%s flag format is: 'http://vmselect:8481/'. --%s flag format is: http://vminsert:8480/. \n", vmNativeSrcAddr, vmNativeDstAddr) +
+				" TenantID will be appended automatically after discovering tenants from src.",
 		},
 	}
 )
