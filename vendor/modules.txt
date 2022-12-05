@@ -121,7 +121,7 @@ github.com/aws/aws-sdk-go/service/sso
 github.com/aws/aws-sdk-go/service/sso/ssoiface
 github.com/aws/aws-sdk-go/service/sts
 github.com/aws/aws-sdk-go/service/sts/stsiface
-# github.com/aws/aws-sdk-go-v2 v1.17.1
+# github.com/aws/aws-sdk-go-v2 v1.17.2
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2
 github.com/aws/aws-sdk-go-v2/aws
@@ -143,7 +143,7 @@ github.com/aws/aws-sdk-go-v2/internal/sdkio
 github.com/aws/aws-sdk-go-v2/internal/strings
 github.com/aws/aws-sdk-go-v2/internal/sync/singleflight
 github.com/aws/aws-sdk-go-v2/internal/timeconv
-# github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.9
+# github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.4.10
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
@@ -166,35 +166,35 @@ github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
 # github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.42
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/s3/manager
-# github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.25
+# github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.26
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/configsources
-# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.19
+# github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.4.20
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/endpoints/v2
 # github.com/aws/aws-sdk-go-v2/internal/ini v1.3.26
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/ini
-# github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.16
+# github.com/aws/aws-sdk-go-v2/internal/v4a v1.0.17
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/internal/v4a
 github.com/aws/aws-sdk-go-v2/internal/v4a/internal/crypto
 github.com/aws/aws-sdk-go-v2/internal/v4a/internal/v4
-# github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.10
+# github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.9.11
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding
-# github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.20
+# github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.1.21
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/internal/checksum
-# github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.19
+# github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.9.20
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url
-# github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.13.19
+# github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.13.20
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared/arn
 github.com/aws/aws-sdk-go-v2/service/internal/s3shared/config
-# github.com/aws/aws-sdk-go-v2/service/s3 v1.29.4
+# github.com/aws/aws-sdk-go-v2/service/s3 v1.29.5
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/s3
 github.com/aws/aws-sdk-go-v2/service/s3/internal/arn
@@ -216,7 +216,7 @@ github.com/aws/aws-sdk-go-v2/service/ssooidc/types
 github.com/aws/aws-sdk-go-v2/service/sts
 github.com/aws/aws-sdk-go-v2/service/sts/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/sts/types
-# github.com/aws/smithy-go v1.13.4
+# github.com/aws/smithy-go v1.13.5
 ## explicit; go 1.15
 github.com/aws/smithy-go
 github.com/aws/smithy-go/auth/bearer
