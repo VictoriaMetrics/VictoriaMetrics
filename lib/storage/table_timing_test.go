@@ -101,8 +101,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		}
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			b.Fatalf("unexpected rows count in the final table %q: got %d; want %d", tablePath, rowsCount, rowsCountExpected)
 		}
 		tb.MustClose()

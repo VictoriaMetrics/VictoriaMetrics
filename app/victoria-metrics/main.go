@@ -29,6 +29,10 @@ var (
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag")
+	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
+		"The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. "+
+		"Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
+		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 )
 
 func main() {
@@ -54,6 +58,7 @@ func main() {
 	logger.Infof("starting VictoriaMetrics at %q...", *httpListenAddr)
 	startTime := time.Now()
 	storage.SetDedupInterval(*minScrapeInterval)
+	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()

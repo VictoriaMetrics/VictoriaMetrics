@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -29,6 +33,36 @@ func (mp *inmemoryPart) Reset() {
 	mp.metaindexData.Reset()
 
 	mp.creationTime = 0
+}
+
+// StoreToDisk stores the mp to the given path on disk.
+func (mp *inmemoryPart) StoreToDisk(path string) error {
+	if err := fs.MkdirAllIfNotExist(path); err != nil {
+		return fmt.Errorf("cannot create directory %q: %w", path, err)
+	}
+	timestampsPath := path + "/timestamps.bin"
+	if err := fs.WriteFileAndSync(timestampsPath, mp.timestampsData.B); err != nil {
+		return fmt.Errorf("cannot store timestamps: %w", err)
+	}
+	valuesPath := path + "/values.bin"
+	if err := fs.WriteFileAndSync(valuesPath, mp.valuesData.B); err != nil {
+		return fmt.Errorf("cannot store values: %w", err)
+	}
+	indexPath := path + "/index.bin"
+	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
+		return fmt.Errorf("cannot store index: %w", err)
+	}
+	metaindexPath := path + "/metaindex.bin"
+	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
+		return fmt.Errorf("cannot store metaindex: %w", err)
+	}
+	if err := mp.ph.writeMinDedupInterval(path); err != nil {
+		return fmt.Errorf("cannot store min dedup interval: %w", err)
+	}
+	// Sync parent directory in order to make sure the written files remain visible after hardware reset
+	parentDirPath := filepath.Dir(path)
+	fs.MustSyncPath(parentDirPath)
+	return nil
 }
 
 // InitFromRows initializes mp from the given rows.
