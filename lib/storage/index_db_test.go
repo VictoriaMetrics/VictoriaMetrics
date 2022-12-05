@@ -1589,8 +1589,8 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	// verify the storage contains rows.
 	var m Metrics
 	s.UpdateMetrics(&m)
-	if m.TableMetrics.SmallRowsCount < uint64(metricRowsN) {
-		t.Fatalf("expecting at least %d rows in the table; got %d", metricRowsN, m.TableMetrics.SmallRowsCount)
+	if rowsCount := m.TableMetrics.TotalRowsCount(); rowsCount < uint64(metricRowsN) {
+		t.Fatalf("expecting at least %d rows in the table; got %d", metricRowsN, rowsCount)
 	}
 
 	// check new series were registered in indexDB

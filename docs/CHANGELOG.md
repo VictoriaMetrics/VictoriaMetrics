@@ -17,6 +17,34 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 **Update note 1:** this release drops support for direct upgrade from VictoriaMetrics versions prior [v1.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.28.0). Please upgrade to `v1.84.0`, wait until `finished round 2 of background conversion` line is emitted to log by single-node VictoriaMetrics or by `vmstorage`, and then upgrade to newer releases.
 
+**Update note 2:** this release splits `type="indexdb"` metrics into `type="indexdb/inmemory"` and `type="indexdb/file"` metrics. This may break old dashboards and alerting rules, which contain label filters on `{type="indexdb"}`. It is recommended upgrading to the latest available dashboards and alerting rules mentioned in [these docs](https://docs.victoriametrics.com/#monitoring).
+
+* FEATURE: add `-inmemoryDataFlushInterval` command-line flag, which can be used for controlling the frequency of in-memory data flush to disk. The data flush frequency can be reduced when VictoriaMetrics stores data to low-end flash device with limited number of write cycles (for example, on Raspberry PI). See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3337).
+* FEATURE: expose additional metrics for `indexdb` and `storage` parts stored in memory and for `indexdb` parts stored in files (see [storage docs](https://docs.victoriametrics.com/#storage) for technical details):
+  * `vm_active_merges{type="storage/inmemory"}` - active merges for in-memory `storage` parts
+  * `vm_active_merges{type="indexdb/inmemory"}` - active merges for in-memory `indexdb` parts
+  * `vm_active_merges{type="indexdb/file"}` - active merges for file-based `indexdb` parts
+  * `vm_merges_total{type="storage/inmemory"}` - the total merges for in-memory `storage` parts
+  * `vm_merges_total{type="indexdb/inmemory"}` - the total merges for in-memory `indexdb` parts
+  * `vm_merges_total{type="indexdb/file"}` - the total merges for file-based `indexdb` parts
+  * `vm_rows_merged_total{type="storage/inmemory"}` - the total rows merged for in-memory `storage` parts
+  * `vm_rows_merged_total{type="indexdb/inmemory"}` - the total rows merged for in-memory `indexdb` parts
+  * `vm_rows_merged_total{type="indexdb/file"}` - the total rows merged for file-based `indexdb` parts
+  * `vm_rows_deleted_total{type="storage/inmemory"}` - the total rows deleted for in-memory `storage` parts
+  * `vm_assisted_merges_total{type="storage/inmemory"}` - the total number of assisted merges for in-memory `storage` parts
+  * `vm_assisted_merges_total{type="indexdb/inmemory"}` - the total number of assisted merges for in-memory `indexdb` parts
+  * `vm_parts{type="storage/inmemory"}` - the total number of in-memory `storage` parts
+  * `vm_parts{type="indexdb/inmemory"}` - the total number of in-memory `indexdb` parts
+  * `vm_parts{type="indexdb/file"}` - the total number of file-based `indexdb` parts
+  * `vm_blocks{type="storage/inmemory"}` - the total number of in-memory `storage` blocks
+  * `vm_blocks{type="indexdb/inmemory"}` - the total number of in-memory `indexdb` blocks
+  * `vm_blocks{type="indexdb/file"}` - the total number of file-based `indexdb` blocks
+  * `vm_data_size_bytes{type="storage/inmemory"}` - the total size of in-memory `storage` blocks
+  * `vm_data_size_bytes{type="indexdb/inmemory"}` - the total size of in-memory `indexdb` blocks
+  * `vm_data_size_bytes{type="indexdb/file"}` - the total size of file-based `indexdb` blocks
+  * `vm_rows{type="storage/inmemory"}` - the total number of in-memory `storage` rows
+  * `vm_rows{type="indexdb/inmemory"}` - the total number of in-memory `indexdb` rows
+  * `vm_rows{type="indexdb/file"}` - the total number of file-based `indexdb` rows
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): improve [service discovery](https://docs.victoriametrics.com/sd_configs.html) performance when discovering big number of targets (10K and more).
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `exported_` prefix to metric names exported by scrape targets if these metric names clash with [automatically generated metrics](https://docs.victoriametrics.com/vmagent.html#automatically-generated-metrics) such as `up`, `scrape_samples_scraped`, etc. This prevents from corruption of automatically generated metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406).
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): improve error message when the requested path cannot be properly parsed, so users could identify the issue and properly fix the path. Now the error message links to [url format docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3402).

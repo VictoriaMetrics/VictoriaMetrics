@@ -35,7 +35,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 12, 100, 1, 10)
+		testTableSearchEx(t, trData, trSearch, 12, 20, 1, 10)
 	})
 
 	t.Run("SingleTSID", func(t *testing.T) {
@@ -51,7 +51,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 60, 20, 30, 20)
+		testTableSearchEx(t, trData, trSearch, 20, 10, 30, 20)
 	})
 
 	t.Run("ManyTSIDs", func(t *testing.T) {
@@ -244,8 +244,7 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 		// they may race with raw rows flusher.
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			return fmt.Errorf("unexpected rows count in the table; got %d; want %d", rowsCount, rowsCountExpected)
 		}
 	}
@@ -270,8 +269,7 @@ func testTableSearchSerial(tb *table, tsids []TSID, tr TimeRange, rbsExpected []
 	if rowsCountExpected >= 0 {
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			return fmt.Errorf("unexpected rows count in the table; got %d; want %d", rowsCount, rowsCountExpected)
 		}
 	}

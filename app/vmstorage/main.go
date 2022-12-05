@@ -80,7 +80,7 @@ func main() {
 	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
 	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
-	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
+	storage.SetMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
 	storage.SetTSIDCacheSize(cacheSizeStorageTSID.N)
@@ -362,56 +362,80 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return 0
 	})
 
-	metrics.NewGauge(`vm_active_merges{type="storage/big"}`, func() float64 {
-		return float64(tm().ActiveBigMerges)
+	metrics.NewGauge(`vm_active_merges{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().ActiveInmemoryMerges)
 	})
 	metrics.NewGauge(`vm_active_merges{type="storage/small"}`, func() float64 {
 		return float64(tm().ActiveSmallMerges)
 	})
-	metrics.NewGauge(`vm_active_merges{type="indexdb"}`, func() float64 {
-		return float64(idbm().ActiveMerges)
+	metrics.NewGauge(`vm_active_merges{type="storage/big"}`, func() float64 {
+		return float64(tm().ActiveBigMerges)
+	})
+	metrics.NewGauge(`vm_active_merges{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().ActiveInmemoryMerges)
+	})
+	metrics.NewGauge(`vm_active_merges{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().ActiveFileMerges)
 	})
 
-	metrics.NewGauge(`vm_merges_total{type="storage/big"}`, func() float64 {
-		return float64(tm().BigMergesCount)
+	metrics.NewGauge(`vm_merges_total{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryMergesCount)
 	})
 	metrics.NewGauge(`vm_merges_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallMergesCount)
 	})
-	metrics.NewGauge(`vm_merges_total{type="indexdb"}`, func() float64 {
-		return float64(idbm().MergesCount)
+	metrics.NewGauge(`vm_merges_total{type="storage/big"}`, func() float64 {
+		return float64(tm().BigMergesCount)
+	})
+	metrics.NewGauge(`vm_merges_total{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().InmemoryMergesCount)
+	})
+	metrics.NewGauge(`vm_merges_total{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FileMergesCount)
 	})
 
-	metrics.NewGauge(`vm_rows_merged_total{type="storage/big"}`, func() float64 {
-		return float64(tm().BigRowsMerged)
+	metrics.NewGauge(`vm_rows_merged_total{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryRowsMerged)
 	})
 	metrics.NewGauge(`vm_rows_merged_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallRowsMerged)
 	})
-	metrics.NewGauge(`vm_rows_merged_total{type="indexdb"}`, func() float64 {
-		return float64(idbm().ItemsMerged)
+	metrics.NewGauge(`vm_rows_merged_total{type="storage/big"}`, func() float64 {
+		return float64(tm().BigRowsMerged)
+	})
+	metrics.NewGauge(`vm_rows_merged_total{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().InmemoryItemsMerged)
+	})
+	metrics.NewGauge(`vm_rows_merged_total{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FileItemsMerged)
 	})
 
-	metrics.NewGauge(`vm_rows_deleted_total{type="storage/big"}`, func() float64 {
-		return float64(tm().BigRowsDeleted)
+	metrics.NewGauge(`vm_rows_deleted_total{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryRowsDeleted)
 	})
 	metrics.NewGauge(`vm_rows_deleted_total{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallRowsDeleted)
 	})
-
-	metrics.NewGauge(`vm_references{type="storage/big", name="parts"}`, func() float64 {
-		return float64(tm().BigPartsRefCount)
+	metrics.NewGauge(`vm_rows_deleted_total{type="storage/big"}`, func() float64 {
+		return float64(tm().BigRowsDeleted)
 	})
-	metrics.NewGauge(`vm_references{type="storage/small", name="parts"}`, func() float64 {
+
+	metrics.NewGauge(`vm_part_references{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryPartsRefCount)
+	})
+	metrics.NewGauge(`vm_part_references{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallPartsRefCount)
 	})
-	metrics.NewGauge(`vm_references{type="storage", name="partitions"}`, func() float64 {
+	metrics.NewGauge(`vm_part_references{type="storage/big"}`, func() float64 {
+		return float64(tm().BigPartsRefCount)
+	})
+	metrics.NewGauge(`vm_partition_references{type="storage"}`, func() float64 {
 		return float64(tm().PartitionsRefCount)
 	})
-	metrics.NewGauge(`vm_references{type="indexdb", name="objects"}`, func() float64 {
+	metrics.NewGauge(`vm_object_references{type="indexdb"}`, func() float64 {
 		return float64(idbm().IndexDBRefCount)
 	})
-	metrics.NewGauge(`vm_references{type="indexdb", name="parts"}`, func() float64 {
+	metrics.NewGauge(`vm_part_references{type="indexdb"}`, func() float64 {
 		return float64(idbm().PartsRefCount)
 	})
 
@@ -440,11 +464,11 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().CompositeFilterMissingConversions)
 	})
 
-	metrics.NewGauge(`vm_assisted_merges_total{type="storage/small"}`, func() float64 {
-		return float64(tm().SmallAssistedMerges)
+	metrics.NewGauge(`vm_assisted_merges_total{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryAssistedMerges)
 	})
-	metrics.NewGauge(`vm_assisted_merges_total{type="indexdb"}`, func() float64 {
-		return float64(idbm().AssistedMerges)
+	metrics.NewGauge(`vm_assisted_merges_total{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().AssistedInmemoryMerges)
 	})
 
 	metrics.NewGauge(`vm_indexdb_items_added_total`, func() float64 {
@@ -455,11 +479,8 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/686
-	metrics.NewGauge(`vm_merge_need_free_disk_space{type="storage/small"}`, func() float64 {
-		return float64(tm().SmallMergeNeedFreeDiskSpace)
-	})
-	metrics.NewGauge(`vm_merge_need_free_disk_space{type="storage/big"}`, func() float64 {
-		return float64(tm().BigMergeNeedFreeDiskSpace)
+	metrics.NewGauge(`vm_merge_need_free_disk_space`, func() float64 {
+		return float64(tm().MergeNeedFreeDiskSpace)
 	})
 
 	metrics.NewGauge(`vm_pending_rows{type="storage"}`, func() float64 {
@@ -469,34 +490,52 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().PendingItems)
 	})
 
-	metrics.NewGauge(`vm_parts{type="storage/big"}`, func() float64 {
-		return float64(tm().BigPartsCount)
+	metrics.NewGauge(`vm_parts{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryPartsCount)
 	})
 	metrics.NewGauge(`vm_parts{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallPartsCount)
 	})
-	metrics.NewGauge(`vm_parts{type="indexdb"}`, func() float64 {
-		return float64(idbm().PartsCount)
+	metrics.NewGauge(`vm_parts{type="storage/big"}`, func() float64 {
+		return float64(tm().BigPartsCount)
+	})
+	metrics.NewGauge(`vm_parts{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().InmemoryPartsCount)
+	})
+	metrics.NewGauge(`vm_parts{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FilePartsCount)
 	})
 
-	metrics.NewGauge(`vm_blocks{type="storage/big"}`, func() float64 {
-		return float64(tm().BigBlocksCount)
+	metrics.NewGauge(`vm_blocks{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryBlocksCount)
 	})
 	metrics.NewGauge(`vm_blocks{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallBlocksCount)
 	})
-	metrics.NewGauge(`vm_blocks{type="indexdb"}`, func() float64 {
-		return float64(idbm().BlocksCount)
+	metrics.NewGauge(`vm_blocks{type="storage/big"}`, func() float64 {
+		return float64(tm().BigBlocksCount)
+	})
+	metrics.NewGauge(`vm_blocks{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().InmemoryBlocksCount)
+	})
+	metrics.NewGauge(`vm_blocks{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FileBlocksCount)
 	})
 
-	metrics.NewGauge(`vm_data_size_bytes{type="storage/big"}`, func() float64 {
-		return float64(tm().BigSizeBytes)
+	metrics.NewGauge(`vm_data_size_bytes{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemorySizeBytes)
 	})
 	metrics.NewGauge(`vm_data_size_bytes{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallSizeBytes)
 	})
-	metrics.NewGauge(`vm_data_size_bytes{type="indexdb"}`, func() float64 {
-		return float64(idbm().SizeBytes)
+	metrics.NewGauge(`vm_data_size_bytes{type="storage/big"}`, func() float64 {
+		return float64(tm().BigSizeBytes)
+	})
+	metrics.NewGauge(`vm_data_size_bytes{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().InmemorySizeBytes)
+	})
+	metrics.NewGauge(`vm_data_size_bytes{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FileSizeBytes)
 	})
 
 	metrics.NewGauge(`vm_rows_added_to_storage_total`, func() float64 {
@@ -574,14 +613,20 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().TimestampsBytesSaved)
 	})
 
-	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
-		return float64(tm().BigRowsCount)
+	metrics.NewGauge(`vm_rows{type="storage/inmemory"}`, func() float64 {
+		return float64(tm().InmemoryRowsCount)
 	})
 	metrics.NewGauge(`vm_rows{type="storage/small"}`, func() float64 {
 		return float64(tm().SmallRowsCount)
 	})
-	metrics.NewGauge(`vm_rows{type="indexdb"}`, func() float64 {
-		return float64(idbm().ItemsCount)
+	metrics.NewGauge(`vm_rows{type="storage/big"}`, func() float64 {
+		return float64(tm().BigRowsCount)
+	})
+	metrics.NewGauge(`vm_rows{type="indexdb/inmemory"}`, func() float64 {
+		return float64(idbm().InmemoryItemsCount)
+	})
+	metrics.NewGauge(`vm_rows{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FileItemsCount)
 	})
 
 	metrics.NewGauge(`vm_date_range_search_calls_total`, func() float64 {

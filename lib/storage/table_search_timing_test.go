@@ -55,9 +55,8 @@ func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount
 	rowsCountExpected := insertsCount * uint64(rowsPerInsert)
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
-	rowsCountActual := m.BigRowsCount + m.SmallRowsCount
-	if rowsCountActual != rowsCountExpected {
-		b.Fatalf("unexpected rows count in the table %q; got %d; want %d", path, rowsCountActual, rowsCountExpected)
+	if rowsCount := m.TotalRowsCount(); rowsCount != rowsCountExpected {
+		b.Fatalf("unexpected rows count in the table %q; got %d; want %d", path, rowsCount, rowsCountExpected)
 	}
 
 	return tb
