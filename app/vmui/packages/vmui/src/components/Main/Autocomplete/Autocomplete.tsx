@@ -56,13 +56,14 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const handleKeyDown = (e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
     const modifiers = ctrlKey || metaKey || shiftKey;
+    const hasOptions = foundOptions.length;
 
-    if (key === "ArrowUp" && !modifiers) {
+    if (key === "ArrowUp" && !modifiers && hasOptions) {
       e.preventDefault();
       setFocusOption((prev) => prev <= 0 ? 0 : prev - 1);
     }
 
-    if (key === "ArrowDown" && !modifiers) {
+    if (key === "ArrowDown" && !modifiers && hasOptions) {
       e.preventDefault();
       const lastIndex = foundOptions.length - 1;
       setFocusOption((prev) => prev >= lastIndex ? lastIndex : prev + 1);
