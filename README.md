@@ -1745,7 +1745,7 @@ and [cardinality explorer docs](#cardinality-explorer).
     by requesting `/internal/force_flush` http handler. This handler is mostly needed for testing and debugging purposes.
   * The last few seconds of inserted data may be lost on unclean shutdown (i.e. OOM, `kill -9` or hardware reset).
     The `-inmemoryDataFlushInterval` command-line flag allows controlling the frequency of in-memory data flush to persistent storage.
-    See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
+    See [storage docs](#storage) and [this article](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704) for more details.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) for the current amount of RAM.
