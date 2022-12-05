@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -74,7 +75,7 @@ func TestVMInstantQuery(t *testing.T) {
 		case 5:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix"}}`))
 		case 6:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests"},"value":[1583786140,"2000"]}]}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
 		case 7:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
 		}
@@ -115,19 +116,17 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	expected := []Metric{
 		{
-			Labels:     []Label{{Value: "vm_rows", Name: "__name__"}},
+			Labels:     []Label{{Value: "vm_rows", Name: "__name__"}, {Value: "bar", Name: "foo"}},
 			Timestamps: []int64{1583786142},
 			Values:     []float64{13763},
 		},
 		{
-			Labels:     []Label{{Value: "vm_requests", Name: "__name__"}},
+			Labels:     []Label{{Value: "vm_requests", Name: "__name__"}, {Value: "baz", Name: "foo"}},
 			Timestamps: []int64{1583786140},
 			Values:     []float64{2000},
 		},
 	}
-	if !reflect.DeepEqual(m, expected) {
-		t.Fatalf("unexpected metric %+v want %+v", m, expected)
-	}
+	metricsEqual(t, m, expected)
 
 	m, req, err := pq.Query(ctx, query, ts) // 7 - scalar
 	if err != nil {
@@ -158,13 +157,36 @@ func TestVMInstantQuery(t *testing.T) {
 	if len(m) != 1 {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}
-	exp := Metric{
-		Labels:     []Label{{Value: "constantLine(10)", Name: "name"}},
-		Timestamps: []int64{1611758403},
-		Values:     []float64{10},
+	exp := []Metric{
+		{
+			Labels:     []Label{{Value: "constantLine(10)", Name: "name"}},
+			Timestamps: []int64{1611758403},
+			Values:     []float64{10},
+		},
 	}
-	if !reflect.DeepEqual(m[0], exp) {
-		t.Fatalf("unexpected metric %+v want %+v", m[0], expected)
+	metricsEqual(t, m, exp)
+}
+
+func metricsEqual(t *testing.T, gotM, expectedM []Metric) {
+	for i, exp := range expectedM {
+		got := gotM[i]
+		gotTS, expTS := got.Timestamps, exp.Timestamps
+		if !reflect.DeepEqual(gotTS, expTS) {
+			t.Fatalf("unexpected timestamps %+v want %+v", gotTS, expTS)
+		}
+		gotV, expV := got.Values, exp.Values
+		if !reflect.DeepEqual(gotV, expV) {
+			t.Fatalf("unexpected values %+v want %+v", gotV, expV)
+		}
+		sort.Slice(got.Labels, func(i, j int) bool {
+			return got.Labels[i].Name < got.Labels[j].Name
+		})
+		sort.Slice(exp.Labels, func(i, j int) bool {
+			return exp.Labels[i].Name < exp.Labels[j].Name
+		})
+		if !reflect.DeepEqual(exp.Labels, got.Labels) {
+			t.Fatalf("unexpected labels %+v want %+v", got.Labels, exp.Labels)
+		}
 	}
 }
 
