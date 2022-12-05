@@ -3,4 +3,4 @@
 package v4a
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.0.16"
+const goModuleVersion = "1.0.17"
