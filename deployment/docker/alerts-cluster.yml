@@ -18,8 +18,8 @@ groups:
               ignoring(type) rate(vm_deduplicated_samples_total{type="merge"}[1d])
              )
             * scalar(
-              sum(vm_data_size_bytes{type!="indexdb"}) /
-              sum(vm_rows{type!="indexdb"})
+              sum(vm_data_size_bytes{type!~"indexdb.*"}) /
+              sum(vm_rows{type!~"indexdb.*"})
              )
           ) < 3 * 24 * 3600 > 0
         for: 30m
@@ -43,7 +43,7 @@ groups:
         labels:
           severity: critical
         annotations:
-          dashboard: http://localhost:3000/d/oS7Bi_0Wz?viewPanel=110&var-instance={{ $labels.instance }}"
+          dashboard: http://localhost:3000/d/oS7Bi_0Wz?viewPanel=200&var-instance={{ $labels.instance }}"
           summary: "Instance {{ $labels.instance }} will run out of disk space soon"
           description: "Disk utilisation on instance {{ $labels.instance }} is more than 80%.\n
             Having less than 20% of free disk space could cripple merges processes and overall performance.

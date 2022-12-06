@@ -90,8 +90,8 @@ func TestTableAddItemsSerial(t *testing.T) {
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
-	if m.ItemsCount != itemsCount {
-		t.Fatalf("unexpected itemsCount; got %d; want %v", m.ItemsCount, itemsCount)
+	if n := m.TotalItemsCount(); n != itemsCount {
+		t.Fatalf("unexpected itemsCount; got %d; want %v", n, itemsCount)
 	}
 
 	tb.MustClose()
@@ -235,8 +235,8 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
-	if m.ItemsCount != itemsCount {
-		t.Fatalf("unexpected itemsCount; got %d; want %v", m.ItemsCount, itemsCount)
+	if n := m.TotalItemsCount(); n != itemsCount {
+		t.Fatalf("unexpected itemsCount; got %d; want %v", n, itemsCount)
 	}
 
 	tb.MustClose()
@@ -292,8 +292,8 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 		}
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
-		if m.ItemsCount != uint64(itemsCount) {
-			t.Fatalf("unexpected itemsCount after re-opening; got %d; want %v", m.ItemsCount, itemsCount)
+		if n := m.TotalItemsCount(); n != uint64(itemsCount) {
+			t.Fatalf("unexpected itemsCount after re-opening; got %d; want %v", n, itemsCount)
 		}
 		tb.MustClose()
 	}

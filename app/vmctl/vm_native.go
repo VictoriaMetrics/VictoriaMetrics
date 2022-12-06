@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -19,8 +20,9 @@ type vmNativeProcessor struct {
 	filter    filter
 	rateLimit int64
 
-	dst *vmNativeClient
-	src *vmNativeClient
+	dst          *vmNativeClient
+	src          *vmNativeClient
+	interCluster bool
 }
 
 type vmNativeClient struct {
@@ -49,15 +51,16 @@ func (f filter) String() string {
 }
 
 const (
-	nativeExportAddr = "api/v1/export/native"
-	nativeImportAddr = "api/v1/import/native"
+	nativeExportAddr  = "api/v1/export/native"
+	nativeImportAddr  = "api/v1/import/native"
+	nativeTenantsAddr = "admin/tenants"
 
 	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context) error {
 	if p.filter.chunk == "" {
-		return p.runSingle(ctx, p.filter)
+		return p.runWithFilter(ctx, p.filter)
 	}
 
 	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
@@ -89,7 +92,7 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 			timeStart: formattedStartTime,
 			timeEnd:   formattedEndTime,
 		}
-		err := p.runSingle(ctx, f)
+		err := p.runWithFilter(ctx, f)
 
 		if err != nil {
 			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
@@ -99,25 +102,52 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter) error {
-	pr, pw := io.Pipe()
+func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
+	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
 
-	log.Printf("Initing export pipe from %q with filters: %s\n", p.src.addr, f)
-	exportReader, err := p.exportPipe(ctx, f)
+	if err != nil {
+		return fmt.Errorf("failed to add labels to import path: %s", err)
+	}
+
+	if !p.interCluster {
+		srcURL := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
+		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
+
+		return p.runSingle(ctx, f, srcURL, dstURL)
+	}
+
+	tenants, err := p.getSourceTenants(ctx, f)
+	if err != nil {
+		return fmt.Errorf("failed to get source tenants: %s", err)
+	}
+
+	log.Printf("Discovered tenants: %v", tenants)
+	for _, tenant := range tenants {
+		// src and dst expected formats: http://vminsert:8480/ and http://vmselect:8481/
+		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.addr, tenant, nativeExportAddr)
+		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.addr, tenant, nativeImportAddr)
+
+		if err := p.runSingle(ctx, f, srcURL, dstURL); err != nil {
+			return fmt.Errorf("failed to migrate data for tenant %q: %s", tenant, err)
+		}
+	}
+
+	return nil
+}
+
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dstURL string) error {
+	log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
+
+	exportReader, err := p.exportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %s", err)
 	}
 
-	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
-	if err != nil {
-		return err
-	}
-
+	pr, pw := io.Pipe()
 	sync := make(chan struct{})
 	go func() {
 		defer func() { close(sync) }()
-		u := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
-		req, err := http.NewRequestWithContext(ctx, "POST", u, pr)
+		req, err := http.NewRequestWithContext(ctx, "POST", dstURL, pr)
 		if err != nil {
 			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
 		}
@@ -130,7 +160,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter) error {
 		}
 	}()
 
-	fmt.Printf("Initing import process to %q:\n", p.dst.addr)
+	fmt.Printf("Initing import process to %q:\n", dstURL)
 	pool := pb.NewPool()
 	bar := pb.ProgressBarTemplate(nativeBarTpl).New(0)
 	pool.Add(bar)
@@ -166,9 +196,43 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) exportPipe(ctx context.Context, f filter) (io.ReadCloser, error) {
-	u := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
+func (p *vmNativeProcessor) getSourceTenants(ctx context.Context, f filter) ([]string, error) {
+	u := fmt.Sprintf("%s/%s", p.src.addr, nativeTenantsAddr)
 	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create request to %q: %s", u, err)
+	}
+
+	params := req.URL.Query()
+	if f.timeStart != "" {
+		params.Set("start", f.timeStart)
+	}
+	if f.timeEnd != "" {
+		params.Set("end", f.timeEnd)
+	}
+	req.URL.RawQuery = params.Encode()
+
+	resp, err := p.src.do(req, http.StatusOK)
+	if err != nil {
+		return nil, fmt.Errorf("tenants request failed: %s", err)
+	}
+
+	var r struct {
+		Tenants []string `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
+		return nil, fmt.Errorf("cannot decode tenants response: %s", err)
+	}
+
+	if err := resp.Body.Close(); err != nil {
+		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
+	}
+
+	return r.Tenants, nil
+}
+
+func (p *vmNativeProcessor) exportPipe(ctx context.Context, url string, f filter) (io.ReadCloser, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %s", p.src.addr, err)
 	}

@@ -1456,6 +1456,26 @@ var awsPartition = partition{
 				},
 			},
 		},
+		"api.ecr-public": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{
+					Hostname: "api.ecr-public.us-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-east-1",
+					},
+				},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{
+					Hostname: "api.ecr-public.us-west-2.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-west-2",
+					},
+				},
+			},
+		},
 		"api.elastic-inference": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -4937,6 +4957,17 @@ var awsPartition = partition{
 						Region: "us-west-2",
 					},
 					Deprecated: boxedTrue,
+				},
+			},
+		},
+		"codecatalyst": service{
+			PartitionEndpoint: "aws-global",
+			IsRegionalized:    boxedFalse,
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "aws-global",
+				}: endpoint{
+					Hostname: "codecatalyst.global.api.aws",
 				},
 			},
 		},
@@ -12089,22 +12120,6 @@ var awsPartition = partition{
 					Region: "ca-central-1",
 				}: endpoint{},
 				endpointKey{
-					Region: "dataplane-ap-south-1",
-				}: endpoint{
-					Hostname: "greengrass-ats.iot.ap-south-1.amazonaws.com",
-					CredentialScope: credentialScope{
-						Region: "ap-south-1",
-					},
-				},
-				endpointKey{
-					Region: "dataplane-us-east-2",
-				}: endpoint{
-					Hostname: "greengrass-ats.iot.us-east-2.amazonaws.com",
-					CredentialScope: credentialScope{
-						Region: "us-east-2",
-					},
-				},
-				endpointKey{
 					Region: "eu-central-1",
 				}: endpoint{},
 				endpointKey{
@@ -18164,6 +18179,79 @@ var awsPartition = partition{
 				},
 			},
 		},
+		"pipes": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "af-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-northeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-northeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-northeast-3",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "ap-southeast-3",
+				}: endpoint{},
+				endpointKey{
+					Region: "ca-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-north-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-3",
+				}: endpoint{},
+				endpointKey{
+					Region: "me-central-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "me-south-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "sa-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{},
+			},
+		},
 		"polly": service{
 			Endpoints: serviceEndpoints{
 				endpointKey{
@@ -21687,6 +21775,13 @@ var awsPartition = partition{
 				endpointKey{
 					Region:  "us-west-2",
 					Variant: fipsVariant,
+				}: endpoint{},
+			},
+		},
+		"sagemaker-geospatial": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "us-west-2",
 				}: endpoint{},
 			},
 		},
@@ -28147,14 +28242,6 @@ var awscnPartition = partition{
 				endpointKey{
 					Region: "cn-north-1",
 				}: endpoint{},
-				endpointKey{
-					Region: "dataplane-cn-north-1",
-				}: endpoint{
-					Hostname: "greengrass.ats.iot.cn-north-1.amazonaws.com.cn",
-					CredentialScope: credentialScope{
-						Region: "cn-north-1",
-					},
-				},
 			},
 		},
 		"guardduty": service{

@@ -225,7 +225,7 @@
             "uid": "$ds"
           },
           "exemplar": false,
-          "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"})",
+          "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
           "format": "time_series",
           "instant": true,
           "interval": "",
@@ -3767,7 +3767,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"} \n/ ignoring(path) (\n  (\n    rate(vm_rows_added_to_storage_total{job=~\"$job\", instance=~\"$instance\"}[1d]) \n    - ignoring(type) rate(vm_deduplicated_samples_total{job=~\"$job\", instance=~\"$instance\", type=\"merge\"}[1d])\n  ) * scalar(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"}) \n    / sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"})\n    )\n  )",
+              "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"} \n/ ignoring(path) (\n  (\n    rate(vm_rows_added_to_storage_total{job=~\"$job\", instance=~\"$instance\"}[1d]) \n    - ignoring(type) rate(vm_deduplicated_samples_total{job=~\"$job\", instance=~\"$instance\", type=\"merge\"}[1d])\n  ) * scalar(\n    sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"}) \n    / sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})\n    )\n  )",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -3874,7 +3874,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!=\"indexdb\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -3900,7 +3900,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=\"indexdb\"})",
+              "expr": "sum(vm_data_size_bytes{job=~\"$job\", instance=~\"$instance\", type=~\"indexdb.*\"})",
               "format": "time_series",
               "hide": false,
               "interval": "",
@@ -4156,7 +4156,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type != \"indexdb\"})",
+              "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
