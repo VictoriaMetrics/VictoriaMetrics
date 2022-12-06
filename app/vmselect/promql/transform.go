@@ -96,6 +96,7 @@ var transformFuncs = map[string]transformFunc{
 	"range_stddev":               transformRangeStddev,
 	"range_stdvar":               transformRangeStdvar,
 	"range_sum":                  newTransformFuncRange(runningSum),
+	"range_trim_spikes":          transformRangeTrimSpikes,
 	"remove_resets":              transformRemoveResets,
 	"round":                      transformRound,
 	"running_avg":                newTransformFuncRunning(runningAvg),
@@ -1271,6 +1272,54 @@ func transformRangeNormalize(tfa *transformFuncArg) ([]*timeseries, error) {
 			rvs = append(rvs, ts)
 		}
 	}
+	return rvs, nil
+}
+
+func transformRangeTrimSpikes(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	phis, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	phi := float64(0)
+	if len(phis) > 0 {
+		phi = phis[0]
+	}
+	// Trim 100% * (phi / 2) samples with the lowest / highest values per each time series
+	phi /= 2
+	phiUpper := 1 - phi
+	phiLower := phi
+	rvs := args[1]
+	a := getFloat64s()
+	values := a.A[:0]
+	for _, ts := range rvs {
+		values := values[:0]
+		originValues := ts.Values
+		for _, v := range originValues {
+			if math.IsNaN(v) {
+				continue
+			}
+			values = append(values, v)
+		}
+		sort.Float64s(values)
+		vMax := quantileSorted(phiUpper, values)
+		vMin := quantileSorted(phiLower, values)
+		for i, v := range originValues {
+			if math.IsNaN(v) {
+				continue
+			}
+			if v > vMax {
+				originValues[i] = nan
+			} else if v < vMin {
+				originValues[i] = nan
+			}
+		}
+	}
+	a.A = values
+	putFloat64s(a)
 	return rvs, nil
 }
 
