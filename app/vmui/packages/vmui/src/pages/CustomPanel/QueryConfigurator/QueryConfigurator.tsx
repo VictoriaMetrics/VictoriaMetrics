@@ -11,6 +11,8 @@ import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
+import { MouseEvent as ReactMouseEvent } from "react";
+import { arrayEquals } from "../../../utils/array";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
@@ -55,8 +57,16 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
     setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
-  const onToggleHideQuery = (index: number) => {
-    setHideQuery(prev => prev.includes(index) ? prev.filter(n => n !== index) : [...prev, index]);
+  const onToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, index: number) => {
+    const { ctrlKey, metaKey } = e;
+    const ctrlMetaKey = ctrlKey || metaKey;
+
+    if (ctrlMetaKey) {
+      const hideIndexes = stateQuery.map((q, i) => i).filter(n => n !== index);
+      setHideQuery(prev => arrayEquals(hideIndexes, prev) ? [] : hideIndexes);
+    } else {
+      setHideQuery(prev => prev.includes(index) ? prev.filter(n => n !== index) : [...prev, index]);
+    }
   };
 
   const handleChangeQuery = (value: string, index: number) => {
@@ -84,11 +94,11 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
 
   const createHandlerRemoveQuery = (i: number) => () => {
     onRemoveQuery(i);
-    setHideQuery(prev => prev.map(n => n > i ? n - 1: n));
+    setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1: n));
   };
 
-  const createHandlerHideQuery = (i: number) => () => {
-    onToggleHideQuery(i);
+  const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+    onToggleHideQuery(e, i);
   };
 
   useEffect(() => {
