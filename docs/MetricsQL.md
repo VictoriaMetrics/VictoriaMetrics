@@ -1247,6 +1247,11 @@ per each time series returned by `q` on the selected time range.
 
 `range_sum(q)` is a [transform function](#transform-functions), which calculates the sum of points per each time series returned by `q`.
 
+#### range_trim_spikes
+
+`range_trim_spikes(phi, q)` is a [transform function](#transform-functions), which drops `phi` percent of biggest spikes from time series returned by `q`.
+The `phi` must be in the range `[0..1]`, where `0` means `0%` and `1` means `100%`.
+
 #### remove_resets
 
 `remove_resets(q)` is a [transform function](#transform-functions), which removes counter resets from time series returned by `q`.

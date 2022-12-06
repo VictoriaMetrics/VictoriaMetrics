@@ -6395,6 +6395,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`range_trim_spikes()`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_trim_spikes(0.2, time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1200, 1400, 1600, 1800, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_quantile(0.5)`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_quantile(0.5, time())`
@@ -8203,6 +8214,7 @@ func TestExecError(t *testing.T) {
 	f(`step(1)`)
 	f(`running_sum(1, 2)`)
 	f(`range_sum(1, 2)`)
+	f(`range_trim_spikes()`)
 	f(`range_first(1,  2)`)
 	f(`range_last(1, 2)`)
 	f(`range_linear_regression(1, 2)`)
