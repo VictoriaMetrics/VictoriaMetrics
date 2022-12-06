@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { ChangeEvent } from "react";
 import Trace from "../../components/TraceQuery/Trace";
 import TracingsView from "../../components/TraceQuery/TracingsView";
@@ -10,6 +10,7 @@ import { CloseIcon } from "../../components/Main/Icons";
 import Modal from "../../components/Main/Modal/Modal";
 import JsonForm from "./JsonForm/JsonForm";
 import { ErrorTypes } from "../../types";
+import { setQueryStringWithoutPageReload } from "../../utils/query-string";
 
 const TracePage: FC = () => {
   const [openModal, setOpenModal] = useState(false);
@@ -71,6 +72,10 @@ const TracePage: FC = () => {
   const createHandlerCloseError = (index: number) => () => {
     handleCloseError(index);
   };
+
+  useEffect(() => {
+    setQueryStringWithoutPageReload({});
+  }, []);
 
   const UploadButtons = () => (
     <div className="vm-trace-page-controls">

@@ -12,7 +12,8 @@ interface PopperProps {
   placement?: "bottom-right" | "bottom-left" | "top-left" | "top-right"
   animation?: string
   offset?: {top: number, left: number}
-  clickOutside?: boolean
+  clickOutside?: boolean,
+  fullWidth?: boolean
 }
 
 const Popper: FC<PopperProps> = ({
@@ -23,7 +24,8 @@ const Popper: FC<PopperProps> = ({
   onClose,
   animation,
   offset = { top: 6, left: 0 },
-  clickOutside = true
+  clickOutside = true,
+  fullWidth
 }) => {
 
   const [isOpen, setIsOpen] = useState(true);
@@ -68,7 +70,8 @@ const Popper: FC<PopperProps> = ({
 
     const position = {
       top: 0,
-      left: 0
+      left: 0,
+      width: "auto"
     };
 
     const needAlignRight = placement === "bottom-right" || placement === "top-right";
@@ -96,8 +99,10 @@ const Popper: FC<PopperProps> = ({
     if (isOverflowRight) position.left = buttonPos.right - popperSize.width - offsetLeft;
     if (isOverflowLeft) position.left = buttonPos.left + offsetLeft;
 
+    if (fullWidth) position.width = `${buttonPos.width}px`;
+
     return position;
-  },[buttonRef, placement, isOpen, children]);
+  },[buttonRef, placement, isOpen, children, fullWidth]);
 
   if (clickOutside) useClickOutside(popperRef, () => setIsOpen(false), buttonRef);
 

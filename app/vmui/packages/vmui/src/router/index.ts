@@ -3,7 +3,8 @@ const router = {
   dashboards: "/dashboards",
   cardinality: "/cardinality",
   topQueries: "/top-queries",
-  trace: "/trace"
+  trace: "/trace",
+  metrics: "/metrics"
 };
 
 export interface RouterOptions {
@@ -28,6 +29,11 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.cardinality]: {
     header: {
       cardinalityDatePicker: true,
+    }
+  },
+  [router.metrics]: {
+    header: {
+      timeSelector: true,
     }
   }
 };

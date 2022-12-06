@@ -8,6 +8,7 @@ interface TextFieldProps {
   value?: string | number
   type?: HTMLInputTypeAttribute | "textarea"
   error?: string
+  placeholder?: string
   endIcon?: ReactNode
   startIcon?: ReactNode
   disabled?: boolean
@@ -23,6 +24,7 @@ const TextField: FC<TextFieldProps> = ({
   value,
   type = "text",
   error = "",
+  placeholder,
   endIcon,
   startIcon,
   disabled = false,
@@ -82,6 +84,7 @@ const TextField: FC<TextFieldProps> = ({
           onInput={handleChange}
           onKeyDown={handleKeyDown}
           rows={1}
+          placeholder={placeholder}
         />
       )
       : (
@@ -93,6 +96,7 @@ const TextField: FC<TextFieldProps> = ({
           onInput={handleChange}
           onKeyDown={handleKeyDown}
           type={type}
+          placeholder={placeholder}
         />)
     }
     {label && <span className="vm-text-field__label">{label}</span>}

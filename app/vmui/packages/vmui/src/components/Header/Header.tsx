@@ -47,6 +47,10 @@ const Header: FC = () => {
     {
       label: "Trace analyzer",
       value: router.trace,
+    },
+    {
+      label: "Explore",
+      value: router.metrics,
     }
   ]), [appModeEnable]);
 

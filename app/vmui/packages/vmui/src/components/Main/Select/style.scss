@@ -1,0 +1,41 @@
+@use "src/styles/variables" as *;
+
+.vm-select {
+  &-input {
+    cursor: pointer;
+
+    input {
+      pointer-events: none;
+    }
+
+    &__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin: 0 0 0 auto;
+      transition: transform 200ms ease-in;
+
+      svg {
+        width: 14px;
+      }
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &-list {
+    min-width: 200px;
+    max-height: 300px;
+    background-color: $color-background-block;
+    border-radius: $border-radius-medium;
+    overflow: auto;
+
+    &__no-options {
+      padding: $padding-global;
+      text-align: center;
+      color: $color-text-disabled;
+    }
+  }
+}
