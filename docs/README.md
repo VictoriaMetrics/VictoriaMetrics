@@ -276,7 +276,7 @@ It also provides the following features:
 - [query tracer](#query-tracing)
 - [top queries explorer](#top-queries)
 
-Graphs in vmui support scrolling and zooming:
+Graphs in `vmui` support scrolling and zooming:
 
 * Select the needed time range on the graph in order to zoom in into the selected time range. Hold `ctrl` (or `cmd` on MacOS) and scroll down in order to zoom out.
 * Hold `ctrl` (or `cmd` on MacOS) and scroll up in order to zoom in the area under cursor.
@@ -294,6 +294,8 @@ VMUI allows investigating correlations between multiple queries on the same grap
 enter an additional query in the newly appeared input field and press `Enter`.
 Results for all the queries are displayed simultaneously on the same graph.
 Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
+When the `eye` icon is clicked while holding the `ctrl` key, then query results for the rest of queries become hidden
+except of the current query results.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
