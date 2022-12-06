@@ -46,7 +46,7 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
 
   return (
     <div className="vm-limits-configurator">
-      <div className="vm-limits-configurator-title">
+      <div className="vm-server-configurator__title">
         Series limits by tabs
         <Tooltip title="To disable limits set to 0">
           <Button

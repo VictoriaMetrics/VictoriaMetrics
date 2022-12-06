@@ -30,8 +30,8 @@ const Calendar: FC<DatePickerProps> = ({
   onClose
 }) => {
   const [displayYears, setDisplayYears] = useState(false);
-  const [viewDate, setViewDate] = useState(dayjs(date));
-  const [selectDate, setSelectDate] = useState(dayjs(date));
+  const [viewDate, setViewDate] = useState(dayjs.tz(date));
+  const [selectDate, setSelectDate] = useState(dayjs.tz(date));
   const [tab, setTab] = useState(tabs[0].value);
 
   const toggleDisplayYears = () => {
@@ -62,7 +62,7 @@ const Calendar: FC<DatePickerProps> = ({
   };
 
   useEffect(() => {
-    if (selectDate.format() === dayjs(date).format()) return;
+    if (selectDate.format() === dayjs.tz(date).format()) return;
     onChange(selectDate.format(format));
   }, [selectDate]);
 

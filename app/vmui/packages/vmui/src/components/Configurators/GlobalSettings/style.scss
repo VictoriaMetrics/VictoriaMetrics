@@ -10,6 +10,15 @@
 
   }
 
+  &__title {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    font-size: $font-size;
+    font-weight: bold;
+    margin-bottom: $padding-global;
+  }
+
   &__footer {
     display: inline-grid;
     grid-template-columns: repeat(2, 1fr);

@@ -10,6 +10,7 @@ import { TimeParams } from "../../../types";
 import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
 import classNames from "classnames";
+import { useTimeState } from "../../../state/time/TimeStateContext";
 import "./style.scss";
 
 export interface GraphViewProps {
@@ -54,6 +55,7 @@ const GraphView: FC<GraphViewProps> = ({
   alias = [],
   fullWidth = true
 }) => {
+  const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || 1, [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
@@ -121,7 +123,7 @@ const GraphView: FC<GraphViewProps> = ({
     setDataChart(timeDataSeries as uPlotData);
     setSeries(tempSeries);
     setLegend(tempLegend);
-  }, [data]);
+  }, [data, timezone]);
 
   useEffect(() => {
     const tempLegend: LegendItemType[] = [];

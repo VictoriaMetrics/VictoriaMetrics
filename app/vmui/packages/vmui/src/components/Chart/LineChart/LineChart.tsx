@@ -11,7 +11,7 @@ import { defaultOptions } from "../../../utils/uplot/helpers";
 import { dragChart } from "../../../utils/uplot/events";
 import { getAxes, getMinMaxBuffer } from "../../../utils/uplot/axes";
 import { MetricResult } from "../../../api/types";
-import { limitsDurations } from "../../../utils/time";
+import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../utils/time";
 import throttle from "lodash.throttle";
 import useResize from "../../../hooks/useResize";
 import { TimeParams } from "../../../types";
@@ -20,6 +20,7 @@ import "uplot/dist/uPlot.min.css";
 import "./style.scss";
 import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
+import dayjs from "dayjs";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -57,7 +58,10 @@ const LineChart: FC<LineChartProps> = ({
   const tooltipId = useMemo(() => `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`, [tooltipIdx]);
 
   const setScale = ({ min, max }: { min: number, max: number }): void => {
-    setPeriod({ from: new Date(min * 1000), to: new Date(max * 1000) });
+    setPeriod({
+      from: dayjs(min * 1000).toDate(),
+      to: dayjs(max * 1000).toDate()
+    });
   };
   const throttledSetScale = useCallback(throttle(setScale, 500), []);
   const setPlotScale = ({ u, min, max }: { u: uPlot, min: number, max: number }) => {
@@ -163,6 +167,7 @@ const LineChart: FC<LineChartProps> = ({
 
   const options: uPlotOptions = {
     ...defaultOptions,
+    tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
     series,
     axes: getAxes( [{}, { scale: "1" }], unit),
     scales: { ...getScales() },
