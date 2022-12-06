@@ -56,6 +56,9 @@ func insertRows(at *auth.Token, series []parser.Series, extraLabels []prompbmars
 		ctx.Labels = ctx.Labels[:0]
 		ctx.AddLabel("", ss.Metric)
 		ctx.AddLabel("host", ss.Host)
+		if ss.Device != "" {
+			ctx.AddLabel("device", ss.Device)
+		}
 		for _, tag := range ss.Tags {
 			name, value := parser.SplitTag(tag)
 			if name == "host" {
