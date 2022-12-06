@@ -5,6 +5,18 @@ import { AxisRange } from "../../state/graph/reducer";
 import { formatTicks, sizeAxis } from "./helpers";
 import { TimeParams } from "../../types";
 
+// see https://github.com/leeoniya/uPlot/tree/master/docs#axis--grid-opts
+const timeValues = [
+  // tick incr      default           year                            month day                      hour  min            sec   mode
+  [3600 * 24 * 365, "{YYYY}",         null,                           null, null,                    null, null,          null, 1],
+  [3600 * 24 * 28,  "{MMM}",          "\n{YYYY}",                     null, null,                    null, null,          null, 1],
+  [3600 * 24,       "{MM}-{DD}",      "\n{YYYY}",                     null, null,                    null, null,          null, 1],
+  [3600,            "{HH}:{mm}",      "\n{YYYY}-{MM}-{DD}",           null, "\n{MM}-{DD}",           null, null,          null, 1],
+  [60,              "{HH}:{mm}",      "\n{YYYY}-{MM}-{DD}",           null, "\n{MM}-{DD}",           null, null,          null, 1],
+  [1,               "{HH}:{mm}:{ss}", "\n{YYYY}-{MM}-{DD}",           null, "\n{MM}-{DD} {HH}:{mm}", null, null,          null, 1],
+  [0.001,           ":{ss}.{fff}",    "\n{YYYY}-{MM}-{DD} {HH}:{mm}", null, "\n{MM}-{DD} {HH}:{mm}", null, "\n{HH}:{mm}", null, 1],
+];
+
 export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
   const axis = {
     scale: a,
@@ -13,7 +25,7 @@ export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(n
     font: "10px Arial",
     values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
   };
-  if (!a) return { space: 80 };
+  if (!a) return { space: 80, values: timeValues };
   if (!(Number(a) % 2)) return { ...axis, side: 1 };
   return axis;
 });

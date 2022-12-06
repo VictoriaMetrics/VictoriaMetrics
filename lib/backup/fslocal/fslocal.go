@@ -159,7 +159,7 @@ func (fs *FS) DeletePath(path string) (uint64, error) {
 			// The file could be deleted earlier via symlink.
 			return 0, nil
 		}
-		return 0, fmt.Errorf("cannot open %q at %q: %w", path, fullPath, err)
+		return 0, fmt.Errorf("cannot open %q: %w", path, err)
 	}
 	fi, err := f.Stat()
 	_ = f.Close()

@@ -5,7 +5,7 @@ import { MAX_QUERY_FIELDS } from "../constants/graph";
 export const setQueryStringWithoutPageReload = (params: Record<string, unknown>): void => {
   const w = window;
   if (w) {
-    const qsValue = Object.entries(params).map(([k, v]) => `${k}=${v}`).join("&");
+    const qsValue = Object.entries(params).map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&");
     const qs = qsValue ? `?${qsValue}` : "";
     const newurl = `${w.location.protocol}//${w.location.host}${w.location.pathname}${qs}${w.location.hash}`;
     w.history.pushState({ path: newurl }, "", newurl);

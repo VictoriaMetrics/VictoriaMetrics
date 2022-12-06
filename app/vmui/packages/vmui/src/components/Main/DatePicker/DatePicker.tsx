@@ -20,7 +20,7 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   onChange,
 }, ref) => {
   const [openCalendar, setOpenCalendar] = useState(false);
-  const dateDayjs = useMemo(() => date ? dayjs(date) : dayjs(), [date]);
+  const dateDayjs = useMemo(() => date ? dayjs.tz(date) : dayjs().tz(), [date]);
 
   const toggleOpenCalendar = () => {
     setOpenCalendar(prev => !prev);

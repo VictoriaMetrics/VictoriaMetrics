@@ -181,11 +181,12 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 			t.Fatalf("cannot remove big parts directory: %s", err)
 		}
 	}()
+	var tmpRows []rawRow
 	for _, rows := range rowss {
 		pt.AddRows(rows)
 
-		// Flush just added rows to a separate partition.
-		pt.flushRawRows(true)
+		// Flush just added rows to a separate partitions.
+		tmpRows = pt.flushPendingRows(tmpRows[:0], true)
 	}
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, -1)
 	pt.MustClose()
@@ -232,8 +233,7 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 		// due to the race with raw rows flusher.
 		var m partitionMetrics
 		pt.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			return fmt.Errorf("unexpected rows count; got %d; want %d", rowsCount, rowsCountExpected)
 		}
 	}
@@ -258,8 +258,7 @@ func testPartitionSearchSerial(pt *partition, tsids []TSID, tr TimeRange, rbsExp
 	if rowsCountExpected >= 0 {
 		var m partitionMetrics
 		pt.UpdateMetrics(&m)
-		rowsCount := m.BigRowsCount + m.SmallRowsCount
-		if rowsCount != uint64(rowsCountExpected) {
+		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {
 			return fmt.Errorf("unexpected rows count after search; got %d; want %d", rowsCount, rowsCountExpected)
 		}
 	}

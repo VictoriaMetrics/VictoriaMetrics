@@ -54,6 +54,19 @@ func (m *Metric) SetLabel(key, value string) {
 	m.AddLabel(key, value)
 }
 
+// SetLabels sets the given map as Metric labels
+func (m *Metric) SetLabels(ls map[string]string) {
+	var i int
+	m.Labels = make([]Label, len(ls))
+	for k, v := range ls {
+		m.Labels[i] = Label{
+			Name:  k,
+			Value: v,
+		}
+		i++
+	}
+}
+
 // AddLabel appends the given label to the label set
 func (m *Metric) AddLabel(key, value string) {
 	m.Labels = append(m.Labels, Label{Name: key, Value: value})

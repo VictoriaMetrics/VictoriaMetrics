@@ -47,7 +47,7 @@ func benchmarkBlockStreamWriter(b *testing.B, ebs []Block, rowsCount int, writeR
 				}
 			}
 
-			bsw.InitFromInmemoryPart(&mp)
+			bsw.InitFromInmemoryPart(&mp, -5)
 			for i := range ebsCopy {
 				bsw.WriteExternalBlock(&ebsCopy[i], &ph, &rowsMerged)
 			}

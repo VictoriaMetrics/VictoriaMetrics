@@ -306,7 +306,7 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 
 // DebugFlush flushes recently added storage data, so it becomes visible to search.
 func (s *Storage) DebugFlush() {
-	s.tb.flushRawRows()
+	s.tb.flushPendingRows()
 	s.idb().tb.DebugFlush()
 }
 
@@ -378,13 +378,13 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 	snapshotsPath := s.path + "/snapshots"
 	d, err := os.Open(snapshotsPath)
 	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot open snapshots directory: %w", err)
 	}
 	defer fs.MustClose(d)
 
 	fnames, err := d.Readdirnames(-1)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read contents of %q: %w", snapshotsPath, err)
+		return nil, fmt.Errorf("cannot read snapshots directory at %q: %w", snapshotsPath, err)
 	}
 	snapshotNames := make([]string, 0, len(fnames))
 	for _, fname := range fnames {
@@ -2070,12 +2070,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				continue
 			}
 			mn.sortTags()
-			if err := is.createPerDayIndexes(date, metricID, mn); err != nil {
-				if firstError == nil {
-					firstError = fmt.Errorf("error when storing per-date inverted index for (date=%s, metricID=%d): %w", dateToString(date), metricID, err)
-				}
-				continue
-			}
+			is.createPerDayIndexes(date, metricID, mn)
 		}
 		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
 			date:     date,

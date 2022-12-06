@@ -215,15 +215,16 @@ func (tb *table) MustClose() {
 	}
 }
 
-// flushRawRows flushes all the pending rows, so they become visible to search.
+// flushPendingRows flushes all the pending raw rows, so they become visible to search.
 //
 // This function is for debug purposes only.
-func (tb *table) flushRawRows() {
+func (tb *table) flushPendingRows() {
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
+	var rows []rawRow
 	for _, ptw := range ptws {
-		ptw.pt.flushRawRows(true)
+		rows = ptw.pt.flushPendingRows(rows[:0], true)
 	}
 }
 
@@ -524,7 +525,7 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 func populatePartitionNames(partitionsPath string, ptNames map[string]bool) error {
 	d, err := os.Open(partitionsPath)
 	if err != nil {
-		return fmt.Errorf("cannot open directory with partitions %q: %w", partitionsPath, err)
+		return fmt.Errorf("cannot open directory with partitions: %w", err)
 	}
 	defer fs.MustClose(d)
 

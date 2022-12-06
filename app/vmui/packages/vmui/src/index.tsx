@@ -1,4 +1,5 @@
 import React, { render } from "preact/compat";
+import "./constants/dayjsPlugins";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import "./styles/style.scss";

@@ -1,9 +1,13 @@
 package storage
 
 import (
+	"fmt"
+	"path/filepath"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -31,6 +35,36 @@ func (mp *inmemoryPart) Reset() {
 	mp.creationTime = 0
 }
 
+// StoreToDisk stores the mp to the given path on disk.
+func (mp *inmemoryPart) StoreToDisk(path string) error {
+	if err := fs.MkdirAllIfNotExist(path); err != nil {
+		return fmt.Errorf("cannot create directory %q: %w", path, err)
+	}
+	timestampsPath := path + "/timestamps.bin"
+	if err := fs.WriteFileAndSync(timestampsPath, mp.timestampsData.B); err != nil {
+		return fmt.Errorf("cannot store timestamps: %w", err)
+	}
+	valuesPath := path + "/values.bin"
+	if err := fs.WriteFileAndSync(valuesPath, mp.valuesData.B); err != nil {
+		return fmt.Errorf("cannot store values: %w", err)
+	}
+	indexPath := path + "/index.bin"
+	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
+		return fmt.Errorf("cannot store index: %w", err)
+	}
+	metaindexPath := path + "/metaindex.bin"
+	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
+		return fmt.Errorf("cannot store metaindex: %w", err)
+	}
+	if err := mp.ph.writeMinDedupInterval(path); err != nil {
+		return fmt.Errorf("cannot store min dedup interval: %w", err)
+	}
+	// Sync parent directory in order to make sure the written files remain visible after hardware reset
+	parentDirPath := filepath.Dir(path)
+	fs.MustSyncPath(parentDirPath)
+	return nil
+}
+
 // InitFromRows initializes mp from the given rows.
 func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 	if len(rows) == 0 {
@@ -49,9 +83,12 @@ func (mp *inmemoryPart) InitFromRows(rows []rawRow) {
 // It is safe calling NewPart multiple times.
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() (*part, error) {
-	ph := mp.ph
-	size := uint64(len(mp.timestampsData.B) + len(mp.valuesData.B) + len(mp.indexData.B) + len(mp.metaindexData.B))
-	return newPart(&ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
+	size := mp.size()
+	return newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.timestampsData, &mp.valuesData, &mp.indexData)
+}
+
+func (mp *inmemoryPart) size() uint64 {
+	return uint64(cap(mp.timestampsData.B) + cap(mp.valuesData.B) + cap(mp.indexData.B) + cap(mp.metaindexData.B))
 }
 
 func getInmemoryPart() *inmemoryPart {

@@ -29,6 +29,10 @@ var (
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag")
+	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
+		"The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. "+
+		"Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
+		"Smaller intervals increase disk IO load. Minimum supported value is 1s")
 	downsamplingPeriods = flagutil.NewArrayString("downsampling.period", "Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs "+
 		"to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details")
 )
@@ -65,6 +69,7 @@ func main() {
 	if err != nil {
 		logger.Fatalf("cannot parse -downsampling.period: %s", err)
 	}
+	storage.SetDataFlushInterval(*inmemoryDataFlushInterval)
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()

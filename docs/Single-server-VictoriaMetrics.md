@@ -279,7 +279,7 @@ It also provides the following features:
 - [query tracer](#query-tracing)
 - [top queries explorer](#top-queries)
 
-Graphs in vmui support scrolling and zooming:
+Graphs in `vmui` support scrolling and zooming:
 
 * Select the needed time range on the graph in order to zoom in into the selected time range. Hold `ctrl` (or `cmd` on MacOS) and scroll down in order to zoom out.
 * Hold `ctrl` (or `cmd` on MacOS) and scroll up in order to zoom in the area under cursor.
@@ -297,6 +297,8 @@ VMUI allows investigating correlations between multiple queries on the same grap
 enter an additional query in the newly appeared input field and press `Enter`.
 Results for all the queries are displayed simultaneously on the same graph.
 Graphs for a particular query can be temporarily hidden by clicking the `eye` icon on the right side of the input field.
+When the `eye` icon is clicked while holding the `ctrl` key, then query results for the rest of queries become hidden
+except of the current query results.
 
 See the [example VMUI at VictoriaMetrics playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/?g0.expr=100%20*%20sum(rate(process_cpu_seconds_total))%20by%20(job)&g0.range_input=1d).
 
@@ -1367,18 +1369,50 @@ It is recommended passing different `-promscrape.cluster.name` values to HA pair
 
 ## Storage
 
-VictoriaMetrics stores time series data in [MergeTree](https://en.wikipedia.org/wiki/Log-structured_merge-tree)-like
-data structures. On insert, VictoriaMetrics accumulates up to 1s of data and dumps it on disk to
-`<-storageDataPath>/data/small/YYYY_MM/` subdirectory forming a `part` with the following
-name pattern: `rowsCount_blocksCount_minTimestamp_maxTimestamp`. Each part consists of two "columns":
-values and timestamps. These are sorted and compressed raw time series values. Additionally, part contains
-index files for searching for specific series in the values and timestamps files.
+VictoriaMetrics buffers the ingested data in memory for up to a second. Then the buffered data is written to in-memory `parts`,
+which can be searched during queries. The in-memory `parts` are periodically persisted to disk, so they could survive unclean shutdown
+such as out of memory crash, hardware power loss or `SIGKILL` signal. The interval for flushing the in-memory data to disk
+can be configured with the `-inmemoryDataFlushInterval` command-line flag (note that too short flush interval may significantly increase disk IO).
 
-`Parts` are periodically merged into the bigger parts. The resulting `part` is constructed
-under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` subdirectory.
-When the resulting `part` is complete, it is atomically moved from the `tmp`
-to its own subdirectory, while the source parts are atomically removed. The end result is that the source
-parts are substituted by a single resulting bigger `part` in the `<-storageDataPath>/data/{small,big}/YYYY_MM/` directory.
+In-memory parts are persisted to disk into `part` directories under the `<-storageDataPath>/data/small/YYYY_MM/` folder,
+where `YYYY_MM` is the month partition for the stored data. For example, `2022_11` is the partition for `parts`
+with [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) from `November 2022`.
+
+The `part` directory has the following name pattern: `rowsCount_blocksCount_minTimestamp_maxTimestamp`, where:
+
+- `rowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
+- `blocksCount` - the number of blocks stored in the part (see details about blocks below)
+- `minTimestamp` and `maxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+
+Each `part` consists of `blocks` sorted by internal time series id (aka `TSID`).
+Each `block` contains up to 8K [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
+which belong to a single [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series).
+Raw samples in each block are sorted by `timestamp`. Blocks for the same time series are sorted
+by the `timestamp` of the first sample. Timestamps and values for all the blocks
+are stored in [compressed form](https://faun.pub/victoriametrics-achieving-better-compression-for-time-series-data-than-gorilla-317bc1f95932)
+in separate files under `part` directory - `timestamps.bin` and `values.bin`.
+
+The `part` directory also contains `index.bin` and `metaindex.bin` files - these files contain index
+for fast block lookups, which belong to the given `TSID` and cover the given time range.
+
+`Parts` are periodically merged into bigger parts in background. The background merge provides the following benefits:
+
+* keeping the number of data files under control, so they don't exceed limits on open files
+* improved data compression, since bigger parts are usually compressed better than smaller parts
+* improved query speed, since queries over smaller number of parts are executed faster
+* various background maintenance tasks such as [de-duplication](#deduplication), [downsampling](#downsampling)
+  and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge
+
+Newly added `parts` either successfully appear in the storage or fail to appear.
+The newly added `parts` are being created in a temporary directory under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` folder.
+When the newly added `part` is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html)
+to a temporary directory, then it is atomically moved to the storage directory.
+Thanks to this alogrithm, storage never contains partially created parts, even if hardware power off
+occurrs in the middle of writing the `part` to disk - such incompletely written `parts`
+are automatically deleted on the next VictoriaMetrics start.
+
+The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
+leaving the source `parts` untouched.
 
 VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
 This prevents from potential out of disk space errors during merge.
@@ -1387,23 +1421,9 @@ This increases overhead during data querying, since VictoriaMetrics needs to rea
 bigger number of parts per each request. That's why it is recommended to have at least 20%
 of free disk space under directory pointed by `-storageDataPath` command-line flag.
 
-Information about merging process is available in [single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
-and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176) Grafana dashboards.
+Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
+and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
 See more details in [monitoring docs](#monitoring).
-
-The `merge` process improves compression rate and keeps number of `parts` on disk relatively low.
-Benefits of doing the merge process are the following:
-
-* it improves query performance, since lower number of `parts` are inspected with each query
-* it reduces the number of data files, since each `part` contains fixed number of files
-* various background maintenance tasks such as [de-duplication](#deduplication), [downsampling](#downsampling)
-  and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge.
-
-Newly added `parts` either appear in the storage or fail to appear.
-Storage never contains partially created parts. The same applies to merge process — `parts` are either fully
-merged into a new `part` or fail to merge. MergeTree doesn't contain partially merged `parts`.
-`Part` contents in MergeTree never change. Parts are immutable. They may be only deleted after the merge
-to a bigger `part` or when the `part` contents goes outside the configured `-retentionPeriod`.
 
 See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
 
@@ -1727,10 +1747,11 @@ and [cardinality explorer docs](#cardinality-explorer).
 
 * VictoriaMetrics buffers incoming data in memory for up to a few seconds before flushing it to persistent storage.
   This may lead to the following "issues":
-  * Data becomes available for querying in a few seconds after inserting. It is possible to flush in-memory buffers to persistent storage
+  * Data becomes available for querying in a few seconds after inserting. It is possible to flush in-memory buffers to searchable parts
     by requesting `/internal/force_flush` http handler. This handler is mostly needed for testing and debugging purposes.
   * The last few seconds of inserted data may be lost on unclean shutdown (i.e. OOM, `kill -9` or hardware reset).
-    See [this article for technical details](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704).
+    The `-inmemoryDataFlushInterval` command-line flag allows controlling the frequency of in-memory data flush to persistent storage.
+    See [storage docs](#storage) and [this article](https://valyala.medium.com/wal-usage-looks-broken-in-modern-time-series-databases-b62a627ab704) for more details.
 
 * If VictoriaMetrics works slowly and eats more than a CPU core per 100K ingested data points per second,
   then it is likely you have too many [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) for the current amount of RAM.
@@ -2137,6 +2158,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field
   -influxTrimTimestamp duration
      Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
+  -inmemoryDataFlushInterval duration
+     The interval for guaranteed saving of in-memory data to disk. The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). Smaller intervals increase disk IO load. Minimum supported value is 1s (default 5s)
   -insert.maxQueueDuration duration
      The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)
   -logNewSeries

@@ -3,13 +3,6 @@
 .vm-limits-configurator {
 
   &-title {
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    font-size: $font-size;
-    font-weight: bold;
-    margin-bottom: $padding-global;
-
     &__reset {
       display: flex;
       align-items: center;

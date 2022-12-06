@@ -178,6 +178,10 @@ func mergeBlocks(ob, ib1, ib2 *Block, retentionDeadline int64, rowsDeleted *uint
 }
 
 func skipSamplesOutsideRetention(b *Block, retentionDeadline int64, rowsDeleted *uint64) {
+	if b.bh.MinTimestamp >= retentionDeadline {
+		// Fast path - the block contains only samples with timestamps bigger than retentionDeadline.
+		return
+	}
 	timestamps := b.timestamps
 	nextIdx := b.nextIdx
 	nextIdxOrig := nextIdx
