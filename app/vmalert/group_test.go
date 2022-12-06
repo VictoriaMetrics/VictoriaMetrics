@@ -3,8 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"reflect"
 	"sort"
 	"testing"
@@ -12,6 +10,9 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -451,4 +452,24 @@ func TestFaultyNotifier(t *testing.T) {
 		time.Sleep(time.Millisecond * 100)
 	}
 	t.Fatalf("alive notifier didn't receive notification by %v", deadline)
+}
+
+func TestFaultyRW(t *testing.T) {
+	fq := &fakeQuerier{}
+	fq.add(metricWithValueAndLabels(t, 1, "__name__", "foo", "job", "bar"))
+
+	r := &RecordingRule{
+		Name: "test",
+		q:    fq,
+	}
+
+	e := &executor{
+		rw:                       &remotewrite.Client{},
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+	}
+
+	err := e.exec(context.Background(), r, time.Now(), 0, 10)
+	if err == nil {
+		t.Fatalf("expected to get an error from faulty RW client, got nil instead")
+	}
 }
