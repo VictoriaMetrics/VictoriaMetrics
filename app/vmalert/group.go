@@ -412,20 +412,26 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
 
-	errGr := new(utils.ErrGroup)
 	if e.rw != nil {
-		pushToRW := func(tss []prompbmarshal.TimeSeries) {
+		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
+			var lastErr error
 			for _, ts := range tss {
 				remoteWriteTotal.Inc()
 				if err := e.rw.Push(ts); err != nil {
 					remoteWriteErrors.Inc()
-					errGr.Add(fmt.Errorf("rule %q: remote write failure: %w", rule, err))
+					lastErr = fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 				}
 			}
+			return lastErr
 		}
-		pushToRW(tss)
+		if err := pushToRW(tss); err != nil {
+			return err
+		}
+
 		staleSeries := e.getStaleSeries(rule, tss, ts)
-		pushToRW(staleSeries)
+		if err := pushToRW(staleSeries); err != nil {
+			return err
+		}
 	}
 
 	ar, ok := rule.(*AlertingRule)
@@ -439,6 +445,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 	}
 
 	wg := sync.WaitGroup{}
+	errGr := new(utils.ErrGroup)
 	for _, nt := range e.notifiers() {
 		wg.Add(1)
 		go func(nt notifier.Notifier) {
