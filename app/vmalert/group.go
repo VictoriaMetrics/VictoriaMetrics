@@ -423,15 +423,15 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 
 	if e.rw != nil {
 		pushToRW := func(tss []prompbmarshal.TimeSeries) error {
-			errGr := new(utils.ErrGroup)
+			var lastErr error
 			for _, ts := range tss {
 				remoteWriteTotal.Inc()
 				if err := e.rw.Push(ts); err != nil {
 					remoteWriteErrors.Inc()
-					errGr.Add(fmt.Errorf("rule %q: remote write failure: %w", rule, err))
+					lastErr = fmt.Errorf("rule %q: remote write failure: %w", rule, err)
 				}
 			}
-			return errGr.Err()
+			return lastErr
 		}
 		if err := pushToRW(tss); err != nil {
 			return err
