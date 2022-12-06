@@ -128,6 +128,12 @@ func Contains[E comparable](s []E, v E) bool {
 	return Index(s, v) >= 0
 }
 
+// ContainsFunc reports whether at least one
+// element e of s satisfies f(e).
+func ContainsFunc[E any](s []E, f func(E) bool) bool {
+	return IndexFunc(s, f) >= 0
+}
+
 // Insert inserts the values v... into s at index i,
 // returning the modified slice.
 // In the returned slice r, r[i] == v[0].

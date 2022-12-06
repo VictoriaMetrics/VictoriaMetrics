@@ -927,6 +927,25 @@ var awsPartition = partition{
 				}: endpoint{},
 			},
 		},
+		"aoss": service{
+			Endpoints: serviceEndpoints{
+				endpointKey{
+					Region: "ap-northeast-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "eu-west-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-1",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-east-2",
+				}: endpoint{},
+				endpointKey{
+					Region: "us-west-2",
+				}: endpoint{},
+			},
+		},
 		"api.detective": service{
 			Defaults: endpointDefaults{
 				defaultKey{}: endpoint{
