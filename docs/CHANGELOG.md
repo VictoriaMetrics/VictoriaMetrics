@@ -58,6 +58,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly pass HTTP headers during the alert state restore procedure. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3418).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly specify rule evaluation step during the [replay mode](https://docs.victoriametrics.com/vmalert.html#rules-backfilling). The `step` value was previously overriden by `-datasource.queryStep` command-line flag.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return the error message from remote-write failures. Before, error was ignored and only `vmalert_remotewrite_errors_total` was incremented.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly put multi-line queries in the url, so it could be copy-n-pasted and opened without issues in a new browser tab. Previously the url for multi-line query couldn't be opened. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3444).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): correctly handle `up` and `down` keypresses when editing multi-line queries. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3445).
 
