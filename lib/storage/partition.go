@@ -722,9 +722,8 @@ func (pt *partition) MustClose() {
 
 	logger.Infof("flushing inmemory parts to files on %q...", pt.smallPartsPath)
 	startTime = time.Now()
-
-	// Flush inmemory rows the last time before exit.
 	pt.flushInmemoryRows()
+	logger.Infof("inmemory parts have been flushed to files in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	// Remove references from inmemoryParts, smallParts and bigParts, so they may be eventually closed
 	// after all the searches are done.

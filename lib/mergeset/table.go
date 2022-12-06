@@ -374,9 +374,8 @@ func (tb *Table) MustClose() {
 
 	logger.Infof("flushing inmemory parts to files on %q...", tb.path)
 	startTime = time.Now()
-
-	// Flush inmemory items the last time before exit.
 	tb.flushInmemoryItems()
+	logger.Infof("inmemory parts have been successfully flushed to files in %.3f seconds at %q", time.Since(startTime).Seconds(), tb.path)
 
 	logger.Infof("waiting for flush callback worker to stop on %q...", tb.path)
 	startTime = time.Now()
