@@ -6,6 +6,7 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "QUERY_TRACING"
     | "SERIES_LIMITS"
     | "TABLE_COMPACT"
+    | "TIMEZONE"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {

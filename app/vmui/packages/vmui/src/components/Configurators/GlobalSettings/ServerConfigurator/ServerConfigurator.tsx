@@ -22,14 +22,18 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange ,
   };
 
   return (
-    <TextField
-      autofocus
-      label="Server URL"
-      value={serverUrl}
-      error={error}
-      onChange={onChangeServer}
-      onEnter={onEnter}
-    />
+    <div>
+      <div className="vm-server-configurator__title">
+        Server URL
+      </div>
+      <TextField
+        autofocus
+        value={serverUrl}
+        error={error}
+        onChange={onChangeServer}
+        onEnter={onEnter}
+      />
+    </div>
   );
 };
 

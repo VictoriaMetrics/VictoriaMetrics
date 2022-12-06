@@ -11,7 +11,7 @@ interface CalendarBodyProps {
 const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSelectDate }) => {
-  const today = dayjs().startOf("day");
+  const today = dayjs().tz().startOf("day");
 
   const days: (Dayjs|null)[] = useMemo(() => {
     const result = new Array(42).fill(null);

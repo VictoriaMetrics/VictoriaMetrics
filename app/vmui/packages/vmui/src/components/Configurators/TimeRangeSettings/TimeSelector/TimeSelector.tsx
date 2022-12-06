@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState, useMemo, useRef } from "preact/compat";
-import { dateFromSeconds, formatDateForNativeInput } from "../../../../utils/time";
+import { dateFromSeconds, formatDateForNativeInput, getRelativeTime, getUTCByTimezone } from "../../../../utils/time";
 import TimeDurationSelector from "../TimeDurationSelector/TimeDurationSelector";
 import dayjs from "dayjs";
 import { getAppModeEnable } from "../../../../utils/app-mode";
@@ -22,20 +22,25 @@ export const TimeSelector: FC = () => {
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
 
-  const formFormat = useMemo(() => dayjs(from).format(DATE_TIME_FORMAT), [from]);
-  const untilFormat = useMemo(() => dayjs(until).format(DATE_TIME_FORMAT), [until]);
+  const formFormat = useMemo(() => dayjs.tz(from).format(DATE_TIME_FORMAT), [from]);
+  const untilFormat = useMemo(() => dayjs.tz(until).format(DATE_TIME_FORMAT), [until]);
 
-  const { period: { end, start }, relativeTime } = useTimeState();
+  const { period: { end, start }, relativeTime, timezone, duration } = useTimeState();
   const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
 
+  const activeTimezone = useMemo(() => ({
+    region: timezone,
+    utc: getUTCByTimezone(timezone)
+  }), [timezone]);
+
   useEffect(() => {
     setUntil(formatDateForNativeInput(dateFromSeconds(end)));
-  }, [end]);
+  }, [timezone, end]);
 
   useEffect(() => {
     setFrom(formatDateForNativeInput(dateFromSeconds(start)));
-  }, [start]);
+  }, [timezone, start]);
 
   const setDuration = ({ duration, until, id }: {duration: string, until: Date, id: string}) => {
     dispatch({ type: "SET_RELATIVE_TIME", payload: { duration, until, id } });
@@ -43,13 +48,13 @@ export const TimeSelector: FC = () => {
   };
 
   const formatRange = useMemo(() => {
-    const startFormat = dayjs(dateFromSeconds(start)).format(DATE_TIME_FORMAT);
-    const endFormat = dayjs(dateFromSeconds(end)).format(DATE_TIME_FORMAT);
+    const startFormat = dayjs.tz(dateFromSeconds(start)).format(DATE_TIME_FORMAT);
+    const endFormat = dayjs.tz(dateFromSeconds(end)).format(DATE_TIME_FORMAT);
     return {
       start: startFormat,
       end: endFormat
     };
-  }, [start, end]);
+  }, [start, end, timezone]);
 
   const dateTitle = useMemo(() => {
     const isRelativeTime = relativeTime && relativeTime !== "none";
@@ -65,7 +70,10 @@ export const TimeSelector: FC = () => {
 
   const setTimeAndClosePicker = () => {
     if (from && until) {
-      dispatch({ type: "SET_PERIOD", payload: { from: new Date(from), to: new Date(until) } });
+      dispatch({ type: "SET_PERIOD", payload: {
+        from: dayjs(from).toDate(),
+        to: dayjs(until).toDate()
+      } });
     }
     setOpenOptions(false);
   };
@@ -90,6 +98,15 @@ export const TimeSelector: FC = () => {
   const handleCloseOptions = () => {
     setOpenOptions(false);
   };
+
+  useEffect(() => {
+    const value = getRelativeTime({
+      relativeTimeId: relativeTime,
+      defaultDuration: duration,
+      defaultEndInput: dateFromSeconds(end),
+    });
+    setDuration({ id: value.relativeTimeId, duration: value.duration, until: value.endInput });
+  }, [timezone]);
 
   useClickOutside(wrapperRef, (e) => {
     const target = e.target as HTMLElement;
@@ -158,6 +175,10 @@ export const TimeSelector: FC = () => {
                 timepicker={true}
               />
             </div>
+          </div>
+          <div className="vm-time-selector-left-timezone">
+            <div className="vm-time-selector-left-timezone__title">{activeTimezone.region}</div>
+            <div className="vm-time-selector-left-timezone__utc">{activeTimezone.utc}</div>
           </div>
           <Button
             variant="text"

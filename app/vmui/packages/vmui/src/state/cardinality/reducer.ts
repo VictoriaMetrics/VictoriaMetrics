@@ -23,7 +23,7 @@ export type Action =
 export const initialState: CardinalityState = {
   runQuery: 0,
   topN: getQueryStringValue("topN", 10) as number,
-  date: getQueryStringValue("date", dayjs(new Date()).format(DATE_FORMAT)) as string,
+  date: getQueryStringValue("date", dayjs().tz().format(DATE_FORMAT)) as string,
   focusLabel: getQueryStringValue("focusLabel", "") as string,
   match: getQueryStringValue("match", "") as string,
   extraLabel: getQueryStringValue("extra_label", "") as string,

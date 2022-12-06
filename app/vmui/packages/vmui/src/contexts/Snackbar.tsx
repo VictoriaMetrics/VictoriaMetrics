@@ -36,7 +36,7 @@ export const SnackbarProvider: FC = ({ children }) => {
     setSnack({
       message: infoMessage.text,
       variant: infoMessage.type,
-      key: new Date().getTime()
+      key: Date.now()
     });
     setOpen(true);
     const timeout = setTimeout(handleClose, 4000);

@@ -105,3 +105,9 @@ export interface SeriesLimits {
   chart: number,
   code: number,
 }
+
+export interface Timezone {
+  region: string,
+  utc: string,
+  search?: string
+}

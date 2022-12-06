@@ -30,6 +30,10 @@
         cursor: pointer;
         transition: color 200ms ease-in-out, border-bottom-color 300ms ease;
 
+        &:last-child {
+          margin-bottom: 0;
+        }
+
         &:hover {
           border-bottom-color: $color-primary;
         }
@@ -49,6 +53,26 @@
           color: $color-text-secondary;
           transition: color 200ms ease-in-out;
         }
+      }
+    }
+
+    &-timezone {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: $padding-small;
+      font-size: $font-size-small;
+      margin-bottom: $padding-small;
+
+      &__title {}
+
+      &__utc {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba($color-black, 0.06);
+        padding: calc($padding-small/2);
+        border-radius: $border-radius-small;
       }
     }
 
