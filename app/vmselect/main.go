@@ -364,6 +364,9 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 
 	if p.Suffix == "prometheus/vmalert" {
+		// vmalert access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
 		path := "../" + p.Suffix + "/"
 		httpserver.Redirect(w, path)
 		return true
