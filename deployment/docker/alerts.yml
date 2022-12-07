@@ -54,7 +54,6 @@ groups:
         for: 15m
         labels:
           severity: warning
-          show_at: dashboard
         annotations:
           dashboard: "http://localhost:3000/d/wNf0q_kZk?viewPanel=35&var-instance={{ $labels.instance }}"
           summary: "Too many errors served for path {{ $labels.path }} (instance {{ $labels.instance }})"
