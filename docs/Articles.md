@@ -55,7 +55,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Install and configure VictoriaMetrics on Debian](https://www.vultr.com/docs/install-and-configure-victoriametrics-on-debian)
 * [Superset BI with Victoria Metrics](https://cer6erus.medium.com/superset-bi-with-victoria-metrics-a109d3e91bc6)
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
-* [How we tried using VictoriaMetrics and Thanos at the same time](https://habr.com/ru/company/sravni/blog/672908/)
+* [How we tried using VictoriaMetrics and Thanos at the same time](https://medium.com/@uburro/how-we-tried-using-victoriametrics-and-thanos-at-the-same-time-48803d2a638b)
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
 * [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
 * [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
