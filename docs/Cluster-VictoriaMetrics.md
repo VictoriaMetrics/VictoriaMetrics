@@ -223,6 +223,8 @@ The discovered addresses can be filtered with optional `-storageNode.filter` com
 For example, `-storageNode.filter='^[^:]+:8400$'` would leave discovered addresses ending with `8400` port only, e.g. the default port used
 for sending data from `vminsert` to `vmstorage` node according to `-vminsertAddr` command-line flag.
 
+The discovered `vmstorage` nodes list refreshes with the interval, which can be specified via `-storageNode.discoveryInterval` command-line flag.
+
 The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
 ## mTLS protection
@@ -869,6 +871,8 @@ Below is the output for `/path/to/vminsert -help`:
   -storageNode array
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via dns+srv records. For example, -storageNode=dns+srv:vmstorage.addrs . See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
+  -storageNode.discoveryInterval duration
+     Interval for refreshing -storageNode list behind dns+srv records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 2s)
   -storageNode.filter string
      An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -tls
@@ -1084,6 +1088,8 @@ Below is the output for `/path/to/vmselect -help`:
   -storageNode array
      Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via dns+srv records. For example, -storageNode=dns+srv:vmstorage.addrs . See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery
      Supports an array of values separated by comma or specified via multiple flags.
+  -storageNode.discoveryInterval duration
+     Interval for refreshing -storageNode list behind dns+srv records. The minimum supported interval is 1s. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 2s)
   -storageNode.filter string
      An optional regexp filter for discovered -storageNode addresses according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery. Discovered addresses matching the filter are retained, while other addresses are ignored. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -tls
