@@ -3,7 +3,6 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"math"
 	"math/bits"
@@ -11,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -539,16 +539,21 @@ func (sbr *streamBodyReader) Read(b []byte) (int, error) {
 func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	samplesScraped := 0
 	samplesPostRelabeling := 0
+	samplesDropped := 0
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	// Do not pool sbr and do not pre-allocate sbr.body in order to reduce memory usage when scraping big responses.
 	var sbr streamBodyReader
-
+	areIdenticalSeries := sw.Config.NoStaleMarkers
+	lastScrape := sw.loadLastScrape()
+	var bodyString string
 	sr, err := sw.GetStreamReader()
 	if err != nil {
 		err = fmt.Errorf("cannot read data: %s", err)
 	} else {
 		var mu sync.Mutex
 		err = sbr.Init(sr)
+		bodyString = bytesutil.ToUnsafeString(sbr.body)
+		areIdenticalSeries = sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 		if err == nil {
 			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
@@ -567,6 +572,12 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 					return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 						"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 				}
+				if sw.seriesLimitExceeded || !areIdenticalSeries {
+					samplesDropped += sw.applySeriesLimit(wc)
+					if samplesDropped > 0 {
+						sw.seriesLimitExceeded = true
+					}
+				}
 				sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 				wc.resetNoRows()
 				return nil
@@ -574,9 +585,6 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		}
 		sr.MustClose()
 	}
-	lastScrape := sw.loadLastScrape()
-	bodyString := bytesutil.ToUnsafeString(sbr.body)
-	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 
 	scrapedSamples.Update(float64(samplesScraped))
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -590,6 +598,9 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		up = 0
 		scrapesFailed.Inc()
 	}
+	if up == 0 {
+		bodyString = ""
+	}
 	seriesAdded := 0
 	if !areIdenticalSeries {
 		// The returned value for seriesAdded may be bigger than the real number of added series
@@ -598,11 +609,12 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	am := &autoMetrics{
-		up:                    up,
-		scrapeDurationSeconds: duration,
-		samplesScraped:        samplesScraped,
-		samplesPostRelabeling: samplesPostRelabeling,
-		seriesAdded:           seriesAdded,
+		up:                        up,
+		scrapeDurationSeconds:     duration,
+		samplesScraped:            samplesScraped,
+		samplesPostRelabeling:     samplesPostRelabeling,
+		seriesAdded:               seriesAdded,
+		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)

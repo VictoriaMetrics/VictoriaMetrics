@@ -936,12 +936,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	if (*streamParse || sc.StreamParse) && sc.SampleLimit > 0 {
-		return nil, fmt.Errorf("cannot use stream parsing mode when `sample_limit` is set for `job_name` %q", jobName)
-	}
-	if (*streamParse || sc.StreamParse) && sc.SeriesLimit > 0 {
-		return nil, fmt.Errorf("cannot use stream parsing mode when `series_limit` is set for `job_name` %q", jobName)
-	}
+
 	externalLabels := globalCfg.ExternalLabels
 	noStaleTracking := *noStaleMarkers
 	if sc.NoStaleMarkers != nil {

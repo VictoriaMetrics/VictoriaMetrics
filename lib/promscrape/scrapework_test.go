@@ -1,7 +1,9 @@
 package promscrape
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
@@ -118,9 +121,9 @@ func TestScrapeWorkScrapeInternalFailure(t *testing.T) {
 }
 
 func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
+	common.StartUnmarshalWorkers()
 	f := func(data string, cfg *ScrapeWork, dataExpected string) {
 		t.Helper()
-
 		timeseriesExpected := parseData(dataExpected)
 
 		var sw scrapeWork
@@ -131,6 +134,15 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 			readDataCalls++
 			dst = append(dst, data...)
 			return dst, nil
+		}
+		sw.GetStreamReader = func() (*streamReader, error) {
+			readDataCalls++
+			sr := streamReader{
+				cancel:      func() {},
+				r:           io.NopCloser(bytes.NewReader([]byte(data))),
+				maxBodySize: 3 * 1e6,
+			}
+			return &sr, nil
 		}
 
 		pushDataCalls := 0
@@ -145,7 +157,7 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 			tsExpected := timeseriesExpected[:len(wr.Timeseries)]
 			timeseriesExpected = timeseriesExpected[len(tsExpected):]
 			if err := expectEqualTimeseries(wr.Timeseries, tsExpected); err != nil {
-				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%v\nwant\n%v", err, wr.Timeseries, tsExpected)
+				pushDataErr = fmt.Errorf("unexpected data pushed: %w\ngot\n%v\nwant\n%v calls: %d", err, wr.Timeseries, tsExpected, pushDataCalls)
 				return
 			}
 		}
@@ -409,6 +421,28 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_series_limit_samples_dropped 0 123
 		scrape_timeout_seconds 42 123
 	`)
+	// Scrape failure because of the exceeded SampleLimit with StreamParse
+	f(`
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		HonorLabels:   true,
+		SampleLimit:   1,
+		SeriesLimit:   123,
+		StreamParse:   true,
+	}, `
+		up 0 123
+		scrape_samples_scraped 2 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 2 123
+		scrape_samples_limit 1 123
+		scrape_series_added 0 123
+		scrape_series_current 0 123
+		scrape_series_limit 123 123
+		scrape_series_limit_samples_dropped 0 123
+		scrape_timeout_seconds 42 123
+	`)
 	// Scrape success with the given SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -429,6 +463,27 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 		scrape_series_limit_samples_dropped 0 123
 		scrape_timeout_seconds 42 123
 	`)
+	// Scrape success with the given SeriesLimit streamParse.
+	f(`
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		SeriesLimit:   123,
+		StreamParse:   true,
+	}, `
+		foo{bar="baz"} 34.44 123
+		bar{a="b",c="d"} -3e4 123
+		up 1 123
+		scrape_samples_scraped 2 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 2 123
+		scrape_series_added 2 123
+		scrape_series_current 2 123
+		scrape_series_limit 123 123
+		scrape_series_limit_samples_dropped 0 123
+		scrape_timeout_seconds 42 123
+	`)
 	// Exceed SeriesLimit.
 	f(`
 		foo{bar="baz"} 34.44
@@ -436,6 +491,26 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 		SeriesLimit:   1,
+	}, `
+		foo{bar="baz"} 34.44 123
+		up 1 123
+		scrape_samples_scraped 2 123
+		scrape_duration_seconds 0 123
+		scrape_samples_post_metric_relabeling 2 123
+		scrape_series_added 2 123
+		scrape_series_current 1 123
+		scrape_series_limit 1 123
+		scrape_series_limit_samples_dropped 1 123
+		scrape_timeout_seconds 42 123
+	`)
+	// Exceed SeriesLimit with streamParse.
+	f(`
+		foo{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		SeriesLimit:   1,
+		StreamParse:   true,
 	}, `
 		foo{bar="baz"} 34.44 123
 		up 1 123

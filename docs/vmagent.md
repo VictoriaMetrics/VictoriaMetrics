@@ -658,9 +658,6 @@ scrape_configs:
     'match[]': ['{__name__!=""}']
 ```
 
-Note that `sample_limit` and `series_limit` [scrape_config options](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
-cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
-
 ## Scraping big number of targets
 
 A single `vmagent` instance can scrape tens of thousands of scrape targets. Sometimes this isn't enough due to limitations on CPU, network, RAM, etc.
