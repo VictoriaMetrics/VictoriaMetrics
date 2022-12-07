@@ -204,22 +204,32 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 
 ## Automatic vmstorage discovery
 
-[Entrprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports [dns+srv](https://en.wikipedia.org/wiki/SRV_record) names
-at `-storageNode` command-line flag passed to `vminsert` and `vmselect`. In this case the provided `dns+srv` names are resolved
-into tcp addresses of `vmstorage` nodes to connect to. The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmselect`
-when it changes behind the corresponding `dns+srv` names. The `dns+srv` names must be prefixed with `dns+srv:` prefix.
+`vminsert` and `vmselect` components in [entrprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) support
+the following approaches for automatic discovery of `vmstorage` nodes:
 
-It is possible passing multiple `dns+srv` names to `-storageNode` command-line flag. In this case all these names are resolved to tcp addresses of `vmstorage` nodes to connect to.
-For example, `-storageNode='dns+srv:vmstorage-hot' -storageNode='dns+srv:vmstorage-cold'` .
+- file-based discovery - put the list of `vmstorage` nodes into a file - one node address per each line - and then pass `-storageNode=file:/path/to/file-with-vmstorage-list`
+  to `vminsert` and `vmselect`. It is possible to read the list of vmstorage nodes from http or https urls.
+  For example, `-storageNode=file:http://some-host/vmstorage-list` would read the list of storage nodes
+  from `http://some-host/vmstorage-list`.
+  The list of discovered `vmstorage` nodes is automatically updated when the file contents changes.
+  The update frequency can be controlled with `-storageNode.discoveryInterval` command-line flag.
 
-It is OK to pass regular static `vmstorage` addresses together with `dns+srv` addresses at `-storageNode`. For example,
+- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+src:some-name` value to `-storageNode` command-line flag.
+  In this case the provided `dns+srv` names are resolved into tcp addresses of `vmstorage` nodes.
+  The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmselect`
+  when it changes behind the corresponding `dns+srv` names.
+  The update frequency can be controlled with `-storageNode.discoveryInterval` command-line flag.
+
+It is possible passing multiple `file` and `dns+srv` names to `-storageNode` command-line flag. In this case all these names
+are resolved to tcp addresses of `vmstorage` nodes to connect to.
+For example, `-storageNode=file:/path/to/local-vmstorage-list -storageNode='dns+srv:vmstorage-hot' -storageNode='dns+srv:vmstorage-cold'`.
+
+It is OK to pass regular static `vmstorage` addresses together with `file` and `dns+srv` addresses at `-storageNode`. For example,
 `-storageNode=vmstorage1,vmstorage2 -storageNode='dns+srv:vmstorage-autodiscovery'`.
 
 The discovered addresses can be filtered with optional `-storageNode.filter` command-line flag, which can contain arbitrary regular expression filter.
 For example, `-storageNode.filter='^[^:]+:8400$'` would leave discovered addresses ending with `8400` port only, e.g. the default port used
 for sending data from `vminsert` to `vmstorage` node according to `-vminsertAddr` command-line flag.
-
-The discovered `vmstorage` nodes list refreshes with the interval, which can be specified via `-storageNode.discoveryInterval` command-line flag.
 
 The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
