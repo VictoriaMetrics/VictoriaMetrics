@@ -208,7 +208,7 @@ Additionally, all the VictoriaMetrics components allow setting flag values via e
 
 ## Automatic vmstorage discovery
 
-`vminsert` and `vmselect` components in [entrprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) support
+`vminsert` and `vmselect` components in [enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) support
 the following approaches for automatic discovery of `vmstorage` nodes:
 
 - file-based discovery - put the list of `vmstorage` nodes into a file - one node address per each line - and then pass `-storageNode=file:/path/to/file-with-vmstorage-list`
