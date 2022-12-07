@@ -8,6 +8,8 @@ import (
 	"io"
 	"strings"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 )
 
 var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing")
@@ -42,8 +44,10 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 	if *denyQueryTracing || !enabled {
 		return nil
 	}
+	message := fmt.Sprintf(format, args...)
+	message = buildinfo.Version + ": " + message
 	return &Tracer{
-		message:   fmt.Sprintf(format, args...),
+		message:   message,
 		startTime: time.Now(),
 	}
 }
