@@ -88,6 +88,11 @@ func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessa
 		if err != nil {
 			return fmt.Errorf("cannot parse nextLink from response %q: %w", lar.NextLink, err)
 		}
+
+		if nextURL.Host != "" && nextURL.Host != ac.c.APIServer() {
+			return fmt.Errorf("unexpected nextLink host %q, expecting %q", nextURL.Host, ac.c.APIServer())
+		}
+
 		nextLinkURI = nextURL.RequestURI()
 	}
 	return nil
