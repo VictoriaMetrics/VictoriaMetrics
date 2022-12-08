@@ -1,9 +1,10 @@
 import React, { FC, useRef, useState } from "preact/compat";
 import classNames from "classnames";
-import { ArrowDropDownIcon } from "../Icons";
+import { ArrowDropDownIcon, CloseIcon } from "../Icons";
 import Popper from "../../../components/Main/Popper/Popper";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
+import { MouseEvent } from "react";
 
 interface JobSelectorProps {
   value: string
@@ -12,6 +13,7 @@ interface JobSelectorProps {
   placeholder?: string
   noOptionsText?: string
   error?: string
+  clearable?: boolean
   onChange: (value: string) => void
 }
 
@@ -22,6 +24,7 @@ const Select: FC<JobSelectorProps> = ({
   placeholder,
   error,
   noOptionsText,
+  clearable = false,
   onChange
 }) => {
 
@@ -41,8 +44,9 @@ const Select: FC<JobSelectorProps> = ({
     handleCloseList();
   };
 
-  const createHandleClick = (job: string) => () => {
+  const createHandleClick = (job: string) => (e: MouseEvent<HTMLDivElement>) => {
     handleClickJob(job);
+    e.stopPropagation();
   };
 
   return (
@@ -70,6 +74,14 @@ const Select: FC<JobSelectorProps> = ({
             </div>
           )}
         />
+        {clearable && (
+          <div
+            className="vm-select-input__clear"
+            onClick={createHandleClick("")}
+          >
+            <CloseIcon/>
+          </div>
+        )}
       </div>
 
       <Popper

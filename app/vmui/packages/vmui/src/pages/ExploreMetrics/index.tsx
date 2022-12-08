@@ -7,6 +7,7 @@ import Alert from "../../components/Main/Alert/Alert";
 import { useFetchInstances } from "./hooks/useFetchInstances";
 import { useFetchNames } from "./hooks/useFetchNames";
 import "./style.scss";
+import ExploreMetricItem from "./ExploreMetricItem/ExploreMetricItem";
 
 const ExploreMetrics: FC = () => {
   useSetQueryParams();
@@ -17,8 +18,6 @@ const ExploreMetrics: FC = () => {
   const { jobs, isLoading: loadingJobs, error: errorJobs } = useFetchJobs();
   const { instances, isLoading: loadingInstances, error: errorInstances } = useFetchInstances(job);
   const { names, isLoading: loadingNames, error: errorNames } = useFetchNames(job);
-
-  console.log(names);
 
   const isLoading = useMemo(() => {
     return loadingJobs || loadingInstances || loadingNames;
@@ -49,11 +48,22 @@ const ExploreMetrics: FC = () => {
           placeholder="Please select instance"
           onChange={setInstance}
           noOptionsText="No instances. Please select job"
+          clearable
         />
       </div>
 
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
+      <div className="vm-explore-metrics-body">
+        {names.map(n => (
+          <ExploreMetricItem
+            key={n}
+            name={n}
+            job={job}
+            instance={instance}
+          />
+        ))}
+      </div>
     </div>
   );
 };

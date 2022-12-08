@@ -2,6 +2,7 @@
 
 .vm-select {
   &-input {
+    position: relative;
     cursor: pointer;
 
     input {
@@ -21,6 +22,28 @@
 
       &_open {
         transform: rotate(180deg);
+      }
+    }
+
+    &__clear {
+      position: absolute;
+      right: 30px;
+      top: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px $padding-small;
+      cursor: pointer;
+      transition: opacity 200ms ease-in;
+      color: $color-text-secondary;
+      border-right: $border-divider;
+
+      svg {
+        width: 12px;
+      }
+
+      &:hover {
+        opacity: 0.7;
       }
     }
   }
