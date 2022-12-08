@@ -229,7 +229,7 @@ func (d *Deadline) String() string {
 	startTime := time.Unix(int64(d.deadline), 0).Add(-d.timeout)
 	elapsed := time.Since(startTime)
 	msg := fmt.Sprintf("%.3f seconds (elapsed %.3f seconds)", d.timeout.Seconds(), elapsed.Seconds())
-	if d.flagHint != "" {
+	if float64(elapsed)/float64(d.timeout) > 0.9 && d.flagHint != "" {
 		msg += fmt.Sprintf("; the timeout can be adjusted with `%s` command-line flag", d.flagHint)
 	}
 	return msg
