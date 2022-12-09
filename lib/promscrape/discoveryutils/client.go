@@ -240,6 +240,11 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *fasthttp.HostClient, 
 	return data, nil
 }
 
+// APIServer returns the API server address
+func (c *Client) APIServer() string {
+	return c.apiServer
+}
+
 // DoRequestWithPossibleRetry performs the given req at hc and stores the response at resp.
 func DoRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time, requestCounter, retryCounter *metrics.Counter) error {
 	sleepTime := time.Second
