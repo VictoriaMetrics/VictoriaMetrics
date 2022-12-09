@@ -34,37 +34,40 @@ func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterva
 	tsNext -= tsNext % dedupInterval
 	dstTimestamps := srcTimestamps[:0]
 	dstValues := srcValues[:0]
-
-	var tsPrev int64
-	var value, valuePrev float64
 	for i, ts := range srcTimestamps[1:] {
-		value = srcValues[i]
-		tsCur := srcTimestamps[i]
-		if tsCur == tsPrev && value < valuePrev {
-			// prefer biggest value on timestamp conflict
-			value = valuePrev
-		}
-		valuePrev = value
-		tsPrev = tsCur
 		if ts <= tsNext {
 			continue
 		}
-		dstTimestamps = append(dstTimestamps, tsCur)
-		dstValues = append(dstValues, value)
+		// Choose the maximum value with the timestamp equal to tsPrev.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333
+		j := i
+		tsPrev := srcTimestamps[j]
+		vPrev := srcValues[j]
+		for j > 0 && srcTimestamps[j-1] == tsPrev {
+			j--
+			if srcValues[j] > vPrev {
+				vPrev = srcValues[j]
+			}
+		}
+		dstTimestamps = append(dstTimestamps, tsPrev)
+		dstValues = append(dstValues, vPrev)
 		tsNext += dedupInterval
 		if tsNext < ts {
 			tsNext = ts + dedupInterval - 1
 			tsNext -= tsNext % dedupInterval
 		}
 	}
-
-	ts := srcTimestamps[len(srcTimestamps)-1]
-	v := srcValues[len(srcValues)-1]
-	dstTimestamps = append(dstTimestamps, ts)
-	if ts == tsPrev && v < value {
-		v = value
+	j := len(srcTimestamps) - 1
+	tsPrev := srcTimestamps[j]
+	vPrev := srcValues[j]
+	for j > 0 && srcTimestamps[j-1] == tsPrev {
+		j--
+		if srcValues[j] > vPrev {
+			vPrev = srcValues[j]
+		}
 	}
-	dstValues = append(dstValues, v)
+	dstTimestamps = append(dstTimestamps, tsPrev)
+	dstValues = append(dstValues, vPrev)
 	return dstTimestamps, dstValues
 }
 
@@ -77,36 +80,40 @@ func deduplicateSamplesDuringMerge(srcTimestamps, srcValues []int64, dedupInterv
 	tsNext -= tsNext % dedupInterval
 	dstTimestamps := srcTimestamps[:0]
 	dstValues := srcValues[:0]
-
-	var tsPrev int64
-	var value, valuePrev int64
 	for i, ts := range srcTimestamps[1:] {
-		value = srcValues[i]
-		tsCur := srcTimestamps[i]
-		if tsCur == tsPrev && value < valuePrev {
-			// prefer biggest value on timestamp conflict
-			value = valuePrev
-		}
-		valuePrev = value
-		tsPrev = tsCur
 		if ts <= tsNext {
 			continue
 		}
-		dstTimestamps = append(dstTimestamps, tsCur)
-		dstValues = append(dstValues, value)
+		// Choose the maximum value with the timestamp equal to tsPrev.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333
+		j := i
+		tsPrev := srcTimestamps[j]
+		vPrev := srcValues[j]
+		for j > 0 && srcTimestamps[j-1] == tsPrev {
+			j--
+			if srcValues[j] > vPrev {
+				vPrev = srcValues[j]
+			}
+		}
+		dstTimestamps = append(dstTimestamps, tsPrev)
+		dstValues = append(dstValues, vPrev)
 		tsNext += dedupInterval
 		if tsNext < ts {
 			tsNext = ts + dedupInterval - 1
 			tsNext -= tsNext % dedupInterval
 		}
 	}
-	ts := srcTimestamps[len(srcTimestamps)-1]
-	v := srcValues[len(srcValues)-1]
-	dstTimestamps = append(dstTimestamps, ts)
-	if ts == tsPrev && v < value {
-		v = value
+	j := len(srcTimestamps) - 1
+	tsPrev := srcTimestamps[j]
+	vPrev := srcValues[j]
+	for j > 0 && srcTimestamps[j-1] == tsPrev {
+		j--
+		if srcValues[j] > vPrev {
+			vPrev = srcValues[j]
+		}
 	}
-	dstValues = append(dstValues, v)
+	dstTimestamps = append(dstTimestamps, tsPrev)
+	dstValues = append(dstValues, vPrev)
 	return dstTimestamps, dstValues
 }
 
