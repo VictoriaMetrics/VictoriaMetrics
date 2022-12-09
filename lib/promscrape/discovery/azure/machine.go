@@ -80,7 +80,8 @@ func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessa
 			}
 		}
 
-		// Azure API returns NextLink with apiServer in it, so we need to remove it
+		// Azure API returns NextLink with apiServer in it, so we need to remove it.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3247
 		if lar.NextLink == "" {
 			break
 		}

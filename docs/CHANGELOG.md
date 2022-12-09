@@ -63,6 +63,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): add support for JWT token signature verification. See [these docs](https://docs.victoriametrics.com/vmgateway.html#jwt-signature-verification) for details.
 * FEATURE: put the version of VictoriaMetrics in the first message of [query trace](https://docs.victoriametrics.com/#query-tracing). This should simplify debugging.
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix the `The request did not have a subscription or a valid tenant level resource provider` error when discovering Azure targets with [azure_sd_configs](https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3247).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly pass HTTP headers during the alert state restore procedure. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3418).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly specify rule evaluation step during the [replay mode](https://docs.victoriametrics.com/vmalert.html#rules-backfilling). The `step` value was previously overriden by `-datasource.queryStep` command-line flag.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return the error message from remote-write failures. Before, error was ignored and only `vmalert_remotewrite_errors_total` was incremented.
