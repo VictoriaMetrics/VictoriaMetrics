@@ -457,7 +457,7 @@
                  <td class="text-center">{%f.3 u.duration.Seconds() %}s</td>
                  <td class="text-center">{%s u.at.Format(time.RFC3339) %}</td>
                  <td>
-                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s requestToCurl(u.req) %}</textarea>
+                    <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">{%s u.curl %}</textarea>
                 </td>
              </tr>
           </li>

@@ -284,7 +284,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		duration: time.Since(start),
 		samples:  len(qMetrics),
 		err:      err,
-		req:      req,
+		curl:     requestToCurl(req),
 	}
 
 	defer func() {

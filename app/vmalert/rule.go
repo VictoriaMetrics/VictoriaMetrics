@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"net/http"
 	"sync"
 	"time"
 
@@ -54,8 +53,8 @@ type ruleStateEntry struct {
 	// stores the number of samples returned during
 	// the last evaluation
 	samples int
-	// stores the HTTP request used by datasource during rule.Exec
-	req *http.Request
+	// stores the curl command reflecting the HTTP request used during rule.Exec
+	curl string
 }
 
 const defaultStateEntriesLimit = 20
