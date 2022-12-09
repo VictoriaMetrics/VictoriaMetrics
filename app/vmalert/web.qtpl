@@ -16,11 +16,16 @@
     <p>
         API:<br>
         {% for _, p := range apiLinks  %}
-            {%code
-                p, doc := p[0], p[1]
-            %}
-        	<a href="{%s p %}">{%s p %}</a> - {%s doc %}<br/>
+            {%code p, doc := p[0], p[1] %}
+            <a href="{%s p %}">{%s p %}</a> - {%s doc %}<br/>
         {% endfor %}
+        {% if r.Header.Get("X-Forwarded-For") == "" %}
+            System:<br>
+            {% for _, p := range systemLinks  %}
+                {%code p, doc := p[0], p[1] %}
+                <a href="{%s p %}">{%s p %}</a> - {%s doc %}<br/>
+            {% endfor %}
+        {% endif %}
     </p>
     {%= tpl.Footer(r) %}
 {% endfunc %}
