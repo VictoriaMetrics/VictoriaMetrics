@@ -45,7 +45,7 @@ func TestTracerEnabled(t *testing.T) {
 	qt.Printf("parent %d", 789)
 	qt.Donef("foo %d", 33)
 	s := qt.String()
-	sExpected := `- 0ms: test: foo 33
+	sExpected := `- 0ms: : test: foo 33
 | - 0ms: child done 456
 | | - 0ms: foo 123
 | - 0ms: parent 789
@@ -60,7 +60,7 @@ func TestTracerMultiline(t *testing.T) {
 	qt.Printf("line3\nline4\n")
 	qt.Done()
 	s := qt.String()
-	sExpected := `- 0ms: line1
+	sExpected := `- 0ms: : line1
 | line2
 | - 0ms: line3
 | | line4
@@ -84,7 +84,7 @@ func TestTracerToJSON(t *testing.T) {
 	qt.Printf("parent %d", 789)
 	qt.Done()
 	s := qt.ToJSON()
-	sExpected := `{"duration_msec":0,"message":"test","children":[` +
+	sExpected := `{"duration_msec":0,"message":": test","children":[` +
 		`{"duration_msec":0,"message":"child done 456","children":[` +
 		`{"duration_msec":0,"message":"foo 123"}]},` +
 		`{"duration_msec":0,"message":"parent 789"}]}`
