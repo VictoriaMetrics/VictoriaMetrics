@@ -543,6 +543,10 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	// Do not pool sbr and do not pre-allocate sbr.body in order to reduce memory usage when scraping big responses.
 	var sbr streamBodyReader
 
+	lastScrape := sw.loadLastScrape()
+	bodyString := ""
+	areIdenticalSeries := true
+	samplesDropped := 0
 	sr, err := sw.GetStreamReader()
 	if err != nil {
 		err = fmt.Errorf("cannot read data: %s", err)
@@ -550,6 +554,8 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		var mu sync.Mutex
 		err = sbr.Init(sr)
 		if err == nil {
+			bodyString = bytesutil.ToUnsafeString(sbr.body)
+			areIdenticalSeries = sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
@@ -557,9 +563,6 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				for i := range rows {
 					sw.addRowToTimeseries(wc, &rows[i], scrapeTimestamp, true)
 				}
-				// Push the collected rows to sw before returning from the callback, since they cannot be held
-				// after returning from the callback - this will result in data race.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 				samplesPostRelabeling += len(wc.writeRequest.Timeseries)
 				if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
 					wc.resetNoRows()
@@ -567,6 +570,15 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 					return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 						"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 				}
+				if sw.seriesLimitExceeded || !areIdenticalSeries {
+					samplesDropped += sw.applySeriesLimit(wc)
+					if samplesDropped > 0 && !sw.seriesLimitExceeded {
+						sw.seriesLimitExceeded = true
+					}
+				}
+				// Push the collected rows to sw before returning from the callback, since they cannot be held
+				// after returning from the callback - this will result in data race.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 				sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 				wc.resetNoRows()
 				return nil
@@ -574,9 +586,6 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		}
 		sr.MustClose()
 	}
-	lastScrape := sw.loadLastScrape()
-	bodyString := bytesutil.ToUnsafeString(sbr.body)
-	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 
 	scrapedSamples.Update(float64(samplesScraped))
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -598,11 +607,12 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		seriesAdded = sw.getSeriesAdded(lastScrape, bodyString)
 	}
 	am := &autoMetrics{
-		up:                    up,
-		scrapeDurationSeconds: duration,
-		samplesScraped:        samplesScraped,
-		samplesPostRelabeling: samplesPostRelabeling,
-		seriesAdded:           seriesAdded,
+		up:                        up,
+		scrapeDurationSeconds:     duration,
+		samplesScraped:            samplesScraped,
+		samplesPostRelabeling:     samplesPostRelabeling,
+		seriesAdded:               seriesAdded,
+		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
