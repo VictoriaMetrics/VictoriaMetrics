@@ -144,7 +144,7 @@ func TestMergeSortBlocks(t *testing.T) {
 		},
 	}, 1, &Result{
 		Timestamps: []int64{1, 2, 4, 5, 10, 11, 12},
-		Values:     []float64{21, 22, 23, 7, 24, 5, 26},
+		Values:     []float64{21, 22, 23, 7, 24, 25, 26},
 	})
 
 	// Multiple blocks with identical timestamp ranges, no deduplication.
