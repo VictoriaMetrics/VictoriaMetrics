@@ -109,9 +109,9 @@ func TestTraceAddJSON(t *testing.T) {
 	}
 	qt.Done()
 	s := qt.String()
-	sExpected := `- 0ms: parent
+	sExpected := `- 0ms: : parent
 | - 0ms: first_line
-| - 0ms: child
+| - 0ms: : child
 | | - 0ms: foo
 | - 0ms: last_line
 `
@@ -120,9 +120,9 @@ func TestTraceAddJSON(t *testing.T) {
 	}
 
 	jsonS := qt.ToJSON()
-	jsonSExpected := `{"duration_msec":0,"message":"parent","children":[` +
+	jsonSExpected := `{"duration_msec":0,"message":": parent","children":[` +
 		`{"duration_msec":0,"message":"first_line"},` +
-		`{"duration_msec":0,"message":"child","children":[` +
+		`{"duration_msec":0,"message":": child","children":[` +
 		`{"duration_msec":0,"message":"foo"}]},` +
 		`{"duration_msec":0,"message":"last_line"}]}`
 	if !areEqualJSONTracesSkipDuration(jsonS, jsonSExpected) {
@@ -137,7 +137,7 @@ func TestTraceMissingDonef(t *testing.T) {
 	qtChild.Printf("child printf")
 	qt.Printf("another parent printf")
 	s := qt.String()
-	sExpected := `- 0ms: parent: missing Tracer.Done() call
+	sExpected := `- 0ms: : parent: missing Tracer.Done() call
 | - 0ms: parent printf
 | - 0ms: child: missing Tracer.Done() call
 | | - 0ms: child printf
