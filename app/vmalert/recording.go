@@ -121,7 +121,7 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]p
 		at:       ts,
 		duration: time.Since(start),
 		samples:  len(qMetrics),
-		req:      req,
+		curl:     requestToCurl(req),
 	}
 
 	defer func() {

@@ -1358,7 +1358,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
                  <td>
                     <textarea class="curl-area" rows="1" onclick="this.focus();this.select()">`)
 //line app/vmalert/web.qtpl:460
-		qw422016.E().S(requestToCurl(u.req))
+		qw422016.E().S(u.curl)
 //line app/vmalert/web.qtpl:460
 		qw422016.N().S(`</textarea>
                 </td>
