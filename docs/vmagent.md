@@ -658,8 +658,9 @@ scrape_configs:
     'match[]': ['{__name__!=""}']
 ```
 
-Note that `sample_limit` and `series_limit` [scrape_config options](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
-cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
+Note that `vmagent` in stream parsing mode stores up to `sample_limit` samples to the configured `-remoteStorage.url`
+instead of droping all the samples read from the target, because the parsed data is sent to the remote storage
+as soon as it is parsed in stream parsing mode.
 
 ## Scraping big number of targets
 
@@ -748,8 +749,8 @@ By default `vmagent` doesn't limit the number of time series each scrape target 
 
 * Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually
   to all the scrape targets defined in the file pointed by `-promscrape.config`.
-* Via `series_limit` config option at `scrape_config` section. This limit is applied individually
-  to all the scrape targets defined in the given `scrape_config`.
+* Via `series_limit` config option at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section.
+  This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
 * Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section.
   This limit is applied to the corresponding scrape targets. Typical use case: to set the limit
   via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets,
@@ -1035,7 +1036,7 @@ It may be needed to build `vmagent` from source code when developing or testing 
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
 2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -1064,7 +1065,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
 2. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 
