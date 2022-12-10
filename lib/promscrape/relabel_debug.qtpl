@@ -15,23 +15,18 @@
 <body>
     {%= navbar() %}
     <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a><br/>
+        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
+        <a href="target-relabel-debug">Target relabel debug</a>
+        <br>
         {% if err != nil %}
             {%= errorNotification(err) %}
         {% endif %}
 
         <div class="m-3">
         <form method="POST">
-            <div>
-                Relabel configs:<br/>
-                <textarea name="relabel_configs" style="width: 50%; height: 10em">{%s relabelConfigs %}</textarea>
-            </div>
+            {%= relabelDebugFormInputs(metric, relabelConfigs) %}
 
-            <div>
-                Metric with labels:<br/>
-                <textarea name="metric" style="width: 50%">{%s metric %}</textarea>
-            </div>
-            <input type="submit" value="Submit" />
+            <input type="submit" value="Submit" class="btn btn-primary m-1" />
         </form>
         </div>
 
@@ -45,7 +40,7 @@
 </html>
 {% endfunc %}
 
-{% func TargetRelabelDebugSteps(dss []promrelabel.DebugStep) %}
+{% func TargetRelabelDebugSteps(targetID string, dss []promrelabel.DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,7 +50,26 @@
 <body>
     {%= navbar() %}
     <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a><br/>
+        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
+        <a href="metric-relabel-debug">Metric relabel debug</a>
+        <br/>
+        {% if err != nil %}
+            {%= errorNotification(err) %}
+        {% endif %}
+
+        <div class="m-3">
+        <form method="POST">
+            {%= relabelDebugFormInputs(metric, relabelConfigs) %}
+
+            <input type="hidden" name="id" value="{%s targetID %}" />
+
+            <input type="submit" value="Submit" class="btn btn-primary m-1" />
+            {% if targetID != "" %}
+                <button type="button" onclick="location.href='target-relabel-debug?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
+            {% endif %}
+        </form>
+        </div>
+
         <div class="row">
             <main class="col-12">
                 {%= relabelDebugSteps(dss) %}
@@ -64,6 +78,18 @@
     </div>
 </body>
 </html>
+{% endfunc %}
+
+{% func relabelDebugFormInputs(metric, relabelConfigs string) %}
+    <div>
+        Relabel configs:<br/>
+        <textarea name="relabel_configs" style="width: 100%; height: 15em" class="m-1">{%s relabelConfigs %}</textarea>
+    </div>
+
+    <div>
+        Labels:<br/>
+        <textarea name="metric" style="width: 100%; height: 5em" class="m-1">{%s metric %}</textarea>
+    </div>
 {% endfunc %}
 
 {% func relabelDebugSteps(dss []promrelabel.DebugStep) %}

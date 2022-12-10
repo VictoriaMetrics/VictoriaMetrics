@@ -12,6 +12,7 @@ import (
 func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	metric := r.FormValue("metric")
 	relabelConfigs := r.FormValue("relabel_configs")
+
 	if metric == "" {
 		metric = "{}"
 	}
@@ -21,7 +22,6 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 		WriteMetricRelabelDebugSteps(w, nil, metric, relabelConfigs, err)
 		return
 	}
-
 	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
 		err = fmt.Errorf("cannot parse relabel configs: %s", err)
@@ -29,64 +29,74 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The metric relabeling below must be in sync with the code at scrapeWork.addRowToTimeseries
-
-	// Apply relabeling
-	labelsResult, dss := pcs.ApplyDebug(labels.GetLabels())
-
-	// Remove labels with __ prefix
-	inStr := promrelabel.LabelsToString(labelsResult)
-	labelsResult = promrelabel.FinalizeLabels(labelsResult[:0], labelsResult)
-	outStr := promrelabel.LabelsToString(labelsResult)
-	if inStr != outStr {
-		dss = append(dss, promrelabel.DebugStep{
-			Rule: "remove labels with __ prefix",
-			In:   inStr,
-			Out:  outStr,
-		})
-	}
-
-	// There is no need in labels' sorting, since promrelabel.LabelsToString() automatically sorts labels.
-
+	dss := newDebugRelabelSteps(pcs, labels, false)
 	WriteMetricRelabelDebugSteps(w, dss, metric, relabelConfigs, nil)
 }
 
 // WriteTargetRelabelDebug generates response for /target-relabel-debug page
-func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) error {
+func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	targetID := r.FormValue("id")
-	relabelConfigs, labels, ok := getRelabelContextByTargetID(targetID)
-	if !ok {
-		return fmt.Errorf("cannot find target for id=%s", targetID)
+	metric := r.FormValue("metric")
+	relabelConfigs := r.FormValue("relabel_configs")
+
+	if metric == "" && relabelConfigs == "" {
+		if targetID == "" {
+			metric = "{}"
+			WriteTargetRelabelDebugSteps(w, targetID, nil, metric, relabelConfigs, nil)
+			return
+		}
+		pcs, labels, ok := getRelabelContextByTargetID(targetID)
+		if !ok {
+			err := fmt.Errorf("cannot find target for id=%s", targetID)
+			targetID = ""
+			WriteTargetRelabelDebugSteps(w, targetID, nil, metric, relabelConfigs, err)
+			return
+		}
+		metric = labels.String()
+		relabelConfigs = pcs.String()
+		dss := newDebugRelabelSteps(pcs, labels, true)
+		WriteTargetRelabelDebugSteps(w, targetID, dss, metric, relabelConfigs, nil)
+		return
 	}
 
-	// The target relabeling below must be in sync with the code at scrapeWorkConfig.getScrapeWork
+	if metric == "" {
+		metric = "{}"
+	}
+	labels, err := promutils.NewLabelsFromString(metric)
+	if err != nil {
+		err = fmt.Errorf("cannot parse metric: %s", err)
+		WriteTargetRelabelDebugSteps(w, targetID, nil, metric, relabelConfigs, err)
+		return
+	}
+	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(relabelConfigs))
+	if err != nil {
+		err = fmt.Errorf("cannot parse relabel configs: %s", err)
+		WriteTargetRelabelDebugSteps(w, targetID, nil, metric, relabelConfigs, err)
+		return
+	}
+	dss := newDebugRelabelSteps(pcs, labels, true)
+	WriteTargetRelabelDebugSteps(w, targetID, dss, metric, relabelConfigs, nil)
+}
+
+func newDebugRelabelSteps(pcs *promrelabel.ParsedConfigs, labels *promutils.Labels, isTargetRelabel bool) []promrelabel.DebugStep {
+	// The target relabeling below must be in sync with the code at scrapeWorkConfig.getScrapeWork if isTragetRelabeling=true
+	// and with the code at scrapeWork.addRowToTimeseries when isTargetRelabeling=false
 
 	// Prevent from modifying the original labels
 	labels = labels.Clone()
 
 	// Apply relabeling
-	labelsResult, dss := relabelConfigs.ApplyDebug(labels.GetLabels())
-
-	// Remove labels with __meta_ prefix
-	inStr := promrelabel.LabelsToString(labelsResult)
+	labelsResult, dss := pcs.ApplyDebug(labels.GetLabels())
 	labels.Labels = labelsResult
-	labels.RemoveMetaLabels()
-	outStr := promrelabel.LabelsToString(labels.Labels)
-	if inStr != outStr {
-		dss = append(dss, promrelabel.DebugStep{
-			Rule: "remove labels with __meta_ prefix",
-			In:   inStr,
-			Out:  outStr,
-		})
-	}
+	outStr := promrelabel.LabelsToString(labels.GetLabels())
 
 	// Add missing instance label
-	if labels.Get("instance") == "" {
+	if isTargetRelabel && labels.Get("instance") == "" {
 		address := labels.Get("__address__")
 		if address != "" {
-			inStr = outStr
+			inStr := outStr
 			labels.Add("instance", address)
-			outStr = promrelabel.LabelsToString(labels.Labels)
+			outStr = promrelabel.LabelsToString(labels.GetLabels())
 			dss = append(dss, promrelabel.DebugStep{
 				Rule: "add missing instance label from __address__ label",
 				In:   inStr,
@@ -96,9 +106,9 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// Remove labels with __ prefix
-	inStr = outStr
+	inStr := outStr
 	labels.RemoveLabelsWithDoubleUnderscorePrefix()
-	outStr = promrelabel.LabelsToString(labels.Labels)
+	outStr = promrelabel.LabelsToString(labels.GetLabels())
 	if inStr != outStr {
 		dss = append(dss, promrelabel.DebugStep{
 			Rule: "remove labels with __ prefix",
@@ -108,9 +118,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	// There is no need in labels' sorting, since promrelabel.LabelsToString() automatically sorts labels.
-
-	WriteTargetRelabelDebugSteps(w, dss)
-	return nil
+	return dss
 }
 
 func getChangedLabelNames(in, out *promutils.Labels) map[string]struct{} {

@@ -428,6 +428,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeMetricRelabelDebugRequests.Inc()
 		promscrape.WriteMetricRelabelDebug(w, r)
 		return true
+	case "/target-relabel-debug":
+		promscrapeTargetRelabelDebugRequests.Inc()
+		promscrape.WriteTargetRelabelDebug(w, r)
+		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -593,6 +597,7 @@ var (
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/delSeries"}`)
 
 	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/metric-relabel-debug"}`)
+	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
 
