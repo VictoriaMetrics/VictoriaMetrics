@@ -72,7 +72,7 @@ func (cw *curlWriter) add(str string) {
 }
 
 func requestToCurl(req *http.Request) string {
-	if req.URL == nil {
+	if req == nil || req.URL == nil {
 		return ""
 	}
 
