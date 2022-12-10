@@ -590,6 +590,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		promscrapeMetricRelabelDebugRequests.Inc()
 		promscrape.WriteMetricRelabelDebug(w, r)
 		return true
+	case "prometheus/target-relabel-debug", "target-relabel-debug":
+		promscrapeTargetRelabelDebugRequests.Inc()
+		promscrape.WriteTargetRelabelDebug(w, r)
+		return true
 	case "prometheus/api/v1/rules", "prometheus/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -761,7 +765,8 @@ var (
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/functions"}`)
 
-	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="select/{}/prometheus/metric-relabel-debug"}`)
+	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/metric-relabel-debug"}`)
+	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/target-relabel-debug"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
