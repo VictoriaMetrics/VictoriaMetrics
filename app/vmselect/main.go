@@ -74,6 +74,11 @@ func getDefaultMaxConcurrentRequests() int {
 	return n
 }
 
+//go:embed static
+var staticFiles embed.FS
+
+var staticServer = http.FileServer(http.FS(staticFiles))
+
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
@@ -300,9 +305,21 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		fmt.Fprintf(w, "See <a href='https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format'>docs</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		fmt.Fprintf(w, `<a href="vmui">Web UI</a><br>`)
+		fmt.Fprintf(w, `<a href="metric-relabel-debug">Metric-level relabel debugging</a></br>`)
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/tsdb">tsdb status page</a><br>`)
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/top_queries">top queries</a><br>`)
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/active_queries">active queries</a><br>`)
+		return true
+	}
+	if strings.HasPrefix(p.Suffix, "static") {
+		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+		http.StripPrefix(prefix, staticServer).ServeHTTP(w, r)
+		return true
+	}
+	if strings.HasPrefix(p.Suffix, "prometheus/static") {
+		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
+		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/static", "/static", 1)
+		http.StripPrefix(prefix, staticServer).ServeHTTP(w, r)
 		return true
 	}
 	if p.Suffix == "vmui" || p.Suffix == "graph" || p.Suffix == "prometheus/vmui" || p.Suffix == "prometheus/graph" {
