@@ -230,6 +230,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeServiceDiscoveryRequests.Inc()
 		promscrape.WriteServiceDiscovery(w, r)
 		return true
+	case "/prometheus/metric-relabel-debug", "/metric-relabel-debug":
+		promscrapeMetricRelabelDebugRequests.Inc()
+		promscrape.WriteMetricRelabelDebug(w, r)
+		return true
+	case "/prometheus/target-relabel-debug", "/target-relabel-debug":
+		promscrapeTargetRelabelDebugRequests.Inc()
+		if err := promscrape.WriteTargetRelabelDebug(w, r); err != nil {
+			promscrapeTargetRelabelDebugErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		return true
 	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
@@ -333,7 +345,13 @@ var (
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vm_http_requests_total{path="/service-discovery"}`)
-	promscrapeAPIV1TargetsRequests     = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/metric-relabel-debug"}`)
+
+	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
+	promscrapeTargetRelabelDebugErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/target-relabel-debug"}`)
+
+	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/targets"}`)
 
 	promscrapeTargetResponseRequests = metrics.NewCounter(`vm_http_requests_total{path="/target_response"}`)
 	promscrapeTargetResponseErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/target_response"}`)

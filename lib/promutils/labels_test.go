@@ -147,7 +147,7 @@ func TestLabelsAddFrom(t *testing.T) {
 func TestLabelsRemoveMetaLabels(t *testing.T) {
 	f := func(metric, resultExpected string) {
 		t.Helper()
-		labels := NewLabelsFromString(metric)
+		labels := MustNewLabelsFromString(metric)
 		labels.RemoveMetaLabels()
 		result := labels.String()
 		if result != resultExpected {
@@ -163,7 +163,7 @@ func TestLabelsRemoveMetaLabels(t *testing.T) {
 func TestLabelsRemoveLabelsWithDoubleUnderscorePrefix(t *testing.T) {
 	f := func(metric, resultExpected string) {
 		t.Helper()
-		labels := NewLabelsFromString(metric)
+		labels := MustNewLabelsFromString(metric)
 		labels.RemoveLabelsWithDoubleUnderscorePrefix()
 		result := labels.String()
 		if result != resultExpected {

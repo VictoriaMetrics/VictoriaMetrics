@@ -1181,14 +1181,6 @@ scrape_configs:
   # By default the limit is disabled.
   # sample_limit: <int>
 
-  # relabel_debug enables debugging for relabel_configs if set to true.
-  # See https://docs.victoriametrics.com/vmagent.html#relabeling
-  # relabel_debug: <boolean>
-
-  # metric_relabel_debug enables debugging for metric_relabel_configs if set to true.
-  # See https://docs.victoriametrics.com/vmagent.html#relabeling
-  # metric_relabel_debug: <boolean>
-
   # disable_compression allows disabling HTTP compression for responses received from scrape targets.
   # By default scrape targets are queried with `Accept-Encoding: gzip` http request header,
   # so targets could send compressed responses in order to save network bandwidth.

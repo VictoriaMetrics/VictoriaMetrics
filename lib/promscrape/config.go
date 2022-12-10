@@ -267,8 +267,6 @@ type ScrapeConfig struct {
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
 
 	// These options are supported only by lib/promscrape.
-	RelabelDebug        bool                       `yaml:"relabel_debug,omitempty"`
-	MetricRelabelDebug  bool                       `yaml:"metric_relabel_debug,omitempty"`
 	DisableCompression  bool                       `yaml:"disable_compression,omitempty"`
 	DisableKeepAlive    bool                       `yaml:"disable_keepalive,omitempty"`
 	StreamParse         bool                       `yaml:"stream_parse,omitempty"`
@@ -928,11 +926,11 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config for `job_name` %q: %w", jobName, err)
 	}
-	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs, sc.RelabelDebug)
+	relabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.RelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
-	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs, sc.MetricRelabelDebug)
+	metricRelabelConfigs, err := promrelabel.ParseRelabelConfigs(sc.MetricRelabelConfigs)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse `metric_relabel_configs` for `job_name` %q: %w", jobName, err)
 	}
@@ -1188,7 +1186,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 	if labels.Len() == 0 {
 		// Drop target without labels.
-		droppedTargetsMap.Register(originalLabels)
+		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
 		return nil, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
@@ -1203,7 +1201,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	address := labels.Get("__address__")
 	if len(address) == 0 {
 		// Drop target without scrape address.
-		droppedTargetsMap.Register(originalLabels)
+		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
 		return nil, nil
 	}
 	// Usability extension to Prometheus behavior: extract optional scheme and metricsPath from __address__.
@@ -1314,6 +1312,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		ProxyURL:             swc.proxyURL,
 		ProxyAuthConfig:      swc.proxyAuthConfig,
 		AuthConfig:           swc.authConfig,
+		RelabelConfigs:       swc.relabelConfigs,
 		MetricRelabelConfigs: swc.metricRelabelConfigs,
 		SampleLimit:          swc.sampleLimit,
 		DisableCompression:   swc.disableCompression,

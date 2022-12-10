@@ -122,7 +122,7 @@ func TestIfExpressionMatch(t *testing.T) {
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
-		labels := promutils.NewLabelsFromString(metricWithLabels)
+		labels := promutils.MustNewLabelsFromString(metricWithLabels)
 		if !ie.Match(labels.GetLabels()) {
 			t.Fatalf("unexpected mismatch of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}
@@ -156,7 +156,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 		if err := yaml.UnmarshalStrict([]byte(ifExpr), &ie); err != nil {
 			t.Fatalf("unexpected error during unmarshal: %s", err)
 		}
-		labels := promutils.NewLabelsFromString(metricWithLabels)
+		labels := promutils.MustNewLabelsFromString(metricWithLabels)
 		if ie.Match(labels.GetLabels()) {
 			t.Fatalf("unexpected match of ifExpr=%s for %s", ifExpr, metricWithLabels)
 		}

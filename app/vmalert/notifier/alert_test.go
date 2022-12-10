@@ -239,7 +239,7 @@ func TestAlert_toPromLabels(t *testing.T) {
   replacement: "aaa"
 - action: labeldrop
   regex: "env.*"
-`), false)
+`))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
