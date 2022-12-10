@@ -230,10 +230,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeServiceDiscoveryRequests.Inc()
 		promscrape.WriteServiceDiscovery(w, r)
 		return true
-	case "/prometheus/metric-relabel-debug", "/metric-relabel-debug":
-		promscrapeMetricRelabelDebugRequests.Inc()
-		promscrape.WriteMetricRelabelDebug(w, r)
-		return true
 	case "/prometheus/target-relabel-debug", "/target-relabel-debug":
 		promscrapeTargetRelabelDebugRequests.Inc()
 		if err := promscrape.WriteTargetRelabelDebug(w, r); err != nil {
@@ -345,8 +341,6 @@ var (
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vm_http_requests_total{path="/service-discovery"}`)
-
-	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/metric-relabel-debug"}`)
 
 	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
 	promscrapeTargetRelabelDebugErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/target-relabel-debug"}`)
