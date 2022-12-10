@@ -101,6 +101,9 @@ type ScrapeWork struct {
 	// Auth config
 	AuthConfig *promauth.Config
 
+	// Optional `relabel_configs`.
+	RelabelConfigs *promrelabel.ParsedConfigs
+
 	// Optional `metric_relabel_configs`.
 	MetricRelabelConfigs *promrelabel.ParsedConfigs
 
@@ -147,15 +150,17 @@ func (sw *ScrapeWork) canSwitchToStreamParseMode() bool {
 // It can be used for comparing for equality for two ScrapeWork objects.
 func (sw *ScrapeWork) key() string {
 	// Do not take into account OriginalLabels, since they can be changed with relabeling.
+	// Do not take into account RelabelConfigs, since it is already applied to Labels.
 	// Take into account JobNameOriginal in order to capture the case when the original job_name is changed via relabeling.
 	key := fmt.Sprintf("JobNameOriginal=%s, ScrapeURL=%s, ScrapeInterval=%s, ScrapeTimeout=%s, HonorLabels=%v, HonorTimestamps=%v, DenyRedirects=%v, Labels=%s, "+
 		"ExternalLabels=%s, "+
-		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%s, SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
+		"ProxyURL=%s, ProxyAuthConfig=%s, AuthConfig=%s, MetricRelabelConfigs=%q, "+
+		"SampleLimit=%d, DisableCompression=%v, DisableKeepAlive=%v, StreamParse=%v, "+
 		"ScrapeAlignInterval=%s, ScrapeOffset=%s, SeriesLimit=%d, NoStaleMarkers=%v",
-		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.LabelsString(),
+		sw.jobNameOriginal, sw.ScrapeURL, sw.ScrapeInterval, sw.ScrapeTimeout, sw.HonorLabels, sw.HonorTimestamps, sw.DenyRedirects, sw.Labels.String(),
 		sw.ExternalLabels.String(),
-		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(),
-		sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(), sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
+		sw.ProxyURL.String(), sw.ProxyAuthConfig.String(), sw.AuthConfig.String(), sw.MetricRelabelConfigs.String(),
+		sw.SampleLimit, sw.DisableCompression, sw.DisableKeepAlive, sw.StreamParse,
 		sw.ScrapeAlignInterval, sw.ScrapeOffset, sw.SeriesLimit, sw.NoStaleMarkers)
 	return key
 }
@@ -163,11 +168,6 @@ func (sw *ScrapeWork) key() string {
 // Job returns job for the ScrapeWork
 func (sw *ScrapeWork) Job() string {
 	return sw.Labels.Get("job")
-}
-
-// LabelsString returns labels in Prometheus format for the given sw.
-func (sw *ScrapeWork) LabelsString() string {
-	return sw.Labels.String()
 }
 
 type scrapeWork struct {
@@ -281,7 +281,7 @@ func (sw *scrapeWork) run(stopCh <-chan struct{}, globalStopCh <-chan struct{}) 
 		// scrapes replicated targets at different time offsets. This guarantees that the deduplication consistently leaves samples
 		// received from the same vmagent replica.
 		// See https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets
-		key := fmt.Sprintf("clusterName=%s, clusterMemberID=%d, ScrapeURL=%s, Labels=%s", *clusterName, clusterMemberID, sw.Config.ScrapeURL, sw.Config.LabelsString())
+		key := fmt.Sprintf("clusterName=%s, clusterMemberID=%d, ScrapeURL=%s, Labels=%s", *clusterName, clusterMemberID, sw.Config.ScrapeURL, sw.Config.Labels.String())
 		h := xxhash.Sum64(bytesutil.ToUnsafeBytes(key))
 		randSleep = uint64(float64(scrapeInterval) * (float64(h) / (1 << 64)))
 		sleepOffset := uint64(time.Now().UnixNano()) % uint64(scrapeInterval)
@@ -348,7 +348,7 @@ func (sw *scrapeWork) logError(s string) {
 	if !*suppressScrapeErrors {
 		logger.ErrorfSkipframes(1, "error when scraping %q from job %q with labels %s: %s; "+
 			"scrape errors can be disabled by -promscrape.suppressScrapeErrors command-line flag",
-			sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), s)
+			sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), s)
 	}
 }
 
@@ -362,7 +362,7 @@ func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 		sw.errsSuppressedCount++
 		return
 	}
-	err = fmt.Errorf("cannot scrape %q (job %q, labels %s): %w", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.LabelsString(), err)
+	err = fmt.Errorf("cannot scrape %q (job %q, labels %s): %w", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), err)
 	if sw.errsSuppressedCount > 0 {
 		err = fmt.Errorf("%w; %d similar errors suppressed during the last %.1f seconds", err, sw.errsSuppressedCount, d.Seconds())
 	}

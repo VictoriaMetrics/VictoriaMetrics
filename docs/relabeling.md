@@ -446,6 +446,8 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## Useful tips for target relabeling
 
+* Target relabelig can be debugged by clicking the `debug` link for the needed target on the `http://vmagent:8429/target`
+  or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug).
 * Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
   The specific sets of labels per each supported service discovery option are listed
   [here](https://docs.victoriametrics.com/sd_configs.html#prometheus-service-discovery).
@@ -462,6 +464,8 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## Useful tips for metric relabeling
 
+* Metric relabeling can be debugged at `http://vmagent:8429/metric-relabel-debug` page.
+  See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug).
 * All the labels, which start with `__` prefix, are automatically removed from metrics after the relabeling.
   So it is common practice to store temporary labels with names startigh with `__` during metrics relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets,

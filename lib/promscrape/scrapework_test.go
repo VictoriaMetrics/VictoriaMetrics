@@ -40,8 +40,8 @@ func TestIsAutoMetric(t *testing.T) {
 func TestAppendExtraLabels(t *testing.T) {
 	f := func(sourceLabels, extraLabels string, honorLabels bool, resultExpected string) {
 		t.Helper()
-		src := promutils.NewLabelsFromString(sourceLabels)
-		extra := promutils.NewLabelsFromString(extraLabels)
+		src := promutils.MustNewLabelsFromString(sourceLabels)
+		extra := promutils.MustNewLabelsFromString(extraLabels)
 		var labels promutils.Labels
 		labels.Labels = appendExtraLabels(src.GetLabels(), extra.GetLabels(), 0, honorLabels)
 		result := labels.String()
@@ -794,7 +794,7 @@ func timeseriesToString(ts *prompbmarshal.TimeSeries) string {
 }
 
 func mustParseRelabelConfigs(config string) *promrelabel.ParsedConfigs {
-	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(config), false)
+	pcs, err := promrelabel.ParseRelabelConfigsData([]byte(config))
 	if err != nil {
 		panic(fmt.Errorf("cannot parse %q: %w", config, err))
 	}

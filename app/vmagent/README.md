@@ -245,8 +245,6 @@ scrape_configs:
 * `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset
   in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
 * `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
-* `relabel_debug: true` for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
-* `metric_relabel_debug: true` for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
 See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
 
@@ -419,26 +417,25 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
   This relabeling is used for modifying labels in discovered targets and for dropping unneded targets.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
 
-  This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section.
-  In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
+  This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
+  or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
 
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
 
-  This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section.
-  In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
+  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 * At the `-remoteWrite.relabelConfig` file. This relabeling is used for modifying labels for all the collected metrics
-  (inluding [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics
+  (including [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics
   before sending them to all the configured `-remoteWrite.url` addresses.
-  This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`.
-  In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
+
+  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics
   and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`.
-  This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`.
-  In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
+
+  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
 which are replaced by the corresponding environment variable values.
@@ -452,9 +449,6 @@ The following articles contain useful information about Prometheus relabeling:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
-
-[This relabeler playground](https://relabeler.promlabs.com/) can help debugging issues related to relabeling.
-
 
 ## Relabeling enhancements
 
@@ -597,6 +591,24 @@ Important notes about `action: graphite` relabeling rules:
 The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
 Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
 
+## Relabel debug
+
+`vmagent` provides the following tools for debugging target-level and metric-level relabeling:
+
+- Target-level relabeling (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
+  can be performed by navigating to `http://vmagent:8429/targets` page and clicking the `debug` link at the target, which must be debugged.
+  The opened page will show step-by-step results for the actual relabeling rules applied to the target labels.
+
+  The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
+  is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page, find the dropped target
+  and click the `debug` link there. The opened page will show step-by-step results for the actual relabeling rules,
+  which resulted to target drop.
+
+- Metric-level relabeling (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
+  and all the relabeling, which can be set up via `-relabelConfig`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`
+  command-line flags) can be performed by navigating to `http://vmagent:8429/metric-relabel-debug` page
+  and submitting there relabeling rules together with the metric to be relabeled.
+  The page will show step-by-step results for the entered relabeling rules executed against the entered metric.
 
 ## Prometheus staleness markers
 
@@ -1428,8 +1440,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabel_config entries. The path can point either to local file or to http url. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
-  -remoteWrite.relabelDebug
-     Whether to log metrics before and after relabeling with -remoteWrite.relabelConfig. If the -remoteWrite.relabelDebug is enabled, then the metrics aren't sent to remote storage. This is useful for debugging the relabeling configs
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.
@@ -1464,9 +1474,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel config for the corresponding -remoteWrite.url. The path can point either to local file or to http url
      Supports an array of values separated by comma or specified via multiple flags.
-  -remoteWrite.urlRelabelDebug array
-     Whether to log metrics before and after relabeling with -remoteWrite.urlRelabelConfig. If the -remoteWrite.urlRelabelDebug is enabled, then the metrics aren't sent to the corresponding -remoteWrite.url. This is useful for debugging the relabeling configs
-     Supports array of values separated by comma or specified via multiple flags.
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls

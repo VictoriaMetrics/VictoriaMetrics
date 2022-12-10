@@ -35,7 +35,7 @@ func NewLabelsFromMap(m map[string]string) *Labels {
 
 // MarshalYAML implements yaml.Marshaler interface.
 func (x *Labels) MarshalYAML() (interface{}, error) {
-	m := x.toMap()
+	m := x.ToMap()
 	return m, nil
 }
 
@@ -51,7 +51,7 @@ func (x *Labels) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 // MarshalJSON returns JSON respresentation for x.
 func (x *Labels) MarshalJSON() ([]byte, error) {
-	m := x.toMap()
+	m := x.ToMap()
 	return json.Marshal(m)
 }
 
@@ -74,7 +74,8 @@ func (x *Labels) InitFromMap(m map[string]string) {
 	x.Sort()
 }
 
-func (x *Labels) toMap() map[string]string {
+// ToMap returns a map for the given labels x.
+func (x *Labels) ToMap() map[string]string {
 	labels := x.GetLabels()
 	m := make(map[string]string, len(labels))
 	for _, label := range labels {
@@ -293,10 +294,21 @@ func PutLabels(x *Labels) {
 
 var labelsPool sync.Pool
 
+// MustNewLabelsFromString creates labels from s, which can have the form `metric{labels}`.
+//
+// This function must be used only in tests. Use NewLabelsFromString in production code.
+func MustNewLabelsFromString(metricWithLabels string) *Labels {
+	labels, err := NewLabelsFromString(metricWithLabels)
+	if err != nil {
+		logger.Panicf("BUG: cannot parse %q: %s", metricWithLabels, err)
+	}
+	return labels
+}
+
 // NewLabelsFromString creates labels from s, which can have the form `metric{labels}`.
 //
 // This function must be used only in tests
-func NewLabelsFromString(metricWithLabels string) *Labels {
+func NewLabelsFromString(metricWithLabels string) (*Labels, error) {
 	stripDummyMetric := false
 	if strings.HasPrefix(metricWithLabels, "{") {
 		// Add a dummy metric name, since the parser needs it
@@ -311,10 +323,10 @@ func NewLabelsFromString(metricWithLabels string) *Labels {
 		err = fmt.Errorf("error during metric parse: %s", s)
 	})
 	if err != nil {
-		logger.Panicf("BUG: cannot parse %q: %s", metricWithLabels, err)
+		return nil, err
 	}
 	if len(rows.Rows) != 1 {
-		logger.Panicf("BUG: unexpected number of rows parsed; got %d; want 1", len(rows.Rows))
+		return nil, fmt.Errorf("unexpected number of rows parsed; got %d; want 1", len(rows.Rows))
 	}
 	r := rows.Rows[0]
 	var x Labels
@@ -324,5 +336,5 @@ func NewLabelsFromString(metricWithLabels string) *Labels {
 	for _, tag := range r.Tags {
 		x.Add(tag.Key, tag.Value)
 	}
-	return &x
+	return &x, nil
 }
