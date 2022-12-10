@@ -608,7 +608,7 @@ Additional information:
 
 ## TCP and UDP
 
-###How to send data from OpenTSDB-compatible agents to VictoriaMetrics
+### How to send data from OpenTSDB-compatible agents to VictoriaMetrics
 
 Turned off by default. Enable OpenTSDB receiver in VictoriaMetrics by setting `-opentsdbListenAddr` command-line flag.
 *If run from docker, '-opentsdbListenAddr' port should be exposed*
