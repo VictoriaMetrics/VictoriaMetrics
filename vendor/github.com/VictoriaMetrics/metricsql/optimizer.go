@@ -386,13 +386,13 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 		return -1
 	}
 	switch funcName {
-	case "", "absent", "scalar", "union", "vector":
+	case "", "absent", "scalar", "union", "vector", "range_normalize":
 		return -1
 	case "end", "now", "pi", "ru", "start", "step", "time":
 		return -1
 	case "limit_offset":
 		return 2
-	case "buckets_limit", "histogram_quantile", "histogram_share", "range_quantile":
+	case "buckets_limit", "histogram_quantile", "histogram_share", "range_quantile", "range_trim_spikes":
 		return 1
 	case "histogram_quantiles":
 		return len(args) - 1

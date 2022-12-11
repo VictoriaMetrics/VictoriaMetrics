@@ -792,14 +792,15 @@ func (c *grpcStorageClient) RewriteObject(ctx context.Context, req *rewriteObjec
 	s := callSettings(c.settings, opts...)
 	obj := req.dstObject.attrs.toProtoObject("")
 	call := &storagepb.RewriteObjectRequest{
-		SourceBucket:             bucketResourceName(globalProjectAlias, req.srcObject.bucket),
-		SourceObject:             req.srcObject.name,
-		RewriteToken:             req.token,
-		DestinationBucket:        bucketResourceName(globalProjectAlias, req.dstObject.bucket),
-		DestinationName:          req.dstObject.name,
-		Destination:              obj,
-		DestinationKmsKey:        req.dstObject.keyName,
-		DestinationPredefinedAcl: req.predefinedACL,
+		SourceBucket:              bucketResourceName(globalProjectAlias, req.srcObject.bucket),
+		SourceObject:              req.srcObject.name,
+		RewriteToken:              req.token,
+		DestinationBucket:         bucketResourceName(globalProjectAlias, req.dstObject.bucket),
+		DestinationName:           req.dstObject.name,
+		Destination:               obj,
+		DestinationKmsKey:         req.dstObject.keyName,
+		DestinationPredefinedAcl:  req.predefinedACL,
+		CommonObjectRequestParams: toProtoCommonObjectRequestParams(req.dstObject.encryptionKey),
 	}
 
 	// The userProject, whether source or destination project, is decided by the code calling the interface.
@@ -863,10 +864,10 @@ func (c *grpcStorageClient) NewRangeReader(ctx context.Context, params *newRange
 	}
 
 	b := bucketResourceName(globalProjectAlias, params.bucket)
-	// TODO(noahdietz): Use encryptionKey to set relevant request fields.
 	req := &storagepb.ReadObjectRequest{
-		Bucket: b,
-		Object: params.object,
+		Bucket:                    b,
+		Object:                    params.object,
+		CommonObjectRequestParams: toProtoCommonObjectRequestParams(params.encryptionKey),
 	}
 	// The default is a negative value, which means latest.
 	if params.gen >= 0 {
@@ -1007,8 +1008,6 @@ func (c *grpcStorageClient) OpenWriter(params *openWriterParams, opts ...storage
 				pr.CloseWithError(err)
 				return
 			}
-
-			// TODO(noahdietz): Send encryption key via CommonObjectRequestParams.
 
 			// The chunk buffer is full, but there is no end in sight. This
 			// means that a resumable upload will need to be used to send
@@ -1499,7 +1498,8 @@ func (w *gRPCWriter) startResumableUpload() error {
 	}
 	return run(w.ctx, func() error {
 		upres, err := w.c.raw.StartResumableWrite(w.ctx, &storagepb.StartResumableWriteRequest{
-			WriteObjectSpec: spec,
+			WriteObjectSpec:           spec,
+			CommonObjectRequestParams: toProtoCommonObjectRequestParams(w.encryptionKey),
 		})
 		w.upid = upres.GetUploadId()
 		return err
@@ -1511,7 +1511,9 @@ func (w *gRPCWriter) startResumableUpload() error {
 func (w *gRPCWriter) queryProgress() (int64, error) {
 	var persistedSize int64
 	err := run(w.ctx, func() error {
-		q, err := w.c.raw.QueryWriteStatus(w.ctx, &storagepb.QueryWriteStatusRequest{UploadId: w.upid})
+		q, err := w.c.raw.QueryWriteStatus(w.ctx, &storagepb.QueryWriteStatusRequest{
+			UploadId: w.upid,
+		})
 		persistedSize = q.GetPersistedSize()
 		return err
 	}, w.settings.retry, true, setRetryHeaderGRPC(w.ctx))
@@ -1582,6 +1584,7 @@ func (w *gRPCWriter) uploadBuffer(recvd int, start int64, doneReading bool) (*st
 				req.FirstMessage = &storagepb.WriteObjectRequest_WriteObjectSpec{
 					WriteObjectSpec: spec,
 				}
+				req.CommonObjectRequestParams = toProtoCommonObjectRequestParams(w.encryptionKey)
 			}
 
 			// TODO: Currently the checksums are only sent on the first message
