@@ -9,7 +9,7 @@ version: "^3.0.0"
 license-header: MICROSOFT_MIT_NO_VERSION
 input-file: "https://raw.githubusercontent.com/Azure/azure-rest-api-specs/e515b6251fdc21015282d2e84b85beec7c091763/specification/storage/data-plane/Microsoft.BlobStorage/preview/2020-10-02/blob.json"
 credential-scope: "https://storage.azure.com/.default"
-output-folder: .
+output-folder: ../generated
 file-prefix: "zz_"
 openapi-type: "data-plane"
 verbose: true
@@ -299,6 +299,25 @@ directive:
   where: $
   transform: >-
     return $.
-      replace(/StorageErrorCodeIncrementalCopyOfEralierVersionSnapshotNotAllowed\t+\StorageErrorCode\s+=\s+\"IncrementalCopyOfEralierVersionSnapshotNotAllowed"\n, /StorageErrorCodeIncrementalCopyOfEarlierVersionSnapshotNotAllowed\t+\StorageErrorCode\s+=\s+\"IncrementalCopyOfEarlierVersionSnapshotNotAllowed"\
-      replace(/StorageErrorCodeIncrementalCopyOfEarlierVersionSnapshotNotAllowed/g, /StorageErrorCodeIncrementalCopyOfEarlierVersionSnapshotNotAllowed/g)
+      replace(/IncrementalCopyOfEralierVersionSnapshotNotAllowed/g, "IncrementalCopyOfEarlierVersionSnapshotNotAllowed");
+```
+
+### Fix up x-ms-content-crc64 header response name
+
+``` yaml
+directive:
+- from: swagger-document
+  where: $.x-ms-paths.*.*.responses.*.headers.x-ms-content-crc64
+  transform: >
+    $["x-ms-client-name"] = "ContentCRC64"
+```
+
+``` yaml
+directive:
+- rename-model:
+    from: BlobItemInternal
+    to: BlobItem
+- rename-model:
+    from: BlobPropertiesInternal
+    to: BlobProperties
 ```

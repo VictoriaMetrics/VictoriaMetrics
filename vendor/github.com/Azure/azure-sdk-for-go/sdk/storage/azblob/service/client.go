@@ -120,11 +120,8 @@ func (s *Client) URL() string {
 	return s.generated().Endpoint()
 }
 
-// NewContainerClient creates a new ContainerClient object by concatenating containerName to the end of
-// Client's URL. The new ContainerClient uses the same request policy pipeline as the Client.
-// To change the pipeline, create the ContainerClient and then call its WithPipeline method passing in the
-// desired pipeline object. Or, call this package's NewContainerClient instead of calling this object's
-// NewContainerClient method.
+// NewContainerClient creates a new container.Client object by concatenating containerName to the end of
+// this Client's URL. The new container.Client uses the same request policy pipeline as the Client.
 func (s *Client) NewContainerClient(containerName string) *container.Client {
 	containerURL := runtime.JoinPaths(s.generated().Endpoint(), containerName)
 	return (*container.Client)(base.NewContainerClient(containerURL, s.generated().Pipeline(), s.sharedKey()))

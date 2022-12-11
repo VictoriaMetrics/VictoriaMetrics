@@ -7,7 +7,7 @@
 package blockblob
 
 import (
-	"fmt"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
@@ -39,10 +39,13 @@ type UploadOptions struct {
 	// Specify the transactional md5 for the body, to be validated by the service.
 	TransactionalContentMD5 []byte
 
-	HTTPHeaders      *blob.HTTPHeaders
-	CpkInfo          *blob.CpkInfo
-	CpkScopeInfo     *blob.CpkScopeInfo
-	AccessConditions *blob.AccessConditions
+	HTTPHeaders                  *blob.HTTPHeaders
+	CpkInfo                      *blob.CpkInfo
+	CpkScopeInfo                 *blob.CpkScopeInfo
+	AccessConditions             *blob.AccessConditions
+	LegalHold                    *bool
+	ImmutabilityPolicyMode       *blob.ImmutabilityPolicySetting
+	ImmutabilityPolicyExpiryTime *time.Time
 }
 
 func (o *UploadOptions) format() (*generated.BlockBlobClientUploadOptions, *generated.BlobHTTPHeaders, *generated.LeaseAccessConditions,
@@ -52,10 +55,13 @@ func (o *UploadOptions) format() (*generated.BlockBlobClientUploadOptions, *gene
 	}
 
 	basics := generated.BlockBlobClientUploadOptions{
-		BlobTagsString:          shared.SerializeBlobTagsToStrPtr(o.Tags),
-		Metadata:                o.Metadata,
-		Tier:                    o.Tier,
-		TransactionalContentMD5: o.TransactionalContentMD5,
+		BlobTagsString:           shared.SerializeBlobTagsToStrPtr(o.Tags),
+		Metadata:                 o.Metadata,
+		Tier:                     o.Tier,
+		TransactionalContentMD5:  o.TransactionalContentMD5,
+		LegalHold:                o.LegalHold,
+		ImmutabilityPolicyMode:   o.ImmutabilityPolicyMode,
+		ImmutabilityPolicyExpiry: o.ImmutabilityPolicyExpiryTime,
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
@@ -72,11 +78,9 @@ type StageBlockOptions struct {
 
 	LeaseAccessConditions *blob.LeaseAccessConditions
 
-	// Specify the transactional crc64 for the body, to be validated by the service.
-	TransactionalContentCRC64 []byte
-
-	// Specify the transactional md5 for the body, to be validated by the service.
-	TransactionalContentMD5 []byte
+	// TransactionalValidation specifies the transfer validation type to use.
+	// The default is nil (no transfer validation).
+	TransactionalValidation blob.TransferValidationType
 }
 
 // StageBlockOptions contains the optional parameters for the Client.StageBlock method.
@@ -85,10 +89,7 @@ func (o *StageBlockOptions) format() (*generated.BlockBlobClientStageBlockOption
 		return nil, nil, nil, nil
 	}
 
-	return &generated.BlockBlobClientStageBlockOptions{
-		TransactionalContentCRC64: o.TransactionalContentCRC64,
-		TransactionalContentMD5:   o.TransactionalContentMD5,
-	}, o.LeaseAccessConditions, o.CpkInfo, o.CpkScopeInfo
+	return &generated.BlockBlobClientStageBlockOptions{}, o.LeaseAccessConditions, o.CpkInfo, o.CpkScopeInfo
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -101,10 +102,9 @@ type StageBlockFromURLOptions struct {
 	LeaseAccessConditions *blob.LeaseAccessConditions
 
 	SourceModifiedAccessConditions *blob.SourceModifiedAccessConditions
-	// Specify the md5 calculated for the range of bytes that must be read from the copy source.
-	SourceContentMD5 []byte
-	// Specify the crc64 calculated for the range of bytes that must be read from the copy source.
-	SourceContentCRC64 []byte
+
+	// SourceContentValidation contains the validation mechanism used on the range of bytes read from the source.
+	SourceContentValidation blob.SourceContentValidationType
 
 	// Range specifies a range of bytes.  The default value is all bytes.
 	Range blob.HTTPRange
@@ -121,9 +121,11 @@ func (o *StageBlockFromURLOptions) format() (*generated.BlockBlobClientStageBloc
 
 	options := &generated.BlockBlobClientStageBlockFromURLOptions{
 		CopySourceAuthorization: o.CopySourceAuthorization,
-		SourceContentMD5:        o.SourceContentMD5,
-		SourceContentcrc64:      o.SourceContentCRC64,
 		SourceRange:             exported.FormatHTTPRange(o.Range),
+	}
+
+	if o.SourceContentValidation != nil {
+		o.SourceContentValidation.Apply(options)
 	}
 
 	return options, o.CpkInfo, o.CpkScopeInfo, o.LeaseAccessConditions, o.SourceModifiedAccessConditions
@@ -133,17 +135,20 @@ func (o *StageBlockFromURLOptions) format() (*generated.BlockBlobClientStageBloc
 
 // CommitBlockListOptions contains the optional parameters for Client.CommitBlockList method.
 type CommitBlockListOptions struct {
-	Tags                      map[string]string
-	Metadata                  map[string]string
-	RequestID                 *string
-	Tier                      *blob.AccessTier
-	Timeout                   *int32
-	TransactionalContentCRC64 []byte
-	TransactionalContentMD5   []byte
-	HTTPHeaders               *blob.HTTPHeaders
-	CpkInfo                   *blob.CpkInfo
-	CpkScopeInfo              *blob.CpkScopeInfo
-	AccessConditions          *blob.AccessConditions
+	Tags                         map[string]string
+	Metadata                     map[string]string
+	RequestID                    *string
+	Tier                         *blob.AccessTier
+	Timeout                      *int32
+	TransactionalContentCRC64    []byte
+	TransactionalContentMD5      []byte
+	HTTPHeaders                  *blob.HTTPHeaders
+	CpkInfo                      *blob.CpkInfo
+	CpkScopeInfo                 *blob.CpkScopeInfo
+	AccessConditions             *blob.AccessConditions
+	LegalHold                    *bool
+	ImmutabilityPolicyMode       *blob.ImmutabilityPolicySetting
+	ImmutabilityPolicyExpiryTime *time.Time
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -196,10 +201,12 @@ type uploadFromReaderOptions struct {
 	// Concurrency indicates the maximum number of blocks to upload in parallel (0=default)
 	Concurrency uint16
 
+	TransactionalValidation blob.TransferValidationType
+
 	// Optional header, Specifies the transactional crc64 for the body, to be validated by the service.
-	TransactionalContentCRC64 *[]byte
+	TransactionalContentCRC64 uint64
 	// Specify the transactional md5 for the body, to be validated by the service.
-	TransactionalContentMD5 *[]byte
+	TransactionalContentMD5 []byte
 }
 
 // UploadBufferOptions provides set of configurations for UploadBuffer operation
@@ -214,6 +221,8 @@ func (o *uploadFromReaderOptions) getStageBlockOptions() *StageBlockOptions {
 		CpkInfo:               o.CpkInfo,
 		CpkScopeInfo:          o.CpkScopeInfo,
 		LeaseAccessConditions: leaseAccessConditions,
+
+		TransactionalValidation: o.TransactionalValidation,
 	}
 }
 
@@ -244,17 +253,14 @@ func (o *uploadFromReaderOptions) getCommitBlockListOptions() *CommitBlockListOp
 
 // UploadStreamOptions provides set of configurations for UploadStream operation
 type UploadStreamOptions struct {
-	// transferManager provides a transferManager that controls buffer allocation/reuse and
-	// concurrency. This overrides BlockSize and MaxConcurrency if set.
-	transferManager      shared.TransferManager
-	transferMangerNotSet bool
-
 	// BlockSize defines the size of the buffer used during upload. The default and mimimum value is 1 MiB.
-	BlockSize int
+	BlockSize int64
 
-	// Concurrency defines the number of concurrent uploads to be performed to upload the file.
+	// Concurrency defines the max number of concurrent uploads to be performed to upload the file.
 	// Each concurrent upload will create a buffer of size BlockSize.  The default value is one.
 	Concurrency int
+
+	TransactionalValidation blob.TransferValidationType
 
 	HTTPHeaders      *blob.HTTPHeaders
 	Metadata         map[string]string
@@ -265,11 +271,7 @@ type UploadStreamOptions struct {
 	CpkScopeInfo     *blob.CpkScopeInfo
 }
 
-func (u *UploadStreamOptions) format() error {
-	if u == nil || u.transferManager != nil {
-		return nil
-	}
-
+func (u *UploadStreamOptions) setDefaults() {
 	if u.Concurrency == 0 {
 		u.Concurrency = 1
 	}
@@ -277,27 +279,28 @@ func (u *UploadStreamOptions) format() error {
 	if u.BlockSize < _1MiB {
 		u.BlockSize = _1MiB
 	}
-
-	var err error
-	u.transferManager, err = shared.NewStaticBuffer(u.BlockSize, u.Concurrency)
-	if err != nil {
-		return fmt.Errorf("bug: default transfer manager could not be created: %s", err)
-	}
-	u.transferMangerNotSet = true
-	return nil
 }
 
 func (u *UploadStreamOptions) getStageBlockOptions() *StageBlockOptions {
+	if u == nil {
+		return nil
+	}
+
 	leaseAccessConditions, _ := exported.FormatBlobAccessConditions(u.AccessConditions)
 	return &StageBlockOptions{
-		CpkInfo:               u.CpkInfo,
-		CpkScopeInfo:          u.CpkScopeInfo,
-		LeaseAccessConditions: leaseAccessConditions,
+		TransactionalValidation: u.TransactionalValidation,
+		CpkInfo:                 u.CpkInfo,
+		CpkScopeInfo:            u.CpkScopeInfo,
+		LeaseAccessConditions:   leaseAccessConditions,
 	}
 }
 
 func (u *UploadStreamOptions) getCommitBlockListOptions() *CommitBlockListOptions {
-	options := &CommitBlockListOptions{
+	if u == nil {
+		return nil
+	}
+
+	return &CommitBlockListOptions{
 		Tags:             u.Tags,
 		Metadata:         u.Metadata,
 		Tier:             u.AccessTier,
@@ -306,6 +309,40 @@ func (u *UploadStreamOptions) getCommitBlockListOptions() *CommitBlockListOption
 		CpkScopeInfo:     u.CpkScopeInfo,
 		AccessConditions: u.AccessConditions,
 	}
-
-	return options
 }
+
+func (u *UploadStreamOptions) getUploadOptions() *UploadOptions {
+	if u == nil {
+		return nil
+	}
+
+	return &UploadOptions{
+		Tags:             u.Tags,
+		Metadata:         u.Metadata,
+		Tier:             u.AccessTier,
+		HTTPHeaders:      u.HTTPHeaders,
+		CpkInfo:          u.CpkInfo,
+		CpkScopeInfo:     u.CpkScopeInfo,
+		AccessConditions: u.AccessConditions,
+	}
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// ExpiryType defines values for ExpiryType
+type ExpiryType = exported.ExpiryType
+
+// ExpiryTypeAbsolute defines the absolute time for the blob expiry
+type ExpiryTypeAbsolute = exported.ExpiryTypeAbsolute
+
+// ExpiryTypeRelativeToNow defines the duration relative to now for the blob expiry
+type ExpiryTypeRelativeToNow = exported.ExpiryTypeRelativeToNow
+
+// ExpiryTypeRelativeToCreation defines the duration relative to creation for the blob expiry
+type ExpiryTypeRelativeToCreation = exported.ExpiryTypeRelativeToCreation
+
+// ExpiryTypeNever defines that the blob will be set to never expire
+type ExpiryTypeNever = exported.ExpiryTypeNever
+
+// SetExpiryOptions contains the optional parameters for the Client.SetExpiry method.
+type SetExpiryOptions = exported.SetExpiryOptions
