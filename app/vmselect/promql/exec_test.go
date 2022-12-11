@@ -5559,6 +5559,30 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`limitk(inf)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(limitk(inf, label_set(10, "foo", "bar") or label_set(time()/150, "baz", "sss")))`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{10, 10, 10, 10, 10, 10},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6.666666666666667, 8, 9.333333333333334, 10.666666666666666, 12, 13.333333333333334},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("baz"),
+			Value: []byte("sss"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`any()`, func(t *testing.T) {
 		t.Parallel()
 		q := `any(label_set(10, "__name__", "x", "foo", "bar") or label_set(time()/150, "__name__", "y", "baz", "sss"))`

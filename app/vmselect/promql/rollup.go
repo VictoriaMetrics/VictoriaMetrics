@@ -2127,7 +2127,7 @@ func getIntNumber(arg interface{}, argNum int) (int, error) {
 	}
 	n := 0
 	if len(v) > 0 {
-		n = int(v[0])
+		n = floatToIntBounded(v[0])
 	}
 	return n, nil
 }
