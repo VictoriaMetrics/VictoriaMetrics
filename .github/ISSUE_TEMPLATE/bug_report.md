@@ -11,7 +11,7 @@ A clear and concise description of what the bug is.
 It would be great to [upgrade](https://docs.victoriametrics.com/#how-to-upgrade) 
 to [the latest available release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
 and verify whether the bug is reproducible there.
-It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
+It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
 
 **To Reproduce**
 Steps to reproduce the behavior.

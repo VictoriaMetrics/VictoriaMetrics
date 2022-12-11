@@ -19,8 +19,6 @@ var (
 	relabelConfig = flag.String("relabelConfig", "", "Optional path to a file with relabeling rules, which are applied to all the ingested metrics. "+
 		"The path can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal")
-	relabelDebug = flag.Bool("relabelDebug", false, "Whether to log metrics before and after relabeling with -relabelConfig. If the -relabelDebug is enabled, "+
-		"then the metrics aren't sent to storage. This is useful for debugging the relabeling configs")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+
@@ -77,7 +75,7 @@ func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 	if len(*relabelConfig) == 0 {
 		return nil, nil
 	}
-	pcs, err := promrelabel.LoadRelabelConfigs(*relabelConfig, *relabelDebug)
+	pcs, err := promrelabel.LoadRelabelConfigs(*relabelConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error when reading -relabelConfig=%q: %w", *relabelConfig, err)
 	}

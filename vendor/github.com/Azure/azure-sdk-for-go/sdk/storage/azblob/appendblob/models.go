@@ -73,10 +73,9 @@ func (o *CreateOptions) format() (*generated.AppendBlobClientCreateOptions, *gen
 
 // AppendBlockOptions contains the optional parameters for the Client.AppendBlock method.
 type AppendBlockOptions struct {
-	// Specify the transactional crc64 for the body, to be validated by the service.
-	TransactionalContentCRC64 []byte
-	// Specify the transactional md5 for the body, to be validated by the service.
-	TransactionalContentMD5 []byte
+	// TransactionalValidation specifies the transfer validation type to use.
+	// The default is nil (no transfer validation).
+	TransactionalValidation blob.TransferValidationType
 
 	AppendPositionAccessConditions *AppendPositionAccessConditions
 
@@ -93,24 +92,16 @@ func (o *AppendBlockOptions) format() (*generated.AppendBlobClientAppendBlockOpt
 		return nil, nil, nil, nil, nil, nil
 	}
 
-	options := &generated.AppendBlobClientAppendBlockOptions{
-		TransactionalContentCRC64: o.TransactionalContentCRC64,
-		TransactionalContentMD5:   o.TransactionalContentMD5,
-	}
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
-	return options, o.AppendPositionAccessConditions, o.CpkInfo, o.CpkScopeInfo, modifiedAccessConditions, leaseAccessConditions
+	return &generated.AppendBlobClientAppendBlockOptions{}, o.AppendPositionAccessConditions, o.CpkInfo, o.CpkScopeInfo, modifiedAccessConditions, leaseAccessConditions
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 
 // AppendBlockFromURLOptions contains the optional parameters for the Client.AppendBlockFromURL method.
 type AppendBlockFromURLOptions struct {
-	// Specify the md5 calculated for the range of bytes that must be read from the copy source.
-	SourceContentMD5 []byte
-	// Specify the crc64 calculated for the range of bytes that must be read from the copy source.
-	SourceContentCRC64 []byte
-	// Specify the transactional md5 for the body, to be validated by the service.
-	TransactionalContentMD5 []byte
+	// SourceContentValidation contains the validation mechanism used on the range of bytes read from the source.
+	SourceContentValidation blob.SourceContentValidationType
 
 	AppendPositionAccessConditions *AppendPositionAccessConditions
 
@@ -134,10 +125,11 @@ func (o *AppendBlockFromURLOptions) format() (*generated.AppendBlobClientAppendB
 	}
 
 	options := &generated.AppendBlobClientAppendBlockFromURLOptions{
-		SourceRange:             exported.FormatHTTPRange(o.Range),
-		SourceContentMD5:        o.SourceContentMD5,
-		SourceContentcrc64:      o.SourceContentCRC64,
-		TransactionalContentMD5: o.TransactionalContentMD5,
+		SourceRange: exported.FormatHTTPRange(o.Range),
+	}
+
+	if o.SourceContentValidation != nil {
+		o.SourceContentValidation.Apply(options)
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
@@ -164,3 +156,21 @@ func (o *SealOptions) format() (*generated.LeaseAccessConditions,
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+
+// ExpiryType defines values for ExpiryType
+type ExpiryType = exported.ExpiryType
+
+// ExpiryTypeAbsolute defines the absolute time for the blob expiry
+type ExpiryTypeAbsolute = exported.ExpiryTypeAbsolute
+
+// ExpiryTypeRelativeToNow defines the duration relative to now for the blob expiry
+type ExpiryTypeRelativeToNow = exported.ExpiryTypeRelativeToNow
+
+// ExpiryTypeRelativeToCreation defines the duration relative to creation for the blob expiry
+type ExpiryTypeRelativeToCreation = exported.ExpiryTypeRelativeToCreation
+
+// ExpiryTypeNever defines that the blob will be set to never expire
+type ExpiryTypeNever = exported.ExpiryTypeNever
+
+// SetExpiryOptions contains the optional parameters for the Client.SetExpiry method.
+type SetExpiryOptions = exported.SetExpiryOptions

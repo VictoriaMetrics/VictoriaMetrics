@@ -231,6 +231,31 @@ func (b *Client) GetTags(ctx context.Context, options *GetTagsOptions) (GetTagsR
 
 }
 
+// SetImmutabilityPolicy operation enables users to set the immutability policy on a blob. Mode defaults to "Unlocked".
+// https://learn.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview
+func (b *Client) SetImmutabilityPolicy(ctx context.Context, expiryTime time.Time, options *SetImmutabilityPolicyOptions) (SetImmutabilityPolicyResponse, error) {
+	blobSetImmutabilityPolicyOptions, modifiedAccessConditions := options.format()
+	blobSetImmutabilityPolicyOptions.ImmutabilityPolicyExpiry = &expiryTime
+	resp, err := b.generated().SetImmutabilityPolicy(ctx, blobSetImmutabilityPolicyOptions, modifiedAccessConditions)
+	return resp, err
+}
+
+// DeleteImmutabilityPolicy operation enables users to delete the immutability policy on a blob.
+// https://learn.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview
+func (b *Client) DeleteImmutabilityPolicy(ctx context.Context, options *DeleteImmutabilityPolicyOptions) (DeleteImmutabilityPolicyResponse, error) {
+	deleteImmutabilityOptions := options.format()
+	resp, err := b.generated().DeleteImmutabilityPolicy(ctx, deleteImmutabilityOptions)
+	return resp, err
+}
+
+// SetLegalHold operation enables users to set legal hold on a blob.
+// https://learn.microsoft.com/en-us/azure/storage/blobs/immutable-storage-overview
+func (b *Client) SetLegalHold(ctx context.Context, legalHold bool, options *SetLegalHoldOptions) (SetLegalHoldResponse, error) {
+	setLegalHoldOptions := options.format()
+	resp, err := b.generated().SetLegalHold(ctx, legalHold, setLegalHoldOptions)
+	return resp, err
+}
+
 // CopyFromURL synchronously copies the data at the source URL to a block blob, with sizes up to 256 MB.
 // For more information, see https://docs.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url.
 func (b *Client) CopyFromURL(ctx context.Context, copySource string, options *CopyFromURLOptions) (CopyFromURLResponse, error) {
@@ -311,8 +336,7 @@ func (b *Client) download(ctx context.Context, writer io.WriterAt, o downloadOpt
 		TransferSize:  count,
 		ChunkSize:     o.BlockSize,
 		Concurrency:   o.Concurrency,
-		Operation: func(chunkStart int64, count int64, ctx context.Context) error {
-
+		Operation: func(ctx context.Context, chunkStart int64, count int64) error {
 			downloadBlobOptions := o.getDownloadBlobOptions(HTTPRange{
 				Offset: chunkStart + o.Range.Offset,
 				Count:  count,

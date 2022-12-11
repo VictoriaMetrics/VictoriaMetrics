@@ -104,7 +104,6 @@ scrape_configs:
   static_configs:
   - targets:
     - foo
-  relabel_debug: true
   scrape_align_interval: 1h30m0s
   proxy_bearer_token_file: file.txt
   proxy_headers:
@@ -721,6 +720,7 @@ scrape_config_files:
 func resetNonEssentialFields(sws []*ScrapeWork) {
 	for _, sw := range sws {
 		sw.OriginalLabels = nil
+		sw.RelabelConfigs = nil
 		sw.MetricRelabelConfigs = nil
 	}
 }

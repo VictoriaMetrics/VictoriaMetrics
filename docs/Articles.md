@@ -55,9 +55,10 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Install and configure VictoriaMetrics on Debian](https://www.vultr.com/docs/install-and-configure-victoriametrics-on-debian)
 * [Superset BI with Victoria Metrics](https://cer6erus.medium.com/superset-bi-with-victoria-metrics-a109d3e91bc6)
 * [VictoriaMetrics Source Code Analysis - Bloom filter](https://www.sobyte.net/post/2022-05/victoriametrics-bloomfilter/)
-* [How we tried using VictoriaMetrics and Thanos at the same time](https://habr.com/ru/company/sravni/blog/672908/)
+* [How we tried using VictoriaMetrics and Thanos at the same time](https://medium.com/@uburro/how-we-tried-using-victoriametrics-and-thanos-at-the-same-time-48803d2a638b)
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
 * [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
+* [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
 
 ## Our articles
 
@@ -110,7 +111,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
 * [How ClickHouse inspired us to build a high performance time series database](https://www.youtube.com/watch?v=p9qjb_yoBro). See also [slides](https://docs.google.com/presentation/d/1SdFrwsyR-HMXfbzrY8xfDZH_Dg6E7E5NJ84tQozMn3w/edit?usp=sharing)
 * [OSA Con 2022: Specifics of data analysis in Time Series Databases](https://www.youtube.com/watch?v=_zORxrgLtec)
-* [OSMC 2022. VictoriaMetrics: scaling to 100 million metrics per second](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
+* [OSMC 2022. VictoriaMetrics: scaling to 100 million metrics per second](https://www.youtube.com/watch?v=xfed9_Q0_qU). See also [slides](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
 * [CNCF Paris Meetup 2022-09-15 - VictoriaMetrics - The cost of scale in Prometheus ecosystem](https://www.youtube.com/watch?v=gcZYHpri2Hw). See also [slides](https://docs.google.com/presentation/d/1jhZuKnAXi15M-mdBP5a4ZAiyrMeHhYmzO8xcZ6pMyLc/edit?usp=sharing)
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)

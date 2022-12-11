@@ -1371,8 +1371,6 @@ VMScrapeParams defines scrape target configuration that compatible only with Vic
 
 | Field | Description | Scheme | Required |
 | ----- | ----------- | ------ | -------- |
-| relabel_debug |  | *bool | false |
-| metric_relabel_debug |  | *bool | false |
 | disable_compression |  | *bool | false |
 | disable_keep_alive |  | *bool | false |
 | no_stale_markers |  | *bool | false |

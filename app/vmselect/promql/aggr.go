@@ -748,7 +748,7 @@ func getIntK(k float64, kMax int) int {
 	if math.IsNaN(k) {
 		return 0
 	}
-	kn := int(k)
+	kn := floatToIntBounded(k)
 	if kn < 0 {
 		return 0
 	}
@@ -999,13 +999,9 @@ func aggrFuncLimitK(afa *aggrFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 2); err != nil {
 		return nil, err
 	}
-	limits, err := getScalar(args[0], 0)
+	limit, err := getIntNumber(args[0], 0)
 	if err != nil {
 		return nil, fmt.Errorf("cannot obtain limit arg: %w", err)
-	}
-	limit := 0
-	if len(limits) > 0 {
-		limit = int(limits[0])
 	}
 	if limit < 0 {
 		limit = 0
@@ -1154,4 +1150,14 @@ func lessWithNaNs(a, b float64) bool {
 		return !math.IsNaN(b)
 	}
 	return a < b
+}
+
+func floatToIntBounded(f float64) int {
+	if f > math.MaxInt {
+		return math.MaxInt
+	}
+	if f < math.MinInt {
+		return math.MinInt
+	}
+	return int(f)
 }

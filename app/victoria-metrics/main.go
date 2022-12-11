@@ -112,6 +112,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			{"vmui", "Web UI"},
 			{"targets", "status for discovered active targets"},
 			{"service-discovery", "labels before and after relabeling for discovered targets"},
+			{"metric-relabel-debug", "debug metric relabeling"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
 			{"metrics", "available service metrics"},

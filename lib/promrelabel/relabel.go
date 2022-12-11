@@ -18,6 +18,9 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 type parsedRelabelConfig struct {
+	// ruleOriginal contains the original relabeling rule for the given prasedRelabelConfig.
+	ruleOriginal string
+
 	SourceLabels  []string
 	Separator     string
 	TargetLabel   string
@@ -41,50 +44,78 @@ type parsedRelabelConfig struct {
 	submatchReplacer *bytesutil.FastStringTransformer
 }
 
+// DebugStep contains debug information about a single relabeling rule step
+type DebugStep struct {
+	// Rule contains string representation of the rule step
+	Rule string
+
+	// In contains the input labels before the exeuction of the rule step
+	In string
+
+	// Out contains the output labels after the execution of the rule step
+	Out string
+}
+
+// String returns human-readable representation for ds
+func (ds DebugStep) String() string {
+	return fmt.Sprintf("rule=%q, in=%s, out=%s", ds.Rule, ds.In, ds.Out)
+}
+
 // String returns human-readable representation for prc.
 func (prc *parsedRelabelConfig) String() string {
-	return fmt.Sprintf("SourceLabels=%s, Separator=%s, TargetLabel=%s, Regex=%s, Modulus=%d, Replacement=%s, Action=%s, If=%s, graphiteMatchTemplate=%s, graphiteLabelRules=%s",
-		prc.SourceLabels, prc.Separator, prc.TargetLabel, prc.regexOriginal, prc.Modulus, prc.Replacement,
-		prc.Action, prc.If, prc.graphiteMatchTemplate, prc.graphiteLabelRules)
+	return prc.ruleOriginal
+}
+
+// ApplyDebug applies pcs to labels in debug mode.
+//
+// It returns DebugStep list - one entry per each applied relabeling step.
+func (pcs *ParsedConfigs) ApplyDebug(labels []prompbmarshal.Label) ([]prompbmarshal.Label, []DebugStep) {
+	labels, dss := pcs.applyInternal(labels, 0, true)
+	return labels, dss
 }
 
 // Apply applies pcs to labels starting from the labelsOffset.
 func (pcs *ParsedConfigs) Apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
-	var inStr string
-	relabelDebug := false
+	labels, _ = pcs.applyInternal(labels, labelsOffset, false)
+	return labels
+}
+
+func (pcs *ParsedConfigs) applyInternal(labels []prompbmarshal.Label, labelsOffset int, debug bool) ([]prompbmarshal.Label, []DebugStep) {
+	var dss []DebugStep
+	inStr := ""
+	if debug {
+		inStr = LabelsToString(labels[labelsOffset:])
+	}
 	if pcs != nil {
-		relabelDebug = pcs.relabelDebug
-		if relabelDebug {
-			inStr = labelsToString(labels[labelsOffset:])
-		}
 		for _, prc := range pcs.prcs {
-			tmp := prc.apply(labels, labelsOffset)
-			if len(tmp) == labelsOffset {
-				// All the labels have been removed.
-				if pcs.relabelDebug {
-					logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed", inStr)
-				}
-				return tmp
+			labels = prc.apply(labels, labelsOffset)
+			if debug {
+				outStr := LabelsToString(labels[labelsOffset:])
+				dss = append(dss, DebugStep{
+					Rule: prc.String(),
+					In:   inStr,
+					Out:  outStr,
+				})
+				inStr = outStr
 			}
-			labels = tmp
+			if len(labels) == labelsOffset {
+				// All the labels have been removed.
+				return labels, dss
+			}
 		}
 	}
 	labels = removeEmptyLabels(labels, labelsOffset)
-	if relabelDebug {
-		if len(labels) == labelsOffset {
-			logger.Infof("\nRelabel  In: %s\nRelabel Out: DROPPED - all labels removed", inStr)
-			return labels
+	if debug {
+		outStr := LabelsToString(labels[labelsOffset:])
+		if outStr != inStr {
+			dss = append(dss, DebugStep{
+				Rule: "remove empty labels",
+				In:   inStr,
+				Out:  outStr,
+			})
 		}
-		outStr := labelsToString(labels[labelsOffset:])
-		if inStr == outStr {
-			logger.Infof("\nRelabel  In: %s\nRelabel Out: KEPT AS IS - no change", inStr)
-		} else {
-			logger.Infof("\nRelabel  In: %s\nRelabel Out: %s", inStr, outStr)
-		}
-		// Drop labels
-		labels = labels[:labelsOffset]
 	}
-	return labels
+	return labels, dss
 }
 
 func removeEmptyLabels(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
@@ -504,25 +535,27 @@ func CleanLabels(labels []prompbmarshal.Label) {
 	}
 }
 
-func labelsToString(labels []prompbmarshal.Label) string {
+// LabelsToString returns Prometheus string representation for the given labels.
+//
+// Labels in the returned string are sorted by name,
+// while the __name__ label is put in front of {} labels.
+func LabelsToString(labels []prompbmarshal.Label) string {
 	labelsCopy := append([]prompbmarshal.Label{}, labels...)
 	SortLabels(labelsCopy)
 	mname := ""
-	for _, label := range labelsCopy {
+	for i, label := range labelsCopy {
 		if label.Name == "__name__" {
 			mname = label.Value
+			labelsCopy = append(labelsCopy[:i], labelsCopy[i+1:]...)
 			break
 		}
 	}
-	if mname != "" && len(labelsCopy) <= 1 {
+	if mname != "" && len(labelsCopy) == 0 {
 		return mname
 	}
 	b := []byte(mname)
 	b = append(b, '{')
 	for i, label := range labelsCopy {
-		if label.Name == "__name__" {
-			continue
-		}
 		b = append(b, label.Name...)
 		b = append(b, '=')
 		b = strconv.AppendQuote(b, label.Value)
