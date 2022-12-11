@@ -8,6 +8,7 @@ package container
 
 import (
 	"reflect"
+	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
@@ -28,10 +29,16 @@ func NewSharedKeyCredential(accountName, accountKey string) (*SharedKeyCredentia
 type CpkScopeInfo = generated.ContainerCpkScopeInfo
 
 // BlobProperties - Properties of a blob
-type BlobProperties = generated.BlobPropertiesInternal
+type BlobProperties = generated.BlobProperties
 
 // BlobItem - An Azure Storage blob
-type BlobItem = generated.BlobItemInternal
+type BlobItem = generated.BlobItem
+
+// BlobPrefix is a blob's prefix when hierarchically listing blobs.
+type BlobPrefix = generated.BlobPrefix
+
+// BlobTag - a key/value pair on a blob
+type BlobTag = generated.BlobTag
 
 // AccessConditions identifies container-specific access conditions which you optionally set.
 type AccessConditions = exported.ContainerAccessConditions
@@ -260,4 +267,27 @@ func (o *SetAccessPolicyOptions) format() (*generated.ContainerClientSetAccessPo
 	return &generated.ContainerClientSetAccessPolicyOptions{
 		Access: o.Access,
 	}, lac, mac
+}
+
+func formatTime(c *SignedIdentifier) error {
+	if c.AccessPolicy == nil {
+		return nil
+	}
+
+	if c.AccessPolicy.Start != nil {
+		st, err := time.Parse(time.RFC3339, c.AccessPolicy.Start.UTC().Format(time.RFC3339))
+		if err != nil {
+			return err
+		}
+		c.AccessPolicy.Start = &st
+	}
+	if c.AccessPolicy.Expiry != nil {
+		et, err := time.Parse(time.RFC3339, c.AccessPolicy.Expiry.UTC().Format(time.RFC3339))
+		if err != nil {
+			return err
+		}
+		c.AccessPolicy.Expiry = &et
+	}
+
+	return nil
 }

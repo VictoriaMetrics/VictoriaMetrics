@@ -16,28 +16,29 @@ import (
 )
 
 // BlobSignatureValues is used to generate a Shared Access Signature (SAS) for an Azure Storage container or blob.
-// For more information, see https://docs.microsoft.com/rest/api/storageservices/constructing-a-service-sas
+// For more information on creating service sas, see https://docs.microsoft.com/rest/api/storageservices/constructing-a-service-sas
+// For more information on creating user delegation sas, see https://docs.microsoft.com/rest/api/storageservices/create-user-delegation-sas
 type BlobSignatureValues struct {
-	Version                    string    `param:"sv"`  // If not specified, this defaults to Version
-	Protocol                   Protocol  `param:"spr"` // See the Protocol* constants
-	StartTime                  time.Time `param:"st"`  // Not specified if IsZero
-	ExpiryTime                 time.Time `param:"se"`  // Not specified if IsZero
-	SnapshotTime               time.Time
-	Permissions                string  `param:"sp"` // Create by initializing a ContainerSASPermissions or BlobSASPermissions and then call String()
-	IPRange                    IPRange `param:"sip"`
-	Identifier                 string  `param:"si"`
-	ContainerName              string
-	BlobName                   string // Use "" to create a Container SAS
-	Directory                  string // Not nil for a directory SAS (ie sr=d)
-	CacheControl               string // rscc
-	ContentDisposition         string // rscd
-	ContentEncoding            string // rsce
-	ContentLanguage            string // rscl
-	ContentType                string // rsct
-	BlobVersion                string // sr=bv
-	PreauthorizedAgentObjectId string
-	AgentObjectId              string
-	CorrelationId              string
+	Version              string    `param:"sv"`  // If not specified, this defaults to Version
+	Protocol             Protocol  `param:"spr"` // See the Protocol* constants
+	StartTime            time.Time `param:"st"`  // Not specified if IsZero
+	ExpiryTime           time.Time `param:"se"`  // Not specified if IsZero
+	SnapshotTime         time.Time
+	Permissions          string  `param:"sp"` // Create by initializing a ContainerSASPermissions or BlobSASPermissions and then call String()
+	IPRange              IPRange `param:"sip"`
+	Identifier           string  `param:"si"`
+	ContainerName        string
+	BlobName             string // Use "" to create a Container SAS
+	Directory            string // Not nil for a directory SAS (ie sr=d)
+	CacheControl         string // rscc
+	ContentDisposition   string // rscd
+	ContentEncoding      string // rsce
+	ContentLanguage      string // rscl
+	ContentType          string // rsct
+	BlobVersion          string // sr=bv
+	AuthorizedObjectID   string // saoid
+	UnauthorizedObjectID string // suoid
+	CorrelationID        string // scid
 }
 
 func getDirectoryDepth(path string) string {
@@ -115,18 +116,18 @@ func (v BlobSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKeyCre
 		ipRange:     v.IPRange,
 
 		// Container/Blob-specific SAS parameters
-		resource:                   resource,
-		identifier:                 v.Identifier,
-		cacheControl:               v.CacheControl,
-		contentDisposition:         v.ContentDisposition,
-		contentEncoding:            v.ContentEncoding,
-		contentLanguage:            v.ContentLanguage,
-		contentType:                v.ContentType,
-		snapshotTime:               v.SnapshotTime,
-		signedDirectoryDepth:       getDirectoryDepth(v.Directory),
-		preauthorizedAgentObjectID: v.PreauthorizedAgentObjectId,
-		agentObjectID:              v.AgentObjectId,
-		correlationID:              v.CorrelationId,
+		resource:             resource,
+		identifier:           v.Identifier,
+		cacheControl:         v.CacheControl,
+		contentDisposition:   v.ContentDisposition,
+		contentEncoding:      v.ContentEncoding,
+		contentLanguage:      v.ContentLanguage,
+		contentType:          v.ContentType,
+		snapshotTime:         v.SnapshotTime,
+		signedDirectoryDepth: getDirectoryDepth(v.Directory),
+		authorizedObjectID:   v.AuthorizedObjectID,
+		unauthorizedObjectID: v.UnauthorizedObjectID,
+		correlationID:        v.CorrelationID,
 		// Calculated SAS signature
 		signature: signature,
 	}
@@ -169,27 +170,21 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 	udk := exported.GetUDKParams(userDelegationCredential)
 
 	udkStart, udkExpiry, _ := formatTimesForSigning(*udk.SignedStart, *udk.SignedExpiry, time.Time{})
-	//I don't like this answer to combining the functions
-	//But because signedIdentifier and the user delegation key strings share a place, this is an _OK_ way to do it.
-	signedIdentifier := strings.Join([]string{
+
+	stringToSign := strings.Join([]string{
+		v.Permissions,
+		startTime,
+		expiryTime,
+		getCanonicalName(exported.GetAccountName(userDelegationCredential), v.ContainerName, v.BlobName, v.Directory),
 		*udk.SignedOID,
 		*udk.SignedTID,
 		udkStart,
 		udkExpiry,
 		*udk.SignedService,
 		*udk.SignedVersion,
-		v.PreauthorizedAgentObjectId,
-		v.AgentObjectId,
-		v.CorrelationId,
-	}, "\n")
-
-	// String to sign: http://msdn.microsoft.com/en-us/library/azure/dn140255.aspx
-	stringToSign := strings.Join([]string{
-		v.Permissions,
-		startTime,
-		expiryTime,
-		getCanonicalName(exported.GetAccountName(userDelegationCredential), v.ContainerName, v.BlobName, v.Directory),
-		signedIdentifier,
+		v.AuthorizedObjectID,
+		v.UnauthorizedObjectID,
+		v.CorrelationID,
 		v.IPRange.String(),
 		string(v.Protocol),
 		v.Version,
@@ -217,18 +212,18 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 		ipRange:     v.IPRange,
 
 		// Container/Blob-specific SAS parameters
-		resource:                   resource,
-		identifier:                 v.Identifier,
-		cacheControl:               v.CacheControl,
-		contentDisposition:         v.ContentDisposition,
-		contentEncoding:            v.ContentEncoding,
-		contentLanguage:            v.ContentLanguage,
-		contentType:                v.ContentType,
-		snapshotTime:               v.SnapshotTime,
-		signedDirectoryDepth:       getDirectoryDepth(v.Directory),
-		preauthorizedAgentObjectID: v.PreauthorizedAgentObjectId,
-		agentObjectID:              v.AgentObjectId,
-		correlationID:              v.CorrelationId,
+		resource:             resource,
+		identifier:           v.Identifier,
+		cacheControl:         v.CacheControl,
+		contentDisposition:   v.ContentDisposition,
+		contentEncoding:      v.ContentEncoding,
+		contentLanguage:      v.ContentLanguage,
+		contentType:          v.ContentType,
+		snapshotTime:         v.SnapshotTime,
+		signedDirectoryDepth: getDirectoryDepth(v.Directory),
+		authorizedObjectID:   v.AuthorizedObjectID,
+		unauthorizedObjectID: v.UnauthorizedObjectID,
+		correlationID:        v.CorrelationID,
 		// Calculated SAS signature
 		signature: signature,
 	}
@@ -261,8 +256,8 @@ func getCanonicalName(account string, containerName string, blobName string, dir
 // Initialize an instance of this type and then call its String method to set BlobSASSignatureValues's Permissions field.
 // All permissions descriptions can be found here: https://docs.microsoft.com/en-us/rest/api/storageservices/create-service-sas#permissions-for-a-directory-container-or-blob
 type ContainerPermissions struct {
-	Read, Add, Create, Write, Delete, DeletePreviousVersion, List, Tag bool
-	Execute, ModifyOwnership, ModifyPermissions                        bool // Hierarchical Namespace only
+	Read, Add, Create, Write, Delete, DeletePreviousVersion, List, FilterByTags bool
+	Execute, ModifyOwnership, ModifyPermissions, SetImmutabilityPolicy          bool // Hierarchical Namespace only
 }
 
 // String produces the SAS permissions string for an Azure Storage container.
@@ -290,8 +285,8 @@ func (p *ContainerPermissions) String() string {
 	if p.List {
 		b.WriteRune('l')
 	}
-	if p.Tag {
-		b.WriteRune('t')
+	if p.FilterByTags {
+		b.WriteRune('f')
 	}
 	if p.Execute {
 		b.WriteRune('e')
@@ -301,6 +296,9 @@ func (p *ContainerPermissions) String() string {
 	}
 	if p.ModifyPermissions {
 		b.WriteRune('p')
+	}
+	if p.SetImmutabilityPolicy {
+		b.WriteRune('i')
 	}
 	return b.String()
 }
@@ -325,7 +323,7 @@ func (p *ContainerPermissions) String() string {
 		case 'l':
 			p.List = true
 		case 't':
-			p.Tag = true
+			p.FilterByTags = true
 		case 'e':
 			p.Execute = true
 		case 'o':
@@ -342,7 +340,7 @@ func (p *ContainerPermissions) String() string {
 // BlobPermissions type simplifies creating the permissions string for an Azure Storage blob SAS.
 // Initialize an instance of this type and then call its String method to set BlobSASSignatureValues's Permissions field.
 type BlobPermissions struct {
-	Read, Add, Create, Write, Delete, DeletePreviousVersion, Tag, List, Move, Execute, Ownership, Permissions bool
+	Read, Add, Create, Write, Delete, DeletePreviousVersion, Tag, List, Move, Execute, Ownership, Permissions, PermanentDelete bool
 }
 
 // String produces the SAS permissions string for an Azure Storage blob.
@@ -367,11 +365,14 @@ func (p *BlobPermissions) String() string {
 	if p.DeletePreviousVersion {
 		b.WriteRune('x')
 	}
-	if p.Tag {
-		b.WriteRune('t')
+	if p.PermanentDelete {
+		b.WriteRune('y')
 	}
 	if p.List {
 		b.WriteRune('l')
+	}
+	if p.Tag {
+		b.WriteRune('t')
 	}
 	if p.Move {
 		b.WriteRune('m')
@@ -407,6 +408,8 @@ func parseBlobPermissions(s string) (BlobPermissions, error) {
 			p.DeletePreviousVersion = true
 		case 't':
 			p.Tag = true
+		case 'y':
+			p.PermanentDelete = true
 		case 'l':
 			p.List = true
 		case 'm':

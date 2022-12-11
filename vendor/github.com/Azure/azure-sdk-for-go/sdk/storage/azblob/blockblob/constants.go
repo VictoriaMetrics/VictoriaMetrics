@@ -8,7 +8,6 @@ package blockblob
 
 import "github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
 
-// nolint
 const (
 	// CountToEnd specifies the end of the file
 	CountToEnd = 0

@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -106,41 +107,38 @@ func (c *Client) URL() string {
 	return c.generated().Endpoint()
 }
 
-// NewBlobClient creates a new BlobClient object by concatenating blobName to the end of
-// Client's URL. The new BlobClient uses the same request policy pipeline as the Client.
-// To change the pipeline, create the BlobClient and then call its WithPipeline method passing in the
-// desired pipeline object. Or, call this package's NewBlobClient instead of calling this object's
-// NewBlobClient method.
+// NewBlobClient creates a new blob.Client object by concatenating blobName to the end of
+// Client's URL. The blob name will be URL-encoded.
+// The new blob.Client uses the same request policy pipeline as this Client.
 func (c *Client) NewBlobClient(blobName string) *blob.Client {
+	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
 	return (*blob.Client)(base.NewBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
 }
 
-// NewAppendBlobClient creates a new AppendBlobURL object by concatenating blobName to the end of
-// Client's URL. The new AppendBlobURL uses the same request policy pipeline as the Client.
-// To change the pipeline, create the AppendBlobURL and then call its WithPipeline method passing in the
-// desired pipeline object. Or, call this package's NewAppendBlobClient instead of calling this object's
-// NewAppendBlobClient method.
+// NewAppendBlobClient creates a new appendblob.Client object by concatenating blobName to the end of
+// this Client's URL. The blob name will be URL-encoded.
+// The new appendblob.Client uses the same request policy pipeline as this Client.
 func (c *Client) NewAppendBlobClient(blobName string) *appendblob.Client {
+	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
 	return (*appendblob.Client)(base.NewAppendBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
 }
 
-// NewBlockBlobClient creates a new BlockBlobClient object by concatenating blobName to the end of
-// Client's URL. The new BlockBlobClient uses the same request policy pipeline as the Client.
-// To change the pipeline, create the BlockBlobClient and then call its WithPipeline method passing in the
-// desired pipeline object. Or, call this package's NewBlockBlobClient instead of calling this object's
-// NewBlockBlobClient method.
+// NewBlockBlobClient creates a new blockblob.Client object by concatenating blobName to the end of
+// this Client's URL. The blob name will be URL-encoded.
+// The new blockblob.Client uses the same request policy pipeline as this Client.
 func (c *Client) NewBlockBlobClient(blobName string) *blockblob.Client {
+	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
 	return (*blockblob.Client)(base.NewBlockBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
 }
 
-// NewPageBlobClient creates a new PageBlobURL object by concatenating blobName to the end of Client's URL. The new PageBlobURL uses the same request policy pipeline as the Client.
-// To change the pipeline, create the PageBlobURL and then call its WithPipeline method passing in the
-// desired pipeline object. Or, call this package's NewPageBlobClient instead of calling this object's
-// NewPageBlobClient method.
+// NewPageBlobClient creates a new pageblob.Client object by concatenating blobName to the end of
+// this Client's URL. The blob name will be URL-encoded.
+// The new pageblob.Client uses the same request policy pipeline as this Client.
 func (c *Client) NewPageBlobClient(blobName string) *pageblob.Client {
+	blobName = url.PathEscape(blobName)
 	blobURL := runtime.JoinPaths(c.URL(), blobName)
 	return (*pageblob.Client)(base.NewPageBlobClient(blobURL, c.generated().Pipeline(), c.sharedKey()))
 }
@@ -221,6 +219,12 @@ func (c *Client) GetAccessPolicy(ctx context.Context, o *GetAccessPolicyOptions)
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/set-container-acl.
 func (c *Client) SetAccessPolicy(ctx context.Context, containerACL []*SignedIdentifier, o *SetAccessPolicyOptions) (SetAccessPolicyResponse, error) {
 	accessPolicy, mac, lac := o.format()
+	for _, c := range containerACL {
+		err := formatTime(c)
+		if err != nil {
+			return SetAccessPolicyResponse{}, err
+		}
+	}
 	resp, err := c.generated().SetAccessPolicy(ctx, containerACL, accessPolicy, mac, lac)
 	return resp, err
 }

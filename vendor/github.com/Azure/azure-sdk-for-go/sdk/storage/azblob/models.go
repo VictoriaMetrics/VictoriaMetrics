@@ -11,7 +11,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blockblob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
-	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service"
 )
 
@@ -52,10 +51,10 @@ type DownloadBufferOptions = blob.DownloadBufferOptions
 type DownloadFileOptions = blob.DownloadFileOptions
 
 // CpkInfo contains a group of parameters for client provided encryption key.
-type CpkInfo = generated.CpkInfo
+type CpkInfo = blob.CpkInfo
 
 // CpkScopeInfo contains a group of parameters for the ContainerClient.Create method.
-type CpkScopeInfo = generated.ContainerCpkScopeInfo
+type CpkScopeInfo = container.CpkScopeInfo
 
 // AccessConditions identifies blob-specific access conditions which you optionally set.
 type AccessConditions = exported.BlobAccessConditions

@@ -85,6 +85,15 @@ type SetTagsResponse = generated.BlobClientSetTagsResponse
 // GetTagsResponse contains the response from method BlobClient.GetTags.
 type GetTagsResponse = generated.BlobClientGetTagsResponse
 
+// SetImmutabilityPolicyResponse contains the response from method BlobClient.SetImmutabilityPolicy.
+type SetImmutabilityPolicyResponse = generated.BlobClientSetImmutabilityPolicyResponse
+
+// DeleteImmutabilityPolicyResponse contains the response from method BlobClient.DeleteImmutabilityPolicyResponse.
+type DeleteImmutabilityPolicyResponse = generated.BlobClientDeleteImmutabilityPolicyResponse
+
+// SetLegalHoldResponse contains the response from method BlobClient.SetLegalHold.
+type SetLegalHoldResponse = generated.BlobClientSetLegalHoldResponse
+
 // CopyFromURLResponse contains the response from method BlobClient.CopyFromURL.
 type CopyFromURLResponse = generated.BlobClientCopyFromURLResponse
 
