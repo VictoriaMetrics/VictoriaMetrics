@@ -1245,7 +1245,11 @@ Example contents for `-relabelConfig` file:
   regex: true
 ```
 
-VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
+VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
+
+The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page.
+See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug) for more details.
 
 
 ## Federation
