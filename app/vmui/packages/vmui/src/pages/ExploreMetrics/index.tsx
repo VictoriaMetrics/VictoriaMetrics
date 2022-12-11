@@ -55,9 +55,9 @@ const ExploreMetrics: FC = () => {
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       <div className="vm-explore-metrics-body">
-        {names.map(n => (
+        {names.map((n, i) => (
           <ExploreMetricItem
-            key={n}
+            key={`${n}_${i}`}
             name={n}
             job={job}
             instance={instance}
