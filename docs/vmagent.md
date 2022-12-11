@@ -597,20 +597,24 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 
 ## Relabel debug
 
-`vmagent` provides the following tools for debugging target-level and metric-level relabeling:
+`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+provide the following tools for debugging target-level and metric-level relabeling:
 
 - Target-level relabeling (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
-  can be performed by navigating to `http://vmagent:8429/targets` page and clicking the `debug` link at the target, which must be debugged.
+  can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
+  and clicking the `debug` link at the target, which must be debugged.
   The opened page will show step-by-step results for the actual relabeling rules applied to the target labels.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
-  is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page, find the dropped target
+  is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
+  (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
   and click the `debug` link there. The opened page will show step-by-step results for the actual relabeling rules,
-  which resulted to target drop.
+  which result to target drop.
 
 - Metric-level relabeling (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   and all the relabeling, which can be set up via `-relabelConfig`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`
   command-line flags) can be performed by navigating to `http://vmagent:8429/metric-relabel-debug` page
+  (`http://victoriametrics:8428/metric-relabel-debug` page for single-node VictoriaMetrics)
   and submitting there relabeling rules together with the metric to be relabeled.
   The page will show step-by-step results for the entered relabeling rules executed against the entered metric.
 
