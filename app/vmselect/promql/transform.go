@@ -371,13 +371,9 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	if err := expectTransformArgsNum(args, 2); err != nil {
 		return nil, err
 	}
-	limits, err := getScalar(args[0], 1)
+	limit, err := getIntNumber(args[0], 0)
 	if err != nil {
 		return nil, err
-	}
-	limit := 0
-	if len(limits) > 0 {
-		limit = int(limits[0])
 	}
 	if limit <= 0 {
 		return nil, nil
@@ -390,6 +386,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 	if len(tss) == 0 {
 		return nil, nil
 	}
+	pointsCount := len(tss[0].Values)
 
 	// Group timeseries by all MetricGroup+tags excluding `le` tag.
 	type x struct {
@@ -437,7 +434,7 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		sort.Slice(leGroup, func(i, j int) bool {
 			return leGroup[i].le < leGroup[j].le
 		})
-		for n := range limits {
+		for n := 0; n < pointsCount; n++ {
 			prevValue := float64(0)
 			for i := range leGroup {
 				xx := &leGroup[i]
