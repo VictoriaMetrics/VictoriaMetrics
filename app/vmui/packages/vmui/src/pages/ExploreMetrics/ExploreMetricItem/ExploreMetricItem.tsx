@@ -29,16 +29,16 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({ name, job, instance }) 
   const query = useMemo(() => {
     const params = Object.entries({ job, instance }).filter(val => val[1]).map(([key, val]) => `${key}="${val}"`);
 
-    const fullQuery = `${name}{${params.join(",")}}`;
-    const counterQuery = `rate(${fullQuery})`;
-    const withoutQuery = `sum(${counterQuery}) without (job)`;
+    const queryBase = `${name}{${params.join(",")}}`;
+    const queryCounter = `rate(${queryBase})`;
+    const queryCounterWithoutInstance = `sum(${queryCounter}) without (job)`;
 
     const isCounter = /_sum?|_total?|_count?/.test(name);
-    const isWithout = isCounter && job && !instance;
+    const isCounterWithoutInstance = isCounter && job && !instance;
 
-    if (isCounter) return counterQuery;
-    if (isWithout) return withoutQuery;
-    return fullQuery;
+    if (isCounter) return queryCounter;
+    if (isCounterWithoutInstance) return queryCounterWithoutInstance;
+    return queryBase;
   }, [name, job, instance]);
 
   const { isLoading, graphData, error, warning } = useFetchQuery({
