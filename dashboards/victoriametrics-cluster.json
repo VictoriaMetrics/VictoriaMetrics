@@ -69,6 +69,19 @@
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(vm_app_version{job=~\"$job\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\"} offset 20m) by(short_version))",
+        "hide": true,
+        "iconColor": "dark-blue",
+        "name": "version change",
+        "textFormat": "{{short_version}}",
+        "titleFormat": "Version change"
       }
     ]
   },
