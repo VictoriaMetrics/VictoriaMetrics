@@ -1,9 +1,8 @@
-import { FC } from "react";
+import React, { FC } from "react";
 import EnhancedTable from "../Table/Table";
 import TableCells from "../Table/TableCells/TableCells";
 import BarChart from "../../../components/Chart/BarChart/BarChart";
 import { barOptions } from "../../../components/Chart/BarChart/consts";
-import React, { SyntheticEvent } from "react";
 import { Data, HeadCell } from "../Table/types";
 import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
@@ -15,7 +14,7 @@ interface MetricsProperties {
   rows: Data[];
   activeTab: number;
   onChange: (newValue: string, tabId: string) => void;
-  onActionClick: (e: SyntheticEvent) => void;
+  onActionClick: (name: string) => void;
   tabs: string[];
   chartContainer: MutableRef<HTMLDivElement> | undefined;
   totalSeries: number,
