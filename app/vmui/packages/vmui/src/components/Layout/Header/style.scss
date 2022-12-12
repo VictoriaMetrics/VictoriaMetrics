@@ -11,35 +11,15 @@
     padding: $padding-small 0;
   }
 
-  &-logo {
-    display: grid;
+  &__logo {
+    position: relative;
+    display: flex;
     align-items: center;
     justify-content: center;
-
-    &__icon {
-      position: relative;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      width: 100%;
-      max-width: 65px;
-      margin-bottom: 2px;
-    }
-
-    &__issue {
-      text-align: center;
-      font-size: 10px;
-      opacity: 0.4;
-      color: inherit;
-      text-decoration: underline;
-      transition: 0.2s opacity;
-      white-space: nowrap;
-      cursor: pointer;
-
-      &:hover {
-        opacity: 0.8;
-      }
-    }
+    cursor: pointer;
+    width: 100%;
+    max-width: 65px;
+    margin-bottom: 2px;
   }
 
   &-nav {

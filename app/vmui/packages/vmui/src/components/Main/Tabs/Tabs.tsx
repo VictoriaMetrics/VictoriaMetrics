@@ -3,6 +3,7 @@ import { ReactNode, useEffect } from "react";
 import "./style.scss";
 import classNames from "classnames";
 import { getCssVariable } from "../../../utils/theme";
+import useResize from "../../../hooks/useResize";
 
 interface TabsProps {
   activeItem: string
@@ -19,6 +20,7 @@ const Tabs: FC<TabsProps> = ({
   onChange,
   indicatorPlacement = "bottom"
 }) => {
+  const windowSize = useResize(document.body);
   const activeNavRef = useRef<HTMLDivElement>(null);
   const [indicatorPosition, setIndicatorPosition] = useState({ left: 0, width: 0, bottom: 0 });
 
@@ -32,7 +34,7 @@ const Tabs: FC<TabsProps> = ({
       const positionTop = indicatorPlacement === "top";
       setIndicatorPosition({ left, width, bottom: positionTop ? height - 2 : 0 });
     }
-  }, [activeItem, activeNavRef, items]);
+  }, [windowSize, activeItem, activeNavRef, items]);
 
   return <div className="vm-tabs">
     {items.map(item => (

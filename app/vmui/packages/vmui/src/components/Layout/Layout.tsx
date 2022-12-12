@@ -19,7 +19,7 @@ const Layout: FC = () => {
     >
       <Outlet/>
     </div>
-    <Footer/>
+    {!appModeEnable && <Footer/>}
   </section>;
 };
 
