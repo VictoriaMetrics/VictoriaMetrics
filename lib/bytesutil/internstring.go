@@ -1,35 +1,58 @@
 package bytesutil
 
 import (
+	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // InternString returns interned s.
 //
 // This may be needed for reducing the amounts of allocated memory.
 func InternString(s string) string {
-	m := internStringsMap.Load().(*sync.Map)
-	if v, ok := m.Load(s); ok {
-		sp := v.(*string)
-		return *sp
+	ct := fasttime.UnixTimestamp()
+	if v, ok := internStringsMap.Load(s); ok {
+		e := v.(*ismEntry)
+		if atomic.LoadUint64(&e.lastAccessTime)+10 < ct {
+			// Reduce the frequency of e.lastAccessTime update to once per 10 seconds
+			// in order to improve the fast path speed on systems with many CPU cores.
+			atomic.StoreUint64(&e.lastAccessTime, ct)
+		}
+		return e.s
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
-	sCopy := string(append([]byte{}, s...))
-	m.Store(sCopy, &sCopy)
-	n := atomic.AddUint64(&internStringsMapLen, 1)
-	if n > 100e3 {
-		atomic.StoreUint64(&internStringsMapLen, 0)
-		internStringsMap.Store(&sync.Map{})
+	sCopy := strings.Clone(s)
+	e := &ismEntry{
+		lastAccessTime: ct,
+		s:              sCopy,
 	}
+	internStringsMap.Store(sCopy, e)
+
+	if atomic.LoadUint64(&internStringsMapLastCleanupTime)+61 < ct {
+		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed
+		// during the last 5 minutes.
+		atomic.StoreUint64(&internStringsMapLastCleanupTime, ct)
+		m := &internStringsMap
+		m.Range(func(k, v interface{}) bool {
+			e := v.(*ismEntry)
+			if atomic.LoadUint64(&e.lastAccessTime)+5*60 < ct {
+				m.Delete(k)
+			}
+			return true
+		})
+	}
+
 	return sCopy
 }
 
-var (
-	internStringsMap    atomic.Value
-	internStringsMapLen uint64
-)
-
-func init() {
-	internStringsMap.Store(&sync.Map{})
+type ismEntry struct {
+	lastAccessTime uint64
+	s              string
 }
+
+var (
+	internStringsMap                sync.Map
+	internStringsMapLastCleanupTime uint64
+)
