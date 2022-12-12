@@ -1,0 +1,9 @@
+@use "src/styles/variables" as *;
+
+.vm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $padding-medium;
+  gap: $padding-large;
+}
