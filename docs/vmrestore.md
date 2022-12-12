@@ -23,7 +23,7 @@ Run the following command to restore backup from the given `-src` into the given
   `vmrestore` can restore backups from the following storage types:
   * [GCS](https://cloud.google.com/storage/). Example: `-src=gs://<bucket>/<path/to/backup>`
   * [S3](https://aws.amazon.com/s3/). Example: `-src=s3://<bucket>/<path/to/backup>`
-  * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `-src=azblob://<bucket>/<path/to/backup>`
+  * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `-src=azblob://<container>/<path/to/backup>`
   * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/)
     or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
   * Local filesystem. Example: `-src=fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup
@@ -166,7 +166,7 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string
-     Source path with backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://bucket/path/to/backup or fs:///path/to/local/backup
+     Source path with backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup
   -storageDataPath string
      Destination path where backup must be restored. VictoriaMetrics must be stopped when restoring from backup. -storageDataPath dir can be non-empty. In this case the contents of -storageDataPath dir is synchronized with -src contents, i.e. it works like 'rsync --delete' (default "victoria-metrics-data")
   -tls

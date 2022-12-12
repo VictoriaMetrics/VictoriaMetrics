@@ -21,7 +21,7 @@ creation of hourly, daily, weekly and monthly backups.
 
 * [GCS](https://cloud.google.com/storage/). Example: `gs://<bucket>/<path/to/backup>`
 * [S3](https://aws.amazon.com/s3/). Example: `s3://<bucket>/<path/to/backup>`
-* [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<bucket>/<path/to/backup>`
+* [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs/). Example: `azblob://<container>/<path/to/backup>`
 * Any S3-compatible storage such as [MinIO](https://github.com/minio/minio), [Ceph](https://docs.ceph.com/en/pacific/radosgw/s3/) or [Swift](https://platform.swiftstack.com/docs/admin/middleware/s3_middleware.html). See [these docs](#advanced-usage) for details.
 * Local filesystem. Example: `fs://</absolute/path/to/backup>`. Note that `vmbackup` prevents from storing the backup into the directory pointed by `-storageDataPath` command-line flag, since this directory should be managed solely by VictoriaMetrics or `vmstorage`.
 
@@ -187,7 +187,7 @@ See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-
   -customS3Endpoint string
      Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set
   -dst string
-     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://bucket/path/to/backup or fs:///path/to/local/backup/dir
+     Where to put the backup on the remote storage. Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir
      -dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
