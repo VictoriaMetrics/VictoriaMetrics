@@ -178,12 +178,33 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		return fmt.Errorf("failed to generate SAS token of src %q: %w", p.Path, err)
 	}
 
-	// Hotfix for SDK issue: https://github.com/Azure/azure-sdk-for-go/issues/19245
-	t = strings.Replace(t, "/?", "?", -1)
 	ctx := context.Background()
-	_, err = dbc.CopyFromURL(ctx, t, &blob.CopyFromURLOptions{})
+
+	// In order to support copy of files larger than 256MB, we need to use the async copy
+	// Ref: https://learn.microsoft.com/en-us/rest/api/storageservices/copy-blob-from-url
+	_, err = dbc.StartCopyFromURL(ctx, t, &blob.StartCopyFromURLOptions{})
 	if err != nil {
-		return fmt.Errorf("cannot copy %q from %s to %s: %w", p.Path, src, fs, err)
+		return fmt.Errorf("cannot start async copy %q from %s to %s: %w", p.Path, src, fs, err)
+	}
+
+	var copyStatus *blob.CopyStatusType
+	for {
+		r, err := dbc.GetProperties(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to check copy status, cannot get properties of %q at %s: %w", p.Path, fs, err)
+		}
+
+		// After the copy will be finished status will be changed to success/failed/aborted
+		// Ref: https://learn.microsoft.com/en-us/rest/api/storageservices/get-blob-properties#response-headers - x-ms-copy-status
+		if *r.CopyStatus != blob.CopyStatusTypePending {
+			copyStatus = r.CopyStatus
+			break
+		}
+		time.Sleep(5 * time.Second)
+	}
+
+	if *copyStatus != blob.CopyStatusTypeSuccess {
+		return fmt.Errorf("copy of %q from %s to %s failed: expected status %q, received %q", p.Path, src, fs, blob.CopyStatusTypeSuccess, *copyStatus)
 	}
 
 	return nil
@@ -290,12 +311,12 @@ func (fs *FS) HasFile(filePath string) (bool, error) {
 
 	ctx := context.Background()
 	_, err := bc.GetProperties(ctx, nil)
-	logger.Errorf("GetProperties(%q) returned %s", bc.URL(), err)
 	var azerr *azcore.ResponseError
 	if errors.As(err, &azerr) {
 		if azerr.ErrorCode == storageErrorCodeBlobNotFound {
 			return false, nil
 		}
+		logger.Errorf("GetProperties(%q) returned %s", bc.URL(), err)
 		return false, fmt.Errorf("unexpected error when obtaining properties for %q at %s (remote path %q): %w", filePath, fs, bc.URL(), err)
 	}
 
