@@ -34,7 +34,7 @@ const maxInmemoryParts = 64
 // This number may be reached when the insertion pace outreaches merger pace.
 // If this number is reached, then assisted merges are performed
 // during data ingestion.
-const maxFileParts = 256
+const maxFileParts = 64
 
 // Default number of parts to merge at once.
 //
