@@ -31,7 +31,14 @@ import (
 const maxBigPartSize = 1e12
 
 // The maximum number of inmemory parts in the partition.
+//
+// If the number of inmemory parts reaches this value, then assisted merge runs during data ingestion.
 const maxInmemoryPartsPerPartition = 32
+
+// The maximum number of small parts in the partition.
+//
+// If the number of small parts reaches this value, then assisted merge runs during data ingestion.
+const maxSmallPartsPerPartition = 128
 
 // Default number of parts to merge at once.
 //
@@ -112,6 +119,7 @@ type partition struct {
 	bigRowsDeleted      uint64
 
 	inmemoryAssistedMerges uint64
+	smallAssistedMerges    uint64
 
 	mergeNeedFreeDiskSpace uint64
 
@@ -338,6 +346,7 @@ type partitionMetrics struct {
 	BigPartsRefCount      uint64
 
 	InmemoryAssistedMerges uint64
+	SmallAssistedMerges    uint64
 
 	MergeNeedFreeDiskSpace uint64
 }
@@ -404,6 +413,7 @@ func (pt *partition) UpdateMetrics(m *partitionMetrics) {
 	m.BigRowsDeleted += atomic.LoadUint64(&pt.bigRowsDeleted)
 
 	m.InmemoryAssistedMerges += atomic.LoadUint64(&pt.inmemoryAssistedMerges)
+	m.SmallAssistedMerges += atomic.LoadUint64(&pt.smallAssistedMerges)
 
 	m.MergeNeedFreeDiskSpace += atomic.LoadUint64(&pt.mergeNeedFreeDiskSpace)
 }
@@ -576,6 +586,7 @@ func (pt *partition) flushRowsToParts(rows []rawRow) {
 
 	flushConcurrencyCh <- struct{}{}
 	pt.assistedMergeForInmemoryParts()
+	pt.assistedMergeForSmallParts()
 	<-flushConcurrencyCh
 	// There is no need in assisted merges for small and big parts,
 	// since the bottleneck is possible only at inmemory parts.
@@ -597,16 +608,43 @@ func (pt *partition) assistedMergeForInmemoryParts() {
 		// Assist with mering inmemory parts.
 		// Prioritize assisted merges over searches.
 		storagepacelimiter.Search.Inc()
+		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
 		err := pt.mergeInmemoryParts()
 		storagepacelimiter.Search.Dec()
 		if err == nil {
-			atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
 			continue
 		}
 		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
 			return
 		}
 		logger.Panicf("FATAL: cannot merge inmemory parts: %s", err)
+	}
+}
+
+func (pt *partition) assistedMergeForSmallParts() {
+	for {
+		pt.partsLock.Lock()
+		ok := getNotInMergePartsCount(pt.smallParts) < maxSmallPartsPerPartition
+		pt.partsLock.Unlock()
+		if ok {
+			return
+		}
+
+		// There are too many unmerged small parts.
+		// This usually means that the app cannot keep up with the data ingestion rate.
+		// Assist with mering small parts.
+		// Prioritize assisted merges over searches.
+		storagepacelimiter.Search.Inc()
+		atomic.AddUint64(&pt.smallAssistedMerges, 1)
+		err := pt.mergeExistingParts(false)
+		storagepacelimiter.Search.Dec()
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
+			return
+		}
+		logger.Panicf("FATAL: cannot merge small parts: %s", err)
 	}
 }
 
@@ -981,7 +1019,10 @@ func SetMergeWorkersCount(n int) {
 }
 
 func (pt *partition) startMergeWorkers() {
-	for i := 0; i < cap(mergeWorkersLimitCh); i++ {
+	// Start a merge worker per available CPU core.
+	// The actual number of concurrent merges is limited inside mergeWorker() below.
+	workersCount := cgroup.AvailableCPUs()
+	for i := 0; i < workersCount; i++ {
 		pt.wg.Add(1)
 		go func() {
 			pt.mergeWorker()
@@ -1001,7 +1042,8 @@ func (pt *partition) mergeWorker() {
 	isFinal := false
 	t := time.NewTimer(sleepTime)
 	for {
-		// Limit the number of concurrent calls to mergeExistingParts, cine the number of merge
+		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
+		// across partitions may exceed the the cap(mergeWorkersLimitCh).
 		mergeWorkersLimitCh <- struct{}{}
 		err := pt.mergeExistingParts(isFinal)
 		<-mergeWorkersLimitCh
@@ -1092,10 +1134,10 @@ func (pt *partition) getMaxBigPartSize() uint64 {
 
 func getMaxOutBytes(path string, workersCount int) uint64 {
 	n := fs.MustGetFreeSpace(path)
-	// Do not substract freeDiskSpaceLimitBytes from n before calculating the maxOutBytes,
+	// Do not subtract freeDiskSpaceLimitBytes from n before calculating the maxOutBytes,
 	// since this will result in sub-optimal merges - e.g. many small parts will be left unmerged.
 
-	// Divide free space by the max number concurrent merges.
+	// Divide free space by the max number of concurrent merges.
 	maxOutBytes := n / uint64(workersCount)
 	if maxOutBytes > maxBigPartSize {
 		maxOutBytes = maxBigPartSize

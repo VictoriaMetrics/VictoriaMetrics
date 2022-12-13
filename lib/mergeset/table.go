@@ -25,7 +25,16 @@ import (
 // maxInmemoryParts is the maximum number of inmemory parts in the table.
 //
 // This number may be reached when the insertion pace outreaches merger pace.
+// If this number is reached, then assisted merges are performed
+// during data ingestion.
 const maxInmemoryParts = 64
+
+// maxFileParts is the maximum number of file parts in the table.
+//
+// This number may be reached when the insertion pace outreaches merger pace.
+// If this number is reached, then assisted merges are performed
+// during data ingestion.
+const maxFileParts = 256
 
 // Default number of parts to merge at once.
 //
@@ -98,7 +107,8 @@ type Table struct {
 	inmemoryItemsMerged uint64
 	fileItemsMerged     uint64
 
-	assistedInmemoryMerges uint64
+	inmemoryAssistedMerges uint64
+	fileAssistedMerges     uint64
 
 	itemsAdded          uint64
 	itemsAddedSizeBytes uint64
@@ -419,7 +429,8 @@ type TableMetrics struct {
 	InmemoryItemsMerged uint64
 	FileItemsMerged     uint64
 
-	AssistedInmemoryMerges uint64
+	InmemoryAssistedMerges uint64
+	FileAssistedMerges     uint64
 
 	ItemsAdded          uint64
 	ItemsAddedSizeBytes uint64
@@ -469,7 +480,8 @@ func (tb *Table) UpdateMetrics(m *TableMetrics) {
 	m.InmemoryItemsMerged += atomic.LoadUint64(&tb.inmemoryItemsMerged)
 	m.FileItemsMerged += atomic.LoadUint64(&tb.fileItemsMerged)
 
-	m.AssistedInmemoryMerges += atomic.LoadUint64(&tb.assistedInmemoryMerges)
+	m.InmemoryAssistedMerges += atomic.LoadUint64(&tb.inmemoryAssistedMerges)
+	m.FileAssistedMerges += atomic.LoadUint64(&tb.fileAssistedMerges)
 
 	m.ItemsAdded += atomic.LoadUint64(&tb.itemsAdded)
 	m.ItemsAddedSizeBytes += atomic.LoadUint64(&tb.itemsAddedSizeBytes)
@@ -739,9 +751,8 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 
 	flushConcurrencyCh <- struct{}{}
 	tb.assistedMergeForInmemoryParts()
+	tb.assistedMergeForFileParts()
 	<-flushConcurrencyCh
-	// There is no need in assited merge for file parts,
-	// since the bottleneck is possible only at inmemory parts.
 
 	if tb.flushCallback != nil {
 		if isFinal {
@@ -765,16 +776,40 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 
 		// Prioritize assisted merges over searches.
 		storagepacelimiter.Search.Inc()
+		atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
 		err := tb.mergeInmemoryParts()
 		storagepacelimiter.Search.Dec()
 		if err == nil {
-			atomic.AddUint64(&tb.assistedInmemoryMerges, 1)
 			continue
 		}
 		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) {
 			return
 		}
 		logger.Panicf("FATAL: cannot assist with merging inmemory parts: %s", err)
+	}
+}
+
+func (tb *Table) assistedMergeForFileParts() {
+	for {
+		tb.partsLock.Lock()
+		ok := getNotInMergePartsCount(tb.fileParts) < maxFileParts
+		tb.partsLock.Unlock()
+		if ok {
+			return
+		}
+
+		// Prioritize assisted merges over searches.
+		storagepacelimiter.Search.Inc()
+		atomic.AddUint64(&tb.fileAssistedMerges, 1)
+		err := tb.mergeExistingParts(false)
+		storagepacelimiter.Search.Dec()
+		if err == nil {
+			continue
+		}
+		if errors.Is(err, errNothingToMerge) || errors.Is(err, errForciblyStopped) || errors.Is(err, errReadOnlyMode) {
+			return
+		}
+		logger.Panicf("FATAL: cannot assist with merging file parts: %s", err)
 	}
 }
 
@@ -866,7 +901,10 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 }
 
 func (tb *Table) startMergeWorkers() {
-	for i := 0; i < cap(mergeWorkersLimitCh); i++ {
+	// Start a merge worker per available CPU core.
+	// The actual number of concurrent merges is limited inside mergeWorker() below.
+	workersCount := cgroup.AvailableCPUs()
+	for i := 0; i < workersCount; i++ {
 		tb.wg.Add(1)
 		go func() {
 			tb.mergeWorker()
@@ -940,6 +978,8 @@ func (tb *Table) mergeWorker() {
 	isFinal := false
 	t := time.NewTimer(sleepTime)
 	for {
+		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
+		// across tables may exceed the the cap(mergeWorkersLimitCh).
 		mergeWorkersLimitCh <- struct{}{}
 		err := tb.mergeExistingParts(isFinal)
 		<-mergeWorkersLimitCh
