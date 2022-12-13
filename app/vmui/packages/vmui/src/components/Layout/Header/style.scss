@@ -1,0 +1,37 @@
+@use "../../../styles/variables" as *;
+
+.vm-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding: $padding-small $padding-medium;
+  gap: $padding-large;
+
+  &_app {
+    padding: $padding-small 0;
+  }
+
+  &__logo {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    width: 100%;
+    max-width: 65px;
+    margin-bottom: 2px;
+  }
+
+  &-nav {
+    font-size: $font-size-small;
+    font-weight: 600;
+  }
+
+  &__settings {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    flex-grow: 1;
+  }
+}

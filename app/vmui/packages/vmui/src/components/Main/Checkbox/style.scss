@@ -64,10 +64,6 @@ $checkbox-border-radius: $border-radius-small;
       color: $color-white;
       transform: scale(0);
       transition: transform 100ms ease-in-out;
-
-      svg {
-        width: 100%;
-      }
     }
   }
 

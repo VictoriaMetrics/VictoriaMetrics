@@ -1,5 +1,4 @@
 import React, { FC, useState } from "react";
-import { SyntheticEvent } from "react";
 import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
 import { Data } from "./Table/types";
@@ -60,8 +59,7 @@ const Index: FC = () => {
     setTab({ ...stateTabs, [tabId]: +newValue });
   };
 
-  const handleFilterClick = (key: string) => (e: SyntheticEvent) => {
-    const name = e.currentTarget.id;
+  const handleFilterClick = (key: string) => (name: string) => {
     const query = queryUpdater[key](focusLabel, name);
     setQuery(query);
     setQueryHistory(prev => [...prev, query]);
