@@ -45,3 +45,7 @@ input[type=number]::-webkit-outer-spin-button {
   bottom: $padding-global;
   z-index: 999;
 }
+
+svg {
+  width: 100%;
+}
