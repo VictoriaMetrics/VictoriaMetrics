@@ -188,6 +188,7 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	}
 
 	var copyStatus *blob.CopyStatusType
+	var copyStatusDescription *string
 	for {
 		r, err := dbc.GetProperties(ctx, nil)
 		if err != nil {
@@ -198,13 +199,14 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		// Ref: https://learn.microsoft.com/en-us/rest/api/storageservices/get-blob-properties#response-headers - x-ms-copy-status
 		if *r.CopyStatus != blob.CopyStatusTypePending {
 			copyStatus = r.CopyStatus
+			copyStatusDescription = r.CopyStatusDescription
 			break
 		}
 		time.Sleep(5 * time.Second)
 	}
 
 	if *copyStatus != blob.CopyStatusTypeSuccess {
-		return fmt.Errorf("copy of %q from %s to %s failed: expected status %q, received %q", p.Path, src, fs, blob.CopyStatusTypeSuccess, *copyStatus)
+		return fmt.Errorf("copy of %q from %s to %s failed: expected status %q, received %q (description: %q)", p.Path, src, fs, blob.CopyStatusTypeSuccess, *copyStatus, *copyStatusDescription)
 	}
 
 	return nil
