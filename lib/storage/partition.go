@@ -38,7 +38,7 @@ const maxInmemoryPartsPerPartition = 32
 // The maximum number of small parts in the partition.
 //
 // If the number of small parts reaches this value, then assisted merge runs during data ingestion.
-const maxSmallPartsPerPartition = 128
+const maxSmallPartsPerPartition = 64
 
 // Default number of parts to merge at once.
 //
