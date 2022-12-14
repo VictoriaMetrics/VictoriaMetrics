@@ -10,7 +10,8 @@ interface AutocompleteProps {
   anchor: Ref<HTMLElement>
   disabled?: boolean
   maxWords?: number
-  onSelect: (val: string) => void
+  onSelect: (val: string) => void,
+  onOpenAutocomplete?: (val: boolean) => void
 }
 
 const Autocomplete: FC<AutocompleteProps> = ({
@@ -20,6 +21,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   disabled,
   maxWords = 1,
   onSelect,
+  onOpenAutocomplete
 }) => {
   const wrapperEl = useRef<HTMLDivElement>(null);
 
@@ -98,6 +100,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
   useEffect(() => {
     setFocusOption(-1);
   }, [foundOptions]);
+
+  useEffect(() => {
+    onOpenAutocomplete && onOpenAutocomplete(openAutocomplete);
+  }, [openAutocomplete]);
 
   useClickOutside(wrapperEl, handleCloseAutocomplete);
 

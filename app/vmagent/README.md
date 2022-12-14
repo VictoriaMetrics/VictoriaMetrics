@@ -596,7 +596,7 @@ Additionally, the `action: graphite` relabeling rules usually work much faster t
 `vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 provide the following tools for debugging target-level and metric-level relabeling:
 
-- Target-level relabeling (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
+- Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug` link at the target, which must be debugged.
   The opened page will show step-by-step results for the actual relabeling rules applied to the target labels.
@@ -607,7 +607,7 @@ provide the following tools for debugging target-level and metric-level relabeli
   and click the `debug` link there. The opened page will show step-by-step results for the actual relabeling rules,
   which result to target drop.
 
-- Metric-level relabeling (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
+- Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   and all the relabeling, which can be set up via `-relabelConfig`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`
   command-line flags) can be performed by navigating to `http://vmagent:8429/metric-relabel-debug` page
   (`http://victoriametrics:8428/metric-relabel-debug` page for single-node VictoriaMetrics)

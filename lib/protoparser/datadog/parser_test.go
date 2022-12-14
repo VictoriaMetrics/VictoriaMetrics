@@ -22,6 +22,43 @@ func TestSplitTag(t *testing.T) {
 	f(":bar", "", "bar")
 }
 
+func TestRequestUnmarshalMissingHost(t *testing.T) {
+	// This tests https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3432
+	req := Request{
+		Series: []Series{{
+			Host:   "prev-host",
+			Device: "prev-device",
+		}},
+	}
+	data := `
+{
+  "series": [
+    {
+      "metric": "system.load.1",
+      "points": [[
+        1575317847,
+        0.5
+      ]]
+    }
+  ]
+}`
+	if err := req.Unmarshal([]byte(data)); err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	reqExpected := Request{
+		Series: []Series{{
+			Metric: "system.load.1",
+			Points: []Point{{
+				1575317847,
+				0.5,
+			}},
+		}},
+	}
+	if !reflect.DeepEqual(&req, &reqExpected) {
+		t.Fatalf("unexpected request parsed;\ngot\n%+v\nwant\n%+v", req, reqExpected)
+	}
+}
+
 func TestRequestUnmarshalFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()

@@ -361,7 +361,7 @@ func templateFuncs() textTpl.FuncMap {
 			return fmt.Sprintf("%.4g%s", v, prefix), nil
 		},
 
-		// humanizeDuration converts given seconds to a human readable duration
+		// humanizeDuration converts given seconds to a human-readable duration
 		"humanizeDuration": func(i interface{}) (string, error) {
 			v, err := toFloat64(i)
 			if err != nil {
