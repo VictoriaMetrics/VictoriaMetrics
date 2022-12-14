@@ -572,7 +572,7 @@ Note that the `name` field must be substituted with explicit `__name__` option u
 If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
 
 For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
-from "app42.host123.requests.total" Graphite-style metric:
+from `app42.host123.requests.total` Graphite-style metric:
 
 ```yaml
 - action: graphite
