@@ -283,7 +283,13 @@ See [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html
 
 ## Readonly mode
 
-`vmstorage` nodes automatically switch to readonly mode when the directory pointed by `-storageDataPath` contains less than `-storage.minFreeDiskSpaceBytes` of free space. `vminsert` nodes stop sending data to such nodes and start re-routing the data to the remaining `vmstorage` nodes.
+`vmstorage` nodes automatically switch to readonly mode when the directory pointed by `-storageDataPath`
+contains less than `-storage.minFreeDiskSpaceBytes` of free space. `vminsert` nodes stop sending data to such nodes
+and start re-routing the data to the remaining `vmstorage` nodes.
+
+`vmstorage` sets `vm_storage_is_read_only` metric at `http://vmstorage:8482/metrics` to `1` when it enters read-only mode.
+The metric is set to `0` when the `vmstorage` isn't in read-only mode.
+
 
 ## URL format
 
