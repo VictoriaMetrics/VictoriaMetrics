@@ -32,13 +32,14 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name        string     `yaml:"name,omitempty"`
-	BearerToken string     `yaml:"bearer_token,omitempty"`
-	Username    string     `yaml:"username,omitempty"`
-	Password    string     `yaml:"password,omitempty"`
-	URLPrefix   *URLPrefix `yaml:"url_prefix,omitempty"`
-	URLMap      []URLMap   `yaml:"url_map,omitempty"`
-	Headers     []Header   `yaml:"headers,omitempty"`
+	Name                  string     `yaml:"name,omitempty"`
+	BearerToken           string     `yaml:"bearer_token,omitempty"`
+	Username              string     `yaml:"username,omitempty"`
+	Password              string     `yaml:"password,omitempty"`
+	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
+	URLMap                []URLMap   `yaml:"url_map,omitempty"`
+	Headers               []Header   `yaml:"headers,omitempty"`
+	MaxProxiedConnections int        `yaml:"max_proxied_connections,omitempty"`
 
 	requests *metrics.Counter
 }

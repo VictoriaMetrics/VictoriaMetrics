@@ -102,11 +102,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	for _, h := range headers {
 		r.Header.Set(h.Name, h.Value)
 	}
-	proxyRequest(w, r)
+	maxProxiedConnections := *maxProxiedConnections
+	if ui.MaxProxiedConnections != 0 {
+		maxProxiedConnections = ui.MaxProxiedConnections
+	}
+	proxyRequest(w, r, maxProxiedConnections)
 	return true
 }
 
-func proxyRequest(w http.ResponseWriter, r *http.Request) {
+func proxyRequest(w http.ResponseWriter, r *http.Request, maxProxiedConnections int) {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
@@ -117,7 +121,7 @@ func proxyRequest(w http.ResponseWriter, r *http.Request) {
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	getReverseProxy().ServeHTTP(w, r)
+	getReverseProxy(maxProxiedConnections).ServeHTTP(w, r)
 }
 
 var (
@@ -131,14 +135,16 @@ var (
 	reverseProxyOnce sync.Once
 )
 
-func getReverseProxy() *LimitedReversProxy {
-	reverseProxyOnce.Do(initReverseProxy)
+func getReverseProxy(maxProxiedConnections int) *LimitedReversProxy {
+	reverseProxyOnce.Do(func() {
+		initReverseProxy(maxProxiedConnections)
+	})
 	return reverseProxy
 }
 
 // initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
-func initReverseProxy() {
-	reverseProxy = NewReversProxy(*maxProxiedConnections)
+func initReverseProxy(maxProxiedConnections int) {
+	reverseProxy = NewReversProxy(maxProxiedConnections)
 }
 
 func usage() {
