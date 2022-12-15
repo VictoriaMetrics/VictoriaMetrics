@@ -90,7 +90,7 @@ The list of MetricsQL features:
 * `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 * `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
 * `WITH` templates. This feature simplifies writing and managing complex queries.
-  Go to [WITH templates playground](https://play.victoriametrics.com/promql/expand-with-exprs) and try it.
+  Go to [WITH templates playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) and try it.
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
 * `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions) and [transform functions](#transform-functions).

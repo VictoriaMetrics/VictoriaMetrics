@@ -572,7 +572,7 @@ Note that the `name` field must be substituted with explicit `__name__` option u
 If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
 
 For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
-from "app42.host123.requests.total" Graphite-style metric:
+from `app42.host123.requests.total` Graphite-style metric:
 
 ```yaml
 - action: graphite
@@ -1140,7 +1140,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -denyQueryTracing
@@ -1183,13 +1183,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr='' (default ":8429")
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize size
      The maximum size in bytes for a single InfluxDB line during parsing
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
@@ -1248,10 +1248,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 16)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
@@ -1264,7 +1264,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Trim timestamps for OpenTSDB 'telnet put' data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -opentsdbhttp.maxInsertRequestSize size
      The maximum size of OpenTSDB HTTP put request
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
@@ -1329,13 +1329,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxResponseHeadersSize size
      The maximum size of http response headers from Prometheus scrape targets
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 4096)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 4096)
   -promscrape.maxScrapeSize size
      The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16777216)
   -promscrape.minResponseSizeForStreamParse size
      The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 1000000)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1000000)
   -promscrape.noStaleMarkers
      Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
@@ -1409,12 +1409,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxBlockSize size
      The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxRowsPerBlock
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 8388608)
   -remoteWrite.maxDailySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
   -remoteWrite.maxDiskUsagePerURL array
      The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. Disk usage is unlimited if the value is set to 0
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB.
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB.
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxHourlySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter

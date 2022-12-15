@@ -18,10 +18,12 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## [v1.85.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.1)
 
+Released at 14-12-2022
+
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): support `$for` or `.For` template variables in alert's annotations. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3246).
 
 * BUGFIX: [DataDog protocol parser](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent): do not re-use `host` and `device` fields from the previously parsed messages if these fields are missing in the currently parsed message. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3432).
-* BUGFIX: reduce CPU usage when the regex-based relabeling rules are applied to more than 100K unique Graphite metrics. See [this issue](https://docs.victoriametrics.com/CHANGELOG.html#v1820). The issue was introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
+* BUGFIX: reduce CPU usage when the regex-based relabeling rules are applied to more than 100K unique Graphite metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3466). The issue was introduced in [v1.82.0](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
 * BUGFIX: do not block [merges](https://docs.victoriametrics.com/#storage) of small parts by merges of big parts on hosts with small number of CPU cores. This issue could result in the increasing number of `storage/small` parts while big merge is in progress. This, in turn, could result in increased CPU usage and memory usage during querying, since queries need to inspect bigger number of small parts. The issue has been introduced in [v1.85.0](https://docs.victoriametrics.com/CHANGELOG.html#v1850).
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): fix the `The source request body for synchronous copy is too large and exceeds the maximum permissible limit (256MB)` error when performing backups to Azure blob storage. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3477).
 
@@ -671,7 +673,7 @@ Released at 12-04-2022
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): properly propagate limits at `-search.max*` command-line flags from `vminsert` to `vmstorage`. The limits are `-search.maxUniqueTimeseries`, `-search.maxSeries`, `-search.maxFederateSeries`, `-search.maxExportSeries`, `-search.maxGraphiteSeries` and `-search.maxTSDBStatusSeries`. They weren't propagated to `vmstorage` because of the bug. These limits were introduced in [v1.76.0](https://docs.victoriametrics.com/CHANGELOG.html#v1760). See [this bug](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2450).
 * BUGFIX: fix goroutine leak and possible deadlock when importing invalid data via [native binary format](https://docs.victoriametrics.com/#how-to-import-data-in-native-format). See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2423).
 * BUGFIX: [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage): properly calculate [hitCount](https://graphite.readthedocs.io/en/latest/functions.html#graphite.render.functions.hitcount) function. Previously it could return empty results if there were no original samples in some parts of the selected time range.
-* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow overriding built-in function names inside [WITH templates](https://play.victoriametrics.com/promql/expand-with-exprs). For example, `WITH (sum(a,b) = a + b + 1) sum(x,y)` now expands into `x + y + 1`. Previously such a query would fail with `cannot use reserved name` error. See [this bugreport](https://github.com/VictoriaMetrics/metricsql/issues/5).
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): allow overriding built-in function names inside [WITH templates](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs). For example, `WITH (sum(a,b) = a + b + 1) sum(x,y)` now expands into `x + y + 1`. Previously such a query would fail with `cannot use reserved name` error. See [this bugreport](https://github.com/VictoriaMetrics/metricsql/issues/5).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly display values greater than 1000 on Y axis. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2409).
 
 

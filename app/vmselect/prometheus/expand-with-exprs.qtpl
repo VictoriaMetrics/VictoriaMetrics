@@ -1,0 +1,245 @@
+{% import (
+	"github.com/VictoriaMetrics/metricsql"
+) %}
+
+{% stripspace %}
+
+// ExpandWithExprsResponse returns a webpage, which expands with templates in q MetricsQL.
+{% func ExpandWithExprsResponse(q string) %}
+<html>
+  <head>
+    <title>Expand WITH expressions</title>
+    <style>
+p { font-weight: bold }
+textarea { margin: 1em }
+    </style>
+  </head>
+  <body>
+
+<div>
+  <form method="get">
+    <div>
+      <p>
+        <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query with optional WITH expressions:
+      </p>
+      <textarea name="query" style="height: 15em; width: 90%">{%s q %}</textarea><br/>
+      <input type="submit" value="Expand" />
+
+      <p>
+        <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a> query after expanding WITH expressions and applying other optimizations:
+      </p>
+      <textarea style="height: 5em; width: 90%" readonly="readonly">{%= expandWithExprs(q) %}</textarea>
+    </div>
+  </form>
+</div>
+
+<div>{%= withExprsTutorial() %}</div>
+
+  </body>
+</html>
+{% endfunc %}
+
+{% func expandWithExprs(q string) %}
+	{% if len(q) == 0 %}
+		{% return %}
+	{% endif %}
+
+	{% code	expr, err := metricsql.Parse(q) %}
+	{% if err != nil %}
+		Cannot parse query: {%v err %}
+	{% else %}
+		{% code expr = metricsql.Optimize(expr) %}
+		{%z expr.AppendString(nil) %}
+	{% endif %}
+{% endfunc %}
+
+{% endstripspace %}
+
+{% func withExprsTutorial() %}
+<h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a></h3>
+
+<p>
+    Let's look at the following real query from <a href="https://grafana.com/dashboards/1860">Node Exporter Full</a> dashboard:
+</p>
+
+<pre>
+(
+  (
+    node_memory_MemTotal_bytes{instance=~"$node:$port", job=~"$job"}
+      -
+    node_memory_MemFree_bytes{instance=~"$node:$port", job=~"$job"}
+  )
+    /
+  node_memory_MemTotal_bytes{instance=~"$node:$port", job=~"$job"}
+)
+  *
+100
+</pre>
+
+<p>
+    It is clear the query calculates the percentage of used memory
+    for the given $node, $port and $job. Isn't it? :)
+</p>
+
+<p>
+    What's wrong with this query? Copy-pasted label filters for distinct timeseries
+    which makes it easy to mistype these filters during modification.
+    Let's simplify the query with WITH expressions:
+</p>
+
+<pre>
+WITH (
+    commonFilters = {instance=~"$node:$port",job=~"$job"}
+)
+(
+  node_memory_MemTotal_bytes{commonFilters}
+    -
+  node_memory_MemFree_bytes{commonFilters}
+)
+  /
+node_memory_MemTotal_bytes{commonFilters} * 100
+</pre>
+
+<p>
+    Now label filters are located in a single place instead of three distinct places.
+    The query mentions node_memory_MemTotal_bytes metric twice and {commonFilters}
+    three times. WITH expressions may improve this:
+</p>
+
+<pre>
+WITH (
+    my_resource_utilization(free, limit, filters) = (limit{filters} - free{filters}) / limit{filters} * 100
+)
+my_resource_utilization(
+  node_memory_MemFree_bytes,
+  node_memory_MemTotal_bytes,
+  {instance=~"$node:$port",job=~"$job"},
+)
+</pre>
+
+<p>
+    Now the template function my_resource_utilization() may be used for monitoring arbitrary
+    resources - memory, CPU, network, storage, you name it.
+</p>
+
+<p>
+    Let's take another nice query from <a href="https://grafana.com/dashboards/1860">Node Exporter Full</a> dashboard:
+</p>
+
+<pre>
+(
+  (
+    (
+      count(
+        count(node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"}) by (cpu)
+      )
+    )
+      -
+    avg(
+      sum by (mode) (rate(node_cpu_seconds_total{mode='idle',instance=~"$node:$port",job=~"$job"}[5m]))
+    )
+  )
+    *
+  100
+)
+  /
+count(
+  count(node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"}) by (cpu)
+)
+</pre>
+
+<p>
+    Do you understand what does this mess do? Is it manageable? :) WITH expressions are happy to help in a few iterations.
+    <br/>
+    <br/>
+    1. Extract common filters used in multiple places into a commonFilters variable:
+</p>
+
+<pre>
+WITH (
+    commonFilters = {instance=~"$node:$port",job=~"$job"}
+)
+(
+  (
+    (
+      count(
+        count(node_cpu_seconds_total{commonFilters}) by (cpu)
+      )
+    )
+      -
+    avg(
+      sum by (mode) (rate(node_cpu_seconds_total{mode='idle',commonFilters}[5m]))
+    )
+  )
+    *
+  100
+)
+  /
+count(
+  count(node_cpu_seconds_total{commonFilters}) by (cpu)
+)
+</pre>
+
+<p>
+    2. Extract "count(count(...) by (cpu))" into cpuCount variable:
+</p>
+<pre>
+WITH (
+    commonFilters = {instance=~"$node:$port",job=~"$job"},
+    cpuCount = count(count(node_cpu_seconds_total{commonFilters}) by (cpu))
+)
+(
+  (
+    cpuCount
+      -
+    avg(
+      sum by (mode) (rate(node_cpu_seconds_total{mode='idle',commonFilters}[5m]))
+    )
+  )
+    *
+  100
+) / cpuCount
+</pre>
+
+<p>
+    3. Extract rate(...) part into cpuIdle variable, since it is clear now that this part calculates the number of idle CPUs:
+</p>
+<pre>
+WITH (
+    commonFilters = {instance=~"$node:$port",job=~"$job"},
+    cpuCount = count(count(node_cpu_seconds_total{commonFilters}) by (cpu)),
+    cpuIdle = sum(rate(node_cpu_seconds_total{mode='idle',commonFilters}[5m]))
+)
+((cpuCount - cpuIdle) * 100) / cpuCount
+</pre>
+
+<p>
+    4. Put node_cpu_seconds_total{commonFilters} into its own varialbe with the name cpuSeconds:
+</p>
+<pre>
+WITH (
+    cpuSeconds = node_cpu_seconds_total{instance=~"$node:$port",job=~"$job"},
+    cpuCount = count(count(cpuSeconds) by (cpu)),
+    cpuIdle = sum(rate(cpuSeconds{mode='idle'}[5m]))
+)
+((cpuCount - cpuIdle) * 100) / cpuCount
+</pre>
+
+<p>
+    Now the query became more clear comparing to the initial query.
+</p>
+
+<p>
+    WITH expressions may be nested and may be put anywhere. Try expanding the following query:
+</p>
+
+<pre>
+WITH (
+    f(a, b) = WITH (
+        f1(x) = b-x,
+        f2(x) = x+x
+    ) f1(a)*f2(b)
+) f(foo, with(x=bar) x)
+</pre>
+
+{% endfunc %}
