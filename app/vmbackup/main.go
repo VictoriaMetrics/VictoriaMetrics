@@ -143,7 +143,7 @@ func newSrcFS() (*fslocal.FS, error) {
 
 	fs := &fslocal.FS{
 		Dir:               snapshotPath,
-		MaxBytesPerSecond: maxBytesPerSecond.N,
+		MaxBytesPerSecond: maxBytesPerSecond.IntN(),
 	}
 	if err := fs.Init(); err != nil {
 		return nil, fmt.Errorf("cannot initialize fs: %w", err)

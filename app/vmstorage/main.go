@@ -97,10 +97,10 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetSmallMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
-	storage.SetTSIDCacheSize(cacheSizeStorageTSID.N)
-	storage.SetTagFilterCacheSize(cacheSizeIndexDBTagFilters.N)
-	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
-	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
+	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
+	storage.SetTagFilterCacheSize(cacheSizeIndexDBTagFilters.IntN())
+	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
+	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
 	if retentionPeriod.Msecs < 24*3600*1000 {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
