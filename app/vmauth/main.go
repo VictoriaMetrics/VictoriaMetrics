@@ -4,8 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -27,6 +25,7 @@ var (
 	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens   = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
+	maxProxiedConnections = flag.Int("maxProxiedConnections", 100, "The maximum number of connections that can be proxied by vmauth to backends")
 )
 
 func main() {
@@ -128,41 +127,18 @@ var (
 )
 
 var (
-	reverseProxy     *httputil.ReverseProxy
+	reverseProxy     *LimitedReversProxy
 	reverseProxyOnce sync.Once
 )
 
-func getReverseProxy() *httputil.ReverseProxy {
+func getReverseProxy() *LimitedReversProxy {
 	reverseProxyOnce.Do(initReverseProxy)
 	return reverseProxy
 }
 
 // initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
 func initReverseProxy() {
-	reverseProxy = &httputil.ReverseProxy{
-		Director: func(r *http.Request) {
-			targetURL := r.Header.Get("vm-target-url")
-			target, err := url.Parse(targetURL)
-			if err != nil {
-				logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
-			}
-			r.URL = target
-		},
-		Transport: func() *http.Transport {
-			tr := http.DefaultTransport.(*http.Transport).Clone()
-			// Automatic compression must be disabled in order to fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/535
-			tr.DisableCompression = true
-			// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
-			tr.ForceAttemptHTTP2 = false
-			tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
-			if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
-				tr.MaxIdleConns = tr.MaxIdleConnsPerHost
-			}
-			return tr
-		}(),
-		FlushInterval: time.Second,
-		ErrorLog:      logger.StdErrorLogger(),
-	}
+	reverseProxy = NewReversProxy(*maxProxiedConnections)
 }
 
 func usage() {
