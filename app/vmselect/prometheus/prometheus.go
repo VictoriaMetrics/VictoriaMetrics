@@ -61,6 +61,15 @@ var (
 // Default step used if not set.
 const defaultStep = 5 * 60 * 1000
 
+// ExpandWithExprs handles the request to /expand-with-exprs
+func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
+	query := r.FormValue("query")
+	bw := bufferedwriter.Get(w)
+	defer bufferedwriter.Put(bw)
+	WriteExpandWithExprsResponse(bw, query)
+	_ = bw.Flush()
+}
+
 // FederateHandler implements /federate . See https://prometheus.io/docs/prometheus/latest/federation/
 func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *http.Request) error {
 	defer federateDuration.UpdateDuration(startTime)
@@ -413,10 +422,7 @@ func exportHandler(qt *querytracer.Tracer, at *auth.Token, w http.ResponseWriter
 	if format == "promapi" {
 		WriteExportPromAPIFooter(bw, qt)
 	}
-	if err := bw.Flush(); err != nil {
-		return err
-	}
-	return nil
+	return bw.Flush()
 }
 
 type exportBlock struct {

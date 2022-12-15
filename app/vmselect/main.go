@@ -305,7 +305,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		fmt.Fprintf(w, "See <a href='https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format'>docs</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		fmt.Fprintf(w, `<a href="vmui">Web UI</a><br>`)
-		fmt.Fprintf(w, `<a href="metric-relabel-debug">Metric-level relabel debugging</a></br>`)
+		fmt.Fprintf(w, `<a href="prometheus/metric-relabel-debug">Metric-level relabel debugging</a></br>`)
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/tsdb">tsdb status page</a><br>`)
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/top_queries">top queries</a><br>`)
 		fmt.Fprintf(w, `<a href="prometheus/api/v1/status/active_queries">active queries</a><br>`)
@@ -594,6 +594,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		promscrapeTargetRelabelDebugRequests.Inc()
 		promscrape.WriteTargetRelabelDebug(w, r)
 		return true
+	case "prometheus/expand-with-exprs", "expand-with-exprs":
+		expandWithExprsRequests.Inc()
+		prometheus.ExpandWithExprs(w, r)
+		return true
 	case "prometheus/api/v1/rules", "prometheus/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -767,6 +771,8 @@ var (
 
 	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/metric-relabel-debug"}`)
 	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/target-relabel-debug"}`)
+
+	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/expand-with-exprs"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/api/v1/rules"}`)
