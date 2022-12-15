@@ -123,6 +123,15 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    
+  # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
+  # header are proxied to http://localhost:8428 with connections that can be proxies by vmauth to backends.
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
+  # If there would be more than 500 request revers proxy will return http error 
+- bearer_token: "XXXX"
+  url_prefix: "http://localhost:8428"
+  max_proxied_connections: 500
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -284,6 +293,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host (default 100)
+  -maxProxiedConnections int
+     The maximum number of connections that can be proxied by vmauth to backends (default 100) 
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
