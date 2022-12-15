@@ -235,7 +235,7 @@ func (sw *scrapeWork) loadLastScrape() string {
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrape []byte) {
-	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.N
+	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.IntN()
 	if mustCompress {
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
 		sw.lastScrape = nil
@@ -384,7 +384,7 @@ func (sw *scrapeWork) mustSwitchToStreamParseMode(responseSize int) bool {
 	if minResponseSizeForStreamParse.N <= 0 {
 		return false
 	}
-	return sw.Config.canSwitchToStreamParseMode() && responseSize >= minResponseSizeForStreamParse.N
+	return sw.Config.canSwitchToStreamParseMode() && responseSize >= minResponseSizeForStreamParse.IntN()
 }
 
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.

@@ -776,7 +776,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		step = defaultStep
 	}
 
-	if len(query) > maxQueryLen.N {
+	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
@@ -927,7 +927,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	}
 
 	// Validate input args.
-	if len(query) > maxQueryLen.N {
+	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	if start > end {

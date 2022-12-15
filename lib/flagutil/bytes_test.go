@@ -24,7 +24,7 @@ func TestBytesSetFailure(t *testing.T) {
 }
 
 func TestBytesSetSuccess(t *testing.T) {
-	f := func(value string, expectedResult int) {
+	f := func(value string, expectedResult int64) {
 		t.Helper()
 		var b Bytes
 		if err := b.Set(value); err != nil {

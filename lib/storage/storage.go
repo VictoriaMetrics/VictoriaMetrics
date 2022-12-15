@@ -628,7 +628,7 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 // SetFreeDiskSpaceLimit sets the minimum free disk space size of current storage path
 //
 // The function must be called before opening or creating any storage.
-func SetFreeDiskSpaceLimit(bytes int) {
+func SetFreeDiskSpaceLimit(bytes int64) {
 	freeDiskSpaceLimitBytes = uint64(bytes)
 }
 
