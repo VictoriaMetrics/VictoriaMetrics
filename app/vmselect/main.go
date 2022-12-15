@@ -432,6 +432,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		promscrapeTargetRelabelDebugRequests.Inc()
 		promscrape.WriteTargetRelabelDebug(w, r)
 		return true
+	case "/expand-with-exprs":
+		expandWithExprsRequests.Inc()
+		prometheus.ExpandWithExprs(w, r)
+		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -600,6 +604,8 @@ var (
 	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
+
+	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)
