@@ -10,11 +10,13 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
+// LimitedReversProxy represents default revers proxy with configurable limit
 type LimitedReversProxy struct {
 	reversProxy *httputil.ReverseProxy
 	limiter     chan struct{}
 }
 
+// NewReversProxy inits LimitedReversProxy by defined max connections
 func NewReversProxy(maxConn int) *LimitedReversProxy {
 	limitedProxy := &LimitedReversProxy{
 		limiter:     make(chan struct{}, maxConn),
@@ -26,6 +28,7 @@ func NewReversProxy(maxConn int) *LimitedReversProxy {
 	return limitedProxy
 }
 
+// ServeHTTP serve requests by limit. If limit reached http error returns
 func (lrr *LimitedReversProxy) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	select {
 	case <-lrr.limiter:
@@ -37,6 +40,7 @@ func (lrr *LimitedReversProxy) ServeHTTP(w http.ResponseWriter, req *http.Reques
 	}
 }
 
+// getDefaultReversProxy return default golang revers proxy
 func getDefaultReversProxy() *httputil.ReverseProxy {
 	return &httputil.ReverseProxy{
 		Director: func(r *http.Request) {
