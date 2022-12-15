@@ -195,7 +195,7 @@ func pushWriteRequest(wr *prompbmarshal.WriteRequest, pushBlock func(block []byt
 	}
 	bb := writeRequestBufPool.Get()
 	bb.B = prompbmarshal.MarshalWriteRequest(bb.B[:0], wr)
-	if len(bb.B) <= maxUnpackedBlockSize.N {
+	if len(bb.B) <= maxUnpackedBlockSize.IntN() {
 		zb := snappyBufPool.Get()
 		zb.B = snappy.Encode(zb.B[:cap(zb.B)], bb.B)
 		writeRequestBufPool.Put(bb)

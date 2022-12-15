@@ -3,12 +3,13 @@ package flagutil
 import (
 	"flag"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
 
 // NewBytes returns new `bytes` flag with the given name, defaultValue and description.
-func NewBytes(name string, defaultValue int, description string) *Bytes {
+func NewBytes(name string, defaultValue int64, description string) *Bytes {
 	description += "\nSupports the following optional suffixes for `size` values: KB, MB, GB, TB, KiB, MiB, GiB, TiB"
 	b := Bytes{
 		N:           defaultValue,
@@ -23,9 +24,20 @@ func NewBytes(name string, defaultValue int, description string) *Bytes {
 // It supports the following optional suffixes for values: KB, MB, GB, TB, KiB, MiB, GiB, TiB.
 type Bytes struct {
 	// N contains parsed value for the given flag.
-	N int
+	N int64
 
 	valueString string
+}
+
+// IntN returns the stored value capped by int type.
+func (b *Bytes) IntN() int {
+	if b.N > math.MaxInt {
+		return math.MaxInt
+	}
+	if b.N < math.MinInt {
+		return math.MinInt
+	}
+	return int(b.N)
 }
 
 // String implements flag.Value interface
@@ -42,7 +54,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1000)
+		b.N = int64(f * 1000)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "MB"):
@@ -50,7 +62,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1000 * 1000)
+		b.N = int64(f * 1000 * 1000)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "GB"):
@@ -58,7 +70,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1000 * 1000 * 1000)
+		b.N = int64(f * 1000 * 1000 * 1000)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "TB"):
@@ -66,7 +78,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1000 * 1000 * 1000 * 1000)
+		b.N = int64(f * 1000 * 1000 * 1000 * 1000)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "KiB"):
@@ -74,7 +86,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1024)
+		b.N = int64(f * 1024)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "MiB"):
@@ -82,7 +94,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1024 * 1024)
+		b.N = int64(f * 1024 * 1024)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "GiB"):
@@ -90,7 +102,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1024 * 1024 * 1024)
+		b.N = int64(f * 1024 * 1024 * 1024)
 		b.valueString = value
 		return nil
 	case strings.HasSuffix(value, "TiB"):
@@ -98,7 +110,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f * 1024 * 1024 * 1024 * 1024)
+		b.N = int64(f * 1024 * 1024 * 1024 * 1024)
 		b.valueString = value
 		return nil
 	default:
@@ -106,7 +118,7 @@ func (b *Bytes) Set(value string) error {
 		if err != nil {
 			return err
 		}
-		b.N = int(f)
+		b.N = int64(f)
 		b.valueString = value
 		return nil
 	}

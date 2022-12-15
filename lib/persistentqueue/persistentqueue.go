@@ -123,7 +123,7 @@ func (q *queue) GetPendingBytes() uint64 {
 //
 // If maxPendingBytes is greater than 0, then the max queue size is limited by this value.
 // The oldest data is deleted when queue size exceeds maxPendingBytes.
-func mustOpen(path, name string, maxPendingBytes int) *queue {
+func mustOpen(path, name string, maxPendingBytes int64) *queue {
 	if maxPendingBytes < 0 {
 		maxPendingBytes = 0
 	}
