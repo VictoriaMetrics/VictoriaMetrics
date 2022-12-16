@@ -16,14 +16,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/reverseproxy"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	httpListenAddr         = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
-	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
-	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
-	logInvalidAuthTokens   = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
+	httpListenAddr       = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
+	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 	maxProxiedConnections = flag.Int("maxProxiedConnections", 100, "The maximum number of connections that can be proxied by vmauth to backends")
 )
@@ -131,11 +131,11 @@ var (
 )
 
 var (
-	reverseProxy     *LimitedReversProxy
+	reverseProxy     *reverseproxy.LimitedReversProxy
 	reverseProxyOnce sync.Once
 )
 
-func getReverseProxy(maxProxiedConnections int) *LimitedReversProxy {
+func getReverseProxy(maxProxiedConnections int) *reverseproxy.LimitedReversProxy {
 	reverseProxyOnce.Do(func() {
 		initReverseProxy(maxProxiedConnections)
 	})
@@ -144,7 +144,7 @@ func getReverseProxy(maxProxiedConnections int) *LimitedReversProxy {
 
 // initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
 func initReverseProxy(maxProxiedConnections int) {
-	reverseProxy = NewReversProxy(maxProxiedConnections)
+	reverseProxy = reverseproxy.NewLimited(maxProxiedConnections)
 }
 
 func usage() {
