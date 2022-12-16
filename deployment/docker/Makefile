@@ -77,7 +77,7 @@ publish-via-docker: \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):latest$(RACE) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-o type=image \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \

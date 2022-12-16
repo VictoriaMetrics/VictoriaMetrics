@@ -1,0 +1,24 @@
+name: nightly-build
+on:
+  schedule:
+    # Daily at 2:48am
+    - cron: '48 2 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Go
+        uses: actions/setup-go@main
+        with:
+          go-version: 1.19.4
+        id: go
+      - name: Code checkout
+        uses: actions/checkout@master
+      - name: Publish
+        run: |
+          LATEST_TAG=nightly PKG_TAG=nightly make publish
