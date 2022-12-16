@@ -2327,7 +2327,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.graphiteStorageStep duration
      The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 10s)
   -search.latencyOffset duration
-     The time when data points become visible in query results after the collection. Too small value can result in incomplete last points for query results (default 30s)
+     The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logSlowQueryDuration duration
      Log queries with execution time exceeding this value. Zero disables slow query logging (default 5s)
   -search.maxConcurrentRequests int

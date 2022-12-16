@@ -2,8 +2,10 @@ package prometheus
 
 import (
 	"math"
+	"net/http"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 )
@@ -194,4 +196,18 @@ func TestAdjustLastPoints(t *testing.T) {
 			Values:     []float64{1, 2, 2},
 		},
 	})
+}
+
+func TestGetLatencyOffsetMilliseconds(t *testing.T) {
+	f := func(got, exp int64) {
+		if got != exp {
+			t.Fatalf("expected offset %d; got %d", exp, got)
+		}
+	}
+
+	r, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
+	f(getLatencyOffsetMilliseconds(r), latencyOffset.Milliseconds())
+
+	r, _ = http.NewRequest(http.MethodGet, "http://localhost?latency_offset=10s", nil)
+	f(getLatencyOffsetMilliseconds(r), 10*time.Second.Milliseconds())
 }
