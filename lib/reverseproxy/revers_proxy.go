@@ -41,8 +41,7 @@ func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
 		logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
 	}
 
-	transport := prepareTransport(tURL)
-	rr.client.Transport = transport
+	rr.client.Transport = prepareTransport(tURL)
 
 	r.URL = tURL
 
