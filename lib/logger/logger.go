@@ -17,11 +17,10 @@ import (
 )
 
 var (
-	loggerLevel      = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
-	loggerFormat     = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
-	loggerOutput     = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
-	loggerJSONFields = flag.String("loggerJsonFields", "", `Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message"`)
-	loggerTimezone   = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
+	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
+	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
+	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
+	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
 
