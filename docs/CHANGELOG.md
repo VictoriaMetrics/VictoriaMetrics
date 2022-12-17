@@ -16,6 +16,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * BUGFIX: allow specifying values bigger than 2GiB to the following command-line flag values on 32-bit architectures (`386` and `arm`): `-storage.minFreeDiskSpaceBytes` and `-remoteWrite.maxDiskUsagePerURL`. Previously values bigger than 2GiB were incorrectly truncated on these architectures.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): stop dropping metric name by a mistake on the [/metric-relabel-debug](https://docs.victoriametrics.com/vmagent.html#relabel-debug) page.
 
 
 ## [v1.85.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.1)

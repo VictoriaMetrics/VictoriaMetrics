@@ -90,31 +90,45 @@ func newDebugRelabelSteps(pcs *promrelabel.ParsedConfigs, labels *promutils.Labe
 	labels.Labels = labelsResult
 	outStr := promrelabel.LabelsToString(labels.GetLabels())
 
-	// Add missing instance label
-	if isTargetRelabel && labels.Get("instance") == "" {
-		address := labels.Get("__address__")
-		if address != "" {
-			inStr := outStr
-			labels.Add("instance", address)
-			outStr = promrelabel.LabelsToString(labels.GetLabels())
+	if isTargetRelabel {
+		// Add missing instance label
+		if labels.Get("instance") == "" {
+			address := labels.Get("__address__")
+			if address != "" {
+				inStr := outStr
+				labels.Add("instance", address)
+				outStr = promrelabel.LabelsToString(labels.GetLabels())
+				dss = append(dss, promrelabel.DebugStep{
+					Rule: "add missing instance label from __address__ label",
+					In:   inStr,
+					Out:  outStr,
+				})
+			}
+		}
+
+		// Remove labels with __ prefix
+		inStr := outStr
+		labels.RemoveLabelsWithDoubleUnderscorePrefix()
+		outStr = promrelabel.LabelsToString(labels.GetLabels())
+		if inStr != outStr {
 			dss = append(dss, promrelabel.DebugStep{
-				Rule: "add missing instance label from __address__ label",
+				Rule: "remove labels with __ prefix",
 				In:   inStr,
 				Out:  outStr,
 			})
 		}
-	}
-
-	// Remove labels with __ prefix
-	inStr := outStr
-	labels.RemoveLabelsWithDoubleUnderscorePrefix()
-	outStr = promrelabel.LabelsToString(labels.GetLabels())
-	if inStr != outStr {
-		dss = append(dss, promrelabel.DebugStep{
-			Rule: "remove labels with __ prefix",
-			In:   inStr,
-			Out:  outStr,
-		})
+	} else {
+		// Remove labels with __ prefix except of __name__
+		inStr := outStr
+		labels.Labels = promrelabel.FinalizeLabels(labels.Labels[:0], labels.Labels)
+		outStr = promrelabel.LabelsToString(labels.GetLabels())
+		if inStr != outStr {
+			dss = append(dss, promrelabel.DebugStep{
+				Rule: "remove labels with __ prefix except of __name__",
+				In:   inStr,
+				Out:  outStr,
+			})
+		}
 	}
 
 	// There is no need in labels' sorting, since promrelabel.LabelsToString() automatically sorts labels.
