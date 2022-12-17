@@ -69,6 +69,19 @@
         "iconColor": "red",
         "name": "alerts",
         "titleFormat": "{{alertname}}"
+      },
+      {
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "enable": true,
+        "expr": "sum(vm_app_version{job=~\"$job\"}) by(short_version) unless (sum(vm_app_version{job=~\"$job\"} offset 20m) by(short_version))",
+        "hide": true,
+        "iconColor": "dark-blue",
+        "name": "version change",
+        "textFormat": "{{short_version}}",
+        "titleFormat": "Version change"
       }
     ]
   },
@@ -8639,81 +8652,6 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
-        "hide": 2,
-        "includeAll": false,
-        "multi": false,
-        "name": "job_insert",
-        "options": [],
-        "query": {
-          "query": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
-          "refId": "VictoriaMetrics-job_insert-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$ds"
-        },
-        "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
-        "hide": 2,
-        "includeAll": false,
-        "multi": false,
-        "name": "job_select",
-        "options": [],
-        "query": {
-          "query": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
-          "refId": "VictoriaMetrics-job_select-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$ds"
-        },
-        "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
-        "hide": 2,
-        "includeAll": false,
-        "multi": false,
-        "name": "job_storage",
-        "options": [],
-        "query": {
-          "query": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
-          "refId": "VictoriaMetrics-job_storage-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$ds"
-        },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
         "hide": 0,
         "includeAll": true,
@@ -8723,6 +8661,81 @@
         "query": {
           "query": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
           "refId": "VictoriaMetrics-job-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vminsert.*\"}, job)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "job_insert",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\", version=~\"^vminsert.*\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmselect.*\"}, job)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "job_select",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmselect.*\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmstorage.*\"}, job)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "job_storage",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmstorage.*\"}, job)",
+          "refId": "StandardVariableQuery"
         },
         "refresh": 1,
         "regex": "",

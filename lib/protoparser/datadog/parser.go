@@ -28,7 +28,15 @@ type Request struct {
 }
 
 func (req *Request) reset() {
-	req.Series = req.Series[:0]
+	// recursively reset all the fields in req in order to avoid field value
+	// re-use in json.Unmarshal() when the corresponding field is missing
+	// in the unmarshaled JSON.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3432
+	series := req.Series
+	for i := range series {
+		series[i].reset()
+	}
+	req.Series = series[:0]
 }
 
 // Unmarshal unmarshals DataDog /api/v1/series request body from b to req.
@@ -59,21 +67,40 @@ func (req *Request) Unmarshal(b []byte) error {
 //
 // See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
 type Series struct {
-	Host string `json:"host"`
+	Metric string `json:"metric"`
+	Host   string `json:"host"`
 
-	// Do not decode Interval, since it isn't used by VictoriaMetrics
-	// Interval int64 `json:"interval"`
-
-	Metric string   `json:"metric"`
-	Points []Point  `json:"points"`
-	Tags   []string `json:"tags"`
 	// The device field does not appear in the datadog docs, but datadog-agent does use it.
 	// Datadog agent (v7 at least), removes the tag "device" and adds it as its own field. Why? That I don't know!
 	// https://github.com/DataDog/datadog-agent/blob/0ada7a97fed6727838a6f4d9c87123d2aafde735/pkg/metrics/series.go#L84-L105
 	Device string `json:"device"`
 
+	// Do not decode Interval, since it isn't used by VictoriaMetrics
+	// Interval int64 `json:"interval"`
+
+	Points []Point  `json:"points"`
+	Tags   []string `json:"tags"`
+
 	// Do not decode Type, since it isn't used by VictoriaMetrics
 	// Type string `json:"type"`
+}
+
+func (s *Series) reset() {
+	s.Metric = ""
+	s.Host = ""
+	s.Device = ""
+
+	points := s.Points
+	for i := range points {
+		points[i] = Point{}
+	}
+	s.Points = points[:0]
+
+	tags := s.Tags
+	for i := range tags {
+		tags[i] = ""
+	}
+	s.Tags = tags[:0]
 }
 
 // Point represents a point from DataDog POST request to /api/v1/series

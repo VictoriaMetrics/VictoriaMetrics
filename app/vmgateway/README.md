@@ -171,6 +171,41 @@ curl 'http://localhost:8431/api/v1/labels' -H 'Authorization: Bearer eyJhbGciOiJ
 # check rate limit
 ```
 
+## JWT signature verification
+
+`vmgateway` supports JWT signature verification.
+
+Supported algorithms are `RS256`, `RS384`, `RS512`, `ES256`, `ES384`, `ES512`, `PS256`, `PS384`, `PS512`.
+Tokens with unsupported algorithms will be rejected.
+
+In order to enable JWT signature verification, you need to specify keys for signature verification.
+The following flags are used to specify keys:
+- `-auth.publicKeyFiles` - allows to pass file path to file with public key.
+- `-auth.publicKeys` - allows to pass public key directly.
+
+Note that both flags support passing multiple keys and also can be used together.
+
+Example usage:
+```console
+./bin/vmgateway -eula \
+  -enable.auth \
+  -write.url=http://localhost:8480 \
+  -read.url=http://localhost:8481 \
+  -auth.publicKeyFiles=public_key.pem \
+  -auth.publicKeyFiles=public_key2.pem \
+  -auth.publicKeys=`-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAu1SU1LfVLPHCozMxH2Mo
+4lgOEePzNm0tRgeLezV6ffAt0gunVTLw7onLRnrq0/IzW7yWR7QkrmBL7jTKEn5u
++qKhbwKfBstIs+bMY2Zkp18gnTxKLxoS2tFczGkPLPgizskuemMghRniWaoLcyeh
+kd3qqGElvW/VDL5AaWTg0nLVkjRo9z+40RQzuVaE8AkAFmxZzow3x+VJYKdjykkJ
+0iT9wCS0DRTXu269V264Vf/3jvredZiKRkgwlL9xNAwxXFg0x/XFw005UWVRIkdg
+cKWTjpBP2dPwVZ4WWC+9aGVd+Gyn1o0CLelf4rEjGoXbAAEgAqeGUxrcIlbjXfbc
+mwIDAQAB
+-----END PUBLIC KEY-----
+`
+```
+This command will result in 3 keys loaded: 2 keys from files and 1 from command line.
+
 ## Configuration
 
 The shortlist of configuration flags include the following:
@@ -178,6 +213,12 @@ The shortlist of configuration flags include the following:
 ```console
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
+  -auth.publicKeyFiles array
+     Path file with public key to verify JWT token signature
+     Supports an array of values separated by comma or specified via multiple flags.
+  -auth.publicKeys array
+     Public keys to verify JWT token signature
+     Supports an array of values separated by comma or specified via multiple flags.
   -clusterMode
      enable this for the cluster version
   -datasource.appendTypePrefix
@@ -280,7 +321,7 @@ The shortlist of configuration flags include the following:
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
@@ -336,7 +377,7 @@ The shortlist of configuration flags include the following:
 ## Limitations
 
 * Access Control:
-  * `jwt` token must be validated by external system, currently `vmgateway` can't validate the signature.
+  * `jwt` token signature verification for `HMAC` algorithms is not supported.
 * RateLimiting:
   * limits applied based on queries to `datasource.url`
   * only cluster version can be rate-limited.

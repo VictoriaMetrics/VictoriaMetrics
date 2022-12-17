@@ -1,17 +1,17 @@
 import React, { FC, useMemo, useState } from "preact/compat";
-import { ExecutionControls } from "../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
-import { setQueryStringWithoutPageReload } from "../../utils/query-string";
-import { TimeSelector } from "../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
-import GlobalSettings from "../Configurators/GlobalSettings/GlobalSettings";
+import { ExecutionControls } from "../../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
+import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
+import { TimeSelector } from "../../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
+import GlobalSettings from "../../Configurators/GlobalSettings/GlobalSettings";
 import { useLocation, useNavigate } from "react-router-dom";
-import router, { RouterOptions, routerOptions } from "../../router";
+import router, { RouterOptions, routerOptions } from "../../../router";
 import { useEffect } from "react";
-import ShortcutKeys from "../Main/ShortcutKeys/ShortcutKeys";
-import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
-import CardinalityDatePicker from "../Configurators/CardinalityDatePicker/CardinalityDatePicker";
-import { LogoIcon } from "../Main/Icons";
-import { getCssVariable } from "../../utils/theme";
-import Tabs from "../Main/Tabs/Tabs";
+import ShortcutKeys from "../../Main/ShortcutKeys/ShortcutKeys";
+import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
+import CardinalityDatePicker from "../../Configurators/CardinalityDatePicker/CardinalityDatePicker";
+import { LogoFullIcon } from "../../Main/Icons";
+import { getCssVariable } from "../../../utils/theme";
+import Tabs from "../../Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
 
@@ -88,23 +88,11 @@ const Header: FC = () => {
   >
     {!appModeEnable && (
       <div
-        className="vm-header-logo"
+        className="vm-header__logo"
+        onClick={onClickLogo}
         style={{ color }}
       >
-        <div
-          className="vm-header-logo__icon"
-          onClick={onClickLogo}
-        >
-          <LogoIcon/>
-        </div>
-        <a
-          className="vm-header-logo__issue"
-          target="_blank"
-          href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
-          rel="noreferrer"
-        >
-            create an issue
-        </a>
+        <LogoFullIcon/>
       </div>
     )}
     <div className="vm-header-nav">

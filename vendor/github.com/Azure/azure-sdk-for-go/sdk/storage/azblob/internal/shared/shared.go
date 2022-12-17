@@ -9,6 +9,7 @@ package shared
 import (
 	"errors"
 	"fmt"
+	"hash/crc64"
 	"io"
 	"net"
 	"net/url"
@@ -38,6 +39,10 @@ const (
 	HeaderIfUnmodifiedSince = "If-Unmodified-Since"
 	HeaderRange             = "Range"
 )
+
+const crc64Polynomial uint64 = 0x9A6C9329AC4BC9B5
+
+var CRC64Table = crc64.MakeTable(crc64Polynomial)
 
 // CopyOptions returns a zero-value T if opts is nil.
 // If opts is not nil, a copy is made and its address returned.

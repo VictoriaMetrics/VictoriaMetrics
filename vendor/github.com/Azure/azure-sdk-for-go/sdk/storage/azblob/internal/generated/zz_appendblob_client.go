@@ -152,11 +152,11 @@ func (client *AppendBlobClient) appendBlockHandleResponse(resp *http.Response) (
 		result.ContentMD5 = contentMD5
 	}
 	if val := resp.Header.Get("x-ms-content-crc64"); val != "" {
-		xMSContentCRC64, err := base64.StdEncoding.DecodeString(val)
+		contentCRC64, err := base64.StdEncoding.DecodeString(val)
 		if err != nil {
 			return AppendBlobClientAppendBlockResponse{}, err
 		}
-		result.XMSContentCRC64 = xMSContentCRC64
+		result.ContentCRC64 = contentCRC64
 	}
 	if val := resp.Header.Get("x-ms-client-request-id"); val != "" {
 		result.ClientRequestID = &val
@@ -339,11 +339,11 @@ func (client *AppendBlobClient) appendBlockFromURLHandleResponse(resp *http.Resp
 		result.ContentMD5 = contentMD5
 	}
 	if val := resp.Header.Get("x-ms-content-crc64"); val != "" {
-		xMSContentCRC64, err := base64.StdEncoding.DecodeString(val)
+		contentCRC64, err := base64.StdEncoding.DecodeString(val)
 		if err != nil {
 			return AppendBlobClientAppendBlockFromURLResponse{}, err
 		}
-		result.XMSContentCRC64 = xMSContentCRC64
+		result.ContentCRC64 = contentCRC64
 	}
 	if val := resp.Header.Get("x-ms-request-id"); val != "" {
 		result.RequestID = &val

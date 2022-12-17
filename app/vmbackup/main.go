@@ -30,7 +30,7 @@ var (
 	snapshotDeleteURL = flag.String("snapshot.deleteURL", "", "VictoriaMetrics delete snapshot url. Optional. Will be generated from -snapshot.createURL if not provided. "+
 		"All created snapshots will be automatically deleted. Example: http://victoriametrics:8428/snapshot/delete")
 	dst = flag.String("dst", "", "Where to put the backup on the remote storage. "+
-		"Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://bucket/path/to/backup or fs:///path/to/local/backup/dir\n"+
+		"Example: gs://bucket/path/to/backup, s3://bucket/path/to/backup, azblob://container/path/to/backup or fs:///path/to/local/backup/dir\n"+
 		"-dst can point to the previous backup. In this case incremental backup is performed, i.e. only changed data is uploaded")
 	origin            = flag.String("origin", "", "Optional origin directory on the remote storage with old backup for server-side copying when performing full backup. This speeds up full backups")
 	concurrency       = flag.Int("concurrency", 10, "The number of concurrent workers. Higher concurrency may reduce backup duration")
@@ -145,7 +145,7 @@ func newSrcFS() (*fslocal.FS, error) {
 
 	fs := &fslocal.FS{
 		Dir:               snapshotPath,
-		MaxBytesPerSecond: maxBytesPerSecond.N,
+		MaxBytesPerSecond: maxBytesPerSecond.IntN(),
 	}
 	if err := fs.Init(); err != nil {
 		return nil, fmt.Errorf("cannot initialize fs: %w", err)

@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/tpl"
@@ -18,20 +17,14 @@ import (
 )
 
 var (
-	once     = sync.Once{}
-	apiLinks [][2]string
-	navItems []tpl.NavItem
-)
-
-func initLinks() {
 	apiLinks = [][2]string{
 		// api links are relative since they can be used by external clients,
 		// such as Grafana, and proxied via vmselect.
 		{"api/v1/rules", "list all loaded groups and rules"},
 		{"api/v1/alerts", "list all active alerts"},
 		{fmt.Sprintf("api/v1/alert?%s=<int>&%s=<int>", paramGroupID, paramAlertID), "get alert status by group and alert ID"},
-
-		// system links
+	}
+	systemLinks = [][2]string{
 		{"/flags", "command-line flags"},
 		{"/metrics", "list of application metrics"},
 		{"/-/reload", "reload configuration"},
@@ -43,7 +36,7 @@ func initLinks() {
 		{Name: "Notifiers", Url: "notifiers"},
 		{Name: "Docs", Url: "https://docs.victoriametrics.com/vmalert.html"},
 	}
-}
+)
 
 type requestHandler struct {
 	m *manager
@@ -57,10 +50,6 @@ var (
 )
 
 func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
-	once.Do(func() {
-		initLinks()
-	})
-
 	if strings.HasPrefix(r.URL.Path, "/vmalert/static") {
 		staticServer.ServeHTTP(w, r)
 		return true

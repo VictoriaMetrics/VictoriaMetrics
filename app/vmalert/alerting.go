@@ -284,7 +284,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		duration: time.Since(start),
 		samples:  len(qMetrics),
 		err:      err,
-		req:      req,
+		curl:     requestToCurl(req),
 	}
 
 	defer func() {
@@ -456,6 +456,7 @@ func (ar *AlertingRule) newAlert(m datasource.Metric, ls *labelSet, start time.T
 		Value:    m.Values[0],
 		ActiveAt: start,
 		Expr:     ar.Expr,
+		For:      ar.For,
 	}
 	a.Annotations, err = a.ExecTemplate(qFn, ls.origin, ar.Annotations)
 	return a, err

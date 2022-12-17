@@ -116,46 +116,46 @@ func (ipr *IPRange) String() string {
 // This type defines the components used by all Azure Storage resources (Containers, Blobs, Files, & Queues).
 type QueryParameters struct {
 	// All members are immutable or values so copies of this struct are goroutine-safe.
-	version                    string    `param:"sv"`
-	services                   string    `param:"ss"`
-	resourceTypes              string    `param:"srt"`
-	protocol                   Protocol  `param:"spr"`
-	startTime                  time.Time `param:"st"`
-	expiryTime                 time.Time `param:"se"`
-	snapshotTime               time.Time `param:"snapshot"`
-	ipRange                    IPRange   `param:"sip"`
-	identifier                 string    `param:"si"`
-	resource                   string    `param:"sr"`
-	permissions                string    `param:"sp"`
-	signature                  string    `param:"sig"`
-	cacheControl               string    `param:"rscc"`
-	contentDisposition         string    `param:"rscd"`
-	contentEncoding            string    `param:"rsce"`
-	contentLanguage            string    `param:"rscl"`
-	contentType                string    `param:"rsct"`
-	signedOID                  string    `param:"skoid"`
-	signedTID                  string    `param:"sktid"`
-	signedStart                time.Time `param:"skt"`
-	signedService              string    `param:"sks"`
-	signedExpiry               time.Time `param:"ske"`
-	signedVersion              string    `param:"skv"`
-	signedDirectoryDepth       string    `param:"sdd"`
-	preauthorizedAgentObjectID string    `param:"saoid"`
-	agentObjectID              string    `param:"suoid"`
-	correlationID              string    `param:"scid"`
+	version              string    `param:"sv"`
+	services             string    `param:"ss"`
+	resourceTypes        string    `param:"srt"`
+	protocol             Protocol  `param:"spr"`
+	startTime            time.Time `param:"st"`
+	expiryTime           time.Time `param:"se"`
+	snapshotTime         time.Time `param:"snapshot"`
+	ipRange              IPRange   `param:"sip"`
+	identifier           string    `param:"si"`
+	resource             string    `param:"sr"`
+	permissions          string    `param:"sp"`
+	signature            string    `param:"sig"`
+	cacheControl         string    `param:"rscc"`
+	contentDisposition   string    `param:"rscd"`
+	contentEncoding      string    `param:"rsce"`
+	contentLanguage      string    `param:"rscl"`
+	contentType          string    `param:"rsct"`
+	signedOID            string    `param:"skoid"`
+	signedTID            string    `param:"sktid"`
+	signedStart          time.Time `param:"skt"`
+	signedService        string    `param:"sks"`
+	signedExpiry         time.Time `param:"ske"`
+	signedVersion        string    `param:"skv"`
+	signedDirectoryDepth string    `param:"sdd"`
+	authorizedObjectID   string    `param:"saoid"`
+	unauthorizedObjectID string    `param:"suoid"`
+	correlationID        string    `param:"scid"`
 	// private member used for startTime and expiryTime formatting.
 	stTimeFormat string
 	seTimeFormat string
 }
 
-// PreauthorizedAgentObjectID returns preauthorizedAgentObjectID
-func (p *QueryParameters) PreauthorizedAgentObjectID() string {
-	return p.preauthorizedAgentObjectID
+// AuthorizedObjectID returns authorizedObjectID
+func (p *QueryParameters) AuthorizedObjectID() string {
+	return p.authorizedObjectID
 }
 
-// AgentObjectID returns agentObjectID
-func (p *QueryParameters) AgentObjectID() string {
-	return p.agentObjectID
+// UnauthorizedObjectID returns unauthorizedObjectID
+func (p *QueryParameters) UnauthorizedObjectID() string {
+	return p.unauthorizedObjectID
 }
 
 // SignedCorrelationID returns signedCorrelationID
@@ -346,11 +346,11 @@ func (p *QueryParameters) Encode() string {
 	if p.signedDirectoryDepth != "" {
 		v.Add("sdd", p.signedDirectoryDepth)
 	}
-	if p.preauthorizedAgentObjectID != "" {
-		v.Add("saoid", p.preauthorizedAgentObjectID)
+	if p.authorizedObjectID != "" {
+		v.Add("saoid", p.authorizedObjectID)
 	}
-	if p.agentObjectID != "" {
-		v.Add("suoid", p.agentObjectID)
+	if p.unauthorizedObjectID != "" {
+		v.Add("suoid", p.unauthorizedObjectID)
 	}
 	if p.correlationID != "" {
 		v.Add("scid", p.correlationID)
@@ -424,9 +424,9 @@ func NewQueryParameters(values url.Values, deleteSASParametersFromValues bool) Q
 		case "sdd":
 			p.signedDirectoryDepth = val
 		case "saoid":
-			p.preauthorizedAgentObjectID = val
+			p.authorizedObjectID = val
 		case "suoid":
-			p.agentObjectID = val
+			p.unauthorizedObjectID = val
 		case "scid":
 			p.correlationID = val
 		default:

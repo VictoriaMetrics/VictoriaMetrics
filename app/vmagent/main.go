@@ -207,6 +207,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.WriteAPIHelp(w, [][2]string{
 			{"targets", "status for discovered active targets"},
 			{"service-discovery", "labels before and after relabeling for discovered targets"},
+			{"metric-relabel-debug", "debug metric relabeling"},
 			{"api/v1/targets", "advanced information about discovered targets in JSON format"},
 			{"config", "-promscrape.config contents"},
 			{"metrics", "available service metrics"},
@@ -324,6 +325,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/prometheus/service-discovery", "/service-discovery":
 		promscrapeServiceDiscoveryRequests.Inc()
 		promscrape.WriteServiceDiscovery(w, r)
+		return true
+	case "/prometheus/metric-relabel-debug", "/metric-relabel-debug":
+		promscrapeMetricRelabelDebugRequests.Inc()
+		promscrape.WriteMetricRelabelDebug(w, r)
+		return true
+	case "/prometheus/target-relabel-debug", "/target-relabel-debug":
+		promscrapeTargetRelabelDebugRequests.Inc()
+		promscrape.WriteTargetRelabelDebug(w, r)
 		return true
 	case "/prometheus/api/v1/targets", "/api/v1/targets":
 		promscrapeAPIV1TargetsRequests.Inc()
@@ -546,7 +555,11 @@ var (
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vmagent_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/service-discovery"}`)
-	promscrapeAPIV1TargetsRequests     = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
+
+	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/metric-relabel-debug"}`)
+	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/target-relabel-debug"}`)
+
+	promscrapeAPIV1TargetsRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/api/v1/targets"}`)
 
 	promscrapeTargetResponseRequests = metrics.NewCounter(`vmagent_http_requests_total{path="/target_response"}`)
 	promscrapeTargetResponseErrors   = metrics.NewCounter(`vmagent_http_request_errors_total{path="/target_response"}`)

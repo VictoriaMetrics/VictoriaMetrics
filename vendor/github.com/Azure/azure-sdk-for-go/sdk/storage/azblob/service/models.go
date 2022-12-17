@@ -42,6 +42,15 @@ func (o *GetUserDelegationCredentialOptions) format() *generated.ServiceClientGe
 // AccessConditions identifies container-specific access conditions which you optionally set.
 type AccessConditions = exported.ContainerAccessConditions
 
+// BlobTag - a key/value pair on a blob
+type BlobTag = generated.BlobTag
+
+// ContainerItem - An Azure Storage container returned from method Client.ListContainersSegment.
+type ContainerItem = generated.ContainerItem
+
+// ContainerProperties - Properties of a container
+type ContainerProperties = generated.ContainerProperties
+
 // CpkInfo contains a group of parameters for the BlobClient.Download method.
 type CpkInfo = generated.CpkInfo
 
@@ -62,6 +71,12 @@ type RestoreContainerOptions = container.RestoreOptions
 // prevents a web page from calling APIs in a different domain; CORS provides a secure way to allow one domain (the origin
 // domain) to call APIs in another domain
 type CorsRule = generated.CorsRule
+
+// FilterBlobItem - Blob info returned from method Client.FilterBlobs
+type FilterBlobItem = generated.FilterBlobItem
+
+// GeoReplication - Geo-Replication information for the Secondary Storage Service
+type GeoReplication = generated.GeoReplication
 
 // RetentionPolicy - the retention policy which determines how long the associated data should persist
 type RetentionPolicy = generated.RetentionPolicy

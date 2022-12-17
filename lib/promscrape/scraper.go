@@ -363,9 +363,9 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 					"make sure service discovery and relabeling is set up properly; "+
 					"see also https://docs.victoriametrics.com/vmagent.html#troubleshooting; "+
 					"original labels for target1: %s; original labels for target2: %s",
-					sw.ScrapeURL, sw.LabelsString(), originalLabels.String(), sw.OriginalLabels.String())
+					sw.ScrapeURL, sw.Labels.String(), originalLabels.String(), sw.OriginalLabels.String())
 			}
-			droppedTargetsMap.Register(sw.OriginalLabels)
+			droppedTargetsMap.Register(sw.OriginalLabels, sw.RelabelConfigs)
 			continue
 		}
 		swsMap[key] = sw.OriginalLabels

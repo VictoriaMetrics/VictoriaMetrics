@@ -97,7 +97,7 @@ func toUploadReaderAtResponseFromCommitBlockListResponse(resp CommitBlockListRes
 		RequestID:           resp.RequestID,
 		Version:             resp.Version,
 		VersionID:           resp.VersionID,
-		ContentCRC64:        resp.XMSContentCRC64,
+		ContentCRC64:        resp.ContentCRC64,
 	}
 }
 
@@ -109,3 +109,6 @@ type UploadBufferResponse = uploadFromReaderResponse
 
 // UploadStreamResponse contains the response from method Client.CommitBlockList.
 type UploadStreamResponse = CommitBlockListResponse
+
+// SetExpiryResponse contains the response from method BlobClient.SetExpiry.
+type SetExpiryResponse = generated.BlobClientSetExpiryResponse

@@ -45,6 +45,8 @@ type Alert struct {
 	ID uint64
 	// Restored is true if Alert was restored after restart
 	Restored bool
+	// For defines for how long Alert needs to be active to become StateFiring
+	For time.Duration
 }
 
 // AlertState type indicates the Alert state
@@ -80,6 +82,7 @@ type AlertTplData struct {
 	AlertID  uint64
 	GroupID  uint64
 	ActiveAt time.Time
+	For      time.Duration
 }
 
 var tplHeaders = []string{
@@ -91,6 +94,7 @@ var tplHeaders = []string{
 	"{{ $alertID := .AlertID }}",
 	"{{ $groupID := .GroupID }}",
 	"{{ $activeAt := .ActiveAt }}",
+	"{{ $for := .For }}",
 }
 
 // ExecTemplate executes the Alert template for given
@@ -98,7 +102,15 @@ var tplHeaders = []string{
 // Every alert could have a different datasource, so function
 // requires a queryFunction as an argument.
 func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string]string) (map[string]string, error) {
-	tplData := AlertTplData{Value: a.Value, Labels: labels, Expr: a.Expr, AlertID: a.ID, GroupID: a.GroupID, ActiveAt: a.ActiveAt}
+	tplData := AlertTplData{
+		Value:    a.Value,
+		Labels:   labels,
+		Expr:     a.Expr,
+		AlertID:  a.ID,
+		GroupID:  a.GroupID,
+		ActiveAt: a.ActiveAt,
+		For:      a.For,
+	}
 	tmpl, err := templates.GetWithFuncs(templates.FuncsWithQuery(q))
 	if err != nil {
 		return nil, fmt.Errorf("error getting a template: %w", err)

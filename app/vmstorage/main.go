@@ -103,10 +103,10 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	storage.SetMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
-	storage.SetTSIDCacheSize(cacheSizeStorageTSID.N)
-	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.N)
-	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.N)
-	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.N)
+	storage.SetTSIDCacheSize(cacheSizeStorageTSID.IntN())
+	storage.SetTagFiltersCacheSize(cacheSizeIndexDBTagFilters.IntN())
+	mergeset.SetIndexBlocksCacheSize(cacheSizeIndexDBIndexBlocks.IntN())
+	mergeset.SetDataBlocksCacheSize(cacheSizeIndexDBDataBlocks.IntN())
 
 	if retentionPeriod.Msecs < 24*3600*1000 {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
@@ -558,8 +558,15 @@ func registerStorageMetrics(strg *storage.Storage) {
 	metrics.NewGauge(`vm_assisted_merges_total{type="storage/inmemory"}`, func() float64 {
 		return float64(tm().InmemoryAssistedMerges)
 	})
+	metrics.NewGauge(`vm_assisted_merges_total{type="storage/small"}`, func() float64 {
+		return float64(tm().SmallAssistedMerges)
+	})
+
 	metrics.NewGauge(`vm_assisted_merges_total{type="indexdb/inmemory"}`, func() float64 {
-		return float64(idbm().AssistedInmemoryMerges)
+		return float64(idbm().InmemoryAssistedMerges)
+	})
+	metrics.NewGauge(`vm_assisted_merges_total{type="indexdb/file"}`, func() float64 {
+		return float64(idbm().FileAssistedMerges)
 	})
 
 	metrics.NewGauge(`vm_indexdb_items_added_total`, func() float64 {

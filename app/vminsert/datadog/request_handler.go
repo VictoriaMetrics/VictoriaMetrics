@@ -54,7 +54,9 @@ func insertRows(series []parser.Series, extraLabels []prompbmarshal.Label) error
 		rowsTotal += len(ss.Points)
 		ctx.Labels = ctx.Labels[:0]
 		ctx.AddLabel("", ss.Metric)
-		ctx.AddLabel("host", ss.Host)
+		if ss.Host != "" {
+			ctx.AddLabel("host", ss.Host)
+		}
 		if ss.Device != "" {
 			ctx.AddLabel("device", ss.Device)
 		}

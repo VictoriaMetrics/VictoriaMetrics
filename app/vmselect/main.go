@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
@@ -215,8 +216,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	if path == "/vmalert" {
-		// vmalert access via incomplete url without `/` in the end. Redirecto to complete url.
-		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// vmalert access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		httpserver.Redirect(w, "vmalert/")
 		return true
@@ -423,6 +424,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/metric-relabel-debug":
+		promscrapeMetricRelabelDebugRequests.Inc()
+		promscrape.WriteMetricRelabelDebug(w, r)
+		return true
+	case "/target-relabel-debug":
+		promscrapeTargetRelabelDebugRequests.Inc()
+		promscrape.WriteTargetRelabelDebug(w, r)
+		return true
+	case "/expand-with-exprs":
+		expandWithExprsRequests.Inc()
+		prometheus.ExpandWithExprs(w, r)
+		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
 		if len(*vmalertProxyURL) > 0 {
@@ -587,7 +600,12 @@ var (
 	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/delSeries"}`)
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/delSeries"}`)
 
+	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/metric-relabel-debug"}`)
+	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
+
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
+
+	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)

@@ -34,6 +34,7 @@ var (
 //
 // There is no need in calling Init from tests.
 func Init() {
+	setLoggerJSONFields()
 	setLoggerOutput()
 	validateLoggerLevel()
 	validateLoggerFormat()
@@ -239,9 +240,20 @@ func logMessage(level, msg string, skipframes int) {
 	switch *loggerFormat {
 	case "json":
 		if *disableTimestamps {
-			logMsg = fmt.Sprintf(`{"level":%q,"caller":%q,"msg":%q}`+"\n", levelLowercase, location, msg)
+			logMsg = fmt.Sprintf(
+				`{%q:%q,%q:%q,%q:%q}`+"\n",
+				fieldLevel, levelLowercase,
+				fieldCaller, location,
+				fieldMsg, msg,
+			)
 		} else {
-			logMsg = fmt.Sprintf(`{"ts":%q,"level":%q,"caller":%q,"msg":%q}`+"\n", timestamp, levelLowercase, location, msg)
+			logMsg = fmt.Sprintf(
+				`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
+				fieldTs, timestamp,
+				fieldLevel, levelLowercase,
+				fieldCaller, location,
+				fieldMsg, msg,
+			)
 		}
 	default:
 		if *disableTimestamps {

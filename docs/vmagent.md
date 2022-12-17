@@ -249,8 +249,6 @@ scrape_configs:
 * `scrape_align_interval: duration` for aligning scrapes to the given interval instead of using random offset
   in the range `[0 ... scrape_interval]` for scraping each target. The random offset helps spreading scrapes evenly in time.
 * `scrape_offset: duration` for specifying the exact offset for scraping instead of using random offset in the range `[0 ... scrape_interval]`.
-* `relabel_debug: true` for enabling debug logging during relabeling of the discovered targets. See [these docs](#relabeling).
-* `metric_relabel_debug: true` for enabling debug logging during relabeling of the scraped metrics. See [these docs](#relabeling).
 
 See [scrape_configs docs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) for more details on all the supported options.
 
@@ -423,26 +421,25 @@ with [additional enhancements](#relabeling-enhancements). The relabeling can be 
   This relabeling is used for modifying labels in discovered targets and for dropping unneded targets.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
 
-  This relabeling can be debugged by passing `relabel_debug: true` option to the corresponding `scrape_config` section.
-  In this case `vmagent` logs target labels before and after the relabeling and then drops the logged target.
+  This relabeling can be debugged by clicking the `debug` link at the corresponding target on the `http://vmagent:8429/targets` page
+  or on the `http://vmagent:8429/service-discovery` page. See [these docs](#relabel-debug) for details.
 
 * At the `scrape_config -> metric_relabel_configs` section in `-promscrape.config` file.
   This relabeling is used for modifying labels in scraped metrics and for dropping unneeded metrics.
   See [relabeling cookbook](https://docs.victoriametrics.com/relabeling.html) for details.
 
-  This relabeling can be debugged by passing `metric_relabel_debug: true` option to the corresponding `scrape_config` section.
-  In this case `vmagent` logs metrics before and after the relabeling and then drops the logged metrics.
+  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 * At the `-remoteWrite.relabelConfig` file. This relabeling is used for modifying labels for all the collected metrics
-  (inluding [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics
+  (including [metrics obtained via push-based protocols](#how-to-push-data-to-vmagent)) and for dropping unneeded metrics
   before sending them to all the configured `-remoteWrite.url` addresses.
-  This relabeling can be debugged by passing `-remoteWrite.relabelDebug` command-line option to `vmagent`.
-  In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to remote storage.
+
+  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 * At the `-remoteWrite.urlRelabelConfig` files. This relabeling is used for modifying labels for metrics
   and for dropping unneeded metrics before sending them to a particular `-remoteWrite.url`.
-  This relabeling can be debugged by passing `-remoteWrite.urlRelabelDebug` command-line options to `vmagent`.
-  In this case `vmagent` logs metrics before and after the relabeling and then drops all the logged metrics instead of sending them to the corresponding `-remoteWrite.url`.
+
+  This relabeling can be debugged via `http://vmagent:8429/metric-relabel-debug` page. See [these docs](#relabel-debug) for details.
 
 All the files with relabeling configs can contain special placeholders in the form `%{ENV_VAR}`,
 which are replaced by the corresponding environment variable values.
@@ -456,9 +453,6 @@ The following articles contain useful information about Prometheus relabeling:
 * [Dropping labels at scrape time](https://www.robustperception.io/dropping-metrics-at-scrape-time-with-prometheus)
 * [Extracting labels from legacy metric names](https://www.robustperception.io/extracting-labels-from-legacy-metric-names)
 * [relabel_configs vs metric_relabel_configs](https://www.robustperception.io/relabel_configs-vs-metric_relabel_configs)
-
-[This relabeler playground](https://relabeler.promlabs.com/) can help debugging issues related to relabeling.
-
 
 ## Relabeling enhancements
 
@@ -578,7 +572,7 @@ Note that the `name` field must be substituted with explicit `__name__` option u
 If `__name__` option is missing under `labels` section, then the original Graphite-style metric name is left unchanged.
 
 For example, the following relabeling rule generates `requests_total{job="app42",instance="host124:8080"}` metric
-from "app42.host123.requests.total" Graphite-style metric:
+from `app42.host123.requests.total` Graphite-style metric:
 
 ```yaml
 - action: graphite
@@ -601,6 +595,28 @@ Important notes about `action: graphite` relabeling rules:
 The `action: graphite` relabeling rules are easier to write and maintain than `action: replace` for labels extraction from Graphite-style metric names.
 Additionally, the `action: graphite` relabeling rules usually work much faster than the equivalent `action: replace` rules.
 
+## Relabel debug
+
+`vmagent` and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+provide the following tools for debugging target-level and metric-level relabeling:
+
+- Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
+  can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
+  and clicking the `debug` link at the target, which must be debugged.
+  The opened page will show step-by-step results for the actual relabeling rules applied to the target labels.
+
+  The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
+  is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
+  (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
+  and click the `debug` link there. The opened page will show step-by-step results for the actual relabeling rules,
+  which result to target drop.
+
+- Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
+  and all the relabeling, which can be set up via `-relabelConfig`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`
+  command-line flags) can be performed by navigating to `http://vmagent:8429/metric-relabel-debug` page
+  (`http://victoriametrics:8428/metric-relabel-debug` page for single-node VictoriaMetrics)
+  and submitting there relabeling rules together with the metric to be relabeled.
+  The page will show step-by-step results for the entered relabeling rules executed against the entered metric.
 
 ## Prometheus staleness markers
 
@@ -658,8 +674,9 @@ scrape_configs:
     'match[]': ['{__name__!=""}']
 ```
 
-Note that `sample_limit` and `series_limit` [scrape_config options](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
-cannot be used in stream parsing mode because the parsed data is pushed to remote storage as soon as it is parsed.
+Note that `vmagent` in stream parsing mode stores up to `sample_limit` samples to the configured `-remoteStorage.url`
+instead of droping all the samples read from the target, because the parsed data is sent to the remote storage
+as soon as it is parsed in stream parsing mode.
 
 ## Scraping big number of targets
 
@@ -748,8 +765,8 @@ By default `vmagent` doesn't limit the number of time series each scrape target 
 
 * Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually
   to all the scrape targets defined in the file pointed by `-promscrape.config`.
-* Via `series_limit` config option at `scrape_config` section. This limit is applied individually
-  to all the scrape targets defined in the given `scrape_config`.
+* Via `series_limit` config option at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) section.
+  This limit is applied individually to all the scrape targets defined in the given `scrape_config`.
 * Via `__series_limit__` label, which can be set with [relabeling](#relabeling) at `relabel_configs` section.
   This limit is applied to the corresponding scrape targets. Typical use case: to set the limit
   via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets,
@@ -1035,7 +1052,7 @@ It may be needed to build `vmagent` from source code when developing or testing 
 
 ### Development build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
 2. Run `make vmagent` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
    It builds the `vmagent` binary and puts it into the `bin` folder.
 
@@ -1064,7 +1081,7 @@ ARM build may run on Raspberry Pi or on [energy-efficient ARM servers](https://b
 
 ### Development ARM build
 
-1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.3.
+1. [Install Go](https://golang.org/doc/install). The minimum supported version is Go 1.19.
 2. Run `make vmagent-linux-arm` or `make vmagent-linux-arm64` from the root folder of [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics)
    It builds `vmagent-linux-arm` or `vmagent-linux-arm64` binary respectively and puts it into the `bin` folder.
 
@@ -1123,7 +1140,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Trim timestamps when importing csv data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -datadog.maxInsertRequestSize size
      The maximum size in bytes of a single DataDog POST request to /api/v1/series
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 67108864)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 67108864)
   -datadog.sanitizeMetricName
      Sanitize metric names for the ingested DataDog data to comply with DataDog behaviour described at https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics (default true)
   -denyQueryTracing
@@ -1166,13 +1183,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr='' (default ":8429")
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 104857600)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
   -influx.databaseNames array
      Comma-separated list of database names to return from /query and /influx/query API. This can be needed for accepting data from Telegraf plugins such as https://github.com/fangli/fluent-plugin-influxdb
      Supports an array of values separated by comma or specified via multiple flags.
   -influx.maxLineSize size
      The maximum size in bytes for a single InfluxDB line during parsing
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 262144)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
@@ -1231,10 +1248,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 16)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
@@ -1247,7 +1264,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Trim timestamps for OpenTSDB 'telnet put' data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -opentsdbhttp.maxInsertRequestSize size
      The maximum size of OpenTSDB HTTP put request
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 33554432)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
   -opentsdbhttpTrimTimestamp duration
      Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -pprofAuthKey string
@@ -1312,13 +1329,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxResponseHeadersSize size
      The maximum size of http response headers from Prometheus scrape targets
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 4096)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 4096)
   -promscrape.maxScrapeSize size
      The maximum size of scrape response in bytes to process from Prometheus targets. Bigger responses are rejected
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 16777216)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 16777216)
   -promscrape.minResponseSizeForStreamParse size
      The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 1000000)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1000000)
   -promscrape.noStaleMarkers
      Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
@@ -1392,12 +1409,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxBlockSize size
      The maximum block size to send to remote storage. Bigger blocks may improve performance at the cost of the increased memory usage. See also -remoteWrite.maxRowsPerBlock
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 8388608)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 8388608)
   -remoteWrite.maxDailySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
   -remoteWrite.maxDiskUsagePerURL array
      The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. Disk usage is unlimited if the value is set to 0
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB.
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB.
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.maxHourlySeries int
      The maximum number of unique series vmagent can send to remote storage systems during the last hour. Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter
@@ -1431,8 +1448,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabel_config entries. The path can point either to local file or to http url. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
-  -remoteWrite.relabelDebug
-     Whether to log metrics before and after relabeling with -remoteWrite.relabelConfig. If the -remoteWrite.relabelDebug is enabled, then the metrics aren't sent to remote storage. This is useful for debugging the relabeling configs
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.
@@ -1467,9 +1482,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel config for the corresponding -remoteWrite.url. The path can point either to local file or to http url
      Supports an array of values separated by comma or specified via multiple flags.
-  -remoteWrite.urlRelabelDebug array
-     Whether to log metrics before and after relabeling with -remoteWrite.urlRelabelConfig. If the -remoteWrite.urlRelabelDebug is enabled, then the metrics aren't sent to the corresponding -remoteWrite.url. This is useful for debugging the relabeling configs
-     Supports array of values separated by comma or specified via multiple flags.
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls

@@ -90,75 +90,10 @@ func (v AccountSignatureValues) SignWithSharedKey(sharedKeyCredential *SharedKey
 	return p, nil
 }
 
-// SignWithUserDelegation uses an account's UserDelegationKey to sign this signature values to produce the proper SAS query parameters.
-func (v AccountSignatureValues) SignWithUserDelegation(userDelegationCredential *UserDelegationCredential) (QueryParameters, error) {
-	// https://docs.microsoft.com/en-us/rest/api/storageservices/Constructing-an-Account-SAS
-	if v.ExpiryTime.IsZero() || v.Permissions == "" || v.ResourceTypes == "" || v.Services == "" {
-		return QueryParameters{}, errors.New("account SAS is missing at least one of these: ExpiryTime, Permissions, Service, or ResourceType")
-	}
-	if v.Version == "" {
-		v.Version = Version
-	}
-
-	perms, err := parseAccountPermissions(v.Permissions)
-	if err != nil {
-		return QueryParameters{}, err
-	}
-	v.Permissions = perms.String()
-
-	startTime, expiryTime, _ := formatTimesForSigning(v.StartTime, v.ExpiryTime, time.Time{})
-
-	stringToSign := strings.Join([]string{
-		exported.GetAccountName(userDelegationCredential),
-		v.Permissions,
-		v.Services,
-		v.ResourceTypes,
-		startTime,
-		expiryTime,
-		v.IPRange.String(),
-		string(v.Protocol),
-		v.Version,
-		""}, // That is right, the account SAS requires a terminating extra newline
-		"\n")
-
-	signature, err := exported.ComputeUDCHMACSHA256(userDelegationCredential, stringToSign)
-	if err != nil {
-		return QueryParameters{}, err
-	}
-	p := QueryParameters{
-		// Common SAS parameters
-		version:     v.Version,
-		protocol:    v.Protocol,
-		startTime:   v.StartTime,
-		expiryTime:  v.ExpiryTime,
-		permissions: v.Permissions,
-		ipRange:     v.IPRange,
-
-		// Account-specific SAS parameters
-		services:      v.Services,
-		resourceTypes: v.ResourceTypes,
-
-		// Calculated SAS signature
-		signature: signature,
-	}
-
-	udk := exported.GetUDKParams(userDelegationCredential)
-
-	//User delegation SAS specific parameters
-	p.signedOID = *udk.SignedOID
-	p.signedTID = *udk.SignedTID
-	p.signedStart = *udk.SignedStart
-	p.signedExpiry = *udk.SignedExpiry
-	p.signedService = *udk.SignedService
-	p.signedVersion = *udk.SignedVersion
-
-	return p, nil
-}
-
 // AccountPermissions type simplifies creating the permissions string for an Azure Storage Account SAS.
 // Initialize an instance of this type and then call its String method to set AccountSASSignatureValues's Permissions field.
 type AccountPermissions struct {
-	Read, Write, Delete, DeletePreviousVersion, List, Add, Create, Update, Process, Tag, FilterByTags bool
+	Read, Write, Delete, DeletePreviousVersion, List, Add, Create, Update, Process, Tag, FilterByTags, PermanentDelete bool
 }
 
 // String produces the SAS permissions string for an Azure Storage account.
@@ -176,6 +111,9 @@ func (p *AccountPermissions) String() string {
 	}
 	if p.DeletePreviousVersion {
 		buffer.WriteRune('x')
+	}
+	if p.PermanentDelete {
+		buffer.WriteRune('y')
 	}
 	if p.List {
 		buffer.WriteRune('l')
@@ -212,6 +150,8 @@ func parseAccountPermissions(s string) (AccountPermissions, error) {
 			p.Write = true
 		case 'd':
 			p.Delete = true
+		case 'y':
+			p.PermanentDelete = true
 		case 'l':
 			p.List = true
 		case 'a':

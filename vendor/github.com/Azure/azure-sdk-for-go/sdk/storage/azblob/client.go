@@ -101,6 +101,11 @@ func (c *Client) URL() string {
 	return c.svc.URL()
 }
 
+// ServiceClient returns the embedded service client for this client.
+func (c *Client) ServiceClient() *service.Client {
+	return c.svc
+}
+
 // CreateContainer is a lifecycle method to creates a new container under the specified account.
 // If the container with the same name already exists, a ResourceExistsError will be raised.
 // This method returns a client with which to interact with the newly created container.

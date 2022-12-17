@@ -4,6 +4,8 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
 // FastStringTransformer implements fast transformer for strings.
@@ -11,30 +13,41 @@ import (
 // It caches transformed strings and returns them back on the next calls
 // without calling the transformFunc, which may be expensive.
 type FastStringTransformer struct {
-	m    atomic.Value
-	mLen uint64
+	lastCleanupTime uint64
+
+	m sync.Map
 
 	transformFunc func(s string) string
+}
+
+type fstEntry struct {
+	lastAccessTime uint64
+	s              string
 }
 
 // NewFastStringTransformer creates new transformer, which applies transformFunc to strings passed to Transform()
 //
 // transformFunc must return the same result for the same input.
 func NewFastStringTransformer(transformFunc func(s string) string) *FastStringTransformer {
-	var fst FastStringTransformer
-	fst.m.Store(&sync.Map{})
-	fst.transformFunc = transformFunc
-	return &fst
+	return &FastStringTransformer{
+		lastCleanupTime: fasttime.UnixTimestamp(),
+		transformFunc:   transformFunc,
+	}
 }
 
 // Transform applies transformFunc to s and returns the result.
 func (fst *FastStringTransformer) Transform(s string) string {
-	m := fst.m.Load().(*sync.Map)
-	v, ok := m.Load(s)
+	ct := fasttime.UnixTimestamp()
+	v, ok := fst.m.Load(s)
 	if ok {
 		// Fast path - the transformed s is found in the cache.
-		sp := v.(*string)
-		return *sp
+		e := v.(*fstEntry)
+		if atomic.LoadUint64(&e.lastAccessTime)+10 < ct {
+			// Reduce the frequency of e.lastAccessTime update to once per 10 seconds
+			// in order to improve the fast path speed on systems with many CPU cores.
+			atomic.StoreUint64(&e.lastAccessTime, ct)
+		}
+		return e.s
 	}
 	// Slow path - transform s and store it in the cache.
 	sTransformed := fst.transformFunc(s)
@@ -48,12 +61,25 @@ func (fst *FastStringTransformer) Transform(s string) string {
 		// which, in turn, can point to bigger string.
 		sTransformed = s
 	}
-	sp := &sTransformed
-	m.Store(s, sp)
-	n := atomic.AddUint64(&fst.mLen, 1)
-	if n > 100e3 {
-		atomic.StoreUint64(&fst.mLen, 0)
-		fst.m.Store(&sync.Map{})
+	e := &fstEntry{
+		lastAccessTime: ct,
+		s:              sTransformed,
 	}
+	fst.m.Store(s, e)
+
+	if atomic.LoadUint64(&fst.lastCleanupTime)+61 < ct {
+		// Perform a global cleanup for fst.m by removing items, which weren't accessed
+		// during the last 5 minutes.
+		atomic.StoreUint64(&fst.lastCleanupTime, ct)
+		m := &fst.m
+		m.Range(func(k, v interface{}) bool {
+			e := v.(*fstEntry)
+			if atomic.LoadUint64(&e.lastAccessTime)+5*60 < ct {
+				m.Delete(k)
+			}
+			return true
+		})
+	}
+
 	return sTransformed
 }

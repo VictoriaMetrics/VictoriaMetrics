@@ -83,12 +83,12 @@ func (cfg *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if cfg.Timeout.Duration() == 0 {
 		cfg.Timeout = promutils.NewDuration(time.Second * 10)
 	}
-	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs, false)
+	rCfg, err := promrelabel.ParseRelabelConfigs(cfg.RelabelConfigs)
 	if err != nil {
 		return fmt.Errorf("failed to parse relabeling config: %w", err)
 	}
 	cfg.parsedRelabelConfigs = rCfg
-	arCfg, err := promrelabel.ParseRelabelConfigs(cfg.AlertRelabelConfigs, false)
+	arCfg, err := promrelabel.ParseRelabelConfigs(cfg.AlertRelabelConfigs)
 	if err != nil {
 		return fmt.Errorf("failed to parse alert relabeling config: %w", err)
 	}

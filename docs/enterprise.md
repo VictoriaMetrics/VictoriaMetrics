@@ -44,6 +44,7 @@ plus the following additional features:
 - [mTLS for cluster components](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection).
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
+- [Anomaly Detection Service](https://docs.victoriametrics.com/vmanomaly.html)
 
 On top of this, enterprise package of VictoriaMetrics includes the following important Enterprise features:
 

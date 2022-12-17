@@ -54,14 +54,15 @@ func TestAlert_ExecTemplate(t *testing.T) {
 					"job":      "staging",
 					"instance": "localhost",
 				},
+				For: 5 * time.Minute,
 			},
 			annotations: map[string]string{
 				"summary":     "Too high connection number for {{$labels.instance}} for job {{$labels.job}}",
-				"description": "It is {{ $value }} connections for {{$labels.instance}}",
+				"description": "It is {{ $value }} connections for {{$labels.instance}} for more than {{ .For }}",
 			},
 			expTpl: map[string]string{
 				"summary":     "Too high connection number for localhost for job staging",
-				"description": "It is 10000 connections for localhost",
+				"description": "It is 10000 connections for localhost for more than 5m0s",
 			},
 		},
 		{
@@ -152,7 +153,7 @@ func TestAlert_ExecTemplate(t *testing.T) {
 			},
 		},
 		{
-			name: "ActiveAt custome format",
+			name: "ActiveAt custom format",
 			alert: &Alert{
 				ActiveAt: time.Date(2022, 8, 19, 20, 34, 58, 651387237, time.UTC),
 			},
@@ -239,7 +240,7 @@ func TestAlert_toPromLabels(t *testing.T) {
   replacement: "aaa"
 - action: labeldrop
   regex: "env.*"
-`), false)
+`))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

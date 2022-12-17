@@ -2,7 +2,7 @@ import React, { FC, useState } from "preact/compat";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import router from "./router";
 import AppContextProvider from "./contexts/AppContextProvider";
-import HomeLayout from "./components/Home/HomeLayout";
+import Layout from "./components/Layout/Layout";
 import CustomPanel from "./pages/CustomPanel";
 import DashboardsLayout from "./pages/PredefinedPanels";
 import CardinalityPanel from "./pages/CardinalityPanel";
@@ -29,7 +29,7 @@ const App: FC = () => {
         <Routes>
           <Route
             path={"/"}
-            element={<HomeLayout/>}
+            element={<Layout/>}
           >
             <Route
               path={router.home}

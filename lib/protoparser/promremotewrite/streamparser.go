@@ -37,7 +37,7 @@ func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) erro
 	if err != nil {
 		return fmt.Errorf("cannot decompress request with length %d: %w", len(ctx.reqBuf.B), err)
 	}
-	if len(bb.B) > maxInsertRequestSize.N {
+	if int64(len(bb.B)) > maxInsertRequestSize.N {
 		return fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
 	}
 	wr := getWriteRequest()

@@ -4,7 +4,7 @@ DOCKER_NAMESPACE := victoriametrics
 
 ROOT_IMAGE ?= alpine:3.17.0
 CERTS_IMAGE := alpine:3.17.0
-GO_BUILDER_IMAGE := golang:1.19.3-alpine
+GO_BUILDER_IMAGE := golang:1.19.4-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.3-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
@@ -77,7 +77,7 @@ publish-via-docker: \
 		--build-arg root_image=$(ROOT_IMAGE) \
 		--build-arg APP_NAME=$(APP_NAME) \
 		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(PKG_TAG)$(RACE) \
-		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):latest$(RACE) \
+		--tag $(DOCKER_NAMESPACE)/$(APP_NAME):$(LATEST_TAG)$(RACE) \
 		-o type=image \
 		-f app/$(APP_NAME)/multiarch/Dockerfile \
 		--push \
