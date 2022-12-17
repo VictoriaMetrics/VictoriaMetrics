@@ -10,6 +10,9 @@ interface AutocompleteProps {
   anchor: Ref<HTMLElement>
   disabled?: boolean
   maxWords?: number
+  minLength?: number
+  fullWidth?: boolean
+  noOptionsText?: string
   onSelect: (val: string) => void,
   onOpenAutocomplete?: (val: boolean) => void
 }
@@ -20,6 +23,9 @@ const Autocomplete: FC<AutocompleteProps> = ({
   anchor,
   disabled,
   maxWords = 1,
+  minLength = 2,
+  fullWidth,
+  noOptionsText,
   onSelect,
   onOpenAutocomplete
 }) => {
@@ -38,6 +44,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
       return [];
     }
   }, [openAutocomplete, options, value]);
+
+  const displayNoOptionsText = useMemo(() => {
+    return noOptionsText && !foundOptions.length;
+  }, [noOptionsText,foundOptions]);
 
   const handleCloseAutocomplete = () => {
     setOpenAutocomplete(false);
@@ -84,7 +94,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
   useEffect(() => {
     const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
-    setOpenAutocomplete(value.length > 2 && words <= maxWords);
+    setOpenAutocomplete(value.length > minLength && words <= maxWords);
   }, [value]);
 
   useEffect(() => {
@@ -113,11 +123,13 @@ const Autocomplete: FC<AutocompleteProps> = ({
       buttonRef={anchor}
       placement="bottom-left"
       onClose={handleCloseAutocomplete}
+      fullWidth={fullWidth}
     >
       <div
         className="vm-autocomplete"
         ref={wrapperEl}
       >
+        {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
         {foundOptions.map((option, i) =>
           <div
             className={classNames({

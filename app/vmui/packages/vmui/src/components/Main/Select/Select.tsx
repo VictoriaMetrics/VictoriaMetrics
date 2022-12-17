@@ -1,10 +1,10 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
-import Popper from "../../../components/Main/Popper/Popper";
 import TextField from "../../../components/Main/TextField/TextField";
-import "./style.scss";
 import { MouseEvent } from "react";
+import Autocomplete from "../Autocomplete/Autocomplete";
+import "./style.scss";
 
 interface JobSelectorProps {
   value: string
@@ -14,6 +14,7 @@ interface JobSelectorProps {
   noOptionsText?: string
   error?: string
   clearable?: boolean
+  searchable?: boolean
   onChange: (value: string) => void
 }
 
@@ -25,18 +26,30 @@ const Select: FC<JobSelectorProps> = ({
   error,
   noOptionsText,
   clearable = false,
+  searchable,
   onChange
 }) => {
 
+  const [search, setSearch] = useState("");
+  const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
   const [openList, setOpenList] = useState(false);
-  const targetRef = useRef<HTMLDivElement>(null);
 
-  const toggleOpenList = () => {
-    setOpenList(prev => !prev);
+  const textFieldValue = useMemo(() => openList ? search : value, [value, search, openList]);
+  const autocompleteValue = useMemo(() => !openList ? "" : search || "(.+)", [search, openList]);
+
+  const clearFocus = () => {
+    if (document.activeElement instanceof HTMLInputElement) {
+      document.activeElement.blur();
+    }
   };
 
   const handleCloseList = () => {
     setOpenList(false);
+    clearFocus();
+  };
+
+  const handleFocus = () => {
+    setOpenList(true);
   };
 
   const handleClickJob = (job: string) => {
@@ -49,20 +62,26 @@ const Select: FC<JobSelectorProps> = ({
     e.stopPropagation();
   };
 
+  useEffect(() => {
+    setSearch("");
+  }, [openList]);
+
   return (
     <div className="vm-select">
       <div
         className="vm-select-input"
-        onClick={toggleOpenList}
-        ref={targetRef}
+        ref={autocompleteAnchorEl}
       >
         <TextField
           label={label}
           type="text"
-          value={value}
+          value={textFieldValue}
           placeholder={placeholder}
           error={error}
-          disabled
+          disabled={!searchable}
+          onFocus={handleFocus}
+          onEnter={handleCloseList}
+          onChange={setSearch}
           endIcon={(
             <div
               className={classNames({
@@ -83,27 +102,17 @@ const Select: FC<JobSelectorProps> = ({
           </div>
         )}
       </div>
-
-      <Popper
-        open={openList}
-        buttonRef={targetRef}
-        placement="bottom-left"
+      <Autocomplete
+        value={autocompleteValue}
+        options={list}
+        anchor={autocompleteAnchorEl}
+        maxWords={10}
+        minLength={0}
         fullWidth
-        onClose={handleCloseList}
-      >
-        <div className="vm-select-list">
-          {!list.length && <div className="vm-select-list__no-options">{noOptionsText || "No options"}</div>}
-          {list.map(item => (
-            <div
-              className="vm-list__item"
-              key={item}
-              onClick={createHandleClick(item)}
-            >
-              {item}
-            </div>
-          ))}
-        </div>
-      </Popper>
+        noOptionsText={noOptionsText}
+        onSelect={handleClickJob}
+        onOpenAutocomplete={setOpenList}
+      />
     </div>
   );
 };

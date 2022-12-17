@@ -19,6 +19,8 @@ const ExploreMetrics: FC = () => {
   const { instances, isLoading: loadingInstances, error: errorInstances } = useFetchInstances(job);
   const { names, isLoading: loadingNames, error: errorNames } = useFetchNames(job);
 
+  const noInstanceText = useMemo(() => job ? "" : "No instances. Please select job", [job]);
+
   const isLoading = useMemo(() => {
     return loadingJobs || loadingInstances || loadingNames;
   }, [loadingJobs, loadingInstances, loadingNames]);
@@ -40,6 +42,7 @@ const ExploreMetrics: FC = () => {
           label="Job"
           placeholder="Please select job"
           onChange={setJob}
+          searchable
         />
         <Select
           value={instance}
@@ -47,8 +50,9 @@ const ExploreMetrics: FC = () => {
           label="Instance"
           placeholder="Please select instance"
           onChange={setInstance}
-          noOptionsText="No instances. Please select job"
+          noOptionsText={noInstanceText}
           clearable
+          searchable
         />
       </div>
 
