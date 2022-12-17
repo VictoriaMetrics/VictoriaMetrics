@@ -695,10 +695,10 @@ may get empty response from datasource and produce empty recording rules or rese
 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
-_By default recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
-This behavior is controlled by `-search.latencyOffset` command-line flag on vmselect. Usually, this results into
-a 30s shift for recording rules results.
-Note that too small value passed to `-search.latencyOffset` may lead to incomplete query results._
+By default recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
+This behavior is controlled by `-search.latencyOffset` command-line flag and the `latency_offset` query ag at `vmselect`.
+Usually, this results into a 30s shift for recording rules results.
+Note that too small value passed to `-search.latencyOffset` or to `latency_offest` query arg may lead to incomplete query results.
 
 Try the following recommendations in such cases:
 
