@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"reflect"
 	"testing"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 )
@@ -198,16 +197,35 @@ func TestAdjustLastPoints(t *testing.T) {
 	})
 }
 
-func TestGetLatencyOffsetMilliseconds(t *testing.T) {
-	f := func(got, exp int64) {
-		if got != exp {
-			t.Fatalf("expected offset %d; got %d", exp, got)
+func TestGetLatencyOffsetMillisecondsSuccess(t *testing.T) {
+	f := func(url string, expectedOffset int64) {
+		t.Helper()
+		r, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
+		}
+		offset, err := getLatencyOffsetMilliseconds(r)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if offset != expectedOffset {
+			t.Fatalf("unexpected offset got %d; want %d", offset, expectedOffset)
 		}
 	}
+	f("http://localhost", latencyOffset.Milliseconds())
+	f("http://localhost?latency_offset=1.234s", 1234)
+}
 
-	r, _ := http.NewRequest(http.MethodGet, "http://localhost", nil)
-	f(getLatencyOffsetMilliseconds(r), latencyOffset.Milliseconds())
-
-	r, _ = http.NewRequest(http.MethodGet, "http://localhost?latency_offset=10s", nil)
-	f(getLatencyOffsetMilliseconds(r), 10*time.Second.Milliseconds())
+func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
+	f := func(url string) {
+		t.Helper()
+		r, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
+		}
+		if _, err := getLatencyOffsetMilliseconds(r); err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+	f("http://localhost?latency_offset=foobar")
 }

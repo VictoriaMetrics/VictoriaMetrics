@@ -736,7 +736,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		return nil
 	}
 
-	queryOffset := getLatencyOffsetMilliseconds(r)
+	queryOffset, err := getLatencyOffsetMilliseconds(r)
+	if err != nil {
+		return err
+	}
 	if !searchutils.GetBool(r, "nocache") && ct-start < queryOffset && start-ct < queryOffset {
 		// Adjust start time only if `nocache` arg isn't set.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
@@ -861,7 +864,10 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		return err
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
-		queryOffset := getLatencyOffsetMilliseconds(r)
+		queryOffset, err := getLatencyOffsetMilliseconds(r)
+		if err != nil {
+			return err
+		}
 		if ct-queryOffset < end {
 			result = adjustLastPoints(result, ct-queryOffset, ct+step)
 		}
@@ -1001,16 +1007,12 @@ func getRoundDigits(r *http.Request) int {
 	return n
 }
 
-func getLatencyOffsetMilliseconds(r *http.Request) int64 {
+func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 	d := latencyOffset.Milliseconds()
 	if d <= 1000 {
 		d = 1000
 	}
-	lo, err := searchutils.GetDuration(r, "latency_offset", d)
-	if err != nil {
-		return d
-	}
-	return lo
+	return searchutils.GetDuration(r, "latency_offset", d)
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
