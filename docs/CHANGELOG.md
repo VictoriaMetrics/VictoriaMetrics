@@ -27,6 +27,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 Released at 14-12-2022
 
+**Warning (19-12-2022):** VictoriaMetrics v1.85.1 contains a bug introduced in [1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0), which may result in missing time series during queries after indexdb rotation. It is recommended rolling back to [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1) and [resetting caches](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-removal) on storage nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502).
+
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): support `$for` or `.For` template variables in alert's annotations. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3246).
 
 * BUGFIX: [DataDog protocol parser](https://docs.victoriametrics.com/#how-to-send-data-from-datadog-agent): do not re-use `host` and `device` fields from the previously parsed messages if these fields are missing in the currently parsed message. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3432).
@@ -38,6 +40,8 @@ Released at 14-12-2022
 ## [v1.85.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.0)
 
 Released at 11-12-2022
+
+**Warning (19-12-2022):** VictoriaMetrics v1.85.0 contains a bug introduced in [1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0), which may result in missing time series during queries after indexdb rotation. It is recommended rolling back to [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1) and [resetting caches](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-removal) on storage nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502).
 
 **Update note 1:** this release drops support for direct upgrade from VictoriaMetrics versions prior [v1.28.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.28.0). Please upgrade to `v1.84.0`, wait until `finished round 2 of background conversion` line is emitted to log by single-node VictoriaMetrics or by `vmstorage`, and then upgrade to newer releases.
 
@@ -105,6 +109,8 @@ Released at 11-12-2022
 
 Released at 25-11-2022
 
+**Warning (19-12-2022):** VictoriaMetrics v1.84.0 contains a bug introduced in [1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0), which may result in missing time series during queries after indexdb rotation. It is recommended rolling back to [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1) and [resetting caches](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-removal) on storage nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502).
+
 * FEATURE: add support for [Pushgateway data import format](https://github.com/prometheus/pushgateway#url) via `/api/v1/import/prometheus` url. See [these docs](https://docs.victoriametrics.com/#how-to-import-data-in-prometheus-exposition-format) and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1415). Thanks to @PerGon for [the intial implementation](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3360).
 * FEATURE: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): add `http://<vmselect>:8481/admin/tenants` API endpoint for returning a list of registered tenants. See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) for details.
 * FEATURE: [VictoriaMetrics enterprise](https://docs.victoriametrics.com/enterprise.html): add `-storageNode.filter` command-line flag for filtering the [discovered vmstorage nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) with arbitrary regular expressions. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3353).
@@ -133,6 +139,8 @@ Released at 25-11-2022
 
 Released at 10-11-2022
 
+**Warning (19-12-2022):** VictoriaMetrics v1.83.1 contains a bug introduced in [1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0), which may result in missing time series during queries after indexdb rotation. It is recommended rolling back to [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1) and [resetting caches](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-removal) on storage nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502).
+
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): expose `__meta_consul_partition` label for targets discovered via [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs) in the same way as [Prometheus 2.40 does](https://github.com/prometheus/prometheus/pull/11482).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show the [query trace](https://docs.victoriametrics.com/#query-tracing) in JSON view. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2814). Thanks to @michal-kralik for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3316).
 
@@ -145,6 +153,8 @@ Released at 10-11-2022
 ## [v1.83.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.83.0)
 
 Released at 29-10-2022
+
+**Warning (19-12-2022):** VictoriaMetrics v1.83.0 contains a bug, which may result in missing time series during queries after indexdb rotation. It is recommended rolling back to [v1.82.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.82.1) and [resetting caches](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cache-removal) on storage nodes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3502).
 
 **Update note 1:** the `indexdb/tagFilters` cache type at [/metrics](https://docs.victoriametrics.com/#monitoring) has been renamed to `indexdb/tagFiltersToMetricIDs` in order to make its puropose more clear.
 
