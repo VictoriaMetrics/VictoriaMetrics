@@ -265,8 +265,8 @@ func TestArrayInt_String(t *testing.T) {
 }
 
 func TestArrayBytes(t *testing.T) {
-	expected := []int{10000000, 23, 10240}
-	result := make([]int, len(fooFlagBytes))
+	expected := []int64{10000000, 23, 10240}
+	result := make([]int64, len(fooFlagBytes))
 	for i, b := range fooFlagBytes {
 		result[i] = b.N
 	}
@@ -276,11 +276,11 @@ func TestArrayBytes(t *testing.T) {
 }
 
 func TestArrayBytes_Set(t *testing.T) {
-	f := func(s string, expectedValues []int) {
+	f := func(s string, expectedValues []int64) {
 		t.Helper()
 		var a ArrayBytes
 		_ = a.Set(s)
-		values := make([]int, len(a))
+		values := make([]int64, len(a))
 		for i, v := range a {
 			values[i] = v.N
 		}
@@ -288,13 +288,13 @@ func TestArrayBytes_Set(t *testing.T) {
 			t.Fatalf("unexpected values parsed;\ngot\n%d\nwant\n%d", values, expectedValues)
 		}
 	}
-	f("", []int{})
-	f(`1`, []int{1})
-	f(`-2,3,10kb`, []int{-2, 3, 10000})
+	f("", []int64{})
+	f(`1`, []int64{1})
+	f(`-2,3,10kb`, []int64{-2, 3, 10000})
 }
 
 func TestArrayBytes_GetOptionalArg(t *testing.T) {
-	f := func(s string, argIdx, defaultValue, expectedValue int) {
+	f := func(s string, argIdx int, defaultValue, expectedValue int64) {
 		t.Helper()
 		var a ArrayBytes
 		_ = a.Set(s)

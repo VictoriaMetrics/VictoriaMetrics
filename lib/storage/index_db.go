@@ -443,8 +443,8 @@ func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	var buf []byte
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	sh.Data = uintptr(unsafe.Pointer(&metricIDs[0]))
-	sh.Cap = sh.Len
-	sh.Len = 8 * len(metricIDs)
+	sh.Cap = 8 * len(metricIDs)
+	sh.Len = sh.Cap
 	dst = append(dst, buf...)
 	return dst
 }
@@ -741,7 +741,7 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		return nil, err
 	}
 
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for label names in the previous indexdb")
 		lnsLen := len(lns)
 		is := extDB.getIndexSearch(deadline)
@@ -749,7 +749,7 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		extDB.putIndexSearch(is)
 		qtChild.Donef("found %d additional label names", len(lns)-lnsLen)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -930,7 +930,7 @@ func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Trace
 	if err != nil {
 		return nil, err
 	}
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for label values in the previous indexdb")
 		lvsLen := len(lvs)
 		is := extDB.getIndexSearch(deadline)
@@ -938,7 +938,7 @@ func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Trace
 		extDB.putIndexSearch(is)
 		qtChild.Donef("found %d additional label values", len(lvs)-lvsLen)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1132,14 +1132,14 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, tr TimeRange, 
 		return nil, err
 	}
 	if len(tvss) < maxTagValueSuffixes {
-		ok := db.doExtDB(func(extDB *indexDB) {
+		db.doExtDB(func(extDB *indexDB) {
 			is := extDB.getIndexSearch(deadline)
 			qtChild := qt.NewChild("search tag value suffixes in the previous indexdb")
 			err = is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			qtChild.Done()
 			extDB.putIndexSearch(is)
 		})
-		if ok && err != nil {
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -1285,12 +1285,12 @@ func (db *indexDB) GetSeriesCount(deadline uint64) (uint64, error) {
 	}
 
 	var nExt uint64
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(deadline)
 		nExt, err = is.getSeriesCount()
 		extDB.putIndexSearch(is)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return 0, fmt.Errorf("error when searching in extDB: %w", err)
 	}
 	return n + nExt, nil
@@ -1350,14 +1350,14 @@ func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, tfss []*TagFilters, dat
 	if status.hasEntries() {
 		return status, nil
 	}
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("collect tsdb stats in the previous indexdb")
 		is := extDB.getIndexSearch(deadline)
 		status, err = is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 		qtChild.Done()
 		extDB.putIndexSearch(is)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("error when obtaining TSDB status from extDB: %w", err)
 	}
 	return status, nil
@@ -1663,16 +1663,15 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 
 	// Delete TSIDs in the extDB.
 	deletedCount := len(metricIDs)
-	if db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		var n int
 		qtChild := qt.NewChild("deleting series from the previos indexdb")
 		n, err = extDB.DeleteTSIDs(qtChild, tfss)
 		qtChild.Donef("deleted %d series", n)
 		deletedCount += n
-	}) {
-		if err != nil {
-			return deletedCount, fmt.Errorf("cannot delete tsids in extDB: %w", err)
-		}
+	})
+	if err != nil {
+		return deletedCount, fmt.Errorf("cannot delete tsids in extDB: %w", err)
 	}
 	return deletedCount, nil
 }
@@ -1776,7 +1775,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	qtChild.Done()
 
 	var extMetricIDs []uint64
-	if db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for metricIDs in the previous indexdb")
 		defer qtChild.Done()
 
@@ -1794,10 +1793,9 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		extMetricIDs, err = is.searchMetricIDs(qtChild, tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 		extDB.putMetricIDsToTagFiltersCache(qtChild, extMetricIDs, tfKeyExtBuf.B)
-	}) {
-		if err != nil {
-			return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %s", err)
-		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %s", err)
 	}
 
 	// Merge localMetricIDs with extMetricIDs.
@@ -1847,43 +1845,83 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 		return nil, nil
 	}
 	tsids := make([]TSID, len(metricIDs))
-	is := db.getIndexSearch(deadline)
-	defer db.putIndexSearch(is)
+	var extMetricIDs []uint64
 	i := 0
-	for loopsPaceLimiter, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return nil, err
+	err := func() error {
+		is := db.getIndexSearch(deadline)
+		defer db.putIndexSearch(is)
+		for loopsPaceLimiter, metricID := range metricIDs {
+			if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return err
+				}
 			}
-		}
-		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
-		// than scanning the mergeset if it contains a lot of metricIDs.
-		tsid := &tsids[i]
-		err := is.db.getFromMetricIDCache(tsid, metricID)
-		if err == nil {
-			// Fast path - the tsid for metricID is found in cache.
-			i++
-			continue
-		}
-		if err != io.EOF {
-			return nil, err
-		}
-		if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
-			if err == io.EOF {
-				// Cannot find TSID for the given metricID.
-				// This may be the case on incomplete indexDB
-				// due to snapshot or due to unflushed entries.
-				// Just increment errors counter and skip it.
-				atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+			// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
+			// than scanning the mergeset if it contains a lot of metricIDs.
+			tsid := &tsids[i]
+			err := is.db.getFromMetricIDCache(tsid, metricID)
+			if err == nil {
+				// Fast path - the tsid for metricID is found in cache.
+				i++
 				continue
 			}
-			return nil, fmt.Errorf("cannot find tsid %d out of %d for metricID %d: %w", i, len(metricIDs), metricID, err)
+			if err != io.EOF {
+				return err
+			}
+			if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
+				if err == io.EOF {
+					// Postpone searching for the metricID in the extDB.
+					extMetricIDs = append(extMetricIDs, metricID)
+					continue
+				}
+				return fmt.Errorf("cannot find tsid %d out of %d for metricID %d: %w", i, len(metricIDs), metricID, err)
+			}
+			is.db.putToMetricIDCache(metricID, tsid)
+			i++
 		}
-		is.db.putToMetricIDCache(metricID, tsid)
-		i++
+		return nil
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("error when searching for TISDs by metricIDs in the current indexdb: %w", err)
 	}
+	tsidsFound := i
+	qt.Printf("found %d tsids for %d metricIDs in the current indexdb", tsidsFound, len(metricIDs))
+
+	// Search for extMetricIDs in the extDB.
+	db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(deadline)
+		defer extDB.putIndexSearch(is)
+		for loopsPaceLimiter, metricID := range extMetricIDs {
+			if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return
+				}
+			}
+			// There is no need in searching for TSIDs in MetricID->TSID cache, since
+			// this has been already done in the loop above (the MetricID->TSID cache is global).
+			tsid := &tsids[i]
+			if err = is.getTSIDByMetricID(tsid, metricID); err != nil {
+				if err == io.EOF {
+					// Cannot find TSID for the given metricID.
+					// This may be the case on incomplete indexDB
+					// due to snapshot or due to unflushed entries.
+					// Just increment errors counter and skip it.
+					atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+					continue
+				}
+				err = fmt.Errorf("cannot find tsid for metricID=%d: %w", metricID, err)
+			}
+			is.db.putToMetricIDCache(metricID, tsid)
+			i++
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error when searching for TSIDs by metricIDs in the previous indexdb: %w", err)
+	}
+	qt.Printf("found %d tsids for %d metricIDs in the previous indexdb", i-tsidsFound, len(extMetricIDs))
+
 	tsids = tsids[:i]
-	qt.Printf("load %d tsids from %d metricIDs", len(tsids), len(metricIDs))
+	qt.Printf("load %d tsids for %d metricIDs from both current and previous indexdb", len(tsids), len(metricIDs))
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.

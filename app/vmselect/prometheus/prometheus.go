@@ -30,6 +30,7 @@ import (
 
 var (
 	latencyOffset = flag.Duration("search.latencyOffset", time.Second*30, "The time when data points become visible in query results after the collection. "+
+		"It can be overridden on per-query basis via latency_offset arg. "+
 		"Too small value can result in incomplete last points for query results")
 	maxQueryLen = flagutil.NewBytes("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
 	maxLookback = flag.Duration("search.maxLookback", 0, "Synonym to -search.lookback-delta from Prometheus. "+
@@ -681,7 +682,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		step = defaultStep
 	}
 
-	if len(query) > maxQueryLen.N {
+	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	etfs, err := searchutils.GetExtraTagFilters(r)
@@ -735,7 +736,10 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		return nil
 	}
 
-	queryOffset := getLatencyOffsetMilliseconds()
+	queryOffset, err := getLatencyOffsetMilliseconds(r)
+	if err != nil {
+		return err
+	}
 	if !searchutils.GetBool(r, "nocache") && ct-start < queryOffset && start-ct < queryOffset {
 		// Adjust start time only if `nocache` arg isn't set.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
@@ -829,7 +833,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 	}
 
 	// Validate input args.
-	if len(query) > maxQueryLen.N {
+	if len(query) > maxQueryLen.IntN() {
 		return fmt.Errorf("too long query; got %d bytes; mustn't exceed `-search.maxQueryLen=%d` bytes", len(query), maxQueryLen.N)
 	}
 	if start > end {
@@ -860,7 +864,10 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		return err
 	}
 	if step < maxStepForPointsAdjustment.Milliseconds() {
-		queryOffset := getLatencyOffsetMilliseconds()
+		queryOffset, err := getLatencyOffsetMilliseconds(r)
+		if err != nil {
+			return err
+		}
 		if ct-queryOffset < end {
 			result = adjustLastPoints(result, ct-queryOffset, ct+step)
 		}
@@ -1000,12 +1007,12 @@ func getRoundDigits(r *http.Request) int {
 	return n
 }
 
-func getLatencyOffsetMilliseconds() int64 {
+func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 	d := latencyOffset.Milliseconds()
 	if d <= 1000 {
 		d = 1000
 	}
-	return d
+	return searchutils.GetDuration(r, "latency_offset", d)
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`

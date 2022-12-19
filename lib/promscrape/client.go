@@ -128,9 +128,9 @@ func newClient(sw *ScrapeWork) *client {
 		MaxIdleConnDuration:          2 * sw.ScrapeInterval,
 		ReadTimeout:                  sw.ScrapeTimeout,
 		WriteTimeout:                 10 * time.Second,
-		MaxResponseBodySize:          maxScrapeSize.N,
+		MaxResponseBodySize:          maxScrapeSize.IntN(),
 		MaxIdempotentRequestAttempts: 1,
-		ReadBufferSize:               maxResponseHeadersSize.N,
+		ReadBufferSize:               maxResponseHeadersSize.IntN(),
 	}
 	var sc *http.Client
 	var proxyURLFunc func(*http.Request) (*url.URL, error)

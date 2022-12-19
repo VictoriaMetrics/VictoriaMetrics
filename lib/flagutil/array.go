@@ -308,7 +308,7 @@ func (a *ArrayBytes) Set(value string) error {
 }
 
 // GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx, defaultValue int) int {
+func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx int, defaultValue int64) int64 {
 	x := *a
 	if argIdx < len(x) {
 		return x[argIdx].N
