@@ -11,7 +11,10 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-const targetURL = "vm-target-url"
+const (
+	targetURL     = "vm-target-url"
+	forwardHeader = "X-Forwarded-For"
+)
 
 var (
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
@@ -111,13 +114,13 @@ func updateXForwardHeader(remoteAdrr string, headers http.Header) error {
 		return err
 	}
 
-	forwardFor, ok := headers["X-Forwarded-For"]
+	forwardFor, ok := headers[forwardHeader]
 	omit := ok && forwardFor == nil // Issue 38079: nil now means don't populate the header
 	if len(forwardFor) > 0 {
 		clientIP = strings.Join(forwardFor, ", ") + ", " + clientIP
 	}
 	if !omit {
-		headers.Set("X-Forwarded-For", clientIP)
+		headers.Set(forwardHeader, clientIP)
 	}
 	return nil
 }
