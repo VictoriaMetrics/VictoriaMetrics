@@ -456,8 +456,8 @@ func marshalMetricIDs(dst []byte, metricIDs []uint64) []byte {
 	var buf []byte
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	sh.Data = uintptr(unsafe.Pointer(&metricIDs[0]))
-	sh.Cap = sh.Len
-	sh.Len = 8 * len(metricIDs)
+	sh.Cap = 8 * len(metricIDs)
+	sh.Len = sh.Cap
 	dst = append(dst, buf...)
 	return dst
 }
