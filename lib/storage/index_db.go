@@ -764,7 +764,7 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		return nil, err
 	}
 
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for label names in the previous indexdb")
 		lnsLen := len(lns)
 		is := extDB.getIndexSearch(accountID, projectID, deadline)
@@ -772,7 +772,7 @@ func (db *indexDB) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer
 		extDB.putIndexSearch(is)
 		qtChild.Donef("found %d additional label names", len(lns)-lnsLen)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -952,7 +952,7 @@ func (db *indexDB) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline 
 	if err != nil {
 		return nil, err
 	}
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for tenants in the previous indexdb")
 		tenantsLen := len(tenants)
 		is := extDB.getIndexSearch(0, 0, deadline)
@@ -960,7 +960,7 @@ func (db *indexDB) SearchTenants(qt *querytracer.Tracer, tr TimeRange, deadline 
 		extDB.putIndexSearch(is)
 		qtChild.Donef("found %d additional tenants", len(tenants)-tenantsLen)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1081,7 +1081,7 @@ func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Trace
 	if err != nil {
 		return nil, err
 	}
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for label values in the previous indexdb")
 		lvsLen := len(lvs)
 		is := extDB.getIndexSearch(accountID, projectID, deadline)
@@ -1089,7 +1089,7 @@ func (db *indexDB) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Trace
 		extDB.putIndexSearch(is)
 		qtChild.Donef("found %d additional label values", len(lvs)-lvsLen)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, err
 	}
 
@@ -1284,14 +1284,14 @@ func (db *indexDB) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, pro
 		return nil, err
 	}
 	if len(tvss) < maxTagValueSuffixes {
-		ok := db.doExtDB(func(extDB *indexDB) {
+		db.doExtDB(func(extDB *indexDB) {
 			is := extDB.getIndexSearch(accountID, projectID, deadline)
 			qtChild := qt.NewChild("search tag value suffixes in the previous indexdb")
 			err = is.searchTagValueSuffixesForTimeRange(tvss, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes)
 			qtChild.Done()
 			extDB.putIndexSearch(is)
 		})
-		if ok && err != nil {
+		if err != nil {
 			return nil, err
 		}
 	}
@@ -1437,12 +1437,12 @@ func (db *indexDB) GetSeriesCount(accountID, projectID uint32, deadline uint64) 
 	}
 
 	var nExt uint64
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		is := extDB.getIndexSearch(accountID, projectID, deadline)
 		nExt, err = is.getSeriesCount()
 		extDB.putIndexSearch(is)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return 0, fmt.Errorf("error when searching in extDB: %w", err)
 	}
 	return n + nExt, nil
@@ -1502,14 +1502,14 @@ func (db *indexDB) GetTSDBStatus(qt *querytracer.Tracer, accountID, projectID ui
 	if status.hasEntries() {
 		return status, nil
 	}
-	ok := db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("collect tsdb stats in the previous indexdb")
 		is := extDB.getIndexSearch(accountID, projectID, deadline)
 		status, err = is.getTSDBStatus(qtChild, tfss, date, focusLabel, topN, maxMetrics)
 		qtChild.Done()
 		extDB.putIndexSearch(is)
 	})
-	if ok && err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("error when obtaining TSDB status from extDB: %w", err)
 	}
 	return status, nil
@@ -1815,16 +1815,15 @@ func (db *indexDB) DeleteTSIDs(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 
 	// Delete TSIDs in the extDB.
 	deletedCount := len(metricIDs)
-	if db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		var n int
 		qtChild := qt.NewChild("deleting series from the previos indexdb")
 		n, err = extDB.DeleteTSIDs(qtChild, tfss)
 		qtChild.Donef("deleted %d series", n)
 		deletedCount += n
-	}) {
-		if err != nil {
-			return deletedCount, fmt.Errorf("cannot delete tsids in extDB: %w", err)
-		}
+	})
+	if err != nil {
+		return deletedCount, fmt.Errorf("cannot delete tsids in extDB: %w", err)
 	}
 	return deletedCount, nil
 }
@@ -1930,7 +1929,7 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 	qtChild.Done()
 
 	var extMetricIDs []uint64
-	if db.doExtDB(func(extDB *indexDB) {
+	db.doExtDB(func(extDB *indexDB) {
 		qtChild := qt.NewChild("search for metricIDs in the previous indexdb")
 		defer qtChild.Done()
 
@@ -1948,10 +1947,9 @@ func (db *indexDB) searchMetricIDs(qt *querytracer.Tracer, tfss []*TagFilters, t
 		extMetricIDs, err = is.searchMetricIDs(qtChild, tfss, tr, maxMetrics)
 		extDB.putIndexSearch(is)
 		extDB.putMetricIDsToTagFiltersCache(qtChild, extMetricIDs, tfKeyExtBuf.B)
-	}) {
-		if err != nil {
-			return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %s", err)
-		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error when searching for metricIDs in the previous indexdb: %s", err)
 	}
 
 	// Merge localMetricIDs with extMetricIDs.
