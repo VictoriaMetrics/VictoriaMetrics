@@ -91,6 +91,10 @@ func TestMergeSortedMetricIDs(t *testing.T) {
 	f([]uint64{2, 3, 4, 6, 7, 8, 9}, []uint64{1, 2, 3, 4, 5, 6, 7})
 	f([]uint64{1, 2, 3, 4, 6, 7, 8, 9}, []uint64{1, 2, 3, 4, 5, 6, 7})
 	f([]uint64{1, 2, 3, 4, 6, 7, 8, 9}, []uint64{2, 3, 4, 5, 6, 7})
+	f([]uint64{}, []uint64{1, 2, 3})
+	f([]uint64{0}, []uint64{1, 2, 3})
+	f([]uint64{1}, []uint64{1, 2, 3})
+	f([]uint64{1, 2}, []uint64{3, 4})
 }
 
 func TestReverseBytes(t *testing.T) {

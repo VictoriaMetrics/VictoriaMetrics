@@ -2001,43 +2001,83 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 		return nil, nil
 	}
 	tsids := make([]TSID, len(metricIDs))
-	is := db.getIndexSearch(accountID, projectID, deadline)
-	defer db.putIndexSearch(is)
+	var extMetricIDs []uint64
 	i := 0
-	for loopsPaceLimiter, metricID := range metricIDs {
-		if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
-			if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
-				return nil, err
+	err := func() error {
+		is := db.getIndexSearch(accountID, projectID, deadline)
+		defer db.putIndexSearch(is)
+		for loopsPaceLimiter, metricID := range metricIDs {
+			if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err := checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return err
+				}
 			}
-		}
-		// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
-		// than scanning the mergeset if it contains a lot of metricIDs.
-		tsid := &tsids[i]
-		err := is.db.getFromMetricIDCache(tsid, metricID)
-		if err == nil {
-			// Fast path - the tsid for metricID is found in cache.
-			i++
-			continue
-		}
-		if err != io.EOF {
-			return nil, err
-		}
-		if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
-			if err == io.EOF {
-				// Cannot find TSID for the given metricID.
-				// This may be the case on incomplete indexDB
-				// due to snapshot or due to unflushed entries.
-				// Just increment errors counter and skip it.
-				atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+			// Try obtaining TSIDs from MetricID->TSID cache. This is much faster
+			// than scanning the mergeset if it contains a lot of metricIDs.
+			tsid := &tsids[i]
+			err := is.db.getFromMetricIDCache(tsid, metricID)
+			if err == nil {
+				// Fast path - the tsid for metricID is found in cache.
+				i++
 				continue
 			}
-			return nil, fmt.Errorf("cannot find tsid %d out of %d for metricID %d: %w", i, len(metricIDs), metricID, err)
+			if err != io.EOF {
+				return err
+			}
+			if err := is.getTSIDByMetricID(tsid, metricID); err != nil {
+				if err == io.EOF {
+					// Postpone searching for the metricID in the extDB.
+					extMetricIDs = append(extMetricIDs, metricID)
+					continue
+				}
+				return fmt.Errorf("cannot find tsid %d out of %d for metricID %d: %w", i, len(metricIDs), metricID, err)
+			}
+			is.db.putToMetricIDCache(metricID, tsid)
+			i++
 		}
-		is.db.putToMetricIDCache(metricID, tsid)
-		i++
+		return nil
+	}()
+	if err != nil {
+		return nil, fmt.Errorf("error when searching for TISDs by metricIDs in the current indexdb: %w", err)
 	}
+	tsidsFound := i
+	qt.Printf("found %d tsids for %d metricIDs in the current indexdb", tsidsFound, len(metricIDs))
+
+	// Search for extMetricIDs in the extDB.
+	db.doExtDB(func(extDB *indexDB) {
+		is := extDB.getIndexSearch(accountID, projectID, deadline)
+		defer extDB.putIndexSearch(is)
+		for loopsPaceLimiter, metricID := range extMetricIDs {
+			if loopsPaceLimiter&paceLimiterSlowIterationsMask == 0 {
+				if err = checkSearchDeadlineAndPace(is.deadline); err != nil {
+					return
+				}
+			}
+			// There is no need in searching for TSIDs in MetricID->TSID cache, since
+			// this has been already done in the loop above (the MetricID->TSID cache is global).
+			tsid := &tsids[i]
+			if err = is.getTSIDByMetricID(tsid, metricID); err != nil {
+				if err == io.EOF {
+					// Cannot find TSID for the given metricID.
+					// This may be the case on incomplete indexDB
+					// due to snapshot or due to unflushed entries.
+					// Just increment errors counter and skip it.
+					atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+					continue
+				}
+				err = fmt.Errorf("cannot find tsid for metricID=%d: %w", metricID, err)
+			}
+			is.db.putToMetricIDCache(metricID, tsid)
+			i++
+		}
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error when searching for TSIDs by metricIDs in the previous indexdb: %w", err)
+	}
+	qt.Printf("found %d tsids for %d metricIDs in the previous indexdb", i-tsidsFound, len(extMetricIDs))
+
 	tsids = tsids[:i]
-	qt.Printf("load %d tsids from %d metricIDs", len(tsids), len(metricIDs))
+	qt.Printf("load %d tsids for %d metricIDs from both current and previous indexdb", len(tsids), len(metricIDs))
 
 	// Sort the found tsids, since they must be passed to TSID search
 	// in the sorted order.
