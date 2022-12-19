@@ -95,6 +95,24 @@ func (sn *ServiceNode) appendTargetLabels(ms []*promutils.Labels, serviceName, t
 	// in relabeling rules don't have to consider tag positions.
 	m.Add("__meta_consul_tags", tagSeparator+strings.Join(sn.Service.Tags, tagSeparator)+tagSeparator)
 
+	// Expose individual tags via __meta_consul_tag_* labels, so users could move all the tags
+	// into the discovered scrape target with the following relabeling rule in the way similar to kubernetes_sd_configs:
+	//
+	// - action: labelmap
+	//   regex: __meta_consul_tag_(.+)
+	//
+	// This solves https://stackoverflow.com/questions/44339461/relabeling-in-prometheus
+	for _, tag := range sn.Service.Tags {
+		k := tag
+		v := ""
+		if n := strings.IndexByte(tag, '='); n >= 0 {
+			k = tag[:n]
+			v = tag[n+1:]
+		}
+		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_tag_"+k), v)
+		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_tagpresent_"+k), "true")
+	}
+
 	for k, v := range sn.Node.Meta {
 		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_metadata_"+k), v)
 	}

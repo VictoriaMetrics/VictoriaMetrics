@@ -140,6 +140,7 @@ scrape_configs:
 
     # tag_separate is an optional string by which Consul tags are joined into the __meta_consul_tags label.
     # By default "," is used as a tag separator.
+    # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
     # tag_separator: "..."
 
     # allow_stale is an optional config, which allows stale Consul results.
@@ -166,7 +167,9 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_consul_service_port`: the service port of the target
 * `__meta_consul_service`: the name of the service the target belongs to
 * `__meta_consul_tagged_address_<key>`: each node tagged address key value of the target
-* `__meta_consul_tags`: the list of tags of the target joined by the tag separator
+* `__meta_consul_tag_<tagname>`: the value for the given <tagname> tag of the target
+* `__meta_consul_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
+* `__meta_consul_tags`: the list of tags of the target joined by the tag_separator
 
 
 ## digitalocean_sd_configs
@@ -631,7 +634,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_gce_project`: the GCP project in which the instance is running
 * `__meta_gce_public_ip`: the public IP address of the instance, if present
 * `__meta_gce_subnetwork`: the subnetwork URL of the instance
-* `__meta_gce_tags`: comma separated list of instance tags
+* `__meta_gce_tags`: list of instance tags separated by tag_separator
 * `__meta_gce_zone`: the GCE zone URL in which the instance is running
 
 
