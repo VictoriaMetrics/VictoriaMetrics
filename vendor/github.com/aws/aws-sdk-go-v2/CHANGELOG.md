@@ -1,3 +1,145 @@
+# Release (2022-12-15)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2`: v1.17.3
+  * **Bug Fix**: Unify logic between shared config and in finding home directory
+* `github.com/aws/aws-sdk-go-v2/config`: [v1.18.5](config/CHANGELOG.md#v1185-2022-12-15)
+  * **Bug Fix**: Unify logic between shared config and in finding home directory
+* `github.com/aws/aws-sdk-go-v2/credentials`: [v1.13.5](credentials/CHANGELOG.md#v1135-2022-12-15)
+  * **Bug Fix**: Unify logic between shared config and in finding home directory
+* `github.com/aws/aws-sdk-go-v2/service/backupgateway`: [v1.8.0](service/backupgateway/CHANGELOG.md#v180-2022-12-15)
+  * **Feature**: This release adds support for VMware vSphere tags, enabling customer to protect VMware virtual machines using tag-based policies for AWS tags mapped from vSphere tags. This release also adds support for customer-accessible gateway-hypervisor interaction log and upload bandwidth rate limit schedule.
+* `github.com/aws/aws-sdk-go-v2/service/connect`: [v1.40.0](service/connect/CHANGELOG.md#v1400-2022-12-15)
+  * **Feature**: Added support for "English - New Zealand" and "English - South African" to be used with Amazon Connect Custom Vocabulary APIs.
+* `github.com/aws/aws-sdk-go-v2/service/ecs`: [v1.21.0](service/ecs/CHANGELOG.md#v1210-2022-12-15)
+  * **Feature**: This release adds support for container port ranges in ECS, a new capability that allows customers to provide container port ranges to simplify use cases where multiple ports are in use in a container. This release updates TaskDefinition mutation APIs and the Task description APIs.
+* `github.com/aws/aws-sdk-go-v2/service/eks`: [v1.26.0](service/eks/CHANGELOG.md#v1260-2022-12-15)
+  * **Feature**: Add support for Windows managed nodes groups.
+* `github.com/aws/aws-sdk-go-v2/service/glue`: [v1.38.0](service/glue/CHANGELOG.md#v1380-2022-12-15)
+  * **Feature**: This release adds support for AWS Glue Crawler with native DeltaLake tables, allowing Crawlers to classify Delta Lake format tables and catalog them for query engines to query against.
+* `github.com/aws/aws-sdk-go-v2/service/kinesis`: [v1.16.0](service/kinesis/CHANGELOG.md#v1160-2022-12-15)
+  * **Feature**: Added StreamARN parameter for Kinesis Data Streams APIs. Added a new opaque pagination token for ListStreams. SDKs will auto-generate Account Endpoint when accessing Kinesis Data Streams.
+* `github.com/aws/aws-sdk-go-v2/service/location`: [v1.19.5](service/location/CHANGELOG.md#v1195-2022-12-15)
+  * **Documentation**: This release adds support for a new style, "VectorOpenDataStandardLight" which can be used with the new data source, "Open Data Maps (Preview)".
+* `github.com/aws/aws-sdk-go-v2/service/m2`: [v1.2.0](service/m2/CHANGELOG.md#v120-2022-12-15)
+  * **Feature**: Adds an optional create-only `KmsKeyId` property to Environment and Application resources.
+* `github.com/aws/aws-sdk-go-v2/service/sagemaker`: [v1.57.0](service/sagemaker/CHANGELOG.md#v1570-2022-12-15)
+  * **Feature**: SageMaker Inference Recommender now allows customers to load tests their models on various instance types using private VPC.
+* `github.com/aws/aws-sdk-go-v2/service/securityhub`: [v1.26.0](service/securityhub/CHANGELOG.md#v1260-2022-12-15)
+  * **Feature**: Added new resource details objects to ASFF, including resources for AwsEc2LaunchTemplate, AwsSageMakerNotebookInstance, AwsWafv2WebAcl and AwsWafv2RuleGroup.
+* `github.com/aws/aws-sdk-go-v2/service/translate`: [v1.16.0](service/translate/CHANGELOG.md#v1160-2022-12-15)
+  * **Feature**: Raised the input byte size limit of the Text field in the TranslateText API to 10000 bytes.
+
+# Release (2022-12-14)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/cloudwatch`: [v1.23.0](service/cloudwatch/CHANGELOG.md#v1230-2022-12-14)
+  * **Feature**: Adding support for Metrics Insights Alarms
+* `github.com/aws/aws-sdk-go-v2/service/costexplorer`: [v1.24.0](service/costexplorer/CHANGELOG.md#v1240-2022-12-14)
+  * **Feature**: This release supports percentage-based thresholds on Cost Anomaly Detection alert subscriptions.
+* `github.com/aws/aws-sdk-go-v2/service/networkmanager`: [v1.16.0](service/networkmanager/CHANGELOG.md#v1160-2022-12-14)
+  * **Feature**: Appliance Mode support for AWS Cloud WAN.
+* `github.com/aws/aws-sdk-go-v2/service/redshiftdata`: [v1.17.0](service/redshiftdata/CHANGELOG.md#v1170-2022-12-14)
+  * **Feature**: This release adds a new --client-token field to ExecuteStatement and BatchExecuteStatement operations. Customers can now run queries with the additional client token parameter to ensures idempotency.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakermetrics`: [v1.0.1](service/sagemakermetrics/CHANGELOG.md#v101-2022-12-14)
+  * **Documentation**: Update SageMaker Metrics documentation.
+
+# Release (2022-12-13)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/cloudtrail`: [v1.21.0](service/cloudtrail/CHANGELOG.md#v1210-2022-12-13)
+  * **Feature**: Merging mainline branch for service model into mainline release branch. There are no new APIs.
+* `github.com/aws/aws-sdk-go-v2/service/marketplaceentitlementservice`: [v1.11.21](service/marketplaceentitlementservice/CHANGELOG.md#v11121-2022-12-13)
+  * **Bug Fix**: Fixing a shape type in the marketplaceentitlementservice client
+* `github.com/aws/aws-sdk-go-v2/service/rds`: [v1.35.0](service/rds/CHANGELOG.md#v1350-2022-12-13)
+  * **Feature**: This deployment adds ClientPasswordAuthType field to the Auth structure of the DBProxy.
+
+# Release (2022-12-12)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/customerprofiles`: [v1.21.0](service/customerprofiles/CHANGELOG.md#v1210-2022-12-12)
+  * **Feature**: This release allows custom strings in PartyType and Gender through 2 new attributes in the CreateProfile and UpdateProfile APIs: PartyTypeString and GenderString.
+* `github.com/aws/aws-sdk-go-v2/service/ec2`: [v1.76.0](service/ec2/CHANGELOG.md#v1760-2022-12-12)
+  * **Feature**: This release updates DescribeFpgaImages to show supported instance types of AFIs in its response.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisvideo`: [v1.13.0](service/kinesisvideo/CHANGELOG.md#v1130-2022-12-12)
+  * **Feature**: This release adds support for public preview of Kinesis Video Stream at Edge enabling customers to provide configuration for the Kinesis Video Stream EdgeAgent running on an on-premise IoT device. Customers can now locally record from cameras and stream videos to the cloud on configured schedule.
+* `github.com/aws/aws-sdk-go-v2/service/lookoutvision`: [v1.14.13](service/lookoutvision/CHANGELOG.md#v11413-2022-12-12)
+  * **Documentation**: This documentation update adds kms:GenerateDataKey as a required permission to StartModelPackagingJob.
+* `github.com/aws/aws-sdk-go-v2/service/migrationhubrefactorspaces`: [v1.7.0](service/migrationhubrefactorspaces/CHANGELOG.md#v170-2022-12-12)
+  * **Feature**: This release adds support for Lambda alias service endpoints. Lambda alias ARNs can now be passed into CreateService.
+* `github.com/aws/aws-sdk-go-v2/service/rds`: [v1.34.0](service/rds/CHANGELOG.md#v1340-2022-12-12)
+  * **Feature**: Update the RDS API model to support copying option groups during the CopyDBSnapshot operation
+* `github.com/aws/aws-sdk-go-v2/service/rekognition`: [v1.22.0](service/rekognition/CHANGELOG.md#v1220-2022-12-12)
+  * **Feature**: Adds support for "aliases" and "categories", inclusion and exclusion filters for labels and label categories, and aggregating labels by video segment timestamps for Stored Video Label Detection APIs.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakermetrics`: [v1.0.0](service/sagemakermetrics/CHANGELOG.md#v100-2022-12-12)
+  * **Release**: New AWS service client module
+  * **Feature**: This release introduces support SageMaker Metrics APIs.
+* `github.com/aws/aws-sdk-go-v2/service/wafv2`: [v1.23.3](service/wafv2/CHANGELOG.md#v1233-2022-12-12)
+  * **Documentation**: Documents the naming requirement for logging destinations that you use with web ACLs.
+
+# Release (2022-12-09)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs`: [v1.17.2](service/cloudwatchlogs/CHANGELOG.md#v1172-2022-12-09)
+  * **Documentation**: Doc-only update for CloudWatch Logs, for Tagging Permissions clarifications
+* `github.com/aws/aws-sdk-go-v2/service/iotfleetwise`: [v1.1.0](service/iotfleetwise/CHANGELOG.md#v110-2022-12-09)
+  * **Feature**: Deprecated assignedValue property for actuators and attributes.  Added a message to invalid nodes and invalid decoder manifest exceptions.
+* `github.com/aws/aws-sdk-go-v2/service/medialive`: [v1.26.0](service/medialive/CHANGELOG.md#v1260-2022-12-09)
+  * **Feature**: Link devices now support buffer size (latency) configuration. A higher latency value means a longer delay in transmitting from the device to MediaLive, but improved resiliency. A lower latency value means a shorter delay, but less resiliency.
+* `github.com/aws/aws-sdk-go-v2/service/mediapackagevod`: [v1.20.0](service/mediapackagevod/CHANGELOG.md#v1200-2022-12-09)
+  * **Feature**: This release provides the approximate number of assets in a packaging group.
+
+# Release (2022-12-08)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/autoscaling`: [v1.25.0](service/autoscaling/CHANGELOG.md#v1250-2022-12-08)
+  * **Feature**: Adds support for metric math for target tracking scaling policies, saving you the cost and effort of publishing a custom metric to CloudWatch. Also adds support for VPC Lattice by adding the Attach/Detach/DescribeTrafficSources APIs and a new health check type to the CreateAutoScalingGroup API.
+* `github.com/aws/aws-sdk-go-v2/service/iottwinmaker`: [v1.9.0](service/iottwinmaker/CHANGELOG.md#v190-2022-12-08)
+  * **Feature**: This release adds the following new features: 1) New APIs for managing a continuous sync of assets and asset models from AWS IoT SiteWise. 2) Support user friendly names for component types (ComponentTypeName) and properties (DisplayName).
+* `github.com/aws/aws-sdk-go-v2/service/migrationhubstrategy`: [v1.6.0](service/migrationhubstrategy/CHANGELOG.md#v160-2022-12-08)
+  * **Feature**: This release adds known application filtering, server selection for assessments, support for potential recommendations, and indications for configuration and assessment status. For more information, see the AWS Migration Hub documentation at https://docs.aws.amazon.com/migrationhub/index.html
+
+# Release (2022-12-07)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/cloudfront`: [v1.22.0](service/cloudfront/CHANGELOG.md#v1220-2022-12-07)
+  * **Feature**: Introducing UpdateDistributionWithStagingConfig that can be used to promote the staging configuration to the production.
+* `github.com/aws/aws-sdk-go-v2/service/costexplorer`: [v1.23.0](service/costexplorer/CHANGELOG.md#v1230-2022-12-07)
+  * **Feature**: This release adds the LinkedAccountName field to the GetAnomalies API response under RootCause
+* `github.com/aws/aws-sdk-go-v2/service/eks`: [v1.25.0](service/eks/CHANGELOG.md#v1250-2022-12-07)
+  * **Feature**: Adds support for EKS add-ons configurationValues fields and DescribeAddonConfiguration function
+* `github.com/aws/aws-sdk-go-v2/service/kms`: [v1.19.2](service/kms/CHANGELOG.md#v1192-2022-12-07)
+  * **Documentation**: Updated examples and exceptions for External Key Store (XKS).
+
+# Release (2022-12-06)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/billingconductor`: [v1.3.0](service/billingconductor/CHANGELOG.md#v130-2022-12-06)
+  * **Feature**: This release adds the Tiering Pricing Rule feature.
+* `github.com/aws/aws-sdk-go-v2/service/connect`: [v1.39.0](service/connect/CHANGELOG.md#v1390-2022-12-06)
+  * **Feature**: This release provides APIs that enable you to programmatically manage rules for Contact Lens conversational analytics and third party applications. For more information, see   https://docs.aws.amazon.com/connect/latest/APIReference/rules-api.html
+* `github.com/aws/aws-sdk-go-v2/service/rds`: [v1.33.0](service/rds/CHANGELOG.md#v1330-2022-12-06)
+  * **Feature**: This release adds the BlueGreenDeploymentNotFoundFault to the AddTagsToResource, ListTagsForResource, and RemoveTagsFromResource operations.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakerfeaturestoreruntime`: [v1.12.0](service/sagemakerfeaturestoreruntime/CHANGELOG.md#v1120-2022-12-06)
+  * **Feature**: For online + offline Feature Groups, added ability to target PutRecord and DeleteRecord actions to only online store, or only offline store. If target store parameter is not specified, actions will apply to both stores.
+
+# Release (2022-12-05)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/costexplorer`: [v1.22.0](service/costexplorer/CHANGELOG.md#v1220-2022-12-05)
+  * **Feature**: This release introduces two new APIs that offer a 1-click experience to refresh Savings Plans recommendations. The two APIs are StartSavingsPlansPurchaseRecommendationGeneration and ListSavingsPlansPurchaseRecommendationGeneration.
+* `github.com/aws/aws-sdk-go-v2/service/ec2`: [v1.75.0](service/ec2/CHANGELOG.md#v1750-2022-12-05)
+  * **Feature**: Documentation updates for EC2.
+* `github.com/aws/aws-sdk-go-v2/service/ivschat`: [v1.2.0](service/ivschat/CHANGELOG.md#v120-2022-12-05)
+  * **Feature**: Adds PendingVerification error type to messaging APIs to block the resource usage for accounts identified as being fraudulent.
+* `github.com/aws/aws-sdk-go-v2/service/rds`: [v1.32.0](service/rds/CHANGELOG.md#v1320-2022-12-05)
+  * **Feature**: This release adds the InvalidDBInstanceStateFault to the RestoreDBClusterFromSnapshot operation.
+* `github.com/aws/aws-sdk-go-v2/service/transcribe`: [v1.23.0](service/transcribe/CHANGELOG.md#v1230-2022-12-05)
+  * **Feature**: Amazon Transcribe now supports creating custom language models in the following languages: Japanese (ja-JP) and German (de-DE).
+
 # Release (2022-12-02)
 
 ## General Highlights
