@@ -256,18 +256,20 @@ func (ps *partSearch) searchBHS() bool {
 	for len(bhs) > 0 {
 		// Skip block headers with tsids smaller than the given tsid.
 		tsid := &ps.BlockRef.bh.TSID
-		n := sort.Search(len(bhs), func(i int) bool {
-			return !bhs[i].TSID.Less(tsid)
-		})
-		if n == len(bhs) {
-			// Nothing found.
-			break
+		if bhs[0].TSID.Less(tsid) {
+			n := sort.Search(len(bhs), func(i int) bool {
+				return !bhs[i].TSID.Less(tsid)
+			})
+			if n == len(bhs) {
+				// Nothing found.
+				break
+			}
+			bhs = bhs[n:]
 		}
-		bhs = bhs[n:]
+		bh := &bhs[0]
 
 		// Invariant: tsid <= bh.TSID
 
-		bh := &bhs[0]
 		if bh.TSID.MetricID != tsid.MetricID {
 			// tsid < bh.TSID: no more blocks with the given tsid.
 			// Proceed to the next (bigger) tsid.
