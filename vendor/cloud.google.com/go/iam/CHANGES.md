@@ -1,5 +1,12 @@
 # Changes
 
+## [0.9.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.8.0...iam/v0.9.0) (2022-12-15)
+
+
+### Features
+
+* **iam:** Rewrite iam sigs and update proto import ([#7137](https://github.com/googleapis/google-cloud-go/issues/7137)) ([ad67fa3](https://github.com/googleapis/google-cloud-go/commit/ad67fa36c263c161226f7fecbab5221592374dca))
+
 ## [0.8.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.7.0...iam/v0.8.0) (2022-12-05)
 
 
