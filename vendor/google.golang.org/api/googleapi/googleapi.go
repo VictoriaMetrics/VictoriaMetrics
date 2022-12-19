@@ -186,8 +186,9 @@ func CheckMediaResponse(res *http.Response) error {
 	}
 	slurp, _ := ioutil.ReadAll(io.LimitReader(res.Body, 1<<20))
 	return &Error{
-		Code: res.StatusCode,
-		Body: string(slurp),
+		Code:   res.StatusCode,
+		Body:   string(slurp),
+		Header: res.Header,
 	}
 }
 
