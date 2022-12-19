@@ -20,6 +20,10 @@ var (
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
 )
 
+type ReversProxier interface {
+	ServeHTTP(w http.ResponseWriter, r *http.Request)
+}
+
 // ReversProxy represents simple revers proxy based on http.Client
 type ReversProxy struct {
 	client *http.Client

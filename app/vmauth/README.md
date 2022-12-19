@@ -121,17 +121,21 @@ users:
     - "X-Scope-OrgID: abc"
 
    # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
-   # header are proxied to http://localhost:8428 with connections that can be proxies by vmauth to backends.
+   # header are proxied to http://localhost:8428 with connections that can be proxied by vmauth to backends.
    # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
    # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
-   # If there would be more than 500 request revers proxy will return http error 
+   # If max_concurrent_requests are processed at any given moment, then all the new requests are rejected with 429 HTTP error
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
-  max_proxied_connections: 500
+  max_concurrent_requests: 500
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
+
+See also max_concurrent_requests option in per-user section at https://docs.victoriametrics.com/vmauth.html#auth-config (default 0).
+The maximum number of concurrent requests vmauth can proxy at any given time.
+Additional requests are rejected with 429 HTTP status code. There is no limit if set to 0.
 
 ## Security
 
@@ -288,9 +292,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxIdleConnsPerBackend int
-     The maximum number of idle connections vmauth can open per each backend host (default 100)
-  -maxProxiedConnections int
-     The maximum number of connections that can be proxied by vmauth to backends (default 100)   
+     The maximum number of idle connections vmauth can open per each backend host (default 100)   
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)

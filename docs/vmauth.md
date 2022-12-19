@@ -125,17 +125,22 @@ users:
     - "X-Scope-OrgID: abc"
     
   # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
-  # header are proxied to http://localhost:8428 with connections that can be proxies by vmauth to backends.
+  # header are proxied to http://localhost:8428 with connections that can be proxied by vmauth to backends.
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
-  # If there would be more than 500 request revers proxy will return http error 
+  # If max_concurrent_requests are processed at any given moment, then all the new requests are rejected with 429 HTTP error
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
-  max_proxied_connections: 500
+  max_concurrent_requests: 500
 ```
+
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
+
+See also max_concurrent_requests option in per-user section at https://docs.victoriametrics.com/vmauth.html#auth-config (default 0).
+The maximum number of concurrent requests vmauth can proxy at any given time.
+Additional requests are rejected with 429 HTTP status code. There is no limit if set to 0.
 
 ## Security
 

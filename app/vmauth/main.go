@@ -25,7 +25,6 @@ var (
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
-	maxProxiedConnections = flag.Int("maxProxiedConnections", 100, "The maximum number of connections that can be proxied by vmauth to backends")
 )
 
 func main() {
@@ -102,15 +101,11 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	for _, h := range headers {
 		r.Header.Set(h.Name, h.Value)
 	}
-	maxProxiedConnections := *maxProxiedConnections
-	if ui.MaxProxiedConnections != 0 {
-		maxProxiedConnections = ui.MaxProxiedConnections
-	}
-	proxyRequest(w, r, maxProxiedConnections)
+	proxyRequest(w, r, ui.MaxConcurrentRequests)
 	return true
 }
 
-func proxyRequest(w http.ResponseWriter, r *http.Request, maxProxiedConnections int) {
+func proxyRequest(w http.ResponseWriter, r *http.Request, maxConcurrentRequests int) {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
@@ -121,7 +116,7 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, maxProxiedConnections 
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	getReverseProxy(maxProxiedConnections).ServeHTTP(w, r)
+	getReverseProxy(maxConcurrentRequests).ServeHTTP(w, r)
 }
 
 var (
@@ -131,20 +126,24 @@ var (
 )
 
 var (
-	reverseProxy     *reverseproxy.LimitedReversProxy
+	reverseProxy     reverseproxy.ReversProxier
 	reverseProxyOnce sync.Once
 )
 
-func getReverseProxy(maxProxiedConnections int) *reverseproxy.LimitedReversProxy {
+func getReverseProxy(maxConcurrentRequests int) reverseproxy.ReversProxier {
 	reverseProxyOnce.Do(func() {
-		initReverseProxy(maxProxiedConnections)
+		initReverseProxy(maxConcurrentRequests)
 	})
 	return reverseProxy
 }
 
 // initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
-func initReverseProxy(maxProxiedConnections int) {
-	reverseProxy = reverseproxy.NewLimited(maxProxiedConnections)
+func initReverseProxy(maxConcurrentRequests int) {
+	if maxConcurrentRequests != 0 {
+		reverseProxy = reverseproxy.NewLimited(maxConcurrentRequests)
+	} else {
+		reverseProxy = reverseproxy.New()
+	}
 }
 
 func usage() {

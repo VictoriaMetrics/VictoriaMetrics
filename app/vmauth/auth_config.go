@@ -39,7 +39,7 @@ type UserInfo struct {
 	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
 	URLMap                []URLMap   `yaml:"url_map,omitempty"`
 	Headers               []Header   `yaml:"headers,omitempty"`
-	MaxProxiedConnections int        `yaml:"max_proxied_connections,omitempty"`
+	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
 
 	requests *metrics.Counter
 }

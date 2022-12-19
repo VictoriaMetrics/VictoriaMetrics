@@ -12,14 +12,14 @@ type LimitedReversProxy struct {
 	limit       int
 }
 
-// NewLimited inits LimitedReversProxy by defined max connections
-func NewLimited(maxConn int) *LimitedReversProxy {
+// NewLimited inits LimitedReversProxy by defined max concurrent requests
+func NewLimited(maxConcurrentRequests int) *LimitedReversProxy {
 	limitedProxy := &LimitedReversProxy{
-		limiter:     make(chan struct{}, maxConn),
+		limiter:     make(chan struct{}, maxConcurrentRequests),
 		reversProxy: New(),
-		limit:       maxConn,
+		limit:       maxConcurrentRequests,
 	}
-	for i := 0; i < maxConn; i++ {
+	for i := 0; i < maxConcurrentRequests; i++ {
 		limitedProxy.limiter <- struct{}{}
 	}
 	return limitedProxy
