@@ -4,7 +4,8 @@ const router = {
   cardinality: "/cardinality",
   topQueries: "/top-queries",
   trace: "/trace",
-  metrics: "/metrics"
+  metrics: "/metrics",
+  icons: "/icons"
 };
 
 export interface RouterOptions {
@@ -52,6 +53,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
     header: {
       timeSelector: true,
     }
+  },
+  [router.icons]: {
+    title: "Icons",
+    header: {}
   }
 };
 
