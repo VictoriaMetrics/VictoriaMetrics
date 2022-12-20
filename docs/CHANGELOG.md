@@ -15,6 +15,11 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
+
+Released at 2022-12-20
+
 **Update note 1:** This and newer releases of VictoriaMetrics may return gaps for `rate(m[d])` queries on short time ranges if `[d]` lookbehind window is set expliticly. For example, `rate(http_requests_total[$__interval])`. This reduces confusion level when the user expects the needed results from the query with explicitly set lookbehind window. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3483). The previous gap filling behaviour can be restored by removing explicit lookbehind window `[d]` from the query, e.g. by substituting the `rate(m[d])` with `rate(m)`. See [these docs](https://docs.victoriametrics.com/MetricsQL.html#implicit-query-conversions) for details.
 
 * BUGFIX: fix `error when searching for TSIDs by metricIDs in the previous indexdb: EOF` error, which can occur during queries after unclean shutdown of VictoriaMetrics (e.g. via hardware reset, out of memory crash or `kill -9`). The error has been introduced in [v1.85.2](https://docs.victoriametrics.com/CHANGELOG.html#v1852). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3515).
