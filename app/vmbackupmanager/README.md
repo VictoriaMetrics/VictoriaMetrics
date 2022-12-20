@@ -158,7 +158,7 @@ The result on the GCS bucket. We see only 3 daily backups:
 * GET `/api/v1/backups` - returns list of backups in remote storage.
   Example output:
   ```json
-  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  [{"name":"daily/2022-11-30","size_bytes":26664689,"size":"25.429Mi"},{"name":"daily/2022-12-01","size_bytes":40160965,"size":"38.300Mi"},{"name":"hourly/2022-11-30:12","size_bytes":5846529,"size":"5.576Mi"},{"name":"hourly/2022-11-30:13","size_bytes":17651847,"size":"16.834Mi"},{"name":"hourly/2022-11-30:13:22","size_bytes":8797831,"size":"8.390Mi"},{"name":"hourly/2022-11-30:14","size_bytes":10680454,"size":"10.186Mi"}]
   ```
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
@@ -211,7 +211,7 @@ It can be changed by using flag:
 `vmbackupmanager backup list` lists backups in remote storage:
 ```console
 $ ./vmbackupmanager backup list
-["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+[{"name":"daily/2022-11-30","size_bytes":26664689,"size":"25.429Mi"},{"name":"daily/2022-12-01","size_bytes":40160965,"size":"38.300Mi"},{"name":"hourly/2022-11-30:12","size_bytes":5846529,"size":"5.576Mi"},{"name":"hourly/2022-11-30:13","size_bytes":17651847,"size":"16.834Mi"},{"name":"hourly/2022-11-30:13:22","size_bytes":8797831,"size":"8.390Mi"},{"name":"hourly/2022-11-30:14","size_bytes":10680454,"size":"10.186Mi"}]
 ```
 
 ### Restore commands
