@@ -1224,10 +1224,6 @@ func atomicSetBool(p *uint64, b bool) {
 
 func (pt *partition) runFinalDedup() error {
 	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
-	if requiredDedupInterval <= actualDedupInterval {
-		// Deduplication isn't needed.
-		return nil
-	}
 	t := time.Now()
 	logger.Infof("starting final dedup for partition %s using requiredDedupInterval=%d ms, since the partition has smaller actualDedupInterval=%d ms",
 		pt.bigPartsPath, requiredDedupInterval, actualDedupInterval)
@@ -1236,6 +1232,11 @@ func (pt *partition) runFinalDedup() error {
 	}
 	logger.Infof("final dedup for partition %s has been finished in %.3f seconds", pt.bigPartsPath, time.Since(t).Seconds())
 	return nil
+}
+
+func (pt *partition) isFinalDedupNeeded() bool {
+	requiredDedupInterval, actualDedupInterval := pt.getRequiredDedupInterval()
+	return requiredDedupInterval > actualDedupInterval
 }
 
 func (pt *partition) getRequiredDedupInterval() (int64, int64) {
