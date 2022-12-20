@@ -363,7 +363,7 @@ DataDog agent allows configuring destinations for metrics sending via ENV variab
 or via [configuration file](https://docs.datadoghq.com/agent/guide/agent-configuration-files/) in section `dd_url`.
 
 <p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
+  <img src="docs/Single-server-VictoriaMetrics-sending_DD_metrics_to_VM.png" width="800">
 </p>
 
 To configure DataDog agent via ENV variable add the following prefix:
@@ -397,7 +397,7 @@ DataDog allows configuring [Dual Shipping](https://docs.datadoghq.com/agent/guid
 sending via ENV variable `DD_ADDITIONAL_ENDPOINTS` or via configuration file `additional_endpoints`.
  
 <p align="center">
-  <img src="Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
+  <img src="docs/Single-server-VictoriaMetrics-sending_DD_metrics_to_VM_and_DD.png" width="800">
 </p>
  
 Run DataDog using the following ENV variable with VictoriaMetrics as additional metrics receiver:
