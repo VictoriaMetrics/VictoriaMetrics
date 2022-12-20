@@ -86,7 +86,7 @@ func initLabelsGlobal() {
 }
 
 func (rctx *relabelCtx) applyRelabeling(tss []prompbmarshal.TimeSeries, extraLabels []prompbmarshal.Label, pcs *promrelabel.ParsedConfigs) []prompbmarshal.TimeSeries {
-	if len(extraLabels) == 0 && pcs.Len() == 0 {
+	if len(extraLabels) == 0 && pcs.Len() == 0 && !*usePromCompatibleNaming {
 		// Nothing to change.
 		return tss
 	}
