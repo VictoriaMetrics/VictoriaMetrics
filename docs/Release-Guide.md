@@ -23,7 +23,7 @@ git remote add enterprise <url>
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
    * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
    * `git tag -s v1.xx.y-enterprise-cluster` in `enterprise-cluster` branch
-3. Run `TAG=v1.xx.y make publish-release`. This command performs the following tasks:
+3. Run `LATEST_TAG=stable TAG=v1.xx.y make publish-release`. This command performs the following tasks:
    a) Build and package binaries in `*.tar.gz` release archives with the corresponding `_checksums.txt` files inside `bin` directory.
       This step can be run manually with the command `make release` from the needed git tag.
    b) Build and publish [multi-platform Docker images](https://docs.docker.com/build/buildx/multiplatform-images/)
