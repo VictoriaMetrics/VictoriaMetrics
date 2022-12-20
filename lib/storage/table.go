@@ -455,7 +455,7 @@ func (tb *table) finalDedupWatcher() {
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
 		for _, ptw := range ptws {
-			if ptw.pt.name == currentPartitionName {
+			if ptw.pt.name == currentPartitionName || !ptw.pt.isFinalDedupNeeded() {
 				// Do not run final dedup for the current month.
 				continue
 			}
