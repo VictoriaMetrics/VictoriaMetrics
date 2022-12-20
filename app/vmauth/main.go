@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -16,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/reverseproxy"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -116,7 +114,12 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, maxConcurrentRequests 
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	getReverseProxy(maxConcurrentRequests).ServeHTTP(w, r)
+	rr := getReverseProxy()
+	if maxConcurrentRequests > 0 {
+		rr.WithLimit(maxConcurrentRequests).ServeHTTPWithLimit(w, r)
+	} else {
+		rr.ServeHTTP(w, r)
+	}
 }
 
 var (
@@ -124,27 +127,6 @@ var (
 	invalidAuthTokenRequests = metrics.NewCounter(`vmauth_http_request_errors_total{reason="invalid_auth_token"}`)
 	missingRouteRequests     = metrics.NewCounter(`vmauth_http_request_errors_total{reason="missing_route"}`)
 )
-
-var (
-	reverseProxy     reverseproxy.ReversProxier
-	reverseProxyOnce sync.Once
-)
-
-func getReverseProxy(maxConcurrentRequests int) reverseproxy.ReversProxier {
-	reverseProxyOnce.Do(func() {
-		initReverseProxy(maxConcurrentRequests)
-	})
-	return reverseProxy
-}
-
-// initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
-func initReverseProxy(maxConcurrentRequests int) {
-	if maxConcurrentRequests != 0 {
-		reverseProxy = reverseproxy.NewLimited(maxConcurrentRequests)
-	} else {
-		reverseProxy = reverseproxy.New()
-	}
-}
 
 func usage() {
 	const s = `

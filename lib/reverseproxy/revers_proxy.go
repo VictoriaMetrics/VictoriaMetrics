@@ -2,6 +2,7 @@ package reverseproxy
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -20,13 +21,10 @@ var (
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
 )
 
-type ReversProxier interface {
-	ServeHTTP(w http.ResponseWriter, r *http.Request)
-}
-
 // ReversProxy represents simple revers proxy based on http.Client
 type ReversProxy struct {
-	client *http.Client
+	client  *http.Client
+	limiter chan struct{}
 }
 
 // New initialize revers proxy
@@ -39,6 +37,27 @@ func New() *ReversProxy {
 // ServeHTTP serve http requests
 func (rr *ReversProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rr.handle(w, r)
+}
+
+// ServeHTTPWithLimit limits served requests by defined limit. If limit reached http error returns
+func (rr *ReversProxy) ServeHTTPWithLimit(w http.ResponseWriter, r *http.Request) {
+	select {
+	case <-rr.limiter:
+		rr.handle(w, r)
+		rr.limiter <- struct{}{}
+	default:
+		message := fmt.Sprintf("cannot handle more than %d connections", 100)
+		http.Error(w, message, http.StatusTooManyRequests)
+	}
+}
+
+// WithLimit sets concurrent requests limit
+func (rr *ReversProxy) WithLimit(maxConcurrentRequests int) *ReversProxy {
+	rr.limiter = make(chan struct{}, maxConcurrentRequests)
+	for i := 0; i < maxConcurrentRequests; i++ {
+		rr.limiter <- struct{}{}
+	}
+	return rr
 }
 
 // handle works with income request, update it to outcome and copy response to the requester
