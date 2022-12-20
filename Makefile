@@ -167,10 +167,10 @@ vmutils-crossbuild: \
 	vmutils-windows-amd64
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
+		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
 
 release: \
 	release-victoria-metrics \
