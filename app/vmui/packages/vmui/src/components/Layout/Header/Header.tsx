@@ -28,28 +28,28 @@ const Header: FC = () => {
   const { search, pathname } = useLocation();
   const routes = useMemo(() => ([
     {
-      label: "Custom panel",
+      label: routerOptions[router.home].title,
       value: router.home,
     },
     {
-      label: "Dashboards",
+      label: routerOptions[router.dashboards].title,
       value: router.dashboards,
       hide: appModeEnable
     },
     {
-      label: "Cardinality",
+      label: routerOptions[router.cardinality].title,
       value: router.cardinality,
     },
     {
-      label: "Top queries",
+      label: routerOptions[router.topQueries].title,
       value: router.topQueries,
     },
     {
-      label: "Trace analyzer",
+      label: routerOptions[router.trace].title,
       value: router.trace,
     },
     {
-      label: "Explore",
+      label: routerOptions[router.metrics].title,
       value: router.metrics,
     }
   ]), [appModeEnable]);
