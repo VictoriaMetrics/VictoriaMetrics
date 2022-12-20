@@ -2059,11 +2059,13 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, accountID, proj
 					// Cannot find TSID for the given metricID.
 					// This may be the case on incomplete indexDB
 					// due to snapshot or due to unflushed entries.
-					// Just increment errors counter and skip it.
+					// Just increment errors counter and skip it for now.
 					atomic.AddUint64(&is.db.missingTSIDsForMetricID, 1)
+					err = nil
 					continue
 				}
 				err = fmt.Errorf("cannot find tsid for metricID=%d: %w", metricID, err)
+				return
 			}
 			is.db.putToMetricIDCache(metricID, tsid)
 			i++
