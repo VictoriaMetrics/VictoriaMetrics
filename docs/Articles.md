@@ -113,5 +113,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [OSA Con 2022: Specifics of data analysis in Time Series Databases](https://www.youtube.com/watch?v=_zORxrgLtec)
 * [OSMC 2022. VictoriaMetrics: scaling to 100 million metrics per second](https://www.youtube.com/watch?v=xfed9_Q0_qU). See also [slides](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
 * [CNCF Paris Meetup 2022-09-15 - VictoriaMetrics - The cost of scale in Prometheus ecosystem](https://www.youtube.com/watch?v=gcZYHpri2Hw). See also [slides](https://docs.google.com/presentation/d/1jhZuKnAXi15M-mdBP5a4ZAiyrMeHhYmzO8xcZ6pMyLc/edit?usp=sharing)
+* [VictoriaMetrics Meetup December 2022](https://www.youtube.com/watch?v=Mesc6JBFNhQ). See also [slides for "VictoriaMetrics 2022: new features" talk](https://docs.google.com/presentation/d/1jI7XZoodmuzLymdu4MToG9onAKQjzCNwMO2NDupyUkQ/edit?usp=sharing).
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)
