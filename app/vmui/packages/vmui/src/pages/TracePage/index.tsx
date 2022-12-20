@@ -148,6 +148,7 @@ const TracePage: FC = () => {
             {"\n"}
             In order to use tracing please refer to the doc:&nbsp;
             <a
+              className="vm__link vm__link_colored"
               href="https://docs.victoriametrics.com/#query-tracing"
               target="_blank"
               rel="noreferrer"
