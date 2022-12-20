@@ -167,10 +167,10 @@ vmutils-crossbuild: \
 	vmutils-windows-amd64
 
 publish-release:
-	git checkout $(TAG) && $(MAKE) release publish && \
-		git checkout $(TAG)-cluster && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise && $(MAKE) release publish && \
-		git checkout $(TAG)-enterprise-cluster && $(MAKE) release publish
+	git checkout $(TAG) && LATEST_TAG=stable $(MAKE) release publish && \
+		git checkout $(TAG)-cluster && LATEST_TAG=cluster-stable $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise && LATEST_TAG=enterprise-stable $(MAKE) release publish && \
+		git checkout $(TAG)-enterprise-cluster && LATEST_TAG=enterprise-cluster-stable $(MAKE) release publish
 
 release: \
 	release-victoria-metrics \
@@ -383,7 +383,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run --exclude '(SA4003|SA1019|SA5011):' -D errcheck -D structcheck --timeout 2m
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.48.0
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.50.1
 
 govulncheck: install-govulncheck
 	govulncheck ./...

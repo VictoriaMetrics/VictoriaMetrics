@@ -935,7 +935,7 @@ func TestExecSuccess(t *testing.T) {
 		))`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{nan, nan, nan, 1, nan, nan},
+			Values:     []float64{nan, nan, 1, 1, nan, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6692,7 +6692,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{5.5, 4.5, 3.5, 2.5, 1.5, 0.5},
+			Values:     []float64{5, 4, 3, 2, 1, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6703,7 +6703,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{5.5, 4.5, 3.5, 2.5, 1.5, 0.5},
+			Values:     []float64{5, 4, 3, 2, 1, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6714,7 +6714,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s])`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0, 0, 6.5, 4.5, 2.5, 0.5},
+			Values:     []float64{0, 0, 6, 4, 2, 0},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6725,7 +6725,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s] offset 100s)`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0, 0, 3.5, 5.5, 3.5, 1.5},
+			Values:     []float64{0, 0, 7, 5, 3, 1},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -6736,7 +6736,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `rate((2000-time())[100s:100s] offset 100s)[:] offset 100s`
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{0, 0, 0, 3.5, 5.5, 3.5},
+			Values:     []float64{0, 0, 0, 7, 5, 3},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
