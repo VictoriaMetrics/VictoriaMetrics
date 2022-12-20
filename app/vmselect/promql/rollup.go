@@ -145,11 +145,11 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"zscore_over_time":        rollupZScoreOverTime,
 }
 
-// VictoriaMetrics can increase lookbehind window in square brackets for these functions
-// if the given window doesn't contain enough samples for calculations.
+// VictoriaMetrics can extends lookbehind window for these functions
+// in order to make sure it contains enough points for returning non-empty results.
 //
-// This is needed in order to return the expected non-empty graphs when zooming in the graph in Grafana,
-// which is built with `func_name(metric[$__interval])` query.
+// This is needed for returning the expected non-empty graphs when zooming in the graph in Grafana,
+// which is built with `func_name(metric)` query.
 var rollupFuncsCanAdjustWindow = map[string]bool{
 	"default_rollup":         true,
 	"deriv":                  true,
@@ -584,14 +584,22 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	window := rc.Window
 	if window <= 0 {
 		window = rc.Step
+		if rc.MayAdjustWindow && window < maxPrevInterval {
+			// Adjust lookbehind window only if it isn't set explicilty, e.g. rate(foo).
+			// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
+			// when the window doesn't cover at least two raw samples (this is what most users expect).
+			//
+			// If the user explicitly sets the lookbehind window to some fixed value, e.g. rate(foo[1s]),
+			// then it is expected he knows what he is doing. Do not adjust the lookbehind window then.
+			//
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3483
+			window = maxPrevInterval
+		}
 		if rc.isDefaultRollup && rc.LookbackDelta > 0 && window > rc.LookbackDelta {
 			// Implicit window exceeds -search.maxStalenessInterval, so limit it to -search.maxStalenessInterval
 			// according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/784
 			window = rc.LookbackDelta
 		}
-	}
-	if rc.MayAdjustWindow && window < maxPrevInterval {
-		window = maxPrevInterval
 	}
 	rfa := getRollupFuncArg()
 	rfa.idx = 0
