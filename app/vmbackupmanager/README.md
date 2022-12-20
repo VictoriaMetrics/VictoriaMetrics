@@ -270,7 +270,15 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 
 ### How to restore in Kubernetes
 
-1. Enter container running `vmbackupmanager`
+1. Ensure there is an init container with `vmbackupmanager restore` in `vmstorage` or `vmsingle` pod.
+   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) deployments it is required to add:
+   ```yaml
+   vmbackup:
+     restore:
+       onStart: "true"
+   ```
+   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
+2. Enter container running `vmbackupmanager`
 2. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
@@ -286,6 +294,33 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2022-10-06
     ```
 4. Restart pod
+
+#### Restore cluster into another cluster
+
+These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) is used to manage `VMCluster`.
+Clusters here are referred to as `source` and `destination`.
+
+1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
+   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api.html#vmstorage):
+   ```yaml
+   vmbackup:
+     restore:
+       onStart: "true"
+   ```
+   Note: it is safe to leave this section in the cluster configuration, since it will be ignored if restore mark doesn't exist.
+   > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
+2. Enter container running `vmbackupmanager` in *source* cluster
+2. Use `vmbackupmanager backup list` to get list of available backups:
+  ```console
+  $ /vmbackupmanager-prod backup list
+  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  ```
+3. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
+   Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
+   For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
+  ```console
+  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2022-10-06
+  ```
 
 ## Configuration
 
