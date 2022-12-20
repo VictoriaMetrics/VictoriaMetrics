@@ -2,7 +2,7 @@ version: "3.5"
 services:
   vmagent:
     container_name: vmagent
-    image: victoriametrics/vmagent:v1.85.2
+    image: victoriametrics/vmagent:v1.85.3
     depends_on:
       - "victoriametrics"
     ports:
@@ -18,7 +18,7 @@ services:
     restart: always
   victoriametrics:
     container_name: victoriametrics
-    image: victoriametrics/victoria-metrics:v1.85.2
+    image: victoriametrics/victoria-metrics:v1.85.3
     ports:
       - 8428:8428
       - 8089:8089
@@ -56,7 +56,7 @@ services:
     restart: always
   vmalert:
     container_name: vmalert
-    image: victoriametrics/vmalert:v1.85.2
+    image: victoriametrics/vmalert:v1.85.3
     depends_on:
       - "victoriametrics"
       - "alertmanager"
