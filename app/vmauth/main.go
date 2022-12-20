@@ -99,11 +99,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	for _, h := range headers {
 		r.Header.Set(h.Name, h.Value)
 	}
-	proxyRequest(w, r, ui.MaxConcurrentRequests)
+	catchPanic()
+	ui.proxyRequests(w, r, getReverseProxy)
 	return true
 }
 
-func proxyRequest(w http.ResponseWriter, r *http.Request, maxConcurrentRequests int) {
+func catchPanic() {
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
@@ -114,12 +115,6 @@ func proxyRequest(w http.ResponseWriter, r *http.Request, maxConcurrentRequests 
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	rr := getReverseProxy()
-	if maxConcurrentRequests > 0 {
-		rr.WithLimit(maxConcurrentRequests).ServeHTTPWithLimit(w, r)
-	} else {
-		rr.ServeHTTP(w, r)
-	}
 }
 
 var (
