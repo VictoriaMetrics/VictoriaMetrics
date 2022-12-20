@@ -37,6 +37,7 @@ interface FetchDataParams {
   query: string[],
   stateSeriesLimits: SeriesLimits,
   showAllSeries?: boolean,
+  hideQuery?: number[]
 }
 
 export const useFetchQuery = ({
@@ -75,6 +76,7 @@ export const useFetchQuery = ({
     query,
     stateSeriesLimits,
     showAllSeries,
+    hideQuery,
   }: FetchDataParams) => {
     const controller = new AbortController();
     setFetchQueue([...fetchQueue, controller]);
@@ -87,6 +89,13 @@ export const useFetchQuery = ({
       let totalLength = 0;
 
       for await (const url of fetchUrl) {
+
+        const isHideQuery = hideQuery?.includes(counter - 1);
+        if (isHideQuery) {
+          counter++;
+          continue;
+        }
+
         const response = await fetch(url, { signal: controller.signal });
         const resp = await response.json();
 
@@ -126,12 +135,6 @@ export const useFetchQuery = ({
 
   const throttledFetchData = useCallback(debounce(fetchData, 800), []);
 
-  const filterExpr = (q: string, i: number) => {
-    const byQuery = q.trim();
-    const byHideQuery = hideQuery ? !hideQuery.includes(i) : true;
-    return byQuery && byHideQuery;
-  };
-
   const fetchUrl = useMemo(() => {
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
@@ -143,7 +146,7 @@ export const useFetchQuery = ({
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
-      return expr.filter(filterExpr).map(q => displayChart
+      return expr.map(q => displayChart
         ? getQueryRangeUrl(serverUrl, q, updatedPeriod, nocache, isTracingEnabled)
         : getQueryUrl(serverUrl, q, updatedPeriod, isTracingEnabled));
     } else {
@@ -163,6 +166,7 @@ export const useFetchQuery = ({
       query: expr,
       stateSeriesLimits,
       showAllSeries,
+      hideQuery,
     });
   }, [fetchUrl, visible, stateSeriesLimits, showAllSeries]);
 
