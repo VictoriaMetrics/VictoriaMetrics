@@ -34,9 +34,10 @@ func TestApplyRelabeling(t *testing.T) {
 	}
 	f(nil, pcs, `up{foo="baz", env="prod"}`, `up{foo="aaa"}`)
 
+	oldVal := *usePromCompatibleNaming
 	*usePromCompatibleNaming = true
 	f(nil, nil, `foo.bar`, `foo_bar`)
-	*usePromCompatibleNaming = false
+	*usePromCompatibleNaming = oldVal
 }
 
 func parseSeries(data string) []prompbmarshal.TimeSeries {
