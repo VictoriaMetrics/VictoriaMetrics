@@ -11,6 +11,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	bytesUploadedTotal       = uint64(0)
+	bytesUploadedTotalMetric = metrics.NewCounter(`vm_backups_uploaded_bytes_total`)
 )
 
 // Backup performs backup according to the provided settings.
@@ -163,6 +169,8 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			n := atomic.LoadUint64(&bytesUploaded)
 			logger.Infof("uploaded %d out of %d bytes from src %s to dst %s in %s", n, uploadSize, src, dst, elapsed)
 		})
+		atomic.AddUint64(&bytesUploadedTotal, bytesUploaded)
+		bytesUploadedTotalMetric.Set(bytesUploadedTotal)
 		if err != nil {
 			return err
 		}
