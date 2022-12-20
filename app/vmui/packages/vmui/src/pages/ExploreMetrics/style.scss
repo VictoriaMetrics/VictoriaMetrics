@@ -7,10 +7,32 @@
 
   &-header {
     display: grid;
-    grid-template-columns: minmax(200px, 300px) 1fr;
-    align-items: center;
-    justify-content: flex-start;
-    gap: $padding-medium;
+    gap: $padding-small;
+
+    &-top {
+      display: grid;
+      grid-template-columns: minmax(200px, 300px) minmax(200px, 500px) auto;
+      align-items: center;
+      gap: $padding-medium;
+
+      &__switch-graphs {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }
+    }
+
+    &__clear-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+      cursor: pointer;
+
+      &:hover {
+        opacity: 0.7
+      }
+    }
   }
 
   &-body {

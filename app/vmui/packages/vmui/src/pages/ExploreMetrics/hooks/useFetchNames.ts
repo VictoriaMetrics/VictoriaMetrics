@@ -9,14 +9,14 @@ interface FetchNamesReturn {
   error?: ErrorTypes | string,
 }
 
-export const useFetchNames = (job: string): FetchNamesReturn => {
+export const useFetchNames = (job: string, instance: string): FetchNamesReturn => {
   const { serverUrl } = useAppState();
 
   const [names, setNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
 
-  const fetchUrl = useMemo(() => getNamesUrl(serverUrl, job), [serverUrl, job]);
+  const fetchUrl = useMemo(() => getNamesUrl(serverUrl, job, instance), [serverUrl, job, instance]);
 
   useEffect(() => {
     if (!job) return;

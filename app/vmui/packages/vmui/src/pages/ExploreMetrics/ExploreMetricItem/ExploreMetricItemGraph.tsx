@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
+import React, { FC, useMemo, useState } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import GraphView from "../../../components/Views/GraphView/GraphView";
@@ -10,12 +10,22 @@ import Button from "../../../components/Main/Button/Button";
 import "./style.scss";
 
 interface ExploreMetricItemGraphProps {
-    name: string,
-    job: string,
-    instance: string
+  name: string,
+  job: string,
+  instance: string,
+  rateEnabled: boolean,
+  isCounter: boolean,
+  isBucket: boolean,
 }
 
-const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({ name, job, instance }) => {
+const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
+  name,
+  job,
+  instance,
+  rateEnabled,
+  isCounter,
+  isBucket
+}) => {
   const { customStep, yaxis } = useGraphState();
   const { period } = useTimeState();
 
@@ -25,19 +35,28 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({ name, job, instanc
   const [showAllSeries, setShowAllSeries] = useState(false);
 
   const query = useMemo(() => {
-    const params = Object.entries({ job, instance }).filter(val => val[1]).map(([key, val]) => `${key}="${val}"`);
+    const params = Object.entries({ job, instance })
+      .filter(val => val[1])
+      .map(([key, val]) => `${key}="${val}"`);
 
-    const queryBase = `${name}{${params.join(",")}}`;
-    const queryCounter = `rate(${queryBase})`;
-    const queryCounterWithoutInstance = `sum(${queryCounter}) without (job)`;
+    const base = `${name}{${params.join(",")}}`;
+    const queryBase = rateEnabled ? `rate(${base})` : base;
 
-    const isCounter = /_sum?|_total?|_count?/.test(name);
+    const queryBucket = `histogram_quantiles("quantile", 0.5, 0.99, increase(${base}[5m]))`;
+    const queryBucketWithoutInstance = `histogram_quantiles("quantile", 0.5, 0.99, sum(increase(${base}[5m])) without (instance))`;
+    const queryCounterWithoutInstance = `sum(${queryBase}) without (job)`;
+    const queryWithoutInstance = `sum(${queryBase}) without (instance)`;
+
     const isCounterWithoutInstance = isCounter && job && !instance;
+    const isBucketWithoutInstance = isBucket && job && !instance;
+    const isWithoutInstance = !isCounter && job && !instance;
 
-    if (isCounter) return queryCounter;
     if (isCounterWithoutInstance) return queryCounterWithoutInstance;
+    if (isBucketWithoutInstance) return queryBucketWithoutInstance;
+    if (isBucket) return queryBucket;
+    if (isWithoutInstance) return queryWithoutInstance;
     return queryBase;
-  }, [name, job, instance]);
+  }, [name, job, instance, rateEnabled, isCounter, isBucket]);
 
   const { isLoading, graphData, error, warning } = useFetchQuery({
     predefinedQuery: [query],
@@ -57,10 +76,6 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({ name, job, instanc
   const handleShowAll = () => {
     setShowAllSeries(true);
   };
-
-  useEffect(() => {
-    timeDispatch({ type: "RUN_QUERY" });
-  }, [query]);
 
   return (
     <div className="vm-explore-metrics-item-graph">

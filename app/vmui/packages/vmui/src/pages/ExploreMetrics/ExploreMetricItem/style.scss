@@ -3,8 +3,24 @@
 .vm-explore-metrics-item {
   border-bottom: $border-divider;
 
-  &__header {
-    padding: $padding-global;
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    padding: $padding-global calc(28px + $padding-global) $padding-global $padding-global;
+
+    &__rate {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: $padding-small;
+
+      code {
+        padding: 0.2em 0.4em;
+        font-size: 85%;
+        background-color: rgba($color-black, 0.05);
+        border-radius: 6px;
+      }
+    }
   }
 
   &-graph {
