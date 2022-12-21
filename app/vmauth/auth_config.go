@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
-	"net/http"
 	"net/url"
 	"os"
 	"regexp"
@@ -17,7 +16,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/reverseproxy"
 	"github.com/VictoriaMetrics/metrics"
 	"gopkg.in/yaml.v2"
 )
@@ -47,27 +45,17 @@ type UserInfo struct {
 	requests *metrics.Counter
 }
 
-func (ui *UserInfo) proxyRequests(w http.ResponseWriter, r *http.Request, reversProxy func() *reverseproxy.ReversProxy) {
-	rr := reversProxy()
+func (ui *UserInfo) proxyRequests(cb func()) error {
 	if ui.MaxConcurrentRequests > 0 {
 		select {
-		case <-ui.limiter:
-			rr.ServeHTTP(w, r)
-			ui.limiter <- struct{}{}
+		case ui.limiter <- struct{}{}:
+			defer func() { <-ui.limiter }()
 		default:
-			message := fmt.Sprintf("cannot handle more than %d connections", ui.MaxConcurrentRequests)
-			http.Error(w, message, http.StatusTooManyRequests)
+			return fmt.Errorf("cannot handle more than %d connections", ui.MaxConcurrentRequests)
 		}
-	} else {
-		rr.ServeHTTP(w, r)
 	}
-}
-
-func (ui *UserInfo) setLimiter() {
-	ui.limiter = make(chan struct{}, ui.MaxConcurrentRequests)
-	for i := 0; i < ui.MaxConcurrentRequests; i++ {
-		ui.limiter <- struct{}{}
-	}
+	cb()
+	return nil
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -343,7 +331,7 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
 		if ui.MaxConcurrentRequests > 0 {
-			ui.setLimiter()
+			ui.limiter = make(chan struct{}, ui.MaxConcurrentRequests)
 		}
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui
