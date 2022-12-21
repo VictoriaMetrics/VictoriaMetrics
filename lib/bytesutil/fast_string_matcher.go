@@ -62,10 +62,8 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 	s = strings.Clone(s)
 	fsm.m.Store(s, e)
 
-	if atomic.LoadUint64(&fsm.lastCleanupTime)+61 < ct {
-		// Perform a global cleanup for fsm.m by removing items, which weren't accessed
-		// during the last 5 minutes.
-		atomic.StoreUint64(&fsm.lastCleanupTime, ct)
+	if needCleanup(&fsm.lastCleanupTime, ct) {
+		// Perform a global cleanup for fsm.m by removing items, which weren't accessed during the last 5 minutes.
 		m := &fsm.m
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fsmEntry)
@@ -77,4 +75,15 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 	}
 
 	return b
+}
+
+func needCleanup(lastCleanupTime *uint64, currentTime uint64) bool {
+	lct := atomic.LoadUint64(lastCleanupTime)
+	if lct+61 >= currentTime {
+		return false
+	}
+	// Atomically compare and swap the current time with the lastCleanupTime
+	// in order to guarantee that only a single goroutine out of multiple
+	// concurrently executing goroutines gets true from the call.
+	return atomic.CompareAndSwapUint64(lastCleanupTime, lct, currentTime)
 }

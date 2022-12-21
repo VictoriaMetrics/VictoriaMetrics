@@ -30,10 +30,8 @@ func InternString(s string) string {
 	}
 	internStringsMap.Store(sCopy, e)
 
-	if atomic.LoadUint64(&internStringsMapLastCleanupTime)+61 < ct {
-		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed
-		// during the last 5 minutes.
-		atomic.StoreUint64(&internStringsMapLastCleanupTime, ct)
+	if needCleanup(&internStringsMapLastCleanupTime, ct) {
+		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed during the last 5 minutes.
 		m := &internStringsMap
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*ismEntry)
