@@ -165,10 +165,12 @@ export const getTimezoneList = (search = "") => {
   return supportedTimezones.reduce((acc: {[key: string]: Timezone[]}, region) => {
     const zone = (region.match(/^(.*?)\//) || [])[1] || "unknown";
     const utc = getUTCByTimezone(region);
+    const utcForSearch = utc.replace(/UTC|0/gmi, "");
+    const regionForSearch = region.replace(/[/_]/gmi, " ");
     const item = {
       region,
       utc,
-      search: `${region} ${utc} ${region.replace(/[/_]/gmi, " ")}`
+      search: `${region} ${utc} ${regionForSearch} ${utcForSearch}`
     };
     const includeZone = !search || (search && regexp.test(item.search));
 

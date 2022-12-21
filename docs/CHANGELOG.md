@@ -27,6 +27,7 @@ Released at 2022-12-20
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): never extend explicitly set lookbehind window for [rate()](https://docs.victoriametrics.com/MetricsQL.html#rate) function. This reduces the level of confusion when the user expects the needed results after explicitly seting the lookbehind window `[d]` in the query `rate(m[d])`. Previously VictoriaMetrics could silently extend the lookbehind window, so it covers at least two raw samples. Now this behavior works only if the lookbehind window in square brackets isn't set explicitly, e.g. in the case of `rate(m)`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3483) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): respect `-usePromCompatibleNaming` flag if no relabeling or extra labels were set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3511) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the wrong legend when queries are hidden. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3512).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix incorrect time selection after the timezone change. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3519).
 
 
 ## [v1.85.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.2)
