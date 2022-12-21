@@ -1,6 +1,6 @@
-import React, { FC } from "preact/compat";
+import React, { FC, useEffect } from "preact/compat";
 import StepConfigurator from "../StepConfigurator/StepConfigurator";
-import { useGraphDispatch } from "../../../state/graph/GraphStateContext";
+import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import { getAppModeParams } from "../../../utils/app-mode";
 import TenantsConfiguration from "../TenantsConfiguration/TenantsConfiguration";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
@@ -8,10 +8,13 @@ import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
+import usePrevious from "../../../hooks/usePrevious";
 
 const AdditionalSettings: FC = () => {
 
+  const { customStep } = useGraphState();
   const graphDispatch = useGraphDispatch();
+
   const { inputTenantID } = getAppModeParams();
 
   const { autocomplete } = useQueryState();
@@ -20,7 +23,8 @@ const AdditionalSettings: FC = () => {
   const { nocache, isTracingEnabled } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
 
-  const { period: { step } } = useTimeState();
+  const { period: { step }, duration } = useTimeState();
+  const prevDuration = usePrevious(duration);
 
   const onChangeCache = () => {
     customPanelDispatch({ type: "TOGGLE_NO_CACHE" });
@@ -37,6 +41,15 @@ const AdditionalSettings: FC = () => {
   const onChangeStep = (value: number) => {
     graphDispatch({ type: "SET_CUSTOM_STEP", payload: value });
   };
+
+  useEffect(() => {
+    if (!customStep && step) onChangeStep(step);
+  }, [step]);
+
+  useEffect(() => {
+    if (duration === prevDuration || !prevDuration) return;
+    if (step) onChangeStep(step);
+  }, [duration, prevDuration]);
 
   return <div className="vm-additional-settings">
     <Switch
@@ -58,6 +71,7 @@ const AdditionalSettings: FC = () => {
       <StepConfigurator
         defaultStep={step}
         setStep={onChangeStep}
+        value={customStep}
       />
     </div>
     {!!inputTenantID && (
