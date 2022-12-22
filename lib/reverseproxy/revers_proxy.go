@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -19,6 +20,8 @@ const (
 var (
 	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
 )
+
+var bbPool bytesutil.ByteBufferPool
 
 // ReversProxy represents simple revers proxy based on http.Client
 type ReversProxy struct {
@@ -42,6 +45,9 @@ func (rr *ReversProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // handle works with income request, update it to outcome and copy response to the requester
 func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
+	bb := bbPool.Get()
+	defer func() { bbPool.Put(bb) }()
+
 	tURL, err := getTargetURL(r)
 	if err != nil {
 		logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
@@ -77,7 +83,7 @@ func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	_, err = io.Copy(w, resp.Body)
+	_, err = io.CopyBuffer(w, resp.Body, bb.B)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
