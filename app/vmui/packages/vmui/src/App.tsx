@@ -10,6 +10,8 @@ import TopQueries from "./pages/TopQueries";
 import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
 import Spinner from "./components/Main/Spinner/Spinner";
 import TracePage from "./pages/TracePage";
+import ExploreMetrics from "./pages/ExploreMetrics";
+import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 
 const App: FC = () => {
 
@@ -49,6 +51,14 @@ const App: FC = () => {
             <Route
               path={router.trace}
               element={<TracePage/>}
+            />
+            <Route
+              path={router.metrics}
+              element={<ExploreMetrics/>}
+            />
+            <Route
+              path={router.icons}
+              element={<PreviewIcons/>}
             />
           </Route>
         </Routes>

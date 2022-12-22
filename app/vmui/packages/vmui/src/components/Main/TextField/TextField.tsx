@@ -8,6 +8,7 @@ interface TextFieldProps {
   value?: string | number
   type?: HTMLInputTypeAttribute | "textarea"
   error?: string
+  placeholder?: string
   endIcon?: ReactNode
   startIcon?: ReactNode
   disabled?: boolean
@@ -16,6 +17,8 @@ interface TextFieldProps {
   onChange?: (value: string) => void
   onEnter?: () => void
   onKeyDown?: (e: KeyboardEvent) => void
+  onFocus?: () => void
+  onBlur?: () => void
 }
 
 const TextField: FC<TextFieldProps> = ({
@@ -23,6 +26,7 @@ const TextField: FC<TextFieldProps> = ({
   value,
   type = "text",
   error = "",
+  placeholder,
   endIcon,
   startIcon,
   disabled = false,
@@ -30,7 +34,9 @@ const TextField: FC<TextFieldProps> = ({
   helperText,
   onChange,
   onEnter,
-  onKeyDown
+  onKeyDown,
+  onFocus,
+  onBlur
 }) => {
 
   const inputRef = useRef<HTMLInputElement>(null);
@@ -63,6 +69,14 @@ const TextField: FC<TextFieldProps> = ({
     fieldRef?.current?.focus && fieldRef.current.focus();
   }, [fieldRef, autofocus]);
 
+  const handleFocus = () => {
+    onFocus && onFocus();
+  };
+
+  const handleBlur = () => {
+    onBlur && onBlur();
+  };
+
   return <label
     className={classNames({
       "vm-text-field": true,
@@ -79,9 +93,12 @@ const TextField: FC<TextFieldProps> = ({
           disabled={disabled}
           ref={textareaRef}
           value={value}
+          rows={1}
+          placeholder={placeholder}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
-          rows={1}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
         />
       )
       : (
@@ -90,9 +107,13 @@ const TextField: FC<TextFieldProps> = ({
           disabled={disabled}
           ref={inputRef}
           value={value}
+          type={type}
+          placeholder={placeholder}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
-          type={type}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+
         />)
     }
     {label && <span className="vm-text-field__label">{label}</span>}

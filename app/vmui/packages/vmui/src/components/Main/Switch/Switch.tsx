@@ -1,4 +1,4 @@
-import React from "react";
+import React, { ReactNode } from "react";
 import classNames from "classnames";
 import "./style.scss";
 import { FC } from "preact/compat";
@@ -7,7 +7,7 @@ interface SwitchProps {
   value: boolean
   color?: "primary" | "secondary" | "error"
   disabled?: boolean
-  label?: string
+  label?: string | ReactNode
   onChange: (value: boolean) => void
 }
 

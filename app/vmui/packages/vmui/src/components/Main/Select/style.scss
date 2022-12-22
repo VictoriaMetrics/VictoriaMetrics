@@ -1,0 +1,50 @@
+@use "src/styles/variables" as *;
+
+.vm-select {
+  &-input {
+    position: relative;
+    cursor: pointer;
+
+    input {
+      pointer-events: none;
+    }
+
+    &__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin: 0 0 0 auto;
+      transition: transform 200ms ease-in;
+
+      svg {
+        width: 14px;
+      }
+
+      &_open {
+        transform: rotate(180deg);
+      }
+    }
+
+    &__clear {
+      position: absolute;
+      right: 30px;
+      top: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4px $padding-small;
+      cursor: pointer;
+      transition: opacity 200ms ease-in;
+      color: $color-text-secondary;
+      border-right: $border-divider;
+
+      svg {
+        width: 12px;
+      }
+
+      &:hover {
+        opacity: 0.7;
+      }
+    }
+  }
+}

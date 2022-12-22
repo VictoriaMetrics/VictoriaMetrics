@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm__link {
+  transition: color 200ms ease;
+  cursor: pointer;
+
+  &_colored {
+    color: $color-primary;
+  }
+
+  &:hover {
+    color: $color-primary;
+    text-decoration: underline;
+  }
+}
