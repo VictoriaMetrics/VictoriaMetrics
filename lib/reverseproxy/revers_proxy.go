@@ -27,8 +27,11 @@ type ReversProxy struct {
 
 // New initialize revers proxy
 func New() *ReversProxy {
+	tr := prepareTransport()
 	return &ReversProxy{
-		client: &http.Client{},
+		client: &http.Client{
+			Transport: tr,
+		},
 	}
 }
 
@@ -44,13 +47,10 @@ func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
 		logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
 	}
 
-	rr.client.Transport = prepareTransport(tURL)
-
-	r.URL = tURL
-
 	ctx := r.Context()
 	proxyReq := r.Clone(ctx)
 
+	proxyReq.URL = tURL
 	if r.ContentLength == 0 {
 		proxyReq.Body = nil // Issue 16036: nil Body for http.Transport retries
 	}
@@ -85,9 +85,8 @@ func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
 }
 
 // prepareTransport builds http transport which can be configurable
-func prepareTransport(targetURL *url.URL) *http.Transport {
+func prepareTransport() *http.Transport {
 	tr := &http.Transport{
-		Proxy:              http.ProxyURL(targetURL),
 		DisableCompression: true,
 		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
 		ForceAttemptHTTP2: false,
