@@ -269,16 +269,16 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 	t.Run("keep_if_equal-unused-target-label", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "keep_if_equal",
+				Action:       "keep_if_equal",
 				SourceLabels: []string{"foo", "bar"},
-				TargetLabel: "foo",
+				TargetLabel:  "foo",
 			},
 		})
 	})
 	t.Run("keep_if_equal-unused-regex", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "keep_if_equal",
+				Action:       "keep_if_equal",
 				SourceLabels: []string{"foo", "bar"},
 				Regex: &MultiLineRegex{
 					S: "bar",
@@ -304,16 +304,16 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 	t.Run("drop_if_equal-unused-target-label", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "drop_if_equal",
+				Action:       "drop_if_equal",
 				SourceLabels: []string{"foo", "bar"},
-				TargetLabel: "foo",
+				TargetLabel:  "foo",
 			},
 		})
 	})
 	t.Run("drop_if_equal-unused-regex", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "drop_if_equal",
+				Action:       "drop_if_equal",
 				SourceLabels: []string{"foo", "bar"},
 				Regex: &MultiLineRegex{
 					S: "bar",
@@ -331,7 +331,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 	t.Run("keepequal-missing-target-label", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "keepequal",
+				Action:       "keepequal",
 				SourceLabels: []string{"foo"},
 			},
 		})
@@ -339,9 +339,9 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 	t.Run("keepequal-unused-regex", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "keepequal",
+				Action:       "keepequal",
 				SourceLabels: []string{"foo"},
-				TargetLabel: "foo",
+				TargetLabel:  "foo",
 				Regex: &MultiLineRegex{
 					S: "bar",
 				},
@@ -358,7 +358,7 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 	t.Run("dropequal-missing-target-label", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "dropequal",
+				Action:       "dropequal",
 				SourceLabels: []string{"foo"},
 			},
 		})
@@ -366,9 +366,9 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 	t.Run("dropequal-unused-regex", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
-				Action: "dropequal",
+				Action:       "dropequal",
 				SourceLabels: []string{"foo"},
-				TargetLabel: "foo",
+				TargetLabel:  "foo",
 				Regex: &MultiLineRegex{
 					S: "bar",
 				},
