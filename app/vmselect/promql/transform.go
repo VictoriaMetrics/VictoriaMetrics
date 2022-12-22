@@ -1873,12 +1873,12 @@ func labelReplace(tss []*timeseries, srcLabel string, r *regexp.Regexp, dstLabel
 	replacementBytes := []byte(replacement)
 	for _, ts := range tss {
 		mn := &ts.MetricName
-		dstValue := getDstValue(mn, dstLabel)
 		srcValue := mn.GetTagValue(srcLabel)
 		if !r.Match(srcValue) {
 			continue
 		}
 		b := r.ReplaceAll(srcValue, replacementBytes)
+		dstValue := getDstValue(mn, dstLabel)
 		*dstValue = append((*dstValue)[:0], b...)
 		if len(b) == 0 {
 			mn.RemoveTag(dstLabel)
