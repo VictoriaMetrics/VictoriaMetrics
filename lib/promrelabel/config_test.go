@@ -84,7 +84,7 @@ func TestLoadRelabelConfigsSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot load relabel configs from %q: %s", path, err)
 	}
-	nExpected := 16
+	nExpected := 18
 	if n := pcs.Len(); n != nExpected {
 		t.Fatalf("unexpected number of relabel configs loaded from %q; got %d; want %d", path, n, nExpected)
 	}
@@ -266,6 +266,26 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			},
 		})
 	})
+	t.Run("keep_if_equal-unused-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keep_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				TargetLabel: "foo",
+			},
+		})
+	})
+	t.Run("keep_if_equal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keep_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
 	t.Run("drop_if_equal-missing-source-labels", func(t *testing.T) {
 		f([]RelabelConfig{
 			{
@@ -278,6 +298,80 @@ func TestParseRelabelConfigsFailure(t *testing.T) {
 			{
 				Action:       "drop_if_equal",
 				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("drop_if_equal-unused-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "drop_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				TargetLabel: "foo",
+			},
+		})
+	})
+	t.Run("drop_if_equal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "drop_if_equal",
+				SourceLabels: []string{"foo", "bar"},
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
+	t.Run("keepequal-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keepequal",
+			},
+		})
+	})
+	t.Run("keepequal-missing-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keepequal",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("keepequal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "keepequal",
+				SourceLabels: []string{"foo"},
+				TargetLabel: "foo",
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
+			},
+		})
+	})
+	t.Run("dropequal-missing-source-labels", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "dropequal",
+			},
+		})
+	})
+	t.Run("dropequal-missing-target-label", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "dropequal",
+				SourceLabels: []string{"foo"},
+			},
+		})
+	})
+	t.Run("dropequal-unused-regex", func(t *testing.T) {
+		f([]RelabelConfig{
+			{
+				Action: "dropequal",
+				SourceLabels: []string{"foo"},
+				TargetLabel: "foo",
+				Regex: &MultiLineRegex{
+					S: "bar",
+				},
 			},
 		})
 	})

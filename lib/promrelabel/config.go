@@ -278,7 +278,7 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 			return nil, fmt.Errorf("`replacement` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
 		}
 		if rc.Regex != nil {
-			return nil, fmt.Errorf("`regex` cannot be used with `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
+			return nil, fmt.Errorf("`regex` cannot be used for `action=graphite`; see https://docs.victoriametrics.com/vmagent.html#graphite-relabeling")
 		}
 	case "replace":
 		if targetLabel == "" {
@@ -295,9 +295,35 @@ func parseRelabelConfig(rc *RelabelConfig) (*parsedRelabelConfig, error) {
 		if len(sourceLabels) < 2 {
 			return nil, fmt.Errorf("`source_labels` must contain at least two entries for `action=keep_if_equal`; got %q", sourceLabels)
 		}
+		if targetLabel != "" {
+			return nil, fmt.Errorf("`target_label` cannot be used for `action=keep_if_equal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keep_if_equal`")
+		}
 	case "drop_if_equal":
 		if len(sourceLabels) < 2 {
 			return nil, fmt.Errorf("`source_labels` must contain at least two entries for `action=drop_if_equal`; got %q", sourceLabels)
+		}
+		if targetLabel != "" {
+			return nil, fmt.Errorf("`target_label` cannot be used for `action=drop_if_equal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=drop_if_equal`")
+		}
+	case "keepequal":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("missing `target_label` for `action=keepequal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=keepequal`")
+		}
+	case "dropequal":
+		if targetLabel == "" {
+			return nil, fmt.Errorf("missing `target_label` for `action=dropequal`")
+		}
+		if rc.Regex != nil {
+			return nil, fmt.Errorf("`regex` cannot be used for `action=dropequal`")
 		}
 	case "keep":
 		if len(sourceLabels) == 0 && rc.If == nil {
