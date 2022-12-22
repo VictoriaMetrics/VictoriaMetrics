@@ -2149,6 +2149,34 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`label_replace(nonexisting_src_match)`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_replace(time(), "foo", "x", "bar", "")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("x"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`label_replace(nonexisting_src_mismatch)`, func(t *testing.T) {
+		t.Parallel()
+		q := `label_replace(time(), "foo", "x", "bar", "y")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`label_replace(mismatch)`, func(t *testing.T) {
 		t.Parallel()
 		q := `label_replace(label_set(time(), "foo", "foobar"), "__name__", "x${1}y", "foo", "bar(.+)")`
