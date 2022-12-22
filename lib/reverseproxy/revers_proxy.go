@@ -86,11 +86,10 @@ func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
 
 // prepareTransport builds http transport which can be configurable
 func prepareTransport() *http.Transport {
-	tr := &http.Transport{
-		DisableCompression: true,
-		// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
-		ForceAttemptHTTP2: false,
-	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.DisableCompression = true
+	// Disable HTTP/2.0, since VictoriaMetrics components don't support HTTP/2.0 (because there is no sense in this).
+	tr.ForceAttemptHTTP2 = false
 
 	tr.MaxIdleConnsPerHost = *maxIdleConnsPerBackend
 	if tr.MaxIdleConns != 0 && tr.MaxIdleConns < tr.MaxIdleConnsPerHost {
