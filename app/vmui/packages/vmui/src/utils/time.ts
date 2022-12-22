@@ -26,6 +26,23 @@ const shortDurations = supportedDurations.map(d => d.short);
 
 export const roundToMilliseconds = (num: number): number => Math.round(num*1000)/1000;
 
+const roundStep = (step: number) => {
+  const integerStep = Math.round(step);
+  if (step >= 100) {
+    return integerStep - (integerStep%10); // integer multiple of 10
+  }
+  if (step < 100 && step >= 10) {
+    return integerStep - (integerStep%5); // integer multiple of 5
+  }
+  if (step < 10 && step >= 1) {
+    return integerStep; // integer
+  }
+  if (step < 1 && step > 0.01) {
+    return Math.round(step * 40) / 40; // float to thousandths multiple of 5
+  }
+  return roundToMilliseconds(step);
+};
+
 export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, string>> | undefined => {
 
   const digits = str.match(/\d+/g);
@@ -57,7 +74,8 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
   }, {});
 
   const delta = dayjs.duration(durObject).asSeconds();
-  const step = roundToMilliseconds(delta / MAX_ITEMS_PER_CHART) || 0.001;
+  const rawStep = delta / MAX_ITEMS_PER_CHART;
+  const step = roundStep(rawStep) || 0.001;
 
   return {
     start: n - delta,

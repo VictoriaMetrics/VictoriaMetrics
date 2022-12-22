@@ -1,5 +1,4 @@
-import React, { FC, useCallback, useState } from "preact/compat";
-import { useEffect } from "react";
+import React, { FC, useCallback, useEffect, useState } from "preact/compat";
 import debounce from "lodash.debounce";
 import { RestartIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
@@ -8,16 +7,17 @@ import Tooltip from "../../Main/Tooltip/Tooltip";
 
 interface StepConfiguratorProps {
   defaultStep?: number,
+  value?: number,
   setStep: (step: number) => void,
 }
 
-const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) => {
+const StepConfigurator: FC<StepConfiguratorProps> = ({ value, defaultStep, setStep }) => {
 
-  const [customStep, setCustomStep] = useState(defaultStep);
+  const [customStep, setCustomStep] = useState(value || defaultStep);
   const [error, setError] = useState("");
 
   const handleApply = (step: number) => setStep(step || 1);
-  const debouncedHandleApply = useCallback(debounce(handleApply, 700), []);
+  const debouncedHandleApply = useCallback(debounce(handleApply, 500), []);
 
   const onChangeStep = (val: string) => {
     const value = +val;
@@ -40,12 +40,12 @@ const StepConfigurator: FC<StepConfiguratorProps> = ({ defaultStep, setStep }) =
   };
 
   useEffect(() => {
-    if (defaultStep) handleSetStep(defaultStep);
-  }, [defaultStep]);
+    if (value) handleSetStep(value);
+  }, [value]);
 
   return (
     <TextField
-      label="Step value"
+      label="Step value of seconds"
       type="number"
       value={customStep}
       error={error}
