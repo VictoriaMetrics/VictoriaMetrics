@@ -276,6 +276,28 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 			return labels[:labelsOffset]
 		}
 		return labels
+	case "keepequal":
+		// Keep the entry if `source_labels` joined with `separator` matches `target_label`
+		bb := relabelBufPool.Get()
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		targetValue := getLabelValue(labels[labelsOffset:], prc.TargetLabel)
+		keep := string(bb.B) == targetValue
+		relabelBufPool.Put(bb)
+		if keep {
+			return labels
+		}
+		return labels[:labelsOffset]
+	case "dropequal":
+		// Drop the entry if `source_labels` joined with `separator` doesn't match `target_label`
+		bb := relabelBufPool.Get()
+		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
+		targetValue := getLabelValue(labels[labelsOffset:], prc.TargetLabel)
+		drop := string(bb.B) == targetValue
+		relabelBufPool.Put(bb)
+		if !drop {
+			return labels
+		}
+		return labels[:labelsOffset]
 	case "keep":
 		// Keep the target if `source_labels` joined with `separator` match the `regex`.
 		if prc.RegexAnchored == defaultRegexForRelabelConfig {

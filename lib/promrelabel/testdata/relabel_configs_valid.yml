@@ -22,6 +22,12 @@
   source_labels: [foo, bar]
 - action: drop_if_equal
   source_labels: [foo, bar]
+- action: keepequal
+  source_labels: [foo]
+  target_label: bar
+- action: dropequal
+  source_labels: [foo]
+  target_label: bar
 - action: keep
   source_labels: [__name__]
   regex:
