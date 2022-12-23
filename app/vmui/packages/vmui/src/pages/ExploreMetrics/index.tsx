@@ -120,7 +120,7 @@ const ExploreMetrics: FC = () => {
       {!job && <Alert variant="info">Please select job to see list of metric names.</Alert>}
       {!metrics.length && onlyGraphs && job && (
         <Alert variant="info">
-          Open graphs not found. Turn off &quot;Show only open metrics&quot; to see list of metric names.
+          Open graphs not found. Turn off &quot;Show only opened metrics&quot; to see list of metric names.
         </Alert>
       )}
       <div className="vm-explore-metrics-body">
