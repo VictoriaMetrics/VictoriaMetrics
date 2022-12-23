@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "preact/compat";
 import { getNamesUrl } from "../../../api/explore-metrics";
 import { useAppState } from "../../../state/common/StateContext";
+import { useTimeState } from "../../../state/time/TimeStateContext";
 import { ErrorTypes } from "../../../types";
 
 interface FetchNamesReturn {
@@ -11,12 +12,13 @@ interface FetchNamesReturn {
 
 export const useFetchNames = (job: string, instance: string): FetchNamesReturn => {
   const { serverUrl } = useAppState();
+  const { period } = useTimeState();
 
   const [names, setNames] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
 
-  const fetchUrl = useMemo(() => getNamesUrl(serverUrl, job, instance), [serverUrl, job, instance]);
+  const fetchUrl = useMemo(() => getNamesUrl(serverUrl, period, job, instance), [serverUrl, period, job, instance]);
 
   useEffect(() => {
     if (!job) return;

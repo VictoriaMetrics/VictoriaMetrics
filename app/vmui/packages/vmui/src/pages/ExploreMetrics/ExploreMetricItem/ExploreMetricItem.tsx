@@ -47,7 +47,7 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
           onClick={handleClickRate}
         >
           <Switch
-            label={<span>wrapped into <code>rate()</code></span>}
+            label={<span>rate()</span>}
             value={rateEnabled}
             onChange={setRateEnabled}
           />
@@ -69,7 +69,6 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
           job={job}
           instance={instance}
           rateEnabled={rateEnabled}
-          isCounter={isCounter}
           isBucket={isBucket}
         />
       </Accordion>

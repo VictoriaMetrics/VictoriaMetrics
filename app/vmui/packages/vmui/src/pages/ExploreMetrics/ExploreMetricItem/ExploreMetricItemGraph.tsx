@@ -14,7 +14,6 @@ interface ExploreMetricItemGraphProps {
   job: string,
   instance: string,
   rateEnabled: boolean,
-  isCounter: boolean,
   isBucket: boolean,
 }
 
@@ -23,7 +22,6 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   job,
   instance,
   rateEnabled,
-  isCounter,
   isBucket
 }) => {
   const { customStep, yaxis } = useGraphState();
@@ -37,26 +35,26 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const query = useMemo(() => {
     const params = Object.entries({ job, instance })
       .filter(val => val[1])
-      .map(([key, val]) => `${key}="${val}"`);
+      .map(([key, val]) => `${key}=${JSON.stringify(val)}`);
+    params.push(`__name__=${JSON.stringify(name)}`);
+    if (name == "node_cpu_seconds_total") {
+      // This is hack for filtering out free cpu for widely used metric :)
+      params.push("mode!=\"idle\"");
+    }
 
-    const base = `${name}{${params.join(",")}}`;
+    const base = `{${params.join(",")}}`;
+    if (isBucket) {
+      if (instance) {
+        return `histogram_quantiles("quantile", 0.5, 0.95, 0.99, sum(increase(${base})) by (vmrange, le))`;
+      }
+      return `histogram_quantile(0.95, sum(increase(${base})) by (instance, vmrange, le))`;
+    }
     const queryBase = rateEnabled ? `rate(${base})` : base;
-
-    const queryBucket = `histogram_quantiles("quantile", 0.5, 0.99, increase(${base}[5m]))`;
-    const queryBucketWithoutInstance = `histogram_quantiles("quantile", 0.5, 0.99, sum(increase(${base}[5m])) without (instance))`;
-    const queryCounterWithoutInstance = `sum(${queryBase}) without (job)`;
-    const queryWithoutInstance = `sum(${queryBase}) without (instance)`;
-
-    const isCounterWithoutInstance = isCounter && job && !instance;
-    const isBucketWithoutInstance = isBucket && job && !instance;
-    const isWithoutInstance = !isCounter && job && !instance;
-
-    if (isCounterWithoutInstance) return queryCounterWithoutInstance;
-    if (isBucketWithoutInstance) return queryBucketWithoutInstance;
-    if (isBucket) return queryBucket;
-    if (isWithoutInstance) return queryWithoutInstance;
-    return queryBase;
-  }, [name, job, instance, rateEnabled, isCounter, isBucket]);
+    if (instance) {
+      return `sum(${queryBase})`;
+    }
+    return `sum(${queryBase}) by (instance)`;
+  }, [name, job, instance, rateEnabled, isBucket]);
 
   const { isLoading, graphData, error, warning } = useFetchQuery({
     predefinedQuery: [query],

@@ -49,7 +49,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
     header: {}
   },
   [router.metrics]: {
-    title: "Explore",
+    title: "Explore metrics",
     header: {
       timeSelector: true,
     }
