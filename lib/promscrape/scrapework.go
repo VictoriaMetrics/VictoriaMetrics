@@ -3,13 +3,15 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"math"
 	"math/bits"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/fasthttp"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -397,6 +399,12 @@ func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
 		}
 		data, err := io.ReadAll(sr)
 		sr.MustClose()
+		if sr.gzipped {
+			zb := gunzipBufPool.Get()
+			zb.B, err = fasthttp.AppendGunzipBytes(zb.B[:0], data)
+			data = append(data[:0], zb.B...)
+			gunzipBufPool.Put(zb)
+		}
 		return data, err
 	}
 	// Read the response in usual mode.
@@ -522,8 +530,17 @@ func (sbr *streamBodyReader) Init(sr *streamReader) error {
 		d := fasttime.UnixTimestamp() - startTime
 		return fmt.Errorf("cannot read stream body in %d seconds: %w", d, err)
 	}
-	sbr.body = body
-	sbr.bodyLen = len(body)
+	if sr.gzipped {
+		sbr.body, err = fasthttp.AppendGunzipBytes(sbr.body, body)
+		if err != nil {
+			return fmt.Errorf("cannot gunzip stream body: %w", err)
+		}
+		sbr.bodyLen = len(sbr.body)
+	} else {
+		sbr.body = body
+		sbr.bodyLen = len(body)
+	}
+
 	return nil
 }
 

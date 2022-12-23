@@ -199,6 +199,9 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 	// Set X-Prometheus-Scrape-Timeout-Seconds like Prometheus does, since it is used by some exporters such as PushProx.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1179#issuecomment-813117162
 	req.Header.Set("X-Prometheus-Scrape-Timeout-Seconds", c.scrapeTimeoutSecondsStr)
+	if !*disableCompression && !c.disableCompression {
+		req.Header.Set("Accept-Encoding", "gzip")
+	}
 	c.setHeaders(req)
 	c.setProxyHeaders(req)
 	scrapeRequests.Inc()
@@ -215,12 +218,17 @@ func (c *client) GetStreamReader() (*streamReader, error) {
 		return nil, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
 			c.scrapeURL, resp.StatusCode, http.StatusOK, respBody)
 	}
+	isGzipped := false
+	if ce := resp.Header.Get("Content-Encoding"); string(ce) == "gzip" {
+		isGzipped = true
+	}
 	scrapesOK.Inc()
 	return &streamReader{
 		r:           resp.Body,
 		cancel:      cancel,
 		scrapeURL:   c.scrapeURL,
 		maxBodySize: int64(c.hc.MaxResponseBodySize),
+		gzipped:     isGzipped,
 	}, nil
 }
 
@@ -354,6 +362,7 @@ type streamReader struct {
 	bytesRead   int64
 	scrapeURL   string
 	maxBodySize int64
+	gzipped     bool
 }
 
 func (sr *streamReader) Read(p []byte) (int, error) {
