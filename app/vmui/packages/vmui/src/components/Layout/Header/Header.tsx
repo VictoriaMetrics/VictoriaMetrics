@@ -36,11 +36,6 @@ const Header: FC = () => {
       value: router.metrics,
     },
     {
-      label: routerOptions[router.dashboards].title,
-      value: router.dashboards,
-      hide: appModeEnable
-    },
-    {
       label: routerOptions[router.cardinality].title,
       value: router.cardinality,
     },
@@ -51,6 +46,11 @@ const Header: FC = () => {
     {
       label: routerOptions[router.trace].title,
       value: router.trace,
+    },
+    {
+      label: routerOptions[router.dashboards].title,
+      value: router.dashboards,
+      hide: appModeEnable
     }
   ]), [appModeEnable]);
 
