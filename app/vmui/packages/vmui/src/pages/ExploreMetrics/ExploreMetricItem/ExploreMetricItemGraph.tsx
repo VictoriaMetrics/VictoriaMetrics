@@ -45,15 +45,33 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
     const base = `{${params.join(",")}}`;
     if (isBucket) {
       if (instance) {
-        return `histogram_quantiles("quantile", 0.5, 0.95, 0.99, sum(increase(${base})) by (vmrange, le))`;
+        return `
+label_map(
+  histogram_quantiles("__name__", 0.5, 0.95, 0.99, sum(rate(${base})) by (vmrange, le)),
+  "__name__",
+  "0.5", "q50",
+  "0.95", "q95",
+  "0.99", "q99",
+)`;
       }
-      return `histogram_quantile(0.95, sum(increase(${base})) by (instance, vmrange, le))`;
+      return `
+with (q = histogram_quantile(0.95, sum(rate(${base})) by (instance, vmrange, le))) (
+  alias(min(q), "q95min"),
+  alias(max(q), "q95max"),
+  alias(avg(q), "q95avg"),
+)`;
     }
-    const queryBase = rateEnabled ? `rate(${base})` : base;
     if (instance) {
-      return `sum(${queryBase})`;
+      const queryBase = rateEnabled ? `label_match(rollup_rate(${base}), "rollup", "max")` : `max_over_time(${base})`;
+      return `alias(max(${queryBase}), "max")`;
     }
-    return `sum(${queryBase}) by (instance)`;
+    const queryBase = rateEnabled ? `rollup_rate(${base})` : `rollup(${base})`;
+    return `
+with (q = ${queryBase}) (
+  alias(min(label_match(q, "rollup", "min")), "min"),
+  alias(max(label_match(q, "rollup", "max")), "max"),
+  alias(avg(label_match(q, "rollup", "avg")), "avg"),
+)`;
   }, [name, job, instance, rateEnabled, isBucket]);
 
   const { isLoading, graphData, error, warning } = useFetchQuery({
