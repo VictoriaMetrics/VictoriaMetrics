@@ -61,10 +61,6 @@ with (q = histogram_quantile(0.95, sum(rate(${base})) by (instance, vmrange, le)
   alias(avg(q), "q95avg"),
 )`;
     }
-    if (instance) {
-      const queryBase = rateEnabled ? `label_match(rollup_rate(${base}), "rollup", "max")` : `max_over_time(${base})`;
-      return `alias(max(${queryBase}), "max")`;
-    }
     const queryBase = rateEnabled ? `rollup_rate(${base})` : `rollup(${base})`;
     return `
 with (q = ${queryBase}) (
