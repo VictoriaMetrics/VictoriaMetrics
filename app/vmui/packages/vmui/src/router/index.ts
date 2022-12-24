@@ -1,10 +1,10 @@
 const router = {
   home: "/",
+  metrics: "/metrics",
   dashboards: "/dashboards",
   cardinality: "/cardinality",
   topQueries: "/top-queries",
   trace: "/trace",
-  metrics: "/metrics",
   icons: "/icons"
 };
 
@@ -30,6 +30,12 @@ export const routerOptions: {[key: string]: RouterOptions} = {
     title: "Custom panel",
     ...routerOptionsDefault
   },
+  [router.metrics]: {
+    title: "Explore metrics",
+    header: {
+      timeSelector: true,
+    }
+  },
   [router.dashboards]: {
     title: "Dashboards",
     ...routerOptionsDefault,
@@ -47,12 +53,6 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.trace]: {
     title: "Trace analyzer",
     header: {}
-  },
-  [router.metrics]: {
-    title: "Explore metrics",
-    header: {
-      timeSelector: true,
-    }
   },
   [router.icons]: {
     title: "Icons",
