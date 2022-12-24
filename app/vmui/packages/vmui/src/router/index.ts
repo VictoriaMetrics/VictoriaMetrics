@@ -27,7 +27,7 @@ const routerOptionsDefault = {
 
 export const routerOptions: {[key: string]: RouterOptions} = {
   [router.home]: {
-    title: "Custom panel",
+    title: "Query",
     ...routerOptionsDefault
   },
   [router.metrics]: {
@@ -36,12 +36,8 @@ export const routerOptions: {[key: string]: RouterOptions} = {
       timeSelector: true,
     }
   },
-  [router.dashboards]: {
-    title: "Dashboards",
-    ...routerOptionsDefault,
-  },
   [router.cardinality]: {
-    title: "Cardinality",
+    title: "Explore cardinality",
     header: {
       cardinalityDatePicker: true,
     }
@@ -53,6 +49,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.trace]: {
     title: "Trace analyzer",
     header: {}
+  },
+  [router.dashboards]: {
+    title: "Dashboards",
+    ...routerOptionsDefault,
   },
   [router.icons]: {
     title: "Icons",

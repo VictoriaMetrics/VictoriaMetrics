@@ -41,10 +41,6 @@ const App: FC = () => {
               element={<ExploreMetrics/>}
             />
             <Route
-              path={router.dashboards}
-              element={<DashboardsLayout/>}
-            />
-            <Route
               path={router.cardinality}
               element={<CardinalityPanel/>}
             />
@@ -55,6 +51,10 @@ const App: FC = () => {
             <Route
               path={router.trace}
               element={<TracePage/>}
+            />
+            <Route
+              path={router.dashboards}
+              element={<DashboardsLayout/>}
             />
             <Route
               path={router.icons}

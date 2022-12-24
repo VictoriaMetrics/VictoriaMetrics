@@ -323,7 +323,7 @@ It is possible to change the selected time range for the graphs in the top right
 
 ## Cardinality explorer
 
-VictoriaMetrics provides an ability to explore time series cardinality at `cardinality` tab in [vmui](#vmui) in the following ways:
+VictoriaMetrics provides an ability to explore time series cardinality at `Explore cardinality` tab in [vmui](#vmui) in the following ways:
 
 - To identify metric names with the highest number of series.
 - To identify labels with the highest number of series.
