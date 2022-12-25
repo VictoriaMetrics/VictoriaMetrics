@@ -296,7 +296,7 @@ EOF
 By running this command we:
 * Install Grafana from Helm repository.
 * Provision VictoriaMetrics datasource with the url from the output above which we copied before.
-* Add this [https://grafana.com/grafana/dashboards/10229](https://grafana.com/grafana/dashboards/10229) dashboard for VictoriaMetrics.
+* Add this [https://grafana.com/grafana/dashboards/10229-victoriametrics/](https://grafana.com/grafana/dashboards/10229-victoriametrics/) dashboard for VictoriaMetrics.
 * Add this [https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/](https://grafana.com/grafana/dashboards/14205-kubernetes-cluster-monitoring-via-prometheus/) dashboard to see Kubernetes cluster metrics.
 
 

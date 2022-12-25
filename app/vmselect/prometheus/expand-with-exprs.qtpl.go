@@ -131,7 +131,7 @@ func streamwithExprsTutorial(qw422016 *qt422016.Writer) {
 <h3>Tutorial for WITH expressions in <a href="https://docs.victoriametrics.com/MetricsQL.html">MetricsQL</a></h3>
 
 <p>
-    Let's look at the following real query from <a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full">Node Exporter Full</a> dashboard:
+    Let's look at the following real query from <a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/">Node Exporter Full</a> dashboard:
 </p>
 
 <pre>
@@ -195,7 +195,7 @@ my_resource_utilization(
 </p>
 
 <p>
-    Let's take another nice query from <a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full">Node Exporter Full</a> dashboard:
+    Let's take another nice query from <a href="https://grafana.com/grafana/dashboards/1860-node-exporter-full/">Node Exporter Full</a> dashboard:
 </p>
 
 <pre>
