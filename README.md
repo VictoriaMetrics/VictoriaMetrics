@@ -1440,8 +1440,8 @@ This increases overhead during data querying, since VictoriaMetrics needs to rea
 bigger number of parts per each request. That's why it is recommended to have at least 20%
 of free disk space under directory pointed by `-storageDataPath` command-line flag.
 
-Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
-and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176).
+Information about merging process is available in [the dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229-victoriametrics/)
+and [the dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/).
 See more details in [monitoring docs](#monitoring).
 
 See [this article](https://valyala.medium.com/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282) for more details.
@@ -1608,8 +1608,8 @@ Alternatively, single-node VictoriaMetrics can self-scrape the metrics when `-se
 set to duration greater than 0. For example, `-selfScrapeInterval=10s` would enable self-scraping of `/metrics` page 
 with 10 seconds interval.
 
-Official Grafana dashboards available for [single-node](https://grafana.com/dashboards/10229) 
-and [clustered](https://grafana.com/grafana/dashboards/11176) VictoriaMetrics. 
+Official Grafana dashboards available for [single-node](https://grafana.com/grafana/dashboards/10229-victoriametrics/) 
+and [clustered](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/) VictoriaMetrics. 
 See an [alternative dashboard for clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11831) 
 created by community.
 
@@ -1858,8 +1858,8 @@ The following metrics for each type of cache are exported at [`/metrics` page](#
 * `vm_cache_misses_total` - the number of cache misses
 * `vm_cache_entries` - the number of entries in the cache
 
-Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
-and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176)
+Both Grafana dashboards for [single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229-victoriametrics/)
+and [clustered VictoriaMetrics](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/)
 contain `Caches` section with cache metrics visualized. The panels show the current
 memory usage by each type of cache, and also a cache hit rate. If hit rate is close to 100%
 then cache efficiency is already very high and does not need any tuning.

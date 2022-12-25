@@ -820,7 +820,7 @@ See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinali
 We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus
 so that the exported metrics may be analyzed later.
 
-Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
 

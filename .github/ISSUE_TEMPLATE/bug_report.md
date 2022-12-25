@@ -28,8 +28,8 @@ If applicable, add screenshots to help explain your problem.
 
 For VictoriaMetrics health-state issues please provide full-length screenshots 
 of Grafana dashboards if possible:
-* [Grafana dashboard for single-node VictoriaMetrics](https://grafana.com/dashboards/10229)
-* [Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176)
+* [Grafana dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229-victoriametrics/)
+* [Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/)
 
 See how to setup monitoring here:
 * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
