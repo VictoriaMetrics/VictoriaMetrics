@@ -682,7 +682,7 @@ The default list of alerting rules for these metric can be found [here](https://
 We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
 metrics may be analyzed later.
 
-Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. 
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950-victoriametrics-vmalert/) for `vmalert` overview. 
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
