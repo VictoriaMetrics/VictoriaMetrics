@@ -3,7 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   # Alerts group for VM cluster assumes that Grafana dashboard
-  # https://grafana.com/grafana/dashboards/11176 is installed.
+  # https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/ is installed.
   # Please, update the `dashboard` annotation according to your setup.
   - name: vmcluster
     interval: 30s
