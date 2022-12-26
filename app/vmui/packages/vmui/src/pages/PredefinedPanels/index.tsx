@@ -1,6 +1,5 @@
-import React, { FC, useEffect, useMemo, useState } from "preact/compat";
-import getDashboardSettings from "./getDashboardSettings";
-import { DashboardSettings } from "../../types";
+import React, { FC, useMemo, useState } from "preact/compat";
+import { useFetchDashboards } from "./getDashboardSettings";
 import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import Tabs from "../../components/Main/Tabs/Tabs";
@@ -9,17 +8,16 @@ import "./style.scss";
 
 const Index: FC = () => {
   useSetQueryParams();
-
-  const [dashboards, setDashboards] = useState<DashboardSettings[]>([]);
+  const { error, dashboardsSettings } = useFetchDashboards();
   const [tab, setTab] = useState("0");
 
-  const tabs = useMemo(() => dashboards.map((d, i) => ({
+  const tabs = useMemo(() => dashboardsSettings.map((d, i) => ({
     label: d.title || "",
     value: `${i}`,
     className: "vm-predefined-panels-tabs__tab"
-  })), [dashboards]);
+  })), [dashboardsSettings]);
 
-  const activeDashboard = useMemo(() => dashboards[+tab] || {}, [dashboards, tab]);
+  const activeDashboard = useMemo(() => dashboardsSettings[+tab] || {}, [dashboardsSettings, tab]);
   const rows = useMemo(() => activeDashboard?.rows, [activeDashboard]);
   const filename = useMemo(() => activeDashboard.title || activeDashboard.filename || "", [activeDashboard]);
   const validDashboardRows = useMemo(() => Array.isArray(rows) && !!rows.length, [rows]);
@@ -28,12 +26,9 @@ const Index: FC = () => {
     setTab(value);
   };
 
-  useEffect(() => {
-    getDashboardSettings().then(d => d.length && setDashboards(d));
-  }, []);
-
   return <div className="vm-predefined-panels">
-    {!dashboards.length && <Alert variant="info">Dashboards not found</Alert>}
+    {error && <Alert variant="error">{error}</Alert>}
+    {!dashboardsSettings.length && <Alert variant="info">Dashboards not found</Alert>}
     {tabs.length > 1 && (
       <div className="vm-predefined-panels-tabs vm-block vm-block_empty-padding">
         <Tabs
@@ -54,7 +49,7 @@ const Index: FC = () => {
             panels={r.panels}
           />)
       )}
-      {!!dashboards.length && !validDashboardRows && (
+      {!!dashboardsSettings.length && !validDashboardRows && (
         <Alert variant="error">
           <code>&quot;rows&quot;</code> not found. Check the configuration file <b>{filename}</b>.
         </Alert>

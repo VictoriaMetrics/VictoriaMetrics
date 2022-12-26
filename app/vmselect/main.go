@@ -2,12 +2,15 @@ package vmselect
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -34,9 +37,10 @@ var (
 		"See also -search.maxQueueDuration and -search.maxMemoryPerQuery")
 	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the request waits for execution when -search.maxConcurrentRequests "+
 		"limit is reached; see also -search.maxQueryDuration")
-	resetCacheAuthKey    = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
-	logSlowQueryDuration = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
-	vmalertProxyURL      = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
+	resetCacheAuthKey        = flag.String("search.resetCacheAuthKey", "", "Optional authKey for resetting rollup cache via /internal/resetRollupResultCache call")
+	logSlowQueryDuration     = flag.Duration("search.logSlowQueryDuration", 5*time.Second, "Log queries with execution time exceeding this value. Zero disables slow query logging")
+	vmalertProxyURL          = flag.String("vmalert.proxyURL", "", "Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules")
+	vmuiCustomDashboardsPath = flag.String("vmuiCustomDashboardsPath", "", "path to vmui predefined dashboards")
 )
 
 var slowQueries = metrics.NewCounter(`vm_slow_queries_total`)
@@ -92,6 +96,11 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 
 // RequestHandler handles remote read API requests
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
+
+	// Allow CORS here By * or specific origin
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
 	tracerEnabled := searchutils.GetBool(r, "trace")
@@ -162,8 +171,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/graphite/"):
 		path = path[len("/graphite"):]
 	}
+
 	// vmui access.
-	if path == "/vmui" || path == "/graph" {
+	switch {
+	case path == "/vmui" || path == "/graph":
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
@@ -172,18 +183,21 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		newURL := path + "/?" + r.Form.Encode()
 		httpserver.Redirect(w, newURL)
 		return true
-	}
-	if strings.HasPrefix(path, "/vmui/") {
+	case strings.HasPrefix(path, "/vmui/"):
+		if strings.HasPrefix(path, "/vmui/custom-dashboards") {
+			handleVMUICustomDashboards(w)
+			return true
+		}
 		r.URL.Path = path
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
-	}
-	if strings.HasPrefix(path, "/graph/") {
+	case strings.HasPrefix(path, "/graph/"):
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
 		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
+
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -647,4 +661,105 @@ func initVMAlertProxy() {
 	}
 	vmalertProxyHost = proxyURL.Host
 	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
+}
+
+type DashboardSetting struct {
+	Title    string         `json:"title,omitempty"`
+	Filename string         `json:"filename,omitempty"`
+	Rows     []DashboardRow `json:"rows"`
+}
+
+type PanelSettings struct {
+	Title       string   `json:"title,omitempty"`
+	Description string   `json:"description,omitempty"`
+	Unit        string   `json:"unit,omitempty"`
+	Expr        []string `json:"expr"`
+	Alias       []string `json:"alias,omitempty"`
+	ShowLegend  bool     `json:"showLegend,omitempty"`
+	Width       int      `json:"width,omitempty"`
+}
+
+type DashboardRow struct {
+	Title  string          `json:"title,omitempty"`
+	Panels []PanelSettings `json:"panels"`
+}
+
+type DashboardsData struct {
+	DashboardsSettings []DashboardSetting `json:"dashboardsSettings"`
+}
+
+func handleVMUICustomDashboards(w http.ResponseWriter) {
+	var dashboardsData DashboardsData
+	path := *vmuiCustomDashboardsPath
+	if path == "" {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		err := json.NewEncoder(w).Encode(dashboardsData)
+		if err != nil {
+			writeErrorResponse(w, fmt.Errorf("cannot marshal dashboards data: %s", err))
+			return
+		}
+		return
+	}
+
+	if !fs.IsPathExist(path) {
+		writeErrorResponse(w, fmt.Errorf("cannot find folder with dashboards by provided path: %s", path))
+		return
+	}
+
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		writeErrorResponse(w, fmt.Errorf("cannot obtain abs path for %q: %w", path, err))
+		return
+	}
+
+	var settings []DashboardSetting
+	files, err := os.ReadDir(absPath)
+	if err != nil {
+		writeErrorResponse(w, fmt.Errorf("cannot read provided directory: %s", absPath))
+		return
+	}
+	for _, file := range files {
+		info, err := file.Info()
+		if err != nil {
+			continue
+		}
+		if fs.IsDirOrSymlink(info) {
+			continue
+		}
+		filename := file.Name()
+		if filepath.Ext(filename) == ".json" {
+			filePath := filepath.Join(absPath, filename)
+			f, err := fs.ReadFileOrHTTP(filePath)
+			if err != nil {
+				writeErrorResponse(w, fmt.Errorf("cannot open file: %s, %s", filename, err))
+				return
+			}
+			var dSettings DashboardSetting
+			err = json.Unmarshal(f, &dSettings)
+			if err != nil {
+				writeErrorResponse(w, fmt.Errorf("cannot unmarshal dashboard settings: %s from file: %s", err, filename))
+				return
+			}
+			if len(dSettings.Rows) == 0 {
+				continue
+			}
+			settings = append(settings, dSettings)
+		}
+	}
+
+	dashboardsData.DashboardsSettings = append(dashboardsData.DashboardsSettings, settings...)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	err = json.NewEncoder(w).Encode(dashboardsData)
+	if err != nil {
+		writeErrorResponse(w, fmt.Errorf("cannot marshal dashboards data: %s", err))
+		return
+	}
+}
+
+func writeErrorResponse(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"status":"error","error":"%s"}`, err.Error())
 }
