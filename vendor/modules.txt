@@ -323,10 +323,6 @@ github.com/googleapis/gax-go/v2/internal
 ## explicit; go 1.17
 github.com/grafana/regexp
 github.com/grafana/regexp/syntax
-# github.com/hashicorp/go-hclog v0.16.2
-## explicit; go 1.13
-# github.com/hashicorp/go-immutable-radix v1.3.1
-## explicit
 # github.com/influxdata/influxdb v1.11.0
 ## explicit; go 1.19
 github.com/influxdata/influxdb/client/v2
@@ -400,7 +396,7 @@ github.com/prometheus/common/sigv4
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/prometheus/prometheus v0.40.7
+# github.com/prometheus/prometheus v0.41.0
 ## explicit; go 1.18
 github.com/prometheus/prometheus/config
 github.com/prometheus/prometheus/discovery

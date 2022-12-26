@@ -24,7 +24,7 @@ require (
 	github.com/googleapis/gax-go/v2 v2.7.0
 	github.com/influxdata/influxdb v1.11.0
 	github.com/klauspost/compress v1.15.13
-	github.com/prometheus/prometheus v0.40.7
+	github.com/prometheus/prometheus v0.41.0
 	github.com/urfave/cli/v2 v2.23.7
 	github.com/valyala/fastjson v1.6.3
 	github.com/valyala/fastrand v1.1.0
@@ -78,8 +78,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.1 // indirect
 	github.com/grafana/regexp v0.0.0-20221122212121-6b5c0a4cb7fd // indirect
-	github.com/hashicorp/go-hclog v0.16.2 // indirect
-	github.com/hashicorp/go-immutable-radix v1.3.1 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
