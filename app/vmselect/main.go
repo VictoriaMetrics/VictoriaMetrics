@@ -2,15 +2,12 @@ package vmselect
 
 import (
 	"embed"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -656,105 +653,4 @@ func initVMAlertProxy() {
 	}
 	vmalertProxyHost = proxyURL.Host
 	vmalertProxy = httputil.NewSingleHostReverseProxy(proxyURL)
-}
-
-type DashboardSetting struct {
-	Title    string         `json:"title,omitempty"`
-	Filename string         `json:"filename,omitempty"`
-	Rows     []DashboardRow `json:"rows"`
-}
-
-type PanelSettings struct {
-	Title       string   `json:"title,omitempty"`
-	Description string   `json:"description,omitempty"`
-	Unit        string   `json:"unit,omitempty"`
-	Expr        []string `json:"expr"`
-	Alias       []string `json:"alias,omitempty"`
-	ShowLegend  bool     `json:"showLegend,omitempty"`
-	Width       int      `json:"width,omitempty"`
-}
-
-type DashboardRow struct {
-	Title  string          `json:"title,omitempty"`
-	Panels []PanelSettings `json:"panels"`
-}
-
-type DashboardsData struct {
-	DashboardsSettings []DashboardSetting `json:"dashboardsSettings"`
-}
-
-func handleVMUICustomDashboards(w http.ResponseWriter) {
-	var dashboardsData DashboardsData
-	path := *vmuiCustomDashboardsPath
-	if path == "" {
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "application/json")
-		err := json.NewEncoder(w).Encode(dashboardsData)
-		if err != nil {
-			writeErrorResponse(w, fmt.Errorf("cannot marshal dashboards data: %s", err))
-			return
-		}
-		return
-	}
-
-	if !fs.IsPathExist(path) {
-		writeErrorResponse(w, fmt.Errorf("cannot find folder with dashboards by provided path: %s", path))
-		return
-	}
-
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot obtain abs path for %q: %w", path, err))
-		return
-	}
-
-	var settings []DashboardSetting
-	files, err := os.ReadDir(absPath)
-	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot read provided directory: %s", absPath))
-		return
-	}
-	for _, file := range files {
-		info, err := file.Info()
-		if err != nil {
-			continue
-		}
-		if fs.IsDirOrSymlink(info) {
-			continue
-		}
-		filename := file.Name()
-		if filepath.Ext(filename) == ".json" {
-			filePath := filepath.Join(absPath, filename)
-			f, err := fs.ReadFileOrHTTP(filePath)
-			if err != nil {
-				writeErrorResponse(w, fmt.Errorf("cannot open file: %s, %s", filename, err))
-				return
-			}
-			var dSettings DashboardSetting
-			err = json.Unmarshal(f, &dSettings)
-			if err != nil {
-				writeErrorResponse(w, fmt.Errorf("cannot unmarshal dashboard settings: %s from file: %s", err, filename))
-				return
-			}
-			if len(dSettings.Rows) == 0 {
-				continue
-			}
-			settings = append(settings, dSettings)
-		}
-	}
-
-	dashboardsData.DashboardsSettings = append(dashboardsData.DashboardsSettings, settings...)
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	err = json.NewEncoder(w).Encode(dashboardsData)
-	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot marshal dashboards data: %s", err))
-		return
-	}
-}
-
-func writeErrorResponse(w http.ResponseWriter, err error) {
-	w.WriteHeader(http.StatusBadRequest)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"status":"error","error":"%s"}`, err.Error())
 }

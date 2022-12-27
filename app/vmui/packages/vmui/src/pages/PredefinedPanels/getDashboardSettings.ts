@@ -36,7 +36,7 @@ export const useFetchDashboards = (): {
 
       if (response.ok) {
         const { dashboardsSettings } = resp;
-        if (dashboardsSettings.length > 0) {
+        if (dashboardsSettings && dashboardsSettings.length > 0) {
           setDashboards((prevDash) => [...prevDash, ...dashboardsSettings]);
         }
         setIsLoading(false);
