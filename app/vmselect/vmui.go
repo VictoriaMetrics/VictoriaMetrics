@@ -2,12 +2,17 @@ package vmselect
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+)
+
+var (
+	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui predefined dashboards")
 )
 
 // dashboardSetting represents dashboard settings file struct

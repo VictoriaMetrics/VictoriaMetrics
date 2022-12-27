@@ -2458,4 +2458,6 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Show VictoriaMetrics version
   -vmalert.proxyURL string
      Optional URL for proxying requests to vmalert. For example, if -vmalert.proxyURL=http://vmalert:8880 , then alerting API requests such as /api/v1/rules from Grafana will be proxied to http://vmalert:8880/api/v1/rules
+  -vmui.customDashboardsPath string
+     Optional path to vmui predefined dashboards.   
 ```
