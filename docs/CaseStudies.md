@@ -234,7 +234,7 @@ from `Large-scale, super-load system monitoring platform built with VictoriaMetr
 
 ## Dreamteam
 
-[Dreamteam](https://dreamteam.gg/) successfully uses single-node VictoriaMetrics in multiple environments.
+Dreamteam successfully uses single-node VictoriaMetrics in multiple environments.
 
 Numbers:
 
