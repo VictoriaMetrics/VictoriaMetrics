@@ -80,7 +80,7 @@ github.com/VividCortex/ewma
 # github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 ## explicit; go 1.15
 github.com/alecthomas/units
-# github.com/aws/aws-sdk-go v1.44.163
+# github.com/aws/aws-sdk-go v1.44.169
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
@@ -149,10 +149,10 @@ github.com/aws/aws-sdk-go-v2/internal/timeconv
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream/eventstreamapi
-# github.com/aws/aws-sdk-go-v2/config v1.18.6
+# github.com/aws/aws-sdk-go-v2/config v1.18.7
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/config
-# github.com/aws/aws-sdk-go-v2/credentials v1.13.6
+# github.com/aws/aws-sdk-go-v2/credentials v1.13.7
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/credentials
 github.com/aws/aws-sdk-go-v2/credentials/ec2rolecreds
@@ -165,7 +165,7 @@ github.com/aws/aws-sdk-go-v2/credentials/stscreds
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds
 github.com/aws/aws-sdk-go-v2/feature/ec2/imds/internal/config
-# github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.45
+# github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.46
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/feature/s3/manager
 # github.com/aws/aws-sdk-go-v2/internal/configsources v1.1.27
@@ -203,7 +203,7 @@ github.com/aws/aws-sdk-go-v2/service/s3/internal/arn
 github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations
 github.com/aws/aws-sdk-go-v2/service/s3/internal/endpoints
 github.com/aws/aws-sdk-go-v2/service/s3/types
-# github.com/aws/aws-sdk-go-v2/service/sso v1.11.27
+# github.com/aws/aws-sdk-go-v2/service/sso v1.11.28
 ## explicit; go 1.15
 github.com/aws/aws-sdk-go-v2/service/sso
 github.com/aws/aws-sdk-go-v2/service/sso/internal/endpoints
@@ -323,10 +323,6 @@ github.com/googleapis/gax-go/v2/internal
 ## explicit; go 1.17
 github.com/grafana/regexp
 github.com/grafana/regexp/syntax
-# github.com/hashicorp/go-hclog v0.16.2
-## explicit; go 1.13
-# github.com/hashicorp/go-immutable-radix v1.3.1
-## explicit
 # github.com/influxdata/influxdb v1.11.0
 ## explicit; go 1.19
 github.com/influxdata/influxdb/client/v2
@@ -395,12 +391,12 @@ github.com/prometheus/common/version
 # github.com/prometheus/common/sigv4 v0.1.0
 ## explicit; go 1.15
 github.com/prometheus/common/sigv4
-# github.com/prometheus/procfs v0.8.0
-## explicit; go 1.17
+# github.com/prometheus/procfs v0.9.0
+## explicit; go 1.18
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# github.com/prometheus/prometheus v0.40.7
+# github.com/prometheus/prometheus v0.41.0
 ## explicit; go 1.18
 github.com/prometheus/prometheus/config
 github.com/prometheus/prometheus/discovery
@@ -529,7 +525,7 @@ go.uber.org/atomic
 ## explicit; go 1.18
 go.uber.org/goleak
 go.uber.org/goleak/internal/stack
-# golang.org/x/exp v0.0.0-20221217163422-3c43f8badb15
+# golang.org/x/exp v0.0.0-20221227203929-1b447090c38c
 ## explicit; go 1.18
 golang.org/x/exp/constraints
 golang.org/x/exp/slices
@@ -609,7 +605,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20221207170731-23e4bf6bdc37
+# google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
