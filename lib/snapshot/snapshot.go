@@ -39,7 +39,7 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q; expecting %d; got %d; response body: %q", createSnapshotURL, http.StatusOK, resp.StatusCode, body)
+		return "", fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", createSnapshotURL, resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
@@ -77,7 +77,7 @@ func Delete(deleteSnapshotURL string, snapshotName string) error {
 		return err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected status code returned from %q; expecting %d; got %d; response body: %q", deleteSnapshotURL, resp.StatusCode, http.StatusOK, body)
+		return fmt.Errorf("unexpected status code returned from %q: %d; expecting %d; response body: %q", deleteSnapshotURL, resp.StatusCode, http.StatusOK, body)
 	}
 
 	snap := snapshot{}
