@@ -1,6 +1,6 @@
 import uPlot, { Axis, Series } from "uplot";
 import { getMaxFromArray, getMinFromArray } from "../math";
-import { roundToMilliseconds } from "../time";
+import { getSecondsFromDuration, roundToMilliseconds } from "../time";
 import { AxisRange } from "../../state/graph/reducer";
 import { formatTicks, sizeAxis } from "./helpers";
 import { TimeParams } from "../../types";
@@ -30,7 +30,8 @@ export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(n
   return axis;
 });
 
-export const getTimeSeries = (times: number[], step: number, period: TimeParams): number[] => {
+export const getTimeSeries = (times: number[], stepDuration: string, period: TimeParams): number[] => {
+  const step = getSecondsFromDuration(stepDuration) || 1;
   const allTimes = Array.from(new Set(times)).sort((a, b) => a - b);
   let t = period.start;
   const tEnd = roundToMilliseconds(period.end + step);
