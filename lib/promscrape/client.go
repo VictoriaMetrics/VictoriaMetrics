@@ -323,6 +323,11 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		dst = append(dst, resp.Body()...)
 	}
 	fasthttp.ReleaseResponse(resp)
+	if len(dst) > c.hc.MaxResponseBodySize {
+		maxScrapeSizeExceeded.Inc()
+		return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d (the actual response size is %d bytes); "+
+			"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, len(dst), maxScrapeSize.N)
+	}
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",

@@ -15,7 +15,6 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Brandwatch](#brandwatch)
   - [CERN](#cern)
   - [COLOPL](#colopl)
-  - [Dreamteam](#dreamteam)
   - [Fly.io](#flyio)
   - [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
   - [Grammarly](#grammarly)
@@ -231,21 +230,6 @@ after evaulating the following remote storage solutions for Prometheus:
 
 See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victoria-metrics) and [video](https://www.youtube.com/watch?v=hUpHIluxw80)
 from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
-
-## Dreamteam
-
-Dreamteam successfully uses single-node VictoriaMetrics in multiple environments.
-
-Numbers:
-
-- Active time series: from 350K to 725K
-- Total number of time series: from 100M to 320M
-- Total number of datapoints: from 120 billions to 155 billions
-- Retention period: 3 months
-
-VictoriaMetrics in production environment runs on 2 M5 EC2 instances in "HA" mode, managed by Terraform and Ansible TF module.
-2 Prometheus instances are writing to both VMs, with 2 [Promxy](https://github.com/jacksontj/promxy) replicas
-as the load balancer for reads.
 
 ## Fly.io
 

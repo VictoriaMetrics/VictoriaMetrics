@@ -33,12 +33,12 @@ const maxBigPartSize = 1e12
 // The maximum number of inmemory parts in the partition.
 //
 // If the number of inmemory parts reaches this value, then assisted merge runs during data ingestion.
-const maxInmemoryPartsPerPartition = 32
+const maxInmemoryPartsPerPartition = 20
 
 // The maximum number of small parts in the partition.
 //
 // If the number of small parts reaches this value, then assisted merge runs during data ingestion.
-const maxSmallPartsPerPartition = 64
+const maxSmallPartsPerPartition = 30
 
 // Default number of parts to merge at once.
 //
@@ -594,12 +594,19 @@ func (pt *partition) flushRowsToParts(rows []rawRow) {
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
+func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
+	if len(pws) < maxParts {
+		return false
+	}
+	return getNotInMergePartsCount(pws) >= defaultPartsToMerge
+}
+
 func (pt *partition) assistedMergeForInmemoryParts() {
 	for {
 		pt.partsLock.Lock()
-		ok := getNotInMergePartsCount(pt.inmemoryParts) < maxInmemoryPartsPerPartition
+		needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
 		pt.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
@@ -624,9 +631,9 @@ func (pt *partition) assistedMergeForInmemoryParts() {
 func (pt *partition) assistedMergeForSmallParts() {
 	for {
 		pt.partsLock.Lock()
-		ok := getNotInMergePartsCount(pt.smallParts) < maxSmallPartsPerPartition
+		needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
 		pt.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
