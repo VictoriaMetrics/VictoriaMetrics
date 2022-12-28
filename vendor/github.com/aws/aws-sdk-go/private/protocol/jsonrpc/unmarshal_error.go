@@ -13,10 +13,17 @@ import (
 	"github.com/aws/aws-sdk-go/private/protocol/json/jsonutil"
 )
 
+const (
+	awsQueryError = "x-amzn-query-error"
+	// A valid header example - "x-amzn-query-error": "<QueryErrorCode>;<ErrorType>"
+	awsQueryErrorPartsCount = 2
+)
+
 // UnmarshalTypedError provides unmarshaling errors API response errors
 // for both typed and untyped errors.
 type UnmarshalTypedError struct {
 	exceptions map[string]func(protocol.ResponseMetadata) error
+	queryExceptions map[string]func(protocol.ResponseMetadata, string) error
 }
 
 // NewUnmarshalTypedError returns an UnmarshalTypedError initialized for the
@@ -24,6 +31,21 @@ type UnmarshalTypedError struct {
 func NewUnmarshalTypedError(exceptions map[string]func(protocol.ResponseMetadata) error) *UnmarshalTypedError {
 	return &UnmarshalTypedError{
 		exceptions: exceptions,
+		queryExceptions: map[string]func(protocol.ResponseMetadata, string) error{},
+	}
+}
+
+func NewUnmarshalTypedErrorWithOptions(exceptions map[string]func(protocol.ResponseMetadata) error, optFns ...func(*UnmarshalTypedError)) *UnmarshalTypedError {
+	unmarshaledError := NewUnmarshalTypedError(exceptions)
+	for _, fn := range optFns {
+		fn(unmarshaledError)
+	}
+	return unmarshaledError
+}
+
+func WithQueryCompatibility(queryExceptions map[string]func(protocol.ResponseMetadata, string) error) func(*UnmarshalTypedError) {
+	return func(typedError *UnmarshalTypedError) {
+		typedError.queryExceptions = queryExceptions
 	}
 }
 
@@ -50,16 +72,30 @@ func (u *UnmarshalTypedError) UnmarshalError(
 	code := codeParts[len(codeParts)-1]
 	msg := jsonErr.Message
 
+	queryCodeParts := queryCodeParts(resp, u)
+
 	if fn, ok := u.exceptions[code]; ok {
-		// If exception code is know, use associated constructor to get a value
+		// If query-compatible exceptions are found and query-error-header is found,
+		// then use associated constructor to get exception with query error code.
+		//
+		// If exception code is known, use associated constructor to get a value
 		// for the exception that the JSON body can be unmarshaled into.
-		v := fn(respMeta)
+		var v error
+		queryErrFn, queryExceptionsFound := u.queryExceptions[code]
+		if len(queryCodeParts) == awsQueryErrorPartsCount && queryExceptionsFound {
+			v = queryErrFn(respMeta, queryCodeParts[0])
+		} else {
+			v = fn(respMeta)
+		}
 		err := jsonutil.UnmarshalJSONCaseInsensitive(v, body)
 		if err != nil {
 			return nil, err
 		}
-
 		return v, nil
+	}
+
+	if len(queryCodeParts) == awsQueryErrorPartsCount && len(u.queryExceptions) > 0 {
+		code = queryCodeParts[0]
 	}
 
 	// fallback to unmodeled generic exceptions
@@ -68,6 +104,16 @@ func (u *UnmarshalTypedError) UnmarshalError(
 		respMeta.StatusCode,
 		respMeta.RequestID,
 	), nil
+}
+
+// A valid header example - "x-amzn-query-error": "<QueryErrorCode>;<ErrorType>"
+func queryCodeParts(resp *http.Response, u *UnmarshalTypedError) []string {
+	queryCodeHeader := resp.Header.Get(awsQueryError)
+	var queryCodeParts []string
+	if queryCodeHeader != "" && len(u.queryExceptions) > 0 {
+		queryCodeParts = strings.Split(queryCodeHeader, ";")
+	}
+	return queryCodeParts
 }
 
 // UnmarshalErrorHandler is a named request handler for unmarshaling jsonrpc
