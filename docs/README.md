@@ -85,7 +85,6 @@ Case studies:
 * [Brandwatch](https://docs.victoriametrics.com/CaseStudies.html#brandwatch)
 * [CERN](https://docs.victoriametrics.com/CaseStudies.html#cern)
 * [COLOPL](https://docs.victoriametrics.com/CaseStudies.html#colopl)
-* [Dreamteam](https://docs.victoriametrics.com/CaseStudies.html#dreamteam)
 * [Fly.io](https://docs.victoriametrics.com/CaseStudies.html#flyio)
 * [German Research Center for Artificial Intelligence](https://docs.victoriametrics.com/CaseStudies.html#german-research-center-for-artificial-intelligence)
 * [Grammarly](https://docs.victoriametrics.com/CaseStudies.html#grammarly)
@@ -404,7 +403,7 @@ dd_url: http://victoriametrics:8428/datadog
 </div>
 
 vmagent also can accept Datadog metrics format. Depending on where vmagent will forward data, 
-pick [single-node or cluster URL](https://docs.victoriametrics.com/url-examples.html#datadog) formats.
+pick [single-node or cluster URL]((https://docs.victoriametrics.com/url-examples.html#datadog)) formats.
 
 ### Sending metrics to Datadog and VictoriaMetrics
  
