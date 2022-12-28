@@ -440,7 +440,7 @@
     </div>
 
     <br>
-    <div class="display-6 pb-3">Last {%d len(rule.Updates) %} updates</span>:</div>
+    <div class="display-6 pb-3">Last {%d len(rule.Updates) %}/{%d rule.MaxUpdates %} updates</span>:</div>
         <table class="table table-striped table-hover table-sm">
             <thead>
                 <tr>

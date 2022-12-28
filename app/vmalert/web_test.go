@@ -17,7 +17,7 @@ func TestHandler(t *testing.T) {
 		alerts: map[uint64]*notifier.Alert{
 			0: {State: notifier.StateFiring},
 		},
-		state: newRuleState(),
+		state: newRuleState(10),
 	}
 	g := &Group{
 		Name:  "group",
