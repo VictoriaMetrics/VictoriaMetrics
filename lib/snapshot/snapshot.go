@@ -39,7 +39,7 @@ func Create(createSnapshotURL string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("unexpected status code returned from %q; expecting %d; got %d; response body: %q", createSnapshotURL, resp.StatusCode, http.StatusOK, body)
+		return "", fmt.Errorf("unexpected status code returned from %q; expecting %d; got %d; response body: %q", createSnapshotURL, http.StatusOK, resp.StatusCode, body)
 	}
 
 	snap := snapshot{}
