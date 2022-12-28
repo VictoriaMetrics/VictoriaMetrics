@@ -27,7 +27,7 @@ import (
 // This number may be reached when the insertion pace outreaches merger pace.
 // If this number is reached, then assisted merges are performed
 // during data ingestion.
-const maxInmemoryParts = 64
+const maxInmemoryParts = 30
 
 // maxFileParts is the maximum number of file parts in the table.
 //
@@ -765,12 +765,19 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
+func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
+	if len(pws) < maxParts {
+		return false
+	}
+	return getNotInMergePartsCount(pws) >= defaultPartsToMerge
+}
+
 func (tb *Table) assistedMergeForInmemoryParts() {
 	for {
 		tb.partsLock.Lock()
-		ok := getNotInMergePartsCount(tb.inmemoryParts) < maxInmemoryParts
+		needMerge := needAssistedMerge(tb.inmemoryParts, maxInmemoryParts)
 		tb.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
@@ -792,9 +799,9 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 func (tb *Table) assistedMergeForFileParts() {
 	for {
 		tb.partsLock.Lock()
-		ok := getNotInMergePartsCount(tb.fileParts) < maxFileParts
+		needMerge := needAssistedMerge(tb.fileParts, maxFileParts)
 		tb.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
