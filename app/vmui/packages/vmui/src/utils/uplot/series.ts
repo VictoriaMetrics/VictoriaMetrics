@@ -10,8 +10,7 @@ interface SeriesItem extends Series {
 }
 
 export const getSeriesItem = (d: MetricResult, hideSeries: string[], alias: string[]): SeriesItem => {
-  const name = getNameForMetric(d, alias[d.group - 1]);
-  const label = `[${d.group}]${name}`;
+  const label = getNameForMetric(d, alias[d.group - 1]);
   return {
     label,
     freeFormFields: d.metric,

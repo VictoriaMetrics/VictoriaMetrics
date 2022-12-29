@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import uPlot, { Series } from "uplot";
 import { MetricResult } from "../../../api/types";
-import { formatPrettyNumber, getColorLine, getLegendLabel } from "../../../utils/uplot/helpers";
+import { formatPrettyNumber, getColorLine } from "../../../utils/uplot/helpers";
 import dayjs from "dayjs";
 import { DATE_FULL_TIMEZONE_FORMAT } from "../../../constants/date";
 import ReactDOM from "react-dom";
@@ -54,14 +54,14 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const color = useMemo(() => getColorLine(series[seriesIdx]?.label || ""), [series, seriesIdx]);
 
   const name = useMemo(() => {
-    const metricName = (series[seriesIdx]?.label || "").replace(/{.+}/gmi, "").trim();
-    return getLegendLabel(metricName);
+    const group = metrics[seriesIdx -1]?.group || 0;
+    return `Query ${group}`;
   }, [series, seriesIdx]);
 
   const fields = useMemo(() => {
     const metric = metrics[seriesIdx - 1]?.metric || {};
-    const fields = Object.keys(metric).filter(k => k !== "__name__");
-    return fields.map(key => `${key}="${metric[key]}"`);
+    const fields = Object.keys(metric);
+    return fields.map(key => `${key}=${JSON.stringify(metric[key])}`);
   }, [metrics, seriesIdx]);
 
   const handleClose = () => {
