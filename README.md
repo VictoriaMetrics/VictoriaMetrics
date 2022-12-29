@@ -714,8 +714,7 @@ VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query 
 VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries. For example,
 `/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
-VictoriaMetrics accepts relative times in `time`, `start` and `end` query args additionally to unix timestamps and [RFC3339](https://www.ietf.org/rfc/rfc3339.txt).
-For example, the following query would return data for the last 30 minutes: `/api/v1/query_range?start=-30m&query=...`.
+VictoriaMetrics accepts multiple formats for `time`, `start` and `end` query args - see [these docs](#timestamp-formats).
 
 VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v1/query_range` handlers. It can be used for rounding response values to the given number of digits after the decimal point. For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
@@ -739,6 +738,18 @@ Additionally, VictoriaMetrics provides the following handlers:
   The number of returned queries can be limited via `topN` query arg. Old queries can be filtered out with `maxLifetime` query arg.
   For example, request to `/api/v1/status/top_queries?topN=5&maxLifetime=30s` would return up to 5 queries per list, which were executed during the last 30 seconds.
   VictoriaMetrics tracks the last `-search.queryStats.lastQueriesCount` queries with durations at least `-search.queryStats.minQueryDuration`.
+
+### Timestamp formats
+
+VictoriaMetrics accepts the following formats for `time`, `start` and `end` query args
+in [query APIs](https://docs.victoriametrics.com/#prometheus-querying-api-usage) and
+in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
+
+- Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
+- [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, '2022-03-29T01:02:03Z`.
+- Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`.
+- Relative duration comparing to the current time. For example, `1h5m` means `one hour and five minutes ago`.
+
 
 ## Graphite API usage
 
@@ -959,8 +970,9 @@ Each JSON line contains samples for a single time series. An example output:
 {"metric":{"__name__":"up","job":"prometheus","instance":"localhost:9090"},"values":[1,1,1],"timestamps":[1549891461511,1549891476511,1549891491511]}
 ```
 
-Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
-unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data.
+See [allowed formats](#timestamp-formats) for these args.
+
 For example:
 ```console
 curl http://<victoriametrics-addr>:8428/api/v1/export -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
@@ -1007,8 +1019,9 @@ where:
 * `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export.
 
-Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
-unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data.
+See [allowed formats](#timestamp-formats) for these args.
+
 For example:
 ```console
 curl http://<victoriametrics-addr>:8428/api/v1/export/csv -d 'format=<format>' -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
@@ -1034,8 +1047,9 @@ wget -O- -q 'http://your_victoriametrics_instance:8428/api/v1/series/count' | jq
 # relaunch victoriametrics with search.maxExportSeries more than value from previous command
 ```
 
-Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data. These args may contain either
-unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+Optional `start` and `end` args may be added to the request in order to limit the time frame for the exported data.
+See [allowed formats](#timestamp-formats) for these args.
+
 For example:
 ```console
 curl http://<victoriametrics-addr>:8428/api/v1/export/native -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
@@ -1271,7 +1285,8 @@ VictoriaMetrics exports [Prometheus-compatible federation data](https://promethe
 at `http://<victoriametrics-addr>:8428/federate?match[]=<timeseries_selector_for_federation>`.
 
 Optional `start` and `end` args may be added to the request in order to scrape the last point for each selected time series on the `[start ... end]` interval.
-`start` and `end` may contain either unix timestamp in seconds or [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) values.
+See [allowed formats](#timestamp-formats) for these args.
+
 For example:
 ```console
 curl http://<victoriametrics-addr>:8428/federate -d 'match[]=<timeseries_selector_for_export>' -d 'start=1654543486' -d 'end=1654543486'
