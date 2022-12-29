@@ -38,7 +38,7 @@ const AdditionalSettings: FC = () => {
     queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
   };
 
-  const onChangeStep = (value: number) => {
+  const onChangeStep = (value: string) => {
     graphDispatch({ type: "SET_CUSTOM_STEP", payload: value });
   };
 

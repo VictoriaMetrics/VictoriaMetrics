@@ -16,7 +16,7 @@ import "./style.scss";
 export interface GraphViewProps {
   data?: MetricResult[];
   period: TimeParams;
-  customStep: number;
+  customStep: string;
   query: string[];
   alias?: string[],
   yaxis: YaxisState;
@@ -56,7 +56,7 @@ const GraphView: FC<GraphViewProps> = ({
   fullWidth = true
 }) => {
   const { timezone } = useTimeState();
-  const currentStep = useMemo(() => customStep || period.step || 1, [period.step, customStep]);
+  const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);

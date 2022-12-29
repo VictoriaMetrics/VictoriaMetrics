@@ -12,6 +12,7 @@ import { InfoIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import Alert from "../../../components/Main/Alert/Alert";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import usePrevious from "../../../hooks/usePrevious";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -27,12 +28,13 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   alias
 }) => {
 
-  const { period } = useTimeState();
+  const { period, duration } = useTimeState();
   const dispatch = useTimeDispatch();
+  const prevDuration = usePrevious(duration);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
-  const [customStep, setCustomStep] = useState<number>(period.step || 1);
+  const [customStep, setCustomStep] = useState(period.step || "1s");
   const [yaxis, setYaxis] = useState<YaxisState>({
     limits: {
       enable: false,
@@ -74,6 +76,11 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       if (containerRef.current) observer.unobserve(containerRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (duration === prevDuration || !prevDuration) return;
+    if (customStep) setCustomStep(period.step || "1s");
+  }, [duration, prevDuration]);
 
   if (!validExpr) return (
     <Alert variant="error">
@@ -119,6 +126,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       <div className="vm-predefined-panel-header__step">
         <StepConfigurator
           defaultStep={period.step}
+          value={customStep}
           setStep={setCustomStep}
         />
       </div>
