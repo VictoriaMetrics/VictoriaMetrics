@@ -74,8 +74,13 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			Debug:              cfg.Debug,
 		}),
 		alerts:  make(map[uint64]*notifier.Alert),
-		state:   newRuleState(),
 		metrics: &alertingRuleMetrics{},
+	}
+
+	if cfg.UpdateEntriesLimit != nil {
+		ar.state = newRuleState(*cfg.UpdateEntriesLimit)
+	} else {
+		ar.state = newRuleState(*ruleUpdateEntriesLimit)
 	}
 
 	labels := fmt.Sprintf(`alertname=%q, group=%q, id="%d"`, ar.Name, group.Name, ar.ID())
@@ -491,6 +496,7 @@ func (ar *AlertingRule) ToAPI() APIRule {
 		State:          "inactive",
 		Alerts:         ar.AlertsToAPI(),
 		LastSamples:    lastState.samples,
+		MaxUpdates:     ar.state.size(),
 		Updates:        ar.state.getAll(),
 
 		// encode as strings to avoid rounding in JSON
