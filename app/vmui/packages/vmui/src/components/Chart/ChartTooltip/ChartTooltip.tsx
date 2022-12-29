@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import uPlot, { Series } from "uplot";
 import { MetricResult } from "../../../api/types";
-import { formatPrettyNumber, getColorLine } from "../../../utils/uplot/helpers";
+import { formatPrettyNumber } from "../../../utils/uplot/helpers";
 import dayjs from "dayjs";
 import { DATE_FULL_TIMEZONE_FORMAT } from "../../../constants/date";
 import ReactDOM from "react-dom";
@@ -51,7 +51,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const dataTime = useMemo(() => u.data[0][dataIdx], [u, dataIdx]);
   const date = useMemo(() => dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT), [dataTime]);
 
-  const color = useMemo(() => getColorLine(series[seriesIdx]?.label || ""), [series, seriesIdx]);
+  const color = useMemo(() => series[seriesIdx]?.stroke+"", [series, seriesIdx]);
 
   const name = useMemo(() => {
     const group = metrics[seriesIdx -1]?.group || 0;
