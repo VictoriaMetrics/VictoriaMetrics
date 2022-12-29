@@ -447,7 +447,7 @@ github.com/urfave/cli/v2
 # github.com/valyala/bytebufferpool v1.0.0
 ## explicit
 github.com/valyala/bytebufferpool
-# github.com/valyala/fastjson v1.6.3
+# github.com/valyala/fastjson v1.6.4
 ## explicit; go 1.12
 github.com/valyala/fastjson
 github.com/valyala/fastjson/fastfloat
