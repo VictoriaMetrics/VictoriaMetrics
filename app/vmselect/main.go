@@ -175,7 +175,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Redirect(w, newURL)
 		return true
 	case strings.HasPrefix(path, "/vmui/"):
-		if strings.HasPrefix(path, "/vmui/custom-dashboards") {
+		if path == "/vmui/custom-dashboards" {
 			handleVMUICustomDashboards(w)
 			return true
 		}

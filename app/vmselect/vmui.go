@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
@@ -48,51 +49,44 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 	var dashboardsData dashboardsData
 	path := *vmuiCustomDashboardsPath
 	if path == "" {
-		err := writeSuccessResponse(w, dashboardsData)
-		if err != nil {
-			writeErrorResponse(w, fmt.Errorf("cannot send dashboards data: %s", err))
-			return
-		}
+		writeSuccessResponse(w, dashboardsData)
 		return
 	}
 
 	if !fs.IsPathExist(path) {
-		writeErrorResponse(w, fmt.Errorf("cannot find folder with dashboards by provided path: %s", path))
+		writeErrorResponse(w, fmt.Errorf("cannot find folder pointed by -vmui.customDashboardsPath=%q", path))
 		return
 	}
 
-	absPath, err := filepath.Abs(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot obtain abs path for %q: %w", path, err))
+		writeErrorResponse(w, fmt.Errorf("cannot read folder pointed by -vmui.customDashboardsPath=%q", path))
 		return
 	}
 
 	var settings []dashboardSetting
-	files, err := os.ReadDir(absPath)
-	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot read provided directory: %s", absPath))
-		return
-	}
 	for _, file := range files {
 		info, err := file.Info()
 		if err != nil {
+			logger.Errorf("cannot get file info: %s", err)
 			continue
 		}
 		if fs.IsDirOrSymlink(info) {
+			logger.Infof("skip directory or symlinks")
 			continue
 		}
 		filename := file.Name()
 		if filepath.Ext(filename) == ".json" {
-			filePath := filepath.Join(absPath, filename)
-			f, err := fs.ReadFileOrHTTP(filePath)
+			filePath := filepath.Join(path, filename)
+			f, err := os.ReadFile(filePath)
 			if err != nil {
-				writeErrorResponse(w, fmt.Errorf("cannot open file: %s, %s", filename, err))
+				writeErrorResponse(w, fmt.Errorf("cannot open file at -vmui.customDashboardsPath=%q: %w", filePath, err))
 				return
 			}
 			var dSettings dashboardSetting
 			err = json.Unmarshal(f, &dSettings)
 			if err != nil {
-				writeErrorResponse(w, fmt.Errorf("cannot unmarshal dashboard settings: %s from file: %s", err, filename))
+				writeErrorResponse(w, fmt.Errorf("cannot parse file %s: %w", filename, err))
 				return
 			}
 			if len(dSettings.Rows) == 0 {
@@ -103,21 +97,20 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 	}
 
 	dashboardsData.DashboardsSettings = append(dashboardsData.DashboardsSettings, settings...)
-	err = writeSuccessResponse(w, dashboardsData)
-	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot send dashboards data: %s", err))
-		return
-	}
+	writeSuccessResponse(w, dashboardsData)
+	return
 }
 
 func writeErrorResponse(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusBadRequest)
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"status":"error","error":"%s"}`, err.Error())
+	fmt.Fprintf(w, `{"status":"error","error":"%q"}`, err.Error())
 }
 
-func writeSuccessResponse(w http.ResponseWriter, data dashboardsData) error {
+func writeSuccessResponse(w http.ResponseWriter, data dashboardsData) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		logger.Errorf("error encode dashboards settings: %s", err)
+	}
 }
