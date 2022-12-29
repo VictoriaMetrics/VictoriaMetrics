@@ -23,15 +23,15 @@ var (
 
 var bbPool bytesutil.ByteBufferPool
 
-// ReversProxy represents simple revers proxy based on http.Client
-type ReversProxy struct {
+// ReverseProxy represents simple revers proxy based on http.Client
+type ReverseProxy struct {
 	client *http.Client
 }
 
 // New initialize revers proxy
-func New() *ReversProxy {
+func New() *ReverseProxy {
 	tr := prepareTransport()
-	return &ReversProxy{
+	return &ReverseProxy{
 		client: &http.Client{
 			Transport: tr,
 		},
@@ -39,12 +39,12 @@ func New() *ReversProxy {
 }
 
 // ServeHTTP serve http requests
-func (rr *ReversProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (rr *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	rr.handle(w, r)
 }
 
 // handle works with income request, update it to outcome and copy response to the requester
-func (rr *ReversProxy) handle(w http.ResponseWriter, r *http.Request) {
+func (rr *ReverseProxy) handle(w http.ResponseWriter, r *http.Request) {
 	bb := bbPool.Get()
 	defer func() { bbPool.Put(bb) }()
 

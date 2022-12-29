@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	reverseProxy     *reverseproxy.ReversProxy
+	reverseProxy     *reverseproxy.ReverseProxy
 	reverseProxyOnce sync.Once
 )
 
-func getReverseProxy() *reverseproxy.ReversProxy {
+func getReverseProxy() *reverseproxy.ReverseProxy {
 	reverseProxyOnce.Do(initReverseProxy)
 	return reverseProxy
 }
