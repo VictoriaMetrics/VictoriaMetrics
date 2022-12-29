@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/compat";
 import { DashboardSettings, ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
 import { useDashboardsDispatch } from "../../../state/dashboards/DashboardsStateContext";
+import { getAppModeEnable } from "../../../utils/app-mode";
 
 const importModule = async (filename: string) => {
   const data = await fetch(`./dashboards/${filename}`);
@@ -15,6 +16,7 @@ export const useFetchDashboards = (): {
   dashboardsSettings: DashboardSettings[],
 } => {
 
+  const appModeEnable = getAppModeEnable();
   const { serverUrl } = useAppState();
   const dispatch = useDashboardsDispatch();
   const [isLoading, setIsLoading] = useState(false);
@@ -53,6 +55,7 @@ export const useFetchDashboards = (): {
   };
 
   useEffect(() => {
+    if (appModeEnable) return;
     setDashboards([]);
     fetchLocalDashboards().then(d => d.length && setDashboards((prevDash) => [...d, ...prevDash]));
     fetchRemoteDashboards();
