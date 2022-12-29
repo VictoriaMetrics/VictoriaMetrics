@@ -26,7 +26,7 @@ require (
 	github.com/klauspost/compress v1.15.13
 	github.com/prometheus/prometheus v0.41.0
 	github.com/urfave/cli/v2 v2.23.7
-	github.com/valyala/fastjson v1.6.3
+	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/valyala/gozstd v1.17.0
