@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/compat";
-import { DashboardSettings, ErrorTypes } from "../../types";
-import { useAppState } from "../../state/common/StateContext";
+import { DashboardSettings, ErrorTypes } from "../../../types";
+import { useAppState } from "../../../state/common/StateContext";
+import { useDashboardsDispatch } from "../../../state/dashboards/DashboardsStateContext";
 
 const importModule = async (filename: string) => {
   const data = await fetch(`./dashboards/${filename}`);
@@ -15,15 +16,16 @@ export const useFetchDashboards = (): {
 } => {
 
   const { serverUrl } = useAppState();
+  const dispatch = useDashboardsDispatch();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<ErrorTypes | string>();
+  const [error, setError] = useState<ErrorTypes | string>("");
   const [dashboardsSettings, setDashboards] = useState<DashboardSettings[]>([]);
 
   const fetchLocalDashboards = async () => {
     const filenames = window.__VMUI_PREDEFINED_DASHBOARDS__;
+    if (!filenames?.length) return [];
     return await Promise.all(filenames.map(async f => importModule(f)));
   };
-
 
   const fetchRemoteDashboards = async () => {
     if (!serverUrl) return;
@@ -50,11 +52,23 @@ export const useFetchDashboards = (): {
     }
   };
 
-
   useEffect(() => {
-    fetchLocalDashboards().then(d => d.length && setDashboards((prevDash) => [...prevDash, ...d]));
+    setDashboards([]);
+    fetchLocalDashboards().then(d => d.length && setDashboards((prevDash) => [...d, ...prevDash]));
     fetchRemoteDashboards();
   }, [serverUrl]);
+
+  useEffect(() => {
+    dispatch({ type: "SET_DASHBOARDS_SETTINGS", payload: dashboardsSettings });
+  }, [dashboardsSettings]);
+
+  useEffect(() => {
+    dispatch({ type: "SET_DASHBOARDS_LOADING", payload: isLoading });
+  }, [isLoading]);
+
+  useEffect(() => {
+    dispatch({ type: "SET_DASHBOARDS_ERROR", payload: error });
+  }, [error]);
 
   return { dashboardsSettings, isLoading, error };
 };

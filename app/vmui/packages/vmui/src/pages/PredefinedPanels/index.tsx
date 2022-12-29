@@ -1,48 +1,60 @@
 import React, { FC, useMemo, useState } from "preact/compat";
-import { useFetchDashboards } from "./getDashboardSettings";
 import PredefinedDashboard from "./PredefinedDashboard/PredefinedDashboard";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
-import Tabs from "../../components/Main/Tabs/Tabs";
 import Alert from "../../components/Main/Alert/Alert";
+import classNames from "classnames";
 import "./style.scss";
+import { useDashboardsState } from "../../state/dashboards/DashboardsStateContext";
+import Spinner from "../../components/Main/Spinner/Spinner";
 
-const Index: FC = () => {
+const DashboardsLayout: FC = () => {
   useSetQueryParams();
-  const { error, dashboardsSettings } = useFetchDashboards();
-  const [tab, setTab] = useState("0");
+  const { dashboardsSettings, dashboardsLoading, dashboardsError } = useDashboardsState();
+  const [dashboard, setDashboard] = useState(0);
 
-  const tabs = useMemo(() => dashboardsSettings.map((d, i) => ({
+  const dashboards = useMemo(() => dashboardsSettings.map((d, i) => ({
     label: d.title || "",
-    value: `${i}`,
-    className: "vm-predefined-panels-tabs__tab"
+    value: i,
   })), [dashboardsSettings]);
 
-  const activeDashboard = useMemo(() => dashboardsSettings[+tab] || {}, [dashboardsSettings, tab]);
+  const activeDashboard = useMemo(() => dashboardsSettings[dashboard] || {}, [dashboardsSettings, dashboard]);
   const rows = useMemo(() => activeDashboard?.rows, [activeDashboard]);
   const filename = useMemo(() => activeDashboard.title || activeDashboard.filename || "", [activeDashboard]);
   const validDashboardRows = useMemo(() => Array.isArray(rows) && !!rows.length, [rows]);
 
-  const handleChangeTab = (value: string) => {
-    setTab(value);
+  const handleChangeDashboard = (value: number) => {
+    setDashboard(value);
+  };
+
+  const createHandlerSelectDashboard = (value: number) => () => {
+    handleChangeDashboard(value);
   };
 
   return <div className="vm-predefined-panels">
-    {error && <Alert variant="error">{error}</Alert>}
+    {dashboardsLoading && <Spinner />}
+    {dashboardsError && <Alert variant="error">{dashboardsError}</Alert>}
     {!dashboardsSettings.length && <Alert variant="info">Dashboards not found</Alert>}
-    {tabs.length > 1 && (
-      <div className="vm-predefined-panels-tabs vm-block vm-block_empty-padding">
-        <Tabs
-          activeItem={tab}
-          items={tabs}
-          onChange={handleChangeTab}
-        />
+    {dashboards.length > 1 && (
+      <div className="vm-predefined-panels-tabs vm-block">
+        {dashboards.map(tab => (
+          <div
+            key={tab.value}
+            className={classNames({
+              "vm-predefined-panels-tabs__tab": true,
+              "vm-predefined-panels-tabs__tab_active": tab.value == dashboard
+            })}
+            onClick={createHandlerSelectDashboard(tab.value)}
+          >
+            {tab.label}
+          </div>
+        ))}
       </div>
     )}
     <div className="vm-predefined-panels__dashboards">
       {validDashboardRows && (
         rows.map((r,i) =>
           <PredefinedDashboard
-            key={`${tab}_${i}`}
+            key={`${dashboard}_${i}`}
             index={i}
             filename={filename}
             title={r.title}
@@ -58,4 +70,4 @@ const Index: FC = () => {
   </div>;
 };
 
-export default Index;
+export default DashboardsLayout;
