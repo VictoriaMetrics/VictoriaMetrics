@@ -56,7 +56,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const name = useMemo(() => {
     const metricName = (series[seriesIdx]?.label || "").replace(/{.+}/gmi, "").trim();
     return getLegendLabel(metricName);
-  }, []);
+  }, [series, seriesIdx]);
 
   const fields = useMemo(() => {
     const metric = metrics[seriesIdx - 1]?.metric || {};
