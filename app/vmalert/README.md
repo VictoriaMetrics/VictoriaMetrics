@@ -191,6 +191,11 @@ expr: <string>
 # Is applicable to alerting rules only.
 [ debug: <bool> | default = false ]
 
+# Defines the number of rule's updates entries stored in memory
+# and available for view on rule's Details page.
+# Overrides `rule.updateEntriesLimit` value for this specific rule.
+[ update_entries_limit: <integer> | default 0 ]
+
 # Labels to add or overwrite for each alert.
 labels:
   [ <labelname>: <tmpl_string> ]
@@ -319,6 +324,12 @@ expr: <string>
 # Labels to add or overwrite before storing the result.
 labels:
   [ <labelname>: <labelvalue> ]
+
+
+# Defines the number of rule's updates entries stored in memory
+# and available for view on rule's Details page.
+# Overrides `rule.updateEntriesLimit` value for this specific rule.
+[ update_entries_limit: <integer> | default 0 ]
 ```
 
 For recording rules to work `-remoteWrite.url` must be specified.
@@ -695,7 +706,7 @@ may get empty response from datasource and produce empty recording rules or rese
 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
-By default recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
+By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
 This behavior is controlled by `-search.latencyOffset` command-line flag and the `latency_offset` query ag at `vmselect`.
 Usually, this results into a 30s shift for recording rules results.
 Note that too small value passed to `-search.latencyOffset` or to `latency_offest` query arg may lead to incomplete query results.
@@ -721,8 +732,9 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
 changed in time.
 
-vmalert also stores last N state updates for each rule. To check updates, click on `Details` link next to rule's name
-on `/vmalert/groups` page and check the `Last updates` section:
+vmalert stores last `-rule.maxUpdateEntries` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert.html#alerting-rules)) 
+state updates for each rule. To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
+and check the `Last updates` section:
 
 <img alt="vmalert state" src="vmalert_state.png">
 
@@ -731,7 +743,7 @@ HTTP request sent by vmalert to the `-datasource.url` during evaluation. If spec
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
 moment when rule was evaluated.
 
-vmalert also alows configuring more detailed logging for specific rule. Just set `debug: true` in rule's configuration
+vmalert allows configuring more detailed logging for specific alerting rule. Just set `debug: true` in rule's configuration
 and vmalert will start printing additional log messages:
 ```terminal
 2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
@@ -890,6 +902,8 @@ The shortlist of configuration flags is the following:
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
@@ -1092,6 +1106,8 @@ The shortlist of configuration flags is the following:
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+  -rule.maxUpdateEntries int
+     Defines the max number of rule's state updates.  (default 20)
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array
