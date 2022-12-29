@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -350,7 +349,32 @@ var (
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
-	return discoveryutils.DoRequestWithPossibleRetry(hc, req, resp, deadline, scrapeRequests, scrapeRetries)
+	sleepTime := time.Second
+	scrapeRequests.Inc()
+	for {
+		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
+		// across multiple retries.
+		err := hc.DoDeadline(req, resp, deadline)
+		if err == nil {
+			statusCode := resp.StatusCode()
+			if statusCode != fasthttp.StatusTooManyRequests {
+				return nil
+			}
+		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
+			return err
+		}
+		// Retry request after exponentially increased sleep.
+		maxSleepTime := time.Until(deadline)
+		if sleepTime > maxSleepTime {
+			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+		}
+		sleepTime += sleepTime
+		if sleepTime > maxSleepTime {
+			sleepTime = maxSleepTime
+		}
+		time.Sleep(sleepTime)
+		scrapeRetries.Inc()
+	}
 }
 
 type streamReader struct {

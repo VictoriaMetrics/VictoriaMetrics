@@ -3,11 +3,11 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/fasthttp"
 )
 
 // virtualMachine represents an Azure virtual machine (which can also be created by a VMSS)
@@ -64,7 +64,7 @@ type listAPIResponse struct {
 func visitAllAPIObjects(ac *apiConfig, apiURL string, cb func(data json.RawMessage) error) error {
 	nextLinkURI := apiURL
 	for {
-		resp, err := ac.c.GetAPIResponseWithReqParams(nextLinkURI, func(request *fasthttp.Request) {
+		resp, err := ac.c.GetAPIResponseWithReqParams(nextLinkURI, func(request *http.Request) {
 			request.Header.Set("Authorization", "Bearer "+ac.mustGetAuthToken())
 		})
 		if err != nil {

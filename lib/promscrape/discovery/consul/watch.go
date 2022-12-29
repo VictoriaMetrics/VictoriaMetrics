@@ -1,7 +1,9 @@
 package consul
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -79,9 +81,7 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 
 func (cw *consulWatcher) mustStop() {
 	close(cw.stopCh)
-	// Do not wait for the watcher to stop, since it may take
-	// up to discoveryutils.BlockingClientReadTimeout to complete.
-	// TODO: add ability to cancel blocking requests.
+	cw.client.Stop()
 }
 
 func (cw *consulWatcher) updateServices(serviceNames []string) {
@@ -225,6 +225,9 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 	f := func() {
 		data, newIndex, err := getBlockingAPIResponse(cw.client, path, index)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			logger.Errorf("cannot obtain Consul serviceNodes for serviceName=%q from %q: %s", sw.serviceName, clientAddr, err)
 			return
 		}
