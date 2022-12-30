@@ -484,7 +484,8 @@ Alertmanager will automatically deduplicate alerts with identical labels, so ens
 all `vmalert`s are having the same config.
 
 Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
-for Alertmanagers for better reliability.
+for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert's `-notifier.url` 
+to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
 This example uses single-node VM server for the sake of simplicity.
 Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed.
@@ -973,7 +974,7 @@ The shortlist of configuration flags is the following:
      Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
-     Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
+     Prometheus alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
@@ -1205,6 +1206,8 @@ dns_sd_configs:
 ```
 
 The list of configured or discovered Notifiers can be explored via [UI](#Web).
+If Alertmanager runs in cluster mode then all its URLs needs to be available during discovery
+to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
 The configuration file [specification](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go)
 is the following:
