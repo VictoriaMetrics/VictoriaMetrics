@@ -138,7 +138,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - src_paths: ["/foo/bar"]
 `)
 
@@ -146,7 +146,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - src_paths: ["/foo/bar"]
     url_prefix: foo.bar
 `)
@@ -155,7 +155,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - src_paths: ['/foo/bar']
     url_prefix: []
 `)
@@ -164,7 +164,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - url_prefix: http://foobar
 `)
 
@@ -172,7 +172,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - src_paths: ['fo[obar']
     url_prefix: http://foobar
 `)
@@ -181,7 +181,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - src_paths: ['/foobar']
     url_prefix: http://foobar
     headers:
@@ -191,7 +191,7 @@ users:
 	f(`
 users:
 - username: a
-  url_map:
+  url_maps:
   - src_paths: ['/foobar']
     url_prefix: http://foobar
     headers:
@@ -267,7 +267,7 @@ users:
 	f(`
 users:
 - bearer_token: foo
-  url_map:
+  url_maps:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]
@@ -278,7 +278,7 @@ users:
 `, map[string]*UserInfo{
 		getAuthToken("foo", "", ""): {
 			BearerToken: "foo",
-			URLMap: []URLMap{
+			URLMaps: []URLMap{
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
@@ -304,7 +304,7 @@ users:
 		},
 		getAuthToken("", "foo", ""): {
 			BearerToken: "foo",
-			URLMap: []URLMap{
+			URLMaps: []URLMap{
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),

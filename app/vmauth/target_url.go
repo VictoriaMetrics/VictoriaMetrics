@@ -52,7 +52,7 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, []Header, error) {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1554
 		u.Path = ""
 	}
-	for _, e := range ui.URLMap {
+	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
 				return e.URLPrefix.mergeURLs(&u), e.Headers, nil

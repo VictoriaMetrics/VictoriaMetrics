@@ -111,7 +111,7 @@ users:
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
 - username: "foobar"
-  url_map:
+  url_maps:
   - src_paths:
     - "/api/v1/query"
     - "/api/v1/query_range"
