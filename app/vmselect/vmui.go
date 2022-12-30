@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -16,7 +18,14 @@ var (
 	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui predefined dashboards")
 )
 
+var predefinedDashboards = &dashboardsData{}
+
+// How frequently check defined vmuiCustomDashboardsPath
+const updateDashboardsTimeout = time.Minute * 10
+
 // dashboardSetting represents dashboard settings file struct
+// fields of the dashboardSetting you can find by following next link
+// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 type dashboardSetting struct {
 	Title    string         `json:"title,omitempty"`
 	Filename string         `json:"filename,omitempty"`
@@ -24,6 +33,8 @@ type dashboardSetting struct {
 }
 
 // panelSettings represents fields which used to show graph
+// fields of the panelSettings you can find by following next link
+// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 type panelSettings struct {
 	Title       string   `json:"title,omitempty"`
 	Description string   `json:"description,omitempty"`
@@ -35,6 +46,8 @@ type panelSettings struct {
 }
 
 // dashboardRow represents panels on dashboard
+// fields of the dashboardRow you can find by following next link
+// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 type dashboardRow struct {
 	Title  string          `json:"title,omitempty"`
 	Panels []panelSettings `json:"panels"`
@@ -43,13 +56,15 @@ type dashboardRow struct {
 // dashboardsData represents all dashboards settings
 type dashboardsData struct {
 	DashboardsSettings []dashboardSetting `json:"dashboardsSettings"`
+
+	mx                sync.Mutex
+	expireAtTimestamp time.Time
 }
 
 func handleVMUICustomDashboards(w http.ResponseWriter) {
-	var dashboardsData dashboardsData
 	path := *vmuiCustomDashboardsPath
 	if path == "" {
-		writeSuccessResponse(w, dashboardsData)
+		writeSuccessResponse(w, predefinedDashboards)
 		return
 	}
 
@@ -58,10 +73,45 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 		return
 	}
 
+	requestTime := time.Now()
+	if predefinedDashboards.expireAtTimestamp.Before(requestTime) {
+		settings, err := collectDashboardsSettings(path)
+		if err != nil {
+			writeErrorResponse(w, fmt.Errorf("cannot collect dashboards settings by -vmui.customDashboardsPath=%q", path))
+			return
+		}
+
+		predefinedDashboards.expireAtTimestamp = time.Now().Add(updateDashboardsTimeout)
+
+		predefinedDashboards.mx.Lock()
+		predefinedDashboards.DashboardsSettings = nil
+		predefinedDashboards.DashboardsSettings = append(predefinedDashboards.DashboardsSettings, settings...)
+		predefinedDashboards.mx.Unlock()
+	}
+
+	writeSuccessResponse(w, predefinedDashboards)
+	return
+}
+
+func writeErrorResponse(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusBadRequest)
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"status":"error","error":"%q"}`, err.Error())
+}
+
+func writeSuccessResponse(w http.ResponseWriter, data *dashboardsData) {
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		logger.Errorf("error encode dashboards settings: %s", err)
+	}
+}
+
+func collectDashboardsSettings(path string) ([]dashboardSetting, error) {
+
 	files, err := os.ReadDir(path)
 	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot read folder pointed by -vmui.customDashboardsPath=%q", path))
-		return
+		return nil, fmt.Errorf("cannot read folder pointed by -vmui.customDashboardsPath=%q", path)
 	}
 
 	var settings []dashboardSetting
@@ -72,7 +122,7 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 			continue
 		}
 		if fs.IsDirOrSymlink(info) {
-			logger.Infof("skip directory or symlinks")
+			logger.Infof("skip directory or symlinks in the -vmui.customDashboardsPath=%q", path)
 			continue
 		}
 		filename := file.Name()
@@ -80,14 +130,12 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 			filePath := filepath.Join(path, filename)
 			f, err := os.ReadFile(filePath)
 			if err != nil {
-				writeErrorResponse(w, fmt.Errorf("cannot open file at -vmui.customDashboardsPath=%q: %w", filePath, err))
-				return
+				return nil, fmt.Errorf("cannot open file at -vmui.customDashboardsPath=%q: %w", filePath, err)
 			}
 			var dSettings dashboardSetting
 			err = json.Unmarshal(f, &dSettings)
 			if err != nil {
-				writeErrorResponse(w, fmt.Errorf("cannot parse file %s: %w", filename, err))
-				return
+				return nil, fmt.Errorf("cannot parse file %s: %w", filename, err)
 			}
 			if len(dSettings.Rows) == 0 {
 				continue
@@ -95,22 +143,5 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 			settings = append(settings, dSettings)
 		}
 	}
-
-	dashboardsData.DashboardsSettings = append(dashboardsData.DashboardsSettings, settings...)
-	writeSuccessResponse(w, dashboardsData)
-	return
-}
-
-func writeErrorResponse(w http.ResponseWriter, err error) {
-	w.WriteHeader(http.StatusBadRequest)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"status":"error","error":"%q"}`, err.Error())
-}
-
-func writeSuccessResponse(w http.ResponseWriter, data dashboardsData) {
-	w.WriteHeader(http.StatusOK)
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		logger.Errorf("error encode dashboards settings: %s", err)
-	}
+	return settings, nil
 }
