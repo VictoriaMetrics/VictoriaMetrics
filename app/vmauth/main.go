@@ -102,6 +102,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	requester := func() { proxyRequest(w, r) }
 	if err := ui.proxyRequests(requester); err != nil {
+		w.Header().Add("Retry-After", "10")
 		errStr := fmt.Sprintf("cannot proxy request: %s", err)
 		http.Error(w, errStr, http.StatusTooManyRequests)
 		return true

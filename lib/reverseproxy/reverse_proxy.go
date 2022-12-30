@@ -2,6 +2,7 @@ package reverseproxy
 
 import (
 	"flag"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -30,21 +31,20 @@ type ReverseProxy struct {
 
 // New initialize revers proxy
 func New() *ReverseProxy {
-	tr := prepareTransport()
 	return &ReverseProxy{
 		client: &http.Client{
-			Transport: tr,
+			Transport: prepareTransport(),
 		},
 	}
 }
 
 // ServeHTTP serve http requests
-func (rr *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	rr.handle(w, r)
+func (rp *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	rp.handle(w, r)
 }
 
 // handle works with income request, update it to outcome and copy response to the requester
-func (rr *ReverseProxy) handle(w http.ResponseWriter, r *http.Request) {
+func (rp *ReverseProxy) handle(w http.ResponseWriter, r *http.Request) {
 	bb := bbPool.Get()
 	defer func() { bbPool.Put(bb) }()
 
@@ -58,33 +58,38 @@ func (rr *ReverseProxy) handle(w http.ResponseWriter, r *http.Request) {
 
 	proxyReq.URL = tURL
 	if r.ContentLength == 0 {
-		proxyReq.Body = nil // Issue 16036: nil Body for http.Transport retries
+		proxyReq.Body = nil // Issue https://github.com/golang/go/issues/16036: nil Body for http.Transport retries
 	}
 	if proxyReq.Body != nil {
 		defer func() { _ = proxyReq.Body.Close() }()
 	}
 
-	if err := updateXForwardHeader(r.RemoteAddr, proxyReq.Header); err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-
-	resp, err := rr.client.Transport.RoundTrip(proxyReq)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusServiceUnavailable)
-		return
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	for k, vv := range resp.Header {
-		for _, v := range vv {
-			w.Header().Set(k, v)
+	proxyRequest := func() error {
+		if err := updateXForwardHeader(r.RemoteAddr, proxyReq.Header); err != nil {
+			return fmt.Errorf("cannot update %s header: %s", forwardHeader, err)
 		}
+
+		resp, err := rp.client.Transport.RoundTrip(proxyReq)
+		if err != nil {
+			return fmt.Errorf("cannot execute http transaction: %s", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		for k, vv := range resp.Header {
+			for _, v := range vv {
+				w.Header().Set(k, v)
+			}
+		}
+
+		w.WriteHeader(resp.StatusCode)
+		_, err = io.CopyBuffer(w, resp.Body, bb.B)
+		if err != nil {
+			return fmt.Errorf("cannot copy response body to : %s", err)
+		}
+		return nil
 	}
 
-	w.WriteHeader(resp.StatusCode)
-	_, err = io.CopyBuffer(w, resp.Body, bb.B)
-	if err != nil {
+	if err := proxyRequest(); err != nil {
 		http.Error(w, err.Error(), http.StatusServiceUnavailable)
 		return
 	}
@@ -119,7 +124,7 @@ func updateXForwardHeader(remoteAdrr string, headers http.Header) error {
 	}
 
 	forwardFor, ok := headers[forwardHeader]
-	omit := ok && forwardFor == nil // Issue 38079: nil now means don't populate the header
+	omit := ok && forwardFor == nil // Issue https://github.com/golang/go/issues/38079: nil now means don't populate the header
 	if len(forwardFor) > 0 {
 		clientIP = strings.Join(forwardFor, ", ") + ", " + clientIP
 	}
