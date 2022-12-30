@@ -11,11 +11,12 @@ export const limitsDurations = { min: 1, max: 1.578e+11 }; // min: 1 ms, max: 5 
 // @ts-ignore
 export const supportedTimezones = Intl.supportedValuesOf("timeZone") as string[];
 
+// The list of supported units could be the following -
+// https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations
 export const supportedDurations = [
-  { long: "days", short: "d", possible: "day" },
-  { long: "weeks", short: "w", possible: "week" },
-  { long: "months", short: "M", possible: "mon" },
   { long: "years", short: "y", possible: "year" },
+  { long: "weeks", short: "w", possible: "week" },
+  { long: "days", short: "d", possible: "day" },
   { long: "hours", short: "h", possible: "hour" },
   { long: "minutes", short: "m", possible: "min" },
   { long: "seconds", short: "s", possible: "sec" },
@@ -27,20 +28,24 @@ const shortDurations = supportedDurations.map(d => d.short);
 export const roundToMilliseconds = (num: number): number => Math.round(num*1000)/1000;
 
 const roundStep = (step: number) => {
+  let result = roundToMilliseconds(step);
   const integerStep = Math.round(step);
+
   if (step >= 100) {
-    return integerStep - (integerStep%10); // integer multiple of 10
+    result = integerStep - (integerStep%10); // integer multiple of 10
   }
   if (step < 100 && step >= 10) {
-    return integerStep - (integerStep%5); // integer multiple of 5
+    result = integerStep - (integerStep%5); // integer multiple of 5
   }
   if (step < 10 && step >= 1) {
-    return integerStep; // integer
+    result = integerStep; // integer
   }
   if (step < 1 && step > 0.01) {
-    return Math.round(step * 40) / 40; // float to thousandths multiple of 5
+    result = Math.round(step * 40) / 40; // float to thousandths multiple of 5
   }
-  return roundToMilliseconds(step);
+
+  const humanize = getDurationFromMilliseconds(dayjs.duration(result || 0.001, "seconds").asMilliseconds());
+  return humanize.replace(/\s/g, "");
 };
 
 export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, string>> | undefined => {
@@ -53,10 +58,10 @@ export const isSupportedDuration = (str: string): Partial<Record<UnitTypeShort, 
   }
 };
 
-export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams => {
-  const n = (date || dayjs().toDate()).valueOf() / 1000;
-
-  const durItems = dur.trim().split(" ");
+export const getSecondsFromDuration = (dur: string) => {
+  const shortSupportedDur = supportedDurations.map(d => d.short).join("|");
+  const regexp = new RegExp(`\\d+[${shortSupportedDur}]+`, "g");
+  const durItems = dur.match(regexp) || [];
 
   const durObject = durItems.reduce((prev, curr) => {
 
@@ -73,9 +78,15 @@ export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams =
     }
   }, {});
 
-  const delta = dayjs.duration(durObject).asSeconds();
+  return dayjs.duration(durObject).asSeconds();
+};
+
+export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams => {
+  const n = (date || dayjs().toDate()).valueOf() / 1000;
+
+  const delta = getSecondsFromDuration(dur);
   const rawStep = delta / MAX_ITEMS_PER_CHART;
-  const step = roundStep(rawStep) || 0.001;
+  const step = roundStep(rawStep);
 
   return {
     start: n - delta,
@@ -183,8 +194,8 @@ export const getTimezoneList = (search = "") => {
   return supportedTimezones.reduce((acc: {[key: string]: Timezone[]}, region) => {
     const zone = (region.match(/^(.*?)\//) || [])[1] || "unknown";
     const utc = getUTCByTimezone(region);
-    const utcForSearch = utc.replace(/UTC|0/gmi, "");
-    const regionForSearch = region.replace(/[/_]/gmi, " ");
+    const utcForSearch = utc.replace(/UTC|0/, "");
+    const regionForSearch = region.replace(/[/_]/g, " ");
     const item = {
       region,
       utc,

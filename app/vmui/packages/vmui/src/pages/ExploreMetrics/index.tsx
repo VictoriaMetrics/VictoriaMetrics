@@ -11,9 +11,18 @@ import ExploreMetricItem from "./ExploreMetricItem/ExploreMetricItem";
 import TextField from "../../components/Main/TextField/TextField";
 import { CloseIcon, SearchIcon } from "../../components/Main/Icons";
 import Switch from "../../components/Main/Switch/Switch";
+import StepConfigurator from "../../components/Configurators/StepConfigurator/StepConfigurator";
+import { useTimeState } from "../../state/time/TimeStateContext";
+import { useGraphDispatch, useGraphState } from "../../state/graph/GraphStateContext";
+import usePrevious from "../../hooks/usePrevious";
 
 const ExploreMetrics: FC = () => {
   useSetQueryParams();
+
+  const { period: { step }, duration } = useTimeState();
+  const { customStep } = useGraphState();
+  const graphDispatch = useGraphDispatch();
+  const prevDuration = usePrevious(duration);
 
   const [job, setJob] = useState("");
   const [instance, setInstance] = useState("");
@@ -64,14 +73,27 @@ const ExploreMetrics: FC = () => {
     });
   };
 
+  const handleChangeStep = (value: string) => {
+    graphDispatch({ type: "SET_CUSTOM_STEP", payload: value });
+  };
+
   useEffect(() => {
     setInstance("");
   }, [job]);
 
+  useEffect(() => {
+    if (!customStep && step) handleChangeStep(step);
+  }, [step]);
+
+  useEffect(() => {
+    if (duration === prevDuration || !prevDuration) return;
+    if (customStep) handleChangeStep(step || "1s");
+  }, [duration, prevDuration]);
+
   return (
     <div className="vm-explore-metrics">
       <div className="vm-explore-metrics-header vm-block">
-        <div className="vm-explore-metrics-header-top">
+        <div className="vm-explore-metrics-header__job">
           <Select
             value={job}
             list={jobs}
@@ -80,6 +102,8 @@ const ExploreMetrics: FC = () => {
             onChange={setJob}
             searchable
           />
+        </div>
+        <div className="vm-explore-metrics-header__instance">
           <Select
             value={instance}
             list={instances}
@@ -90,29 +114,38 @@ const ExploreMetrics: FC = () => {
             clearable
             searchable
           />
-          <div className="vm-explore-metrics-header-top__switch-graphs">
-            <Switch
-              label={"Show only opened metrics"}
-              value={onlyGraphs}
-              onChange={setOnlyGraphs}
-            />
-          </div>
         </div>
-        <TextField
-          autofocus
-          label="Metric search"
-          value={searchMetric}
-          onChange={setSearchMetric}
-          startIcon={<SearchIcon/>}
-          endIcon={(
-            <div
-              className="vm-explore-metrics-header__clear-icon"
-              onClick={handleClearSearch}
-            >
-              <CloseIcon/>
-            </div>
-          )}
-        />
+        <div className="vm-explore-metrics-header__step">
+          <StepConfigurator
+            defaultStep={step}
+            setStep={handleChangeStep}
+            value={customStep}
+          />
+        </div>
+        <div className="vm-explore-metrics-header__switch-graphs">
+          <Switch
+            label={"Show only opened metrics"}
+            value={onlyGraphs}
+            onChange={setOnlyGraphs}
+          />
+        </div>
+        <div className="vm-explore-metrics-header__search">
+          <TextField
+            autofocus
+            label="Metric search"
+            value={searchMetric}
+            onChange={setSearchMetric}
+            startIcon={<SearchIcon/>}
+            endIcon={(
+              <div
+                className="vm-explore-metrics-header__clear-icon"
+                onClick={handleClearSearch}
+              >
+                <CloseIcon/>
+              </div>
+            )}
+          />
+        </div>
       </div>
 
       {isLoading && <Spinner />}

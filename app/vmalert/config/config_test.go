@@ -552,6 +552,20 @@ rules:
     debug: true
 `)
 	})
+	t.Run("`update_entries_limit` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+    update_entries_limit: 33
+`)
+	})
 }
 
 func TestGroupParams(t *testing.T) {

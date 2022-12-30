@@ -453,11 +453,7 @@ Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
 * `time` - optional timestamp when to evaluate the `query`. If `time` is skipped, then the current timestamp is used.
-  The `time` param can be specified in the following formats:
-  * [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) such as `2022-08-10T12:45:43.000Z`.
-  * [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in seconds. It can contain a fractional part for millisecond precision.
-  * [Relative duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
-    compared to the current timestamp. For example, `-1h` means `one hour before the current time`.
+  The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
 * `step` - optional max lookback window for searching for raw samples when executing the `query`.
   If `step` is skipped, then it is set to `5m` (5 minutes) by default.
 
@@ -548,17 +544,14 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
 Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
 * `start` - the starting timestamp of the time range for `query` evaluation.
-  The `start` param can be specified in the following formats:
-  * [RFC3339](https://www.ietf.org/rfc/rfc3339.txt) such as `2022-08-10T12:45:43.000Z`.
-  * [Unix timestamp](https://en.wikipedia.org/wiki/Unix_time) in seconds. It can contain a fractional part for millisecond precision.
-  * [Relative duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
-    compared to the current timestamp. For example, `-1h` means `one hour before the current time`.
 * `end` - the ending timestamp of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
 * `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) between datapoints,
   which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
+
+The `start` and `end` params can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
 
 To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
 need to issue a range query:

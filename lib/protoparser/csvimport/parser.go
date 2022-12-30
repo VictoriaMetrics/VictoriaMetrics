@@ -68,7 +68,7 @@ type metric struct {
 	Value float64
 }
 
-// Unmarshal unmarshal csv lines from s according to the given cds.
+// Unmarshal unmarshals csv lines from s according to the given cds.
 func (rs *Rows) Unmarshal(s string, cds []ColumnDescriptor) {
 	rs.sc.Init(s)
 	rs.Rows, rs.tagsPool, rs.metricsPool = parseRows(&rs.sc, rs.Rows[:0], rs.tagsPool[:0], rs.metricsPool[:0], cds)
@@ -105,7 +105,7 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 				continue
 			}
 			metricName := cd.MetricName
-			if metricName == "" {
+			if metricName == "" || sc.Column == "" {
 				// The given field is ignored.
 				continue
 			}

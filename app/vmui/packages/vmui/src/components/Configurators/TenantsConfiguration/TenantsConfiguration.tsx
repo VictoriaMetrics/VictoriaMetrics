@@ -20,7 +20,7 @@ const TenantsConfiguration: FC = () => {
     const tenantId = Number(value);
     dispatch({ type: "SET_TENANT_ID", payload: tenantId });
     if (serverURL) {
-      const updateServerUrl = serverURL.replace(/(\/select\/)([\d]+)(\/prometheus)/gmi, `$1${tenantId}$3`);
+      const updateServerUrl = serverURL.replace(/(\/select\/)([\d]+)(\/prometheus)/, `$1${tenantId}$3`);
       dispatch({ type: "SET_SERVER", payload: updateServerUrl });
       timeDispatch({ type: "RUN_QUERY" });
     }

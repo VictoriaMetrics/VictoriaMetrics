@@ -116,9 +116,9 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		})
 	f("2:label:symbol,3:time:custom:2006-01-02 15:04:05.999Z,4:metric:bid,5:metric:ask",
 		`
-"aaa","AUDCAD","2015-08-10 00:00:01.000Z",0.9725,0.97273
-"aaa","AUDCAD","2015-08-10 00:00:02.000Z",0.97253,0.97276
-`, []Row{
+		"aaa","AUDCAD","2015-08-10 00:00:01.000Z",0.9725,0.97273
+		"aaa","AUDCAD","2015-08-10 00:00:02.000Z",0.97253,0.97276
+		`, []Row{
 			{
 				Metric: "bid",
 				Tags: []Tag{
@@ -178,4 +178,63 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			Value:  -45.6,
 		},
 	})
+	// skip metrics with empty values
+	f("1:metric:foo,2:metric:bar,3:metric:baz,4:metric:quux", `1,,,2`, []Row{
+		{
+			Metric: "foo",
+			Value:  1,
+		},
+		{
+			Metric: "quux",
+			Value:  2,
+		},
+	})
+	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3540
+	f("1:label:mytest,2:time:rfc3339,3:metric:M10,4:metric:M20,5:metric:M30,6:metric:M40,7:metric:M50,8:metric:M60",
+		`test,2022-12-25T16:57:12+01:00,10,20,30,,,60,70,80`, []Row{
+			{
+				Metric: "M10",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     10,
+			},
+			{
+				Metric: "M20",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     20,
+			},
+			{
+				Metric: "M30",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     30,
+			},
+			{
+				Metric: "M60",
+				Tags: []Tag{
+					{
+						Key:   "mytest",
+						Value: "test",
+					},
+				},
+				Timestamp: 1671983832000,
+				Value:     60,
+			},
+		})
 }

@@ -15,7 +15,7 @@ interface FetchQueryParams {
   predefinedQuery?: string[]
   visible: boolean
   display?: DisplayType,
-  customStep: number,
+  customStep: string,
   hideQuery?: number[]
   showAllSeries?: boolean
 }

@@ -709,7 +709,6 @@ func TestAlertingRule_Template(t *testing.T) {
 					"summary": `{{ $labels.alertname }}: Too high connection number for "{{ $labels.instance }}"`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
-				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1, "instance", "foo"),
@@ -749,7 +748,6 @@ func TestAlertingRule_Template(t *testing.T) {
 					"description": `{{ $labels.alertname}}: It is {{ $value }} connections for "{{ $labels.instance }}"`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
-				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 2, "__name__", "first", "instance", "foo", alertNameLabel, "override"),
@@ -789,7 +787,6 @@ func TestAlertingRule_Template(t *testing.T) {
 					"summary": `Alert "{{ $labels.alertname }}({{ $labels.alertgroup }})" for instance {{ $labels.instance }}`,
 				},
 				alerts: make(map[uint64]*notifier.Alert),
-				state:  newRuleState(),
 			},
 			[]datasource.Metric{
 				metricWithValueAndLabels(t, 1,
@@ -820,6 +817,7 @@ func TestAlertingRule_Template(t *testing.T) {
 			fq := &fakeQuerier{}
 			tc.rule.GroupID = fakeGroup.ID()
 			tc.rule.q = fq
+			tc.rule.state = newRuleState(10)
 			fq.add(tc.metrics...)
 			if _, err := tc.rule.Exec(context.TODO(), time.Now(), 0); err != nil {
 				t.Fatalf("unexpected err: %s", err)
@@ -936,6 +934,6 @@ func newTestAlertingRule(name string, waitFor time.Duration) *AlertingRule {
 		For:          waitFor,
 		EvalInterval: waitFor,
 		alerts:       make(map[uint64]*notifier.Alert),
-		state:        newRuleState(),
+		state:        newRuleState(10),
 	}
 }
