@@ -92,7 +92,6 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 	}
 
 	writeSuccessResponse(w, predefinedDashboards)
-	return
 }
 
 func writeErrorResponse(w http.ResponseWriter, err error) {
