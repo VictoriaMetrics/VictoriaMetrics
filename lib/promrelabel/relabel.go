@@ -158,7 +158,7 @@ func FinalizeLabels(dst, src []prompbmarshal.Label) []prompbmarshal.Label {
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#relabel_config
 func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset int) []prompbmarshal.Label {
 	src := labels[labelsOffset:]
-	if prc.If != nil && !prc.If.Match(labels) {
+	if !prc.If.Match(labels) {
 		if prc.Action == "keep" {
 			// Drop the target on `if` mismatch for `action: keep`
 			return labels[:labelsOffset]
