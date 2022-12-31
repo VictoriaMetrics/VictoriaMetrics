@@ -78,6 +78,9 @@ func (ie *IfExpression) MarshalYAML() (interface{}, error) {
 
 // Match returns true if ie matches the given labels.
 func (ie *IfExpression) Match(labels []prompbmarshal.Label) bool {
+	if ie == nil {
+		return true
+	}
 	for _, lf := range ie.lfs {
 		if !lf.match(labels) {
 			return false
