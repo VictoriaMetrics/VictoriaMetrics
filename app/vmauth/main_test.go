@@ -414,7 +414,6 @@ users:
 				clients := []*http.Client{&http.Client{}, &http.Client{}}
 				errs, _ := errgroup.WithContext(context.Background())
 
-				// var wg sync.WaitGroup
 				var counter uint32
 				for i, c := range clients {
 					client := c
