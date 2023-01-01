@@ -411,7 +411,7 @@ users:
 		},
 		client{
 			executor: func(host string, numberOfRequests, expectedBlockedRequests uint32) error {
-				clients := []*http.Client{&http.Client{}, &http.Client{}}
+				clients := []*http.Client{{}, {}}
 				errs, _ := errgroup.WithContext(context.Background())
 
 				var counter uint32
