@@ -1,14 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -17,7 +19,7 @@ const (
 	writePath      = "/api/v1/write"
 )
 
-type executor func(host string, numberOfRequests, expectedBlockedRequests uint32)
+type executor func(host string, numberOfRequests, expectedBlockedRequests uint32) error
 
 type client struct {
 	executor
@@ -66,7 +68,9 @@ func Test_requestHandler(t *testing.T) {
 		}))
 		defer vmauth.Close()
 
-		client.executor(vmauth.URL, client.numberOfConcurrentRequests, client.expectedBlockedRequests)
+		if err := client.executor(vmauth.URL, client.numberOfConcurrentRequests, client.expectedBlockedRequests); err != nil {
+			t.Fatalf("got error: %s", err)
+		}
 
 		for _, server := range servers {
 			server.Close()
@@ -85,22 +89,23 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, _, _ uint32) {
+			executor: func(host string, _, _ uint32) error {
 				client := http.Client{}
 				rawURL, err := url.JoinPath(host, importPath)
 				if err != nil {
-					t.Fatalf("cannot joing url path")
+					return fmt.Errorf("cannot joing url path")
 				}
 				request, _ := http.NewRequest(http.MethodPost, rawURL, nil)
 
 				resp, err := client.Do(request)
 				if err != nil {
-					t.Fatalf("unexpected error on client side: %s", err)
+					return fmt.Errorf("unexpected error on client side: %s", err)
 				}
 
 				if resp.StatusCode != http.StatusUnauthorized {
-					t.Fatalf("expected 401 status code got: %d", resp.StatusCode)
+					return fmt.Errorf("expected 401 status code got: %d", resp.StatusCode)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 0,
 			expectedBlockedRequests:    0,
@@ -117,7 +122,7 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, _, _ uint32) {
+			executor: func(host string, _, _ uint32) error {
 				client := http.Client{}
 				importURL, err := url.JoinPath(host, importPath)
 				if err != nil {
@@ -129,12 +134,13 @@ users:
 
 				resp, err := client.Do(request)
 				if err != nil {
-					t.Fatalf("unexpected error on client side: %s", err)
+					return fmt.Errorf("unexpected error on client side: %s", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
-					t.Fatalf("expected 200 status code got: %d", resp.StatusCode)
+					return fmt.Errorf("expected 200 status code got: %d", resp.StatusCode)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 0,
 			expectedBlockedRequests:    0,
@@ -154,7 +160,7 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, _, _ uint32) {
+			executor: func(host string, _, _ uint32) error {
 				client := http.Client{}
 				importURL, err := url.JoinPath(host, importPath)
 				if err != nil {
@@ -166,12 +172,13 @@ users:
 
 				resp, err := client.Do(request)
 				if err != nil {
-					t.Fatalf("unexpected error on client side: %s", err)
+					return fmt.Errorf("unexpected error on client side: %s", err)
 				}
 
 				if resp.StatusCode != http.StatusBadRequest {
 					t.Fatalf("expected 400 status code got: %d", resp.StatusCode)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 0,
 			expectedBlockedRequests:    0,
@@ -194,7 +201,7 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, _, _ uint32) {
+			executor: func(host string, _, _ uint32) error {
 				client := http.Client{}
 				importURL, err := url.JoinPath(host, importPath)
 				if err != nil {
@@ -206,12 +213,13 @@ users:
 
 				resp, err := client.Do(request)
 				if err != nil {
-					t.Fatalf("unexpected error on client side: %s", err)
+					return fmt.Errorf("unexpected error on client side: %s", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
-					t.Fatalf("expected 200 status code got: %d", resp.StatusCode)
+					return fmt.Errorf("expected 200 status code got: %d", resp.StatusCode)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 0,
 			expectedBlockedRequests:    0,
@@ -234,7 +242,7 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, _, _ uint32) {
+			executor: func(host string, _, _ uint32) error {
 				client := http.Client{}
 				importURL, err := url.JoinPath(host, importPath)
 				if err != nil {
@@ -246,12 +254,13 @@ users:
 
 				resp, err := client.Do(request)
 				if err != nil {
-					t.Fatalf("unexpected error on client side: %s", err)
+					return fmt.Errorf("unexpected error on client side: %s", err)
 				}
 
 				if resp.StatusCode != http.StatusOK {
-					t.Fatalf("expected 200 status code got: %d", resp.StatusCode)
+					return fmt.Errorf("expected 200 status code got: %d", resp.StatusCode)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 0,
 			expectedBlockedRequests:    0,
@@ -301,7 +310,7 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, _, _ uint32) {
+			executor: func(host string, _, _ uint32) error {
 				client := http.Client{}
 
 				paths := []string{
@@ -317,13 +326,14 @@ users:
 
 					resp, err := client.Do(request)
 					if err != nil {
-						t.Fatalf("unexpected error on client side: %s", err)
+						return fmt.Errorf("unexpected error on client side: %s", err)
 					}
 
 					if resp.StatusCode != http.StatusOK {
-						t.Fatalf("expected 200 status code got: %d", resp.StatusCode)
+						return fmt.Errorf("expected 200 status code got: %d", resp.StatusCode)
 					}
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 0,
 			expectedBlockedRequests:    0,
@@ -344,37 +354,39 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, numberOfRequests, expectedBlockedRequests uint32) {
+			executor: func(host string, numberOfRequests, expectedBlockedRequests uint32) error {
 				client := http.Client{}
+				errs, _ := errgroup.WithContext(context.Background())
 
-				var wg sync.WaitGroup
 				var counter uint32
 				for i := 0; i < int(numberOfRequests); i++ {
-					wg.Add(1)
-					go func() {
-						defer wg.Done()
+					errs.Go(func() error {
 						importURL, err := url.JoinPath(host, importPath)
 						if err != nil {
-							t.Fatalf("cannot joing url path")
+							return fmt.Errorf("cannot joing url path")
 						}
 						request, _ := http.NewRequest(http.MethodPost, importURL, nil)
 
 						request.Header.Set("Authorization", "Bearer YYY")
 						resp, err := client.Do(request)
 						if err != nil {
-							t.Fatalf("unexpected error on client side: %s", err)
+							return fmt.Errorf("unexpected error on client side: %s", err)
 						}
 						if resp.StatusCode == http.StatusTooManyRequests {
 							atomic.AddUint32(&counter, 1)
 						}
-					}()
+						return nil
+					})
 				}
-				wg.Wait()
+				if err := errs.Wait(); err != nil {
+					return err
+				}
 
 				got := atomic.LoadUint32(&counter)
 				if got != expectedBlockedRequests {
-					t.Fatalf("expected blocked requests %d; got: %d", expectedBlockedRequests, got)
+					return fmt.Errorf("expected blocked requests %d; got: %d", expectedBlockedRequests, got)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 10,
 			expectedBlockedRequests:    7,
@@ -398,19 +410,20 @@ users:
 			})),
 		},
 		client{
-			executor: func(host string, numberOfRequests, expectedBlockedRequests uint32) {
+			executor: func(host string, numberOfRequests, expectedBlockedRequests uint32) error {
 				clients := []*http.Client{&http.Client{}, &http.Client{}}
+				errs, _ := errgroup.WithContext(context.Background())
 
-				var wg sync.WaitGroup
+				// var wg sync.WaitGroup
 				var counter uint32
-				for i, client := range clients {
+				for i, c := range clients {
+					client := c
+					idx := i
 					for j := 0; j < int(numberOfRequests); j++ {
-						wg.Add(1)
-						go func(client *http.Client, idx int) {
-							defer wg.Done()
+						errs.Go(func() error {
 							importURL, err := url.JoinPath(host, importPath)
 							if err != nil {
-								t.Fatalf("cannot joing url path")
+								return fmt.Errorf("cannot joing url path")
 							}
 							request, _ := http.NewRequest(http.MethodPost, importURL, nil)
 							if idx == 0 {
@@ -421,20 +434,25 @@ users:
 
 							resp, err := client.Do(request)
 							if err != nil {
-								t.Fatalf("unexpected error on client side: %s", err)
+								return fmt.Errorf("unexpected error on client side: %s", err)
 							}
 							if resp.StatusCode == http.StatusTooManyRequests {
 								atomic.AddUint32(&counter, 1)
 							}
-						}(client, i)
+							return nil
+						})
 					}
 				}
 
-				wg.Wait()
+				if err := errs.Wait(); err != nil {
+					return err
+				}
+
 				got := atomic.LoadUint32(&counter)
 				if got != expectedBlockedRequests {
-					t.Fatalf("expected blocked requests %d; got: %d", expectedBlockedRequests, got)
+					return fmt.Errorf("expected blocked requests %d; got: %d", expectedBlockedRequests, got)
 				}
+				return nil
 			},
 			numberOfConcurrentRequests: 10,
 			expectedBlockedRequests:    15,
