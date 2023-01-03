@@ -145,8 +145,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if path == "/internal/resetRollupResultCache" {
-		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
-			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey, "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -412,12 +411,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/tags/delSeries":
-		graphiteTagsDelSeriesRequests.Inc()
-		authKey := r.FormValue("authKey")
-		if authKey != *deleteAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey, "deleteAuthKey") {
 			return true
 		}
+		graphiteTagsDelSeriesRequests.Inc()
 		if err := graphite.TagsDelSeriesHandler(startTime, w, r); err != nil {
 			graphiteTagsDelSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -474,12 +471,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
-		deleteRequests.Inc()
-		authKey := r.FormValue("authKey")
-		if authKey != *deleteAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey, "deleteAuthKey") {
 			return true
 		}
+		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, r); err != nil {
 			deleteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)

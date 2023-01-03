@@ -20,11 +20,12 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling): add support for `keepequal` and `dropequal` relabeling actions, which are supported by Prometheus starting from [v2.41.0](https://github.com/prometheus/prometheus/releases/tag/v2.41.0). These relabeling actions are almost identical to `keep_if_equal` and `drop_if_equal` relabeling actions supported by VictoriaMetrics since `v1.38.0` - see [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling-enhancements) - so it is recommended sticking to `keep_if_equal` and `drop_if_equal` actions instead of switching to `keepequal` and `dropequal`.
 * FEATURE: [csvimport](https://docs.victoriametrics.com/#how-to-import-csv-data): support empty values for imported metrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3540).
 * FEATURE: [vmalert](httpпоs://docs.victoriametrics.com/vmalert.html): allow configuring the default number of stored rule's update states in memory via global `-rule.updateEntriesLimit` command-line flag or per-rule via rule's `update_entries_limit` configuration param. See [these docs](https://docs.victoriametrics.com/vmalert.html#rules) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3556).
+* FEATURE: use `-httpAuth.*` flags as a rollback for `-*AuthKey` flags when `-httpAuth.*` flags are set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3060).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update the `step` value in url after the `step` input field has been manually changed. This allows preserving the proper `step` when copy-n-pasting the url to another instance of web browser. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3513).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update tooltip when quickly hovering multiple lines on the graph. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3530).
 * BUGFIX: properly parse floating-point numbers without integer or fractional parts such as `.123` and `20.` during [data import](https://docs.victoriametrics.com/#how-to-import-time-series-data). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3544).
-
+* BUGFIX: fix `opentsdb` HTTP endpoint not respecting `-httpAuth.*` flags. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3060)
 
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
 

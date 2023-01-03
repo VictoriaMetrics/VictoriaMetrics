@@ -349,12 +349,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/prometheus/config", "/config":
-		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
-			err := &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey, "configAuthKey") {
 			return true
 		}
 		promscrapeConfigRequests.Inc()
@@ -363,12 +358,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/prometheus/api/v1/status/config", "/api/v1/status/config":
 		// See https://prometheus.io/docs/prometheus/latest/querying/api/#config
-		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
-			err := &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
+		if !httpserver.CheckAuthFlag(w, r, configAuthKey, "configAuthKey") {
 			return true
 		}
 		promscrapeStatusConfigRequests.Inc()

@@ -292,8 +292,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		return
 	case "/metrics":
 		metricsRequests.Inc()
-		if len(*metricsAuthKey) > 0 && r.FormValue("authKey") != *metricsAuthKey {
-			http.Error(w, "The provided authKey doesn't match -metricsAuthKey", http.StatusUnauthorized)
+		if !CheckAuthFlag(w, r, metricsAuthKey, "metricsAuthKey") {
 			return
 		}
 		startTime := time.Now()
@@ -302,8 +301,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
-		if len(*flagsAuthKey) > 0 && r.FormValue("authKey") != *flagsAuthKey {
-			http.Error(w, "The provided authKey doesn't match -flagsAuthKey", http.StatusUnauthorized)
+		if !CheckAuthFlag(w, r, flagsAuthKey, "flagsAuthKey") {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -322,8 +320,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
-			if len(*pprofAuthKey) > 0 && r.FormValue("authKey") != *pprofAuthKey {
-				http.Error(w, "The provided authKey doesn't match -pprofAuthKey", http.StatusUnauthorized)
+			if !CheckAuthFlag(w, r, pprofAuthKey, "pprofAuthKey") {
 				return
 			}
 			DisableResponseCompression(w)
@@ -331,7 +328,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			return
 		}
 
-		if !checkBasicAuth(w, r) {
+		if !CheckBasicAuth(w, r) {
 			return
 		}
 		if rh(w, r) {
@@ -344,7 +341,24 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	}
 }
 
-func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
+// CheckAuthFlag checks whether the given authKey is set and valid
+// rollbacks to checkBasicAuth authKey is not set
+func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue *string, flagName string) bool {
+	if len(*flagValue) == 0 {
+		return CheckBasicAuth(w, r)
+	}
+
+	if len(*flagValue) > 0 && r.FormValue("authKey") != *flagValue {
+		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
+		return false
+	}
+
+	return true
+}
+
+// CheckBasicAuth validates credentials provided in request if httpAuth.* flags are set
+// returns true if credentials are valid or httpAuth.* flags are not set
+func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	if len(*httpAuthUsername) == 0 {
 		// HTTP Basic Auth is disabled.
 		return true
