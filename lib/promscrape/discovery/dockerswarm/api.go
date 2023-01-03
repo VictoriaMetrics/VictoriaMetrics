@@ -63,20 +63,16 @@ func (cfg *apiConfig) getAPIResponse(path string) ([]byte, error) {
 	return cfg.client.GetAPIResponse(path)
 }
 
+// Encodes filters as `map[string][]string` and then marshals it to JSON.
+// Reference: https://docs.docker.com/engine/api/v1.41/#tag/Task
 func getFiltersQueryArg(filters []Filter) string {
 	if len(filters) == 0 {
 		return ""
 	}
-	m := make(map[string]map[string]bool)
+
+	m := make(map[string][]string)
 	for _, f := range filters {
-		x := m[f.Name]
-		if x == nil {
-			x = make(map[string]bool)
-			m[f.Name] = x
-		}
-		for _, value := range f.Values {
-			x[value] = true
-		}
+		m[f.Name] = f.Values
 	}
 	buf, err := json.Marshal(m)
 	if err != nil {
