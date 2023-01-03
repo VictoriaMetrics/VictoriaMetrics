@@ -316,7 +316,8 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	// Protect from concurrent opens.
 	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create lock file in %q; "+
+			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
 	}
 
 	// Open table parts.
