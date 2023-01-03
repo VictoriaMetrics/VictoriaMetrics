@@ -123,9 +123,9 @@ groups:
 
       - alert: ConfigurationReloadFailure
         expr: |
-          vm_promscrape_config_last_reload_successful != 1
+          vm_promscrape_config_last_reload_successful{container="vmagent"} != 1
           or
-          vmagent_relabel_config_last_reload_successful != 1
+          vmagent_relabel_config_last_reload_successful{container="vmagent"} != 1
         labels:
           severity: warning
         annotations:
