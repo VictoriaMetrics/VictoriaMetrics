@@ -1,0 +1,87 @@
+name: Bug report
+description: Create a report to help us improve
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filling a bug report it would be great to [upgrade](https://docs.victoriametrics.com/#how-to-upgrade) 
+        to [the latest available release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)
+        and verify whether the bug is reproducible there.
+        It's also recommended to read the [troubleshooting docs](https://docs.victoriametrics.com/Troubleshooting.html).
+  - type: textarea
+    id: describe-the-bug
+    attributes:
+      label: Describe the bug
+      render: plain text
+      description: |
+        A clear and concise description of what the bug is.
+      placeholder: |
+        When I do `A` VictoriaMetrics does `B`. I expect it to do `C`.
+    validations:
+      required: true
+  - type: textarea
+    id: to-reproduce
+    attributes:
+      label: To Reproduce
+      description: |
+        Steps to reproduce the behavior.
+        If reproducing an issue requires some specific configuration file, please paste it here.
+      placeholder: |
+        Steps to reproduce the behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: |
+        The line returned when passing `--version` command line flag to the binary. For example:
+        ```
+        $ ./victoria-metrics-prod --version
+        victoria-metrics-20190730-121249-heads-single-node-0-g671d9e55
+        ```
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Check if any warnings or errors were logged by VictoriaMetrics components
+        or components in communication with VictoriaMetrics (e.g. Prometheus, Grafana).
+    validations:
+      required: false
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: |
+        If applicable, add screenshots to help explain your problem.
+  
+        For VictoriaMetrics health-state issues please provide full-length screenshots
+        of Grafana dashboards if possible:
+          * [Grafana dashboard for single-node VictoriaMetrics](https://grafana.com/grafana/dashboards/10229-victoriametrics/)
+          * [Grafana dashboard for VictoriaMetrics cluster](https://grafana.com/grafana/dashboards/11176-victoriametrics-cluster/)
+        
+        See how to setup monitoring here:
+          * [monitoring for single-node VictoriaMetrics](https://docs.victoriametrics.com/#monitoring)
+          * [monitoring for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
+    validations:
+      required: false
+  - type: textarea
+    id: flags
+    attributes:
+      label: Used command-line flags
+      description: |
+        Please provide the command-line flags used for running VictoriaMetrics and its components.
+    validations:
+      required: false
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Additional information
+      placeholder: |
+        Additional information that doesn't fit elsewhere
+    validations:
+      required: false
