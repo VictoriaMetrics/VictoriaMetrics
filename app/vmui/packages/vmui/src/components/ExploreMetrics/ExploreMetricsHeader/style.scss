@@ -1,0 +1,43 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-metrics-header {
+
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: $padding-small $padding-medium;
+
+  &__job {
+    min-width: 200px;
+    max-width: 300px;
+    width: 100%;
+  }
+
+  &__instance {
+    min-width: 200px;
+    max-width: 500px;
+    width: 100%;
+  }
+
+  &__step {
+  }
+
+  &-metrics {
+    flex-grow: 1;
+    width: 100%;
+  }
+
+  &__clear-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    cursor: pointer;
+
+    &:hover {
+      opacity: 0.7
+    }
+  }
+
+}

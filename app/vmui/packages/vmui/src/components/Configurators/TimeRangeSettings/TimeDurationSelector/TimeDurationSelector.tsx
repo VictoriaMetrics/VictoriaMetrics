@@ -19,8 +19,8 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDurat
       {relativeTimeOptions.map(({ id, duration, until, title }) => (
         <div
           className={classNames({
-            "vm-list__item": true,
-            "vm-list__item_active": id === relativeTime
+            "vm-list-item": true,
+            "vm-list-item_active": id === relativeTime
           })}
           key={id}
           onClick={createHandlerClick({ duration, until: until(), id })}

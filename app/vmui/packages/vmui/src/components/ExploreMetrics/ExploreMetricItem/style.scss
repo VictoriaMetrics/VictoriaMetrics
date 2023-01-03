@@ -1,12 +1,11 @@
 @use "src/styles/variables" as *;
 
 .vm-explore-metrics-item {
-  border-bottom: $border-divider;
 
   &-header {
     display: grid;
     grid-template-columns: 1fr auto;
-    padding: $padding-global calc(28px + $padding-global) $padding-global $padding-global;
+    padding: $padding-global;
 
     &__rate {
       display: flex;
@@ -20,17 +19,6 @@
         background-color: rgba($color-black, 0.05);
         border-radius: 6px;
       }
-    }
-  }
-
-  &-graph {
-    padding: 0 $padding-global $padding-global;
-
-    &__warning {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: center;
-      justify-content: space-between;
     }
   }
 }

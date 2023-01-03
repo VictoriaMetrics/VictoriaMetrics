@@ -22,7 +22,6 @@ const Popper: FC<PopperProps> = ({
   placement = "bottom-left",
   open = false,
   onClose,
-  animation,
   offset = { top: 6, left: 0 },
   clickOutside = true,
   fullWidth
@@ -109,7 +108,6 @@ const Popper: FC<PopperProps> = ({
   const popperClasses = classNames({
     "vm-popper": true,
     "vm-popper_open": isOpen,
-    [`vm-popper_open_${animation}`]: animation,
   });
 
   return (

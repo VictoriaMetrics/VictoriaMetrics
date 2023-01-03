@@ -5,67 +5,11 @@
   align-items: flex-start;
   gap: $padding-medium;
 
-  &-header {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: flex-start;
-    gap: $padding-small $padding-medium;
-
-    &__job {
-      min-width: 200px;
-      max-width: 300px;
-      width: 100%;
-    }
-
-    &__instance {
-      min-width: 200px;
-      max-width: 500px;
-      width: 100%;
-    }
-
-    &__step {
-    }
-
-    &__switch-graphs {
-    }
-
-    &__search {
-      flex-grow: 1;
-      width: 100%;
-    }
-
-    //&-top {
-    //  display: grid;
-    //  grid-template-columns: minmax(200px, 300px) minmax(200px, 500px) auto;
-    //  align-items: center;
-    //  gap: $padding-medium;
-    //
-    //  &__switch-graphs {
-    //    display: flex;
-    //    align-items: center;
-    //    justify-content: flex-end;
-    //    gap: $padding-medium;
-    //  }
-    //}
-
-    &__clear-icon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 2px;
-      cursor: pointer;
-
-      &:hover {
-        opacity: 0.7
-      }
-    }
-  }
+  &-header {}
 
   &-body {
     display: grid;
     align-items: flex-start;
-    border-radius: $border-radius-small;
-    box-shadow: $box-shadow;
+    gap: $padding-medium;
   }
 }

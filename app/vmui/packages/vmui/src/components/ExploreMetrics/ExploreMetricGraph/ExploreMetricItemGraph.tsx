@@ -1,12 +1,12 @@
 import React, { FC, useMemo, useState } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
-import GraphView from "../../../components/Views/GraphView/GraphView";
+import GraphView from "../../Views/GraphView/GraphView";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import { AxisRange } from "../../../state/graph/reducer";
-import Spinner from "../../../components/Main/Spinner/Spinner";
-import Alert from "../../../components/Main/Alert/Alert";
-import Button from "../../../components/Main/Button/Button";
+import Spinner from "../../Main/Spinner/Spinner";
+import Alert from "../../Main/Alert/Alert";
+import Button from "../../Main/Button/Button";
 import "./style.scss";
 
 interface ExploreMetricItemGraphProps {
@@ -90,11 +90,11 @@ with (q = ${queryBase}) (
   };
 
   return (
-    <div className="vm-explore-metrics-item-graph">
+    <div className="vm-explore-metrics-graph">
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">
-        <div className="vm-explore-metrics-item-graph__warning">
+        <div className="vm-explore-metrics-graph__warning">
           <p>{warning}</p>
           <Button
             color="warning"
