@@ -67,7 +67,7 @@ credentials.json
   "project_id": "<project>",
   "private_key_id": "",
   "private_key": "-----BEGIN PRIVATE KEY-----\-----END PRIVATE KEY-----\n",
-  "client_email": “test@<project>.iam.gserviceaccount.com",
+  "client_email": "test@<project>.iam.gserviceaccount.com",
   "client_id": "",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
