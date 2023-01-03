@@ -690,8 +690,14 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		return err
 	}
 	if childQuery, windowExpr, offsetExpr := promql.IsMetricSelectorWithRollup(query); childQuery != "" {
-		window := windowExpr.Duration(step)
-		offset := offsetExpr.Duration(step)
+		window, err := windowExpr.Duration(step)
+		if err != nil {
+			return err
+		}
+		offset, err := offsetExpr.Duration(step)
+		if err != nil {
+			return err
+		}
 		start -= offset
 		end := start
 		start = end - window
@@ -719,12 +725,21 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		return nil
 	}
 	if childQuery, windowExpr, stepExpr, offsetExpr := promql.IsRollup(query); childQuery != "" {
-		newStep := stepExpr.Duration(step)
+		newStep, err := stepExpr.Duration(step)
+		if err != nil {
+			return err
+		}
 		if newStep > 0 {
 			step = newStep
 		}
-		window := windowExpr.Duration(step)
-		offset := offsetExpr.Duration(step)
+		window, err := windowExpr.Duration(step)
+		if err != nil {
+			return err
+		}
+		offset, err := offsetExpr.Duration(step)
+		if err != nil {
+			return err
+		}
 		start -= offset
 		end := start
 		start = end - window
