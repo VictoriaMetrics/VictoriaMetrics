@@ -113,3 +113,19 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 5. Commit changes
 6. Create a new tag
 7. Create a new release. This automatically publishes the new versions to galaxy.ansible.com 
+
+## RPM packages
+
+### Bump the version of components
+
+1. Update `vmagent` version in [`vmagent.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmagent.spec#L2)
+2. Update `vmalert` version in [`vmalert.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmalert.spec#L2)
+3. Update `vmauth` version in [`vmauth.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmauth.spec#L2)
+4. Update `vmbackup` version in [`vmbackup.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmbackup.spec#L2)
+5. Update `vmctl` version in [`vmctl.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmctl.spec#L2)
+6. Update `vmrestore` version in [`vmrestore.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmrestore.spec#L2)
+7. Update `vminsert` version in [`vminsert.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vminsert.spec#L2)
+8. Update `vmselect` version in [`vmselect.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmselect.spec#L2)
+9. Update `vmstorage` version in [`vmstorage.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmstorage.spec#L2)
+10. Update `vmsingle` version in [`vmsingle.spec`](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm/blob/master/vmsingle.spec#L2)
+11. Commit and push changes to the repository. This will automatically build and publish new versions of RPM packages.
