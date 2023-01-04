@@ -28,8 +28,8 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
   see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
-* Can replicate collected metrics simultaneously to multiple remote storage systems -
-  see [these docs](#replication-and-high-availability).
+* Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation.html).
+* Can replicate collected metrics simultaneously to multiple remote storage systems - see [these docs](#replication-and-high-availability).
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
@@ -129,6 +129,12 @@ See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/Victor
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage
 then `vmagent` can replace Prometheus. Typically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
+
+### Statsd alternative
+
+`vmagent` can be used as an alternative to [statsd](https://github.com/statsd/statsd)
+when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) is enabled.
+See [these docs](https://docs.victoriametrics.com/stream-aggregation.html#statsd-alternative) for details.
 
 ### Flexible metrics relay
 

@@ -82,6 +82,7 @@ VictoriaMetrics has the following prominent features:
   * [Arbitrary CSV data](#how-to-import-csv-data).
   * [Native binary format](#how-to-import-data-in-native-format).
   * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
+* It supports powerful [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and
   [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate) issues via [series limiter](#cardinality-limiter).

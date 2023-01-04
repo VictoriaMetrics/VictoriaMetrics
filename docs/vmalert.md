@@ -73,16 +73,17 @@ Then configure `vmalert` accordingly:
     -external.label=replica=a                # Multiple external labels may be set
 ```
 
-Note there's a separate `remoteWrite.url` to allow writing results of
+Note there's a separate `-remoteWrite.url` command-line flag to allow writing results of
 alerting/recording rules into a different storage than the initial data that's
 queried. This allows using `vmalert` to aggregate data from a short-term,
 high-frequency, high-cardinality storage into a long-term storage with
 decreased cardinality and a bigger interval between samples.
+See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html).
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts.
+to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
 
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very
@@ -518,8 +519,8 @@ groups:
       expr: avg_over_time(http_requests[5m])
 ```
 
-Ability of `vmalert` to be configured with different `datasource.url` and `remoteWrite.url` allows
-reading data from one data source and backfilling results to another. This helps to build a system
+Ability of `vmalert` to be configured with different `-datasource.url` and `-remoteWrite.url` command-line flags
+allows reading data from one data source and backfilling results to another. This helps to build a system
 for aggregating and downsampling the data.
 
 The following example shows how to build a topology where `vmalert` will process data from one cluster
@@ -543,7 +544,7 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
-See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
+See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) and [downsampling](https://docs.victoriametrics.com/#downsampling).
 
 #### Multiple remote writes
 
