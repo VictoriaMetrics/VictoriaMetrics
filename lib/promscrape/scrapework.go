@@ -848,7 +848,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		bb := bbPool.Get()
 		bb.B = append(bb.B, "exported_"...)
 		bb.B = append(bb.B, metric...)
-		metric = bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		metric = bytesutil.InternBytes(bb.B)
 		bbPool.Put(bb)
 	}
 	labelsLen := len(wc.labels)
