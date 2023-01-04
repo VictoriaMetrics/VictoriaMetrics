@@ -15,9 +15,9 @@ import (
 
 var (
 	streamAggrConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html ."+
+		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
 		"See also -remoteWrite.streamAggr.keepInput")
-	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep input samples after the aggregation with -streamAggr.config ."+
+	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep input samples after the aggregation with -streamAggr.config. "+
 		"By default the input is dropped after the aggregation, so only the aggregate data is stored. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
 )
