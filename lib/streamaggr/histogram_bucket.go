@@ -12,8 +12,7 @@ import (
 type histogramBucketAggrState struct {
 	m sync.Map
 
-	ignoreInputDeadline uint64
-	intervalSecs        uint64
+	intervalSecs uint64
 }
 
 type histogramBucketStateValue struct {
