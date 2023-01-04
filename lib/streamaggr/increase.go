@@ -19,7 +19,6 @@ type increaseStateValue struct {
 	mu             sync.Mutex
 	lastValues     map[string]*lastValueState
 	total          float64
-	increase       float64
 	deleteDeadline uint64
 	deleted        bool
 }
