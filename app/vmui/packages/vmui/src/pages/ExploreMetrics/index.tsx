@@ -36,6 +36,18 @@ const ExploreMetrics: FC = () => {
     }
   };
 
+  const handleChangeOrder = (name: string, oldIndex: number, newIndex: number) => {
+    const maxIndex = newIndex > (metrics.length - 1);
+    const minIndex = newIndex < 0;
+    if (minIndex || maxIndex) return;
+    setMetrics(prev => {
+      const updatedList = [...prev];
+      const [reorderedItem] = updatedList.splice(oldIndex, 1);
+      updatedList.splice(newIndex, 0, reorderedItem);
+      return updatedList;
+    });
+  };
+
   useEffect(() => {
     setInstance("");
   }, [job]);
@@ -57,13 +69,17 @@ const ExploreMetrics: FC = () => {
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       {!job && <Alert variant="info">Please select job to see list of metric names.</Alert>}
+      {job && !metrics.length && <Alert variant="info">Please select metric names to see the graphs.</Alert>}
       <div className="vm-explore-metrics-body">
-        {metrics.map((n) => (
+        {metrics.map((n, i) => (
           <ExploreMetricItem
             key={n}
             name={n}
             job={job}
             instance={instance}
+            index={i}
+            onRemoveItem={handleToggleMetric}
+            onChangeOrder={handleChangeOrder}
           />
         ))}
       </div>

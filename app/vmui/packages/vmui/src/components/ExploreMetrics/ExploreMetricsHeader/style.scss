@@ -1,12 +1,11 @@
 @use "src/styles/variables" as *;
 
 .vm-explore-metrics-header {
-
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: $padding-small $padding-medium;
+  gap: $padding-small calc($padding-small + 10px);
 
   &__job {
     min-width: 200px;

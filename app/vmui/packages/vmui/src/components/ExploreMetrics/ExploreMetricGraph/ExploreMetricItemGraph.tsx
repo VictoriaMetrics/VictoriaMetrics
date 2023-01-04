@@ -15,6 +15,8 @@ interface ExploreMetricItemGraphProps {
   instance: string,
   rateEnabled: boolean,
   isBucket: boolean,
+  showLegend: boolean
+  height?: number
 }
 
 const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
@@ -22,7 +24,9 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   job,
   instance,
   rateEnabled,
-  isBucket
+  isBucket,
+  showLegend,
+  height
 }) => {
   const { customStep, yaxis } = useGraphState();
   const { period } = useTimeState();
@@ -114,6 +118,8 @@ with (q = ${queryBase}) (
           yaxis={yaxis}
           setYaxisLimits={setYaxisLimits}
           setPeriod={setPeriod}
+          showLegend={showLegend}
+          height={height}
         />
       )}
     </div>

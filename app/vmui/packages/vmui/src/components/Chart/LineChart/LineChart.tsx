@@ -30,7 +30,8 @@ export interface LineChartProps {
   series: uPlotSeries[];
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null
+  container: HTMLDivElement | null;
+  height?: number;
 }
 
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
@@ -43,7 +44,8 @@ const LineChart: FC<LineChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container
+  container,
+  height
 }) => {
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
@@ -172,6 +174,7 @@ const LineChart: FC<LineChartProps> = ({
     axes: getAxes( [{}, { scale: "1" }], unit),
     scales: { ...getScales() },
     width: layoutSize.width || 400,
+    height: height || 500,
     plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus } }],
     hooks: {
       setSelect: [
@@ -213,7 +216,7 @@ const LineChart: FC<LineChartProps> = ({
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
     return u.destroy;
-  }, [uPlotRef.current, series, layoutSize]);
+  }, [uPlotRef.current, series, layoutSize, height]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
