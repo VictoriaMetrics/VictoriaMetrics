@@ -300,6 +300,10 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 }
 
 func labelsHash(labels *promutils.Labels) uint64 {
+	if labels == nil {
+		return 0
+	}
+
 	d := xxhashPool.Get().(*xxhash.Digest)
 	for _, label := range labels.Labels {
 		_, _ = d.WriteString(label.Name)
