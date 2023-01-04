@@ -13,7 +13,6 @@ body:
     id: describe-the-bug
     attributes:
       label: Describe the bug
-      render: plain text
       description: |
         A clear and concise description of what the bug is.
       placeholder: |
