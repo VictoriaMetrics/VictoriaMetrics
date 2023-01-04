@@ -1,25 +1,25 @@
 {% import (
-        "github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+        "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 ) %}
 
 {% stripspace %}
 
-{% func MetricRelabelDebugSteps(dss []promrelabel.DebugStep, metric, relabelConfigs string, err error) %}
+{% func MetricRelabelDebugSteps(dss []DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    {%= commonHeader() %}
+    {%= htmlcomponents.CommonHeader() %}
     <title>Metric relabel debug</title>
 </head>
 <body>
-    {%= navbar() %}
+    {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
         <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
         <a href="target-relabel-debug">Target relabel debug</a>
         <br>
         {% if err != nil %}
-            {%= errorNotification(err) %}
+            {%= htmlcomponents.ErrorNotification(err) %}
         {% endif %}
 
         <div class="m-3">
@@ -40,21 +40,21 @@
 </html>
 {% endfunc %}
 
-{% func TargetRelabelDebugSteps(targetID string, dss []promrelabel.DebugStep, metric, relabelConfigs string, err error) %}
+{% func TargetRelabelDebugSteps(targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    {%= commonHeader() %}
+    {%= htmlcomponents.CommonHeader() %}
     <title>Target relabel debug</title>
 </head>
 <body>
-    {%= navbar() %}
+    {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
         <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
         <a href="metric-relabel-debug">Metric relabel debug</a>
         <br/>
         {% if err != nil %}
-            {%= errorNotification(err) %}
+            {%= htmlcomponents.ErrorNotification(err) %}
         {% endif %}
 
         <div class="m-3">
@@ -92,7 +92,7 @@
     </div>
 {% endfunc %}
 
-{% func relabelDebugSteps(dss []promrelabel.DebugStep) %}
+{% func relabelDebugSteps(dss []DebugStep) %}
 {% if len(dss) > 0 %}
 <div class="m-3">
         <b>Original labels:</b> <samp>{%= mustFormatLabels(dss[0].In) %}</samp>
@@ -171,7 +171,7 @@
 {% endfunc %}
 
 {% func mustFormatLabels(s string) %}
-        {% code        labels := promutils.MustNewLabelsFromString(s) %}
+        {% code labels := promutils.MustNewLabelsFromString(s) %}
         {%= labelsWithHighlight(labels, nil, "") %}
 {% endfunc %}
 
