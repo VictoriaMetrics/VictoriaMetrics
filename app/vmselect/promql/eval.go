@@ -291,10 +291,7 @@ func evalExprInternal(qt *querytracer.Tracer, ec *EvalConfig, e metricsql.Expr) 
 		return rv, nil
 	}
 	if de, ok := e.(*metricsql.DurationExpr); ok {
-		d, err := de.Duration(ec.Step)
-		if err != nil {
-			return nil, err
-		}
+		d := de.Duration(ec.Step)
 		dSec := float64(d) / 1000
 		rv := evalNumber(ec, dSec)
 		return rv, nil
@@ -775,9 +772,8 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	funcName = strings.ToLower(funcName)
 	ecNew := ec
 	var offset int64
-	var err error
 	if re.Offset != nil {
-		offset, err = re.Offset.Duration(ec.Step)
+		offset = re.Offset.Duration(ec.Step)
 		ecNew = copyEvalConfig(ecNew)
 		ecNew.Start -= offset
 		ecNew.End -= offset
@@ -797,6 +793,7 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 		offset -= step
 	}
 	var rvs []*timeseries
+	var err error
 	if me, ok := re.Expr.(*metricsql.MetricExpr); ok {
 		rvs, err = evalRollupFuncWithMetricExpr(qt, ecNew, funcName, rf, expr, me, iafc, re.Window)
 	} else {
@@ -852,17 +849,11 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	// TODO: determine whether to use rollupResultCacheV here.
 	qt = qt.NewChild("subquery")
 	defer qt.Done()
-	step, err := re.Step.Duration(ec.Step)
-	if err != nil {
-		return nil, err
-	}
+	step := re.Step.Duration(ec.Step)
 	if step == 0 {
 		step = ec.Step
 	}
-	window, err := re.Window.Duration(ec.Step)
-	if err != nil {
-		return nil, err
-	}
+	window := re.Window.Duration(ec.Step)
 
 	ecSQ := copyEvalConfig(ec)
 	ecSQ.Start -= window + maxSilenceInterval + step
@@ -993,10 +984,7 @@ var (
 func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcName string, rf rollupFunc,
 	expr metricsql.Expr, me *metricsql.MetricExpr, iafc *incrementalAggrFuncContext, windowExpr *metricsql.DurationExpr) ([]*timeseries, error) {
 	var rollupMemorySize int64
-	window, err := windowExpr.Duration(ec.Step)
-	if err != nil {
-		return nil, err
-	}
+	window := windowExpr.Duration(ec.Step)
 	if qt.Enabled() {
 		qt = qt.NewChild("rollup %s(): timeRange=%s, step=%d, window=%d", funcName, ec.timeRangeString(), ec.Step, window)
 		defer func() {

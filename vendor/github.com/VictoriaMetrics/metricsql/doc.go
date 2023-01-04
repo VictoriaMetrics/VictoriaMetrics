@@ -5,11 +5,10 @@
 //
 // Usage:
 //
-//    expr, err := metricsql.Parse(`sum(rate(foo{bar="baz"}[5m])) by (job)`)
-//    if err != nil {
-//        // parse error
-//    }
-//    // Now expr contains parsed MetricsQL as `*Expr` structs.
-//    // See Parse examples for more details.
-//
+//	expr, err := metricsql.Parse(`sum(rate(foo{bar="baz"}[5m])) by (job)`)
+//	if err != nil {
+//	    // parse error
+//	}
+//	// Now expr contains parsed MetricsQL as `*Expr` structs.
+//	// See Parse examples for more details.
 package metricsql

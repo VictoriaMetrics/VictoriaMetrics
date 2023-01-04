@@ -8416,6 +8416,11 @@ func TestExecError(t *testing.T) {
 	f(`ru()`)
 	f(`ru(1)`)
 	f(`ru(1,3,3)`)
+	f(`time() offset 3M`)
+	f(`time()[5m:3Ms]`)
+	f(`time()[5D]`)
+	f(`time()[1Y]`)
+	f(`time()[1M]`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
