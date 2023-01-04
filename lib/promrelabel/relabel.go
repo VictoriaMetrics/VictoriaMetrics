@@ -181,7 +181,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		bb := relabelBufPool.Get()
 		for _, gl := range prc.graphiteLabelRules {
 			bb.B = gl.grt.Expand(bb.B[:0], gm.a)
-			valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+			valueStr := bytesutil.InternBytes(bb.B)
 			labels = setLabelValue(labels, labelsOffset, gl.targetLabel, valueStr)
 		}
 		relabelBufPool.Put(bb)
@@ -194,7 +194,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		if prc.hasLabelReferenceInReplacement {
 			// Fill {{labelName}} references in the replacement
 			bb.B = fillLabelReferences(bb.B[:0], replacement, labels[labelsOffset:])
-			replacement = bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+			replacement = bytesutil.InternBytes(bb.B)
 		}
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
 		if prc.RegexAnchored == defaultRegexForRelabelConfig && !prc.hasCaptureGroupInTargetLabel {
@@ -202,7 +202,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 				// Fast path for the rule that copies source label values to destination:
 				// - source_labels: [...]
 				//   target_label: foobar
-				valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+				valueStr := bytesutil.InternBytes(bb.B)
 				relabelBufPool.Put(bb)
 				return setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
 			}
@@ -245,7 +245,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 		// and store the result at `target_label`
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		sourceStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		sourceStr := bytesutil.InternBytes(bb.B)
 		relabelBufPool.Put(bb)
 		valueStr := prc.replaceStringSubmatchesFast(sourceStr)
 		if valueStr != sourceStr {
@@ -381,7 +381,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	case "uppercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		valueStr := bytesutil.InternBytes(bb.B)
 		relabelBufPool.Put(bb)
 		valueStr = strings.ToUpper(valueStr)
 		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
@@ -389,7 +389,7 @@ func (prc *parsedRelabelConfig) apply(labels []prompbmarshal.Label, labelsOffset
 	case "lowercase":
 		bb := relabelBufPool.Get()
 		bb.B = concatLabelValues(bb.B[:0], src, prc.SourceLabels, prc.Separator)
-		valueStr := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		valueStr := bytesutil.InternBytes(bb.B)
 		relabelBufPool.Put(bb)
 		valueStr = strings.ToLower(valueStr)
 		labels = setLabelValue(labels, labelsOffset, prc.TargetLabel, valueStr)
@@ -478,7 +478,7 @@ func (prc *parsedRelabelConfig) replaceStringSubmatchesSlow(s string) string {
 func (prc *parsedRelabelConfig) expandCaptureGroups(template, source string, match []int) string {
 	bb := relabelBufPool.Get()
 	bb.B = prc.RegexAnchored.ExpandString(bb.B[:0], template, source, match)
-	s := bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+	s := bytesutil.InternBytes(bb.B)
 	relabelBufPool.Put(bb)
 	return s
 }

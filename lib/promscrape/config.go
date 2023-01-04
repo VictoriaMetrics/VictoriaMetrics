@@ -1338,8 +1338,7 @@ func getScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr stri
 	b = append(b, metricsPath...)
 	b = append(b, optionalQuestion...)
 	b = append(b, paramsStr...)
-	s := bytesutil.ToUnsafeString(b)
-	s = bytesutil.InternString(s)
+	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
 	return s

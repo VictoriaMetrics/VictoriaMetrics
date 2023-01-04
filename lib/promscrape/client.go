@@ -72,8 +72,7 @@ func concatTwoStrings(x, y string) string {
 	b := bb.B[:0]
 	b = append(b, x...)
 	b = append(b, y...)
-	s := bytesutil.ToUnsafeString(b)
-	s = bytesutil.InternString(s)
+	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
 	return s
