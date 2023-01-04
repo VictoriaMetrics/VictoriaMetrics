@@ -23,7 +23,7 @@ var (
 var predefinedDashboards = &dashboardsData{}
 
 // How frequently check defined vmuiCustomDashboardsPath
-const updateDashboardsTimeout = time.Minute * 10
+const updateDashboardsTimeout = time.Second * 5
 
 // dashboardSetting represents dashboard settings file struct
 // fields of the dashboardSetting you can find by following next link
