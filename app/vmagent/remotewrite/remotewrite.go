@@ -61,9 +61,9 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html ."+
+		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
 		"See also -remoteWrite.streamAggr.keepInput")
-	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config ."+
+	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
 		"By default the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
 )

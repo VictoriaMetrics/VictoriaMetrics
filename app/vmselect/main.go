@@ -27,7 +27,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -589,12 +589,16 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		}
 		return true
 	case "prometheus/metric-relabel-debug", "metric-relabel-debug":
-		promscrapeMetricRelabelDebugRequests.Inc()
-		promscrape.WriteMetricRelabelDebug(w, r)
+		promrelabelMetricRelabelDebugRequests.Inc()
+		metric := r.FormValue("metric")
+		relabelConfigs := r.FormValue("relabel_configs")
+		promrelabel.WriteMetricRelabelDebug(w, metric, relabelConfigs)
 		return true
 	case "prometheus/target-relabel-debug", "target-relabel-debug":
-		promscrapeTargetRelabelDebugRequests.Inc()
-		promscrape.WriteTargetRelabelDebug(w, r)
+		promrelabelTargetRelabelDebugRequests.Inc()
+		metric := r.FormValue("metric")
+		relabelConfigs := r.FormValue("relabel_configs")
+		promrelabel.WriteTargetRelabelDebug(w, "", metric, relabelConfigs, nil)
 		return true
 	case "prometheus/expand-with-exprs", "expand-with-exprs":
 		expandWithExprsRequests.Inc()
@@ -771,8 +775,8 @@ var (
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/functions"}`)
 
-	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/metric-relabel-debug"}`)
-	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/target-relabel-debug"}`)
+	promrelabelMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/metric-relabel-debug"}`)
+	promrelabelTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/target-relabel-debug"}`)
 
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/expand-with-exprs"}`)
 

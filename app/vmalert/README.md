@@ -734,7 +734,7 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
 changed in time.
 
-vmalert stores last `-rule.maxUpdateEntries` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert.html#alerting-rules)) 
+vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert.html#alerting-rules)) 
 state updates for each rule. To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
@@ -971,7 +971,7 @@ The shortlist of configuration flags is the following:
      Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
-     Prometheus alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
+     Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
@@ -1108,8 +1108,6 @@ The shortlist of configuration flags is the following:
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
-  -rule.maxUpdateEntries int
-     Defines the max number of rule's state updates.  (default 20)
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array
@@ -1120,6 +1118,8 @@ The shortlist of configuration flags is the following:
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
      Supports an array of values separated by comma or specified via multiple flags.
+  -rule.updateEntriesLimit int
+     Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overriden per rule via update_entries_limit param. (default 20)
   -rule.validateExpressions
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
