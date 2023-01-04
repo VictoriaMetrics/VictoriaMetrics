@@ -1342,11 +1342,6 @@ func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 		}
 	}
 
-	_, err := PositiveDurationValue(s, 0)
-	if err != nil {
-		return nil, fmt.Errorf("duration: unexpected duration: %q", err)
-	}
-
 	de := &DurationExpr{
 		s: s,
 	}

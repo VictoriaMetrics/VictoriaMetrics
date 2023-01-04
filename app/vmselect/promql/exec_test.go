@@ -8146,6 +8146,41 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+
+	// durations with upper and lower case
+	t.Run("time() offset 3M", func(t *testing.T) {
+		t.Parallel()
+		q := `time() offset 3M`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{800, 1000, 1200, 1400, 1600, 1800},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time()[1s:500Ms]", func(t *testing.T) {
+		t.Parallel()
+		q := `time()[1s:500Ms]`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1000, 1200, 1400, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("time()[1D:30M]", func(t *testing.T) {
+		t.Parallel()
+		q := `time()[1D:30M]`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0, 0, 0, 0, 1800, 1800},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 }
 
 func TestExecError(t *testing.T) {
@@ -8416,11 +8451,6 @@ func TestExecError(t *testing.T) {
 	f(`ru()`)
 	f(`ru(1)`)
 	f(`ru(1,3,3)`)
-	f(`time() offset 3M`)
-	f(`time()[5m:3Ms]`)
-	f(`time()[5D]`)
-	f(`time()[1Y]`)
-	f(`time()[1M]`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {
