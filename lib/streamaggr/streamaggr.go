@@ -3,6 +3,7 @@ package streamaggr
 import (
 	"fmt"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -225,8 +226,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 	}
 
 	// check by and without lists
-	by := cfg.By
-	without := cfg.Without
+	by := sortAndRemoveDuplicates(cfg.By)
+	without := sortAndRemoveDuplicates(cfg.Without)
 	if len(by) > 0 && len(without) > 0 {
 		return nil, fmt.Errorf("`by: %s` and `without: %s` lists cannot be set simultaneously", by, without)
 	}
@@ -638,4 +639,19 @@ func removeUnderscoreName(labels []string) []string {
 		result = append(result, s)
 	}
 	return result
+}
+
+func sortAndRemoveDuplicates(a []string) []string {
+	if len(a) == 0 {
+		return nil
+	}
+	a = append([]string{}, a...)
+	sort.Strings(a)
+	dst := a[:1]
+	for _, v := range a[1:] {
+		if v != dst[len(dst)-1] {
+			dst = append(dst, v)
+		}
+	}
+	return dst
 }

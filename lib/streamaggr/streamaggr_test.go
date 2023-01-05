@@ -191,7 +191,7 @@ foo:1m_sum_samples{abc="123"} 12.5
 foo:1m_sum_samples{abc="456",de="fg"} 8
 `)
 
-	// Special case: __name__ in by list
+	// Special case: __name__ in `by` list - this is the same as empty `by` list
 	f(`
 - interval: 1m
   by: [__name__]
@@ -209,7 +209,7 @@ foo:1m_count_series 2
 foo:1m_sum_samples 20.5
 `)
 
-	// Non-empty by list with non-existing labels
+	// Non-empty `by` list with non-existing labels
 	f(`
 - interval: 1m
   by: [foo, bar]
@@ -219,15 +219,15 @@ foo{abc="123"} 4
 bar 5
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
-`, `bar:1m_by_foo_bar_count_samples 1
-bar:1m_by_foo_bar_count_series 1
-bar:1m_by_foo_bar_sum_samples 5
-foo:1m_by_foo_bar_count_samples 3
-foo:1m_by_foo_bar_count_series 2
-foo:1m_by_foo_bar_sum_samples 20.5
+`, `bar:1m_by_bar_foo_count_samples 1
+bar:1m_by_bar_foo_count_series 1
+bar:1m_by_bar_foo_sum_samples 5
+foo:1m_by_bar_foo_count_samples 3
+foo:1m_by_bar_foo_count_series 2
+foo:1m_by_bar_foo_sum_samples 20.5
 `)
 
-	// Non-empty by list with existing label
+	// Non-empty `by` list with existing label
 	f(`
 - interval: 1m
   by: [abc]
@@ -248,7 +248,28 @@ foo:1m_by_abc_sum_samples{abc="123"} 12.5
 foo:1m_by_abc_sum_samples{abc="456"} 8
 `)
 
-	// Non-empty without list with non-existing labels
+	// Non-empty `by` list with duplicate existing label
+	f(`
+- interval: 1m
+  by: [abc, abc]
+  outputs: [count_samples, sum_samples, count_series]
+`, `
+foo{abc="123"} 4
+bar 5
+foo{abc="123"} 8.5
+foo{abc="456",de="fg"} 8
+`, `bar:1m_by_abc_count_samples 1
+bar:1m_by_abc_count_series 1
+bar:1m_by_abc_sum_samples 5
+foo:1m_by_abc_count_samples{abc="123"} 2
+foo:1m_by_abc_count_samples{abc="456"} 1
+foo:1m_by_abc_count_series{abc="123"} 1
+foo:1m_by_abc_count_series{abc="456"} 1
+foo:1m_by_abc_sum_samples{abc="123"} 12.5
+foo:1m_by_abc_sum_samples{abc="456"} 8
+`)
+
+	// Non-empty `without` list with non-existing labels
 	f(`
 - interval: 1m
   without: [foo]
@@ -269,7 +290,7 @@ foo:1m_without_foo_sum_samples{abc="123"} 12.5
 foo:1m_without_foo_sum_samples{abc="456",de="fg"} 8
 `)
 
-	// Non-empty without list with existing labels
+	// Non-empty `without` list with existing labels
 	f(`
 - interval: 1m
   without: [abc]
@@ -290,7 +311,7 @@ foo:1m_without_abc_sum_samples 12.5
 foo:1m_without_abc_sum_samples{de="fg"} 8
 `)
 
-	// Special case: __name__ in without list
+	// Special case: __name__ in `without` list
 	f(`
 - interval: 1m
   without: [__name__]

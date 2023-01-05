@@ -132,7 +132,7 @@ In this case the following stream aggregation can be used for reducing the numbe
   outputs: [total]
 ```
 
-This config specifies labels, which must be removed from the aggregate outpit, in the `without` list.
+This config specifies labels, which must be removed from the aggregate output, in the `without` list.
 See [these docs](#aggregating-by-labels) for more details.
 
 The aggregated output metric has the following name according to [output metric naming](#output-metric-names):
@@ -296,9 +296,9 @@ Output metric names for stream aggregation are constructed according to the foll
 
 - `<metric_name>` is the original metric name.
 - `<interval>` is the interval specified in the [stream aggregation config](#stream-aggregation-config).
-- `<by_labels>` is `_`-delimited list of `by` labels specified in the [stream aggregation config](#stream-aggregation-config).
+- `<by_labels>` is `_`-delimited sorted list of `by` labels specified in the [stream aggregation config](#stream-aggregation-config).
   If the `by` list is missing in the config, then the `_by_<by_labels>` part isn't included in the output metric name.
-- `<without_labels>` is an optional `_`-delimited list of `without` labels specified in the [stream aggregation config](#stream-aggregation-config).
+- `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](#stream-aggregation-config).
   If the `without` list is missing in the config, then the `_without_<without_labels>` part isn't included in the output metric name.
 - `<output>` is the aggregate used for constucting the output metric. The aggregate name is taken from the `outputs` list
   at the corresponding [stream aggregation config](#stream-aggregation-config).
@@ -324,7 +324,7 @@ For example, the following config removes the `:1m_sum_samples` suffix added [to
 
 ## Aggregation outputs
 
-The following aggregation outputs are supported in the `outputs` list of the [stream aggregation config](#stream-aggregation-config):
+The following aggregation outputs can be put in the `outputs` list at [stream aggregation config](#stream-aggregation-config):
 
 * `total` generates output [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) by summing the input counters.
   The `total` handler properly handles input counter resets.
@@ -375,7 +375,7 @@ removes the `instance` label from output metrics by summing input samples across
 ```
 
 In this case the `foo{app="bar",instance="..."}` input metrics are transformed into `foo:1m_without_instance_sum_samples{app="bar"}`
-output metric.
+output metric according to [output metric naming](#output-metric-names).
 
 It is possible specifying the exact list of labels in the output metrics via `by` list.
 For example, the following config sums input samples by the `app` label:
@@ -387,7 +387,11 @@ For example, the following config sums input samples by the `app` label:
 ```
 
 In this case the `foo{app="bar",instance="..."}` input metrics are transformed into `foo:1m_by_app_sum_samples{app="bar"}`
-output metric.
+output metric according to [output metric naming](#output-metric-names).
+
+The labels used in `by` and `without` lists can be modified via `input_relabel_configs` section - see [these docs](#relabeling).
+
+See also [aggregation outputs](#aggregation-outputs).
 
 
 ## Stream aggregation config

@@ -30,6 +30,7 @@ require (
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/valyala/gozstd v1.17.0
+	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.4.0
 	golang.org/x/oauth2 v0.3.0
@@ -37,8 +38,6 @@ require (
 	google.golang.org/api v0.105.0
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-require github.com/valyala/histogram v1.2.0
 
 require (
 	cloud.google.com/go v0.107.0 // indirect
