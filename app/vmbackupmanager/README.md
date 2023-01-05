@@ -322,6 +322,16 @@ Clusters here are referred to as `source` and `destination`.
   $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2022-10-06
   ```
 
+## Monitoring
+
+`vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
+either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
+
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798-victoriametrics-backupmanager/) for `vmbackupmanager` overview.
+Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add
+a review to the dashboard.
+
 ## Configuration
 
 ### Flags
