@@ -320,3 +320,16 @@ export const SearchIcon = () => (
     ></path>
   </svg>
 );
+
+export const ResizeIcon = () => (
+  <svg
+    className="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium MuiBox-root css-1om0hkc"
+    focusable="false"
+    aria-hidden="true"
+    viewBox="0 0 24 24"
+    data-testid="OpenInFullIcon"
+    fill="currentColor"
+  >
+    <path d="M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10z"></path>
+  </svg>
+);
