@@ -1179,14 +1179,14 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "cloud-test-13",
-          "value": "cloud-test-13"
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
         "multi": false,
-        "name": "datasource",
+        "name": "ds",
         "options": [],
         "query": "prometheus",
         "queryValue": "",
