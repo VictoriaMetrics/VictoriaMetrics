@@ -85,7 +85,9 @@ func selfScraper(scrapeInterval time.Duration) {
 			mr.Timestamp = currentTimestamp
 			mr.Value = r.Value
 		}
-		vmstorage.AddRows(mrs)
+		if err := vmstorage.AddRows(mrs); err != nil {
+			logger.Errorf("cannot store self-scraped metrics: %s", err)
+		}
 	}
 }
 
