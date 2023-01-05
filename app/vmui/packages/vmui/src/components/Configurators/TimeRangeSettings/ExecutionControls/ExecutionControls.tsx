@@ -128,8 +128,8 @@ export const ExecutionControls: FC = () => {
         {delayOptions.map(d => (
           <div
             className={classNames({
-              "vm-list__item": true,
-              "vm-list__item_active": d.seconds === selectedDelay.seconds
+              "vm-list-item": true,
+              "vm-list-item_active": d.seconds === selectedDelay.seconds
             })}
             key={d.seconds}
             onClick={createHandlerChange(d)}
