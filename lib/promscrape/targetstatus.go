@@ -276,6 +276,10 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 }
 
 func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs) {
+	if *dropOriginalLabels {
+		// The originalLabels must be dropped, so do not register it.
+		return
+	}
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
@@ -301,7 +305,7 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 
 func labelsHash(labels *promutils.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
-	for _, label := range labels.Labels {
+	for _, label := range labels.GetLabels() {
 		_, _ = d.WriteString(label.Name)
 		_, _ = d.WriteString(label.Value)
 	}
