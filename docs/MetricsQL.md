@@ -77,9 +77,12 @@ The list of MetricsQL features:
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
-* Metric names and metric labels may contain escaped chars. For instance, `foo\-bar{baz\=aa="b"}` is valid expression.
+* Metric names and label names may contain any unicode letter. For example `температура{город="Киев"}` is a value MetricsQL expression.
+* Metric names and labels names may contain escaped chars. For example, `foo\-bar{baz\=aa="b"}` is valid expression.
   It returns time series with name `foo-bar` containing label `baz=aa` with value `b`.
-  Additionally, `\xXX` escape sequence is supported, where `XX` is hexadecimal representation of escaped char.
+  Additionally, the following escape sequences are supported:
+  - `\xXX`, where `XX` is hexadecimal representation of the escaped ascii char.
+  - `\uXXXX`, where `XXXX` is a hexadecimal representation of the escaped unicode char.
 * Aggregate functions support optional `limit N` suffix in order to limit the number of output series.
   For example, `sum(x) by (y) limit 3` limits the number of output time series after the aggregation to 3.
   All the other time series are dropped.
