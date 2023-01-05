@@ -5,7 +5,7 @@
 
 {% stripspace %}
 
-{% func MetricRelabelDebugSteps(dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugSteps(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +16,13 @@
     {%= htmlcomponents.Navbar() %}
     <div class="container-fluid">
         <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
-        <a href="target-relabel-debug">Target relabel debug</a>
+
+        {% if isTargetRelabel %}
+          <a href="metric-relabel-debug?id={%s targetID %}">Metric relabel debug</a>
+        {% else %}
+          <a href="target-relabel-debug?id={%s targetID %}">Target relabel debug</a>
+        {% endif %}
+
         <br>
         {% if err != nil %}
             {%= htmlcomponents.ErrorNotification(err) %}
@@ -25,54 +31,17 @@
         <div class="m-3">
         <form method="POST">
             {%= relabelDebugFormInputs(metric, relabelConfigs) %}
-
-            <input type="submit" value="Submit" class="btn btn-primary m-1" />
-        </form>
-        </div>
-
-        <div class="row">
-            <main class="col-12">
-              {%= relabelDebugSteps(dss) %}
-            </main>
-        </div>
-    </div>
-</body>
-</html>
-{% endfunc %}
-
-{% func TargetRelabelDebugSteps(targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    {%= htmlcomponents.CommonHeader() %}
-    <title>Target relabel debug</title>
-</head>
-<body>
-    {%= htmlcomponents.Navbar() %}
-    <div class="container-fluid">
-        <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
-        <a href="metric-relabel-debug">Metric relabel debug</a>
-        <br/>
-        {% if err != nil %}
-            {%= htmlcomponents.ErrorNotification(err) %}
-        {% endif %}
-
-        <div class="m-3">
-        <form method="POST">
-            {%= relabelDebugFormInputs(metric, relabelConfigs) %}
-
             <input type="hidden" name="id" value="{%s targetID %}" />
-
             <input type="submit" value="Submit" class="btn btn-primary m-1" />
             {% if targetID != "" %}
-                <button type="button" onclick="location.href='target-relabel-debug?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
+                <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
             {% endif %}
         </form>
         </div>
 
         <div class="row">
             <main class="col-12">
-                {%= relabelDebugSteps(dss) %}
+              {%= relabelDebugSteps(dss) %}
             </main>
         </div>
     </div>

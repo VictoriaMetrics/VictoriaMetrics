@@ -520,7 +520,20 @@ type targetLabelsByJob struct {
 	droppedTargets int
 }
 
-func getRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+	tsmGlobal.mu.Lock()
+	defer tsmGlobal.mu.Unlock()
+
+	for sw := range tsmGlobal.m {
+		// The target is uniquely identified by a pointer to its original labels.
+		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+			return sw.Config.MetricRelabelConfigs, sw.Config.Labels, true
+		}
+	}
+	return nil, nil, false
+}
+
+func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
 	var relabelConfigs *promrelabel.ParsedConfigs
 	var labels *promutils.Labels
 	found := false

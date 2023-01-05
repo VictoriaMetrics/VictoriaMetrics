@@ -9,9 +9,22 @@ import (
 
 // WriteMetricRelabelDebug serves requests to /metric-relabel-debug page
 func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
+	targetID := r.FormValue("id")
 	metric := r.FormValue("metric")
 	relabelConfigs := r.FormValue("relabel_configs")
-	promrelabel.WriteMetricRelabelDebug(w, metric, relabelConfigs)
+	var err error
+
+	if metric == "" && relabelConfigs == "" {
+		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
+		if !ok {
+			err = fmt.Errorf("cannot find target for id=%s", targetID)
+			targetID = ""
+		} else {
+			metric = labels.String()
+			relabelConfigs = pcs.String()
+		}
+	}
+	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, err)
 }
 
 // WriteTargetRelabelDebug generates response for /target-relabel-debug page
@@ -22,7 +35,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if metric == "" && relabelConfigs == "" {
-		pcs, labels, ok := getRelabelContextByTargetID(targetID)
+		pcs, labels, ok := getTargetRelabelContextByTargetID(targetID)
 		if !ok {
 			err = fmt.Errorf("cannot find target for id=%s", targetID)
 			targetID = ""
