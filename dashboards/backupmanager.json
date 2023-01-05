@@ -1664,9 +1664,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "cluster-monitoring",
-          "value": "cluster-monitoring"
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
