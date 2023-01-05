@@ -2,7 +2,7 @@
 
 The docs provide a simple and high-level overview of Ingestion Rate, Active Time Series, and Query per Second. These terms are a part of capacity planning ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)) and [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed_victoriametrics/) pricing.
 
-### Terminology
+## Terminology
 
 - [Active Time Series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series) - the [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series) that receive at least one sample for the latest hour;
 - Ingestion Rate - how many [data points](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) you ingest into the database per second;
@@ -78,7 +78,7 @@ The Retention Cycle is one day or one month. If the retention period is higher t
 
 The typical data point size requires less or around 1 byte of disk space. Keep at least 20% of free space for VictoriaMetrics to remain efficient with compression and read performance..
 
-##### Calculation Example
+**Calculation Example**
 
 You have a Kubernetes environment that produces 5k time series per second with 1-year of the retention period and Replication Factor 2 in VictoriaMetrics:
 
@@ -96,7 +96,7 @@ You can significantly reduce the amount of disk usage by specifying [Downsamplin
 
 Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series. We assume that the Churn Rate is no more than 30%. You may need to choose a more extensive deployment if you have a higher Churn Rate.
 
-##### Example
+**  Example**
 
 Deployment type: **s.medium ~100k samples/s Ingestion Rate, ~2.5M of Active Time Series**
 
@@ -109,6 +109,3 @@ You can collect metrics from
 ### On-Premise
 
 Please follow these capacity planning documents ([Single-Node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning), [Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning)). It contains the number of CPUs and Memory required to handle the Ingestion Rate, Active Time Series, Churn Rate, QPS and Retention Period.
-
-
-
