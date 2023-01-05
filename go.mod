@@ -12,7 +12,7 @@ require (
 	// like https://github.com/valyala/fasthttp/commit/996610f021ff45fdc98c2ce7884d5fa4e7f9199b
 	github.com/VictoriaMetrics/fasthttp v1.1.0
 	github.com/VictoriaMetrics/metrics v1.23.0
-	github.com/VictoriaMetrics/metricsql v0.50.0
+	github.com/VictoriaMetrics/metricsql v0.51.0
 	github.com/aws/aws-sdk-go-v2 v1.17.3
 	github.com/aws/aws-sdk-go-v2/config v1.18.7
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.11.46
@@ -117,5 +117,3 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/VictoriaMetrics/metricsql v0.50.0 => /Users/dmitryk-dk/metricsql-dk
