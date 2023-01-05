@@ -1186,7 +1186,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	}
 	if labels.Len() == 0 {
 		// Drop target without labels.
-		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
+		if !*dropOriginalLabels {
+			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
+		}
 		return nil, nil
 	}
 	// See https://www.robustperception.io/life-of-a-label
@@ -1201,7 +1203,9 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 	address := labels.Get("__address__")
 	if len(address) == 0 {
 		// Drop target without scrape address.
-		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
+		if !*dropOriginalLabels {
+			droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
+		}
 		return nil, nil
 	}
 	// Usability extension to Prometheus behavior: extract optional scheme and metricsPath from __address__.
