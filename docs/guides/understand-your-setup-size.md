@@ -92,7 +92,7 @@ You can significantly reduce the amount of disk usage by specifying [Downsamplin
 
 ## Align Terms with VictoriaMetrics setups
 
-### [Managed VictoriaMetrics](https://docs.victoriametrics.com/managed_victoriametrics/)
+### Managed VictoriaMetrics
 
 Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series. We assume that the Churn Rate is no more than 30%. You may need to choose a more extensive deployment if you have a higher Churn Rate.
 
