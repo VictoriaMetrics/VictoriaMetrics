@@ -604,8 +604,8 @@ provide the following tools for debugging target-level and metric-level relabeli
 
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
-  and clicking the `debug` link at the target, which must be debugged.
-  The opened page will show step-by-step results for the actual relabeling rules applied to the target labels.
+  and clicking the `debug target relabeling` link at the target, which must be debugged.
+  The opened page will show step-by-step results for the actual target relabeling rules applied to the discovered target labels.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
   is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
@@ -614,11 +614,9 @@ provide the following tools for debugging target-level and metric-level relabeli
   which result to target drop.
 
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
-  and all the relabeling, which can be set up via `-relabelConfig`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`
-  command-line flags) can be performed by navigating to `http://vmagent:8429/metric-relabel-debug` page
-  (`http://victoriametrics:8428/metric-relabel-debug` page for single-node VictoriaMetrics)
-  and submitting there relabeling rules together with the metric to be relabeled.
-  The page will show step-by-step results for the entered relabeling rules executed against the entered metric.
+  can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
+  and clicking the `debug metrics relabeling` link at the target, which must be debugged.
+  The opened page will show step-by-step results for the actual metric relabeling rules applied to the given target labels.
 
 ## Prometheus staleness markers
 

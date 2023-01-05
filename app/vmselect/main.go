@@ -592,7 +592,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		promrelabelMetricRelabelDebugRequests.Inc()
 		metric := r.FormValue("metric")
 		relabelConfigs := r.FormValue("relabel_configs")
-		promrelabel.WriteMetricRelabelDebug(w, metric, relabelConfigs)
+		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, nil)
 		return true
 	case "prometheus/target-relabel-debug", "target-relabel-debug":
 		promrelabelTargetRelabelDebugRequests.Inc()
