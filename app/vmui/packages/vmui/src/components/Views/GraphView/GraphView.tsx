@@ -25,6 +25,7 @@ export interface GraphViewProps {
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void
   fullWidth?: boolean
+  height?: number
 }
 
 const promValueToNumber = (s: string): number => {
@@ -53,7 +54,8 @@ const GraphView: FC<GraphViewProps> = ({
   setYaxisLimits,
   setPeriod,
   alias = [],
-  fullWidth = true
+  fullWidth = true,
+  height
 }) => {
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
@@ -157,6 +159,7 @@ const GraphView: FC<GraphViewProps> = ({
           unit={unit}
           setPeriod={setPeriod}
           container={containerRef?.current}
+          height={height}
         />}
       {showLegend && <Legend
         labels={legend}

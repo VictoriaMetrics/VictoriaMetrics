@@ -71,7 +71,7 @@ credentials.json
   "project_id": "<project>",
   "private_key_id": "",
   "private_key": "-----BEGIN PRIVATE KEY-----\-----END PRIVATE KEY-----\n",
-  "client_email": “test@<project>.iam.gserviceaccount.com",
+  "client_email": "test@<project>.iam.gserviceaccount.com",
   "client_id": "",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
@@ -411,6 +411,8 @@ command-line flags:
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
