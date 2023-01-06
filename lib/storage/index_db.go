@@ -857,7 +857,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		if len(labelName) == 0 {
 			labelName = []byte("__name__")
 		}
-		if isArtificialTagKey(labelName) || string(labelName) == string(prevLabelName) {
+		if isArtificialTagKey(labelName) {
 			// Search for the next tag key.
 			// The last char in kb.B must be tagSeparatorChar.
 			// Just increment it in order to jump to the next tag key.
@@ -868,6 +868,17 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 			} else {
 				kb.B = marshalTagValue(kb.B, labelName)
 			}
+			kb.B[len(kb.B)-1]++
+			ts.Seek(kb.B)
+			continue
+		}
+		if string(labelName) == string(prevLabelName) {
+			var tagValue []byte
+			if string(labelName) != "__name__" {
+				tagValue = labelName
+			}
+			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
+			kb.B = marshalTagValue(kb.B, tagValue)
 			kb.B[len(kb.B)-1]++
 			ts.Seek(kb.B)
 			continue
