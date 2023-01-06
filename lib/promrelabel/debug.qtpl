@@ -11,6 +11,16 @@
 <head>
     {%= htmlcomponents.CommonHeader() %}
     <title>Metric relabel debug</title>
+    <script>
+function submitRelabelDebugForm(e) {
+  var form = e.target;
+  var method = "GET";
+  if (form.elements["relabel_configs"].value.length + form.elements["metric"].value.length > 1000) {
+    method = "POST";
+  }
+  form.method = method;
+}
+    </script>
 </head>
 <body>
     {%= htmlcomponents.Navbar() %}
@@ -18,9 +28,9 @@
         <a href="https://docs.victoriametrics.com/relabeling.html" target="_blank">Relabeling docs</a>{% space %}
 
         {% if isTargetRelabel %}
-          <a href="metric-relabel-debug?id={%s targetID %}">Metric relabel debug</a>
+          <a href="metric-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Metric relabel debug</a>
         {% else %}
-          <a href="target-relabel-debug?id={%s targetID %}">Target relabel debug</a>
+          <a href="target-relabel-debug{% if targetID != "" %}?id={%s targetID %}{% endif %}">Target relabel debug</a>
         {% endif %}
 
         <br>
@@ -29,9 +39,11 @@
         {% endif %}
 
         <div class="m-3">
-        <form method="POST">
+        <form method="POST" onsubmit="submitRelabelDebugForm(event)">
             {%= relabelDebugFormInputs(metric, relabelConfigs) %}
-            <input type="hidden" name="id" value="{%s targetID %}" />
+            {% if targetID != "" %}
+              <input type="hidden" name="id" value="{%s targetID %}" />
+            {% endif %}
             <input type="submit" value="Submit" class="btn btn-primary m-1" />
             {% if targetID != "" %}
                 <button type="button" onclick="location.href='?id={%s targetID %}'" class="btn btn-secondary m-1">Reset</button>
