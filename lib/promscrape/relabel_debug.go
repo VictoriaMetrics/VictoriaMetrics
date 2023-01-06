@@ -14,7 +14,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	relabelConfigs := r.FormValue("relabel_configs")
 	var err error
 
-	if metric == "" && relabelConfigs == "" {
+	if metric == "" && relabelConfigs == "" && targetID != "" {
 		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
 		if !ok {
 			err = fmt.Errorf("cannot find target for id=%s", targetID)
@@ -34,7 +34,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	relabelConfigs := r.FormValue("relabel_configs")
 	var err error
 
-	if metric == "" && relabelConfigs == "" {
+	if metric == "" && relabelConfigs == "" && targetID != "" {
 		pcs, labels, ok := getTargetRelabelContextByTargetID(targetID)
 		if !ok {
 			err = fmt.Errorf("cannot find target for id=%s", targetID)

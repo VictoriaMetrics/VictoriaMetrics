@@ -21,7 +21,7 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 	if metric == "" {
 		metric = "{}"
 	}
-	if targetID == "" {
+	if err != nil {
 		WriteRelabelDebugSteps(w, isTargetRelabel, targetID, nil, metric, relabelConfigs, err)
 		return
 	}
