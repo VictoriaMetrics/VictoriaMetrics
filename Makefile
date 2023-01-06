@@ -366,7 +366,7 @@ install-qtc:
 
 
 golangci-lint: install-golangci-lint
-	golangci-lint run 
+	golangci-lint run
 
 install-golangci-lint:
 	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.50.1
