@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -19,9 +18,6 @@ var (
 	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui predefined dashboards."+
 		"How to create dashboards https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
 )
-
-// How frequently check defined vmuiCustomDashboardsPath
-const updateDashboardsTimeout = time.Second * 5
 
 // dashboardSetting represents dashboard settings file struct
 // fields of the dashboardSetting you can find by following next link
