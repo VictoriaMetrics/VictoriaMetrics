@@ -831,7 +831,7 @@ func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		}
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
-			logger.Errorf("there were errors when discovering nomad targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			logger.Errorf("there were errors when discovering nomad_sd_config targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
