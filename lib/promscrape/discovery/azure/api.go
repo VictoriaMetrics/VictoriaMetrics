@@ -3,6 +3,8 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
 	"os"
 	"strconv"
@@ -13,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/fasthttp"
 )
 
 var configMap = discoveryutils.NewConfigMap()
@@ -157,7 +158,7 @@ func readCloudEndpointsFromFile(filePath string) (*cloudEnvironmentEndpoints, er
 
 func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloudEnvironmentEndpoints) (refreshTokenFunc, error) {
 	var tokenEndpoint, tokenAPIPath string
-	var modifyRequest func(request *fasthttp.Request)
+	var modifyRequest func(request *http.Request)
 	authenticationMethod := sdc.AuthenticationMethod
 	if authenticationMethod == "" {
 		authenticationMethod = "OAuth"
@@ -182,9 +183,9 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		authParams := q.Encode()
 		tokenAPIPath = "/" + sdc.TenantID + "/oauth2/token"
 		tokenEndpoint = env.ActiveDirectoryEndpoint
-		modifyRequest = func(request *fasthttp.Request) {
-			request.SetBodyString(authParams)
-			request.Header.SetMethod("POST")
+		modifyRequest = func(request *http.Request) {
+			request.Body = io.NopCloser(strings.NewReader(authParams))
+			request.Method = http.MethodPost
 		}
 	case "managedidentity":
 		endpoint := "http://169.254.169.254/metadata/identity/oauth2/token"
@@ -210,7 +211,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		endpointURL.RawQuery = q.Encode()
 		tokenAPIPath = endpointURL.RequestURI()
 		tokenEndpoint = endpointURL.Scheme + "://" + endpointURL.Host
-		modifyRequest = func(request *fasthttp.Request) {
+		modifyRequest = func(request *http.Request) {
 			if msiSecret != "" {
 				request.Header.Set("secret", msiSecret)
 			} else {
