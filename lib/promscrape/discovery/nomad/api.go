@@ -38,24 +38,12 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	hcc := sdc.HTTPClientConfig
-	token, err := getToken(sdc.Token)
-	if err != nil {
-		return nil, err
-	}
+	token := getToken(sdc.Token)
 	if token != "" {
 		if hcc.BearerToken != nil {
 			return nil, fmt.Errorf("cannot set both token and bearer_token configs")
 		}
 		hcc.BearerToken = promauth.NewSecret(token)
-	}
-	if len(sdc.Username) > 0 {
-		if hcc.BasicAuth != nil {
-			return nil, fmt.Errorf("cannot set both username and basic_auth configs")
-		}
-		hcc.BasicAuth = &promauth.BasicAuthConfig{
-			Username: sdc.Username,
-			Password: sdc.Password,
-		}
 	}
 	ac, err := hcc.NewConfig(baseDir)
 	if err != nil {
@@ -86,7 +74,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	dc, err := getDatacenter(client, sdc.Datacenter)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot obtain Nomad datacenter: %w", err)
 	}
 
 	namespace := sdc.Namespace
@@ -103,13 +91,13 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	return cfg, nil
 }
 
-func getToken(token *promauth.Secret) (string, error) {
+func getToken(token *promauth.Secret) string {
 	if token != nil {
-		return token.String(), nil
+		return token.String()
 	}
 	t := os.Getenv("NOMAD_TOKEN")
 	// Allow empty token - it should work if ACL is disabled in Nomad.
-	return t, nil
+	return t
 }
 
 func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {

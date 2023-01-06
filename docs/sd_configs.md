@@ -20,7 +20,7 @@ sort: 24
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
-* `nomad_sd_configs` is for discovering and scraping targets registered in [Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
+* `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
 * `yandexcloud_sd_configs` is for discoverying and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
@@ -139,7 +139,7 @@ scrape_configs:
     # node_meta:
     #   "...": "..."
 
-    # tag_separate is an optional string by which Consul tags are joined into the __meta_consul_tags label.
+    # tag_separator is an optional string by which Consul tags are joined into the __meta_consul_tags label.
     # By default "," is used as a tag separator.
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
     # tag_separator: "..."
@@ -170,7 +170,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_consul_tagged_address_<key>`: each node tagged address key value of the target
 * `__meta_consul_tag_<tagname>`: the value for the given <tagname> tag of the target
 * `__meta_consul_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
-* `__meta_consul_tags`: the list of tags of the target joined by the tag_separator
+* `__meta_consul_tags`: the list of tags of the target joined by the `tag_separator`
 
 
 ## digitalocean_sd_configs
@@ -872,7 +872,7 @@ One of the following `role` types can be configured to discover targets:
 
 ## nomad_sd_configs
 
-Nomad SD configuration allows retrieving scrape targets from [Nomad Services](https://www.hashicorp.com/blog/nomad-service-discovery).
+Nomad SD configuration allows retrieving scrape targets from [HashiCorp Nomad Services](https://www.hashicorp.com/blog/nomad-service-discovery).
 
 Configuration example:
 
@@ -910,14 +910,14 @@ scrape_configs:
     # Services must contain all tags in the list.
     # tags: ["...", "..."]
 
-    # tag_separate is an optional string by which Nomad tags are joined into the __meta_nomad_tags label.
+    # tag_separator is an optional string by which Nomad tags are joined into the __meta_nomad_tags label.
     # By default "," is used as a tag separator.
     # Individual tags are also available via __meta_nomad_tag_<tagname> labels - see below.
     # tag_separator: "..."
 
     # allow_stale is an optional config, which allows stale Nomad results.
     # See https://developer.hashicorp.com/nomad/api-docs#consistency-modes
-    # Reduce load on Nomad if set to true. By default is is set to true.
+    # Reduces load on Nomad if set to true. By default is is set to true.
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
@@ -932,11 +932,13 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_nomad_node_id`: the node ID defined for the target
 * `__meta_nomad_service`: the name of the service the target belongs to
 * `__meta_nomad_service_address`: the service address of the target
-* `__meta_nomad_service_id`: the service ID of the target
+* `__meta_nomad_service_alloc_id`: the AllocID of the target service
+* `__meta_nomad_service_id`: the ID of the target service
+* `__meta_nomad_service_job_id`: the JobID of the target service
 * `__meta_nomad_service_port`: the service port of the target
 * `__meta_nomad_tag_<tagname>`: the value for the given <tagname> tag of the target
 * `__meta_nomad_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
-* `__meta_nomad_tags`: the list of tags of the target joined by the tag_separator
+* `__meta_nomad_tags`: the list of tags of the target joined by the `tag_separator`
 
 ## openstack_sd_configs
 

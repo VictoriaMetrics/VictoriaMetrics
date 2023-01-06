@@ -13,22 +13,20 @@ import (
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#nomad_sd_config
 type SDConfig struct {
 	Server     string           `yaml:"server,omitempty"`
-	Token      *promauth.Secret `yaml:"token"`
-	Datacenter string           `yaml:"datacenter"`
+	Token      *promauth.Secret `yaml:"token,omitempty"`
+	Datacenter string           `yaml:"datacenter,omitempty"`
 	Namespace  string           `yaml:"namespace,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.nomadSDCheckInterval` command-line option.
-	Region            string                     `yaml:"region,omitempty"`
-	Scheme            string                     `yaml:"scheme,omitempty"`
-	Username          string                     `yaml:"username"`
-	Password          *promauth.Secret           `yaml:"password"`
+	Scheme       string   `yaml:"scheme,omitempty"`
+	Services     []string `yaml:"services,omitempty"`
+	Tags         []string `yaml:"tags,omitempty"`
+	TagSeparator *string  `yaml:"tag_separator,omitempty"`
+	AllowStale   *bool    `yaml:"allow_stale,omitempty"`
+
 	HTTPClientConfig  promauth.HTTPClientConfig  `yaml:",inline"`
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
-	Services          []string                   `yaml:"services,omitempty"`
-	Tags              []string                   `yaml:"tags,omitempty"`
-	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
-	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
 }
 
 // GetLabels returns Nomad labels according to sdc.

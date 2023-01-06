@@ -57,13 +57,15 @@ func (svc *Service) appendTargetLabels(ms []*promutils.Labels, tagSeparator stri
 	addr := discoveryutils.JoinHostPort(svc.Address, svc.Port)
 	m := promutils.NewLabels(16)
 	m.Add("__address__", addr)
-	m.Add("__meta_nomad_dc", svc.Datacenter)
 	m.Add("__meta_nomad_address", svc.Address)
+	m.Add("__meta_nomad_dc", svc.Datacenter)
 	m.Add("__meta_nomad_namespace", svc.Namespace)
 	m.Add("__meta_nomad_node_id", svc.NodeID)
 	m.Add("__meta_nomad_service", svc.ServiceName)
 	m.Add("__meta_nomad_service_address", svc.Address)
+	m.Add("__meta_nomad_service_alloc_id", svc.AllocID)
 	m.Add("__meta_nomad_service_id", svc.ID)
+	m.Add("__meta_nomad_service_job_id", svc.JobID)
 	m.Add("__meta_nomad_service_port", strconv.Itoa(svc.Port))
 	// We surround the separated list with the separator as well. This way regular expressions
 	// in relabeling rules don't have to consider tag positions.
