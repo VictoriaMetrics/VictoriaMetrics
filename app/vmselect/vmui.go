@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -17,10 +16,9 @@ import (
 // more information how to use this flag please check this link
 // https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 var (
-	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui predefined dashboards")
+	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui predefined dashboards."+
+		"How to create dashboards https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
 )
-
-var predefinedDashboards = &dashboardsData{}
 
 // How frequently check defined vmuiCustomDashboardsPath
 const updateDashboardsTimeout = time.Second * 5
@@ -58,46 +56,31 @@ type dashboardRow struct {
 // dashboardsData represents all dashboards settings
 type dashboardsData struct {
 	DashboardsSettings []dashboardSetting `json:"dashboardsSettings"`
-
-	mx                sync.Mutex
-	expireAtTimestamp time.Time
 }
 
 func handleVMUICustomDashboards(w http.ResponseWriter) {
+	var dashboardsData *dashboardsData
 	path := *vmuiCustomDashboardsPath
 	if path == "" {
-		writeSuccessResponse(w, predefinedDashboards)
+		writeSuccessResponse(w, dashboardsData)
 		return
 	}
 
-	if !fs.IsPathExist(path) {
-		writeErrorResponse(w, fmt.Errorf("cannot find folder pointed by -vmui.customDashboardsPath=%q", path))
+	settings, err := collectDashboardsSettings(path)
+	if err != nil {
+		writeErrorResponse(w, fmt.Errorf("cannot collect dashboards settings by -vmui.customDashboardsPath=%q", path))
 		return
 	}
 
-	requestTime := time.Now()
-	if predefinedDashboards.expireAtTimestamp.Before(requestTime) {
-		settings, err := collectDashboardsSettings(path)
-		if err != nil {
-			writeErrorResponse(w, fmt.Errorf("cannot collect dashboards settings by -vmui.customDashboardsPath=%q", path))
-			return
-		}
+	dashboardsData.DashboardsSettings = append(dashboardsData.DashboardsSettings, settings...)
 
-		predefinedDashboards.expireAtTimestamp = time.Now().Add(updateDashboardsTimeout)
-
-		predefinedDashboards.mx.Lock()
-		predefinedDashboards.DashboardsSettings = nil
-		predefinedDashboards.DashboardsSettings = append(predefinedDashboards.DashboardsSettings, settings...)
-		predefinedDashboards.mx.Unlock()
-	}
-
-	writeSuccessResponse(w, predefinedDashboards)
+	writeSuccessResponse(w, dashboardsData)
 }
 
 func writeErrorResponse(w http.ResponseWriter, err error) {
 	w.WriteHeader(http.StatusBadRequest)
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"status":"error","error":"%q"}`, err.Error())
+	fmt.Fprintf(w, `{"status":"error","error":"%s"}`, err.Error())
 }
 
 func writeSuccessResponse(w http.ResponseWriter, data *dashboardsData) {
@@ -109,6 +92,10 @@ func writeSuccessResponse(w http.ResponseWriter, data *dashboardsData) {
 }
 
 func collectDashboardsSettings(path string) ([]dashboardSetting, error) {
+
+	if !fs.IsPathExist(path) {
+		return nil, fmt.Errorf("cannot find folder pointed by -vmui.customDashboardsPath=%q", path)
+	}
 
 	files, err := os.ReadDir(path)
 	if err != nil {
@@ -123,7 +110,7 @@ func collectDashboardsSettings(path string) ([]dashboardSetting, error) {
 			continue
 		}
 		if fs.IsDirOrSymlink(info) {
-			logger.Infof("skip directory or symlinks in the -vmui.customDashboardsPath=%q", path)
+			logger.Infof("skip directory or symlinks: %q in the -vmui.customDashboardsPath=%q", info.Name(), path)
 			continue
 		}
 		filename := file.Name()
