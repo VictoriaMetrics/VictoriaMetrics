@@ -1,7 +1,6 @@
 package discoveryutils
 
 import (
-	"compress/gzip"
 	"context"
 	"crypto/tls"
 	"flag"
@@ -55,7 +54,7 @@ func GetHTTPClient() *http.Client {
 	return defaultClient
 }
 
-// Client is http client, which talks to the given apiServer.
+// Client is http client, which talks to the given apiServer passed to NewClient().
 type Client struct {
 	// client is used for short requests.
 	client *HTTPClient
@@ -64,8 +63,6 @@ type Client struct {
 	blockingClient *HTTPClient
 
 	apiServer string
-
-	dialAddr string
 
 	setHTTPHeaders      func(req *http.Request)
 	setHTTPProxyHeaders func(req *http.Request)
@@ -81,110 +78,96 @@ type HTTPClient struct {
 	WriteTimeout time.Duration
 }
 
-func addMissingPort(addr string, isTLS bool) string {
-	if strings.Contains(addr, ":") {
-		return addr
-	}
-	if isTLS {
-		return addr + ":443"
-	}
-	return addr + ":80"
-}
+var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
 func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse provided url %q: %w", apiServer, err)
+		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
 	}
 
-	// special case for unix socket connection
-	var dialFunc func(addr string) (net.Conn, error)
-	if string(u.Scheme) == "unix" {
+	dialFunc := defaultDialer.DialContext
+	if u.Scheme == "unix" {
+		// special case for unix socket connection
 		dialAddr := u.Path
-		apiServer = "http://"
-		dialFunc = func(_ string) (net.Conn, error) {
-			return net.Dial("unix", dialAddr)
+		apiServer = "http://unix"
+		dialFunc = func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return defaultDialer.DialContext(ctx, "unix", dialAddr)
 		}
 	}
 
-	dialAddr := u.Host
-	isTLS := string(u.Scheme) == "https"
+	isTLS := u.Scheme == "https"
 	var tlsCfg *tls.Config
 	if isTLS {
 		tlsCfg = ac.NewTLSConfig()
 	}
 
-	setHTTPProxyHeaders := func(req *http.Request) {}
-
-	dialAddr = addMissingPort(dialAddr, isTLS)
-	if dialFunc == nil {
-		var err error
-		dialFunc, err = proxyURL.NewDialFunc(proxyAC)
-		if err != nil {
-			return nil, err
-		}
-		if proxyAC != nil {
-			setHTTPProxyHeaders = func(req *http.Request) {
-				proxyURL.SetHeaders(proxyAC, req)
-			}
-		}
+	var proxyURLFunc func(*http.Request) (*url.URL, error)
+	if pu := proxyURL.GetURL(); pu != nil {
+		proxyURLFunc = http.ProxyURL(pu)
 	}
 
-	hcTransport := &http.Transport{
-		TLSClientConfig:       tlsCfg,
-		MaxConnsPerHost:       2 * *maxConcurrency,
-		ResponseHeaderTimeout: *maxWaitTime,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return dialFunc(dialAddr)
-		},
-	}
-
-	hc := &http.Client{
-		Timeout:   DefaultClientReadTimeout,
-		Transport: hcTransport,
-	}
-
-	blockingTransport := &http.Transport{
-		TLSClientConfig: tlsCfg,
-		MaxConnsPerHost: 64 * 1024,
-		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return dialFunc(dialAddr)
+	client := &http.Client{
+		Timeout: DefaultClientReadTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig:       tlsCfg,
+			Proxy:                 proxyURLFunc,
+			TLSHandshakeTimeout:   10 * time.Second,
+			MaxIdleConnsPerHost:   *maxConcurrency,
+			ResponseHeaderTimeout: DefaultClientReadTimeout,
+			DialContext:           dialFunc,
 		},
 	}
 	blockingClient := &http.Client{
-		Timeout:   BlockingClientReadTimeout,
-		Transport: blockingTransport,
+		Timeout: BlockingClientReadTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig:       tlsCfg,
+			Proxy:                 proxyURLFunc,
+			TLSHandshakeTimeout:   10 * time.Second,
+			MaxIdleConnsPerHost:   1000,
+			ResponseHeaderTimeout: BlockingClientReadTimeout,
+			DialContext:           dialFunc,
+		},
 	}
 
 	setHTTPHeaders := func(req *http.Request) {}
 	if ac != nil {
-		setHTTPHeaders = func(req *http.Request) { ac.SetHeaders(req, true) }
+		setHTTPHeaders = func(req *http.Request) {
+			ac.SetHeaders(req, true)
+		}
 	}
-
+	setHTTPProxyHeaders := func(req *http.Request) {}
+	if proxyAC != nil {
+		setHTTPProxyHeaders = func(req *http.Request) {
+			proxyURL.SetHeaders(proxyAC, req)
+		}
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 
-	return &Client{
-		client:              &HTTPClient{client: hc, ReadTimeout: DefaultClientReadTimeout, WriteTimeout: DefaultClientWriteTimeout},
-		blockingClient:      &HTTPClient{client: blockingClient, ReadTimeout: BlockingClientReadTimeout, WriteTimeout: DefaultClientWriteTimeout},
+	c := &Client{
+		client: &HTTPClient{
+			client:       client,
+			ReadTimeout:  DefaultClientReadTimeout,
+			WriteTimeout: DefaultClientWriteTimeout,
+		},
+		blockingClient: &HTTPClient{
+			client:       blockingClient,
+			ReadTimeout:  BlockingClientReadTimeout,
+			WriteTimeout: DefaultClientWriteTimeout,
+		},
 		apiServer:           apiServer,
-		dialAddr:            dialAddr,
 		setHTTPHeaders:      setHTTPHeaders,
 		setHTTPProxyHeaders: setHTTPProxyHeaders,
 		clientCtx:           ctx,
 		clientCancel:        cancel,
-	}, nil
-}
-
-// Addr returns the address the client connects to.
-func (c *Client) Addr() string {
-	return c.dialAddr
+	}
+	return c, nil
 }
 
 // GetAPIResponseWithReqParams returns response for given absolute path with optional callback for request.
-// modifyRequestParams should never reference data from request.
-func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequestParams func(request *http.Request)) ([]byte, error) {
-	return c.getAPIResponse(path, modifyRequestParams)
+func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest func(request *http.Request)) ([]byte, error) {
+	return c.getAPIResponse(path, modifyRequest)
 }
 
 // GetAPIResponse returns response for the given absolute path.
@@ -205,12 +188,13 @@ func (c *Client) getAPIResponse(path string, modifyRequest func(request *http.Re
 		return nil, fmt.Errorf("too many outstanding requests to %q; try increasing -promscrape.discovery.concurrentWaitTime=%s or -promscrape.discovery.concurrency=%d",
 			c.apiServer, *maxWaitTime, *maxConcurrency)
 	}
-	defer func() { <-concurrencyLimitCh }()
+	defer func() {
+		<-concurrencyLimitCh
+	}()
 	return c.getAPIResponseWithParamsAndClient(c.client, path, modifyRequest, nil)
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
-// inspectResponse - should never reference data from response.
 func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
 	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, nil, inspectResponse)
 }
@@ -222,7 +206,6 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path stri
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse %q: %w", requestURL, err)
 	}
-	u.Host = c.dialAddr
 
 	deadline := time.Now().Add(client.WriteTimeout)
 	ctx, cancel := context.WithDeadline(c.clientCtx, deadline)
@@ -232,8 +215,6 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path stri
 		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
 	}
 
-	req.Header.Set("Host", c.dialAddr)
-	req.Header.Set("Accept-Encoding", "gzip")
 	c.setHTTPHeaders(req)
 	c.setHTTPProxyHeaders(req)
 	if modifyRequest != nil {
@@ -244,20 +225,11 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path stri
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
-
-	reader := resp.Body
-	if resp.Header.Get("Content-Encoding") == "gzip" {
-		reader, err = gzip.NewReader(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("cannot create gzip reader for %q: %w", requestURL, err)
-		}
-	}
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, fmt.Errorf("cannot ungzip response from %q: %w", requestURL, err)
-	}
+	data, err := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
+	if err != nil {
+		return nil, fmt.Errorf("cannot read response from %q: %w", requestURL, err)
+	}
 
 	if inspectResponse != nil {
 		inspectResponse(resp)
@@ -280,10 +252,9 @@ func (c *Client) Stop() {
 	c.clientCancel()
 }
 
-// DoRequestWithPossibleRetry performs the given req at client and stores the response at resp.
-func DoRequestWithPossibleRetry(hc *HTTPClient, req *http.Request, requestCounter, retryCounter *metrics.Counter) (*http.Response, error) {
+func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
 	sleepTime := time.Second
-	requestCounter.Inc()
+	discoveryRequests.Inc()
 	deadline, ok := req.Context().Deadline()
 	if !ok {
 		deadline = time.Now().Add(hc.WriteTimeout)
@@ -309,12 +280,8 @@ func DoRequestWithPossibleRetry(hc *HTTPClient, req *http.Request, requestCounte
 			sleepTime = maxSleepTime
 		}
 		time.Sleep(sleepTime)
-		retryCounter.Inc()
+		discoveryRetries.Inc()
 	}
-}
-
-func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
-	return DoRequestWithPossibleRetry(hc, req, discoveryRequests, discoveryRetries)
 }
 
 var (

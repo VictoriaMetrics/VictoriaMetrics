@@ -3,6 +3,7 @@ package nomad
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -11,7 +12,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
-	"github.com/VictoriaMetrics/fasthttp"
 )
 
 var waitTime = flag.Duration("promscrape.nomad.waitTime", 0, "Wait time used by Nomad service discovery. Default value is used if not set")
@@ -138,13 +138,13 @@ func maxWaitTime() time.Duration {
 func getBlockingAPIResponse(client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
-	getMeta := func(resp *fasthttp.Response) {
-		ind := resp.Header.Peek("X-Nomad-Index")
+	getMeta := func(resp *http.Response) {
+		ind := resp.Header.Get("X-Nomad-Index")
 		if len(ind) == 0 {
 			logger.Errorf("cannot find X-Nomad-Index header in response from %q", path)
 			return
 		}
-		newIndex, err := strconv.ParseInt(string(ind), 10, 64)
+		newIndex, err := strconv.ParseInt(ind, 10, 64)
 		if err != nil {
 			logger.Errorf("cannot parse X-Nomad-Index header value in response from %q: %s", path, err)
 			return
