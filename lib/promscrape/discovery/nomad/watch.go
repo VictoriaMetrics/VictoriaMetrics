@@ -1,7 +1,9 @@
 package nomad
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -31,8 +33,9 @@ type nomadWatcher struct {
 	servicesLock sync.Mutex
 	services     map[string]*serviceWatcher
 
-	wg     sync.WaitGroup
-	stopCh chan struct{}
+	servicesWG sync.WaitGroup
+	wg         sync.WaitGroup
+	stopCh     chan struct{}
 }
 
 type serviceWatcher struct {
@@ -61,7 +64,11 @@ func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, n
 		stopCh:                make(chan struct{}),
 	}
 	initCh := make(chan struct{})
-	go cw.watchForServicesUpdates(initCh)
+	cw.wg.Add(1)
+	go func() {
+		cw.watchForServicesUpdates(initCh)
+		cw.wg.Done()
+	}()
 	// wait for initialization to complete
 	<-initCh
 	return cw
@@ -69,9 +76,8 @@ func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, n
 
 func (cw *nomadWatcher) mustStop() {
 	close(cw.stopCh)
-	// Do not wait for the watcher to stop, since it may take
-	// up to discoveryutils.BlockingClientReadTimeout to complete.
-	// TODO: add ability to cancel blocking requests.
+	cw.client.Stop()
+	cw.wg.Wait()
 }
 
 func (cw *nomadWatcher) updateServices(serviceNames []string) {
@@ -88,14 +94,14 @@ func (cw *nomadWatcher) updateServices(serviceNames []string) {
 			stopCh:      make(chan struct{}),
 		}
 		cw.services[serviceName] = sw
-		cw.wg.Add(1)
+		cw.servicesWG.Add(1)
 		serviceWatchersCreated.Inc()
 		initWG.Add(1)
 		go func() {
 			serviceWatchersCount.Inc()
 			sw.watchForServiceAddressUpdates(cw, &initWG)
 			serviceWatchersCount.Dec()
-			cw.wg.Done()
+			cw.servicesWG.Done()
 		}()
 	}
 
@@ -126,11 +132,13 @@ func (cw *nomadWatcher) updateServices(serviceNames []string) {
 // watchForServicesUpdates closes the initCh once the initialization is complete and first discovery iteration is done.
 func (cw *nomadWatcher) watchForServicesUpdates(initCh chan struct{}) {
 	index := int64(0)
-	clientAddr := cw.client.Addr()
+	apiServer := cw.client.APIServer()
 	f := func() {
 		serviceNames, newIndex, err := cw.getBlockingServiceNames(index)
 		if err != nil {
-			logger.Errorf("cannot obtain Nomad serviceNames from %q: %s", clientAddr, err)
+			if !errors.Is(err, context.Canceled) {
+				logger.Errorf("cannot obtain Nomad serviceNames from %q: %s", apiServer, err)
+			}
 			return
 		}
 		if index == newIndex {
@@ -141,7 +149,7 @@ func (cw *nomadWatcher) watchForServicesUpdates(initCh chan struct{}) {
 		index = newIndex
 	}
 
-	logger.Infof("started Nomad service watcher for %q", clientAddr)
+	logger.Infof("started Nomad service watcher for %q", apiServer)
 	f()
 
 	// send signal that initialization is complete
@@ -155,15 +163,15 @@ func (cw *nomadWatcher) watchForServicesUpdates(initCh chan struct{}) {
 		case <-ticker.C:
 			f()
 		case <-cw.stopCh:
-			logger.Infof("stopping Nomad service watchers for %q", clientAddr)
+			logger.Infof("stopping Nomad service watchers for %q", apiServer)
 			startTime := time.Now()
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
 				close(sw.stopCh)
 			}
 			cw.servicesLock.Unlock()
-			cw.wg.Wait()
-			logger.Infof("stopped Nomad service watcher for %q in %.3f seconds", clientAddr, time.Since(startTime).Seconds())
+			cw.servicesWG.Wait()
+			logger.Infof("stopped Nomad service watcher for %q in %.3f seconds", apiServer, time.Since(startTime).Seconds())
 			return
 		}
 	}
@@ -225,14 +233,16 @@ func (cw *nomadWatcher) getServiceSnapshot() map[string][]Service {
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
 func (sw *serviceWatcher) watchForServiceAddressUpdates(nw *nomadWatcher, initWG *sync.WaitGroup) {
-	clientAddr := nw.client.Addr()
+	apiServer := nw.client.APIServer()
 	index := int64(0)
 	// TODO: Maybe use a different query arg.
 	path := "/v1/service/" + sw.serviceName + nw.serviceNamesQueryArgs
 	f := func() {
 		data, newIndex, err := getBlockingAPIResponse(nw.client, path, index)
 		if err != nil {
-			logger.Errorf("cannot obtain Nomad services for serviceName=%q from %q: %s", sw.serviceName, clientAddr, err)
+			if !errors.Is(err, context.Canceled) {
+				logger.Errorf("cannot obtain Nomad services for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
+			}
 			return
 		}
 		if index == newIndex {
@@ -241,7 +251,7 @@ func (sw *serviceWatcher) watchForServiceAddressUpdates(nw *nomadWatcher, initWG
 		}
 		sns, err := parseServices(data)
 		if err != nil {
-			logger.Errorf("cannot parse Nomad services response for serviceName=%q from %q: %s", sw.serviceName, clientAddr, err)
+			logger.Errorf("cannot parse Nomad services response for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
 			return
 		}
 
