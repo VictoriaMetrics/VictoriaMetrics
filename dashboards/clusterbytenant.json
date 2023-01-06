@@ -559,7 +559,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },

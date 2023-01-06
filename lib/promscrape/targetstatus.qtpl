@@ -250,7 +250,8 @@
                                 </div>
                             </td>
                             <td>
-                                <a href="target-relabel-debug?id={%s targetID %}" target="_blank">debug</a>
+                                <a href="target-relabel-debug?id={%s targetID %}" target="_blank">target</a>{% space %}
+                                <a href="metric-relabel-debug?id={%s targetID %}" target="_blank">metrics</a>
                             </td>
                             <td>{%d ts.scrapesTotal %}</td>
                             <td>{%d ts.scrapesFailed %}</td>

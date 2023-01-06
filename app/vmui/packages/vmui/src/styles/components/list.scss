@@ -1,18 +1,35 @@
 @use "src/styles/variables" as *;
 
 .vm-list {
-  &__item {
+  &-item {
     padding: 12px $padding-global;
     cursor: pointer;
     background-color: transparent;
     transition: background-color 200ms ease;
 
+    &:hover,
     &_active {
-      background-color: rgba($color-black, 0.1);
+      background-color: rgba($color-black, 0.06);
     }
 
-    &:hover {
-      background-color: rgba($color-black, 0.1);
+    &_multiselect {
+      display: grid;
+      grid-template-columns: 10px 1fr;
+      gap: $padding-small;
+      align-items: center;
+      justify-content: flex-start;
+
+      svg {
+        animation: vm-scale 150ms cubic-bezier(0.280, 0.840, 0.420, 1);
+      }
+
+      span {
+        grid-column: 2;
+      }
+
+      &_selected {
+        color: $color-primary;
+      }
     }
   }
 }
