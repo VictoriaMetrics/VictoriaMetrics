@@ -829,6 +829,7 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 	mp := &is.mp
 	dmis := is.db.s.getDeletedMetricIDs()
 	loopsPaceLimiter := 0
+	underscoreNameSeen := false
 	nsPrefixExpected := byte(nsPrefixDateTagToMetricIDs)
 	if date == 0 {
 		nsPrefixExpected = nsPrefixTagToMetricIDs
@@ -855,9 +856,9 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 		}
 		labelName := mp.Tag.Key
 		if len(labelName) == 0 {
-			labelName = []byte("__name__")
+			underscoreNameSeen = true
 		}
-		if isArtificialTagKey(labelName) {
+		if isArtificialTagKey(labelName) || string(labelName) == string(prevLabelName) {
 			// Search for the next tag key.
 			// The last char in kb.B must be tagSeparatorChar.
 			// Just increment it in order to jump to the next tag key.
@@ -872,19 +873,11 @@ func (is *indexSearch) searchLabelNamesWithFiltersOnDate(qt *querytracer.Tracer,
 			ts.Seek(kb.B)
 			continue
 		}
-		if string(labelName) == string(prevLabelName) {
-			var tagValue []byte
-			if string(labelName) != "__name__" {
-				tagValue = labelName
-			}
-			kb.B = is.marshalCommonPrefixForDate(kb.B[:0], date)
-			kb.B = marshalTagValue(kb.B, tagValue)
-			kb.B[len(kb.B)-1]++
-			ts.Seek(kb.B)
-			continue
-		}
 		lns[string(labelName)] = struct{}{}
 		prevLabelName = append(prevLabelName[:0], labelName...)
+	}
+	if underscoreNameSeen {
+		lns["__name__"] = struct{}{}
 	}
 	if err := ts.Error(); err != nil {
 		return fmt.Errorf("error during search for prefix %q: %w", prefix, err)
