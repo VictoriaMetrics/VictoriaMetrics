@@ -147,6 +147,8 @@ var WG syncwg.WaitGroup
 var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
 
 // AddRows adds mrs to the storage.
+//
+// The caller should limit the number of concurrent calls to AddRows() in order to limit memory usage.
 func AddRows(mrs []storage.MetricRow) error {
 	if Storage.IsReadOnly() {
 		return errReadOnly

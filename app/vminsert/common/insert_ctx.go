@@ -144,6 +144,9 @@ func (ctx *InsertCtx) FlushBufs() error {
 			return nil
 		}
 	}
+	// There is no need in limiting the number of concurrent calls to vmstorage.AddRows() here,
+	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
+	// used at every ParseStream() call under lib/protoparser/*/streamparser.go
 	err := vmstorage.AddRows(ctx.mrs)
 	ctx.Reset(0)
 	if err == nil {
