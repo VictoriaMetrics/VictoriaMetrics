@@ -1,7 +1,6 @@
 package datadog
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
@@ -12,7 +11,6 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -30,15 +28,9 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		ce := req.Header.Get("Content-Encoding")
-		err := parser.ParseStream(req.Body, ce, func(series []parser.Series) error {
-			return insertRows(at, series, extraLabels)
-		})
-		if err != nil {
-			return fmt.Errorf("headers: %q; err: %w", req.Header, err)
-		}
-		return nil
+	ce := req.Header.Get("Content-Encoding")
+	return parser.ParseStream(req.Body, ce, func(series []parser.Series) error {
+		return insertRows(at, series, extraLabels)
 	})
 }
 

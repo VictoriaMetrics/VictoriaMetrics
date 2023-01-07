@@ -12,7 +12,6 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -29,10 +28,8 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isGzip := req.Header.Get("Content-Encoding") == "gzip"
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req.Body, isGzip, func(block *parser.Block) error {
-			return insertRows(at, block, extraLabels)
-		})
+	return parser.ParseStream(req.Body, isGzip, func(block *parser.Block) error {
+		return insertRows(at, block, extraLabels)
 	})
 }
 

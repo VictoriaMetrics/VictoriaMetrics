@@ -10,7 +10,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -28,11 +27,9 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		ce := req.Header.Get("Content-Encoding")
-		return parser.ParseStream(req.Body, ce, func(series []parser.Series) error {
-			return insertRows(at, series, extraLabels)
-		})
+	ce := req.Header.Get("Content-Encoding")
+	return parser.ParseStream(req.Body, ce, func(series []parser.Series) error {
+		return insertRows(at, series, extraLabels)
 	})
 }
 

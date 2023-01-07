@@ -518,7 +518,7 @@ func (s *Server) processRPCWithConcurrencyLimit(ctx *vmselectRequestCtx, rpcName
 		case <-t.C:
 			timerpool.Put(t)
 			s.concurrencyLimitTimeout.Inc()
-			return fmt.Errorf("couldn't start executing the request in %.3fs, since -%s=%d concurrent requests "+
+			return fmt.Errorf("couldn't start executing the request in %.3f seconds, since -%s=%d concurrent requests "+
 				"are already executed. Possible solutions: to reduce the query load; to add more compute resources to the server; "+
 				"to increase -%s; to increase -%s",
 				d.Seconds(), s.limits.MaxConcurrentRequestsFlagName, s.limits.MaxConcurrentRequests,

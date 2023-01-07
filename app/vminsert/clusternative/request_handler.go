@@ -11,7 +11,6 @@ import (
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -27,11 +26,9 @@ func InsertHandler(c net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(bc, func(rows []storage.MetricRow) error {
-			return insertRows(rows)
-		}, nil)
-	})
+	return parser.ParseStream(bc, func(rows []storage.MetricRow) error {
+		return insertRows(rows)
+	}, nil)
 }
 
 func insertRows(rows []storage.MetricRow) error {

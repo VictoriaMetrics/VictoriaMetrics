@@ -41,7 +41,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -105,7 +104,6 @@ func main() {
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 	storage.SetMaxLabelValueLen(*maxLabelValueLen)
 	common.StartUnmarshalWorkers()
-	writeconcurrencylimiter.Init()
 	if len(*clusternativeListenAddr) > 0 {
 		clusternativeServer = clusternativeserver.MustStart(*clusternativeListenAddr, func(c net.Conn) error {
 			return clusternative.InsertHandler(c)

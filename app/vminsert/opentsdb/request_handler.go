@@ -8,7 +8,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -22,10 +21,8 @@ var (
 //
 // See http://opentsdb.net/docs/build/html/api_telnet/put.html
 func InsertHandler(at *auth.Token, r io.Reader) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, func(rows []parser.Row) error {
-			return insertRows(at, rows)
-		})
+	return parser.ParseStream(r, func(rows []parser.Row) error {
+		return insertRows(at, rows)
 	})
 }
 

@@ -18,7 +18,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -28,7 +27,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -45,10 +43,6 @@ type Storage struct {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/212 .
 	tooSmallTimestampRows uint64
 	tooBigTimestampRows   uint64
-
-	addRowsConcurrencyLimitReached uint64
-	addRowsConcurrencyLimitTimeout uint64
-	addRowsConcurrencyDroppedRows  uint64
 
 	slowRowInserts         uint64
 	slowPerDayIndexInserts uint64
@@ -466,12 +460,6 @@ type Metrics struct {
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
 
-	AddRowsConcurrencyLimitReached uint64
-	AddRowsConcurrencyLimitTimeout uint64
-	AddRowsConcurrencyDroppedRows  uint64
-	AddRowsConcurrencyCapacity     uint64
-	AddRowsConcurrencyCurrent      uint64
-
 	SearchDelays uint64
 
 	SlowRowInserts         uint64
@@ -542,12 +530,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
 	m.TooBigTimestampRows += atomic.LoadUint64(&s.tooBigTimestampRows)
-
-	m.AddRowsConcurrencyLimitReached += atomic.LoadUint64(&s.addRowsConcurrencyLimitReached)
-	m.AddRowsConcurrencyLimitTimeout += atomic.LoadUint64(&s.addRowsConcurrencyLimitTimeout)
-	m.AddRowsConcurrencyDroppedRows += atomic.LoadUint64(&s.addRowsConcurrencyDroppedRows)
-	m.AddRowsConcurrencyCapacity = uint64(cap(addRowsConcurrencyCh))
-	m.AddRowsConcurrencyCurrent = uint64(len(addRowsConcurrencyCh))
 
 	m.SearchDelays = storagepacelimiter.Search.DelaysTotal()
 
@@ -1629,36 +1611,12 @@ func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
 var rowsAddedTotal uint64
 
 // AddRows adds the given mrs to s.
+//
+// The caller should limit the number of concurrent AddRows calls to the number
+// of available CPU cores in order to limit memory usage.
 func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 	if len(mrs) == 0 {
 		return nil
-	}
-
-	// Limit the number of concurrent goroutines that may add rows to the storage.
-	// This should prevent from out of memory errors and CPU thrashing when too many
-	// goroutines call AddRows.
-	select {
-	case addRowsConcurrencyCh <- struct{}{}:
-	default:
-		// Sleep for a while until giving up
-		atomic.AddUint64(&s.addRowsConcurrencyLimitReached, 1)
-		t := timerpool.Get(addRowsTimeout)
-
-		// Prioritize data ingestion over concurrent searches.
-		storagepacelimiter.Search.Inc()
-
-		select {
-		case addRowsConcurrencyCh <- struct{}{}:
-			timerpool.Put(t)
-			storagepacelimiter.Search.Dec()
-		case <-t.C:
-			timerpool.Put(t)
-			storagepacelimiter.Search.Dec()
-			atomic.AddUint64(&s.addRowsConcurrencyLimitTimeout, 1)
-			atomic.AddUint64(&s.addRowsConcurrencyDroppedRows, uint64(len(mrs)))
-			return fmt.Errorf("cannot add %d rows to storage in %s, since it is overloaded with %d concurrent writers; add more CPUs or reduce load",
-				len(mrs), addRowsTimeout, cap(addRowsConcurrencyCh))
-		}
 	}
 
 	// Add rows to the storage in blocks with limited size in order to reduce memory usage.
@@ -1682,8 +1640,6 @@ func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
 		atomic.AddUint64(&rowsAddedTotal, uint64(len(mrsBlock)))
 	}
 	putMetricRowsInsertCtx(ic)
-
-	<-addRowsConcurrencyCh
 
 	return firstErr
 }
@@ -1715,14 +1671,6 @@ func putMetricRowsInsertCtx(ic *metricRowsInsertCtx) {
 var metricRowsInsertCtxPool sync.Pool
 
 const maxMetricRowsPerBlock = 8000
-
-var (
-	// Limit the concurrency for data ingestion to GOMAXPROCS, since this operation
-	// is CPU bound, so there is no sense in running more than GOMAXPROCS concurrent
-	// goroutines on data ingestion path.
-	addRowsConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
-	addRowsTimeout       = 30 * time.Second
-)
 
 // RegisterMetricNames registers all the metric names from mns in the indexdb, so they can be queried later.
 //

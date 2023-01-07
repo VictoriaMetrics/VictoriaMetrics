@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -24,13 +25,17 @@ import (
 //
 // callback shouldn't hold block after returning.
 func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
+	wcr := writeconcurrencylimiter.GetReader(bc)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(wcr)
+
 	var wg sync.WaitGroup
 	var (
 		callbackErrLock sync.Mutex
 		callbackErr     error
 	)
 	for {
-		reqBuf, err := readBlock(nil, bc, isReadOnly)
+		reqBuf, err := readBlock(nil, r, bc, isReadOnly)
 		if err != nil {
 			wg.Wait()
 			if err == io.EOF {
@@ -55,15 +60,16 @@ func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.Metric
 		uw.wg = &wg
 		wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
+		wcr.DecConcurrency()
 	}
 }
 
 // readBlock reads the next data block from vminsert-initiated bc, appends it to dst and returns the result.
-func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) ([]byte, error) {
+func readBlock(dst []byte, r io.Reader, bc *handshake.BufferedConn, isReadOnly func() bool) ([]byte, error) {
 	sizeBuf := auxBufPool.Get()
 	defer auxBufPool.Put(sizeBuf)
 	sizeBuf.B = bytesutil.ResizeNoCopyMayOverallocate(sizeBuf.B, 8)
-	if _, err := io.ReadFull(bc, sizeBuf.B); err != nil {
+	if _, err := io.ReadFull(r, sizeBuf.B); err != nil {
 		if err != io.EOF {
 			readErrors.Inc()
 			err = fmt.Errorf("cannot read packet size: %w", err)
@@ -77,7 +83,7 @@ func readBlock(dst []byte, bc *handshake.BufferedConn, isReadOnly func() bool) (
 	}
 	dstLen := len(dst)
 	dst = bytesutil.ResizeWithCopyMayOverallocate(dst, dstLen+int(packetSize))
-	if n, err := io.ReadFull(bc, dst[dstLen:]); err != nil {
+	if n, err := io.ReadFull(r, dst[dstLen:]); err != nil {
 		readErrors.Inc()
 		return dst, fmt.Errorf("cannot read packet with size %d bytes: %w; read only %d bytes", packetSize, err, n)
 	}
