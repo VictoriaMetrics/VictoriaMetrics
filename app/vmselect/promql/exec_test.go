@@ -7357,7 +7357,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`rollup_scrape_interval()`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_by_label(rollup_scrape_interval(1[5m:10s]), "rollup")`
+		q := `sort_by_label(rollup_scrape_interval(1[5M:10s]), "rollup")`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},

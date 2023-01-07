@@ -3,8 +3,7 @@ package azure
 import (
 	"encoding/json"
 	"fmt"
-
-	"github.com/VictoriaMetrics/fasthttp"
+	"net/http"
 )
 
 // networkInterface a network interface in a resource group.
@@ -66,7 +65,7 @@ func getNIC(ac *apiConfig, id string, isScaleSetVM bool) (*networkInterface, err
 		apiQueryParams = "api-version=2021-03-01&$expand=ipConfigurations/publicIPAddress"
 	}
 	apiURL := id + "?" + apiQueryParams
-	resp, err := ac.c.GetAPIResponseWithReqParams(apiURL, func(request *fasthttp.Request) {
+	resp, err := ac.c.GetAPIResponseWithReqParams(apiURL, func(request *http.Request) {
 		request.Header.Set("Authorization", "Bearer "+ac.mustGetAuthToken())
 	})
 	if err != nil {

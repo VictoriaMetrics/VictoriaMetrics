@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	vminsertCommon "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
@@ -34,7 +35,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -66,10 +66,10 @@ var staticServer = http.FileServer(http.FS(staticFiles))
 // Init initializes vminsert.
 func Init() {
 	relabel.Init()
+	vminsertCommon.InitStreamAggr()
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 	storage.SetMaxLabelValueLen(*maxLabelValueLen)
 	common.StartUnmarshalWorkers()
-	writeconcurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
 	}
@@ -103,6 +103,7 @@ func Stop() {
 		opentsdbhttpServer.MustStop()
 	}
 	common.StopUnmarshalWorkers()
+	vminsertCommon.MustStopStreamAggr()
 }
 
 // RequestHandler is a handler for Prometheus remote storage write API

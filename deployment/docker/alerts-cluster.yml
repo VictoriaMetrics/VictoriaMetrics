@@ -81,7 +81,7 @@ groups:
             Possible reasons for errors are misconfiguration, overload, network blips or unreachable components."
 
       - alert: ConcurrentFlushesHitTheLimit
-        expr: avg_over_time(vm_concurrent_addrows_current[1m]) >= vm_concurrent_addrows_capacity
+        expr: avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity
         for: 15m
         labels:
           severity: warning

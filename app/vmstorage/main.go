@@ -147,6 +147,8 @@ var WG syncwg.WaitGroup
 var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
 
 // AddRows adds mrs to the storage.
+//
+// The caller should limit the number of concurrent calls to AddRows() in order to limit memory usage.
 func AddRows(mrs []storage.MetricRow) error {
 	if Storage.IsReadOnly() {
 		return errReadOnly
@@ -648,22 +650,6 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_rows_ignored_total{reason="small_timestamp"}`, func() float64 {
 		return float64(m().TooSmallTimestampRows)
-	})
-
-	metrics.NewGauge(`vm_concurrent_addrows_limit_reached_total`, func() float64 {
-		return float64(m().AddRowsConcurrencyLimitReached)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_limit_timeout_total`, func() float64 {
-		return float64(m().AddRowsConcurrencyLimitTimeout)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_dropped_rows_total`, func() float64 {
-		return float64(m().AddRowsConcurrencyDroppedRows)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_capacity`, func() float64 {
-		return float64(m().AddRowsConcurrencyCapacity)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_current`, func() float64 {
-		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
 	metrics.NewGauge(`vm_search_delays_total`, func() float64 {

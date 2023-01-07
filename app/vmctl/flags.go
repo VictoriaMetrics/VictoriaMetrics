@@ -353,7 +353,7 @@ var (
 		},
 		&cli.StringFlag{
 			Name:  vmNativeStepInterval,
-			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour),
+			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,

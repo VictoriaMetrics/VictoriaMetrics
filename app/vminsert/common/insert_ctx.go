@@ -19,7 +19,10 @@ type InsertCtx struct {
 	mrs            []storage.MetricRow
 	metricNamesBuf []byte
 
-	relabelCtx relabel.Ctx
+	relabelCtx    relabel.Ctx
+	streamAggrCtx streamAggrCtx
+
+	skipStreamAggr bool
 }
 
 // Reset resets ctx for future fill with rowsLen rows.
@@ -42,6 +45,8 @@ func (ctx *InsertCtx) Reset(rowsLen int) {
 	ctx.mrs = ctx.mrs[:0]
 	ctx.metricNamesBuf = ctx.metricNamesBuf[:0]
 	ctx.relabelCtx.Reset()
+	ctx.streamAggrCtx.Reset()
+	ctx.skipStreamAggr = false
 }
 
 func (ctx *InsertCtx) marshalMetricNameRaw(prefix []byte, labels []prompb.Label) []byte {
@@ -132,6 +137,16 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
+	if sa != nil && !ctx.skipStreamAggr {
+		ctx.streamAggrCtx.push(ctx.mrs)
+		if !*streamAggrKeepInput {
+			ctx.Reset(0)
+			return nil
+		}
+	}
+	// There is no need in limiting the number of concurrent calls to vmstorage.AddRows() here,
+	// since the number of concurrent FlushBufs() calls should be already limited via writeconcurrencylimiter
+	// used at every ParseStream() call under lib/protoparser/*/streamparser.go
 	err := vmstorage.AddRows(ctx.mrs)
 	ctx.Reset(0)
 	if err == nil {

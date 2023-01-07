@@ -8,6 +8,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
+// InternBytes interns b as a string
+func InternBytes(b []byte) string {
+	s := ToUnsafeString(b)
+	return InternString(s)
+}
+
 // InternString returns interned s.
 //
 // This may be needed for reducing the amounts of allocated memory.
