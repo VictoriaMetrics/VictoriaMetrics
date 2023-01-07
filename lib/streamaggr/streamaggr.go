@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -345,9 +346,17 @@ func (a *aggregator) runFlusher(interval time.Duration) {
 			return
 		case <-t.C:
 		}
+
+		// Globally limit the concurrency for metrics' flush
+		// in order to limit memory usage when big number of aggregators
+		// are flushed at the same time.
+		flushConcurrencyCh <- struct{}{}
 		a.flush()
+		<-flushConcurrencyCh
 	}
 }
+
+var flushConcurrencyCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
 
 func (a *aggregator) flush() {
 	ctx := &flushCtx{
@@ -373,7 +382,7 @@ func (a *aggregator) flush() {
 			tss = dst
 		}
 
-		// Push the output metrics
+		// Push the output metrics.
 		a.pushFunc(tss)
 	}
 }
