@@ -424,7 +424,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	return err
 }
 
-var concurrencyLimitCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
+var concurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, body *bytesutil.ByteBuffer, err error) (bool, error) {
 	// This function is CPU-bound, while it may allocate big amounts of memory.
