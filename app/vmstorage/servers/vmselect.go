@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -18,6 +20,11 @@ var (
 	maxTagKeys                   = flag.Int("search.maxTagKeys", 100e3, "The maximum number of tag keys returned per search")
 	maxTagValues                 = flag.Int("search.maxTagValues", 100e3, "The maximum number of tag values returned per search")
 	maxTagValueSuffixesPerSearch = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
+	maxConcurrentRequests        = flag.Int("search.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+		"the vmstorage can process at -vmselectAddr. It shouldn't be high, since a single request usually saturates a CPU core, and many concurrently executed requests "+
+		"may require high amounts of memory. See also -search.maxQueueDuration")
+	maxQueueDuration = flag.Duration("search.maxQueueDuration", 10*time.Second, "The maximum time the incoming vmselect request waits for execution "+
+		"when -search.maxConcurrentRequests limit is reached")
 
 	disableRPCCompression = flag.Bool(`rpc.disableCompression`, false, "Whether to disable compression of the data sent from vmstorage to vmselect. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -32,9 +39,13 @@ func NewVMSelectServer(addr string, s *storage.Storage) (*vmselectapi.Server, er
 		s: s,
 	}
 	limits := vmselectapi.Limits{
-		MaxLabelNames:       *maxTagKeys,
-		MaxLabelValues:      *maxTagValues,
-		MaxTagValueSuffixes: *maxTagValueSuffixesPerSearch,
+		MaxLabelNames:                 *maxTagKeys,
+		MaxLabelValues:                *maxTagValues,
+		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
+		MaxConcurrentRequests:         *maxConcurrentRequests,
+		MaxConcurrentRequestsFlagName: "search.maxConcurrentRequests",
+		MaxQueueDuration:              *maxQueueDuration,
+		MaxQueueDurationFlagName:      "search.maxQueueDuration",
 	}
 	return vmselectapi.NewServer(addr, api, limits, *disableRPCCompression)
 }

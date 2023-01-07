@@ -3,9 +3,11 @@ package clusternative
 import (
 	"flag"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/vmselectapi"
@@ -16,6 +18,11 @@ var (
 	maxTagValues                 = flag.Int("clusternative.maxTagValues", 100e3, "The maximum number of tag values returned per search at -clusternativeListenAddr")
 	maxTagValueSuffixesPerSearch = flag.Int("clusternative.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned "+
 		"from /metrics/find at -clusternativeListenAddr")
+	maxConcurrentRequests = flag.Int("clusternative.maxConcurrentRequests", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent vmselect requests "+
+		"the server can process at -clusternativeListenAddr. It shouldn't be high, since a single request usually saturates a CPU core at the underlying vmstorage nodes, "+
+		"and many concurrently executed requests may require high amounts of memory. See also -clusternative.maxQueueDuration")
+	maxQueueDuration = flag.Duration("clusternative.maxQueueDuration", 10*time.Second, "The maximum time the incoming query to -clusternativeListenAddr waits for execution "+
+		"when -clusternative.maxConcurrentRequests limit is reached")
 
 	disableRPCCompression = flag.Bool(`clusternative.disableCompression`, false, "Whether to disable compression of the data sent to vmselect via -clusternativeListenAddr. "+
 		"This reduces CPU usage at the cost of higher network bandwidth usage")
@@ -25,9 +32,13 @@ var (
 func NewVMSelectServer(addr string) (*vmselectapi.Server, error) {
 	api := &vmstorageAPI{}
 	limits := vmselectapi.Limits{
-		MaxLabelNames:       *maxTagKeys,
-		MaxLabelValues:      *maxTagValues,
-		MaxTagValueSuffixes: *maxTagValueSuffixesPerSearch,
+		MaxLabelNames:                 *maxTagKeys,
+		MaxLabelValues:                *maxTagValues,
+		MaxTagValueSuffixes:           *maxTagValueSuffixesPerSearch,
+		MaxConcurrentRequests:         *maxConcurrentRequests,
+		MaxConcurrentRequestsFlagName: "clusternative.maxConcurrentRequests",
+		MaxQueueDuration:              *maxQueueDuration,
+		MaxQueueDurationFlagName:      "clusternative.maxQueueDuration",
 	}
 	return vmselectapi.NewServer(addr, api, limits, *disableRPCCompression)
 }

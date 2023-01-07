@@ -18,6 +18,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -35,6 +36,9 @@ type Server struct {
 	// ln is the listener for incoming connections to the server.
 	ln net.Listener
 
+	// The channel for limiting the number of concurrently executed requests.
+	concurrencyLimitCh chan struct{}
+
 	// connsMap is a map of currently established connections to the server.
 	// It is used for closing the connections when MustStop() is called.
 	connsMap ingestserver.ConnsMap
@@ -44,6 +48,9 @@ type Server struct {
 
 	// stopFlag is set to true when the server needs to stop.
 	stopFlag uint32
+
+	concurrencyLimitReached *metrics.Counter
+	concurrencyLimitTimeout *metrics.Counter
 
 	vmselectConns      *metrics.Counter
 	vmselectConnErrors *metrics.Counter
@@ -75,6 +82,20 @@ type Limits struct {
 
 	// MaxTagValueSuffixes is the maximum number of entries, which can be returned from tagValueSuffixes request.
 	MaxTagValueSuffixes int
+
+	// MaxConcurrentRequests is the maximum number of concurrent requests a server can process.
+	//
+	// The remaining requests wait for up to MaxQueueDuration for their execution.
+	MaxConcurrentRequests int
+
+	// MaxConcurrentRequestsFlagName is the name for the flag containing the MaxConcurrentRequests value.
+	MaxConcurrentRequestsFlagName string
+
+	// MaxQueueDuration is the maximum duration to wait if MaxConcurrentRequests are executed.
+	MaxQueueDuration time.Duration
+
+	// MaxQueueDurationFlagName is the name for the flag containing the MaxQueueDuration value.
+	MaxQueueDurationFlagName string
 }
 
 // NewServer starts new Server at the given addr, which serves the given api with the given limits.
@@ -85,10 +106,22 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}
+	concurrencyLimitCh := make(chan struct{}, limits.MaxConcurrentRequests)
+	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_capacity`, func() float64 {
+		return float64(cap(concurrencyLimitCh))
+	})
+	_ = metrics.NewGauge(`vm_vmselect_concurrent_requests_current`, func() float64 {
+		return float64(len(concurrencyLimitCh))
+	})
 	s := &Server{
 		api:    api,
 		limits: limits,
 		ln:     ln,
+
+		concurrencyLimitCh: concurrencyLimitCh,
+
+		concurrencyLimitReached: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_reached_total{addr=%q}`, addr)),
+		concurrencyLimitTimeout: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_concurrent_requests_limit_timeout_total{addr=%q}`, addr)),
 
 		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
 		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
@@ -109,6 +142,7 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		metricBlocksRead: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_blocks_read_total{addr=%q}`, addr)),
 		metricRowsRead:   metrics.NewCounter(fmt.Sprintf(`vm_vmselect_metric_rows_read_total{addr=%q}`, addr)),
 	}
+
 	s.connsMap.Init()
 	s.wg.Add(1)
 	go func() {
@@ -454,7 +488,7 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 	ctx.deadline = fasttime.UnixTimestamp() + uint64(timeout)
 
 	// Process the rpcName call.
-	if err := s.processRPC(ctx, rpcName); err != nil {
+	if err := s.processRPCWithConcurrencyLimit(ctx, rpcName); err != nil {
 		return fmt.Errorf("cannot execute %q: %s", rpcName, err)
 	}
 
@@ -465,6 +499,35 @@ func (s *Server) processRequest(ctx *vmselectRequestCtx) error {
 		return fmt.Errorf("cannot send trace with length %d bytes to vmselect: %w", len(traceJSON), err)
 	}
 	return nil
+}
+
+func (s *Server) processRPCWithConcurrencyLimit(ctx *vmselectRequestCtx, rpcName string) error {
+	select {
+	case s.concurrencyLimitCh <- struct{}{}:
+	default:
+		d := time.Duration(ctx.timeout)
+		if d > s.limits.MaxQueueDuration {
+			d = s.limits.MaxQueueDuration
+		}
+		t := timerpool.Get(d)
+		s.concurrencyLimitReached.Inc()
+		select {
+		case <-s.concurrencyLimitCh:
+			timerpool.Put(t)
+			ctx.qt.Printf("wait in queue because -%s=%d concurrent requests are executed", s.limits.MaxConcurrentRequestsFlagName, s.limits.MaxConcurrentRequests)
+		case <-t.C:
+			timerpool.Put(t)
+			s.concurrencyLimitTimeout.Inc()
+			return fmt.Errorf("couldn't start executing the request in %.3fs, since -%s=%d concurrent requests "+
+				"are already executed. Possible solutions: to reduce the query load; to add more compute resources to the server; "+
+				"to increase -%s; to increase -%s",
+				d.Seconds(), s.limits.MaxConcurrentRequestsFlagName, s.limits.MaxConcurrentRequests,
+				s.limits.MaxQueueDurationFlagName, s.limits.MaxConcurrentRequestsFlagName)
+		}
+	}
+	err := s.processRPC(ctx, rpcName)
+	<-s.concurrencyLimitCh
+	return err
 }
 
 func (s *Server) processRPC(ctx *vmselectRequestCtx, rpcName string) error {
