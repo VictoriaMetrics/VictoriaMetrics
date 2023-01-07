@@ -1585,7 +1585,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
 	labelNames := []string{
-		"__name__", "constant", "day", "uniqueid",
+		"__name__", "constant", "day", "UniqueId", "some_unique_id",
 	}
 	labelValues := []string{
 		"testMetric",
@@ -1606,8 +1606,12 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 				fmt.Sprintf("%v", day),
 			)
 			mn.AddTag(
-				"uniqueid",
+				"UniqueId",
 				fmt.Sprintf("%v", metric),
+			)
+			mn.AddTag(
+				"some_unique_id",
+				fmt.Sprintf("%v", day),
 			)
 			mn.sortTags()
 
@@ -1776,6 +1780,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	expectedSeriesCountByLabelName := []TopHeapEntry{
 		{
+			Name:  "UniqueId",
+			Count: 1000,
+		},
+		{
 			Name:  "__name__",
 			Count: 1000,
 		},
@@ -1788,7 +1796,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			Count: 1000,
 		},
 		{
-			Name:  "uniqueid",
+			Name:  "some_unique_id",
 			Count: 1000,
 		},
 	}
@@ -1806,7 +1814,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	}
 	expectedLabelValueCountByLabelName := []TopHeapEntry{
 		{
-			Name:  "uniqueid",
+			Name:  "UniqueId",
 			Count: 1000,
 		},
 		{
@@ -1819,6 +1827,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		},
 		{
 			Name:  "day",
+			Count: 1,
+		},
+		{
+			Name:  "some_unique_id",
 			Count: 1,
 		},
 	}
@@ -1839,11 +1851,11 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			Count: 1000,
 		},
 		{
-			Name:  "uniqueid=0",
-			Count: 1,
+			Name:  "some_unique_id=0",
+			Count: 1000,
 		},
 		{
-			Name:  "uniqueid=1",
+			Name:  "UniqueId=1",
 			Count: 1,
 		},
 	}
@@ -1854,7 +1866,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if status.TotalSeries != expectedTotalSeries {
 		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
 	}
-	expectedLabelValuePairs := uint64(4000)
+	expectedLabelValuePairs := uint64(5000)
 	if status.TotalLabelValuePairs != expectedLabelValuePairs {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
@@ -1884,7 +1896,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if status.TotalSeries != expectedTotalSeries {
 		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
 	}
-	expectedLabelValuePairs = 4000
+	expectedLabelValuePairs = 5000
 	if status.TotalLabelValuePairs != expectedLabelValuePairs {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
@@ -1910,7 +1922,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if status.TotalSeries != expectedTotalSeries {
 		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
 	}
-	expectedLabelValuePairs = 20000
+	expectedLabelValuePairs = 25000
 	if status.TotalLabelValuePairs != expectedLabelValuePairs {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
@@ -1942,7 +1954,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	// Check GetTSDBStatus with non-nil filter, which matches only 3 series
 	tfs = NewTagFilters()
-	if err := tfs.Add([]byte("uniqueid"), []byte("0|1|3"), false, true); err != nil {
+	if err := tfs.Add([]byte("UniqueId"), []byte("0|1|3"), false, true); err != nil {
 		t.Fatalf("cannot add filter: %s", err)
 	}
 	status, err = db.GetTSDBStatus(nil, []*TagFilters{tfs}, baseDate, "", 5, 1e6, noDeadline)
@@ -1965,7 +1977,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if status.TotalSeries != expectedTotalSeries {
 		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
 	}
-	expectedLabelValuePairs = 12
+	expectedLabelValuePairs = 15
 	if status.TotalLabelValuePairs != expectedLabelValuePairs {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
@@ -1991,7 +2003,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	if status.TotalSeries != expectedTotalSeries {
 		t.Fatalf("unexpected TotalSeries; got %d; want %d", status.TotalSeries, expectedTotalSeries)
 	}
-	expectedLabelValuePairs = 60
+	expectedLabelValuePairs = 75
 	if status.TotalLabelValuePairs != expectedLabelValuePairs {
 		t.Fatalf("unexpected TotalLabelValuePairs; got %d; want %d", status.TotalLabelValuePairs, expectedLabelValuePairs)
 	}
