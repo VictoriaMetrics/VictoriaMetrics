@@ -207,7 +207,7 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path stri
 		return nil, fmt.Errorf("cannot parse %q: %w", requestURL, err)
 	}
 
-	deadline := time.Now().Add(client.WriteTimeout)
+	deadline := time.Now().Add(client.ReadTimeout)
 	ctx, cancel := context.WithDeadline(c.clientCtx, deadline)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
