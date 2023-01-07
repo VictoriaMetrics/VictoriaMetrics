@@ -18,7 +18,7 @@ import (
 
 // ParseStream parses data sent from vminsert to bc and calls callback for parsed rows.
 // Optional function isReadOnly must return true if the storage cannot accept new data.
-// In thic case the data read from bc isn't accepted and the readonly status is sent back bc.
+// In this case the data read from bc isn't accepted and the readonly status is sent back bc.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
