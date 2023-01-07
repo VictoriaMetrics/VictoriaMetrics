@@ -55,10 +55,9 @@ type dashboardsData struct {
 }
 
 func handleVMUICustomDashboards(w http.ResponseWriter) {
-	var dashboardsData *dashboardsData
 	path := *vmuiCustomDashboardsPath
 	if path == "" {
-		writeSuccessResponse(w, dashboardsData)
+		writeSuccessResponse(w, []byte(`{"dashboardsSettings": []}`))
 		return
 	}
 
@@ -68,9 +67,7 @@ func handleVMUICustomDashboards(w http.ResponseWriter) {
 		return
 	}
 
-	dashboardsData.DashboardsSettings = append(dashboardsData.DashboardsSettings, settings...)
-
-	writeSuccessResponse(w, dashboardsData)
+	writeSuccessResponse(w, settings)
 }
 
 func writeErrorResponse(w http.ResponseWriter, err error) {
@@ -79,15 +76,13 @@ func writeErrorResponse(w http.ResponseWriter, err error) {
 	fmt.Fprintf(w, `{"status":"error","error":"%s"}`, err.Error())
 }
 
-func writeSuccessResponse(w http.ResponseWriter, data *dashboardsData) {
+func writeSuccessResponse(w http.ResponseWriter, data []byte) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		logger.Errorf("error encode dashboards settings: %s", err)
-	}
+	w.Write(data)
 }
 
-func collectDashboardsSettings(path string) ([]dashboardSetting, error) {
+func collectDashboardsSettings(path string) ([]byte, error) {
 
 	if !fs.IsPathExist(path) {
 		return nil, fmt.Errorf("cannot find folder pointed by -vmui.customDashboardsPath=%q", path)
@@ -102,7 +97,7 @@ func collectDashboardsSettings(path string) ([]dashboardSetting, error) {
 	for _, file := range files {
 		info, err := file.Info()
 		if err != nil {
-			logger.Errorf("cannot get file info: %s", err)
+			logger.Errorf("skipping %q at -vmui.customDashboardsPath=%q, since the info for this file cannot be obtained: %s", file.Name(), path, err)
 			continue
 		}
 		if fs.IsDirOrSymlink(info) {
@@ -127,5 +122,7 @@ func collectDashboardsSettings(path string) ([]dashboardSetting, error) {
 			settings = append(settings, dSettings)
 		}
 	}
-	return settings, nil
+
+	dd := dashboardsData{DashboardsSettings: settings}
+	return json.Marshal(dd)
 }
