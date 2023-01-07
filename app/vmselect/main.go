@@ -62,7 +62,7 @@ func Init() {
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
-	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
+	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
 }
 
@@ -71,17 +71,17 @@ func Stop() {
 	promql.StopRollupResultCache()
 }
 
-var concurrencyCh chan struct{}
+var concurrencyLimitCh chan struct{}
 
 var (
 	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_select_limit_reached_total`)
 	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_select_limit_timeout_total`)
 
 	_ = metrics.NewGauge(`vm_concurrent_select_capacity`, func() float64 {
-		return float64(cap(concurrencyCh))
+		return float64(cap(concurrencyLimitCh))
 	})
 	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
-		return float64(len(concurrencyCh))
+		return float64(len(concurrencyLimitCh))
 	})
 )
 
@@ -99,8 +99,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Limit the number of concurrent queries.
 	select {
-	case concurrencyCh <- struct{}{}:
-		defer func() { <-concurrencyCh }()
+	case concurrencyLimitCh <- struct{}{}:
+		defer func() { <-concurrencyLimitCh }()
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
@@ -110,18 +110,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		t := timerpool.Get(d)
 		select {
-		case concurrencyCh <- struct{}{}:
-			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
+		case concurrencyLimitCh <- struct{}{}:
 			timerpool.Put(t)
-			defer func() { <-concurrencyCh }()
+			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
+			defer func() { <-concurrencyLimitCh }()
 		case <-t.C:
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("cannot handle more than %d concurrent search requests during %s; possible solutions: "+
-					"increase `-search.maxQueueDuration`; increase `-search.maxQueryDuration`; increase `-search.maxConcurrentRequests`; "+
-					"increase server capacity",
-					*maxConcurrentRequests, d),
+				Err: fmt.Errorf("couldn't start executing the request in %.3fs, since -search.maxConcurrentRequests=%d concurrent requests "+
+					"are already executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
+					"to increase -search.maxQueueDuration; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
+					d.Seconds(), *maxConcurrentRequests),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
