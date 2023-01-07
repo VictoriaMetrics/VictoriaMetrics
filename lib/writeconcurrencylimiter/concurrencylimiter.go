@@ -16,9 +16,10 @@ import (
 
 var (
 	maxConcurrentInserts = flag.Int("maxConcurrentInserts", 2*cgroup.AvailableCPUs(), "The maximum number of concurrent insert requests. "+
-		"Default value should work for most cases, since it minimizes the overhead. See also -insert.maxQueueDuration")
+		"Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. "+
+		"See also -insert.maxQueueDuration")
 	maxQueueDuration = flag.Duration("insert.maxQueueDuration", time.Minute, "The maximum duration to wait in the queue when -maxConcurrentInserts "+
-		"concurrent insert requests are already executed")
+		"concurrent insert requests are executed")
 )
 
 // Reader is a reader, which increases the concurrency after the first Read() call
@@ -64,7 +65,7 @@ func (r *Reader) Read(p []byte) (int, error) {
 	if !r.increasedConcurrency {
 		if !incConcurrency() {
 			err = &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests are already executed. "+
+				Err: fmt.Errorf("cannot process insert request for %.3f seconds because %d concurrent insert requests are executed. "+
 					"Possible solutions: to reduce workload; to increase compute resources at the server; "+
 					"to increase -insert.maxQueueDuration; to increase -maxConcurrentInserts",
 					maxQueueDuration.Seconds(), *maxConcurrentInserts),
