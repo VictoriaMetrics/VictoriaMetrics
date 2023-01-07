@@ -356,7 +356,7 @@ func (a *aggregator) runFlusher(interval time.Duration) {
 	}
 }
 
-var flushConcurrencyCh = make(chan struct{}, 2*cgroup.AvailableCPUs())
+var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 func (a *aggregator) flush() {
 	ctx := &flushCtx{
