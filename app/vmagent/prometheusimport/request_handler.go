@@ -11,7 +11,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -31,21 +30,17 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
-			return insertRows(at, rows, extraLabels)
-		}, nil)
-	})
+	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
+		return insertRows(at, rows, extraLabels)
+	}, nil)
 }
 
 // InsertHandlerForReader processes metrics from given reader with optional gzip format
 func InsertHandlerForReader(r io.Reader, isGzipped bool) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, 0, isGzipped, func(rows []parser.Row) error {
-			return insertRows(nil, rows, nil)
-		}, nil)
-	})
+	return parser.ParseStream(r, 0, isGzipped, func(rows []parser.Row) error {
+		return insertRows(nil, rows, nil)
+	}, nil)
 }
 
 func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {

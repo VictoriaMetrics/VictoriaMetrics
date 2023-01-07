@@ -118,7 +118,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("couldn't start executing the request in %.3fs, since -search.maxConcurrentRequests=%d concurrent requests "+
+				Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
 					"are already executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
 					"to increase -search.maxQueueDuration; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
 					d.Seconds(), *maxConcurrentRequests),
