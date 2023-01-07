@@ -512,7 +512,7 @@ func (s *Server) processRPCWithConcurrencyLimit(ctx *vmselectRequestCtx, rpcName
 		t := timerpool.Get(d)
 		s.concurrencyLimitReached.Inc()
 		select {
-		case <-s.concurrencyLimitCh:
+		case s.concurrencyLimitCh <- struct{}{}:
 			timerpool.Put(t)
 			ctx.qt.Printf("wait in queue because -%s=%d concurrent requests are executed", s.limits.MaxConcurrentRequestsFlagName, s.limits.MaxConcurrentRequests)
 		case <-t.C:
