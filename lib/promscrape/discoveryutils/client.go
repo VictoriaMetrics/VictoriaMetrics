@@ -40,9 +40,6 @@ const (
 
 	// DefaultClientReadTimeout is the maximum duration for waiting the response from GetAPI*
 	DefaultClientReadTimeout = time.Minute
-
-	// DefaultClientWriteTimeout is the maximum duration for waiting the request to be sent to GetAPI* and GetBlockingAPI*
-	DefaultClientWriteTimeout = 10 * time.Second
 )
 
 func concurrencyLimitChInit() {
@@ -73,9 +70,8 @@ type Client struct {
 
 // HTTPClient is a wrapper around http.Client with timeouts.
 type HTTPClient struct {
-	client       *http.Client
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
+	client      *http.Client
+	ReadTimeout time.Duration
 }
 
 var defaultDialer = &net.Dialer{}
@@ -147,14 +143,12 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 
 	c := &Client{
 		client: &HTTPClient{
-			client:       client,
-			ReadTimeout:  DefaultClientReadTimeout,
-			WriteTimeout: DefaultClientWriteTimeout,
+			client:      client,
+			ReadTimeout: DefaultClientReadTimeout,
 		},
 		blockingClient: &HTTPClient{
-			client:       blockingClient,
-			ReadTimeout:  BlockingClientReadTimeout,
-			WriteTimeout: DefaultClientWriteTimeout,
+			client:      blockingClient,
+			ReadTimeout: BlockingClientReadTimeout,
 		},
 		apiServer:           apiServer,
 		setHTTPHeaders:      setHTTPHeaders,
@@ -221,7 +215,7 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path stri
 		modifyRequest(req)
 	}
 
-	resp, err := doRequestWithPossibleRetry(client, req)
+	resp, err := doRequestWithPossibleRetry(client, req, deadline)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
@@ -252,13 +246,9 @@ func (c *Client) Stop() {
 	c.clientCancel()
 }
 
-func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
+func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request, deadline time.Time) (*http.Response, error) {
 	sleepTime := time.Second
 	discoveryRequests.Inc()
-	deadline, ok := req.Context().Deadline()
-	if !ok {
-		deadline = time.Now().Add(hc.WriteTimeout)
-	}
 
 	for {
 		resp, err := hc.client.Do(req)
