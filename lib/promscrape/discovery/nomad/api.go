@@ -72,10 +72,6 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if sdc.TagSeparator != nil {
 		tagSeparator = *sdc.TagSeparator
 	}
-	dc, err := getDatacenter(client, sdc.Datacenter)
-	if err != nil {
-		return nil, fmt.Errorf("cannot obtain Nomad datacenter: %w", err)
-	}
 
 	namespace := sdc.Namespace
 	// default namespace can be detected from env var.
@@ -83,7 +79,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		namespace = os.Getenv("NOMAD_NAMESPACE")
 	}
 
-	nw := newNomadWatcher(client, sdc, dc, namespace)
+	nw := newNomadWatcher(client, sdc, namespace)
 	cfg := &apiConfig{
 		tagSeparator: tagSeparator,
 		nomadWatcher: nw,
@@ -98,22 +94,6 @@ func getToken(token *promauth.Secret) string {
 	t := os.Getenv("NOMAD_TOKEN")
 	// Allow empty token - it should work if ACL is disabled in Nomad.
 	return t
-}
-
-func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
-	if dc != "" {
-		return dc, nil
-	}
-	// See https://developer.hashicorp.com/nomad/api-docs/agent#query-self
-	data, err := client.GetAPIResponse("/v1/agent/self")
-	if err != nil {
-		return "", fmt.Errorf("cannot query nomad agent info: %w", err)
-	}
-	a, err := parseAgent(data)
-	if err != nil {
-		return "", err
-	}
-	return a.Config.Datacenter, nil
 }
 
 // maxWaitTime is duration for Nomad blocking request.

@@ -45,15 +45,14 @@ type serviceWatcher struct {
 }
 
 // newNomadWatcher creates new watcher and starts background service discovery for Nomad.
-func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, namespace string) *nomadWatcher {
-	baseQueryArgs := "?dc=" + url.QueryEscape(datacenter)
+func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace string) *nomadWatcher {
+	var serviceNodesQueryArgs string
 	if sdc.AllowStale == nil || *sdc.AllowStale {
-		baseQueryArgs += "&stale"
+		serviceNodesQueryArgs += "&stale"
 	}
 	if namespace != "" {
-		baseQueryArgs += "&namespace=" + url.QueryEscape(namespace)
+		serviceNodesQueryArgs += "&namespace=" + url.QueryEscape(namespace)
 	}
-	serviceNodesQueryArgs := baseQueryArgs
 
 	cw := &nomadWatcher{
 		client:                client,
