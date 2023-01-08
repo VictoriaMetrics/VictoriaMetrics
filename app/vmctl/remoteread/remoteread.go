@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/gogo/protobuf/proto"
@@ -60,6 +61,8 @@ type Config struct {
 	// LabelName, LabelValue stands for label=~value pair used for read requests.
 	// Is optional.
 	LabelName, LabelValue string
+	// TLSSkipVerify defines whether to skip tls verification when connecting to remote read address to perform read from
+	InsecureSkipVerify bool
 }
 
 // Filter defines a list of filters applied to requested data
@@ -100,7 +103,7 @@ func NewClient(cfg Config) (*Client, error) {
 	c := &Client{
 		c: &http.Client{
 			Timeout:   cfg.Timeout,
-			Transport: http.DefaultTransport.(*http.Transport).Clone(),
+			Transport: utils.Transport(cfg.Addr, cfg.InsecureSkipVerify),
 		},
 		addr:      strings.TrimSuffix(cfg.Addr, "/"),
 		user:      cfg.Username,
