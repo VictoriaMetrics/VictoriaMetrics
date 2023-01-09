@@ -102,21 +102,6 @@ func TestMergeSortBlocks(t *testing.T) {
 		Values:     []float64{9, 4.2, 2.1, 5.2, 42, 6.1},
 	})
 
-	// Multiple blocks with identical timestamps.
-	f([]*sortBlock{
-		{
-			Timestamps: []int64{1, 2, 4},
-			Values:     []float64{9, 5.2, 6.1},
-		},
-		{
-			Timestamps: []int64{1, 2, 4},
-			Values:     []float64{4.2, 2.1, 42},
-		},
-	}, 1, &Result{
-		Timestamps: []int64{1, 2, 4},
-		Values:     []float64{4.2, 2.1, 42},
-	})
-
 	// Multiple blocks with identical timestamps, disabled deduplication.
 	f([]*sortBlock{
 		{
@@ -130,6 +115,21 @@ func TestMergeSortBlocks(t *testing.T) {
 	}, 0, &Result{
 		Timestamps: []int64{1, 1, 2, 2, 4, 4},
 		Values:     []float64{9, 4.2, 2.1, 5.2, 6.1, 42},
+	})
+
+	// Multiple blocks with identical timestamps, enabled deduplication.
+	f([]*sortBlock{
+		{
+			Timestamps: []int64{1, 1, 1},
+			Values:     []float64{1, 5, 10},
+		},
+		{
+			Timestamps: []int64{1, 1, 1},
+			Values:     []float64{2, 4, 6},
+		},
+	}, 1, &Result{
+		Timestamps: []int64{1},
+		Values:     []float64{10},
 	})
 
 	// Multiple blocks with identical timestamp ranges.
