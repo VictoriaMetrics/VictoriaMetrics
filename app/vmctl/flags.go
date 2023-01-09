@@ -496,7 +496,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadInsecureSkipVerify,
-			Usage: "Whether to skip tls verification when connecting to remote read address to perform read from",
+			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
 			Value: false,
 		},
 	}

@@ -61,7 +61,7 @@ type Config struct {
 	// LabelName, LabelValue stands for label=~value pair used for read requests.
 	// Is optional.
 	LabelName, LabelValue string
-	// TLSSkipVerify defines whether to skip tls verification when connecting to remote read address to perform read from
+	// TLSSkipVerify defines whether to skip TLS certificate verification when connecting to the remote read address.
 	InsecureSkipVerify bool
 }
 

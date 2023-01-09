@@ -36,7 +36,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
   - `vm_vmselect_concurrent_requests_current` - the current number of concurrently executed requests
   - `vm_vmselect_concurrent_requests_limit_reached_total` - the total number of requests, which were put in the wait queue when `-search.maxConcurrentRequests` concurrent requests are being executed
   - `vm_vmselect_concurrent_requests_limit_timeout_total` - the total number of canceled requests because they were sitting in the wait queue for more than `-search.maxQueueDuration`
-* FEATURE [vmctl](https://docs.victoriametrics.com/vmctl.html): add `-remote-read-insecure-skip-verify` command-line flag for remote read protocol. It can be used whether to skip tls verification when connecting to remote read address to perform read from.
+* FEATURE [vmctl](https://docs.victoriametrics.com/vmctl.html): add `-remote-read-insecure-skip-verify` command-line flag for remote read protocol. It can be used for skipping TLS certificate verification when connecting to the remote read address.
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update the `step` value in url after the `step` input field has been manually changed. This allows preserving the proper `step` when copy-n-pasting the url to another instance of web browser. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3513).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update tooltip when quickly hovering multiple lines on the graph. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3530).
