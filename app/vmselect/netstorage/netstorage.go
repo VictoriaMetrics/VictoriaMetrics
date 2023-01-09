@@ -508,18 +508,17 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64) {
 		}
 		sbNext := sbh.getNextBlock()
 		tsNext := sbNext.Timestamps[sbNext.NextIdx]
-		topTimestamps := top.Timestamps
 		topNextIdx := top.NextIdx
-		if n := equalTimestampsPrefix(topTimestamps[topNextIdx:], sbNext.Timestamps[sbNext.NextIdx:]); n > 0 && dedupInterval > 0 {
+		if n := equalSamplesPrefix(top, sbNext); n > 0 && dedupInterval > 0 {
 			// Skip n replicated samples at top if deduplication is enabled.
 			top.NextIdx = topNextIdx + n
 		} else {
 			// Copy samples from top to dst with timestamps not exceeding tsNext.
-			top.NextIdx = topNextIdx + binarySearchTimestamps(topTimestamps[topNextIdx:], tsNext)
-			dst.Timestamps = append(dst.Timestamps, topTimestamps[topNextIdx:top.NextIdx]...)
+			top.NextIdx = topNextIdx + binarySearchTimestamps(top.Timestamps[topNextIdx:], tsNext)
+			dst.Timestamps = append(dst.Timestamps, top.Timestamps[topNextIdx:top.NextIdx]...)
 			dst.Values = append(dst.Values, top.Values[topNextIdx:top.NextIdx]...)
 		}
-		if top.NextIdx < len(topTimestamps) {
+		if top.NextIdx < len(top.Timestamps) {
 			heap.Fix(&sbh, 0)
 		} else {
 			heap.Pop(&sbh)
@@ -535,7 +534,24 @@ func mergeSortBlocks(dst *Result, sbh sortBlocksHeap, dedupInterval int64) {
 
 var dedupsDuringSelect = metrics.NewCounter(`vm_deduplicated_samples_total{type="select"}`)
 
+func equalSamplesPrefix(a, b *sortBlock) int {
+	n := equalTimestampsPrefix(a.Timestamps[a.NextIdx:], b.Timestamps[b.NextIdx:])
+	if n == 0 {
+		return 0
+	}
+	return equalValuesPrefix(a.Values[a.NextIdx:a.NextIdx+n], b.Values[b.NextIdx:b.NextIdx+n])
+}
+
 func equalTimestampsPrefix(a, b []int64) int {
+	for i, v := range a {
+		if i >= len(b) || v != b[i] {
+			return i
+		}
+	}
+	return len(a)
+}
+
+func equalValuesPrefix(a, b []float64) int {
 	for i, v := range a {
 		if i >= len(b) || v != b[i] {
 			return i
