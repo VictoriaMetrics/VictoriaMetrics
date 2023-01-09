@@ -888,11 +888,6 @@ scrape_configs:
     # If the token isn't specified, then it is read from the NOMAD_TOKEN environment var.
     # token: "..."
 
-    # datacenter is an optional Nomad API datacenter.
-    # If the datacenter isn't specified, then it is read from Nomad server.
-    # See https://developer.hashicorp.com/nomad/api-docs/agent#query-self
-    # datacenter: "..."
-
     # namespace is an optional Nomad namespace.
     # If the namespace isn't specified, then it is read from NOMAD_NAMESPACE environment var.
     # namespace: "..."
