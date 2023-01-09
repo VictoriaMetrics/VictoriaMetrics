@@ -113,8 +113,8 @@ const TextField: FC<TextFieldProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           onBlur={handleBlur}
-
-        />)
+        />
+      )
     }
     {label && <span className="vm-text-field__label">{label}</span>}
     <span

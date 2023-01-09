@@ -3,7 +3,6 @@ package promscrape
 import (
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"math"
 	"math/bits"
@@ -11,8 +10,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -416,6 +417,24 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	var err error
 	body.B, err = sw.ReadData(body.B[:0])
+	releaseBody, err := sw.processScrapedData(scrapeTimestamp, realTimestamp, body, err)
+	if releaseBody {
+		leveledbytebufferpool.Put(body)
+	}
+	return err
+}
+
+var concurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+
+func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, body *bytesutil.ByteBuffer, err error) (bool, error) {
+	// This function is CPU-bound, while it may allocate big amounts of memory.
+	// That's why it is a good idea to limit the number of concurrent calls to this function
+	// in order to limit memory usage under high load without sacrificing the performance.
+	concurrencyLimitCh <- struct{}{}
+	defer func() {
+		<-concurrencyLimitCh
+	}()
+
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
@@ -489,13 +508,8 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
-	if !mustSwitchToStreamParse {
-		// Return body to the pool only if its size is smaller than -promscrape.minResponseSizeForStreamParse
-		// This should reduce memory usage when scraping targets which return big responses.
-		leveledbytebufferpool.Put(body)
-	}
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
-	return err
+	return !mustSwitchToStreamParse, err
 }
 
 func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
@@ -848,7 +862,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		bb := bbPool.Get()
 		bb.B = append(bb.B, "exported_"...)
 		bb.B = append(bb.B, metric...)
-		metric = bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		metric = bytesutil.InternBytes(bb.B)
 		bbPool.Put(bb)
 	}
 	labelsLen := len(wc.labels)
