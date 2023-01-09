@@ -36,7 +36,10 @@ func TestMergeSortBlocks(t *testing.T) {
 	f := func(blocks []*sortBlock, dedupInterval int64, expectedResult *Result) {
 		t.Helper()
 		var result Result
-		mergeSortBlocks(&result, blocks, dedupInterval)
+		sbh := getSortBlocksHeap()
+		sbh.sbs = append(sbh.sbs[:0], blocks...)
+		mergeSortBlocks(&result, sbh, dedupInterval)
+		putSortBlocksHeap(sbh)
 		if !reflect.DeepEqual(result.Values, expectedResult.Values) {
 			t.Fatalf("unexpected values;\ngot\n%v\nwant\n%v", result.Values, expectedResult.Values)
 		}
