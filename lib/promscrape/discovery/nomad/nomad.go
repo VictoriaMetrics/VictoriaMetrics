@@ -12,10 +12,9 @@ import (
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#nomad_sd_config
 type SDConfig struct {
-	Server     string           `yaml:"server,omitempty"`
-	Token      *promauth.Secret `yaml:"token,omitempty"`
-	Datacenter string           `yaml:"datacenter,omitempty"`
-	Namespace  string           `yaml:"namespace,omitempty"`
+	Server    string           `yaml:"server,omitempty"`
+	Token     *promauth.Secret `yaml:"token,omitempty"`
+	Namespace string           `yaml:"namespace,omitempty"`
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.nomadSDCheckInterval` command-line option.
 	Scheme       string   `yaml:"scheme,omitempty"`
