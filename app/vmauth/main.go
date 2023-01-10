@@ -60,9 +60,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
-		authKey := r.FormValue("authKey")
-		if authKey != *reloadAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -reloadAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey, "reloadAuthKey") {
 			return true
 		}
 		configReloadRequests.Inc()

@@ -237,8 +237,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if path == "/internal/resetRollupResultCache" {
-		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
-			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey, "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()

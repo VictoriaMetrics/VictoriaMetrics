@@ -170,9 +170,7 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		authKey := r.FormValue("authKey")
-		if authKey != *forceMergeAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceMergeAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey, "forceMergeAuthKey") {
 			return true
 		}
 		// Run force merge in background
@@ -191,9 +189,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return true
 	}
 	if path == "/internal/force_flush" {
-		authKey := r.FormValue("authKey")
-		if authKey != *forceFlushAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceFlushAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey, "forceFlushAuthKey") {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -203,9 +199,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
-	authKey := r.FormValue("authKey")
-	if authKey != *snapshotAuthKey {
-		httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -snapshotAuthKey command line flag", authKey)
+	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey, "snapshotAuthKey") {
 		return true
 	}
 	path = path[len("/snapshot"):]
