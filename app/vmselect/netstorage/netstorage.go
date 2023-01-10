@@ -1090,8 +1090,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
-		metricName := sr.MetricBlockRef.MetricName
-		brs := m[string(metricName)]
+		metricName := bytesutil.InternBytes(sr.MetricBlockRef.MetricName)
+		brs := m[metricName]
 		if brs == nil {
 			brs = &blockRefs{}
 		}
@@ -1100,10 +1100,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			addr:    addr,
 		})
 		if len(brs.brs) == 1 {
-			// An optimization for big number of time series with long metricName values:
-			// use only a single copy of metricName for both orderedMetricNames and m.
-			orderedMetricNames = append(orderedMetricNames, string(metricName))
-			m[orderedMetricNames[len(orderedMetricNames)-1]] = brs
+			orderedMetricNames = append(orderedMetricNames, metricName)
+			m[metricName] = brs
 		}
 	}
 	if err := sr.Error(); err != nil {
