@@ -488,7 +488,8 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 	defer bbPool.Put(bb)
 	for _, ts := range a {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		m[string(bb.B)] = ts
+		k := bytesutil.InternBytes(bb.B)
+		m[k] = ts
 	}
 
 	rvs := make([]*timeseries, 0, len(a))
@@ -500,7 +501,8 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 		tmp.MetricName.MoveFrom(&tsB.MetricName)
 
 		bb.B = marshalMetricNameSorted(bb.B[:0], &tmp.MetricName)
-		tsA := m[string(bb.B)]
+		k := bytesutil.InternBytes(bb.B)
+		tsA := m[k]
 		if tsA == nil {
 			tStart := ec.Start
 			for tStart < bStart {
@@ -509,7 +511,7 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 			}
 		} else {
 			tmp.Values = append(tmp.Values, tsA.Values...)
-			delete(m, string(bb.B))
+			delete(m, k)
 		}
 		tmp.Values = append(tmp.Values, tsB.Values...)
 		if len(tmp.Values) != len(tmp.Timestamps) {
