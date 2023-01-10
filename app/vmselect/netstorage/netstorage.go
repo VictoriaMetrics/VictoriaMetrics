@@ -1061,7 +1061,8 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 	maxSeriesCount := sr.Init(qt, vmstorage.Storage, tfss, tr, sq.MaxMetrics, deadline.Deadline())
 	indexSearchDuration.UpdateDuration(startTime)
 	type blockRefs struct {
-		brs []blockRef
+		brsPrealloc [4]blockRef
+		brs         []blockRef
 	}
 	m := make(map[string]*blockRefs, maxSeriesCount)
 	orderedMetricNames := make([]string, 0, maxSeriesCount)
@@ -1094,6 +1095,7 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 		brs := m[metricName]
 		if brs == nil {
 			brs = &blockRefs{}
+			brs.brs = brs.brsPrealloc[:0]
 		}
 		brs.brs = append(brs.brs, blockRef{
 			partRef: br.PartRef(),
