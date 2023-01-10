@@ -881,29 +881,19 @@ scrape_configs:
 - job_name: nomad
   nomad_sd_configs:
 
-    # server is an optional Nomad server to connect to. By default localhost:4646 is used
+    # server is an optional Nomad server to connect to.
+    # If the server isn't specified, then it is read from NOMAD_ADDR environment var.
+    # If the NOMAD_ADDR environment var isn't set, then localhost:4646 is used.
   - server: "localhost:4646"
-
-    # token is an optional Nomad API token.
-    # If the token isn't specified, then it is read from the NOMAD_TOKEN environment var.
-    # token: "..."
 
     # namespace is an optional Nomad namespace.
     # If the namespace isn't specified, then it is read from NOMAD_NAMESPACE environment var.
     # namespace: "..."
 
-    # scheme is an optional scheme (http or https) to use for connecting to Nomad server.
-    # By default http scheme is used.
-    # scheme: "..."
-
-    # services is an optional list of services for which targets are retrieved.
-    # If omitted, all services are scraped.
-    # See https://developer.hashicorp.com/nomad/api-docs/services#list-services .
-    # services: ["...", "..."]
-
-    # tags is an optional list of tags used to filter nodes for a given service.
-    # Services must contain all tags in the list.
-    # tags: ["...", "..."]
+    # region is an optional Nomad region.
+    # If the region isn't specified, then it is read from NOMAD_REGION environment var.
+    # If NOMAD_REGION environment var isn't set, then "global" region is used
+    # region: "..."
 
     # tag_separator is an optional string by which Nomad tags are joined into the __meta_nomad_tags label.
     # By default "," is used as a tag separator.
