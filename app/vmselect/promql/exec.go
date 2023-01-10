@@ -130,9 +130,11 @@ func timeseriesToResult(tss []*timeseries, maySort bool) ([]netstorage.Result, e
 		m[k] = struct{}{}
 
 		rs := &result[i]
-		rs.MetricName.CopyFrom(&ts.MetricName)
-		rs.Values = append(rs.Values[:0], ts.Values...)
-		rs.Timestamps = append(rs.Timestamps[:0], ts.Timestamps...)
+		rs.MetricName.MoveFrom(&ts.MetricName)
+		rs.Values = ts.Values
+		ts.Values = nil
+		rs.Timestamps = ts.Timestamps
+		ts.Timestamps = nil
 	}
 	bbPool.Put(bb)
 

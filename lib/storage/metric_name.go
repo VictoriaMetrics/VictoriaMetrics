@@ -170,6 +170,14 @@ func (mn *MetricName) Reset() {
 	mn.Tags = mn.Tags[:0]
 }
 
+// MoveFrom moves src to mn.
+//
+// The src is reset after the call.
+func (mn *MetricName) MoveFrom(src *MetricName) {
+	*mn = *src
+	*src = MetricName{}
+}
+
 // CopyFrom copies src to mn.
 func (mn *MetricName) CopyFrom(src *MetricName) {
 	mn.AccountID = src.AccountID
