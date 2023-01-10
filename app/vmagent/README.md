@@ -60,6 +60,17 @@ Example command line:
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
 
+Example of minimal scrape configuration for `-promscrape.config` argument:
+
+```yaml
+global:
+  scrape_interval: 15s
+scrape_configs:
+- job_name: vmagent
+  static_configs:
+    - targets: ["localhost:8429"] # vmagent default address, vmagent scrapes itself and sends metric to remote storage 
+```
+
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
 If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
