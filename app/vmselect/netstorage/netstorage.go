@@ -1233,7 +1233,14 @@ type tmpBlocksFileWrapper struct {
 }
 
 type blockAddrs struct {
-	addrs []tmpBlockAddr
+	addrsPrealloc [4]tmpBlockAddr
+	addrs         []tmpBlockAddr
+}
+
+func newBlockAddrs() *blockAddrs {
+	ba := &blockAddrs{}
+	ba.addrs = ba.addrsPrealloc[:0]
+	return ba
 }
 
 func newTmpBlocksFileWrapper(sns []*storageNode) *tmpBlocksFileWrapper {
@@ -1265,7 +1272,7 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	m := tbfw.ms[workerID]
 	addrs := m[metricName]
 	if addrs == nil {
-		addrs = &blockAddrs{}
+		addrs = newBlockAddrs()
 	}
 	addrs.addrs = append(addrs.addrs, addr)
 	if len(addrs.addrs) == 1 {
@@ -1295,7 +1302,7 @@ func (tbfw *tmpBlocksFileWrapper) Finalize() ([]string, map[string]*blockAddrs, 
 			dstAddrs, ok := addrsByMetricName[metricName]
 			if !ok {
 				orderedMetricNames = append(orderedMetricNames, metricName)
-				dstAddrs = &blockAddrs{}
+				dstAddrs = newBlockAddrs()
 				addrsByMetricName[metricName] = dstAddrs
 			}
 			dstAddrs.addrs = append(dstAddrs.addrs, m[metricName].addrs...)
