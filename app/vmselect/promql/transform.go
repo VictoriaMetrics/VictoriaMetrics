@@ -411,7 +411,8 @@ func transformBucketsLimit(tfa *transformFuncArg) ([]*timeseries, error) {
 		mn.CopyFrom(&ts.MetricName)
 		mn.RemoveTag("le")
 		b = marshalMetricNameSorted(b[:0], &mn)
-		m[string(b)] = append(m[string(b)], x{
+		k := bytesutil.InternBytes(b)
+		m[k] = append(m[k], x{
 			le: le,
 			ts: ts,
 		})
@@ -513,7 +514,8 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		ts.MetricName.RemoveTag("le")
 		ts.MetricName.RemoveTag("vmrange")
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		m[string(bb.B)] = append(m[string(bb.B)], x{
+		k := bytesutil.InternBytes(bb.B)
+		m[k] = append(m[k], x{
 			startStr: startStr,
 			endStr:   endStr,
 			start:    start,
@@ -1002,7 +1004,8 @@ func groupLeTimeseries(tss []*timeseries) map[string][]leTimeseries {
 		ts.MetricName.ResetMetricGroup()
 		ts.MetricName.RemoveTag("le")
 		bb.B = marshalMetricTagsSorted(bb.B[:0], &ts.MetricName)
-		m[string(bb.B)] = append(m[string(bb.B)], leTimeseries{
+		k := bytesutil.InternBytes(bb.B)
+		m[k] = append(m[k], leTimeseries{
 			le: le,
 			ts: ts,
 		})
@@ -1532,10 +1535,11 @@ func transformUnion(tfa *transformFuncArg) ([]*timeseries, error) {
 	for _, arg := range args {
 		for _, ts := range arg {
 			bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-			if m[string(bb.B)] {
+			k := bytesutil.InternBytes(bb.B)
+			if m[k] {
 				continue
 			}
-			m[string(bb.B)] = true
+			m[k] = true
 			rvs = append(rvs, ts)
 		}
 	}

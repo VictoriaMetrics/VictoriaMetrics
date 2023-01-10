@@ -116,10 +116,10 @@ func aggrFuncExt(afe func(tss []*timeseries, modifier *metricsql.ModifierExpr) [
 	for i, ts := range arg {
 		removeGroupTags(&ts.MetricName, modifier)
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
+		k := bytesutil.InternBytes(bb.B)
 		if keepOriginal {
 			ts = argOrig[i]
 		}
-		k := bytesutil.InternBytes(bb.B)
 		tss := m[k]
 		if tss == nil && maxSeries > 0 && len(m) >= maxSeries {
 			// We already reached time series limit after grouping. Skip other time series.
