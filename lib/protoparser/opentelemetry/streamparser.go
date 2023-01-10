@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/protobuf/proto"
 )
@@ -29,6 +30,9 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, isJSON, isGzipped bool, callback func(tss []prompb.TimeSeries) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
 
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)

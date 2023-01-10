@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -26,10 +25,8 @@ func InsertHandler(req *http.Request) error {
 	}
 	isJSON := req.Header.Get("Content-Type") == "application/json"
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req.Body, isJSON, isGzipped, func(tss []prompb.TimeSeries) error {
-			return insertRows(tss, extraLabels)
-		})
+	return parser.ParseStream(req.Body, isJSON, isGzipped, func(tss []prompb.TimeSeries) error {
+		return insertRows(tss, extraLabels)
 	})
 }
 
