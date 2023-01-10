@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
@@ -118,13 +119,14 @@ func aggrFuncExt(afe func(tss []*timeseries, modifier *metricsql.ModifierExpr) [
 		if keepOriginal {
 			ts = argOrig[i]
 		}
-		tss := m[string(bb.B)]
+		k := bytesutil.InternBytes(bb.B)
+		tss := m[k]
 		if tss == nil && maxSeries > 0 && len(m) >= maxSeries {
 			// We already reached time series limit after grouping. Skip other time series.
 			continue
 		}
 		tss = append(tss, ts)
-		m[string(bb.B)] = tss
+		m[k] = tss
 	}
 	bbPool.Put(bb)
 
