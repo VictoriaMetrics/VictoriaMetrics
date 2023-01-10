@@ -60,7 +60,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
-		if !httpserver.CheckAuthFlag(w, r, reloadAuthKey, "reloadAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *reloadAuthKey, "reloadAuthKey") {
 			return true
 		}
 		configReloadRequests.Inc()

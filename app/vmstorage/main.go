@@ -170,7 +170,7 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storage) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		if !httpserver.CheckAuthFlag(w, r, forceMergeAuthKey, "forceMergeAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *forceMergeAuthKey, "forceMergeAuthKey") {
 			return true
 		}
 		// Run force merge in background
@@ -189,7 +189,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		return true
 	}
 	if path == "/internal/force_flush" {
-		if !httpserver.CheckAuthFlag(w, r, forceFlushAuthKey, "forceFlushAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *forceFlushAuthKey, "forceFlushAuthKey") {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -199,7 +199,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
-	if !httpserver.CheckAuthFlag(w, r, snapshotAuthKey, "snapshotAuthKey") {
+	if !httpserver.CheckAuthFlag(w, r, *snapshotAuthKey, "snapshotAuthKey") {
 		return true
 	}
 	path = path[len("/snapshot"):]
