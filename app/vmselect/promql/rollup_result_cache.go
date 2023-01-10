@@ -481,6 +481,7 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 		var tmp timeseries
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
+		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
 		tmp.MetricName.MoveFrom(&tsA.MetricName)
 		tmp.Values = append(tmp.Values, tsA.Values...)
 
