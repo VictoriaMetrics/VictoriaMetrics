@@ -46,7 +46,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible resource leak after hot reload of the updated [consul_sd_configs](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3468).
 * BUGFIX: properly return label names starting from uppercase such as `CamelCaseLabel` from [/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3566).
 * BUGFIX: consistently select the sample with the biggest value out of samples with identical timestamps during querying when the [deduplication](https://docs.victoriametrics.com/#deduplication) is enabled according to [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3333). Previously random samples could be selected during querying.
-
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix a panic during GCE service discovery for instance without any labels set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3624).
 
 ## [v1.85.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.85.3)
 
