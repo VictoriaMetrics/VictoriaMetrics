@@ -246,7 +246,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/prometheus/config", "/config":
-		if !httpserver.CheckAuthFlag(w, r, configAuthKey, "configAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *configAuthKey, "configAuthKey") {
 			return true
 		}
 		promscrapeConfigRequests.Inc()
@@ -255,7 +255,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/prometheus/api/v1/status/config", "/api/v1/status/config":
 		// See https://prometheus.io/docs/prometheus/latest/querying/api/#config
-		if !httpserver.CheckAuthFlag(w, r, configAuthKey, "configAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *configAuthKey, "configAuthKey") {
 			return true
 		}
 		promscrapeStatusConfigRequests.Inc()

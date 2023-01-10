@@ -292,7 +292,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		return
 	case "/metrics":
 		metricsRequests.Inc()
-		if !CheckAuthFlag(w, r, metricsAuthKey, "metricsAuthKey") {
+		if !CheckAuthFlag(w, r, *metricsAuthKey, "metricsAuthKey") {
 			return
 		}
 		startTime := time.Now()
@@ -301,7 +301,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
-		if !CheckAuthFlag(w, r, flagsAuthKey, "flagsAuthKey") {
+		if !CheckAuthFlag(w, r, *flagsAuthKey, "flagsAuthKey") {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -320,7 +320,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
-			if !CheckAuthFlag(w, r, pprofAuthKey, "pprofAuthKey") {
+			if !CheckAuthFlag(w, r, *pprofAuthKey, "pprofAuthKey") {
 				return
 			}
 			DisableResponseCompression(w)
@@ -344,16 +344,14 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 // CheckAuthFlag checks whether the given authKey is set and valid
 //
 // Falls back to checkBasicAuth if authKey is not set
-func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue *string, flagName string) bool {
-	if len(*flagValue) == 0 {
+func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, flagName string) bool {
+	if flagValue == "" {
 		return CheckBasicAuth(w, r)
 	}
-
-	if r.FormValue("authKey") != *flagValue {
+	if r.FormValue("authKey") != flagValue {
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
 	}
-
 	return true
 }
 

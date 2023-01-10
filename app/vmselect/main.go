@@ -145,7 +145,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if path == "/internal/resetRollupResultCache" {
-		if !httpserver.CheckAuthFlag(w, r, resetCacheAuthKey, "resetCacheAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *resetCacheAuthKey, "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -411,7 +411,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/tags/delSeries":
-		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey, "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
 			return true
 		}
 		graphiteTagsDelSeriesRequests.Inc()
@@ -471,7 +471,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
-		if !httpserver.CheckAuthFlag(w, r, deleteAuthKey, "deleteAuthKey") {
+		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
 			return true
 		}
 		deleteRequests.Inc()
