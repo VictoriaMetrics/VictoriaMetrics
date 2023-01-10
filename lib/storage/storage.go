@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 const (
@@ -1362,7 +1363,7 @@ func getRegexpForGraphiteQuery(q string) (*regexp.Regexp, error) {
 		return nil, fmt.Errorf("unexpected tail left after parsing %q: %q", q, tail)
 	}
 	reStr := "^" + strings.Join(parts, "") + "$"
-	return regexp.Compile(reStr)
+	return metricsql.CompileRegexp(reStr)
 }
 
 func getRegexpPartsForGraphiteQuery(q string) ([]string, string) {

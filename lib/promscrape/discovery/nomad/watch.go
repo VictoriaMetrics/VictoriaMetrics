@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -26,8 +25,6 @@ type nomadWatcher struct {
 	client *discoveryutils.Client
 
 	serviceNamesQueryArgs string
-	watchServices         []string
-	watchTags             []string
 
 	// servicesLock protects services
 	servicesLock sync.Mutex
@@ -45,20 +42,25 @@ type serviceWatcher struct {
 }
 
 // newNomadWatcher creates new watcher and starts background service discovery for Nomad.
-func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace string) *nomadWatcher {
-	var serviceNodesQueryArgs string
+func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace, region string) *nomadWatcher {
+	var qa url.Values
 	if sdc.AllowStale == nil || *sdc.AllowStale {
-		serviceNodesQueryArgs += "&stale"
+		qa.Set("stale", "")
 	}
 	if namespace != "" {
-		serviceNodesQueryArgs += "&namespace=" + url.QueryEscape(namespace)
+		qa.Set("namespace", namespace)
+	}
+	if region != "" {
+		qa.Set("region", region)
+	}
+	queryArgs := qa.Encode()
+	if queryArgs != "" {
+		queryArgs = "?" + queryArgs
 	}
 
 	cw := &nomadWatcher{
 		client:                client,
-		serviceNamesQueryArgs: serviceNodesQueryArgs,
-		watchServices:         sdc.Services,
-		watchTags:             sdc.Tags,
+		serviceNamesQueryArgs: queryArgs,
 		services:              make(map[string]*serviceWatcher),
 		stopCh:                make(chan struct{}),
 		stoppedCh:             make(chan struct{}),
@@ -215,12 +217,6 @@ func (cw *nomadWatcher) getBlockingServiceNames(index int64) ([]string, int64, e
 	serviceNames := make([]string, 0, len(svcs))
 	for _, svc := range svcs {
 		for _, s := range svc.Services {
-			if !shouldCollectServiceByName(cw.watchServices, s.ServiceName) {
-				continue
-			}
-			if !shouldCollectServiceByTags(cw.watchTags, s.Tags) {
-				continue
-			}
 			serviceNames = append(serviceNames, s.ServiceName)
 		}
 	}
@@ -287,38 +283,6 @@ func (sw *serviceWatcher) watchForServiceAddressUpdates(nw *nomadWatcher, initWG
 			return
 		}
 	}
-}
-
-func shouldCollectServiceByName(filterServices []string, serviceName string) bool {
-	if len(filterServices) == 0 {
-		return true
-	}
-	for _, filterService := range filterServices {
-		// Use case-insensitive comparison for service names according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1422
-		if strings.EqualFold(filterService, serviceName) {
-			return true
-		}
-	}
-	return false
-}
-
-func shouldCollectServiceByTags(filterTags, tags []string) bool {
-	if len(filterTags) == 0 {
-		return true
-	}
-	for _, filterTag := range filterTags {
-		hasTag := false
-		for _, tag := range tags {
-			if tag == filterTag {
-				hasTag = true
-				break
-			}
-		}
-		if !hasTag {
-			return false
-		}
-	}
-	return true
 }
 
 func getCheckInterval() time.Duration {

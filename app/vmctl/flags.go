@@ -410,19 +410,20 @@ var (
 )
 
 const (
-	remoteRead                 = "remote-read"
-	remoteReadUseStream        = "remote-read-use-stream"
-	remoteReadConcurrency      = "remote-read-concurrency"
-	remoteReadFilterTimeStart  = "remote-read-filter-time-start"
-	remoteReadFilterTimeEnd    = "remote-read-filter-time-end"
-	remoteReadFilterLabel      = "remote-read-filter-label"
-	remoteReadFilterLabelValue = "remote-read-filter-label-value"
-	remoteReadStepInterval     = "remote-read-step-interval"
-	remoteReadSrcAddr          = "remote-read-src-addr"
-	remoteReadUser             = "remote-read-user"
-	remoteReadPassword         = "remote-read-password"
-	remoteReadHTTPTimeout      = "remote-read-http-timeout"
-	remoteReadHeaders          = "remote-read-headers"
+	remoteRead                   = "remote-read"
+	remoteReadUseStream          = "remote-read-use-stream"
+	remoteReadConcurrency        = "remote-read-concurrency"
+	remoteReadFilterTimeStart    = "remote-read-filter-time-start"
+	remoteReadFilterTimeEnd      = "remote-read-filter-time-end"
+	remoteReadFilterLabel        = "remote-read-filter-label"
+	remoteReadFilterLabelValue   = "remote-read-filter-label-value"
+	remoteReadStepInterval       = "remote-read-step-interval"
+	remoteReadSrcAddr            = "remote-read-src-addr"
+	remoteReadUser               = "remote-read-user"
+	remoteReadPassword           = "remote-read-password"
+	remoteReadHTTPTimeout        = "remote-read-http-timeout"
+	remoteReadHeaders            = "remote-read-headers"
+	remoteReadInsecureSkipVerify = "remote-read-insecure-skip-verify"
 )
 
 var (
@@ -492,6 +493,11 @@ var (
 			Usage: "Optional HTTP headers to send with each request to the corresponding remote source storage \n" +
 				"For example, --remote-read-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding remote source storage. \n" +
 				"Multiple headers must be delimited by '^^': --remote-read-headers='header1:value1^^header2:value2'",
+		},
+		&cli.BoolFlag{
+			Name:  remoteReadInsecureSkipVerify,
+			Usage: "Whether to skip TLS certificate verification when connecting to the remote read address",
+			Value: false,
 		},
 	}
 )

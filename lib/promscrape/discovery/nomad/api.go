@@ -38,10 +38,10 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	hcc := sdc.HTTPClientConfig
-	token := getToken(sdc.Token)
+	token := os.Getenv("NOMAD_TOKEN")
 	if token != "" {
 		if hcc.BearerToken != nil {
-			return nil, fmt.Errorf("cannot set both token and bearer_token configs")
+			return nil, fmt.Errorf("cannot set both NOMAD_TOKEN and bearer_token")
 		}
 		hcc.BearerToken = promauth.NewSecret(token)
 	}
@@ -51,12 +51,15 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 	apiServer := sdc.Server
 	if apiServer == "" {
-		apiServer = "localhost:4646"
+		apiServer = os.Getenv("NOMAD_ADDR")
+		if apiServer == "" {
+			apiServer = "localhost:4646"
+		}
 	}
 	if !strings.Contains(apiServer, "://") {
-		scheme := sdc.Scheme
-		if scheme == "" {
-			scheme = "http"
+		scheme := "http"
+		if hcc.TLSConfig != nil {
+			scheme = "https"
 		}
 		apiServer = scheme + "://" + apiServer
 	}
@@ -74,26 +77,24 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	}
 
 	namespace := sdc.Namespace
-	// default namespace can be detected from env var.
 	if namespace == "" {
 		namespace = os.Getenv("NOMAD_NAMESPACE")
 	}
 
-	nw := newNomadWatcher(client, sdc, namespace)
+	region := sdc.Region
+	if region == "" {
+		region = os.Getenv("NOMAD_REGION")
+		if region == "" {
+			region = "global"
+		}
+	}
+
+	nw := newNomadWatcher(client, sdc, namespace, region)
 	cfg := &apiConfig{
 		tagSeparator: tagSeparator,
 		nomadWatcher: nw,
 	}
 	return cfg, nil
-}
-
-func getToken(token *promauth.Secret) string {
-	if token != nil {
-		return token.String()
-	}
-	t := os.Getenv("NOMAD_TOKEN")
-	// Allow empty token - it should work if ACL is disabled in Nomad.
-	return t
 }
 
 // maxWaitTime is duration for Nomad blocking request.

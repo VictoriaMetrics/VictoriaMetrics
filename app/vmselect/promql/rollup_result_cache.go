@@ -488,7 +488,8 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 	defer bbPool.Put(bb)
 	for _, ts := range a {
 		bb.B = marshalMetricNameSorted(bb.B[:0], &ts.MetricName)
-		m[string(bb.B)] = ts
+		k := bytesutil.InternBytes(bb.B)
+		m[k] = ts
 	}
 
 	rvs := make([]*timeseries, 0, len(a))
@@ -497,12 +498,11 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
 		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
-		// Do not use MetricName.CopyFrom for performance reasons.
-		// It is safe to make shallow copy, since tsB must no longer used.
-		tmp.MetricName = tsB.MetricName
+		tmp.MetricName.MoveFrom(&tsB.MetricName)
 
-		bb.B = marshalMetricNameSorted(bb.B[:0], &tsB.MetricName)
-		tsA := m[string(bb.B)]
+		bb.B = marshalMetricNameSorted(bb.B[:0], &tmp.MetricName)
+		k := bytesutil.InternBytes(bb.B)
+		tsA := m[k]
 		if tsA == nil {
 			tStart := ec.Start
 			for tStart < bStart {
@@ -511,7 +511,7 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 			}
 		} else {
 			tmp.Values = append(tmp.Values, tsA.Values...)
-			delete(m, string(bb.B))
+			delete(m, k)
 		}
 		tmp.Values = append(tmp.Values, tsB.Values...)
 		if len(tmp.Values) != len(tmp.Timestamps) {
@@ -525,9 +525,8 @@ func mergeTimeseries(a, b []*timeseries, bStart int64, ec *EvalConfig) []*timese
 		var tmp timeseries
 		tmp.denyReuse = true
 		tmp.Timestamps = sharedTimestamps
-		// Do not use MetricName.CopyFrom for performance reasons.
-		// It is safe to make shallow copy, since tsA must no longer used.
-		tmp.MetricName = tsA.MetricName
+		tmp.Values = make([]float64, 0, len(tmp.Timestamps))
+		tmp.MetricName.MoveFrom(&tsA.MetricName)
 		tmp.Values = append(tmp.Values, tsA.Values...)
 
 		tStart := bStart
