@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
-	"regexp"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -21,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 	"github.com/valyala/fastrand"
 )
 
@@ -1176,7 +1176,7 @@ func applyGraphiteRegexpFilter(filter string, ss []string) ([]string, error) {
 	// Anchor filter regexp to the beginning of the string as Graphite does.
 	// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/localdatabase.py#L157
 	filter = "^(?:" + filter + ")"
-	re, err := regexp.Compile(filter)
+	re, err := metricsql.CompileRegexp(filter)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse regexp filter=%q: %w", filter, err)
 	}
