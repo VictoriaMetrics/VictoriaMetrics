@@ -69,6 +69,9 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		scheme := sdc.Scheme
 		if scheme == "" {
 			scheme = "http"
+			if hcc.TLSConfig != nil {
+				scheme = "https"
+			}
 		}
 		apiServer = scheme + "://" + apiServer
 	}
