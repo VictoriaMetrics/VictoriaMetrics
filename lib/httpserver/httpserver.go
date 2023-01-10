@@ -342,13 +342,14 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 }
 
 // CheckAuthFlag checks whether the given authKey is set and valid
-// rollbacks to checkBasicAuth authKey is not set
+//
+// Falls back to checkBasicAuth if authKey is not set
 func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue *string, flagName string) bool {
 	if len(*flagValue) == 0 {
 		return CheckBasicAuth(w, r)
 	}
 
-	if len(*flagValue) > 0 && r.FormValue("authKey") != *flagValue {
+	if r.FormValue("authKey") != *flagValue {
 		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
 		return false
 	}
