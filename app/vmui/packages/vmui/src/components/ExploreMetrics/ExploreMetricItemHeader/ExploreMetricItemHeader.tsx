@@ -12,10 +12,8 @@ interface ExploreMetricItemControlsProps {
   index: number
   isBucket: boolean
   rateEnabled: boolean
-  showLegend: boolean
   size: string
   onChangeRate: (val: boolean) => void
-  onChangeLegend: (val: boolean) => void
   onRemoveItem: (name: string) => void
   onChangeOrder: (name: string, oldIndex: number, newIndex: number) => void
   onChangeSize: (id: string) => void
@@ -26,10 +24,8 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
   index,
   isBucket,
   rateEnabled,
-  showLegend,
   size,
   onChangeRate,
-  onChangeLegend,
   onRemoveItem,
   onChangeOrder,
   onChangeSize
@@ -97,11 +93,6 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
           />
         </Tooltip>
       )}
-      <Switch
-        label="show legend"
-        value={showLegend}
-        onChange={onChangeLegend}
-      />
       <div className="vm-explore-metrics-item-header__layout">
         <Tooltip title="change size the graph">
           <div ref={layoutButtonRef}>

@@ -42,7 +42,6 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
   const isBucket = useMemo(() => /_bucket?/.test(name), [name]);
 
   const [rateEnabled, setRateEnabled] = useState(isCounter);
-  const [showLegend, setShowLegend] = useState(false);
   const [size, setSize] = useState(sizeVariants.find(v => v.isDefault) || sizeVariants[0]);
 
   const windowSize = useResize(document.body);
@@ -64,10 +63,8 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
         index={index}
         isBucket={isBucket}
         rateEnabled={rateEnabled}
-        showLegend={showLegend}
         size={size.id}
         onChangeRate={setRateEnabled}
-        onChangeLegend={setShowLegend}
         onRemoveItem={onRemoveItem}
         onChangeOrder={onChangeOrder}
         onChangeSize={handleChangeSize}
@@ -79,7 +76,6 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
         instance={instance}
         rateEnabled={rateEnabled}
         isBucket={isBucket}
-        showLegend={showLegend}
         height={graphHeight}
       />
     </div>
