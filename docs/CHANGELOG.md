@@ -17,6 +17,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 
 * BUGFIX: return correct query results over time series with gaps. The issue has been introduced in [v1.86.0](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
+* BUGFIX: properly take into account the timeout passed by `vmselect` to `vmstorage` during query execution. This issue could result in the following error logs at `vmstorage` under load: `cannot process vmselect request: cannot execute "search_v7": couldn't start executing the request in 0.000 seconds, since -search.maxConcurrentRequests=... concurrent requests are already executed`. The issue has been introduced in [v1.86.0](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
 
 
 ## [v1.86.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.0)
