@@ -1,10 +1,11 @@
 ---
+sort: 16
 title: API Docs
-weight: 99
+weight: 16
 menu:
   docs:
     parent: "operator"
-    weight: 99
+    weight: 16
 aliases:
 - /operator/api.html
 ---
