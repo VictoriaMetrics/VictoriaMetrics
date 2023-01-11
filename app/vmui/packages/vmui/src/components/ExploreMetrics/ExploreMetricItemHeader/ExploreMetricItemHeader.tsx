@@ -1,11 +1,9 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { FC } from "preact/compat";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Button from "../../Main/Button/Button";
-import { ArrowDownIcon, CloseIcon, ResizeIcon } from "../../Main/Icons";
-import Popper from "../../Main/Popper/Popper";
-import ExploreMetricLayouts from "../ExploreMetricLayouts/ExploreMetricLayouts";
+import { ArrowDownIcon, CloseIcon } from "../../Main/Icons";
 
 interface ExploreMetricItemControlsProps {
   name: string
@@ -16,7 +14,6 @@ interface ExploreMetricItemControlsProps {
   onChangeRate: (val: boolean) => void
   onRemoveItem: (name: string) => void
   onChangeOrder: (name: string, oldIndex: number, newIndex: number) => void
-  onChangeSize: (id: string) => void
 }
 
 const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
@@ -24,15 +21,11 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
   index,
   isBucket,
   rateEnabled,
-  size,
   onChangeRate,
   onRemoveItem,
   onChangeOrder,
-  onChangeSize
 }) => {
 
-  const layoutButtonRef = useRef<HTMLDivElement>(null);
-  const [openPopper, setOpenPopper] = useState(false);
   const handleClickRemove = () => {
     onRemoveItem(name);
   };
@@ -43,19 +36,6 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
 
   const handleOrderUp = () => {
     onChangeOrder(name, index, index - 1);
-  };
-
-  const handleTogglePopper = () => {
-    setOpenPopper(prev => !prev);
-  };
-
-  const handleClosePopper = () => {
-    setOpenPopper(false);
-  };
-
-  const handleChangeSize = (id: string) => {
-    onChangeSize(id);
-    handleClosePopper();
   };
 
   return (
@@ -94,17 +74,6 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
         </Tooltip>
       )}
       <div className="vm-explore-metrics-item-header__layout">
-        <Tooltip title="change size the graph">
-          <div ref={layoutButtonRef}>
-            <Button
-              startIcon={<ResizeIcon/>}
-              variant="text"
-              color="gray"
-              size="small"
-              onClick={handleTogglePopper}
-            />
-          </div>
-        </Tooltip>
         <Tooltip title="close graph">
           <Button
             startIcon={<CloseIcon/>}
@@ -115,18 +84,6 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
           />
         </Tooltip>
       </div>
-
-      <Popper
-        open={openPopper}
-        onClose={handleClosePopper}
-        placement="bottom-right"
-        buttonRef={layoutButtonRef}
-      >
-        <ExploreMetricLayouts
-          value={size}
-          onChange={handleChangeSize}
-        />
-      </Popper>
     </div>
   );
 };

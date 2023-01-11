@@ -8,6 +8,7 @@ import { useFetchNames } from "./hooks/useFetchNames";
 import "./style.scss";
 import ExploreMetricItem from "../../components/ExploreMetrics/ExploreMetricItem/ExploreMetricItem";
 import ExploreMetricsHeader from "../../components/ExploreMetrics/ExploreMetricsHeader/ExploreMetricsHeader";
+import { GRAPH_SIZES } from "../../constants/graph";
 
 const ExploreMetrics: FC = () => {
   useSetQueryParams();
@@ -15,6 +16,7 @@ const ExploreMetrics: FC = () => {
   const [job, setJob] = useState("");
   const [instance, setInstance] = useState("");
   const [metrics, setMetrics] = useState<string[]>([]);
+  const [size, setSize] = useState(GRAPH_SIZES.find(v => v.isDefault) || GRAPH_SIZES[0]);
 
   const { jobs, isLoading: loadingJobs, error: errorJobs } = useFetchJobs();
   const { instances, isLoading: loadingInstances, error: errorInstances } = useFetchInstances(job);
@@ -34,6 +36,11 @@ const ExploreMetrics: FC = () => {
     } else {
       setMetrics((prev) => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]);
     }
+  };
+
+  const handleChangeSize = (sizeId: string) => {
+    const target = GRAPH_SIZES.find(variant => variant.id === sizeId);
+    if (target) setSize(target);
   };
 
   const handleChangeOrder = (name: string, oldIndex: number, newIndex: number) => {
@@ -59,9 +66,11 @@ const ExploreMetrics: FC = () => {
         instances={instances}
         names={names}
         job={job}
+        size={size.id}
         instance={instance}
         selectedMetrics={metrics}
         onChangeJob={setJob}
+        onChangeSize={handleChangeSize}
         onChangeInstance={setInstance}
         onToggleMetric={handleToggleMetric}
       />
@@ -78,6 +87,7 @@ const ExploreMetrics: FC = () => {
             job={job}
             instance={instance}
             index={i}
+            size={size}
             onRemoveItem={handleToggleMetric}
             onChangeOrder={handleChangeOrder}
           />

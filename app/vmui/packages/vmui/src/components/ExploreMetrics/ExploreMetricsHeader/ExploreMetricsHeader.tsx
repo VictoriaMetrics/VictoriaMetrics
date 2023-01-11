@@ -5,6 +5,7 @@ import "./style.scss";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import usePrevious from "../../../hooks/usePrevious";
+import { GRAPH_SIZES } from "../../../constants/graph";
 
 interface ExploreMetricsHeaderProps {
   jobs: string[]
@@ -12,11 +13,15 @@ interface ExploreMetricsHeaderProps {
   names: string[]
   job: string
   instance: string
+  size: string
   selectedMetrics: string[]
   onChangeJob: (job: string) => void
   onChangeInstance: (instance: string) => void
   onToggleMetric: (name: string) => void
+  onChangeSize: (sizeId: string) => void
 }
+
+const sizeOptions = GRAPH_SIZES.map(s => s.id);
 
 const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
   jobs,
@@ -24,10 +29,12 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
   names,
   job,
   instance,
+  size,
   selectedMetrics,
   onChangeJob,
   onChangeInstance,
-  onToggleMetric
+  onToggleMetric,
+  onChangeSize
 }) => {
 
   const { period: { step }, duration } = useTimeState();
@@ -79,6 +86,14 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           defaultStep={step}
           setStep={handleChangeStep}
           value={customStep}
+        />
+      </div>
+      <div className="vm-explore-metrics-header__size">
+        <Select
+          label="Size graphs"
+          value={size}
+          list={sizeOptions}
+          onChange={onChangeSize}
         />
       </div>
       <div className="vm-explore-metrics-header-metrics">
