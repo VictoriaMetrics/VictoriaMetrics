@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -19,6 +20,10 @@ import (
 //
 // callback shouldn't hold block after returning.
 func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
+
 	if isGzip {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -101,6 +106,7 @@ func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) er
 
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
+		wcr.DecConcurrency()
 	}
 }
 

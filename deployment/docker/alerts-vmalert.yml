@@ -3,7 +3,7 @@
 # and threshold calibration according to every specific setup.
 groups:
   # Alerts group for vmalert assumes that Grafana dashboard
-  # https://grafana.com/grafana/dashboards/14950-victoriametrics-vmalert is installed.
+  # https://grafana.com/grafana/dashboards/14950-victoriametrics-vmalert/ is installed.
   # Pls update the `dashboard` annotation according to your setup.
   - name: vmalert
     interval: 30s

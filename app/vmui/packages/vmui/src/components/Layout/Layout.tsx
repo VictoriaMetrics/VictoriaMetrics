@@ -1,13 +1,21 @@
 import Header from "./Header/Header";
-import React, { FC } from "preact/compat";
-import { Outlet } from "react-router-dom";
+import React, { FC, useEffect } from "preact/compat";
+import { Outlet, useLocation } from "react-router-dom";
 import "./style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "./Footer/Footer";
+import { routerOptions } from "../../router";
 
 const Layout: FC = () => {
   const appModeEnable = getAppModeEnable();
+
+  const { pathname } = useLocation();
+  useEffect(() => {
+    const defaultTitle = "VM UI";
+    const routeTitle = routerOptions[pathname]?.title;
+    document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
+  }, [pathname]);
 
   return <section className="vm-container">
     <Header/>

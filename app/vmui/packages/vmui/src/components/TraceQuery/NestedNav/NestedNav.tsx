@@ -1,7 +1,7 @@
 import React, { FC, useState } from "preact/compat";
 import LineProgress from "../../Main/LineProgress/LineProgress";
 import Trace from "../Trace";
-import { ArrowUpIcon } from "../../Main/Icons";
+import { ArrowDownIcon } from "../../Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 
@@ -38,7 +38,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
               "vm-nested-nav-header__icon_open": openLevels[trace.idValue]
             })}
           >
-            <ArrowUpIcon />
+            <ArrowDownIcon />
           </div>
         )}
         <div className="vm-nested-nav-header__progress">

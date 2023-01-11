@@ -24,8 +24,8 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
   see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
-* Can replicate collected metrics simultaneously to multiple remote storage systems -
-  see [these docs](#replication-and-high-availability).
+* Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation.html).
+* Can replicate collected metrics simultaneously to multiple remote storage systems - see [these docs](#replication-and-high-availability).
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
@@ -59,6 +59,8 @@ Example command line:
 ```console
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
+
+Example of scrape configuration for `-promscrape.config` argument you can find [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
 
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
@@ -125,6 +127,12 @@ See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/Victor
 If you use Prometheus only for scraping metrics from various targets and forwarding these metrics to remote storage
 then `vmagent` can replace Prometheus. Typically, `vmagent` requires lower amounts of RAM, CPU and network bandwidth compared with Prometheus.
 See [these docs](#how-to-collect-metrics-in-prometheus-format) for details.
+
+### Statsd alternative
+
+`vmagent` can be used as an alternative to [statsd](https://github.com/statsd/statsd)
+when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) is enabled.
+See [these docs](https://docs.victoriametrics.com/stream-aggregation.html#statsd-alternative) for details.
 
 ### Flexible metrics relay
 
@@ -598,8 +606,8 @@ provide the following tools for debugging target-level and metric-level relabeli
 
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
-  and clicking the `debug` link at the target, which must be debugged.
-  The opened page will show step-by-step results for the actual relabeling rules applied to the target labels.
+  and clicking the `debug target relabeling` link at the target, which must be debugged.
+  The opened page will show step-by-step results for the actual target relabeling rules applied to the discovered target labels.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
   is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
@@ -608,11 +616,9 @@ provide the following tools for debugging target-level and metric-level relabeli
   which result to target drop.
 
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
-  and all the relabeling, which can be set up via `-relabelConfig`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`
-  command-line flags) can be performed by navigating to `http://vmagent:8429/metric-relabel-debug` page
-  (`http://victoriametrics:8428/metric-relabel-debug` page for single-node VictoriaMetrics)
-  and submitting there relabeling rules together with the metric to be relabeled.
-  The page will show step-by-step results for the entered relabeling rules executed against the entered metric.
+  can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
+  and clicking the `debug metrics relabeling` link at the target, which must be debugged.
+  The opened page will show step-by-step results for the actual metric relabeling rules applied to the given target labels.
 
 ## Prometheus staleness markers
 
@@ -816,7 +822,7 @@ See also [cardinality explorer docs](https://docs.victoriametrics.com/#cardinali
 We recommend setting up regular scraping of this page either through `vmagent` itself or by Prometheus
 so that the exported metrics may be analyzed later.
 
-Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683) for `vmagent` state overview.
+Use official [Grafana dashboard](https://grafana.com/grafana/dashboards/12683-victoriametrics-vmagent/) for `vmagent` state overview.
 Graphs on this dashboard contain useful hints - hover the `i` icon at the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add a review to the dashboard.
 
@@ -1232,6 +1238,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
@@ -1241,7 +1249,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentInserts int
-     The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 16)
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
   -maxInsertRequestSize size
      The maximum size in bytes of a single Prometheus remote_write API request
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 33554432)
@@ -1332,6 +1340,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.minResponseSizeForStreamParse size
      The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1000000)
+  -promscrape.nomad.waitTime duration
+     Wait time used by Nomad service discovery. Default value is used if not set
+  -promscrape.nomadSDCheckInterval duration
+     Interval for checking for changes in Nomad. This works only if nomad_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#nomad_sd_configs for details (default 30s)
   -promscrape.noStaleMarkers
      Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series
   -promscrape.openstackSDCheckInterval duration
@@ -1443,7 +1455,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Optional rate limit in bytes per second for data sent to the corresponding -remoteWrite.url. By default the rate limit is disabled. It can be useful for limiting load on remote storage when big amounts of buffered data is sent after temporary unavailability of the remote storage
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
-     Optional path to file with relabel_config entries. The path can point either to local file or to http url. These entries are applied to all the metrics before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details
+     Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.
@@ -1454,6 +1466,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.significantFigures array
      The number of significant figures to leave in metric values before writing them to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits
+     Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.streamAggr.config array
+     Optional path to file with stream aggregation config. See https://docs.victoriametrics.com/stream-aggregation.html . See also -remoteWrite.streamAggr.keepInput
+     Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.streamAggr.keepInput array
+     Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. By default the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. See https://docs.victoriametrics.com/stream-aggregation.html
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.tlsCAFile array
      Optional path to TLS CA file to use for verifying connections to the corresponding -remoteWrite.url. By default system CA is used
@@ -1476,7 +1494,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Remote storage URL to write data to. It must support Prometheus remote_write API. It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.multitenantURL
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
-     Optional path to relabel config for the corresponding -remoteWrite.url. The path can point either to local file or to http url
+     Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
      Supports an array of values separated by comma or specified via multiple flags.
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit

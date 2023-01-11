@@ -14,7 +14,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -72,8 +71,7 @@ func concatTwoStrings(x, y string) string {
 	b := bb.B[:0]
 	b = append(b, x...)
 	b = append(b, y...)
-	s := bytesutil.ToUnsafeString(b)
-	s = bytesutil.InternString(s)
+	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
 	return s
@@ -323,6 +321,11 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		dst = append(dst, resp.Body()...)
 	}
 	fasthttp.ReleaseResponse(resp)
+	if len(dst) > c.hc.MaxResponseBodySize {
+		maxScrapeSizeExceeded.Inc()
+		return dst, fmt.Errorf("the response from %q exceeds -promscrape.maxScrapeSize=%d (the actual response size is %d bytes); "+
+			"either reduce the response size for the target or increase -promscrape.maxScrapeSize", c.scrapeURL, len(dst), maxScrapeSize.N)
+	}
 	if statusCode != fasthttp.StatusOK {
 		metrics.GetOrCreateCounter(fmt.Sprintf(`vm_promscrape_scrapes_total{status_code="%d"}`, statusCode)).Inc()
 		return dst, fmt.Errorf("unexpected status code returned when scraping %q: %d; expecting %d; response body: %q",
@@ -345,7 +348,32 @@ var (
 )
 
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
-	return discoveryutils.DoRequestWithPossibleRetry(hc, req, resp, deadline, scrapeRequests, scrapeRetries)
+	sleepTime := time.Second
+	scrapeRequests.Inc()
+	for {
+		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
+		// across multiple retries.
+		err := hc.DoDeadline(req, resp, deadline)
+		if err == nil {
+			statusCode := resp.StatusCode()
+			if statusCode != fasthttp.StatusTooManyRequests {
+				return nil
+			}
+		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
+			return err
+		}
+		// Retry request after exponentially increased sleep.
+		maxSleepTime := time.Until(deadline)
+		if sleepTime > maxSleepTime {
+			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+		}
+		sleepTime += sleepTime
+		if sleepTime > maxSleepTime {
+			sleepTime = maxSleepTime
+		}
+		time.Sleep(sleepTime)
+		scrapeRetries.Inc()
+	}
 }
 
 type streamReader struct {

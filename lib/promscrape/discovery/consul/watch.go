@@ -1,7 +1,9 @@
 package consul
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -32,14 +34,15 @@ type consulWatcher struct {
 	servicesLock sync.Mutex
 	services     map[string]*serviceWatcher
 
-	wg     sync.WaitGroup
-	stopCh chan struct{}
+	stopCh    chan struct{}
+	stoppedCh chan struct{}
 }
 
 type serviceWatcher struct {
 	serviceName  string
 	serviceNodes []ServiceNode
 	stopCh       chan struct{}
+	stoppedCh    chan struct{}
 }
 
 // newConsulWatcher creates new watcher and starts background service discovery for Consul.
@@ -69,9 +72,13 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 		watchTags:             sdc.Tags,
 		services:              make(map[string]*serviceWatcher),
 		stopCh:                make(chan struct{}),
+		stoppedCh:             make(chan struct{}),
 	}
 	initCh := make(chan struct{})
-	go cw.watchForServicesUpdates(initCh)
+	go func() {
+		cw.watchForServicesUpdates(initCh)
+		close(cw.stoppedCh)
+	}()
 	// wait for initialization to complete
 	<-initCh
 	return cw
@@ -79,13 +86,13 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 
 func (cw *consulWatcher) mustStop() {
 	close(cw.stopCh)
-	// Do not wait for the watcher to stop, since it may take
-	// up to discoveryutils.BlockingClientReadTimeout to complete.
-	// TODO: add ability to cancel blocking requests.
+	cw.client.Stop()
+	<-cw.stoppedCh
 }
 
 func (cw *consulWatcher) updateServices(serviceNames []string) {
 	var initWG sync.WaitGroup
+
 	// Start watchers for new services.
 	cw.servicesLock.Lock()
 	for _, serviceName := range serviceNames {
@@ -96,16 +103,16 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 		sw := &serviceWatcher{
 			serviceName: serviceName,
 			stopCh:      make(chan struct{}),
+			stoppedCh:   make(chan struct{}),
 		}
 		cw.services[serviceName] = sw
-		cw.wg.Add(1)
 		serviceWatchersCreated.Inc()
 		initWG.Add(1)
 		go func() {
 			serviceWatchersCount.Inc()
 			sw.watchForServiceNodesUpdates(cw, &initWG)
 			serviceWatchersCount.Dec()
-			cw.wg.Done()
+			close(sw.stoppedCh)
 		}()
 	}
 
@@ -114,20 +121,24 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 	for _, serviceName := range serviceNames {
 		newServiceNamesMap[serviceName] = struct{}{}
 	}
+	var swsStopped []*serviceWatcher
 	for serviceName, sw := range cw.services {
 		if _, ok := newServiceNamesMap[serviceName]; ok {
 			continue
 		}
 		close(sw.stopCh)
 		delete(cw.services, serviceName)
-		serviceWatchersStopped.Inc()
-
-		// Do not wait for the watcher goroutine to exit, since this may take for up to maxWaitTime
-		// if it is blocked in Consul API request.
+		swsStopped = append(swsStopped, sw)
 	}
 	cw.servicesLock.Unlock()
 
-	// Wait for initialization to complete.
+	// Wait until deleted service watchers are stopped.
+	for _, sw := range swsStopped {
+		<-sw.stoppedCh
+		serviceWatchersStopped.Inc()
+	}
+
+	// Wait until added service watchers are initialized.
 	initWG.Wait()
 }
 
@@ -136,11 +147,13 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 // watchForServicesUpdates closes the initCh once the initialization is complete and first discovery iteration is done.
 func (cw *consulWatcher) watchForServicesUpdates(initCh chan struct{}) {
 	index := int64(0)
-	clientAddr := cw.client.Addr()
+	apiServer := cw.client.APIServer()
 	f := func() {
 		serviceNames, newIndex, err := cw.getBlockingServiceNames(index)
 		if err != nil {
-			logger.Errorf("cannot obtain Consul serviceNames from %q: %s", clientAddr, err)
+			if !errors.Is(err, context.Canceled) {
+				logger.Errorf("cannot obtain Consul serviceNames from %q: %s", apiServer, err)
+			}
 			return
 		}
 		if index == newIndex {
@@ -151,7 +164,7 @@ func (cw *consulWatcher) watchForServicesUpdates(initCh chan struct{}) {
 		index = newIndex
 	}
 
-	logger.Infof("started Consul service watcher for %q", clientAddr)
+	logger.Infof("started Consul service watcher for %q", apiServer)
 	f()
 
 	// send signal that initialization is complete
@@ -165,15 +178,21 @@ func (cw *consulWatcher) watchForServicesUpdates(initCh chan struct{}) {
 		case <-ticker.C:
 			f()
 		case <-cw.stopCh:
-			logger.Infof("stopping Consul service watchers for %q", clientAddr)
+			logger.Infof("stopping Consul service watchers for %q", apiServer)
 			startTime := time.Now()
+			var swsStopped []*serviceWatcher
+
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
 				close(sw.stopCh)
+				swsStopped = append(swsStopped, sw)
 			}
 			cw.servicesLock.Unlock()
-			cw.wg.Wait()
-			logger.Infof("stopped Consul service watcher for %q in %.3f seconds", clientAddr, time.Since(startTime).Seconds())
+
+			for _, sw := range swsStopped {
+				<-sw.stoppedCh
+			}
+			logger.Infof("stopped Consul service watcher for %q in %.3f seconds", apiServer, time.Since(startTime).Seconds())
 			return
 		}
 	}
@@ -219,13 +238,15 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
 func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG *sync.WaitGroup) {
-	clientAddr := cw.client.Addr()
+	apiServer := cw.client.APIServer()
 	index := int64(0)
 	path := "/v1/health/service/" + sw.serviceName + cw.serviceNodesQueryArgs
 	f := func() {
 		data, newIndex, err := getBlockingAPIResponse(cw.client, path, index)
 		if err != nil {
-			logger.Errorf("cannot obtain Consul serviceNodes for serviceName=%q from %q: %s", sw.serviceName, clientAddr, err)
+			if !errors.Is(err, context.Canceled) {
+				logger.Errorf("cannot obtain Consul serviceNodes for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
+			}
 			return
 		}
 		if index == newIndex {
@@ -234,7 +255,7 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 		}
 		sns, err := parseServiceNodes(data)
 		if err != nil {
-			logger.Errorf("cannot parse Consul serviceNodes response for serviceName=%q from %q: %s", sw.serviceName, clientAddr, err)
+			logger.Errorf("cannot parse Consul serviceNodes response for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
 			return
 		}
 

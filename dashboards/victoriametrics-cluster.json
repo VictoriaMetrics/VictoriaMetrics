@@ -5021,7 +5021,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    max_over_time(vm_concurrent_addrows_current{job=~\"$job_storage\", \n    instance=~\"$instance\"}[$__rate_interval])\n)",
+              "expr": "max(\n    max_over_time(vm_concurrent_insert_current{job=~\"$job_storage\", \n    instance=~\"$instance\"}[$__rate_interval])\n)",
               "interval": "",
               "legendFormat": "current",
               "range": true,
@@ -5034,7 +5034,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "min(vm_concurrent_addrows_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
+              "expr": "min(vm_concurrent_insert_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
               "hide": false,
               "interval": "",
               "legendFormat": "max",
@@ -8630,9 +8630,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "VictoriaMetrics - cluster",
-          "value": "VictoriaMetrics - cluster"
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,

@@ -1,7 +1,6 @@
 import React, { FC, useState, useMemo } from "preact/compat";
 import { MouseEvent } from "react";
 import { LegendItemType } from "../../../../utils/uplot/types";
-import { getLegendLabel } from "../../../../utils/uplot/helpers";
 import "./style.scss";
 import classNames from "classnames";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
@@ -46,27 +45,30 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
       />
       <div className="vm-legend-item-info">
         <span className="vm-legend-item-info__label">
-          {getLegendLabel(legend.label)}
+          {legend.freeFormFields["__name__"] || (freeFormFields.length == 0 ? "{}" : "")}
         </span>
-
-        &#160;&#123;
-        {freeFormFields.map(f => (
-          <Tooltip
-            key={f.id}
-            open={copiedValue === f.id}
-            title={"Copied!"}
-            placement="top-center"
-          >
-            <span
-              className="vm-legend-item-info__free-fields"
-              key={f.key}
-              onClick={createHandlerCopy(f.freeField, f.id)}
-            >
-              {f.freeField}
-            </span>
-          </Tooltip>
-        ))}
-        &#125;
+        {freeFormFields.length > 0 &&
+          <span>
+            &#123;
+            {freeFormFields.map(f => (
+              <Tooltip
+                key={f.id}
+                open={copiedValue === f.id}
+                title={"Copied!"}
+                placement="top-center"
+              >
+                <span
+                  className="vm-legend-item-info__free-fields"
+                  key={f.key}
+                  onClick={createHandlerCopy(f.freeField, f.id)}
+                >
+                  {f.freeField}
+                </span>
+              </Tooltip>
+            ))}
+            &#125;
+          </span>
+        }
       </div>
     </div>
   );

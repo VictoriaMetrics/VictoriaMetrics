@@ -3,4 +3,10 @@
 .vm-autocomplete {
   max-height: 300px;
   overflow: auto;
+
+  &__no-options {
+    padding: $padding-global;
+    text-align: center;
+    color: $color-text-disabled;
+  }
 }

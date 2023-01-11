@@ -17,16 +17,6 @@
     gap: 6px;
   }
 
-  &__link {
-    transition: color 200ms ease;
-    cursor: pointer;
-
-    &:hover {
-      color: $color-primary;
-      text-decoration: underline;
-    }
-  }
-
   &__copyright {
     text-align: right;
     flex-grow: 1;

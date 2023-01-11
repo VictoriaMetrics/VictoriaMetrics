@@ -15,11 +15,13 @@ import (
 var (
 	unparsedLabelsGlobal = flagutil.NewArrayString("remoteWrite.label", "Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. "+
 		"Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage")
-	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabel_config entries. "+
-		"The path can point either to local file or to http url. These entries are applied to all the metrics "+
-		"before sending them to -remoteWrite.url. See https://docs.victoriametrics.com/vmagent.html#relabeling for details")
-	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel config for the corresponding -remoteWrite.url. "+
-		"The path can point either to local file or to http url")
+	relabelConfigPathGlobal = flag.String("remoteWrite.relabelConfig", "", "Optional path to file with relabeling configs, which are applied "+
+		"to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. "+
+		"The path can point either to local file or to http url. "+
+		"See https://docs.victoriametrics.com/vmagent.html#relabeling")
+	relabelConfigPaths = flagutil.NewArrayString("remoteWrite.urlRelabelConfig", "Optional path to relabel configs for the corresponding -remoteWrite.url. "+
+		"See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. "+
+		"See https://docs.victoriametrics.com/vmagent.html#relabeling")
 
 	usePromCompatibleNaming = flag.Bool("usePromCompatibleNaming", false, "Whether to replace characters unsupported by Prometheus with underscores "+
 		"in the ingested metric names and label names. For example, foo.bar{a.b='c'} is transformed into foo_bar{a_b='c'} during data ingestion if this flag is set. "+

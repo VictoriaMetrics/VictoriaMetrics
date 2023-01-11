@@ -320,24 +320,14 @@ func marshalMetricTagsFast(dst []byte, tags []storage.Tag) []byte {
 
 func marshalMetricNameSorted(dst []byte, mn *storage.MetricName) []byte {
 	dst = marshalBytesFast(dst, mn.MetricGroup)
-	sortMetricTags(mn.Tags)
+	sortMetricTags(mn)
 	dst = marshalMetricTagsFast(dst, mn.Tags)
 	return dst
 }
 
 func marshalMetricTagsSorted(dst []byte, mn *storage.MetricName) []byte {
-	sortMetricTags(mn.Tags)
+	sortMetricTags(mn)
 	return marshalMetricTagsFast(dst, mn.Tags)
-}
-
-func sortMetricTags(tags []storage.Tag) {
-	less := func(i, j int) bool {
-		return string(tags[i].Key) < string(tags[j].Key)
-	}
-	if sort.SliceIsSorted(tags, less) {
-		return
-	}
-	sort.Slice(tags, less)
 }
 
 func marshalBytesFast(dst []byte, s []byte) []byte {
@@ -361,14 +351,14 @@ func unmarshalBytesFast(src []byte) ([]byte, []byte, error) {
 func stringMetricName(mn *storage.MetricName) string {
 	var dst []byte
 	dst = append(dst, mn.MetricGroup...)
-	sortMetricTags(mn.Tags)
+	sortMetricTags(mn)
 	dst = appendStringMetricTags(dst, mn.Tags)
 	return string(dst)
 }
 
 func stringMetricTags(mn *storage.MetricName) string {
 	var dst []byte
-	sortMetricTags(mn.Tags)
+	sortMetricTags(mn)
 	dst = appendStringMetricTags(dst, mn.Tags)
 	return string(dst)
 }
@@ -427,4 +417,27 @@ func assertIdenticalTimestamps(tss []*timeseries, step int64) {
 			}
 		}
 	}
+}
+
+func sortMetricTags(mn *storage.MetricName) {
+	mts := (*metricTagsSorter)(mn)
+	if !sort.IsSorted(mts) {
+		sort.Sort(mts)
+	}
+}
+
+type metricTagsSorter storage.MetricName
+
+func (mts *metricTagsSorter) Len() int {
+	return len(mts.Tags)
+}
+
+func (mts *metricTagsSorter) Less(i, j int) bool {
+	a := mts.Tags
+	return string(a[i].Key) < string(a[j].Key)
+}
+
+func (mts *metricTagsSorter) Swap(i, j int) {
+	a := mts.Tags
+	a[i], a[j] = a[j], a[i]
 }

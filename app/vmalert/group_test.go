@@ -460,7 +460,7 @@ func TestFaultyRW(t *testing.T) {
 
 	r := &RecordingRule{
 		Name:  "test",
-		state: newRuleState(),
+		state: newRuleState(10),
 		q:     fq,
 	}
 

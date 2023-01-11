@@ -8,7 +8,7 @@ const Footer: FC = () => {
 
   return <footer className="vm-footer">
     <a
-      className="vm-footer__link vm-footer__website"
+      className="vm__link vm-footer__website"
       target="_blank"
       href="https://victoriametrics.com/"
       rel="noreferrer"
@@ -17,7 +17,7 @@ const Footer: FC = () => {
       victoriametrics.com
     </a>
     <a
-      className="vm-footer__link"
+      className="vm__link"
       target="_blank"
       href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
       rel="noreferrer"

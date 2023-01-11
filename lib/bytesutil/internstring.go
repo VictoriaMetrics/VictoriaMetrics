@@ -8,6 +8,12 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
 
+// InternBytes interns b as a string
+func InternBytes(b []byte) string {
+	s := ToUnsafeString(b)
+	return InternString(s)
+}
+
 // InternString returns interned s.
 //
 // This may be needed for reducing the amounts of allocated memory.
@@ -30,10 +36,8 @@ func InternString(s string) string {
 	}
 	internStringsMap.Store(sCopy, e)
 
-	if atomic.LoadUint64(&internStringsMapLastCleanupTime)+61 < ct {
-		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed
-		// during the last 5 minutes.
-		atomic.StoreUint64(&internStringsMapLastCleanupTime, ct)
+	if needCleanup(&internStringsMapLastCleanupTime, ct) {
+		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed during the last 5 minutes.
 		m := &internStringsMap
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*ismEntry)

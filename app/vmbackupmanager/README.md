@@ -67,7 +67,7 @@ credentials.json
   "project_id": "<project>",
   "private_key_id": "",
   "private_key": "-----BEGIN PRIVATE KEY-----\-----END PRIVATE KEY-----\n",
-  "client_email": “test@<project>.iam.gserviceaccount.com",
+  "client_email": "test@<project>.iam.gserviceaccount.com",
   "client_id": "",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
@@ -322,6 +322,16 @@ Clusters here are referred to as `source` and `destination`.
   $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2022-10-06
   ```
 
+## Monitoring
+
+`vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
+either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
+
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798-victoriametrics-backupmanager/) for `vmbackupmanager` overview.
+Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add
+a review to the dashboard.
+
 ## Configuration
 
 ### Flags
@@ -407,6 +417,8 @@ command-line flags:
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string

@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	vminsertCommon "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
@@ -34,7 +35,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -66,10 +66,10 @@ var staticServer = http.FileServer(http.FS(staticFiles))
 // Init initializes vminsert.
 func Init() {
 	relabel.Init()
+	vminsertCommon.InitStreamAggr()
 	storage.SetMaxLabelsPerTimeseries(*maxLabelsPerTimeseries)
 	storage.SetMaxLabelValueLen(*maxLabelValueLen)
 	common.StartUnmarshalWorkers()
-	writeconcurrencylimiter.Init()
 	if len(*graphiteListenAddr) > 0 {
 		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
 	}
@@ -103,6 +103,7 @@ func Stop() {
 		opentsdbhttpServer.MustStop()
 	}
 	common.StopUnmarshalWorkers()
+	vminsertCommon.MustStopStreamAggr()
 }
 
 // RequestHandler is a handler for Prometheus remote storage write API
@@ -245,12 +246,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/prometheus/config", "/config":
-		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
-			err := &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
+		if !httpserver.CheckAuthFlag(w, r, *configAuthKey, "configAuthKey") {
 			return true
 		}
 		promscrapeConfigRequests.Inc()
@@ -259,12 +255,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/prometheus/api/v1/status/config", "/api/v1/status/config":
 		// See https://prometheus.io/docs/prometheus/latest/querying/api/#config
-		if *configAuthKey != "" && r.FormValue("authKey") != *configAuthKey {
-			err := &httpserver.ErrorWithStatusCode{
-				Err:        fmt.Errorf("The provided authKey doesn't match -configAuthKey"),
-				StatusCode: http.StatusUnauthorized,
-			}
-			httpserver.Errorf(w, r, "%s", err)
+		if !httpserver.CheckAuthFlag(w, r, *configAuthKey, "configAuthKey") {
 			return true
 		}
 		promscrapeStatusConfigRequests.Inc()

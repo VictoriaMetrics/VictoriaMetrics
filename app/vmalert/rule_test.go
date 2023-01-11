@@ -6,8 +6,27 @@ import (
 	"time"
 )
 
+func TestRule_stateDisabled(t *testing.T) {
+	state := newRuleState(-1)
+	e := state.getLast()
+	if !e.at.IsZero() {
+		t.Fatalf("expected entry to be zero")
+	}
+
+	state.add(ruleStateEntry{at: time.Now()})
+	if !e.at.IsZero() {
+		t.Fatalf("expected entry to be zero")
+	}
+
+	if len(state.getAll()) != 0 {
+		t.Fatalf("expected for state to have %d entries; got %d",
+			0, len(state.getAll()),
+		)
+	}
+}
 func TestRule_state(t *testing.T) {
-	state := newRuleState()
+	stateEntriesN := 20
+	state := newRuleState(stateEntriesN)
 	e := state.getLast()
 	if !e.at.IsZero() {
 		t.Fatalf("expected entry to be zero")
@@ -39,7 +58,7 @@ func TestRule_state(t *testing.T) {
 	}
 
 	var last time.Time
-	for i := 0; i < defaultStateEntriesLimit*2; i++ {
+	for i := 0; i < stateEntriesN*2; i++ {
 		last = time.Now()
 		state.add(ruleStateEntry{at: last})
 	}
@@ -50,9 +69,9 @@ func TestRule_state(t *testing.T) {
 			e.at, last)
 	}
 
-	if len(state.getAll()) != defaultStateEntriesLimit {
+	if len(state.getAll()) != stateEntriesN {
 		t.Fatalf("expected for state to have %d entries only; got %d",
-			defaultStateEntriesLimit, len(state.getAll()),
+			stateEntriesN, len(state.getAll()),
 		)
 	}
 }
@@ -61,7 +80,7 @@ func TestRule_state(t *testing.T) {
 // execution of state updates.
 // Should be executed with -race flag
 func TestRule_stateConcurrent(t *testing.T) {
-	state := newRuleState()
+	state := newRuleState(20)
 
 	const workers = 50
 	const iterations = 100

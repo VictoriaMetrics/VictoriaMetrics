@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/cespare/xxhash/v2"
@@ -58,6 +59,13 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
+
+	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
+		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
+		"See also -remoteWrite.streamAggr.keepInput")
+	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
+		"By default the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
+		"See https://docs.victoriametrics.com/stream-aggregation.html")
 )
 
 var (
@@ -140,6 +148,7 @@ func Init() {
 		logger.Fatalf("cannot load relabel configs: %s", err)
 	}
 	allRelabelConfigs.Store(rcs)
+
 	configSuccess.Set(1)
 	configTimestamp.Set(fasttime.UnixTimestamp())
 
@@ -435,9 +444,13 @@ var (
 )
 
 type remoteWriteCtx struct {
-	idx        int
-	fq         *persistentqueue.FastQueue
-	c          *client
+	idx int
+	fq  *persistentqueue.FastQueue
+	c   *client
+
+	sas                 *streamaggr.Aggregators
+	streamAggrKeepInput bool
+
 	pss        []*pendingSeries
 	pssNextIdx uint64
 
@@ -469,6 +482,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	}
 	c.init(argIdx, *queues, sanitizedURL)
 
+	// Initialize pss
 	sf := significantFigures.GetOptionalArgOrDefault(argIdx, 0)
 	rd := roundDigits.GetOptionalArgOrDefault(argIdx, 100)
 	pssLen := *queues
@@ -481,7 +495,8 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	for i := range pss {
 		pss[i] = newPendingSeries(fq.MustWriteBlock, sf, rd)
 	}
-	return &remoteWriteCtx{
+
+	rwctx := &remoteWriteCtx{
 		idx: argIdx,
 		fq:  fq,
 		c:   c,
@@ -490,6 +505,19 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 	}
+
+	// Initialize sas
+	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
+	if sasFile != "" {
+		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternal)
+		if err != nil {
+			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggrFile=%q: %s", sasFile, err)
+		}
+		rwctx.sas = sas
+		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
+	}
+
+	return rwctx
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
@@ -501,6 +529,8 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.fq.UnblockAllReaders()
 	rwctx.c.MustStop()
 	rwctx.c = nil
+	rwctx.sas.MustStop()
+	rwctx.sas = nil
 	rwctx.fq.MustClose()
 	rwctx.fq = nil
 
@@ -509,6 +539,7 @@ func (rwctx *remoteWriteCtx) MustStop() {
 }
 
 func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
+	// Apply relabeling
 	var rctx *relabelCtx
 	var v *[]prompbmarshal.TimeSeries
 	rcs := allRelabelConfigs.Load().(*relabelConfigs)
@@ -526,16 +557,28 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		rowsCountAfterRelabel := getRowsCount(tss)
 		rwctx.rowsDroppedByRelabel.Add(rowsCountBeforeRelabel - rowsCountAfterRelabel)
 	}
-	pss := rwctx.pss
-	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
-	pss[idx].Push(tss)
+
+	// Apply stream aggregation if any
+	rwctx.sas.Push(tss)
+	if rwctx.sas == nil || rwctx.streamAggrKeepInput {
+		// Push samples to the remote storage
+		rwctx.pushInternal(tss)
+	}
+
+	// Return back relabeling contexts to the pool
 	if rctx != nil {
 		*v = prompbmarshal.ResetTimeSeries(tss)
 		tssRelabelPool.Put(v)
 		putRelabelCtx(rctx)
 	}
+}
+
+func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
+	pss := rwctx.pss
+	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
+	pss[idx].Push(tss)
 }
 
 var tssRelabelPool = &sync.Pool{

@@ -11,7 +11,7 @@ func Itoa(n int) string {
 	bb := bbPool.Get()
 	b := bb.B[:0]
 	b = strconv.AppendInt(b, int64(n), 10)
-	s := InternString(ToUnsafeString(b))
+	s := InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
 	return s

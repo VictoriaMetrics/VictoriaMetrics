@@ -86,6 +86,9 @@ func (s *Server) MustStop() {
 
 func newRequestHandler(insertHandler func(r *http.Request) error) http.Handler {
 	rh := func(w http.ResponseWriter, r *http.Request) {
+		if !httpserver.CheckBasicAuth(w, r) {
+			return
+		}
 		writeRequests.Inc()
 		if err := insertHandler(r); err != nil {
 			writeErrors.Inc()

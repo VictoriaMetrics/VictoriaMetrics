@@ -1346,6 +1346,10 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 //line app/vmalert/web.qtpl:443
 	qw422016.N().D(len(rule.Updates))
 //line app/vmalert/web.qtpl:443
+	qw422016.N().S(`/`)
+//line app/vmalert/web.qtpl:443
+	qw422016.N().D(rule.MaxUpdates)
+//line app/vmalert/web.qtpl:443
 	qw422016.N().S(` updates</span>:</div>
         <table class="table table-striped table-hover table-sm">
             <thead>

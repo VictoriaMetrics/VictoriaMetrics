@@ -7,7 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -20,9 +19,7 @@ var (
 //
 // See http://opentsdb.net/docs/build/html/api_telnet/put.html
 func InsertHandler(r io.Reader) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, insertRows)
-	})
+	return parser.ParseStream(r, insertRows)
 }
 
 func insertRows(rows []parser.Row) error {

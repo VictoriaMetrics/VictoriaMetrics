@@ -12,6 +12,7 @@ groups:
         expr: vm_tcplistener_conns > 0
         for: 3m
         debug: true
+        update_entries_limit: 40
         annotations:
           labels: "Available labels: {{ $labels }}"
           summary: Too high connection number for {{ $labels.instance }}
@@ -20,6 +21,7 @@ groups:
             {{ end }}
           description: "It is {{ $value }} connections for {{$labels.instance}}"
       - alert: ExampleAlertAlwaysFiring
+        update_entries_limit: -1
         expr: sum by(job)
           (up == 1)
         labels:

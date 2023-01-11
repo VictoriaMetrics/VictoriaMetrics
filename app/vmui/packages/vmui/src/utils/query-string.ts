@@ -22,7 +22,7 @@ export const getQueryStringValue = (
 };
 
 export const getQueryArray = (): string[] => {
-  const queryLength = window.location.search.match(/g\d+.expr/gmi)?.length || 1;
+  const queryLength = window.location.search.match(/g\d+\.expr/g)?.length || 1;
   return new Array(queryLength > MAX_QUERY_FIELDS ? MAX_QUERY_FIELDS : queryLength)
     .fill(1)
     .map((q, i) => getQueryStringValue(`g${i}.expr`, "") as string);

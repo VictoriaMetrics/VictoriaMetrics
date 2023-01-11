@@ -6,8 +6,9 @@
 @forward "./components/list";
 @forward "./components/popper-header";
 @forward "./components/block";
-@forward "components/sectionheader";
+@forward "./components/sectionheader";
 @forward "./components/table";
+@forward "./components/link";
 
 :root {
   /* base palette */

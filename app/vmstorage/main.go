@@ -150,6 +150,8 @@ var WG syncwg.WaitGroup
 var resetResponseCacheIfNeeded func(mrs []storage.MetricRow)
 
 // AddRows adds mrs to the storage.
+//
+// The caller should limit the number of concurrent calls to AddRows() in order to limit memory usage.
 func AddRows(mrs []storage.MetricRow) error {
 	if Storage.IsReadOnly() {
 		return errReadOnly
@@ -257,9 +259,7 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if path == "/internal/force_merge" {
-		authKey := r.FormValue("authKey")
-		if authKey != *forceMergeAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceMergeAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, *forceMergeAuthKey, "forceMergeAuthKey") {
 			return true
 		}
 		// Run force merge in background
@@ -277,9 +277,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if path == "/internal/force_flush" {
-		authKey := r.FormValue("authKey")
-		if authKey != *forceFlushAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -forceFlushAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, *forceFlushAuthKey, "forceFlushAuthKey") {
 			return true
 		}
 		logger.Infof("flushing storage to make pending data available for reading")
@@ -295,9 +293,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if !strings.HasPrefix(path, "/snapshot") {
 		return false
 	}
-	authKey := r.FormValue("authKey")
-	if authKey != *snapshotAuthKey {
-		httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -snapshotAuthKey command line flag", authKey)
+	if !httpserver.CheckAuthFlag(w, r, *snapshotAuthKey, "snapshotAuthKey") {
 		return true
 	}
 	path = path[len("/snapshot"):]
@@ -652,22 +648,6 @@ func registerStorageMetrics(strg *storage.Storage) {
 	})
 	metrics.NewGauge(`vm_rows_ignored_total{reason="small_timestamp"}`, func() float64 {
 		return float64(m().TooSmallTimestampRows)
-	})
-
-	metrics.NewGauge(`vm_concurrent_addrows_limit_reached_total`, func() float64 {
-		return float64(m().AddRowsConcurrencyLimitReached)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_limit_timeout_total`, func() float64 {
-		return float64(m().AddRowsConcurrencyLimitTimeout)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_dropped_rows_total`, func() float64 {
-		return float64(m().AddRowsConcurrencyDroppedRows)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_capacity`, func() float64 {
-		return float64(m().AddRowsConcurrencyCapacity)
-	})
-	metrics.NewGauge(`vm_concurrent_addrows_current`, func() float64 {
-		return float64(m().AddRowsConcurrencyCurrent)
 	})
 
 	metrics.NewGauge(`vm_search_delays_total`, func() float64 {

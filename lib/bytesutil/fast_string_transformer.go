@@ -67,10 +67,8 @@ func (fst *FastStringTransformer) Transform(s string) string {
 	}
 	fst.m.Store(s, e)
 
-	if atomic.LoadUint64(&fst.lastCleanupTime)+61 < ct {
-		// Perform a global cleanup for fst.m by removing items, which weren't accessed
-		// during the last 5 minutes.
-		atomic.StoreUint64(&fst.lastCleanupTime, ct)
+	if needCleanup(&fst.lastCleanupTime, ct) {
+		// Perform a global cleanup for fst.m by removing items, which weren't accessed during the last 5 minutes.
 		m := &fst.m
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fstEntry)
