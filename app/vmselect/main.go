@@ -212,8 +212,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			err := &httpserver.ErrorWithStatusCode{
 				Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
 					"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
-					"to increase -search.maxQueueDuration; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
-					d.Seconds(), *maxConcurrentRequests),
+					"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
+					d.Seconds(), *maxConcurrentRequests, maxQueueDuration),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
