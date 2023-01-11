@@ -1,5 +1,13 @@
 ---
 sort: 7
+weight: 7
+title: High Availability
+menu:
+  docs:
+    parent: "operator"
+    weight: 7
+aliases:
+- /operator/high-availability.html
 ---
 
 # High Availability

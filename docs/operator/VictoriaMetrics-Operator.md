@@ -1,5 +1,13 @@
 ---
 sort: 1
+weight: 1
+title: VictoriaMetrics Operator Overview
+menu:
+  docs:
+    parent: "operator"
+    weight: 1
+aliases:
+- /operator/VictoriaMetrics-Operator.html
 ---
 
 # VictoriaMetrics operator

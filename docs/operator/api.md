@@ -1,3 +1,13 @@
+---
+title: API Docs
+weight: 99
+menu:
+  docs:
+    parent: "operator"
+    weight: 99
+aliases:
+- /operator/api.html
+---
 
 # API Docs
 

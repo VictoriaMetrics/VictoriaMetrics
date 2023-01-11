@@ -1,5 +1,13 @@
 ---
 sort: 6
+weight: 6
+title: Design
+menu:
+  docs:
+    parent: "operator"
+    weight: 6
+aliases:
+- /operator/design.html
 ---
 
 # Design
