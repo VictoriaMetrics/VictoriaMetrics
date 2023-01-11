@@ -1,5 +1,13 @@
 ---
 sort: 2
+weight: 2
+title: Additional Scrape Configuration
+menu:
+  docs:
+    parent: "operator"
+    weight: 2
+aliases:
+- operator/additional-scrape.html
 ---
 
 # Additional Scrape Configuration

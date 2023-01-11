@@ -1,5 +1,13 @@
 ---
 sort: 11
+weight: 11
+title: CRD Validation
+menu:
+  docs:
+    parent: "operator"
+    weight: 11
+aliases:
+- /operator/resources-validation.html
 ---
 
 # CRD Validation

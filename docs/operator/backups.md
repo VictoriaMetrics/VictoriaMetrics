@@ -1,5 +1,13 @@
 ---
 sort: 5
+weight: 5
+title: Backups
+menu:
+  docs:
+    parent: "operator"
+    weight: 5
+aliases:
+- /operator/backups.html
 ---
 
 # Backups
