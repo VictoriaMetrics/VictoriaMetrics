@@ -85,7 +85,7 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.83.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.86.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -7098,7 +7098,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the max number of ongoing insertions.\n* `max` - equal to number of CPU * 4 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
+          "description": "Shows the max number of ongoing insertions.\n* `max` - equal to number of CPU * 2 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
               "color": {
