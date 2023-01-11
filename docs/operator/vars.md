@@ -1,3 +1,13 @@
+---
+weight: 14
+title: Variables
+menu:
+docs:
+parent: "operator"
+weight: 14
+aliases:
+- /operator/vars.html
+---
 # Auto Generated vars for package config 
  updated at Fri Jan 21 15:57:41 UTC 2022 
 

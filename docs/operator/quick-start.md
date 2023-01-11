@@ -1,5 +1,14 @@
 ---
 sort: 9
+weight: 9
+title: Quick start
+menu:
+  docs:
+    parent: "operator"
+    weight: 9
+    identifier: "quickstartoperator"
+aliases:
+- /operator/quick-start.html
 ---
 
 #  Quick start

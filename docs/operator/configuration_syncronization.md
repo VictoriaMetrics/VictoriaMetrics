@@ -1,5 +1,13 @@
 ---
 sort: 14
+weight: 14
+title: Configuration synchronization
+menu:
+  docs:
+    parent: "operator"
+    weight: 14
+aliases:
+- /operator/configuration_syncronization.html
 ---
 
 # Configuration synchronization
