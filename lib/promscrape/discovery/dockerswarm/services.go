@@ -59,7 +59,12 @@ func getServicesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 }
 
 func getServices(cfg *apiConfig) ([]service, error) {
-	data, err := cfg.getAPIResponse("/services")
+	filtersQueryArg := ""
+	if cfg.role == roleServices {
+		filtersQueryArg = cfg.filtersQueryArg
+	}
+
+	data, err := cfg.getAPIResponse("/services", filtersQueryArg)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for services: %w", err)
 	}
