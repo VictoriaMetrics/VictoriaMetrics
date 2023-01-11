@@ -16,6 +16,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 
+## [v1.86.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.1)
+
+Released at 2023-01-10
+
 * BUGFIX: return correct query results over time series with gaps. The issue has been introduced in [v1.86.0](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
 * BUGFIX: properly take into account the timeout passed by `vmselect` to `vmstorage` during query execution. This issue could result in the following error logs at `vmstorage` under load: `cannot process vmselect request: cannot execute "search_v7": couldn't start executing the request in 0.000 seconds, since -search.maxConcurrentRequests=... concurrent requests are already executed`. The issue has been introduced in [v1.86.0](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
 
@@ -23,6 +27,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## [v1.86.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.0)
 
 Released at 2023-01-10
+
+**It is recommended upgrading to [VictoriaMetrics v1.86.1](https://docs.victoriametrics.com/CHANGELOG.html#v1861) because v1.86.0 contains a bug, which could lead to incorrect query results over time series with gaps.**
 
 **Update note 1:** This release changes the logic behind `-maxConcurrentInserts` command-line flag. Previously this flag was limiting the number of concurrent connections established from clients, which send data to VictoriaMetrics. Some of these connections could be temporarily idle. Such connections do not take significant CPU and memory resources, so there is no need in limiting their count. The new logic takes into account only those connections, which **actively** ingest new data to VictoriaMetrics and to [vmagent](https://docs.victoriametrics.com/vmagent.html). This means that the default `-maxConcurrentInserts` value should handle cases, which could require increasing the value in the previous releases. So it is recommended trying to remove the explicitly set `-maxConcurrentInserts` command-line flag after upgrading to this release and verifying whether this reduces CPU and memory usage.
 
