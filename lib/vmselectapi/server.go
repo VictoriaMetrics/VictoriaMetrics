@@ -505,7 +505,7 @@ func (s *Server) processRPCWithConcurrencyLimit(ctx *vmselectRequestCtx, rpcName
 	select {
 	case s.concurrencyLimitCh <- struct{}{}:
 	default:
-		d := time.Duration(ctx.timeout)
+		d := time.Duration(ctx.timeout) * time.Second
 		if d > s.limits.MaxQueueDuration {
 			d = s.limits.MaxQueueDuration
 		}
