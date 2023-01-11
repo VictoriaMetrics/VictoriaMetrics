@@ -864,10 +864,14 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	}
 	if queryOffset > 0 {
 		for i := range result {
-			timestamps := result[i].Timestamps
+			r := &result[i]
+			// Do not modify r.Timestamps, since they may be shared among multiple series.
+			// Make a copy instead.
+			timestamps := append([]int64{}, r.Timestamps...)
 			for j := range timestamps {
 				timestamps[j] += queryOffset
 			}
+			r.Timestamps = timestamps
 		}
 	}
 
@@ -1011,7 +1015,9 @@ func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result
 		// Slow path: remove NaNs.
 		srcTimestamps := ts.Timestamps
 		dstValues := ts.Values[:0]
-		dstTimestamps := ts.Timestamps[:0]
+		// Do not re-use ts.Timestamps for dstTimestamps, since ts.Timestamps
+		// may be shared among multiple time series.
+		dstTimestamps := make([]int64{}, 0, len(ts.Timestamps))
 		for j, v := range ts.Values {
 			if math.IsNaN(v) {
 				continue
