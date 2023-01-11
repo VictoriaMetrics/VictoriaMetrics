@@ -138,7 +138,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - src_paths: ["/foo/bar"]
 `)
 
@@ -146,7 +146,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - src_paths: ["/foo/bar"]
     url_prefix: foo.bar
 `)
@@ -155,7 +155,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - src_paths: ['/foo/bar']
     url_prefix: []
 `)
@@ -164,7 +164,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - url_prefix: http://foobar
 `)
 
@@ -172,7 +172,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - src_paths: ['fo[obar']
     url_prefix: http://foobar
 `)
@@ -181,7 +181,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - src_paths: ['/foobar']
     url_prefix: http://foobar
     headers:
@@ -191,7 +191,7 @@ users:
 	f(`
 users:
 - username: a
-  url_maps:
+  url_map:
   - src_paths: ['/foobar']
     url_prefix: http://foobar
     headers:
@@ -267,7 +267,7 @@ users:
 	f(`
 users:
 - bearer_token: foo
-  url_maps:
+  url_map:
   - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
     url_prefix: http://vmselect/select/0/prometheus
   - src_paths: ["/api/v1/write"]

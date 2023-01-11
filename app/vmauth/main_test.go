@@ -270,7 +270,7 @@ users:
 	f("requests to three different servers servers", `
 users:
   - username: "foobar"
-    url_maps:
+    url_map:
     - src_paths:
       - "/api/v1/import"
       - "/api/v1/query_range"
