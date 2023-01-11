@@ -67,7 +67,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           label="Job"
           placeholder="Please select job"
           onChange={onChangeJob}
-          autofocus
+          autofocus={!job}
         />
       </div>
       <div className="vm-explore-metrics-header__instance">
