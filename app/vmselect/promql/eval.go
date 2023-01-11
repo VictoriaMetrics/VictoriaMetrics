@@ -669,9 +669,9 @@ func evalExprsInParallel(qt *querytracer.Tracer, ec *EvalConfig, es []metricsql.
 	}
 	rvs := make([][]*timeseries, len(es))
 	errs := make([]error, len(es))
+	qt.Printf("eval function args in parallel")
 	var wg sync.WaitGroup
 	for i, e := range es {
-		qt.Printf("eval function args in parallel")
 		wg.Add(1)
 		qtChild := qt.NewChild("eval arg %d", i)
 		go func(e metricsql.Expr, i int) {
