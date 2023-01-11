@@ -1017,7 +1017,7 @@ func removeEmptyValuesAndTimeseries(tss []netstorage.Result) []netstorage.Result
 		dstValues := ts.Values[:0]
 		// Do not re-use ts.Timestamps for dstTimestamps, since ts.Timestamps
 		// may be shared among multiple time series.
-		dstTimestamps := make([]int64{}, 0, len(ts.Timestamps))
+		dstTimestamps := make([]int64, 0, len(ts.Timestamps))
 		for j, v := range ts.Values {
 			if math.IsNaN(v) {
 				continue
