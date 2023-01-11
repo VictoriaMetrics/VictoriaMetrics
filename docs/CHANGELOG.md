@@ -16,6 +16,9 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 
+* BUGFIX: return correct query results over time series with gaps. The issue has been introduced in [v1.86.0](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
+
+
 ## [v1.86.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.0)
 
 Released at 2023-01-10
