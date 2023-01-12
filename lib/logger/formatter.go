@@ -64,6 +64,10 @@ func (f logFormatter) formatMessage(timestamp time.Time, level logLevel, locatio
 	return msg
 }
 
+func (f logFormatter) shouldSuppressPanicStacktrace() bool {
+	return f == formatterJson
+}
+
 func initTimezone() {
 	tz, err := time.LoadLocation(*loggerTimezone)
 	if err != nil {
