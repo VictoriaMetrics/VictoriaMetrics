@@ -1,0 +1,37 @@
+@use "src/styles/variables" as *;
+@use "src/components/Main/Button/style" as *;
+
+.vm-step-control {
+  display: inline-flex;
+
+  button {
+    text-transform: none;
+  }
+
+  &-popper {
+    display: grid;
+    gap: $padding-small;
+    max-width: 300px;
+    max-height: 208px;
+    overflow: auto;
+    padding: $padding-global;
+    font-size: $font-size;
+
+    &-info {
+      font-size: $font-size-small;
+      line-height: 1.6;
+
+      a {
+        margin: 0 0.2em;
+      }
+
+      code {
+        padding: 0.2em 0.4em;
+        margin: 0 0.2em;
+        font-size: 85%;
+        background-color: rgba($color-black, 0.05);
+        border-radius: 6px;
+      }
+    }
+  }
+}
