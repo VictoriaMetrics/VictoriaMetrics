@@ -1,5 +1,13 @@
 ---
 sort: 4
+weight: 4
+title: Authorization and exposing components
+menu:
+  docs:
+    parent: "operator"
+    weight: 4
+aliases:
+- /operator/auth.html
 ---
 
 # Authorization and exposing components
