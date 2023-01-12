@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
@@ -33,7 +32,7 @@ func Init() {
 	setLoggerJSONFields()
 	setLoggerOutput()
 	setLoggerLevel()
-	validateLoggerFormat()
+	setLoggerFormat()
 	initTimezone()
 	go logLimiterCleaner()
 	logAllFlags()
@@ -61,15 +60,6 @@ func setLoggerOutput() {
 }
 
 var output io.Writer = os.Stderr
-
-func validateLoggerFormat() {
-	switch *loggerFormat {
-	case "default", "json":
-	default:
-		// We cannot use logger.Panicf here, since the logger isn't initialized yet.
-		panic(fmt.Errorf("FATAL: unsupported `-loggerFormat` value: %q; supported values are: default, json", *loggerFormat))
-	}
-}
 
 var stdErrorLogger = log.New(&stdErrorWriter{}, "", 0)
 
@@ -154,8 +144,8 @@ func logMessage(skipframes int, level logLevel, msg string) {
 		msg = msg[:len(msg)-1]
 	}
 	var logMsg string
-	switch *loggerFormat {
-	case "json":
+	switch formatter {
+	case formatterJson:
 		if *disableTimestamps {
 			logMsg = fmt.Sprintf(
 				`{%q:%q,%q:%q,%q:%q}`+"\n",
@@ -172,7 +162,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 				fieldMsg, msg,
 			)
 		}
-	default:
+	case formatterDefault:
 		if *disableTimestamps {
 			logMsg = fmt.Sprintf("%s\t%s\t%s\n", level, location, msg)
 		} else {
@@ -191,7 +181,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 
 	switch level {
 	case levelPanic:
-		if *loggerFormat == "json" {
+		if formatter == formatterJson {
 			// Do not clutter `json` output with panic stack trace
 			os.Exit(-1)
 		}
