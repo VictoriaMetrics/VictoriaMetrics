@@ -17,7 +17,6 @@ import (
 )
 
 var (
-	loggerLevel    = flag.String("loggerLevel", "INFO", "Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC")
 	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
 	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
@@ -36,7 +35,7 @@ var (
 func Init() {
 	setLoggerJSONFields()
 	setLoggerOutput()
-	validateLoggerLevel()
+	setLoggerLevel()
 	validateLoggerFormat()
 	initTimezone()
 	go logLimiterCleaner()
@@ -66,15 +65,6 @@ func setLoggerOutput() {
 
 var output io.Writer = os.Stderr
 
-func validateLoggerLevel() {
-	switch *loggerLevel {
-	case "INFO", "WARN", "ERROR", "FATAL", "PANIC":
-	default:
-		// We cannot use logger.Panicf here, since the logger isn't initialized yet.
-		panic(fmt.Errorf("FATAL: unsupported `-loggerLevel` value: %q; supported values are: INFO, WARN, ERROR, FATAL, PANIC", *loggerLevel))
-	}
-}
-
 func validateLoggerFormat() {
 	switch *loggerFormat {
 	case "default", "json":
@@ -93,45 +83,45 @@ func StdErrorLogger() *log.Logger {
 
 // Infof logs info message.
 func Infof(format string, args ...interface{}) {
-	logf("INFO", format, args...)
+	logf(levelInfo, format, args...)
 }
 
 // Warnf logs warn message.
 func Warnf(format string, args ...interface{}) {
-	logf("WARN", format, args...)
+	logf(levelWarn, format, args...)
 }
 
 // Errorf logs error message.
 func Errorf(format string, args ...interface{}) {
-	logf("ERROR", format, args...)
+	logf(levelError, format, args...)
 }
 
 // WarnfSkipframes logs warn message and skips the given number of frames for the caller.
 func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
-	logfSkipframes(skipframes, "WARN", format, args...)
+	logfSkipframes(skipframes, levelWarn, format, args...)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
 func ErrorfSkipframes(skipframes int, format string, args ...interface{}) {
-	logfSkipframes(skipframes, "ERROR", format, args...)
+	logfSkipframes(skipframes, levelError, format, args...)
 }
 
 // Fatalf logs fatal message and terminates the app.
 func Fatalf(format string, args ...interface{}) {
-	logf("FATAL", format, args...)
+	logf(levelFatal, format, args...)
 }
 
 // Panicf logs panic message and panics.
 func Panicf(format string, args ...interface{}) {
-	logf("PANIC", format, args...)
+	logf(levelPanic, format, args...)
 }
 
-func logf(level, format string, args ...interface{}) {
+func logf(level logLevel, format string, args ...interface{}) {
 	logfSkipframes(1, level, format, args...)
 }
 
-func logfSkipframes(skipframes int, level, format string, args ...interface{}) {
-	if shouldSkipLog(level) {
+func logfSkipframes(skipframes int, level logLevel, format string, args ...interface{}) {
+	if level < minLogLevel {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
@@ -197,16 +187,15 @@ type stdErrorWriter struct {
 }
 
 func (lw *stdErrorWriter) Write(p []byte) (int, error) {
-	logfSkipframes(2, "ERROR", "%s", p)
+	logfSkipframes(2, levelError, "%s", p)
 	return len(p), nil
 }
 
-func logMessage(skipframes int, level, msg string) {
+func logMessage(skipframes int, level logLevel, msg string) {
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
 	}
-	levelLowercase := strings.ToLower(level)
 	_, file, line, ok := runtime.Caller(skipframes)
 	if !ok {
 		file = "???"
@@ -219,9 +208,9 @@ func logMessage(skipframes int, level, msg string) {
 	location := fmt.Sprintf("%s:%d", file, line)
 
 	// rate limit ERROR and WARN log messages with given limit.
-	if level == "ERROR" || level == "WARN" {
+	if level == levelError || level == levelWarn {
 		limit := uint64(*errorsPerSecondLimit)
-		if level == "WARN" {
+		if level == levelWarn {
 			limit = uint64(*warnsPerSecondLimit)
 		}
 		ok, suppressMessage := limiter.needSuppress(limit, location)
@@ -242,7 +231,7 @@ func logMessage(skipframes int, level, msg string) {
 		if *disableTimestamps {
 			logMsg = fmt.Sprintf(
 				`{%q:%q,%q:%q,%q:%q}`+"\n",
-				fieldLevel, levelLowercase,
+				fieldLevel, level,
 				fieldCaller, location,
 				fieldMsg, msg,
 			)
@@ -250,16 +239,16 @@ func logMessage(skipframes int, level, msg string) {
 			logMsg = fmt.Sprintf(
 				`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
 				fieldTs, timestamp,
-				fieldLevel, levelLowercase,
+				fieldLevel, level,
 				fieldCaller, location,
 				fieldMsg, msg,
 			)
 		}
 	default:
 		if *disableTimestamps {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\n", levelLowercase, location, msg)
+			logMsg = fmt.Sprintf("%s\t%s\t%s\n", level, location, msg)
 		} else {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, levelLowercase, location, msg)
+			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, level, location, msg)
 		}
 	}
 
@@ -269,52 +258,22 @@ func logMessage(skipframes int, level, msg string) {
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
-	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, levelLowercase, location)
+	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, level, location)
 	metrics.GetOrCreateCounter(counterName).Inc()
 
 	switch level {
-	case "PANIC":
+	case levelPanic:
 		if *loggerFormat == "json" {
 			// Do not clutter `json` output with panic stack trace
 			os.Exit(-1)
 		}
 		panic(errors.New(msg))
-	case "FATAL":
+	case levelFatal:
 		os.Exit(-1)
 	}
 }
 
 var mu sync.Mutex
-
-func shouldSkipLog(level string) bool {
-	switch *loggerLevel {
-	case "WARN":
-		switch level {
-		case "WARN", "ERROR", "FATAL", "PANIC":
-			return false
-		default:
-			return true
-		}
-	case "ERROR":
-		switch level {
-		case "ERROR", "FATAL", "PANIC":
-			return false
-		default:
-			return true
-		}
-	case "FATAL":
-		switch level {
-		case "FATAL", "PANIC":
-			return false
-		default:
-			return true
-		}
-	case "PANIC":
-		return level != "PANIC"
-	default:
-		return false
-	}
-}
 
 // SetOutputForTests redefine output for logger. Use for Tests only. Call ResetOutputForTest to return output state to default
 func SetOutputForTests(writer io.Writer) { output = writer }
