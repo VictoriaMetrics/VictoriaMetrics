@@ -20,7 +20,7 @@ const StepConfigurator: FC = () => {
   const graphDispatch = useGraphDispatch();
 
   const { period: duration } = useTimeState();
-  const prevDuration = usePrevious(duration);
+  const prevDuration = usePrevious(duration.end - duration.start);
 
   const [openOptions, setOpenOptions] = useState(false);
   const [customStep, setCustomStep] = useState(value || defaultStep);
@@ -79,16 +79,23 @@ const StepConfigurator: FC = () => {
   };
 
   useEffect(() => {
-    if (value) handleApply(value);
+    if (value) {
+      handleApply(value);
+    }
   }, [value]);
 
   useEffect(() => {
-    if (!value && defaultStep) handleApply(defaultStep);
+    if (!value && defaultStep) {
+      handleApply(defaultStep);
+    }
   }, [defaultStep]);
 
   useEffect(() => {
-    if (duration === prevDuration || !prevDuration) return;
-    if (defaultStep) handleApply(defaultStep);
+    const dur = duration.end - duration.start;
+    if (dur === prevDuration || !prevDuration) return;
+    if (defaultStep) {
+      handleApply(defaultStep);
+    }
   }, [duration, prevDuration, defaultStep]);
 
   return (
@@ -124,7 +131,7 @@ const StepConfigurator: FC = () => {
             onFocus={handleFocus}
             onBlur={handleApply}
             endIcon={(
-              <Tooltip title={`Reset step to default value - ${defaultStep}`}>
+              <Tooltip title={`Set default step value: ${defaultStep}`}>
                 <Button
                   size="small"
                   variant="text"
