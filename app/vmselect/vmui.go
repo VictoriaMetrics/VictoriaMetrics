@@ -12,25 +12,23 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// more information how to use this flag please check this link
-// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 var (
-	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui predefined dashboards."+
-		"How to create dashboards https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
+	vmuiCustomDashboardsPath = flag.String("vmui.customDashboardsPath", "", "Optional path to vmui dashboards. "+
+		"See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards")
 )
 
-// dashboardSetting represents dashboard settings file struct
-// fields of the dashboardSetting you can find by following next link
-// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
-type dashboardSetting struct {
+// dashboardSettings represents dashboard settings file struct.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
+type dashboardSettings struct {
 	Title    string         `json:"title,omitempty"`
 	Filename string         `json:"filename,omitempty"`
 	Rows     []dashboardRow `json:"rows"`
 }
 
-// panelSettings represents fields which used to show graph
-// fields of the panelSettings you can find by following next link
-// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
+// panelSettings represents fields which used to show graph.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 type panelSettings struct {
 	Title       string   `json:"title,omitempty"`
 	Description string   `json:"description,omitempty"`
@@ -41,39 +39,31 @@ type panelSettings struct {
 	Width       int      `json:"width,omitempty"`
 }
 
-// dashboardRow represents panels on dashboard
-// fields of the dashboardRow you can find by following next link
-// https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
+// dashboardRow represents panels on dashboard.
+//
+// See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 type dashboardRow struct {
 	Title  string          `json:"title,omitempty"`
 	Panels []panelSettings `json:"panels"`
 }
 
-// dashboardsData represents all dashboards settings
+// dashboardsData represents all the dashboards settings.
 type dashboardsData struct {
-	DashboardsSettings []dashboardSetting `json:"dashboardsSettings"`
+	DashboardsSettings []dashboardSettings `json:"dashboardsSettings"`
 }
 
-func handleVMUICustomDashboards(w http.ResponseWriter) {
+func handleVMUICustomDashboards(w http.ResponseWriter) error {
 	path := *vmuiCustomDashboardsPath
 	if path == "" {
 		writeSuccessResponse(w, []byte(`{"dashboardsSettings": []}`))
-		return
+		return nil
 	}
-
 	settings, err := collectDashboardsSettings(path)
 	if err != nil {
-		writeErrorResponse(w, fmt.Errorf("cannot collect dashboards settings by -vmui.customDashboardsPath=%q", path))
-		return
+		return fmt.Errorf("cannot collect dashboards settings by -vmui.customDashboardsPath=%q: %w", path, err)
 	}
-
 	writeSuccessResponse(w, settings)
-}
-
-func writeErrorResponse(w http.ResponseWriter, err error) {
-	w.WriteHeader(http.StatusBadRequest)
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"status":"error","error":"%s"}`, err.Error())
+	return nil
 }
 
 func writeSuccessResponse(w http.ResponseWriter, data []byte) {
@@ -83,46 +73,40 @@ func writeSuccessResponse(w http.ResponseWriter, data []byte) {
 }
 
 func collectDashboardsSettings(path string) ([]byte, error) {
-
 	if !fs.IsPathExist(path) {
-		return nil, fmt.Errorf("cannot find folder pointed by -vmui.customDashboardsPath=%q", path)
+		return nil, fmt.Errorf("cannot find folder %q", path)
 	}
-
 	files, err := os.ReadDir(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read folder pointed by -vmui.customDashboardsPath=%q", path)
+		return nil, fmt.Errorf("cannot read folder %q", path)
 	}
 
-	var settings []dashboardSetting
+	var dss []dashboardSettings
 	for _, file := range files {
-		info, err := file.Info()
-		if err != nil {
-			logger.Errorf("skipping %q at -vmui.customDashboardsPath=%q, since the info for this file cannot be obtained: %s", file.Name(), path, err)
-			continue
-		}
-		if fs.IsDirOrSymlink(info) {
-			logger.Infof("skip directory or symlinks: %q in the -vmui.customDashboardsPath=%q", info.Name(), path)
-			continue
-		}
 		filename := file.Name()
-		if filepath.Ext(filename) == ".json" {
-			filePath := filepath.Join(path, filename)
-			f, err := os.ReadFile(filePath)
-			if err != nil {
-				return nil, fmt.Errorf("cannot open file at -vmui.customDashboardsPath=%q: %w", filePath, err)
-			}
-			var dSettings dashboardSetting
-			err = json.Unmarshal(f, &dSettings)
-			if err != nil {
-				return nil, fmt.Errorf("cannot parse file %s: %w", filename, err)
-			}
-			if len(dSettings.Rows) == 0 {
-				continue
-			}
-			settings = append(settings, dSettings)
+		if err != nil {
+			logger.Errorf("skipping %q at -vmui.customDashboardsPath=%q, since the info for this file cannot be obtained: %s", filename, path, err)
+			continue
+		}
+		if filepath.Ext(filename) != ".json" {
+			continue
+		}
+		filePath := filepath.Join(path, filename)
+		f, err := os.ReadFile(filePath)
+		if err != nil {
+			// There is no need to add more context to the returned error, since os.ReadFile() adds enough context.
+			return nil, err
+		}
+		var ds dashboardSettings
+		err = json.Unmarshal(f, &ds)
+		if err != nil {
+			return nil, fmt.Errorf("cannot parse file %s: %w", filePath, err)
+		}
+		if len(ds.Rows) > 0 {
+			dss = append(dss, ds)
 		}
 	}
 
-	dd := dashboardsData{DashboardsSettings: settings}
+	dd := dashboardsData{DashboardsSettings: dss}
 	return json.Marshal(dd)
 }
