@@ -16,10 +16,7 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var (
-	loggerOutput      = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
-	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
-)
+var loggerOutput = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 
 // Init initializes the logger.
 //
@@ -128,36 +125,12 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	for len(msg) > 0 && msg[len(msg)-1] == '\n' {
 		msg = msg[:len(msg)-1]
 	}
-	var logMsg string
-	switch formatter {
-	case formatterJson:
-		if *disableTimestamps {
-			logMsg = fmt.Sprintf(
-				"{%q:%q,%q:%q,%q:%q}\n",
-				fieldLevel, level,
-				fieldCaller, location,
-				fieldMsg, msg,
-			)
-		} else {
-			logMsg = fmt.Sprintf(
-				"{%q:%q,%q:%q,%q:%q,%q:%q}\n",
-				fieldTs, formatTimestamp(timestamp),
-				fieldLevel, level,
-				fieldCaller, location,
-				fieldMsg, msg,
-			)
-		}
-	case formatterDefault:
-		if *disableTimestamps {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\n", level, location, msg)
-		} else {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", formatTimestamp(timestamp), level, location, msg)
-		}
-	}
+
+	formattedMsg := formatter.formatMessage(timestamp, level, location, msg)
 
 	// Serialize writes to log.
 	mu.Lock()
-	_, _ = output.Write([]byte(logMsg))
+	_, _ = output.Write([]byte(formattedMsg))
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
