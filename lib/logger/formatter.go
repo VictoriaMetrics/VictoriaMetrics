@@ -3,9 +3,15 @@ package logger
 import (
 	"flag"
 	"fmt"
+	"log"
+	"time"
 )
 
-var loggerFormat = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
+var (
+	loggerFormat   = flag.String("loggerFormat", "default", "Format for logs. Possible values: default, json")
+	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
+		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
+)
 
 func setLoggerFormat() {
 	switch *loggerFormat {
@@ -27,3 +33,13 @@ const (
 	formatterDefault logFormatter = iota
 	formatterJson
 )
+
+func initTimezone() {
+	tz, err := time.LoadLocation(*loggerTimezone)
+	if err != nil {
+		log.Fatalf("cannot load timezone %q: %s", *loggerTimezone, err)
+	}
+	timezone = tz
+}
+
+var timezone = time.UTC

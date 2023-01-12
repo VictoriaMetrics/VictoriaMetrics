@@ -17,9 +17,7 @@ import (
 )
 
 var (
-	loggerOutput   = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
-	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
-		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
+	loggerOutput      = flag.String("loggerOutput", "stderr", "Output for the logs. Supported values: stderr, stdout")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
 )
 
@@ -37,16 +35,6 @@ func Init() {
 	go logLimiterCleaner()
 	logAllFlags()
 }
-
-func initTimezone() {
-	tz, err := time.LoadLocation(*loggerTimezone)
-	if err != nil {
-		log.Fatalf("cannot load timezone %q: %s", *loggerTimezone, err)
-	}
-	timezone = tz
-}
-
-var timezone = time.UTC
 
 func setLoggerOutput() {
 	switch *loggerOutput {
