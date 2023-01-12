@@ -97,11 +97,14 @@ func (ll *logLimiter) reset() {
 	ll.mu.Unlock()
 }
 
-// needSuppress checks if the number of calls for the given location exceeds the log level's rate limit.
+// filterMessage returns an empty message and true (discard) if the number of calls
+// for the given location exceeds the given log level's rate limit.
 //
-// When the number of calls equals limit, log message prefix returned.
-func (ll *logLimiter) needSuppress(level logLevel, location string) (bool, string) {
-	var msg string
+// If the number of calls exactly equals the limit, a prefix is added to the message
+// indicating that further messages will be suppressed, and false (accept) is returned.
+//
+// Otherwise false (accept) is returned along with the original unchanged message.
+func (ll *logLimiter) filterMessage(level logLevel, location, msg string) (bool, string) {
 	limit := level.limit()
 	// fast path
 	if limit == 0 {
@@ -114,11 +117,12 @@ func (ll *logLimiter) needSuppress(level logLevel, location string) (bool, strin
 	if n, ok := ll.m[location]; ok {
 		if n >= limit {
 			switch n {
-			// report only once
 			case limit:
-				msg = fmt.Sprintf("suppressing log message with rate limit=%d: ", limit)
+				// Limit hit: add a prefix indicating that further messages will be suppressed.
+				msg = fmt.Sprintf("suppressing log message with rate limit=%d: %s", limit, msg)
 			default:
-				return true, msg
+				// Limit exceeded: suppress the message (no need to update the map).
+				return true, ""
 			}
 		}
 		ll.m[location] = n + 1

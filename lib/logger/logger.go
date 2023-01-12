@@ -99,12 +99,9 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	timestamp := time.Now()
 	location := callerLocation(1 + skipframes)
 
-	ok, suppressMessage := limiter.needSuppress(level, location)
+	ok, msg := limiter.filterMessage(level, location, msg)
 	if ok {
 		return
-	}
-	if len(suppressMessage) > 0 {
-		msg = suppressMessage + msg
 	}
 
 	for len(msg) > 0 && msg[len(msg)-1] == '\n' {
