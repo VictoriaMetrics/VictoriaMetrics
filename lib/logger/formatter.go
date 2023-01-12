@@ -43,3 +43,7 @@ func initTimezone() {
 }
 
 var timezone = time.UTC
+
+func formatTimestamp(timestamp time.Time) string {
+	return timestamp.In(timezone).Format("2006-01-02T15:04:05.000Z0700")
+}

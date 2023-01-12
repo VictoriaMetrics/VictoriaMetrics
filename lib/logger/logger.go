@@ -114,10 +114,7 @@ func (lw *stdErrorWriter) Write(p []byte) (int, error) {
 }
 
 func logMessage(skipframes int, level logLevel, msg string) {
-	timestamp := ""
-	if !*disableTimestamps {
-		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
-	}
+	timestamp := time.Now()
 	location := callerLocation(1 + skipframes)
 
 	ok, suppressMessage := limiter.needSuppress(level, location)
@@ -144,7 +141,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 		} else {
 			logMsg = fmt.Sprintf(
 				`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
-				fieldTs, timestamp,
+				fieldTs, formatTimestamp(timestamp),
 				fieldLevel, level,
 				fieldCaller, location,
 				fieldMsg, msg,
@@ -154,7 +151,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 		if *disableTimestamps {
 			logMsg = fmt.Sprintf("%s\t%s\t%s\n", level, location, msg)
 		} else {
-			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", timestamp, level, location, msg)
+			logMsg = fmt.Sprintf("%s\t%s\t%s\t%s\n", formatTimestamp(timestamp), level, location, msg)
 		}
 	}
 
