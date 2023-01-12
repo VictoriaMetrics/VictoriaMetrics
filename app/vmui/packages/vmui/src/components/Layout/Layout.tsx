@@ -6,9 +6,11 @@ import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "./Footer/Footer";
 import { routerOptions } from "../../router";
+import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
 
 const Layout: FC = () => {
   const appModeEnable = getAppModeEnable();
+  useFetchDashboards();
 
   const { pathname } = useLocation();
   useEffect(() => {

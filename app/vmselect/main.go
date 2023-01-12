@@ -335,6 +335,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 	if strings.HasPrefix(p.Suffix, "vmui/") || strings.HasPrefix(p.Suffix, "prometheus/vmui/") {
 		// vmui access.
+		if p.Suffix == "vmui/custom-dashboards" || p.Suffix == "prometheus/vmui/custom-dashboards" {
+			handleVMUICustomDashboards(w)
+			return true
+		}
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/vmui/", "/vmui/", 1)
 		http.StripPrefix(prefix, vmuiFileServer).ServeHTTP(w, r)
@@ -342,6 +346,10 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 	if strings.HasPrefix(p.Suffix, "graph/") || strings.HasPrefix(p.Suffix, "prometheus/graph/") {
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		if p.Suffix == "graph/custom-dashboards" || p.Suffix == "prometheus/graph/custom-dashboards" {
+			handleVMUICustomDashboards(w)
+			return true
+		}
 		prefix := strings.Join([]string{"", p.Prefix, p.AuthToken}, "/")
 		if strings.HasPrefix(p.Suffix, "prometheus/graph/") {
 			r.URL.Path = strings.Replace(r.URL.Path, "/prometheus/graph/", "/vmui/", 1)
