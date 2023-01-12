@@ -8,18 +8,13 @@
   gap: $padding-small calc($padding-small + 10px);
 
   &__job {
+    flex-grow: 0.5;
     min-width: 200px;
-    max-width: 300px;
-    width: 100%;
   }
 
   &__instance {
-    min-width: 200px;
-    max-width: 500px;
-    width: 100%;
-  }
-
-  &__step {
+    flex-grow: 1;
+    min-width: 300px;
   }
 
   &-metrics {
