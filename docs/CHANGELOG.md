@@ -18,7 +18,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to show custom dashboards at vmui by specifying a path to a directory with dashboard config files via `-vmui.customDashboardsPath` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3322) and [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): [dockerswarm_sd_configs](https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs): apply `filters` only to objects of the specified `role`. Previously filters were applied to all the objects, which could cause errors when different types of objects were used with filters that were not compatible with them. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3579).
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): correctly log scrapping errors with enabled flag`-promscrape.suppressScrapeErrors=true` and provide correct error context for it. Previously it's logged error any way without any job context.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): correctly log scrape errors when flag`-promscrape.suppressScrapeErrors` is enabled and provide correct error context for it. Previously, it logged the error without the context of which job failed.
 
 ## [v1.86.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.1)
 
