@@ -84,7 +84,7 @@ func validateLoggerFormat() {
 	}
 }
 
-var stdErrorLogger = log.New(&logWriter{}, "", 0)
+var stdErrorLogger = log.New(&stdErrorWriter{}, "", 0)
 
 // StdErrorLogger returns standard error logger.
 func StdErrorLogger() *log.Logger {
@@ -93,72 +93,72 @@ func StdErrorLogger() *log.Logger {
 
 // Infof logs info message.
 func Infof(format string, args ...interface{}) {
-	logLevel("INFO", format, args...)
+	logf("INFO", format, args...)
 }
 
 // Warnf logs warn message.
 func Warnf(format string, args ...interface{}) {
-	logLevel("WARN", format, args...)
+	logf("WARN", format, args...)
 }
 
 // Errorf logs error message.
 func Errorf(format string, args ...interface{}) {
-	logLevel("ERROR", format, args...)
+	logf("ERROR", format, args...)
 }
 
 // WarnfSkipframes logs warn message and skips the given number of frames for the caller.
 func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
-	logLevelSkipframes(skipframes, "WARN", format, args...)
+	logfSkipframes(skipframes, "WARN", format, args...)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
 func ErrorfSkipframes(skipframes int, format string, args ...interface{}) {
-	logLevelSkipframes(skipframes, "ERROR", format, args...)
+	logfSkipframes(skipframes, "ERROR", format, args...)
 }
 
 // Fatalf logs fatal message and terminates the app.
 func Fatalf(format string, args ...interface{}) {
-	logLevel("FATAL", format, args...)
+	logf("FATAL", format, args...)
 }
 
 // Panicf logs panic message and panics.
 func Panicf(format string, args ...interface{}) {
-	logLevel("PANIC", format, args...)
+	logf("PANIC", format, args...)
 }
 
-func logLevel(level, format string, args ...interface{}) {
-	logLevelSkipframes(1, level, format, args...)
+func logf(level, format string, args ...interface{}) {
+	logfSkipframes(1, level, format, args...)
 }
 
-func logLevelSkipframes(skipframes int, level, format string, args ...interface{}) {
+func logfSkipframes(skipframes int, level, format string, args ...interface{}) {
 	if shouldSkipLog(level) {
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	logMessage(level, msg, 3+skipframes)
+	logMessage(3+skipframes, level, msg)
 }
 
 func logLimiterCleaner() {
 	for {
 		time.Sleep(time.Second)
-		logLimiter.reset()
+		limiter.reset()
 	}
 }
 
-var logLimiter = newLogLimit()
+var limiter = newLogLimiter()
 
-func newLogLimit() *logLimit {
-	return &logLimit{
+func newLogLimiter() *logLimiter {
+	return &logLimiter{
 		m: make(map[string]uint64),
 	}
 }
 
-type logLimit struct {
+type logLimiter struct {
 	mu sync.Mutex
 	m  map[string]uint64
 }
 
-func (ll *logLimit) reset() {
+func (ll *logLimiter) reset() {
 	ll.mu.Lock()
 	ll.m = make(map[string]uint64, len(ll.m))
 	ll.mu.Unlock()
@@ -167,7 +167,7 @@ func (ll *logLimit) reset() {
 // needSuppress checks if the number of calls for the given location exceeds the given limit.
 //
 // When the number of calls equals limit, log message prefix returned.
-func (ll *logLimit) needSuppress(location string, limit uint64) (bool, string) {
+func (ll *logLimiter) needSuppress(limit uint64, location string) (bool, string) {
 	// fast path
 	var msg string
 	if limit == 0 {
@@ -193,15 +193,15 @@ func (ll *logLimit) needSuppress(location string, limit uint64) (bool, string) {
 	return false, msg
 }
 
-type logWriter struct {
+type stdErrorWriter struct {
 }
 
-func (lw *logWriter) Write(p []byte) (int, error) {
-	logLevelSkipframes(2, "ERROR", "%s", p)
+func (lw *stdErrorWriter) Write(p []byte) (int, error) {
+	logfSkipframes(2, "ERROR", "%s", p)
 	return len(p), nil
 }
 
-func logMessage(level, msg string, skipframes int) {
+func logMessage(skipframes int, level, msg string) {
 	timestamp := ""
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
@@ -224,7 +224,7 @@ func logMessage(level, msg string, skipframes int) {
 		if level == "WARN" {
 			limit = uint64(*warnsPerSecondLimit)
 		}
-		ok, suppressMessage := logLimiter.needSuppress(location, limit)
+		ok, suppressMessage := limiter.needSuppress(limit, location)
 		if ok {
 			return
 		}
