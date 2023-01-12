@@ -525,7 +525,9 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 	m := make(map[string][]string)
 	for _, ts := range tss {
 		for _, tag := range ts.MetricName.Tags {
-			m[string(tag.Key)] = append(m[string(tag.Key)], string(tag.Value))
+			k := bytesutil.InternBytes(tag.Key)
+			v := bytesutil.InternBytes(tag.Value)
+			m[k] = append(m[k], v)
 		}
 	}
 	lfs := make([]metricsql.LabelFilter, 0, len(m))
