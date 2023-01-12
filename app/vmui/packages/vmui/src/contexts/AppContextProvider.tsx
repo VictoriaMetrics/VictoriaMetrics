@@ -8,6 +8,7 @@ import { TopQueriesStateProvider } from "../state/topQueries/TopQueriesStateCont
 import { SnackbarProvider } from "./Snackbar";
 
 import { combineComponents } from "../utils/combine-components";
+import { DashboardsStateProvider } from "../state/dashboards/DashboardsStateContext";
 
 const providers = [
   AppStateProvider,
@@ -17,7 +18,8 @@ const providers = [
   GraphStateProvider,
   CardinalityStateProvider,
   TopQueriesStateProvider,
-  SnackbarProvider
+  SnackbarProvider,
+  DashboardsStateProvider
 ];
 
 export default combineComponents(...providers);

@@ -14,10 +14,12 @@ import { getCssVariable } from "../../../utils/theme";
 import Tabs from "../../Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
+import { useDashboardsState } from "../../../state/dashboards/DashboardsStateContext";
 
 const Header: FC = () => {
   const primaryColor = getCssVariable("color-primary");
   const appModeEnable = getAppModeEnable();
+  const { dashboardsSettings } = useDashboardsState();
 
   const { headerStyles: {
     background = appModeEnable ? "#FFF" : primaryColor,
@@ -50,9 +52,9 @@ const Header: FC = () => {
     {
       label: routerOptions[router.dashboards].title,
       value: router.dashboards,
-      hide: appModeEnable
+      hide: appModeEnable || !dashboardsSettings.length
     }
-  ]), [appModeEnable]);
+  ]), [appModeEnable, dashboardsSettings]);
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
