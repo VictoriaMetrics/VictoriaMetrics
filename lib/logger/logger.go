@@ -46,13 +46,6 @@ func setLoggerOutput() {
 
 var output io.Writer = os.Stderr
 
-var stdErrorLogger = log.New(&stdErrorWriter{}, "", 0)
-
-// StdErrorLogger returns standard error logger.
-func StdErrorLogger() *log.Logger {
-	return stdErrorLogger
-}
-
 // Infof logs info message.
 func Infof(format string, args ...interface{}) {
 	logf(levelInfo, format, args...)
@@ -63,14 +56,14 @@ func Warnf(format string, args ...interface{}) {
 	logf(levelWarn, format, args...)
 }
 
-// Errorf logs error message.
-func Errorf(format string, args ...interface{}) {
-	logf(levelError, format, args...)
-}
-
 // WarnfSkipframes logs warn message and skips the given number of frames for the caller.
 func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
 	logfSkipframes(1+skipframes, levelWarn, format, args...)
+}
+
+// Errorf logs error message.
+func Errorf(format string, args ...interface{}) {
+	logf(levelError, format, args...)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
@@ -100,14 +93,6 @@ func logfSkipframes(skipframes int, level logLevel, format string, args ...inter
 	}
 	msg := fmt.Sprintf(format, args...)
 	logMessage(1+skipframes, level, msg)
-}
-
-type stdErrorWriter struct {
-}
-
-func (lw *stdErrorWriter) Write(p []byte) (int, error) {
-	ErrorfSkipframes(3, "%s", p)
-	return len(p), nil
 }
 
 func logMessage(skipframes int, level logLevel, msg string) {
@@ -161,6 +146,21 @@ func callerLocation(skipframes int) string {
 		file = file[n+len("/VictoriaMetrics/"):]
 	}
 	return fmt.Sprintf("%s:%d", file, line)
+}
+
+// StdErrorLogger returns standard error logger.
+func StdErrorLogger() *log.Logger {
+	return stdErrorLogger
+}
+
+var stdErrorLogger = log.New(&stdErrorWriter{}, "", 0)
+
+type stdErrorWriter struct {
+}
+
+func (lw *stdErrorWriter) Write(p []byte) (int, error) {
+	ErrorfSkipframes(3, "%s", p)
+	return len(p), nil
 }
 
 // SetOutputForTests redefine output for logger. Use for Tests only. Call ResetOutputForTest to return output state to default
