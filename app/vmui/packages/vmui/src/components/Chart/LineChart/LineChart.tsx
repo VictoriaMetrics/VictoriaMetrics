@@ -50,6 +50,7 @@ const LineChart: FC<LineChartProps> = ({
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
+  const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const layoutSize = useResize(container);
 
@@ -128,6 +129,7 @@ const LineChart: FC<LineChartProps> = ({
       unit,
       series,
       metrics,
+      yRange,
       tooltipIdx,
       tooltipOffset,
     };
@@ -153,7 +155,11 @@ const LineChart: FC<LineChartProps> = ({
   };
 
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
+
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
+    if (axis == "1") {
+      setYRange([min, max]);
+    }
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
     return getMinMaxBuffer(min, max);
   };
@@ -258,6 +264,7 @@ const LineChart: FC<LineChartProps> = ({
           u={uPlotInst}
           series={series}
           metrics={metrics}
+          yRange={yRange}
           tooltipIdx={tooltipIdx}
           tooltipOffset={tooltipOffset}
           id={tooltipId}
