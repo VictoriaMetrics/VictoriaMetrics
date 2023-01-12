@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"io"
 	"path"
 	"runtime"
 	"strings"
@@ -132,4 +133,42 @@ func TestLoggerSkipFrames(t *testing.T) {
 		lt.Errorf("")
 		f()
 	}
+}
+
+func TestLogLimiter(t *testing.T) {
+	defer restore(&output, output)
+	defer restore(&limitPeriod, limitPeriod)
+	defer restore(&limiter, limiter)
+	defer restore(warnsPerSecondLimit, *warnsPerSecondLimit)
+	defer restore(errorsPerSecondLimit, *errorsPerSecondLimit)
+
+	output = io.Discard
+	limitPeriod = timestep
+	limiter = newLogLimiter()
+	*warnsPerSecondLimit = 2
+	*errorsPerSecondLimit = 2
+
+	errorWithFixedLocation := func() {
+		Errorf("")
+	}
+
+	resetOutputCallsTotal()
+
+	for i := 0; i < 3; i++ {
+		Warnf("")
+		Warnf("")
+		errorWithFixedLocation()
+		errorWithFixedLocation()
+	}
+	expectOutputCallsTotal(t, 6)
+
+	time.Sleep(timestep + timestep/4)
+
+	for i := 0; i < 3; i++ {
+		Warnf("")
+		Warnf("")
+		errorWithFixedLocation()
+		errorWithFixedLocation()
+	}
+	expectOutputCallsTotal(t, 12)
 }

@@ -30,7 +30,6 @@ func Init() {
 	setLoggerLevel()
 	setLoggerFormat()
 	initTimezone()
-	go logLimiterCleaner()
 	logAllFlags()
 }
 
@@ -100,7 +99,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	timestamp := time.Now()
 	location := callerLocation(1 + skipframes)
 
-	msg, ok := limiter.filterMessage(level, location, msg)
+	msg, ok := limiter.filterMessage(timestamp, level, location, msg)
 	if !ok {
 		return
 	}

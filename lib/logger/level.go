@@ -71,30 +71,18 @@ func (lvl logLevel) limit() uint64 {
 	}
 }
 
-func logLimiterCleaner() {
-	for {
-		time.Sleep(time.Second)
-		limiter.reset()
-	}
-}
-
 var limiter = newLogLimiter()
+var limitPeriod = time.Second // Only changed for tests
 
 func newLogLimiter() *logLimiter {
-	return &logLimiter{
-		m: make(map[string]uint64),
-	}
+	// With a zero-valued expireTime, filterMessage() will naturally init on first use.
+	return &logLimiter{}
 }
 
 type logLimiter struct {
-	mu sync.Mutex
-	m  map[string]uint64
-}
-
-func (ll *logLimiter) reset() {
-	ll.mu.Lock()
-	ll.m = make(map[string]uint64, len(ll.m))
-	ll.mu.Unlock()
+	mu         sync.Mutex
+	m          map[string]uint64
+	expireTime time.Time
 }
 
 // filterMessage returns an empty message and false (discard) if the number of calls
@@ -104,30 +92,36 @@ func (ll *logLimiter) reset() {
 // indicating that further messages will be suppressed, and true (accept) is returned.
 //
 // Otherwise true (accept) is returned along with the original unchanged message.
-func (ll *logLimiter) filterMessage(level logLevel, location, msg string) (_ string, ok bool) {
-	limit := level.limit()
-	// fast path
-	if limit == 0 {
-		return msg, true
-	}
+func (ll *logLimiter) filterMessage(timestamp time.Time, level logLevel, location, msg string) (_ string, ok bool) {
+	if limit := level.limit(); limit != 0 {
+		var n uint64
+		ll.mu.Lock()
 
-	ll.mu.Lock()
-	defer ll.mu.Unlock()
+		if timestamp.After(ll.expireTime) {
+			ll.m = make(map[string]uint64, len(ll.m))
+			ll.expireTime = timestamp.Add(limitPeriod)
 
-	if n := ll.m[location]; n != 0 {
-		if n >= limit {
-			switch n {
-			case limit:
-				// Limit hit: add a prefix indicating that further messages will be suppressed.
-				msg = fmt.Sprintf("suppressing log message with rate limit=%d: %s", limit, msg)
-			default:
+			n = 1
+		} else {
+			n = ll.m[location] + 1
+
+			if n > limit {
 				// Limit exceeded: suppress the message (no need to update the map).
+				ll.mu.Unlock()
 				return
 			}
+			if n == limit {
+				// Limit hit: add a prefix indicating that further messages will be suppressed.
+				// Release the lock before formatting the prefixed message.
+				ll.m[location] = n
+				ll.mu.Unlock()
+
+				return fmt.Sprintf("suppressing log message with rate limit=%d: %s", limit, msg), true
+			}
 		}
-		ll.m[location] = n + 1
-	} else {
-		ll.m[location] = 1
+
+		ll.m[location] = n
+		ll.mu.Unlock()
 	}
 	return msg, true
 }
