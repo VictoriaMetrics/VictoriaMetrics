@@ -62,10 +62,9 @@ func getTasksLabels(cfg *apiConfig) ([]map[string]string, error) {
 
 func getTasks(cfg *apiConfig) ([]task, error) {
 	filtersQueryArg := ""
-	if cfg.role == roleTasks {
+	if cfg.role == "tasks" {
 		filtersQueryArg = cfg.filtersQueryArg
 	}
-
 	resp, err := cfg.getAPIResponse("/tasks", filtersQueryArg)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for tasks: %w", err)
