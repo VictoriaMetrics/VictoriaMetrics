@@ -133,14 +133,14 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	case formatterJson:
 		if *disableTimestamps {
 			logMsg = fmt.Sprintf(
-				`{%q:%q,%q:%q,%q:%q}`+"\n",
+				"{%q:%q,%q:%q,%q:%q}\n",
 				fieldLevel, level,
 				fieldCaller, location,
 				fieldMsg, msg,
 			)
 		} else {
 			logMsg = fmt.Sprintf(
-				`{%q:%q,%q:%q,%q:%q,%q:%q}`+"\n",
+				"{%q:%q,%q:%q,%q:%q,%q:%q}\n",
 				fieldTs, formatTimestamp(timestamp),
 				fieldLevel, level,
 				fieldCaller, location,
