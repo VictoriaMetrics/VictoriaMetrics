@@ -22,9 +22,6 @@ var (
 	loggerTimezone = flag.String("loggerTimezone", "UTC", "Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. "+
 		"For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local")
 	disableTimestamps = flag.Bool("loggerDisableTimestamps", false, "Whether to disable writing timestamps in logs")
-
-	errorsPerSecondLimit = flag.Int("loggerErrorsPerSecondLimit", 0, `Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit`)
-	warnsPerSecondLimit  = flag.Int("loggerWarnsPerSecondLimit", 0, `Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit`)
 )
 
 // Init initializes the logger.
@@ -154,15 +151,17 @@ func (ll *logLimiter) reset() {
 	ll.mu.Unlock()
 }
 
-// needSuppress checks if the number of calls for the given location exceeds the given limit.
+// needSuppress checks if the number of calls for the given location exceeds the log level's rate limit.
 //
 // When the number of calls equals limit, log message prefix returned.
-func (ll *logLimiter) needSuppress(limit uint64, location string) (bool, string) {
-	// fast path
+func (ll *logLimiter) needSuppress(level logLevel, location string) (bool, string) {
 	var msg string
+	limit := level.limit()
+	// fast path
 	if limit == 0 {
 		return false, msg
 	}
+
 	ll.mu.Lock()
 	defer ll.mu.Unlock()
 
@@ -207,19 +206,12 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	}
 	location := fmt.Sprintf("%s:%d", file, line)
 
-	// rate limit ERROR and WARN log messages with given limit.
-	if level == levelError || level == levelWarn {
-		limit := uint64(*errorsPerSecondLimit)
-		if level == levelWarn {
-			limit = uint64(*warnsPerSecondLimit)
-		}
-		ok, suppressMessage := limiter.needSuppress(limit, location)
-		if ok {
-			return
-		}
-		if len(suppressMessage) > 0 {
-			msg = suppressMessage + msg
-		}
+	ok, suppressMessage := limiter.needSuppress(level, location)
+	if ok {
+		return
+	}
+	if len(suppressMessage) > 0 {
+		msg = suppressMessage + msg
 	}
 
 	for len(msg) > 0 && msg[len(msg)-1] == '\n' {
