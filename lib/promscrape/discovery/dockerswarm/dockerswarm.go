@@ -14,6 +14,12 @@ var SDCheckInterval = flag.Duration("promscrape.dockerswarmSDCheckInterval", 30*
 	"This works only if dockerswarm_sd_configs is configured in '-promscrape.config' file. "+
 	"See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config for details")
 
+const (
+	roleTasks    = "tasks"
+	roleServices = "services"
+	roleNodes    = "nodes"
+)
+
 // SDConfig represents docker swarm service discovery configuration
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dockerswarm_sd_config
@@ -42,11 +48,11 @@ func (sdc *SDConfig) GetLabels(baseDir string) ([]map[string]string, error) {
 		return nil, fmt.Errorf("cannot get API config: %w", err)
 	}
 	switch sdc.Role {
-	case "tasks":
+	case roleTasks:
 		return getTasksLabels(cfg)
-	case "services":
+	case roleServices:
 		return getServicesLabels(cfg)
-	case "nodes":
+	case roleNodes:
 		return getNodesLabels(cfg)
 	default:
 		return nil, fmt.Errorf("unexpected `role`: %q; must be one of `tasks`, `services` or `nodes`; skipping it", sdc.Role)
