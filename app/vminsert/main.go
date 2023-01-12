@@ -60,6 +60,7 @@ var (
 	storageNodes           = flagutil.NewArrayString("storageNode", "Comma-separated addresses of vmstorage nodes; usage: -storageNode=vmstorage-host1,...,vmstorage-hostN . "+
 		"Enterprise version of VictoriaMetrics supports automatic discovery of vmstorage addresses via dns+srv records. For example, -storageNode=dns+srv:vmstorage.addrs . "+
 		"See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery")
+	prometheusImportResponseCode = flag.Int("prometheusImportResponseCode", http.StatusNoContent, "HTTP response code for /api/v1/import/prometheus requests.")
 )
 
 var (
@@ -202,7 +203,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(*prometheusImportResponseCode)
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "datadog/") {

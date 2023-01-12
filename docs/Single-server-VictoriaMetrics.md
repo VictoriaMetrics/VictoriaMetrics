@@ -1269,6 +1269,10 @@ VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v
 
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
+Note that `api/v1/import/prometheus` returns `204 No content` response by default. Some client libraries require different response code for successful response.
+It is possible to use `-prometheusImportResponseCode` command-line flag to change the default response code for `/api/v1/import/prometheus` endpoint.
+For example, `-prometheusImportResponseCode=200` must be used for [prometheus/client_golang](https://github.com/prometheus/client_golang) library.
+
 VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
 ## Relabeling

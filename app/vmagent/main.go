@@ -56,6 +56,7 @@ var (
 	dryRun                 = flag.Bool("dryRun", false, "Whether to check only config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
+	prometheusImportResponseCode = flag.Int("prometheusImportResponseCode", http.StatusNoContent, "HTTP response code for /api/v1/import/prometheus requests.")
 )
 
 var (
@@ -223,7 +224,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusNoContent)
+		w.WriteHeader(*prometheusImportResponseCode)
 		return true
 	}
 	if strings.HasPrefix(path, "datadog/") {
