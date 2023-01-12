@@ -3,37 +3,24 @@ import ExploreMetricItemGraph from "../ExploreMetricGraph/ExploreMetricItemGraph
 import ExploreMetricItemHeader from "../ExploreMetricItemHeader/ExploreMetricItemHeader";
 import "./style.scss";
 import useResize from "../../../hooks/useResize";
+import { GraphSize } from "../../../types";
 
 interface ExploreMetricItemProps {
   name: string
   job: string
   instance: string
   index: number
+  size: GraphSize
   onRemoveItem: (name: string) => void
   onChangeOrder: (name: string, oldIndex: number, newIndex: number) => void
 }
-
-export const sizeVariants = [
-  {
-    id: "small",
-    height: () => window.innerHeight * 0.2
-  },
-  {
-    id: "medium",
-    isDefault: true,
-    height: () => window.innerHeight * 0.4
-  },
-  {
-    id: "large",
-    height: () => window.innerHeight * 0.8
-  },
-];
 
 const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
   name,
   job,
   instance,
   index,
+  size,
   onRemoveItem,
   onChangeOrder,
 }) => {
@@ -42,16 +29,9 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
   const isBucket = useMemo(() => /_bucket?/.test(name), [name]);
 
   const [rateEnabled, setRateEnabled] = useState(isCounter);
-  const [showLegend, setShowLegend] = useState(false);
-  const [size, setSize] = useState(sizeVariants.find(v => v.isDefault) || sizeVariants[0]);
 
   const windowSize = useResize(document.body);
   const graphHeight = useMemo(size.height, [size, windowSize]);
-
-  const handleChangeSize = (id: string) => {
-    const target = sizeVariants.find(variant => variant.id === id);
-    if (target) setSize(target);
-  };
 
   useEffect(() => {
     setRateEnabled(isCounter);
@@ -64,13 +44,10 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
         index={index}
         isBucket={isBucket}
         rateEnabled={rateEnabled}
-        showLegend={showLegend}
         size={size.id}
         onChangeRate={setRateEnabled}
-        onChangeLegend={setShowLegend}
         onRemoveItem={onRemoveItem}
         onChangeOrder={onChangeOrder}
-        onChangeSize={handleChangeSize}
       />
       <ExploreMetricItemGraph
         key={`${name}_${job}_${instance}_${rateEnabled}`}
@@ -79,7 +56,6 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
         instance={instance}
         rateEnabled={rateEnabled}
         isBucket={isBucket}
-        showLegend={showLegend}
         height={graphHeight}
       />
     </div>

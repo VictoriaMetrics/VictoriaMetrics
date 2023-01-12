@@ -17,6 +17,7 @@ export interface ChartTooltipProps {
   u: uPlot,
   metrics: MetricResult[],
   series: Series[],
+  yRange: number[];
   unit?: string,
   isSticky?: boolean,
   tooltipOffset: { left: number, top: number },
@@ -30,6 +31,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   unit = "",
   metrics,
   series,
+  yRange,
   tooltipIdx,
   tooltipOffset,
   isSticky,
@@ -46,22 +48,24 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
 
   const targetPortal = useMemo(() => u.root.querySelector(".u-wrap"), [u]);
 
-  const value = useMemo(() => get(u, ["data", seriesIdx, dataIdx], 0), [u, seriesIdx, dataIdx]);
-  const valueFormat = useMemo(() => formatPrettyNumber(value), [value]);
-  const dataTime = useMemo(() => u.data[0][dataIdx], [u, dataIdx]);
-  const date = useMemo(() => dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT), [dataTime]);
+  const value = get(u, ["data", seriesIdx, dataIdx], 0);
+  const valueFormat = formatPrettyNumber(value, get(yRange, [0]), get(yRange, [1]));
+  const dataTime = u.data[0][dataIdx];
+  const date = dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
 
-  const color = useMemo(() => series[seriesIdx]?.stroke+"", [series, seriesIdx]);
+  const color = series[seriesIdx]?.stroke+"";
 
-  const name = useMemo(() => {
-    const group = metrics[seriesIdx -1]?.group || 0;
-    return `Query ${group}`;
-  }, [series, seriesIdx]);
+  const groups = new Set();
+  metrics.forEach(m => groups.add(m.group));
+  const groupsSize = groups.size;
+  const group = metrics[seriesIdx-1]?.group || 0;
+
+  const metric = metrics[seriesIdx-1]?.metric || {};
+  const labelNames = Object.keys(metric).filter(x => x != "__name__");
+  const metricName = metric["__name__"] || "value";
 
   const fields = useMemo(() => {
-    const metric = metrics[seriesIdx - 1]?.metric || {};
-    const fields = Object.keys(metric);
-    return fields.map(key => `${key}=${JSON.stringify(metric[key])}`);
+    return labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
   }, [metrics, seriesIdx]);
 
   const handleClose = () => {
@@ -136,7 +140,12 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
       style={position}
     >
       <div className="vm-chart-tooltip-header">
-        <div className="vm-chart-tooltip-header__date">{date}</div>
+        <div className="vm-chart-tooltip-header__date">
+          {groupsSize > 1 && (
+            <div>Query {group}</div>
+          )}
+          {date}
+        </div>
         {isSticky && (
           <>
             <Button
@@ -162,7 +171,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           style={{ background: color }}
         />
         <p>
-          {name}:
+          {metricName}: 
           <b className="vm-chart-tooltip-data__value">{valueFormat}</b>
           {unit}
         </p>

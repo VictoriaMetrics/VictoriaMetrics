@@ -112,3 +112,9 @@ export interface Timezone {
   utc: string,
   search?: string
 }
+
+export interface GraphSize {
+  id: string,
+  isDefault?: boolean,
+  height: () => number
+}

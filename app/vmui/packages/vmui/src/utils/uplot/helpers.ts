@@ -25,14 +25,26 @@ export const defaultOptions = {
 };
 
 export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
-  return ticks.map(v => `${formatPrettyNumber(v)} ${unit}`);
+  const min = ticks[0];
+  const max = ticks[ticks.length-1];
+  if (!unit) {
+    return ticks.map(v => formatPrettyNumber(v, min, max));
+  }
+  return ticks.map(v => `${formatPrettyNumber(v, min, max)} ${unit}`);
 };
 
-export const formatPrettyNumber = (n: number | null | undefined): string => {
+export const formatPrettyNumber = (n: number | null | undefined, min = 0, max = 0): string => {
   if (n === undefined || n === null) {
     return "";
   }
-  return n.toLocaleString("en-US", { maximumSignificantDigits: 20 });
+  let digits = 3 + Math.floor(1 + Math.log10(Math.max(Math.abs(min), Math.abs(max))) - Math.log10(Math.abs(min - max)));
+  if (isNaN(digits) || digits > 20) {
+    digits = 20;
+  }
+  return n.toLocaleString("en-US", {
+    minimumSignificantDigits: digits,
+    maximumSignificantDigits: digits,
+  });
 };
 
 interface AxisExtend extends Axis {
