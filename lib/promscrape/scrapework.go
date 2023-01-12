@@ -745,7 +745,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	wc := &writeRequestCtx{}
 	if bodyString != "" {
-		wc.rows.Unmarshal(bodyString)
+		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 		srcRows := wc.rows.Rows
 		for i := range srcRows {
 			sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
