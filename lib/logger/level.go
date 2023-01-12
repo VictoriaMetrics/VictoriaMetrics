@@ -97,24 +97,24 @@ func (ll *logLimiter) reset() {
 	ll.mu.Unlock()
 }
 
-// filterMessage returns an empty message and true (discard) if the number of calls
+// filterMessage returns an empty message and false (discard) if the number of calls
 // for the given location exceeds the given log level's rate limit.
 //
 // If the number of calls exactly equals the limit, a prefix is added to the message
-// indicating that further messages will be suppressed, and false (accept) is returned.
+// indicating that further messages will be suppressed, and true (accept) is returned.
 //
-// Otherwise false (accept) is returned along with the original unchanged message.
-func (ll *logLimiter) filterMessage(level logLevel, location, msg string) (bool, string) {
+// Otherwise true (accept) is returned along with the original unchanged message.
+func (ll *logLimiter) filterMessage(level logLevel, location, msg string) (_ string, ok bool) {
 	limit := level.limit()
 	// fast path
 	if limit == 0 {
-		return false, msg
+		return msg, true
 	}
 
 	ll.mu.Lock()
 	defer ll.mu.Unlock()
 
-	if n, ok := ll.m[location]; ok {
+	if n := ll.m[location]; n != 0 {
 		if n >= limit {
 			switch n {
 			case limit:
@@ -122,12 +122,12 @@ func (ll *logLimiter) filterMessage(level logLevel, location, msg string) (bool,
 				msg = fmt.Sprintf("suppressing log message with rate limit=%d: %s", limit, msg)
 			default:
 				// Limit exceeded: suppress the message (no need to update the map).
-				return true, ""
+				return
 			}
 		}
 		ll.m[location] = n + 1
 	} else {
 		ll.m[location] = 1
 	}
-	return false, msg
+	return msg, true
 }

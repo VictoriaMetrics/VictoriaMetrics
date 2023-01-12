@@ -99,8 +99,8 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	timestamp := time.Now()
 	location := callerLocation(1 + skipframes)
 
-	ok, msg := limiter.filterMessage(level, location, msg)
-	if ok {
+	msg, ok := limiter.filterMessage(level, location, msg)
+	if !ok {
 		return
 	}
 
