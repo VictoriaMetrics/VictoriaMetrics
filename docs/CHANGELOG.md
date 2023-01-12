@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to show custom dashboards at vmui by specifying a path to a directory with dashboard config files via `-vmui.customDashboardsPath` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3322) and [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards).
+
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): [dockerswarm_sd_configs](https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs): apply `filters` only to objects of the specified `role`. Previously filters were applied to all the objects, which could cause errors when different types of objects were used with filters that were not compatible with them. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3579).
 
 
@@ -54,7 +56,6 @@ Released at 2023-01-10
   - `vm_vmselect_concurrent_requests_current` - the current number of concurrently executed requests
   - `vm_vmselect_concurrent_requests_limit_reached_total` - the total number of requests, which were put in the wait queue when `-search.maxConcurrentRequests` concurrent requests are being executed
   - `vm_vmselect_concurrent_requests_limit_timeout_total` - the total number of canceled requests because they were sitting in the wait queue for more than `-search.maxQueueDuration`
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to define path to custom dashboards via `vmui.customDashboardsPath` flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3322).
 
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update the `step` value in url after the `step` input field has been manually changed. This allows preserving the proper `step` when copy-n-pasting the url to another instance of web browser. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3513).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly update tooltip when quickly hovering multiple lines on the graph. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3530).

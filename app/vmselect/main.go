@@ -175,7 +175,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case strings.HasPrefix(path, "/vmui/"):
 		if path == "/vmui/custom-dashboards" {
-			handleVMUICustomDashboards(w)
+			if err := handleVMUICustomDashboards(w); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
 			return true
 		}
 		r.URL.Path = path
