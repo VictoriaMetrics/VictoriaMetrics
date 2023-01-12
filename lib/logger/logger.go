@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
@@ -115,6 +116,10 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	_, _ = output.Write([]byte(formattedMsg))
 	mu.Unlock()
 
+	if isInTest {
+		atomic.AddUint64(&outputCallsTotal, 1)
+	}
+
 	// Increment vm_log_messages_total
 	counterName := fmt.Sprintf(`vm_log_messages_total{app_version=%q, level=%q, location=%q}`, buildinfo.Version, level, location)
 	metrics.GetOrCreateCounter(counterName).Inc()
@@ -130,7 +135,12 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	}
 }
 
-var mu sync.Mutex
+var (
+	mu sync.Mutex
+
+	outputCallsTotal uint64
+	isInTest         = false
+)
 
 func callerLocation(skipframes int) string {
 	_, file, line, ok := runtime.Caller(1 + skipframes)

@@ -5,11 +5,28 @@ import (
 	"path"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 const timestep = 16 * time.Millisecond
+
+func init() {
+	isInTest = true
+}
+
+func resetOutputCallsTotal() {
+	atomic.StoreUint64(&outputCallsTotal, 0)
+}
+
+func expectOutputCallsTotal(t *testing.T, calls uint64) {
+	t.Helper()
+	atomic.LoadUint64(&outputCallsTotal)
+	if outputCallsTotal != calls {
+		t.Fatalf("outputCallsTotal: expected %d, received %d", calls, outputCallsTotal)
+	}
+}
 
 func restore[T any](vp *T, v T) {
 	*vp = v
