@@ -27,6 +27,10 @@
       opacity: 1;
     }
 
+    &:hover {
+      opacity: 0.8;
+    }
+
     &__icon {
       display: grid;
       width: 15px;
