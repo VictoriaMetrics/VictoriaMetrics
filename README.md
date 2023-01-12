@@ -944,6 +944,8 @@ Below is the output for `/path/to/vminsert -help`:
      Show VictoriaMetrics version
   -vmstorageDialTimeout duration
      Timeout for establishing RPC connections from vminsert to vmstorage (default 5s)
+  -vmui.customDashboardsPath string
+     Optional path to vmui dashboards. See https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards
 ```
 
 ### List of command-line flags for vmselect
