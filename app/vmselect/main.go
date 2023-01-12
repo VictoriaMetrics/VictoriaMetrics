@@ -186,6 +186,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case strings.HasPrefix(path, "/graph/"):
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		if path == "/graph/custom-dashboards" {
+			if err := handleVMUICustomDashboards(w); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
 		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
