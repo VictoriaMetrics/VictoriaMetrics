@@ -485,7 +485,7 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbfs []*tmpBlocksFile, t
 		upw.addr = addr
 		upw.tr = tr
 	}
-	if gomaxprocs == 1 || upwsLen <= 100 {
+	if gomaxprocs == 1 || upwsLen <= 1000 {
 		// It is faster to unpack all the data in the current goroutine.
 		upw := getUnpackWork()
 		samples := 0
