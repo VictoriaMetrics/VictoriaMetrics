@@ -16,6 +16,9 @@ type apiConfig struct {
 	client *discoveryutils.Client
 	port   int
 
+	// role is the type of objects to discover.
+	role string
+
 	// filtersQueryArg contains escaped `filters` query arg to add to each request to Docker Swarm API.
 	filtersQueryArg string
 }
@@ -49,11 +52,12 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", sdc.Host, err)
 	}
 	cfg.client = client
+	cfg.role = sdc.Role
 	return cfg, nil
 }
 
-func (cfg *apiConfig) getAPIResponse(path string) ([]byte, error) {
-	if len(cfg.filtersQueryArg) > 0 {
+func (cfg *apiConfig) getAPIResponse(path, filtersQueryArg string) ([]byte, error) {
+	if len(filtersQueryArg) > 0 {
 		separator := "?"
 		if strings.Contains(path, "?") {
 			separator = "&"
