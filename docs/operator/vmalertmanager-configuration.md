@@ -1,5 +1,13 @@
 ---
 sort: 13
+weight: 13
+title: Managing configuration for VMAlertmanager
+menu:
+  docs:
+    parent: "operator"
+    weight: 13
+aliases:
+- /operator/vmalertmanager-configuration.html
 ---
 
 # Managing configuration for VMAlertmanager

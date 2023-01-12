@@ -1,5 +1,13 @@
 ---
 sort: 12
+weight: 12
+title: Security
+menu:
+  docs:
+    parent: "operator"
+    weight: 12
+aliases:
+- /operator/security.html
 ---
 
 # Security

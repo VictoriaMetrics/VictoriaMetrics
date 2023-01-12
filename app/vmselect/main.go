@@ -161,8 +161,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/graphite/"):
 		path = path[len("/graphite"):]
 	}
+
 	// vmui access.
-	if path == "/vmui" || path == "/graph" {
+	switch {
+	case path == "/vmui" || path == "/graph":
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
@@ -171,18 +173,31 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		newURL := path + "/?" + r.Form.Encode()
 		httpserver.Redirect(w, newURL)
 		return true
-	}
-	if strings.HasPrefix(path, "/vmui/") {
+	case strings.HasPrefix(path, "/vmui/"):
+		if path == "/vmui/custom-dashboards" {
+			if err := handleVMUICustomDashboards(w); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
 		r.URL.Path = path
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
-	}
-	if strings.HasPrefix(path, "/graph/") {
+	case strings.HasPrefix(path, "/graph/"):
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		if path == "/graph/custom-dashboards" {
+			if err := handleVMUICustomDashboards(w); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
 		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
+
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {

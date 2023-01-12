@@ -19,7 +19,7 @@ const Footer: FC = () => {
     <a
       className="vm__link"
       target="_blank"
-      href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new"
+      href="https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose"
       rel="noreferrer"
     >
       create an issue

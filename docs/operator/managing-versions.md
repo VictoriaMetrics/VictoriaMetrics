@@ -1,5 +1,13 @@
 ---
 sort: 8
+weight: 8
+title: Managing application versions
+menu:
+  docs:
+    parent: "operator"
+    weight: 8
+aliases:
+- /operator/managing-versions.html
 ---
 
 

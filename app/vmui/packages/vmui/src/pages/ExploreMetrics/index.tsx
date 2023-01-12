@@ -8,13 +8,22 @@ import { useFetchNames } from "./hooks/useFetchNames";
 import "./style.scss";
 import ExploreMetricItem from "../../components/ExploreMetrics/ExploreMetricItem/ExploreMetricItem";
 import ExploreMetricsHeader from "../../components/ExploreMetrics/ExploreMetricsHeader/ExploreMetricsHeader";
+import { GRAPH_SIZES } from "../../constants/graph";
+import { getQueryStringValue } from "../../utils/query-string";
+
+const defaultJob = getQueryStringValue("job", "") as string;
+const defaultInstance = getQueryStringValue("instance", "") as string;
+const defaultMetricsStr = getQueryStringValue("metrics", "") as string;
+const defaultSizeId = getQueryStringValue("size", "") as string;
+const defaultSize = GRAPH_SIZES.find(v => defaultSizeId ? v.id === defaultSizeId : v.isDefault) || GRAPH_SIZES[0];
 
 const ExploreMetrics: FC = () => {
-  useSetQueryParams();
+  const [job, setJob] = useState(defaultJob);
+  const [instance, setInstance] = useState(defaultInstance);
+  const [metrics, setMetrics] = useState(defaultMetricsStr ? defaultMetricsStr.split("&") : []);
+  const [size, setSize] = useState(defaultSize);
 
-  const [job, setJob] = useState("");
-  const [instance, setInstance] = useState("");
-  const [metrics, setMetrics] = useState<string[]>([]);
+  useSetQueryParams({ job, instance, metrics: metrics.join("&"), size: size.id });
 
   const { jobs, isLoading: loadingJobs, error: errorJobs } = useFetchJobs();
   const { instances, isLoading: loadingInstances, error: errorInstances } = useFetchInstances(job);
@@ -36,6 +45,11 @@ const ExploreMetrics: FC = () => {
     }
   };
 
+  const handleChangeSize = (sizeId: string) => {
+    const target = GRAPH_SIZES.find(variant => variant.id === sizeId);
+    if (target) setSize(target);
+  };
+
   const handleChangeOrder = (name: string, oldIndex: number, newIndex: number) => {
     const maxIndex = newIndex > (metrics.length - 1);
     const minIndex = newIndex < 0;
@@ -49,8 +63,10 @@ const ExploreMetrics: FC = () => {
   };
 
   useEffect(() => {
-    setInstance("");
-  }, [job]);
+    if (instance && instances.length && !instances.includes(instance)) {
+      setInstance("");
+    }
+  }, [instances, instance]);
 
   return (
     <div className="vm-explore-metrics">
@@ -59,9 +75,11 @@ const ExploreMetrics: FC = () => {
         instances={instances}
         names={names}
         job={job}
+        size={size.id}
         instance={instance}
         selectedMetrics={metrics}
         onChangeJob={setJob}
+        onChangeSize={handleChangeSize}
         onChangeInstance={setInstance}
         onToggleMetric={handleToggleMetric}
       />
@@ -78,6 +96,7 @@ const ExploreMetrics: FC = () => {
             job={job}
             instance={instance}
             index={i}
+            size={size}
             onRemoveItem={handleToggleMetric}
             onChangeOrder={handleChangeOrder}
           />

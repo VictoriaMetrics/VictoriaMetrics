@@ -1,5 +1,14 @@
 ---
 sort: 15
+weight: 15
+title: FAQ
+menu:
+  docs:
+    parent: "operator"
+    weight: 15
+    identifier: "faq-operator"
+aliases:
+- /operator/FAQ.html
 ---
 
 # FAQ

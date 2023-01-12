@@ -47,7 +47,11 @@ func getNodesLabels(cfg *apiConfig) ([]*promutils.Labels, error) {
 }
 
 func getNodes(cfg *apiConfig) ([]node, error) {
-	resp, err := cfg.getAPIResponse("/nodes")
+	filtersQueryArg := ""
+	if cfg.role == "nodes" {
+		filtersQueryArg = cfg.filtersQueryArg
+	}
+	resp, err := cfg.getAPIResponse("/nodes", filtersQueryArg)
 	if err != nil {
 		return nil, fmt.Errorf("cannot query dockerswarm api for nodes: %w", err)
 	}
