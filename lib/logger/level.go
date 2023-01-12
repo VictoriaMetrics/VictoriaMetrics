@@ -3,6 +3,8 @@ package logger
 import (
 	"flag"
 	"fmt"
+	"sync"
+	"time"
 )
 
 var (
@@ -67,4 +69,61 @@ func (lvl logLevel) limit() uint64 {
 	default:
 		return 0
 	}
+}
+
+func logLimiterCleaner() {
+	for {
+		time.Sleep(time.Second)
+		limiter.reset()
+	}
+}
+
+var limiter = newLogLimiter()
+
+func newLogLimiter() *logLimiter {
+	return &logLimiter{
+		m: make(map[string]uint64),
+	}
+}
+
+type logLimiter struct {
+	mu sync.Mutex
+	m  map[string]uint64
+}
+
+func (ll *logLimiter) reset() {
+	ll.mu.Lock()
+	ll.m = make(map[string]uint64, len(ll.m))
+	ll.mu.Unlock()
+}
+
+// needSuppress checks if the number of calls for the given location exceeds the log level's rate limit.
+//
+// When the number of calls equals limit, log message prefix returned.
+func (ll *logLimiter) needSuppress(level logLevel, location string) (bool, string) {
+	var msg string
+	limit := level.limit()
+	// fast path
+	if limit == 0 {
+		return false, msg
+	}
+
+	ll.mu.Lock()
+	defer ll.mu.Unlock()
+
+	if n, ok := ll.m[location]; ok {
+		if n >= limit {
+			switch n {
+			// report only once
+			case limit:
+				msg = fmt.Sprintf("suppressing log message with rate limit=%d: ", limit)
+			default:
+				return true, msg
+			}
+		}
+		ll.m[location] = n + 1
+	} else {
+		ll.m[location] = 1
+	}
+	return false, msg
 }
