@@ -17,6 +17,8 @@ type apiConfig struct {
 	port   int
 
 	// role is the type of objects to discover.
+	//
+	// filtersQueryArg is applied only to the given role - the rest of objects are queried without filters.
 	role string
 
 	// filtersQueryArg contains escaped `filters` query arg to add to each request to Docker Swarm API.
