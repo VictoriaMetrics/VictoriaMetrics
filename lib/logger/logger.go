@@ -95,12 +95,12 @@ func Errorf(format string, args ...interface{}) {
 
 // WarnfSkipframes logs warn message and skips the given number of frames for the caller.
 func WarnfSkipframes(skipframes int, format string, args ...interface{}) {
-	logfSkipframes(skipframes, levelWarn, format, args...)
+	logfSkipframes(1+skipframes, levelWarn, format, args...)
 }
 
 // ErrorfSkipframes logs error message and skips the given number of frames for the caller.
 func ErrorfSkipframes(skipframes int, format string, args ...interface{}) {
-	logfSkipframes(skipframes, levelError, format, args...)
+	logfSkipframes(1+skipframes, levelError, format, args...)
 }
 
 // Fatalf logs fatal message and terminates the app.
@@ -113,8 +113,10 @@ func Panicf(format string, args ...interface{}) {
 	logf(levelPanic, format, args...)
 }
 
+// logf is an internal convenience helper that expects to be wrapped by
+// an outer function, so it uses skipframes=2: 1 for the wrapper and 1 for itself.
 func logf(level logLevel, format string, args ...interface{}) {
-	logfSkipframes(1, level, format, args...)
+	logfSkipframes(2, level, format, args...)
 }
 
 func logfSkipframes(skipframes int, level logLevel, format string, args ...interface{}) {
@@ -122,14 +124,14 @@ func logfSkipframes(skipframes int, level logLevel, format string, args ...inter
 		return
 	}
 	msg := fmt.Sprintf(format, args...)
-	logMessage(3+skipframes, level, msg)
+	logMessage(1+skipframes, level, msg)
 }
 
 type stdErrorWriter struct {
 }
 
 func (lw *stdErrorWriter) Write(p []byte) (int, error) {
-	logfSkipframes(2, levelError, "%s", p)
+	ErrorfSkipframes(3, "%s", p)
 	return len(p), nil
 }
 
@@ -138,7 +140,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
 	}
-	_, file, line, ok := runtime.Caller(skipframes)
+	_, file, line, ok := runtime.Caller(1 + skipframes)
 	if !ok {
 		file = "???"
 		line = 0
