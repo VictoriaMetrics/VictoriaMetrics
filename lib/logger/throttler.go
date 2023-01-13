@@ -32,36 +32,43 @@ func WithThrottler(name string, throttle time.Duration) *LogThrottler {
 //
 // LogThrottler must be created via WithThrottler() call.
 type LogThrottler struct {
-	ch chan struct{}
+	period time.Duration
+
+	mu       sync.Mutex
+	nextTime time.Time
 }
 
 func newLogThrottler(throttle time.Duration) *LogThrottler {
-	lt := &LogThrottler{
-		ch: make(chan struct{}, 1),
-	}
-	go func() {
-		for {
-			<-lt.ch
-			time.Sleep(throttle)
-		}
-	}()
-	return lt
+	return &LogThrottler{period: throttle}
 }
 
 // Errorf logs error message.
 func (lt *LogThrottler) Errorf(format string, args ...interface{}) {
-	select {
-	case lt.ch <- struct{}{}:
+	if lt.tryLog() {
 		ErrorfSkipframes(1, format, args...)
-	default:
 	}
 }
 
 // Warnf logs warn message.
 func (lt *LogThrottler) Warnf(format string, args ...interface{}) {
-	select {
-	case lt.ch <- struct{}{}:
+	if lt.tryLog() {
 		WarnfSkipframes(1, format, args...)
-	default:
 	}
+}
+
+func (lt *LogThrottler) tryLog() (ok bool) {
+	// If already locked by another caller, there are two cases:
+	//   - that caller is allowed to log now
+	//   - that caller is not allowed to log yet
+	// Since there can only be one message per log period, in both
+	// cases, we can efficiently infer that we are not allowed to
+	// log yet.
+	if lt.mu.TryLock() {
+		if t := time.Now(); t.After(lt.nextTime) {
+			lt.nextTime = t.Add(lt.period)
+			ok = true
+		}
+		lt.mu.Unlock()
+	}
+	return
 }
