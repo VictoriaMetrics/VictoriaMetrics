@@ -58,6 +58,8 @@ func TestLoggerSkipFrames(t *testing.T) {
 		}
 	}
 
+	f0(callerLocation(0))
+
 	var capturedOutput bytes.Buffer
 	output = &capturedOutput
 	*disableTimestamps = true

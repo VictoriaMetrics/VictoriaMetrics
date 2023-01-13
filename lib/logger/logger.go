@@ -140,16 +140,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 	if !*disableTimestamps {
 		timestamp = time.Now().In(timezone).Format("2006-01-02T15:04:05.000Z0700")
 	}
-	_, file, line, ok := runtime.Caller(1 + skipframes)
-	if !ok {
-		file = "???"
-		line = 0
-	}
-	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
-		// Strip [...]/VictoriaMetrics/ prefix
-		file = file[n+len("/VictoriaMetrics/"):]
-	}
-	location := fmt.Sprintf("%s:%d", file, line)
+	location := callerLocation(1 + skipframes)
 
 	ok, suppressMessage := limiter.needSuppress(level, location)
 	if ok {
@@ -211,6 +202,19 @@ func logMessage(skipframes int, level logLevel, msg string) {
 }
 
 var mu sync.Mutex
+
+func callerLocation(skipframes int) string {
+	_, file, line, ok := runtime.Caller(1 + skipframes)
+	if !ok {
+		file = "???"
+		line = 0
+	}
+	if n := strings.Index(file, "/VictoriaMetrics/"); n >= 0 {
+		// Strip [...]/VictoriaMetrics/ prefix
+		file = file[n+len("/VictoriaMetrics/"):]
+	}
+	return fmt.Sprintf("%s:%d", file, line)
+}
 
 // SetOutputForTests redefine output for logger. Use for Tests only. Call ResetOutputForTest to return output state to default
 func SetOutputForTests(writer io.Writer) { output = writer }
