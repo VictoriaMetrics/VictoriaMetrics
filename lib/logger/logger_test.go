@@ -172,3 +172,23 @@ func TestLogLimiter(t *testing.T) {
 	}
 	expectOutputCallsTotal(t, 12)
 }
+
+func TestLogThrottler(t *testing.T) {
+	defer restore(&output, output)
+
+	output = io.Discard
+
+	lt := newLogThrottler(timestep)
+
+	resetOutputCallsTotal()
+
+	lt.Warnf("")
+	lt.Warnf("") // should be discarded
+	expectOutputCallsTotal(t, 1)
+
+	time.Sleep(timestep + timestep/4)
+
+	lt.Warnf("")
+	lt.Warnf("") // should be discarded
+	expectOutputCallsTotal(t, 2)
+}
