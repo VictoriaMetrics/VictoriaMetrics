@@ -157,7 +157,7 @@ func logMessage(skipframes int, level logLevel, msg string) {
 
 	// Serialize writes to log.
 	mu.Lock()
-	fmt.Fprint(output, logMsg)
+	_, _ = output.Write([]byte(logMsg))
 	mu.Unlock()
 
 	// Increment vm_log_messages_total
