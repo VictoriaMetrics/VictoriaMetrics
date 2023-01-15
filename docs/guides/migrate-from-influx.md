@@ -123,7 +123,7 @@ In addition to InfluxDB line protocol, VictoriaMetrics supports many other ways 
 
 ## Query data
 
-VictoriaMetrics does not have a com\mand-line interface (CLI). Instead, it provides
+VictoriaMetrics does not have a command-line interface (CLI). Instead, it provides
 an [HTTP API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage)
 for serving read queries. This API is used in various integrations such as
 [Grafana](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup). The same API is also used

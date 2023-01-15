@@ -217,11 +217,14 @@ type scrapeWork struct {
 	// equals to or exceeds -promscrape.minResponseSizeForStreamParse
 	lastScrapeCompressed []byte
 
-	// lastErrLogTimestamp is the timestamp in unix seconds of the last logged scrape error
-	lastErrLogTimestamp uint64
+	// nextErrorLogTime is the timestamp in millisecond when the next scrape error should be logged.
+	nextErrorLogTime int64
 
-	// errsSuppressedCount is the number of suppressed scrape errors since lastErrLogTimestamp
-	errsSuppressedCount int
+	// failureRequestsCount is the number of suppressed scrape errors during the last suppressScrapeErrorsDelay
+	failureRequestsCount int
+
+	// successRequestsCount is the number of success requests during the last suppressScrapeErrorsDelay
+	successRequestsCount int
 }
 
 func (sw *scrapeWork) loadLastScrape() string {
@@ -355,21 +358,26 @@ func (sw *scrapeWork) logError(s string) {
 
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 	err := sw.scrapeInternal(scrapeTimestamp, realTimestamp)
+	if *suppressScrapeErrors {
+		return
+	}
 	if err == nil {
+		sw.successRequestsCount++
 		return
 	}
-	d := time.Duration(fasttime.UnixTimestamp()-sw.lastErrLogTimestamp) * time.Second
-	if *suppressScrapeErrors || d < *suppressScrapeErrorsDelay {
-		sw.errsSuppressedCount++
+	sw.failureRequestsCount++
+	if sw.nextErrorLogTime == 0 {
+		sw.nextErrorLogTime = realTimestamp + suppressScrapeErrorsDelay.Milliseconds()
+	}
+	if realTimestamp < sw.nextErrorLogTime {
 		return
 	}
-	err = fmt.Errorf("cannot scrape %q (job %q, labels %s): %w", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), err)
-	if sw.errsSuppressedCount > 0 {
-		err = fmt.Errorf("%w; %d similar errors suppressed during the last %.1f seconds", err, sw.errsSuppressedCount, d.Seconds())
-	}
-	logger.Warnf("%s", err)
-	sw.lastErrLogTimestamp = fasttime.UnixTimestamp()
-	sw.errsSuppressedCount = 0
+	totalRequests := sw.failureRequestsCount + sw.successRequestsCount
+	logger.Warnf("cannot scrape target %q (%s) %d out of %d times during -promscrape.suppressScrapeErrorsDelay=%s; the last error: %s",
+		sw.Config.ScrapeURL, sw.Config.Labels.String(), sw.failureRequestsCount, totalRequests, *suppressScrapeErrorsDelay, err)
+	sw.nextErrorLogTime = realTimestamp + suppressScrapeErrorsDelay.Milliseconds()
+	sw.failureRequestsCount = 0
+	sw.successRequestsCount = 0
 }
 
 var (
@@ -766,7 +774,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	}
 	wc := &writeRequestCtx{}
 	if bodyString != "" {
-		wc.rows.Unmarshal(bodyString)
+		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 		srcRows := wc.rows.Rows
 		for i := range srcRows {
 			sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
