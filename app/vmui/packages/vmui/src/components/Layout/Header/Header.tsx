@@ -15,6 +15,7 @@ import Tabs from "../../Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
 import { useDashboardsState } from "../../../state/dashboards/DashboardsStateContext";
+import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
 
 const Header: FC = () => {
   const primaryColor = getCssVariable("color-primary");
@@ -101,6 +102,7 @@ const Header: FC = () => {
       />
     </div>
     <div className="vm-header__settings">
+      {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
       {headerSetup?.executionControls && <ExecutionControls/>}

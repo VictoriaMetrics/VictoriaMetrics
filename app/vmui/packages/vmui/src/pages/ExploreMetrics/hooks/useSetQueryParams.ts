@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { compactObject } from "../../../utils/object";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
+import { useGraphState } from "../../../state/graph/GraphStateContext";
 
 interface queryProps {
   job: string
@@ -11,13 +12,14 @@ interface queryProps {
 }
 
 export const useSetQueryParams = ({ job, instance, metrics, size }: queryProps) => {
-  const { duration, relativeTime, period: { date, step } } = useTimeState();
+  const { duration, relativeTime, period: { date } } = useTimeState();
+  const { customStep } = useGraphState();
 
   const setSearchParamsFromState = () => {
     const params = compactObject({
       ["g0.range_input"]: duration,
       ["g0.end_input"]: date,
-      ["g0.step_input"]: step,
+      ["g0.step_input"]: customStep,
       ["g0.relative_time"]: relativeTime,
       size,
       job,
@@ -28,6 +30,6 @@ export const useSetQueryParams = ({ job, instance, metrics, size }: queryProps) 
     setQueryStringWithoutPageReload(params);
   };
 
-  useEffect(setSearchParamsFromState, [duration, relativeTime, date, step, job, instance, metrics, size]);
+  useEffect(setSearchParamsFromState, [duration, relativeTime, date, customStep, job, instance, metrics, size]);
   useEffect(setSearchParamsFromState, []);
 };

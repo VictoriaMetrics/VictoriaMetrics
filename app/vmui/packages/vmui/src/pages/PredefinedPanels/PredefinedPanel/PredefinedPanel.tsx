@@ -4,7 +4,6 @@ import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import GraphView from "../../../components/Views/GraphView/GraphView";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import Spinner from "../../../components/Main/Spinner/Spinner";
-import StepConfigurator from "../../../components/Configurators/StepConfigurator/StepConfigurator";
 import GraphSettings from "../../../components/Configurators/GraphSettings/GraphSettings";
 import { marked } from "marked";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
@@ -12,7 +11,7 @@ import { InfoIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import Alert from "../../../components/Main/Alert/Alert";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
-import usePrevious from "../../../hooks/usePrevious";
+import { useGraphState } from "../../../state/graph/GraphStateContext";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -28,13 +27,12 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   alias
 }) => {
 
-  const { period, duration } = useTimeState();
+  const { period } = useTimeState();
+  const { customStep } = useGraphState();
   const dispatch = useTimeDispatch();
-  const prevDuration = usePrevious(duration);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(true);
-  const [customStep, setCustomStep] = useState(period.step || "1s");
   const [yaxis, setYaxis] = useState<YaxisState>({
     limits: {
       enable: false,
@@ -77,11 +75,6 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    if (duration === prevDuration || !prevDuration) return;
-    if (customStep) setCustomStep(period.step || "1s");
-  }, [duration, prevDuration]);
-
   if (!validExpr) return (
     <Alert variant="error">
       <code>&quot;expr&quot;</code> not found. Check the configuration file <b>{filename}</b>.
@@ -123,13 +116,6 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
       <h3 className="vm-predefined-panel-header__title">
         {title || ""}
       </h3>
-      <div className="vm-predefined-panel-header__step">
-        <StepConfigurator
-          defaultStep={period.step}
-          value={customStep}
-          setStep={setCustomStep}
-        />
-      </div>
       <GraphSettings
         yaxis={yaxis}
         setYaxisLimits={setYaxisLimits}

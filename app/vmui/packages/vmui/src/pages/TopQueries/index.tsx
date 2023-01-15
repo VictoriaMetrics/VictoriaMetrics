@@ -40,7 +40,7 @@ const Index: FC = () => {
   const getQueryStatsTitle = (key: keyof TopQueryStats) => {
     if (!data) return key;
     const value = data[key];
-    if (typeof value === "number") return formatPrettyNumber(value);
+    if (typeof value === "number") return formatPrettyNumber(value, 0, value);
     return value || key;
   };
 

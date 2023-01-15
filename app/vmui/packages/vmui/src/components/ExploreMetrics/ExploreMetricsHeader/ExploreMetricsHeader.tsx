@@ -1,10 +1,6 @@
-import React, { FC, useEffect, useMemo } from "preact/compat";
+import React, { FC, useMemo } from "preact/compat";
 import Select from "../../Main/Select/Select";
-import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
 import "./style.scss";
-import { useTimeState } from "../../../state/time/TimeStateContext";
-import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
-import usePrevious from "../../../hooks/usePrevious";
 import { GRAPH_SIZES } from "../../../constants/graph";
 
 interface ExploreMetricsHeaderProps {
@@ -36,27 +32,8 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
   onToggleMetric,
   onChangeSize
 }) => {
-
-  const { period: { step }, duration } = useTimeState();
-  const { customStep } = useGraphState();
-  const graphDispatch = useGraphDispatch();
-  const prevDuration = usePrevious(duration);
-
   const noInstanceText = useMemo(() => job ? "" : "No instances. Please select job", [job]);
   const noMetricsText = useMemo(() => job ? "" : "No metric names. Please select job", [job]);
-
-  const handleChangeStep = (value: string) => {
-    graphDispatch({ type: "SET_CUSTOM_STEP", payload: value });
-  };
-
-  useEffect(() => {
-    if (duration === prevDuration || !prevDuration) return;
-    if (customStep) handleChangeStep(step || "1s");
-  }, [duration, prevDuration]);
-
-  useEffect(() => {
-    if (!customStep && step) handleChangeStep(step);
-  }, [step]);
 
   return (
     <div className="vm-explore-metrics-header vm-block">
@@ -79,13 +56,6 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           onChange={onChangeInstance}
           noOptionsText={noInstanceText}
           clearable
-        />
-      </div>
-      <div className="vm-explore-metrics-header__step">
-        <StepConfigurator
-          defaultStep={step}
-          setStep={handleChangeStep}
-          value={customStep}
         />
       </div>
       <div className="vm-explore-metrics-header__size">

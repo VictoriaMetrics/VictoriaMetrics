@@ -4,7 +4,7 @@
 
   &-header {
     display: grid;
-    grid-template-columns: auto 1fr 160px auto;
+    grid-template-columns: auto 1fr auto;
     align-items: center;
     justify-content: flex-start;
     gap: $padding-small;
