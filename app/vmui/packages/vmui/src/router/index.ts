@@ -11,6 +11,7 @@ const router = {
 export interface RouterOptions {
   title?: string,
   header: {
+    stepControl?: boolean,
     timeSelector?: boolean,
     executionControls?: boolean,
     globalSettings?: boolean,
@@ -20,6 +21,7 @@ export interface RouterOptions {
 
 const routerOptionsDefault = {
   header: {
+    stepControl: true,
     timeSelector: true,
     executionControls: true,
   }
@@ -33,6 +35,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.metrics]: {
     title: "Explore metrics",
     header: {
+      stepControl: true,
       timeSelector: true,
     }
   },
