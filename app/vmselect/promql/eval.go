@@ -505,28 +505,54 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 }
 
 func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
-	m := make(map[string][]string)
+	if len(tss) == 0 {
+		return nil
+	}
+	type valuesCounter struct {
+		values map[string]struct{}
+		count  int
+	}
+	m := make(map[string]*valuesCounter, len(tss[0].MetricName.Tags))
 	for _, ts := range tss {
 		for _, tag := range ts.MetricName.Tags {
-			k := bytesutil.InternBytes(tag.Key)
-			v := bytesutil.InternBytes(tag.Value)
-			m[k] = append(m[k], v)
+			vc, ok := m[string(tag.Key)]
+			if !ok {
+				k := bytesutil.InternBytes(tag.Key)
+				v := bytesutil.InternBytes(tag.Value)
+				m[k] = &valuesCounter{
+					values: map[string]struct{}{
+						v: {},
+					},
+					count: 1,
+				}
+				continue
+			}
+			if len(vc.values) > 100 {
+				// Too many unique values found for the given tag.
+				// Do not make a filter on such values, since it may slow down
+				// search for matching time series.
+				continue
+			}
+			vc.count++
+			if _, ok := vc.values[string(tag.Value)]; !ok {
+				v := bytesutil.InternBytes(tag.Value)
+				vc.values[v] = struct{}{}
+			}
 		}
 	}
 	lfs := make([]metricsql.LabelFilter, 0, len(m))
-	for key, values := range m {
-		if len(values) != len(tss) {
+	var values []string
+	for k, vc := range m {
+		if vc.count != len(tss) {
 			// Skip the tag, since it doesn't belong to all the time series.
 			continue
 		}
-		values = getUniqueValues(values)
-		if len(values) > 1000 {
-			// Skip the filter on the given tag, since it needs to enumerate too many unique values.
-			// This may slow down the search for matching time series.
-			continue
+		values = values[:0]
+		for s := range vc.values {
+			values = append(values, s)
 		}
 		lf := metricsql.LabelFilter{
-			Label: key,
+			Label: k,
 		}
 		if len(values) == 1 {
 			lf.Value = values[0]
@@ -541,18 +567,6 @@ func getCommonLabelFilters(tss []*timeseries) []metricsql.LabelFilter {
 		return lfs[i].Label < lfs[j].Label
 	})
 	return lfs
-}
-
-func getUniqueValues(a []string) []string {
-	m := make(map[string]struct{}, len(a))
-	results := make([]string, 0, len(a))
-	for _, s := range a {
-		if _, ok := m[s]; !ok {
-			results = append(results, s)
-			m[s] = struct{}{}
-		}
-	}
-	return results
 }
 
 func joinRegexpValues(a []string) string {
