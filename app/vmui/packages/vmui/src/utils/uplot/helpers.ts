@@ -42,7 +42,7 @@ export const formatPrettyNumber = (n: number | null | undefined, min = 0, max = 
     digits = 20;
   }
   return n.toLocaleString("en-US", {
-    minimumSignificantDigits: 1,
+    minimumSignificantDigits: digits,
     maximumSignificantDigits: digits,
   });
 };
