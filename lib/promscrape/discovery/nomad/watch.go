@@ -39,6 +39,9 @@ type serviceWatcher struct {
 	services    []Service
 	stopCh      chan struct{}
 	stoppedCh   chan struct{}
+
+	requestCtx    context.Context
+	requestCancel context.CancelFunc
 }
 
 // newNomadWatcher creates new watcher and starts background service discovery for Nomad.
@@ -91,10 +94,13 @@ func (cw *nomadWatcher) updateServices(serviceNames []string) {
 			// The watcher for serviceName already exists.
 			continue
 		}
+		ctx, cancel := context.WithCancel(cw.client.Context())
 		sw := &serviceWatcher{
-			serviceName: serviceName,
-			stopCh:      make(chan struct{}),
-			stoppedCh:   make(chan struct{}),
+			serviceName:   serviceName,
+			stopCh:        make(chan struct{}),
+			stoppedCh:     make(chan struct{}),
+			requestCtx:    ctx,
+			requestCancel: cancel,
 		}
 		cw.services[serviceName] = sw
 		serviceWatchersCreated.Inc()
@@ -117,7 +123,7 @@ func (cw *nomadWatcher) updateServices(serviceNames []string) {
 		if _, ok := newServiceNamesMap[serviceName]; ok {
 			continue
 		}
-		close(sw.stopCh)
+		sw.Stop()
 		delete(cw.services, serviceName)
 		swsStopped = append(swsStopped, sw)
 	}
@@ -200,7 +206,7 @@ var (
 // It returns an empty serviceNames list if response contains the same index.
 func (cw *nomadWatcher) getBlockingServiceNames(index int64) ([]string, int64, error) {
 	path := "/v1/services" + cw.serviceNamesQueryArgs
-	data, newIndex, err := getBlockingAPIResponse(cw.client, path, index)
+	data, newIndex, err := getBlockingAPIResponse(cw.client.Context(), cw.client, path, index)
 	if err != nil {
 		return nil, index, err
 	}
@@ -235,6 +241,12 @@ func (cw *nomadWatcher) getServiceSnapshot() map[string][]Service {
 	return sns
 }
 
+// Stop stops the service watcher and cancels in-flight request if there is any
+func (sw *serviceWatcher) Stop() {
+	close(sw.stopCh)
+	sw.requestCancel()
+}
+
 // watchForServiceNodesUpdates watches for Nomad serviceNode changes for the given serviceName.
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
@@ -244,7 +256,7 @@ func (sw *serviceWatcher) watchForServiceAddressUpdates(nw *nomadWatcher, initWG
 	// TODO: Maybe use a different query arg.
 	path := "/v1/service/" + sw.serviceName + nw.serviceNamesQueryArgs
 	f := func() {
-		data, newIndex, err := getBlockingAPIResponse(nw.client, path, index)
+		data, newIndex, err := getBlockingAPIResponse(sw.requestCtx, nw.client, path, index)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Errorf("cannot obtain Nomad services for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)

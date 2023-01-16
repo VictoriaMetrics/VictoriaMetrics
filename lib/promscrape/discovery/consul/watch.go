@@ -43,6 +43,9 @@ type serviceWatcher struct {
 	serviceNodes []ServiceNode
 	stopCh       chan struct{}
 	stoppedCh    chan struct{}
+
+	requestCtx    context.Context
+	requestCancel context.CancelFunc
 }
 
 // newConsulWatcher creates new watcher and starts background service discovery for Consul.
@@ -100,10 +103,13 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 			// The watcher for serviceName already exists.
 			continue
 		}
+		ctx, cancel := context.WithCancel(cw.client.Context())
 		sw := &serviceWatcher{
-			serviceName: serviceName,
-			stopCh:      make(chan struct{}),
-			stoppedCh:   make(chan struct{}),
+			serviceName:   serviceName,
+			stopCh:        make(chan struct{}),
+			stoppedCh:     make(chan struct{}),
+			requestCtx:    ctx,
+			requestCancel: cancel,
 		}
 		cw.services[serviceName] = sw
 		serviceWatchersCreated.Inc()
@@ -126,7 +132,7 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 		if _, ok := newServiceNamesMap[serviceName]; ok {
 			continue
 		}
-		close(sw.stopCh)
+		sw.Stop()
 		delete(cw.services, serviceName)
 		swsStopped = append(swsStopped, sw)
 	}
@@ -209,7 +215,7 @@ var (
 // It returns an empty serviceNames list if response contains the same index.
 func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, error) {
 	path := "/v1/catalog/services" + cw.serviceNamesQueryArgs
-	data, newIndex, err := getBlockingAPIResponse(cw.client, path, index)
+	data, newIndex, err := getBlockingAPIResponse(cw.client.Context(), cw.client, path, index)
 	if err != nil {
 		return nil, index, err
 	}
@@ -234,6 +240,12 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 	return serviceNames, newIndex, nil
 }
 
+// Stop stops the service watcher and cancels in-flight request if there is any
+func (sw *serviceWatcher) Stop() {
+	close(sw.stopCh)
+	sw.requestCancel()
+}
+
 // watchForServiceNodesUpdates watches for Consul serviceNode changes for the given serviceName.
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
@@ -242,7 +254,7 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 	index := int64(0)
 	path := "/v1/health/service/" + sw.serviceName + cw.serviceNodesQueryArgs
 	f := func() {
-		data, newIndex, err := getBlockingAPIResponse(cw.client, path, index)
+		data, newIndex, err := getBlockingAPIResponse(sw.requestCtx, cw.client, path, index)
 		if err != nil {
 			if !errors.Is(err, context.Canceled) {
 				logger.Errorf("cannot obtain Consul serviceNodes for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
