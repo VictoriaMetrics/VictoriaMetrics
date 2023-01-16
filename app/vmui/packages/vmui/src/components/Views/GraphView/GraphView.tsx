@@ -1,9 +1,9 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
 import LineChart from "../../Chart/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
 import Legend from "../../Chart/Legend/Legend";
-import { getHideSeries, getLegendItem, getSeriesItem } from "../../../utils/uplot/series";
+import { getHideSeries, getLegendItem, getSeriesItemContext } from "../../../utils/uplot/series";
 import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
 import { LegendItemType } from "../../../utils/uplot/types";
 import { TimeParams } from "../../../types";
@@ -59,6 +59,7 @@ const GraphView: FC<GraphViewProps> = ({
 }) => {
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
+  const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
