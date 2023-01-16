@@ -48,7 +48,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
         : (d.metric[c.key] || "-")
       )),
       value: d.value ? d.value[1] : "-",
-      values: d.values ? d.values.map(([time, val]) => `${val} @${time}`) : null,
+      values: d.values ? d.values.map(([time, val]) => `${val} @${time}`) : [],
       copyValue: getCopyValue(d.metric)
     }));
     const orderByValue = orderBy === "Value";
@@ -173,8 +173,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
                 </td>
               ))}
               <td className="vm-table-cell vm-table-cell_right vm-table-cell_no-wrap">
-                {!row.values && row.value}
-                {row.values && row.values.map(val => <p key={val}>{val}</p>)}
+                {!row.values.length ? row.value : row.values.map(val => <p key={val}>{val}</p>)}
               </td>
               {hasCopyValue && (
                 <td className="vm-table-cell vm-table-cell_right">

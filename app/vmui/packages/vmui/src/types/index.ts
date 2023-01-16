@@ -35,7 +35,7 @@ export interface DataSeries extends MetricBase{
 export interface InstantDataSeries {
   metadata: string[]; // just ordered columns
   value: string;
-  values: string[] | null
+  values: string[]
   copyValue: string;
 }
 
