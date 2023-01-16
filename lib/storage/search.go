@@ -10,7 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 )
 
 // BlockRef references a Block.
@@ -512,7 +511,6 @@ func checkSearchDeadlineAndPace(deadline uint64) error {
 	if fasttime.UnixTimestamp() > deadline {
 		return ErrDeadlineExceeded
 	}
-	storagepacelimiter.Search.WaitIfNeeded()
 	return nil
 }
 
