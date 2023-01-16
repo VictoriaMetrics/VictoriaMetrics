@@ -26,7 +26,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/uint64set"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/workingsetcache"
 	"github.com/VictoriaMetrics/fastcache"
@@ -446,8 +445,6 @@ type Metrics struct {
 	TooSmallTimestampRows uint64
 	TooBigTimestampRows   uint64
 
-	SearchDelays uint64
-
 	SlowRowInserts         uint64
 	SlowPerDayIndexInserts uint64
 	SlowMetricNameLoads    uint64
@@ -516,8 +513,6 @@ func (s *Storage) UpdateMetrics(m *Metrics) {
 
 	m.TooSmallTimestampRows += atomic.LoadUint64(&s.tooSmallTimestampRows)
 	m.TooBigTimestampRows += atomic.LoadUint64(&s.tooBigTimestampRows)
-
-	m.SearchDelays = storagepacelimiter.Search.DelaysTotal()
 
 	m.SlowRowInserts += atomic.LoadUint64(&s.slowRowInserts)
 	m.SlowPerDayIndexInserts += atomic.LoadUint64(&s.slowPerDayIndexInserts)
