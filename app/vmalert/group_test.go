@@ -158,7 +158,11 @@ func TestUpdateWith(t *testing.T) {
 
 func TestGroupStart(t *testing.T) {
 	// TODO: make parsing from string instead of file
-	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
+	fss, err := config.InitFS([]string{"config/testdata/rules/rules1-good.rules"})
+	if err != nil {
+		t.Fatalf("failed to load config: %s", err)
+	}
+	groups, err := config.Parse(fss, notifier.ValidateTemplates, true)
 	if err != nil {
 		t.Fatalf("failed to parse rules: %s", err)
 	}

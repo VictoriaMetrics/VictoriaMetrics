@@ -22,7 +22,11 @@ func TestMain(m *testing.M) {
 }
 
 func TestParseGood(t *testing.T) {
-	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
+	fss, err := InitFS([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"})
+	if err != nil {
+		t.Fatalf("failed to load config: %s", err)
+	}
+	if _, err := Parse(fss, notifier.ValidateTemplates, true); err != nil {
 		t.Errorf("error parsing files %s", err)
 	}
 }
@@ -66,7 +70,11 @@ func TestParseBad(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
+		fss, err := InitFS(tc.path)
+		if err != nil {
+			t.Fatalf("failed to load config: %s", err)
+		}
+		_, err = Parse(fss, notifier.ValidateTemplates, true)
 		if err == nil {
 			t.Errorf("expected to get error")
 			return

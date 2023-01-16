@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -202,55 +200,59 @@ func (r *Rule) Validate() error {
 type ValidateTplFn func(annotations map[string]string) error
 
 // Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	var fp []string
-	for _, pattern := range pathPatterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("error reading file pattern %s: %w", pattern, err)
-		}
-		fp = append(fp, matches...)
-	}
+func Parse(fss []FS, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
-	for _, file := range fp {
-		uniqueGroups := map[string]struct{}{}
-		gr, err := parseFile(file)
+	for _, fs := range fss {
+		files, err := fs.Read()
 		if err != nil {
-			errGroup.Add(fmt.Errorf("failed to parse file %q: %w", file, err))
-			continue
+			return nil, fmt.Errorf("failed to read config files from %q: %w", fs, err)
 		}
-		for _, g := range gr {
-			if err := g.Validate(validateTplFn, validateExpressions); err != nil {
-				errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
+
+		for file, data := range files {
+			uniqueGroups := map[string]struct{}{}
+			gr, err := parseFile(data)
+			if err != nil {
+				fmt.Println(file, string(data))
+				errGroup.Add(fmt.Errorf("failed to parse file %q: %w", file, err))
 				continue
 			}
-			if _, ok := uniqueGroups[g.Name]; ok {
-				errGroup.Add(fmt.Errorf("group name %q duplicate in file %q", g.Name, file))
-				continue
+			for _, g := range gr {
+				if err := g.Validate(validateTplFn, validateExpressions); err != nil {
+					errGroup.Add(fmt.Errorf("invalid group %q in file %q: %w", g.Name, file, err))
+					continue
+				}
+				if _, ok := uniqueGroups[g.Name]; ok {
+					errGroup.Add(fmt.Errorf("group name %q duplicate in file %q", g.Name, file))
+					continue
+				}
+				uniqueGroups[g.Name] = struct{}{}
+				g.File = file
+				groups = append(groups, g)
 			}
-			uniqueGroups[g.Name] = struct{}{}
-			g.File = file
-			groups = append(groups, g)
 		}
 	}
+
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
 	if len(groups) < 1 {
-		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+		var patterns []string
+		for _, fs := range fss {
+			patterns = append(patterns, fs.String())
+		}
+		logger.Warnf("no groups found in %s", strings.Join(patterns, ";"))
 	}
+	sort.Slice(groups, func(i, j int) bool {
+		return groups[i].Name < groups[j].Name
+	})
 	return groups, nil
 }
 
-func parseFile(path string) ([]Group, error) {
-	data, err := os.ReadFile(path)
+func parseFile(data []byte) ([]Group, error) {
+	data, err := envtemplate.ReplaceBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf("error reading alert rule file %q: %w", path, err)
-	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
+		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 	g := struct {
 		Groups []Group `yaml:"groups"`

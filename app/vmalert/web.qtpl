@@ -40,9 +40,9 @@
             for _, g := range groups {
                 for _, r := range g.Rules {
                     if r.LastError != "" {
-                        rNotOk[g.Name]++
+                        rNotOk[g.ID]++
                     } else {
-                        rOk[g.Name]++
+                        rOk[g.ID]++
                     }
                 }
             }
@@ -50,11 +50,11 @@
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
         {% for _, g := range groups  %}
-              <div class="group-heading{% if rNotOk[g.Name] > 0 %} alert-danger{% endif %}"  data-bs-target="rules-{%s g.ID %}">
+              <div class="group-heading{% if rNotOk[g.ID] > 0 %} alert-danger{% endif %}"  data-bs-target="rules-{%s g.ID %}">
                 <span class="anchor" id="group-{%s g.ID %}"></span>
                 <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s)</a>
-                 {% if rNotOk[g.Name] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.Name] %}</span> {% endif %}
-                <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.Name] %}</span>
+                 {% if rNotOk[g.ID] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.ID] %}</span> {% endif %}
+                <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.ID] %}</span>
                 <p class="fs-6 fw-lighter">{%s g.File %}</p>
                 {% if len(g.Params) > 0 %}
                     <div class="fs-6 fw-lighter">Extra params

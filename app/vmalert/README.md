@@ -16,6 +16,7 @@ implementation and aims to be compatible with its syntax.
   support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
+* Load of recording and alerting rules from local filesystem, GCS and S3; 
 * Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-aplha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
@@ -334,6 +335,21 @@ labels:
 ```
 
 For recording rules to work `-remoteWrite.url` must be specified.
+
+#### Loading rules from remote storage
+
+`vmalert` supports remote storages GCS and S3 for loading alerting and recording rules.
+See more details in description of the `-rule` command-line flag.
+Flag `-rule` can be specified multiple times and allows mixing different filesystems for rules loading.
+For example:
+```
+-rule="/path/to/file". Path to a single file with alerting rules
+-rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
+```
+`-rule` value may contain %{ENV_VAR} placeholders, which are substituted by the corresponding ENV vars. 
+
+Support of remote storage for rules loading supposed to simplify rules management procedures 
+for multiple `vmalert` deployments.
 
 ### Alerts state on restarts
 
@@ -1096,12 +1112,14 @@ The shortlist of configuration flags is the following:
   -replay.timeTo string
      The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
-     Path to the file with alert rules.
-     Supports patterns. Flag can be specified multiple times.
+     Path to the files with alert rules.
+     Example: gs://bucket/path/to/rules, s3://bucket/path/to/rules, or fs:///path/to/local/rules/dir
+     If scheme remote storage scheme is omitted, local file system is used.
+     Local file system supports hierarchical patterns and regexes. Remote file system supports only matching by prefix.
+     Flag can be specified multiple times.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules
-      -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-     absolute path to all .yaml files in root.
+      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration

@@ -28,12 +28,14 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the file with alert rules.
-Supports patterns. Flag can be specified multiple times.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files with alert rules.
+Example: gs://bucket/path/to/rules, s3://bucket/path/to/rules, or fs:///path/to/local/rules/dir
+If scheme remote storage scheme is omitted, local file system is used.
+Local file system supports hierarchical patterns and regexes. Remote file system supports only matching by prefix.
+Flag can be specified multiple times.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
- -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-absolute path to all .yaml files in root.
+ -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
@@ -92,13 +94,24 @@ func main() {
 	logger.Init()
 	pushmetrics.Init()
 
-	err := templates.Load(*ruleTemplatesPath, true)
+	fss, err := config.InitFS(*rulePath)
+	if err != nil {
+		logger.Fatalf("failed to init config %q: %s", *rulePath, err)
+	}
+
+	defer func() {
+		for _, fs := range fss {
+			fs.MustStop()
+		}
+	}()
+
+	err = templates.Load(*ruleTemplatesPath, true)
 	if err != nil {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
 	}
 
 	if *dryRun {
-		groups, err := config.Parse(*rulePath, notifier.ValidateTemplates, true)
+		groups, err := config.Parse(fss, notifier.ValidateTemplates, true)
 		if err != nil {
 			logger.Fatalf("failed to parse %q: %s", *rulePath, err)
 		}
@@ -131,7 +144,7 @@ func main() {
 		if rw == nil {
 			logger.Fatalf("remoteWrite.url can't be empty in replay mode")
 		}
-		groupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+		groupsCfg, err := config.Parse(fss, validateTplFn, *validateExpressions)
 		if err != nil {
 			logger.Fatalf("cannot parse configuration file: %s", err)
 		}
@@ -153,7 +166,7 @@ func main() {
 		logger.Fatalf("failed to init: %s", err)
 	}
 	logger.Infof("reading rules configuration file from %q", strings.Join(*rulePath, ";"))
-	groupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+	groupsCfg, err := config.Parse(fss, validateTplFn, *validateExpressions)
 	if err != nil {
 		logger.Fatalf("cannot parse configuration file: %s", err)
 	}
@@ -167,7 +180,7 @@ func main() {
 		logger.Fatalf("failed to start: %s", err)
 	}
 
-	go configReload(ctx, manager, groupsCfg, sighupCh)
+	go configReload(ctx, manager, fss, groupsCfg, sighupCh)
 
 	rh := &requestHandler{m: manager}
 	go httpserver.Serve(*httpListenAddr, rh.handler)
@@ -285,7 +298,7 @@ See the docs at https://docs.victoriametrics.com/vmalert.html .
 	flagutil.Usage(s)
 }
 
-func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
+func configReload(ctx context.Context, m *manager, fss []config.FS, groupsCfg []config.Group, sighupCh <-chan os.Signal) {
 	var configCheckCh <-chan time.Time
 	checkInterval := *configCheckInterval
 	if checkInterval == 0 && *rulesCheckInterval > 0 {
@@ -332,7 +345,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := config.Parse(fss, validateTplFn, *validateExpressions)
 		if err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
@@ -361,6 +374,8 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 	}
 }
 
+// configsEqual expects entries in both slices
+// are already sorted.
 func configsEqual(a, b []config.Group) bool {
 	if len(a) != len(b) {
 		return false

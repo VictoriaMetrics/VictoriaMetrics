@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -93,7 +94,11 @@ groups:
 	writeToFile(t, f.Name(), rules1)
 
 	*rulesCheckInterval = 200 * time.Millisecond
-	*rulePath = []string{f.Name()}
+	fss, err := config.InitFS([]string{f.Name()})
+	if err != nil {
+		t.Fatalf("failed to load config: %s", err)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	m := &manager{
@@ -107,7 +112,7 @@ groups:
 	syncCh := make(chan struct{})
 	sighupCh := procutil.NewSighupChan()
 	go func() {
-		configReload(ctx, m, nil, sighupCh)
+		configReload(ctx, m, fss, nil, sighupCh)
 		close(syncCh)
 	}()
 
