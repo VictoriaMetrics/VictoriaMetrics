@@ -190,13 +190,14 @@ func (cw *consulWatcher) watchForServicesUpdates(initCh chan struct{}) {
 
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
-				close(sw.stopCh)
+				sw.Stop()
 				swsStopped = append(swsStopped, sw)
 			}
 			cw.servicesLock.Unlock()
 
 			for _, sw := range swsStopped {
 				<-sw.stoppedCh
+				serviceWatchersStopped.Inc()
 			}
 			logger.Infof("stopped Consul service watcher for %q in %.3f seconds", apiServer, time.Since(startTime).Seconds())
 			return
