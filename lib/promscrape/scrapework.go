@@ -37,7 +37,6 @@ var (
 		"See also -promscrape.suppressScrapeErrorsDelay")
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
-	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
 
@@ -451,7 +450,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
-	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := sw.areIdenticalSeries(lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -485,9 +484,6 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 	samplesDropped := 0
 	if sw.seriesLimitExceeded || !areIdenticalSeries {
 		samplesDropped = sw.applySeriesLimit(wc)
-		if samplesDropped > 0 {
-			sw.seriesLimitExceeded = true
-		}
 	}
 	am := &autoMetrics{
 		up:                        up,
@@ -577,7 +573,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		err = sbr.Init(sr)
 		if err == nil {
 			bodyString = bytesutil.ToUnsafeString(sbr.body)
-			areIdenticalSeries = sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+			areIdenticalSeries = sw.areIdenticalSeries(lastScrape, bodyString)
 			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
@@ -594,9 +590,6 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				}
 				if sw.seriesLimitExceeded || !areIdenticalSeries {
 					samplesDropped += sw.applySeriesLimit(wc)
-					if samplesDropped > 0 && !sw.seriesLimitExceeded {
-						sw.seriesLimitExceeded = true
-					}
 				}
 				// Push the collected rows to sw before returning from the callback, since they cannot be held
 				// after returning from the callback - this will result in data race.
@@ -653,6 +646,15 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err
+}
+
+func (sw *scrapeWork) areIdenticalSeries(prevData, currData string) bool {
+	if sw.Config.NoStaleMarkers && sw.Config.SeriesLimit <= 0 {
+		// Do not spend CPU time on tracking the changes in series if stale markers are disabled.
+		// The check for series_limit is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
+		return true
+	}
+	return parser.AreIdenticalSeriesFast(prevData, currData)
 }
 
 // leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
@@ -738,17 +740,13 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 }
 
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
-	seriesLimit := *seriesLimitPerTarget
-	if sw.Config.SeriesLimit > 0 {
-		seriesLimit = sw.Config.SeriesLimit
-	}
-	if sw.seriesLimiter == nil && seriesLimit > 0 {
-		sw.seriesLimiter = bloomfilter.NewLimiter(seriesLimit, 24*time.Hour)
-	}
-	sl := sw.seriesLimiter
-	if sl == nil {
+	if sw.Config.SeriesLimit <= 0 {
 		return 0
 	}
+	if sw.seriesLimiter == nil {
+		sw.seriesLimiter = bloomfilter.NewLimiter(sw.Config.SeriesLimit, 24*time.Hour)
+	}
+	sl := sw.seriesLimiter
 	dstSeries := wc.writeRequest.Timeseries[:0]
 	samplesDropped := 0
 	for _, ts := range wc.writeRequest.Timeseries {
@@ -761,6 +759,9 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	}
 	prompbmarshal.ResetTimeSeries(wc.writeRequest.Timeseries[len(dstSeries):])
 	wc.writeRequest.Timeseries = dstSeries
+	if samplesDropped > 0 && !sw.seriesLimitExceeded {
+		sw.seriesLimitExceeded = true
+	}
 	return samplesDropped
 }
 
@@ -784,6 +785,13 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
 	}
+
+	// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
+	if sw.seriesLimitExceeded {
+		sw.applySeriesLimit(wc)
+	}
+
 	series := wc.writeRequest.Timeseries
 	if len(series) == 0 {
 		return
