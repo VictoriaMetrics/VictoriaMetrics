@@ -451,7 +451,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
-	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -510,9 +510,13 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 	}
 	// body must be released only after wc is released, since wc refers to body.
 	if !areIdenticalSeries {
-		// Send stale markers for disappeared metrics with the real scrape timestamp
-		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		// disable sendStaleSeries, since it is impossible to track which series became stale
+		// when seriesLimiter discards extra series.
+		if !sw.seriesLimitExceeded {
+			// Send stale markers for disappeared metrics with the real scrape timestamp
+			// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
+			sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		}
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
@@ -577,7 +581,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		err = sbr.Init(sr)
 		if err == nil {
 			bodyString = bytesutil.ToUnsafeString(sbr.body)
-			areIdenticalSeries = sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+			areIdenticalSeries = parser.AreIdenticalSeriesFast(lastScrape, bodyString)
 			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
@@ -643,9 +647,13 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	wc.reset()
 	writeRequestCtxPool.Put(wc)
 	if !areIdenticalSeries {
-		// Send stale markers for disappeared metrics with the real scrape timestamp
-		// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
-		sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		// disable sendStaleSeries, since it is impossible to track which series became stale
+		// when seriesLimiter discards extra series.
+		if !sw.seriesLimitExceeded {
+			// Send stale markers for disappeared metrics with the real scrape timestamp
+			// in order to guarantee that query doesn't return data after this time for the disappeared metrics.
+			sw.sendStaleSeries(lastScrape, bodyString, realTimestamp, false)
+		}
 		sw.storeLastScrape(sbr.body)
 	}
 	sw.finalizeLastScrape()
