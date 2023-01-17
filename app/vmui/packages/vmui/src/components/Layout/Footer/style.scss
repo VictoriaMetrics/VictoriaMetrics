@@ -5,16 +5,26 @@
   align-items: center;
   justify-content: center;
   padding: $padding-medium;
-  gap: $padding-large;
+  gap: $padding-medium;
   border-top: $border-divider;
   color: $color-text-secondary;
+  background: $color-background-body;
 
+  &__link,
   &__website {
     display: grid;
     grid-template-columns: 12px auto;
     align-items: center;
     justify-content: center;
     gap: 6px;
+  }
+
+  &__website {
+    margin-right: $padding-global;
+  }
+
+  &__link {
+    grid-template-columns: 14px auto;
   }
 
   &__copyright {

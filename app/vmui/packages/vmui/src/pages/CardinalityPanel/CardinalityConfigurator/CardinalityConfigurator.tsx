@@ -4,11 +4,12 @@ import { useFetchQueryOptions } from "../../../hooks/useFetchQueryOptions";
 import { ErrorTypes } from "../../../types";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import Switch from "../../../components/Main/Switch/Switch";
-import { PlayIcon } from "../../../components/Main/Icons";
+import { PlayIcon, QuestionIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
 import { useMemo } from "preact/compat";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export interface CardinalityConfiguratorProps {
   onSetHistory: (step: number) => void;
@@ -92,13 +93,13 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
           onChange={onFocusLabelChange}
         />
       </div>
-      <div className="vm-cardinality-configurator-controls__item">
-        <Switch
-          label={"Autocomplete"}
-          value={autocomplete}
-          onChange={onChangeAutocomplete}
-        />
-      </div>
+    </div>
+    <div className="vm-cardinality-configurator-bottom__autocomplete">
+      <Switch
+        label={"Autocomplete"}
+        value={autocomplete}
+        onChange={onChangeAutocomplete}
+      />
     </div>
     <div className="vm-cardinality-configurator-bottom">
       <div className="vm-cardinality-configurator-bottom__info">
@@ -106,6 +107,19 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
         at <b>{date}</b>{match && <span> for series selector <b>{match}</b></span>}.
         Show top {topN} entries per table.
       </div>
+      <a
+        className="vm-cardinality-configurator-bottom__docs"
+        href="https://victoriametrics.com/blog/cardinality-explorer/?_gl=1*qdhixt*_ga*MTE3OTAyMTU1My4xNjcwODI4MDQ2*_ga_N9SVT8S3HK*MTY3Mzg4NzIxNi4yMy4xLjE2NzM4ODg3NTYuMC4wLjA."
+        target="_blank"
+        rel="help noreferrer"
+      >
+        <Tooltip title="Example of using">
+          <Button
+            variant="text"
+            startIcon={<QuestionIcon/>}
+          />
+        </Tooltip>
+      </a>
       <Button
         startIcon={<PlayIcon/>}
         onClick={onRunQuery}

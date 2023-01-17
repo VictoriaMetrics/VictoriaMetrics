@@ -21,7 +21,7 @@ $button-radius: 6px;
   white-space: nowrap;
 
   &:hover:after {
-    background-color: rgba($color-black, 0.05);
+    background-color: $color-hover-black;
   }
 
   &:before,

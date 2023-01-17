@@ -89,6 +89,7 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onCh
               onClick={handleClose}
               startIcon={<CloseIcon/>}
               size="small"
+              variant="text"
             />
           </div>
           <div className="vm-table-settings-popper-list">

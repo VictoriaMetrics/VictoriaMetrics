@@ -2,14 +2,14 @@
 
 .vm-json-form {
   display: grid;
-  grid-template-rows: auto calc(90vh - 78px - ($padding-medium*3)) auto;
+  grid-template-rows: auto calc(85vh - 78px - ($padding-medium*3)) auto;
   gap: $padding-global;
   width: 70vw;
   max-width: 1000px;
   max-height: 900px;
 
   &_one-field {
-    grid-template-rows: calc(90vh - 78px - ($padding-medium*3)) auto;
+    grid-template-rows: calc(85vh - 78px - ($padding-medium*3)) auto;
   }
 
   textarea {

@@ -1,5 +1,6 @@
 /* eslint-disable */
 import uPlot from "uplot";
+import {getCssVariable} from "../theme";
 
 export const seriesBarsPlugin = (opts) => {
   let pxRatio;
@@ -88,7 +89,7 @@ export const seriesBarsPlugin = (opts) => {
     u.ctx.save();
 
     u.ctx.font         = font;
-    u.ctx.fillStyle    = "black";
+    u.ctx.fillStyle    = getCssVariable("color-text");
 
     uPlot.orient(u, sidx, (
       series,

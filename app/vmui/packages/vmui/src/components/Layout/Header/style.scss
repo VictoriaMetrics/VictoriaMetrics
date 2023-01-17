@@ -12,6 +12,14 @@
     padding: $padding-small 0;
   }
 
+  &_dark {
+    .vm-header-button,
+    button:before,
+    button {
+      background-color: $color-background-body;
+    }
+  }
+
   @media (max-width: 1200px) {
     gap: $padding-global;
 

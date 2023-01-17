@@ -16,16 +16,26 @@ import "./style.scss";
 import classNames from "classnames";
 import { useDashboardsState } from "../../../state/dashboards/DashboardsStateContext";
 import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
+import { useAppState } from "../../../state/common/StateContext";
 
 const Header: FC = () => {
-  const primaryColor = getCssVariable("color-primary");
+  const { darkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
   const { dashboardsSettings } = useDashboardsState();
 
-  const { headerStyles: {
-    background = appModeEnable ? "#FFF" : primaryColor,
-    color = appModeEnable ? primaryColor : "#FFF",
-  } = {} } = getAppModeParams();
+  const primaryColor = useMemo(() => {
+    const variable = darkTheme ? "color-background-block" : "color-primary";
+    return getCssVariable(variable);
+  }, [darkTheme]);
+
+  const { background, color } = useMemo(() => {
+    const { headerStyles: {
+      background = appModeEnable ? "#FFF" : primaryColor,
+      color = appModeEnable ? primaryColor : "#FFF",
+    } = {} } = getAppModeParams();
+
+    return { background, color };
+  }, [primaryColor]);
 
   const navigate = useNavigate();
   const { search, pathname } = useLocation();
@@ -80,7 +90,8 @@ const Header: FC = () => {
   return <header
     className={classNames({
       "vm-header": true,
-      "vm-header_app": appModeEnable
+      "vm-header_app": appModeEnable,
+      "vm-header_dark": darkTheme
     })}
     style={{ background, color }}
   >

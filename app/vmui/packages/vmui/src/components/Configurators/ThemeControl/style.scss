@@ -1,0 +1,43 @@
+@use "src/styles/variables" as *;
+
+.vm-theme-control {
+  &-options {
+    position: relative;
+    display: inline-flex;
+    border: $border-divider;
+    border-radius: $border-radius-medium;
+    overflow: hidden;
+
+    &__item {
+      position: relative;
+      padding: $padding-small $padding-global;
+      border-right: $border-divider;
+      color: $color-text;
+      cursor: pointer;
+      z-index: 2;
+      transition: color 200ms ease-out;
+
+      &:last-child {
+        border: none;
+      }
+
+      &_active {
+        color: $color-primary-text;
+      }
+
+      &:hover {
+        box-shadow: $box-shadow-popper;
+      }
+    }
+
+    &__highlight {
+      position: absolute;
+      top: 0;
+      left: 0;
+      background-color: $color-primary;
+      height: 100%;
+      width: 50%;
+      transition: left 150ms ease-in;
+    }
+  }
+}

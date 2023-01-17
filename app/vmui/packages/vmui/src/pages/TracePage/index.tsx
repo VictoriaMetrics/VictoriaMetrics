@@ -151,7 +151,7 @@ const TracePage: FC = () => {
               className="vm-link vm-link_colored"
               href="https://docs.victoriametrics.com/#query-tracing"
               target="_blank"
-              rel="noreferrer"
+              rel="help noreferrer"
             >
               https://docs.victoriametrics.com/#query-tracing
             </a>
