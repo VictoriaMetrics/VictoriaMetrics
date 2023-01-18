@@ -16,14 +16,15 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Code checkout
+        uses: actions/checkout@v3
+
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
           go-version: 1.19.5
           check-latest: true
           cache: true
-      - name: Code checkout
-        uses: actions/checkout@v3
 
       - name: Build
         run: |
