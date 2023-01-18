@@ -515,6 +515,14 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 	if rrb != nil {
 		pt.flushRowsToParts(rrb.rows)
 		putRawRowsBlock(rrb)
+
+		// Run assisted merges if needed.
+		flushConcurrencyCh <- struct{}{}
+		pt.assistedMergeForInmemoryParts()
+		pt.assistedMergeForSmallParts()
+		// There is no need in assisted merges for big parts,
+		// since the bottleneck is possible only at inmemory and small parts.
+		<-flushConcurrencyCh
 	}
 
 	return rows
@@ -582,13 +590,6 @@ func (pt *partition) flushRowsToParts(rows []rawRow) {
 	pt.partsLock.Lock()
 	pt.inmemoryParts = append(pt.inmemoryParts, pws...)
 	pt.partsLock.Unlock()
-
-	flushConcurrencyCh <- struct{}{}
-	pt.assistedMergeForInmemoryParts()
-	pt.assistedMergeForSmallParts()
-	<-flushConcurrencyCh
-	// There is no need in assisted merges for small and big parts,
-	// since the bottleneck is possible only at inmemory parts.
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
