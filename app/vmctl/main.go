@@ -25,10 +25,6 @@ func main() {
 	cmd := &flagutil.Command{
 		Name:  "vmctl",
 		Usage: "VictoriaMetrics command-line tool",
-		// Version: buildinfo.Version,
-		// Disable `-version` flag to avoid conflict with lib/buildinfo flags
-		// see https://github.com/urfave/cli/issues/1560
-		// HideVersion: true,
 		Subcommands: []*flagutil.Command{
 			{
 				Name:   "opentsdb",
@@ -68,9 +64,6 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
-		// if importer != nil {
-		// 	importer.Close()
-		// }
 		cancelCtx()
 	}()
 
