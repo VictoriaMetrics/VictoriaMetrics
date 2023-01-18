@@ -133,7 +133,7 @@ export const useFetchQuery = ({
     setIsLoading(false);
   };
 
-  const throttledFetchData = useCallback(debounce(fetchData, 800), []);
+  const throttledFetchData = useCallback(debounce(fetchData, 300), []);
 
   const fetchUrl = useMemo(() => {
     const expr = predefinedQuery ?? query;

@@ -1,14 +1,35 @@
-export const getColorFromString = (str: string): string => {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash);
+export const baseContrastColors = [
+  "#e54040",
+  "#32a9dc",
+  "#2ee329",
+  "#7126a1",
+  "#e38f0f",
+  "#3d811a",
+  "#ffea00",
+  "#2d2d2d",
+  "#da42a6",
+  "#a44e0c",
+];
+
+export const getColorFromString = (text: string): string => {
+  const SEED = 16777215;
+  const FACTOR = 49979693;
+
+  let b = 1;
+  let d = 0;
+  let f = 1;
+
+  if (text.length > 0) {
+    for (let i = 0; i < text.length; i++) {
+      text[i].charCodeAt(0) > d && (d = text[i].charCodeAt(0));
+      f = parseInt(String(SEED / d));
+      b = (b + text[i].charCodeAt(0) * f * FACTOR) % SEED;
+    }
   }
-  let colour = "#";
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xFF;
-    colour += ("00" + value.toString(16)).substr(-2);
-  }
-  return colour;
+
+  let hex = ((b * text.length) % SEED).toString(16);
+  hex = hex.padEnd(6, hex);
+  return `#${hex}`;
 };
 
 export const hexToRGB = (hex: string): string => {
