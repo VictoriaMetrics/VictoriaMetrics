@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -9,12 +10,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
+var (
+	globalSilent  = flag.Bool("s", false, "Whether to run in silent mode. If set to true no confirmation prompts will appear.")
+	globalVerbose = flag.Bool("verbose", false, "Whether to enable verbosity in logs output.")
+)
+
 func main() {
-	// var importer *vm.Importer
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
@@ -29,7 +33,7 @@ func main() {
 			{
 				Name:   "opentsdb",
 				Usage:  "Migrate time series from OpenTSDB",
-				Action: otsbImport,
+				Action: otsdbImport,
 			},
 			{
 				Name:   "influx",
@@ -72,21 +76,4 @@ func main() {
 
 	cmd.Run()
 	log.Printf("Total time: %v", time.Since(start))
-}
-
-func initConfigVM() vm.Config {
-	return vm.Config{
-		Addr:               *vmAddr,
-		User:               *vmUser,
-		Password:           *vmPassword,
-		Concurrency:        uint8(*vmConcurrency),
-		Compress:           *vmCompress,
-		AccountID:          *vmAccountID,
-		BatchSize:          *vmBatchSize,
-		SignificantFigures: *vmSignificantFigures,
-		RoundDigits:        *vmRoundDigits,
-		ExtraLabels:        *vmExtraLabel,
-		RateLimit:          *vmRateLimit,
-		DisableProgressBar: *vmDisableProgressBar,
-	}
 }

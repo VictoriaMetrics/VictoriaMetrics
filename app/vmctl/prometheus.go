@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"sync"
@@ -8,9 +9,19 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
+)
+
+var (
+	promSnapshot         = flag.String("prom-snapshot", "", "Path to Prometheus snapshot. Pls see for details https://www.robustperception.io/taking-snapshots-of-prometheus-data")
+	promConcurrency      = flag.Int("prom-concurrency", 1, "Number of concurrently running snapshot readers")
+	promFilterTimeStart  = flag.String("prom-filter-time-start", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'")
+	promFilterTimeEnd    = flag.String("prom-filter-time-end", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'")
+	promFilterLabel      = flag.String("prom-filter-label", "", "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.")
+	promFilterLabelValue = flag.String("prom-filter-label-value", ".*", "Prometheus regular expression to filter label from \"prom-filter-label\" flag.")
 )
 
 type prometheusProcessor struct {
@@ -156,6 +167,15 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 
 func prometheusImport(args []string) {
 	fmt.Println("Prometheus import mode")
+
+	if *promSnapshot == "" {
+		logger.Fatalf("flag --prom-snapshot should contain path to Prometheus snapshot")
+	}
+
+	err := flagutil.SetFlagsFromEnvironment()
+	if err != nil {
+		logger.Fatalf("error set flags from environment variables: %s", err)
+	}
 
 	vmCfg := initConfigVM()
 	importer, err := vm.NewImporter(vmCfg)

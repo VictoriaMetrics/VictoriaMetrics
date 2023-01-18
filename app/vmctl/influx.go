@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -9,7 +10,26 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+)
+
+var (
+	influxAddr         = flag.String("influx-addr", "http://localhost:8086", "InfluxDB server addr")
+	influxUser         = flag.String("influx-user", "", "InfluxDB user")
+	influxPassword     = flag.String("influx-password", "", "InfluxDB user password")
+	influxDB           = flag.String("influx-database", "", "InfluxDB database")
+	influxRetention    = flag.String("influx-retention-policy", "", "InfluxDB retention policy")
+	influxChunkSize    = flag.Int("influx-chunk-size", 10_000, "The chunkSize defines max amount of series to be returned in one chunk")
+	influxConcurrency  = flag.Int("influx-concurrency", 1, "Number of concurrently running fetch queries to InfluxDB")
+	influxFilterSeries = flag.String("influx-filter-series", "", "InfluxDB filter expression to select series. E.g. \"from cpu where arch='x86' AND hostname='host_2753'\".\n"+
+		"See for details https://docs.influxdata.com/influxdb/v1.7/query_language/schema_exploration#show-series")
+
+	influxFilterTimeStart           = flag.String("influx-filter-time-start", "", "The time filter to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'")
+	influxFilterTimeEnd             = flag.String("influx-filter-time-end", "", "The time filter to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'")
+	influxMeasurementFieldSeparator = flag.String("influx-measurement-field-separator", "_", "The {separator} symbol used to concatenate {measurement} and {field} names into series name {measurement}{separator}{field}.")
+	influxSkipDatabaseLabel         = flag.Bool("influx-skip-database-label", false, "Whether to skip adding the label 'db' to timeseries.")
+	influxPrometheusMode            = flag.Bool("influx-prometheus-mode", false, "Whether to restore the original timeseries name previously written from Prometheus to InfluxDB v1 via remote_write.")
 )
 
 type influxProcessor struct {
@@ -169,6 +189,15 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 
 func influxImporter(args []string) {
 	fmt.Println("InfluxDB import mode")
+
+	if *influxDB == "" {
+		logger.Fatalf("flag --influx-database cannot be empty")
+	}
+
+	err := flagutil.SetFlagsFromEnvironment()
+	if err != nil {
+		logger.Fatalf("error set flags from environment variables: %s", err)
+	}
 
 	iCfg := influx.Config{
 		Addr:      *influxAddr,

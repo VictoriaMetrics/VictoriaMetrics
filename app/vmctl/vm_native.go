@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -10,12 +11,34 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+)
+
+var (
+	vmNativeFilterMatch = flag.String("vm-native-filter-match", `{__name__!=""}`, "Time series selector to match series for export. For example, select {instance!=\"localhost\"} will "+
+		"match all series with \"instance\" label different to \"localhost\".\n"+
+		" See more details here https://github.com/VictoriaMetrics/VictoriaMetrics#how-to-export-data-in-native-format")
+	vmNativeFilterTimeStart = flag.String("vm-native-filter-time-start", "", "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'")
+	vmNativeFilterTimeEnd   = flag.String("vm-native-filter-time-end", "", "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'")
+	vmNativeStepInterval    = flag.String("vm-native-step-interval", "", fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", "-vm-native-filter-time-start", stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute))
+
+	vmNativeSrcAddr = flag.String("vm-native-src-addr", "", "VictoriaMetrics address to perform export from. \n"+
+		" Should be the same as --httpListenAddr value for single-node version or vmselect component."+
+		" If exporting from cluster version see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format")
+	vmNativeSrcUser     = flag.String("vm-native-src-user", "", "VictoriaMetrics username for basic auth")
+	vmNativeSrcPassword = flag.String("vm-native-src-password", "", "VictoriaMetrics password for basic auth")
+
+	vmNativeDstAddr = flag.String("vm-native-dst-addr", "", "VictoriaMetrics address to perform import to. \n"+
+		" Should be the same as --httpListenAddr value for single-node version or vminsert component."+
+		" If importing into cluster version see https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format")
+	vmNativeDstUser     = flag.String("vm-native-dst-user", "", "VictoriaMetrics username for basic auth")
+	vmNativeDstPassword = flag.String("vm-native-dst-password", "", "VictoriaMetrics password for basic auth")
 )
 
 type vmNativeProcessor struct {
@@ -280,7 +303,16 @@ func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error
 func nativeImport(ctx context.Context) func(args []string) {
 	return func(args []string) {
 		fmt.Println("VictoriaMetrics Native import mode")
-		err := SetFlagsFromEnvironment()
+
+		if *vmNativeSrcAddr == "" {
+			logger.Fatalf("flag --vm-native-src-addr cannot be empty")
+		}
+
+		if *vmNativeDstAddr == "" {
+			logger.Fatalf("flag --vm-native-dst-addr cannot be empty")
+		}
+
+		err := flagutil.SetFlagsFromEnvironment()
 		if err != nil {
 			logger.Fatalf("error set flags from environment variables: %s", err)
 		}

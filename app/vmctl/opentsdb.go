@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"sync"
@@ -8,8 +9,29 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
+)
+
+var (
+	otsdbAddr        = flag.String("otsdb-addr", "http://localhost:4242", "OpenTSDB server addr")
+	otsdbConcurrency = flag.Int("otsdb-concurrency", 1, "Number of concurrently running fetch queries to OpenTSDB per metric")
+	/*
+		because the defaults are set *extremely* low in OpenTSDB (10-25 results), we will
+		set a larger default limit, but still allow a user to increase/decrease it
+	*/
+	otsdbQueryLimit  = flag.Int("otsdb-query-limit", 100e6, "Result limit on meta queries to OpenTSDB (affects both metric name and tag value queries, recommended to use a value exceeding your largest series)")
+	otsdbOffsetDays  = flag.Int64("otsdb-offset-days", 0, "Days to offset our 'starting' point for collecting data from OpenTSDB")
+	otsdbHardTSStart = flag.Int64("otsdb-hard-ts-start", 0, "A specific timestamp to start from, will override using an offset")
+	otsdbRetentions  = flagutil.NewArrayString("otsdb-retentions", "Retentions patterns to collect on. Each pattern should describe the aggregation performed "+
+		"for the query, the row size (in HBase) that will define how long each individual query is, "+
+		"and the time range to query for. e.g. sum-1m-avg:1h:3d. "+
+		"The first time range defined should be a multiple of the row size in HBase. "+
+		"e.g. if the row size is 2 hours, 4h is good, 5h less so. We want each query to land on unique rows.")
+	otsdbFilters   = flagutil.NewArrayString("otsdb-filters", "Filters to process for discovering metrics in OpenTSDB")
+	otsdbNormalize = flag.Bool("otsdb-normalize", false, "Whether to normalize all data received to lower case before forwarding to VictoriaMetrics")
+	otsdbMsecsTime = flag.Bool("otsdb-msecstime", false, "Whether OpenTSDB is writing values in milliseconds or seconds")
 )
 
 type otsdbProcessor struct {
@@ -173,11 +195,23 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	return nil
 }
 
-func otsbImport(args []string) {
+func otsdbImport(args []string) {
 	fmt.Println("OpenTSDB import mode")
+
+	if *otsdbAddr == "" {
+		logger.Fatalf("flag --otsdb-addr is required")
+	}
+	if len(*otsdbRetentions) == 0 {
+		logger.Fatalf("flag --otsdb-retentions should contains at least one retention")
+	}
 
 	if err := otsdbFilters.Set("a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z"); err != nil {
 		logger.Fatalf("error set default values to otsdb-filter flag: %s", err)
+	}
+
+	err := flagutil.SetFlagsFromEnvironment()
+	if err != nil {
+		logger.Fatalf("error set flags from environment variables: %s", err)
 	}
 
 	oCfg := opentsdb.Config{
