@@ -34,15 +34,14 @@ type consulWatcher struct {
 	servicesLock sync.Mutex
 	services     map[string]*serviceWatcher
 
-	stopCh    chan struct{}
 	stoppedCh chan struct{}
 }
 
 type serviceWatcher struct {
 	serviceName  string
 	serviceNodes []ServiceNode
-	stopCh       chan struct{}
-	stoppedCh    chan struct{}
+
+	stoppedCh chan struct{}
 
 	requestCtx    context.Context
 	requestCancel context.CancelFunc
@@ -74,7 +73,6 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 		watchServices:         sdc.Services,
 		watchTags:             sdc.Tags,
 		services:              make(map[string]*serviceWatcher),
-		stopCh:                make(chan struct{}),
 		stoppedCh:             make(chan struct{}),
 	}
 	initCh := make(chan struct{})
@@ -88,7 +86,6 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 }
 
 func (cw *consulWatcher) mustStop() {
-	close(cw.stopCh)
 	cw.client.Stop()
 	<-cw.stoppedCh
 }
@@ -106,7 +103,6 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 		ctx, cancel := context.WithCancel(cw.client.Context())
 		sw := &serviceWatcher{
 			serviceName:   serviceName,
-			stopCh:        make(chan struct{}),
 			stoppedCh:     make(chan struct{}),
 			requestCtx:    ctx,
 			requestCancel: cancel,
@@ -132,7 +128,7 @@ func (cw *consulWatcher) updateServices(serviceNames []string) {
 		if _, ok := newServiceNamesMap[serviceName]; ok {
 			continue
 		}
-		sw.Stop()
+		sw.requestCancel()
 		delete(cw.services, serviceName)
 		swsStopped = append(swsStopped, sw)
 	}
@@ -179,18 +175,19 @@ func (cw *consulWatcher) watchForServicesUpdates(initCh chan struct{}) {
 	checkInterval := getCheckInterval()
 	ticker := time.NewTicker(checkInterval / 2)
 	defer ticker.Stop()
+	stopCh := cw.client.Context().Done()
 	for {
 		select {
 		case <-ticker.C:
 			f()
-		case <-cw.stopCh:
+		case <-stopCh:
 			logger.Infof("stopping Consul service watchers for %q", apiServer)
 			startTime := time.Now()
 			var swsStopped []*serviceWatcher
 
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
-				sw.Stop()
+				sw.requestCancel()
 				swsStopped = append(swsStopped, sw)
 			}
 			cw.servicesLock.Unlock()
@@ -241,12 +238,6 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 	return serviceNames, newIndex, nil
 }
 
-// Stop stops the service watcher and cancels in-flight request if there is any
-func (sw *serviceWatcher) Stop() {
-	close(sw.stopCh)
-	sw.requestCancel()
-}
-
 // watchForServiceNodesUpdates watches for Consul serviceNode changes for the given serviceName.
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
@@ -286,11 +277,12 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 	checkInterval := getCheckInterval()
 	ticker := time.NewTicker(checkInterval / 2)
 	defer ticker.Stop()
+	stopCh := sw.requestCtx.Done()
 	for {
 		select {
 		case <-ticker.C:
 			f()
-		case <-sw.stopCh:
+		case <-stopCh:
 			return
 		}
 	}

@@ -30,15 +30,14 @@ type nomadWatcher struct {
 	servicesLock sync.Mutex
 	services     map[string]*serviceWatcher
 
-	stopCh    chan struct{}
 	stoppedCh chan struct{}
 }
 
 type serviceWatcher struct {
 	serviceName string
 	services    []Service
-	stopCh      chan struct{}
-	stoppedCh   chan struct{}
+
+	stoppedCh chan struct{}
 
 	requestCtx    context.Context
 	requestCancel context.CancelFunc
@@ -65,7 +64,6 @@ func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace, re
 		client:                client,
 		serviceNamesQueryArgs: queryArgs,
 		services:              make(map[string]*serviceWatcher),
-		stopCh:                make(chan struct{}),
 		stoppedCh:             make(chan struct{}),
 	}
 	initCh := make(chan struct{})
@@ -79,7 +77,6 @@ func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace, re
 }
 
 func (cw *nomadWatcher) mustStop() {
-	close(cw.stopCh)
 	cw.client.Stop()
 	<-cw.stoppedCh
 }
@@ -97,7 +94,6 @@ func (cw *nomadWatcher) updateServices(serviceNames []string) {
 		ctx, cancel := context.WithCancel(cw.client.Context())
 		sw := &serviceWatcher{
 			serviceName:   serviceName,
-			stopCh:        make(chan struct{}),
 			stoppedCh:     make(chan struct{}),
 			requestCtx:    ctx,
 			requestCancel: cancel,
@@ -123,7 +119,7 @@ func (cw *nomadWatcher) updateServices(serviceNames []string) {
 		if _, ok := newServiceNamesMap[serviceName]; ok {
 			continue
 		}
-		sw.Stop()
+		sw.requestCancel()
 		delete(cw.services, serviceName)
 		swsStopped = append(swsStopped, sw)
 	}
@@ -170,18 +166,19 @@ func (cw *nomadWatcher) watchForServicesUpdates(initCh chan struct{}) {
 	checkInterval := getCheckInterval()
 	ticker := time.NewTicker(checkInterval / 2)
 	defer ticker.Stop()
+	stopCh := cw.client.Context().Done()
 	for {
 		select {
 		case <-ticker.C:
 			f()
-		case <-cw.stopCh:
+		case <-stopCh:
 			logger.Infof("stopping Nomad service watchers for %q", apiServer)
 			startTime := time.Now()
 			var swsStopped []*serviceWatcher
 
 			cw.servicesLock.Lock()
 			for _, sw := range cw.services {
-				sw.Stop()
+				sw.requestCancel()
 				swsStopped = append(swsStopped, sw)
 			}
 			cw.servicesLock.Unlock()
@@ -242,12 +239,6 @@ func (cw *nomadWatcher) getServiceSnapshot() map[string][]Service {
 	return sns
 }
 
-// Stop stops the service watcher and cancels in-flight request if there is any
-func (sw *serviceWatcher) Stop() {
-	close(sw.stopCh)
-	sw.requestCancel()
-}
-
 // watchForServiceNodesUpdates watches for Nomad serviceNode changes for the given serviceName.
 //
 // watchForServiceNodesUpdates calls initWG.Done() once the initialization is complete and the first discovery iteration is done.
@@ -288,11 +279,12 @@ func (sw *serviceWatcher) watchForServiceAddressUpdates(nw *nomadWatcher, initWG
 	checkInterval := getCheckInterval()
 	ticker := time.NewTicker(checkInterval / 2)
 	defer ticker.Stop()
+	stopCh := sw.requestCtx.Done()
 	for {
 		select {
 		case <-ticker.C:
 			f()
-		case <-sw.stopCh:
+		case <-stopCh:
 			return
 		}
 	}
