@@ -148,7 +148,7 @@ func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filte
 	})
 }
 
-func remoteReadImport(ctx context.Context) func([]string) {
+func remoteReadImport(ctx context.Context, importer *vm.Importer) flagutil.Action {
 	return func(args []string) {
 		err := flagutil.SetFlagsFromEnvironment()
 		if err != nil {
@@ -179,7 +179,7 @@ func remoteReadImport(ctx context.Context) func([]string) {
 
 		vmCfg := initConfigVM()
 
-		importer, err := vm.NewImporter(vmCfg)
+		importer, err = vm.NewImporter(vmCfg)
 		if err != nil {
 			logger.Fatalf("failed to create VM importer: %s", err)
 		}

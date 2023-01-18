@@ -187,52 +187,53 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 	}
 }
 
-func influxImporter(args []string) {
-	fmt.Println("InfluxDB import mode")
+func influxImporter(importer *vm.Importer) flagutil.Action {
+	return func(args []string) {
+		fmt.Println("InfluxDB import mode")
 
-	if *influxDB == "" {
-		logger.Fatalf("flag --influx-database cannot be empty")
-	}
+		if *influxDB == "" {
+			logger.Fatalf("flag --influx-database cannot be empty")
+		}
 
-	err := flagutil.SetFlagsFromEnvironment()
-	if err != nil {
-		logger.Fatalf("error set flags from environment variables: %s", err)
-	}
+		err := flagutil.SetFlagsFromEnvironment()
+		if err != nil {
+			logger.Fatalf("error set flags from environment variables: %s", err)
+		}
 
-	iCfg := influx.Config{
-		Addr:      *influxAddr,
-		Username:  *influxUser,
-		Password:  *influxPassword,
-		Database:  *influxDB,
-		Retention: *influxRetention,
-		Filter: influx.Filter{
-			Series:    *influxFilterSeries,
-			TimeStart: *influxFilterTimeStart,
-			TimeEnd:   *influxFilterTimeEnd,
-		},
-		ChunkSize: *influxChunkSize,
-	}
-	influxClient, err := influx.NewClient(iCfg)
-	if err != nil {
-		logger.Fatalf("failed to create influx client: %s", err)
-	}
+		iCfg := influx.Config{
+			Addr:      *influxAddr,
+			Username:  *influxUser,
+			Password:  *influxPassword,
+			Database:  *influxDB,
+			Retention: *influxRetention,
+			Filter: influx.Filter{
+				Series:    *influxFilterSeries,
+				TimeStart: *influxFilterTimeStart,
+				TimeEnd:   *influxFilterTimeEnd,
+			},
+			ChunkSize: *influxChunkSize,
+		}
+		influxClient, err := influx.NewClient(iCfg)
+		if err != nil {
+			logger.Fatalf("failed to create influx client: %s", err)
+		}
 
-	vmCfg := initConfigVM()
-	importer, err := vm.NewImporter(vmCfg)
-	if err != nil {
-		logger.Fatalf("failed to create VM importer: %s", err)
-	}
-	defer importer.Close()
+		vmCfg := initConfigVM()
+		importer, err = vm.NewImporter(vmCfg)
+		if err != nil {
+			logger.Fatalf("failed to create VM importer: %s", err)
+		}
 
-	processor := newInfluxProcessor(
-		influxClient,
-		importer,
-		*influxConcurrency,
-		*influxMeasurementFieldSeparator,
-		*influxSkipDatabaseLabel,
-		*influxPrometheusMode)
+		processor := newInfluxProcessor(
+			influxClient,
+			importer,
+			*influxConcurrency,
+			*influxMeasurementFieldSeparator,
+			*influxSkipDatabaseLabel,
+			*influxPrometheusMode)
 
-	if err := processor.run(*globalSilent, *globalVerbose); err != nil {
-		logger.Fatalf("error run influx import processor: %s", err)
+		if err := processor.run(*globalSilent, *globalVerbose); err != nil {
+			logger.Fatalf("error run influx import processor: %s", err)
+		}
 	}
 }

@@ -23,13 +23,15 @@ type Command struct {
 	// Action is the action, which must be performed on the given command.
 	//
 	// args contains arg values for Args.
-	Action func(args []string)
+	Action Action
 
 	// Args is an optional names of arguments passed to the given command.
 	Args []string
 
 	EnvArgs []string
 }
+
+type Action func(args []string)
 
 // Run processes command-line args and executes the matching command.
 func (c *Command) Run() {

@@ -300,7 +300,7 @@ func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error
 	return resp, err
 }
 
-func nativeImport(ctx context.Context) func(args []string) {
+func nativeImport(ctx context.Context) flagutil.Action {
 	return func(args []string) {
 		fmt.Println("VictoriaMetrics Native import mode")
 

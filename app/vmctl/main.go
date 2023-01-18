@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
@@ -19,6 +20,7 @@ var (
 )
 
 func main() {
+	var importer *vm.Importer
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
@@ -29,22 +31,22 @@ func main() {
 			{
 				Name:   "opentsdb",
 				Usage:  "Migrate time series from OpenTSDB",
-				Action: otsdbImport,
+				Action: otsdbImport(importer),
 			},
 			{
 				Name:   "influx",
 				Usage:  "Migrate time series from InfluxDB",
-				Action: influxImporter,
+				Action: influxImporter(importer),
 			},
 			{
 				Name:   "remote-read",
 				Usage:  "Migrate time series via Prometheus remote-read protocol",
-				Action: remoteReadImport(ctx),
+				Action: remoteReadImport(ctx, importer),
 			},
 			{
 				Name:   "prometheus",
 				Usage:  "Migrate time series from Prometheus",
-				Action: prometheusImport,
+				Action: prometheusImport(importer),
 			},
 			{
 				Name:   "vm-native",
@@ -64,6 +66,9 @@ func main() {
 	go func() {
 		<-c
 		fmt.Println("\r- Execution cancelled")
+		if importer != nil {
+			importer.Close()
+		}
 		cancelCtx()
 	}()
 

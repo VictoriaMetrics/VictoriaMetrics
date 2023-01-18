@@ -165,43 +165,45 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	return ss.Err()
 }
 
-func prometheusImport(args []string) {
-	fmt.Println("Prometheus import mode")
+func prometheusImport(importer *vm.Importer) flagutil.Action {
+	return func(args []string) {
+		fmt.Println("Prometheus import mode")
 
-	if *promSnapshot == "" {
-		logger.Fatalf("flag --prom-snapshot should contain path to Prometheus snapshot")
-	}
+		if *promSnapshot == "" {
+			logger.Fatalf("flag --prom-snapshot should contain path to Prometheus snapshot")
+		}
 
-	err := flagutil.SetFlagsFromEnvironment()
-	if err != nil {
-		logger.Fatalf("error set flags from environment variables: %s", err)
-	}
+		err := flagutil.SetFlagsFromEnvironment()
+		if err != nil {
+			logger.Fatalf("error set flags from environment variables: %s", err)
+		}
 
-	vmCfg := initConfigVM()
-	importer, err := vm.NewImporter(vmCfg)
-	if err != nil {
-		logger.Fatalf("failed to create VM importer: %s", err)
-	}
+		vmCfg := initConfigVM()
+		importer, err = vm.NewImporter(vmCfg)
+		if err != nil {
+			logger.Fatalf("failed to create VM importer: %s", err)
+		}
 
-	promCfg := prometheus.Config{
-		Snapshot: *promSnapshot,
-		Filter: prometheus.Filter{
-			TimeMin:    *promFilterTimeStart,
-			TimeMax:    *promFilterTimeEnd,
-			Label:      *promFilterLabel,
-			LabelValue: *promFilterLabelValue,
-		},
-	}
-	cl, err := prometheus.NewClient(promCfg)
-	if err != nil {
-		logger.Fatalf("failed to create prometheus client: %s", err)
-	}
-	pp := prometheusProcessor{
-		cl: cl,
-		im: importer,
-		cc: *promConcurrency,
-	}
-	if err := pp.run(*globalSilent, *globalVerbose); err != nil {
-		logger.Fatalf("error run prometheus import process: %s", err)
+		promCfg := prometheus.Config{
+			Snapshot: *promSnapshot,
+			Filter: prometheus.Filter{
+				TimeMin:    *promFilterTimeStart,
+				TimeMax:    *promFilterTimeEnd,
+				Label:      *promFilterLabel,
+				LabelValue: *promFilterLabelValue,
+			},
+		}
+		cl, err := prometheus.NewClient(promCfg)
+		if err != nil {
+			logger.Fatalf("failed to create prometheus client: %s", err)
+		}
+		pp := prometheusProcessor{
+			cl: cl,
+			im: importer,
+			cc: *promConcurrency,
+		}
+		if err := pp.run(*globalSilent, *globalVerbose); err != nil {
+			logger.Fatalf("error run prometheus import process: %s", err)
+		}
 	}
 }
