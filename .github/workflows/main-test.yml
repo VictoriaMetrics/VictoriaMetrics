@@ -34,8 +34,6 @@ jobs:
 
       - name: Dependencies
         run: |
-          make install-golint
-          make install-errcheck
           make install-golangci-lint
           make check-all
           git diff --exit-code
