@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunkenc"
 )
@@ -151,4 +152,36 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 		}
 	}
 	return ss.Err()
+}
+
+func prometheusImport(args []string) {
+	fmt.Println("Prometheus import mode")
+
+	vmCfg := initConfigVM()
+	importer, err := vm.NewImporter(vmCfg)
+	if err != nil {
+		logger.Fatalf("failed to create VM importer: %s", err)
+	}
+
+	promCfg := prometheus.Config{
+		Snapshot: *promSnapshot,
+		Filter: prometheus.Filter{
+			TimeMin:    *promFilterTimeStart,
+			TimeMax:    *promFilterTimeEnd,
+			Label:      *promFilterLabel,
+			LabelValue: *promFilterLabelValue,
+		},
+	}
+	cl, err := prometheus.NewClient(promCfg)
+	if err != nil {
+		logger.Fatalf("failed to create prometheus client: %s", err)
+	}
+	pp := prometheusProcessor{
+		cl: cl,
+		im: importer,
+		cc: *promConcurrency,
+	}
+	if err := pp.run(*globalSilent, *globalVerbose); err != nil {
+		logger.Fatalf("error run prometheus import process: %s", err)
+	}
 }

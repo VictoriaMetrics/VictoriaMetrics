@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -170,4 +171,42 @@ func (op *otsdbProcessor) do(s queryObj) error {
 		return err
 	}
 	return nil
+}
+
+func otsbImport(args []string) {
+	fmt.Println("OpenTSDB import mode")
+
+	if err := otsdbFilters.Set("a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z"); err != nil {
+		logger.Fatalf("error set default values to otsdb-filter flag: %s", err)
+	}
+
+	oCfg := opentsdb.Config{
+		Addr:       *otsdbAddr,
+		Limit:      *otsdbQueryLimit,
+		Offset:     *otsdbOffsetDays,
+		HardTS:     *otsdbHardTSStart,
+		Retentions: *otsdbRetentions,
+		Filters:    *otsdbFilters,
+		Normalize:  *otsdbNormalize,
+		MsecsTime:  *otsdbMsecsTime,
+	}
+	otsdbClient, err := opentsdb.NewClient(oCfg)
+	if err != nil {
+		logger.Fatalf("failed to create opentsdb client: %s", err)
+	}
+
+	vmCfg := initConfigVM()
+	// disable progress bars since openTSDB implementation
+	// does not use progress bar pool
+	vmCfg.DisableProgressBar = true
+	importer, err := vm.NewImporter(vmCfg)
+	if err != nil {
+		logger.Fatalf("failed to create VM importer: %s", err)
+	}
+	defer importer.Close()
+
+	otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, *otsdbConcurrency)
+	if err := otsdbProcessor.run(*globalSilent, *globalVerbose); err != nil {
+		logger.Fatalf("error run otsb processor: %s", err)
+	}
 }

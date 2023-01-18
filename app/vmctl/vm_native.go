@@ -7,8 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -65,14 +67,14 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 
 	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
+		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", *vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
 	}
 
 	var endOfRange time.Time
 	if p.filter.timeEnd != "" {
 		endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
 		if err != nil {
-			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
+			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", *vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
 		}
 	} else {
 		endOfRange = time.Now()
@@ -273,4 +275,43 @@ func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error
 		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
 	}
 	return resp, err
+}
+
+func nativeImport(ctx context.Context) func(args []string) {
+	return func(args []string) {
+		fmt.Println("VictoriaMetrics Native import mode")
+		err := SetFlagsFromEnvironment()
+		if err != nil {
+			logger.Fatalf("error set flags from environment variables: %s", err)
+		}
+
+		if *vmNativeFilterMatch == "" {
+			logger.Fatalf("flag %q can't be empty", *vmNativeFilterMatch)
+		}
+
+		p := vmNativeProcessor{
+			rateLimit:    *vmRateLimit,
+			interCluster: *vmInterCluster,
+			filter: filter{
+				match:     *vmNativeFilterMatch,
+				timeStart: *vmNativeFilterTimeStart,
+				timeEnd:   *vmNativeFilterTimeEnd,
+				chunk:     *vmNativeStepInterval,
+			},
+			src: &vmNativeClient{
+				addr:     strings.Trim(*vmNativeSrcAddr, "/"),
+				user:     *vmNativeSrcUser,
+				password: *vmNativeSrcPassword,
+			},
+			dst: &vmNativeClient{
+				addr:        strings.Trim(*vmNativeDstAddr, "/"),
+				user:        *vmNativeDstUser,
+				password:    *vmNativeDstPassword,
+				extraLabels: *vmExtraLabel,
+			},
+		}
+		if err := p.run(ctx); err != nil {
+			logger.Fatalf("error run vm-native process: %s", err)
+		}
+	}
 }

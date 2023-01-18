@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -124,4 +125,47 @@ func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filte
 		}
 		return nil
 	})
+}
+
+func remoteReadImport(ctx context.Context) func([]string) {
+	return func(args []string) {
+		rr, err := remoteread.NewClient(remoteread.Config{
+			Addr:               *remoteReadSrcAddr,
+			Username:           *remoteReadUser,
+			Password:           *remoteReadPassword,
+			Timeout:            *remoteReadHTTPTimeout,
+			UseStream:          *remoteReadUseStream,
+			Headers:            *remoteReadHeaders,
+			LabelName:          *remoteReadFilterLabel,
+			LabelValue:         *remoteReadFilterLabelValue,
+			InsecureSkipVerify: *remoteReadInsecureSkipVerify,
+		})
+		if err != nil {
+			logger.Fatalf("error create remote read client: %s", err)
+		}
+
+		vmCfg := initConfigVM()
+
+		importer, err := vm.NewImporter(vmCfg)
+		if err != nil {
+			logger.Fatalf("failed to create VM importer: %s", err)
+		}
+
+		remoteReadFilterTimeStart.SetLayout(time.RFC3339)
+		remoteReadFilterTimeEnd.SetLayout(time.RFC3339)
+
+		rmp := remoteReadProcessor{
+			src: rr,
+			dst: importer,
+			filter: remoteReadFilter{
+				timeStart: remoteReadFilterTimeStart.Timestamp,
+				timeEnd:   remoteReadFilterTimeEnd.Timestamp,
+				chunk:     *remoteReadStepInterval,
+			},
+			cc: *remoteReadConcurrency,
+		}
+		if err := rmp.run(ctx, *globalSilent, *globalVerbose); err != nil {
+			logger.Fatalf("error run import via remote read protocol: %s", err)
+		}
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type influxProcessor struct {
@@ -163,5 +164,46 @@ func (ip *influxProcessor) do(s *influx.Series) error {
 		if err := ip.im.Input(&ts); err != nil {
 			return err
 		}
+	}
+}
+
+func influxImporter(args []string) {
+	fmt.Println("InfluxDB import mode")
+
+	iCfg := influx.Config{
+		Addr:      *influxAddr,
+		Username:  *influxUser,
+		Password:  *influxPassword,
+		Database:  *influxDB,
+		Retention: *influxRetention,
+		Filter: influx.Filter{
+			Series:    *influxFilterSeries,
+			TimeStart: *influxFilterTimeStart,
+			TimeEnd:   *influxFilterTimeEnd,
+		},
+		ChunkSize: *influxChunkSize,
+	}
+	influxClient, err := influx.NewClient(iCfg)
+	if err != nil {
+		logger.Fatalf("failed to create influx client: %s", err)
+	}
+
+	vmCfg := initConfigVM()
+	importer, err := vm.NewImporter(vmCfg)
+	if err != nil {
+		logger.Fatalf("failed to create VM importer: %s", err)
+	}
+	defer importer.Close()
+
+	processor := newInfluxProcessor(
+		influxClient,
+		importer,
+		*influxConcurrency,
+		*influxMeasurementFieldSeparator,
+		*influxSkipDatabaseLabel,
+		*influxPrometheusMode)
+
+	if err := processor.run(*globalSilent, *globalVerbose); err != nil {
+		logger.Fatalf("error run influx import processor: %s", err)
 	}
 }
