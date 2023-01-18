@@ -772,7 +772,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	if currScrape != "" {
 		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
 	}
-	wc := &writeRequestCtx{}
+        wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	if bodyString != "" {
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 		srcRows := wc.rows.Rows
@@ -797,6 +797,8 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		staleSamplesCreated.Add(len(samples))
 	}
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+        wc.reset()
+	writeRequestCtxPool.Put(wc)
 }
 
 var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)
