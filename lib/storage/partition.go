@@ -497,7 +497,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		rrs.rows = newRawRowsBlock()
+		rrs.rows = newRawRows()
 	}
 	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
 	rrs.rows = rrs.rows[:len(rrs.rows)+n]
@@ -524,7 +524,7 @@ type rawRowsBlock struct {
 	rows []rawRow
 }
 
-func newRawRowsBlock() []rawRow {
+func newRawRows() []rawRow {
 	n := getMaxRawRowsPerShard()
 	return make([]rawRow, 0, n)
 }
@@ -533,7 +533,7 @@ func getRawRowsBlock() *rawRowsBlock {
 	v := rawRowsBlockPool.Get()
 	if v == nil {
 		return &rawRowsBlock{
-			rows: newRawRowsBlock(),
+			rows: newRawRows(),
 		}
 	}
 	return v.(*rawRowsBlock)
