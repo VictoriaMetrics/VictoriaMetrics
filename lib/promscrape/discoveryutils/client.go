@@ -159,6 +159,11 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	return c, nil
 }
 
+// Context returns context for the client requests.
+func (c *Client) Context() context.Context {
+	return c.clientCtx
+}
+
 // GetAPIResponseWithReqParams returns response for given absolute path with optional callback for request.
 func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest func(request *http.Request)) ([]byte, error) {
 	return c.getAPIResponse(path, modifyRequest)
@@ -185,16 +190,21 @@ func (c *Client) getAPIResponse(path string, modifyRequest func(request *http.Re
 	defer func() {
 		<-concurrencyLimitCh
 	}()
-	return c.getAPIResponseWithParamsAndClient(c.client, path, modifyRequest, nil)
+	return c.getAPIResponseWithParamsAndClientCtx(c.clientCtx, c.client, path, modifyRequest, nil)
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
 func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
-	return c.getAPIResponseWithParamsAndClient(c.blockingClient, path, nil, inspectResponse)
+	return c.getAPIResponseWithParamsAndClientCtx(c.clientCtx, c.blockingClient, path, nil, inspectResponse)
+}
+
+// GetBlockingAPIResponseCtx returns response for given absolute path with blocking client and optional callback for api response,
+func (c *Client) GetBlockingAPIResponseCtx(ctx context.Context, path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
+	return c.getAPIResponseWithParamsAndClientCtx(ctx, c.blockingClient, path, nil, inspectResponse)
 }
 
 // getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for request and for response.
-func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path string, modifyRequest func(req *http.Request), inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, client *HTTPClient, path string, modifyRequest func(req *http.Request), inspectResponse func(resp *http.Response)) ([]byte, error) {
 	requestURL := c.apiServer + path
 	u, err := url.Parse(requestURL)
 	if err != nil {
@@ -202,7 +212,7 @@ func (c *Client) getAPIResponseWithParamsAndClient(client *HTTPClient, path stri
 	}
 
 	deadline := time.Now().Add(client.ReadTimeout)
-	ctx, cancel := context.WithDeadline(c.clientCtx, deadline)
+	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
 	if err != nil {
