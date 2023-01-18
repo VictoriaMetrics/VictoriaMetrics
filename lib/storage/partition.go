@@ -154,6 +154,10 @@ type partition struct {
 	// Contains file-based parts with big number of items.
 	bigParts []*partWrapper
 
+	// This channel is used for signaling the background mergers that there are parts,
+	// which may need to be merged.
+	needMergeCh chan struct{}
+
 	snapshotLock sync.RWMutex
 
 	stopCh chan struct{}
@@ -280,6 +284,9 @@ func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition,
 	}
 	pt.startBackgroundWorkers()
 
+	// Wake up a single background merger, so it could start merging parts if needed.
+	pt.notifyBackgroundMergers()
+
 	return pt, nil
 }
 
@@ -291,8 +298,10 @@ func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partit
 
 		s: s,
 
-		mergeIdx: uint64(time.Now().UnixNano()),
-		stopCh:   make(chan struct{}),
+		mergeIdx:    uint64(time.Now().UnixNano()),
+		needMergeCh: make(chan struct{}, cgroup.AvailableCPUs()),
+
+		stopCh: make(chan struct{}),
 	}
 	p.rawRows.init()
 	return p
@@ -589,7 +598,21 @@ func (pt *partition) flushRowsToParts(rows []rawRow) {
 
 	pt.partsLock.Lock()
 	pt.inmemoryParts = append(pt.inmemoryParts, pws...)
+	for range pws {
+		if !pt.notifyBackgroundMergers() {
+			break
+		}
+	}
 	pt.partsLock.Unlock()
+}
+
+func (pt *partition) notifyBackgroundMergers() bool {
+	select {
+	case pt.needMergeCh <- struct{}{}:
+		return true
+	default:
+		return false
+	}
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
@@ -1026,16 +1049,9 @@ func (pt *partition) startMergeWorkers() {
 	}
 }
 
-const (
-	minMergeSleepTime = 10 * time.Millisecond
-	maxMergeSleepTime = 10 * time.Second
-)
-
 func (pt *partition) mergeWorker() {
-	sleepTime := minMergeSleepTime
 	var lastMergeTime uint64
 	isFinal := false
-	t := time.NewTimer(sleepTime)
 	for {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
 		// across partitions may exceed the the cap(mergeWorkersLimitCh).
@@ -1044,7 +1060,6 @@ func (pt *partition) mergeWorker() {
 		<-mergeWorkersLimitCh
 		if err == nil {
 			// Try merging additional parts.
-			sleepTime = minMergeSleepTime
 			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = false
 			continue
@@ -1065,16 +1080,11 @@ func (pt *partition) mergeWorker() {
 			continue
 		}
 
-		// Nothing to merge. Sleep for a while and try again.
-		sleepTime *= 2
-		if sleepTime > maxMergeSleepTime {
-			sleepTime = maxMergeSleepTime
-		}
+		// Nothing to merge. Wait for the notification of new merge.
 		select {
 		case <-pt.stopCh:
 			return
-		case <-t.C:
-			t.Reset(sleepTime)
+		case <-pt.needMergeCh:
 		}
 	}
 }
@@ -1566,6 +1576,7 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 		default:
 			logger.Panicf("BUG: unknown partType=%d", dstPartType)
 		}
+		pt.notifyBackgroundMergers()
 	}
 	pt.partsLock.Unlock()
 
