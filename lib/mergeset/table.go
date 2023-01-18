@@ -254,6 +254,14 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 
 	tb.flushBlocksToParts(ibsToFlush, false)
 
+	if len(ibsToFlush) > 0 {
+		// Run assisted merges if needed.
+		flushConcurrencyCh <- struct{}{}
+		tb.assistedMergeForInmemoryParts()
+		tb.assistedMergeForFileParts()
+		<-flushConcurrencyCh
+	}
+
 	return tailItems
 }
 
@@ -748,11 +756,6 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 	tb.partsLock.Lock()
 	tb.inmemoryParts = append(tb.inmemoryParts, pws...)
 	tb.partsLock.Unlock()
-
-	flushConcurrencyCh <- struct{}{}
-	tb.assistedMergeForInmemoryParts()
-	tb.assistedMergeForFileParts()
-	<-flushConcurrencyCh
 
 	if tb.flushCallback != nil {
 		if isFinal {
