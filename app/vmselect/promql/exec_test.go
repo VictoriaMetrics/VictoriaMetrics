@@ -85,6 +85,61 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run("duration-constant", func(t *testing.T) {
+		t.Parallel()
+		q := `1h23m5S`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4985, 4985, 4985, 4985, 4985, 4985},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("num-with-suffix-1", func(t *testing.T) {
+		t.Parallel()
+		q := `123M`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{123e6, 123e6, 123e6, 123e6, 123e6, 123e6},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("num-with-suffix-2", func(t *testing.T) {
+		t.Parallel()
+		q := `1.23TB`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1.23e12, 1.23e12, 1.23e12, 1.23e12, 1.23e12, 1.23e12},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("num-with-suffix-3", func(t *testing.T) {
+		t.Parallel()
+		q := `1.23Mib`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20)},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run("num-with-suffix-4", func(t *testing.T) {
+		t.Parallel()
+		q := `1.23mib`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20), 1.23 * (1 << 20)},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run("simple-arithmetic", func(t *testing.T) {
 		t.Parallel()
 		q := `-1+2 *3 ^ 4+5%6`
@@ -7222,7 +7277,7 @@ func TestExecSuccess(t *testing.T) {
 	})
 	t.Run(`rollup_scrape_interval()`, func(t *testing.T) {
 		t.Parallel()
-		q := `sort_by_label(rollup_scrape_interval(1[5M:10s]), "rollup")`
+		q := `sort_by_label(rollup_scrape_interval(1[5m:10S]), "rollup")`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{10, 10, 10, 10, 10, 10},
