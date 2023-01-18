@@ -49,15 +49,8 @@ func createFlockFile(flockFile string) (*os.File, error) {
 }
 
 func mustGetFreeSpace(path string) uint64 {
-	d, err := os.Open(path)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open dir for determining free disk space: %s", err)
-	}
-	defer MustClose(d)
-
-	fd := d.Fd()
 	var stat unix.Statvfs_t
-	if err := unix.Fstatvfs(int(fd), &stat); err != nil {
+	if err := unix.Statvfs(path, &stat); err != nil {
 		logger.Panicf("FATAL: cannot determine free disk space on %q: %s", path, err)
 	}
 	return freeSpace(stat)

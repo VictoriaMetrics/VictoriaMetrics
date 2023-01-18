@@ -289,6 +289,9 @@ func scanPositiveNumber(s string) (string, error) {
 }
 
 func scanNumMultiplier(s string) int {
+	if len(s) > 3 {
+		s = s[:3]
+	}
 	s = strings.ToLower(s)
 	switch true {
 	case strings.HasPrefix(s, "kib"):
@@ -616,7 +619,6 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 	if len(s) == 0 {
 		return -1
 	}
-	s = strings.ToLower(s)
 	i := 0
 	if s[0] == '-' && canBeNegative {
 		i++
@@ -637,14 +639,26 @@ func scanSingleDuration(s string, canBeNegative bool) int {
 			return -1
 		}
 	}
-	switch s[i] {
+	switch unicode.ToLower(rune(s[i])) {
 	case 'm':
-		if i+1 < len(s) && s[i+1] == 's' {
-			// duration in ms
-			return i + 2
+		if i+1 < len(s) {
+			switch unicode.ToLower(rune(s[i+1])) {
+			case 's':
+				// duration in ms
+				return i + 2
+			case 'i', 'b':
+				// This is not a duration, but Mi or MB suffix.
+				// See parsePositiveNumber() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3664
+				return -1
+			}
 		}
-		// duration in minutes
-		return i + 1
+		// Allow small m for durtion in minutes.
+		// Big M means 1e6.
+		// See parsePositiveNumber() and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3664
+		if s[i] == 'm' {
+			return i + 1
+		}
+		return -1
 	case 's', 'h', 'd', 'w', 'y', 'i':
 		return i + 1
 	default:

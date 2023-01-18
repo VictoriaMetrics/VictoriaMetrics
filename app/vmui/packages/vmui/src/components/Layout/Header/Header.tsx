@@ -15,6 +15,7 @@ import Tabs from "../../Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
 import { useDashboardsState } from "../../../state/dashboards/DashboardsStateContext";
+import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
 
 const Header: FC = () => {
   const primaryColor = getCssVariable("color-primary");
@@ -58,11 +59,6 @@ const Header: FC = () => {
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
-  const handleChangeTab = (value: string) => {
-    setActiveMenu(value);
-    navigate(value);
-  };
-
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
@@ -90,7 +86,7 @@ const Header: FC = () => {
   >
     {!appModeEnable && (
       <div
-        className="vm-header__logo"
+        className="vm-header-logo"
         onClick={onClickLogo}
         style={{ color }}
       >
@@ -99,13 +95,14 @@ const Header: FC = () => {
     )}
     <div className="vm-header-nav">
       <Tabs
+        isNavLink
         activeItem={activeMenu}
         items={routes.filter(r => !r.hide)}
         color={color}
-        onChange={handleChangeTab}
       />
     </div>
     <div className="vm-header__settings">
+      {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
       {headerSetup?.executionControls && <ExecutionControls/>}

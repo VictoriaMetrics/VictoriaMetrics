@@ -41,9 +41,10 @@ import (
 )
 
 var (
-	noStaleMarkers = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
-	strictParse    = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
-	dryRun         = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
+	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
+	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	strictParse          = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
+	dryRun               = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
@@ -971,6 +972,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.NoStaleMarkers != nil {
 		noStaleTracking = *sc.NoStaleMarkers
 	}
+	seriesLimit := *seriesLimitPerTarget
+	if sc.SeriesLimit > 0 {
+		seriesLimit = sc.SeriesLimit
+	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeIntervalString: scrapeInterval.String(),
@@ -995,7 +1000,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
 		scrapeOffset:         sc.ScrapeOffset.Duration(),
-		seriesLimit:          sc.SeriesLimit,
+		seriesLimit:          seriesLimit,
 		noStaleMarkers:       noStaleTracking,
 	}
 	return swc, nil

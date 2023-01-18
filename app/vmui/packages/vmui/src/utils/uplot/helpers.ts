@@ -1,5 +1,4 @@
 import uPlot, { Axis } from "uplot";
-import { getColorFromString } from "../color";
 
 export const defaultOptions = {
   legend: {
@@ -37,7 +36,18 @@ export const formatPrettyNumber = (n: number | null | undefined, min = 0, max = 
   if (n === undefined || n === null) {
     return "";
   }
-  let digits = 3 + Math.floor(1 + Math.log10(Math.max(Math.abs(min), Math.abs(max))) - Math.log10(Math.abs(min - max)));
+  const range = Math.abs(max - min);
+  if (isNaN(range) || range == 0) {
+    // Return the constant number as is if the range isn't set of it is too small.
+    if (Math.abs(n) >= 1000) {
+      return n.toLocaleString("en-US");
+    }
+    return n.toString();
+  }
+  // Make sure n has 3 significant digits on the given range.
+  // This precision should be enough for most UX cases,
+  // since the remaining digits are usually a white noise.
+  let digits = 3 + Math.floor(1 + Math.log10(Math.max(Math.abs(min), Math.abs(max))) - Math.log10(range));
   if (isNaN(digits) || digits > 20) {
     digits = 20;
   }
@@ -73,7 +83,5 @@ export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: 
 
   return Math.ceil(axisSize);
 };
-
-export const getColorLine = (label: string): string => getColorFromString(label);
 
 export const getDashLine = (group: number): number[] => group <= 1 ? [] : [group*4, group*1.2];

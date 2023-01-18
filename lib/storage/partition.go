@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
@@ -610,14 +609,8 @@ func (pt *partition) assistedMergeForInmemoryParts() {
 			return
 		}
 
-		// There are too many unmerged inmemory parts.
-		// This usually means that the app cannot keep up with the data ingestion rate.
-		// Assist with mering inmemory parts.
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
 		err := pt.mergeInmemoryParts()
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
@@ -637,14 +630,8 @@ func (pt *partition) assistedMergeForSmallParts() {
 			return
 		}
 
-		// There are too many unmerged small parts.
-		// This usually means that the app cannot keep up with the data ingestion rate.
-		// Assist with mering small parts.
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		err := pt.mergeExistingParts(false)
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
