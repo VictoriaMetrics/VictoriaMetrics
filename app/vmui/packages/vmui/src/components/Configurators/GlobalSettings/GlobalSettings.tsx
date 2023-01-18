@@ -9,16 +9,21 @@ import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
 import { SeriesLimits } from "../../../types";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
-import { getAppModeEnable } from "../../../utils/app-mode";
+import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
 import classNames from "classnames";
 import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
+import { useEffect } from "react";
+import TenantsConfiguration from "./TenantsConfiguration/TenantsConfiguration";
 
 const title = "Settings";
 
 const GlobalSettings: FC = () => {
 
   const appModeEnable = getAppModeEnable();
+  const { inputTenantID } = getAppModeParams();
+  const showServerSettings = inputTenantID || !appModeEnable;
+
   const { serverUrl: stateServerUrl } = useAppState();
   const { timezone: stateTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
@@ -42,6 +47,11 @@ const GlobalSettings: FC = () => {
     handleClose();
   };
 
+  useEffect(() => {
+    if (stateServerUrl === serverUrl) return;
+    setServerUrl(stateServerUrl);
+  }, [stateServerUrl]);
+
   return <>
     <Tooltip title={title}>
       <Button
@@ -60,13 +70,18 @@ const GlobalSettings: FC = () => {
         onClose={handleClose}
       >
         <div className="vm-server-configurator">
-          {!appModeEnable && (
-            <div className="vm-server-configurator__input">
-              <ServerConfigurator
-                serverUrl={serverUrl}
-                onChange={setServerUrl}
-                onEnter={handlerApply}
-              />
+          {showServerSettings && (
+            <div className="vm-server-configurator__input vm-server-configurator__input_server">
+              <div className="vm-server-configurator__title">
+                Server
+              </div>
+              {!appModeEnable && (
+                <ServerConfigurator
+                  serverUrl={serverUrl}
+                  onChange={setServerUrl}
+                  onEnter={handlerApply}
+                />)}
+              <TenantsConfiguration/>
             </div>
           )}
           <div className="vm-server-configurator__input">

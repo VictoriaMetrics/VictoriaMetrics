@@ -23,10 +23,8 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange ,
 
   return (
     <div>
-      <div className="vm-server-configurator__title">
-        Server URL
-      </div>
       <TextField
+        label="Server URL"
         autofocus
         value={serverUrl}
         error={error}

@@ -3,16 +3,18 @@ import { getQueryStringValue } from "../../utils/query-string";
 
 export interface AppState {
   serverUrl: string;
-  tenantId: number;
+  tenantId: string;
 }
 
 export type Action =
   | { type: "SET_SERVER", payload: string }
-  | { type: "SET_TENANT_ID", payload: number }
+  | { type: "SET_TENANT_ID", payload: string }
+
+const tenantId = getQueryStringValue("g0.tenantID", "") as string;
 
 export const initialState: AppState = {
-  serverUrl: getDefaultServer(),
-  tenantId: Number(getQueryStringValue("g0.tenantID", 0)),
+  serverUrl: getDefaultServer(tenantId),
+  tenantId,
 };
 
 export function reducer(state: AppState, action: Action): AppState {
