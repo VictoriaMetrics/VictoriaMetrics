@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
@@ -782,11 +781,8 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 			return
 		}
 
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
 		err := tb.mergeInmemoryParts()
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
@@ -806,11 +802,8 @@ func (tb *Table) assistedMergeForFileParts() {
 			return
 		}
 
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&tb.fileAssistedMerges, 1)
 		err := tb.mergeExistingParts(false)
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
