@@ -15,6 +15,13 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.86.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.2)
+
+Released at 2023-01-18
+
+* SECURITY: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): do not expose basic auth passwords from `-snapshot.createURL` and `-snapshot.deleteURL` command-line flags in logs. Thanks to @toanju for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3672).
+
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to show custom dashboards at vmui by specifying a path to a directory with dashboard config files via `-vmui.customDashboardsPath` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3322) and [these docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/vmui/packages/vmui/public/dashboards).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): apply the `step` globally to all the displayed graphs. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3574).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): improve the appearance of graph lines by using more visually distinct colors. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3571).
