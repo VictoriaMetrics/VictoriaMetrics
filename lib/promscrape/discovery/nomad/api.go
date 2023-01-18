@@ -1,6 +1,7 @@
 package nomad
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -116,7 +117,7 @@ func maxWaitTime() time.Duration {
 
 // getBlockingAPIResponse perfoms blocking request to Nomad via client and returns response.
 // See https://developer.hashicorp.com/nomad/api-docs#blocking-queries .
-func getBlockingAPIResponse(client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
+func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
 	path += "&index=" + strconv.FormatInt(index, 10)
 	path += "&wait=" + fmt.Sprintf("%ds", int(maxWaitTime().Seconds()))
 	getMeta := func(resp *http.Response) {
@@ -142,7 +143,7 @@ func getBlockingAPIResponse(client *discoveryutils.Client, path string, index in
 		}
 		index = newIndex
 	}
-	data, err := client.GetBlockingAPIResponse(path, getMeta)
+	data, err := client.GetBlockingAPIResponseCtx(ctx, path, getMeta)
 	if err != nil {
 		return nil, index, fmt.Errorf("cannot perform blocking Nomad API request at %q: %w", path, err)
 	}
