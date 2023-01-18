@@ -11,7 +11,8 @@ export interface MetricResult extends MetricBase {
 
 
 export interface InstantMetricResult extends MetricBase {
-  value: [number, string]
+  value?: [number, string]
+  values?: [number, string][]
 }
 
 export interface TracingData {
