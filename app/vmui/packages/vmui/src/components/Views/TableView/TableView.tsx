@@ -41,10 +41,13 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     return `${__name__} ${JSON.stringify(fields)}`;
   };
 
+  const groups = new Set(data?.map(d => d.group));
+  const showQueryName = groups.size > 1;
+
   const rows: InstantDataSeries[] = useMemo(() => {
     const rows = data?.map(d => ({
       metadata: sortedColumns.map(c => (tableCompact
-        ? getNameForMetric(d)
+        ? getNameForMetric(d, "", showQueryName)
         : (d.metric[c.key] || "-")
       )),
       value: d.value ? d.value[1] : "-",

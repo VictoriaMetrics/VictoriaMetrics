@@ -13,6 +13,7 @@ const Legend: FC<LegendProps> = ({ labels, query, onChange }) => {
   const groups = useMemo(() => {
     return Array.from(new Set(labels.map(l => l.group)));
   }, [labels]);
+  const showQueryNum = groups.length > 1;
 
   return <>
     <div className="vm-legend">
@@ -21,7 +22,9 @@ const Legend: FC<LegendProps> = ({ labels, query, onChange }) => {
         key={group}
       >
         <div className="vm-legend-group-title">
-          <span className="vm-legend-group-title__count">Query {group}: </span>
+          {showQueryNum && (
+            <span className="vm-legend-group-title__count">Query {group}: </span>
+          )}
           <span className="vm-legend-group-title__query">{query[group - 1]}</span>
         </div>
         <div>

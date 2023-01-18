@@ -55,9 +55,8 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
 
   const color = series[seriesIdx]?.stroke+"";
 
-  const groups = new Set();
-  metrics.forEach(m => groups.add(m.group));
-  const groupsSize = groups.size;
+  const groups = new Set(metrics.map(m => m.group));
+  const showQueryNum = groups.size > 1;
   const group = metrics[seriesIdx-1]?.group || 0;
 
   const metric = metrics[seriesIdx-1]?.metric || {};
@@ -141,7 +140,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     >
       <div className="vm-chart-tooltip-header">
         <div className="vm-chart-tooltip-header__date">
-          {groupsSize > 1 && (
+          {showQueryNum && (
             <div>Query {group}</div>
           )}
           {date}
