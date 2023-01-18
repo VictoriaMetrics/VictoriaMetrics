@@ -431,15 +431,15 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	return err
 }
 
-var concurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, body *bytesutil.ByteBuffer, err error) (bool, error) {
 	// This function is CPU-bound, while it may allocate big amounts of memory.
 	// That's why it is a good idea to limit the number of concurrent calls to this function
 	// in order to limit memory usage under high load without sacrificing the performance.
-	concurrencyLimitCh <- struct{}{}
+	processScrapedDataConcurrencyLimitCh <- struct{}{}
 	defer func() {
-		<-concurrencyLimitCh
+		<-processScrapedDataConcurrencyLimitCh
 	}()
 
 	endTimestamp := time.Now().UnixNano() / 1e6
@@ -765,7 +765,17 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	return samplesDropped
 }
 
+var sendStaleSeriesConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+
 func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
+	// This function is CPU-bound, while it may allocate big amounts of memory.
+	// That's why it is a good idea to limit the number of concurrent calls to this function
+	// in order to limit memory usage under high load without sacrificing the performance.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
+	sendStaleSeriesConcurrencyLimitCh <- struct{}{}
+	defer func() {
+		<-sendStaleSeriesConcurrencyLimitCh
+	}()
 	if sw.Config.NoStaleMarkers {
 		return
 	}
@@ -773,7 +783,11 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	if currScrape != "" {
 		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
 	}
-        wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+	defer func() {
+		wc.reset()
+		writeRequestCtxPool.Put(wc)
+	}()
 	if bodyString != "" {
 		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
 		srcRows := wc.rows.Rows
@@ -805,8 +819,6 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		staleSamplesCreated.Add(len(samples))
 	}
 	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-        wc.reset()
-	writeRequestCtxPool.Put(wc)
 }
 
 var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)
