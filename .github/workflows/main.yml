@@ -2,9 +2,6 @@ name: main
 on:
   workflow_run:
     workflows: ["main - test"]
-    branches:
-      - master
-      - cluster
     types:
       - completed
 
