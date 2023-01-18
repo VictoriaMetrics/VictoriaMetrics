@@ -30,7 +30,8 @@
     padding: $padding-small;
     border-bottom: $border-divider;
     height: 40px;
-    vertical-align: middle;
+    vertical-align: top;
+    line-height: 25px;
 
     &__content {
       display: flex;
