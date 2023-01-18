@@ -15,16 +15,16 @@ on:
   push:
     branches: [master, cluster]
     paths-ignore:
-      - "**/*.md"
-      - "**/*.txt"
-      - "**/*.js"
+      - "**.md"
+      - "**.txt"
+      - "**.js"
   pull_request:
     # The branches below must be a subset of the branches above
     branches: [master, cluster]
     paths-ignore:
-      - "**/*.md"
-      - "**/*.txt"
-      - "**/*.js"
+      - "**.md"
+      - "**.txt"
+      - "**.js"
   schedule:
     - cron: "30 18 * * 2"
 
