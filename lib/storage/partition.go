@@ -634,7 +634,7 @@ func (pt *partition) assistedMergeForInmemoryParts() {
 		}
 
 		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
-		err := pt.mergeInmemoryParts()
+		err := pt.mergeInmemoryParts(true)
 		if err == nil {
 			continue
 		}
@@ -655,7 +655,7 @@ func (pt *partition) assistedMergeForSmallParts() {
 		}
 
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
-		err := pt.mergeExistingParts(false)
+		err := pt.mergeExistingParts(false, true)
 		if err == nil {
 			continue
 		}
@@ -925,7 +925,7 @@ func (pt *partition) mergePartsOptimal(pws []*partWrapper, stopCh <-chan struct{
 		}
 		pwsChunk := pws[:n]
 		pws = pws[n:]
-		err := pt.mergeParts(pwsChunk, stopCh, true)
+		err := pt.mergeParts(pwsChunk, stopCh, true, false)
 		if err == nil {
 			continue
 		}
@@ -1056,7 +1056,7 @@ func (pt *partition) mergeWorker() {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
 		// across partitions may exceed the the cap(mergeWorkersLimitCh).
 		mergeWorkersLimitCh <- struct{}{}
-		err := pt.mergeExistingParts(isFinal)
+		err := pt.mergeExistingParts(isFinal, false)
 		<-mergeWorkersLimitCh
 		if err == nil {
 			// Try merging additional parts.
@@ -1156,7 +1156,7 @@ func (pt *partition) canBackgroundMerge() bool {
 
 var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
 
-func (pt *partition) mergeInmemoryParts() error {
+func (pt *partition) mergeInmemoryParts(isAssisted bool) error {
 	maxOutBytes := pt.getMaxBigPartSize()
 
 	pt.partsLock.Lock()
@@ -1164,10 +1164,10 @@ func (pt *partition) mergeInmemoryParts() error {
 	pt.partsLock.Unlock()
 
 	atomicSetBool(&pt.mergeNeedFreeDiskSpace, needFreeSpace)
-	return pt.mergeParts(pws, pt.stopCh, false)
+	return pt.mergeParts(pws, pt.stopCh, false, isAssisted)
 }
 
-func (pt *partition) mergeExistingParts(isFinal bool) error {
+func (pt *partition) mergeExistingParts(isFinal bool, isAssisted bool) error {
 	if !pt.canBackgroundMerge() {
 		// Do not perform merge in read-only mode, since this may result in disk space shortage.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2603
@@ -1184,7 +1184,7 @@ func (pt *partition) mergeExistingParts(isFinal bool) error {
 	pt.partsLock.Unlock()
 
 	atomicSetBool(&pt.mergeNeedFreeDiskSpace, needFreeSpace)
-	return pt.mergeParts(pws, pt.stopCh, isFinal)
+	return pt.mergeParts(pws, pt.stopCh, isFinal, isAssisted)
 }
 
 func (pt *partition) releasePartsToMerge(pws []*partWrapper) {
@@ -1253,7 +1253,7 @@ func getMinDedupInterval(pws []*partWrapper) int64 {
 // if isFinal is set, then the resulting part will be saved to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
-func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
+func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool, isAssisted bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
@@ -1368,8 +1368,8 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	}
 	durationSecs := d.Seconds()
 	rowsPerSec := int(float64(srcRowsCount) / durationSecs)
-	logger.Infof("merged (%d parts, %d rows, %d blocks, %d bytes) into (1 part, %d rows, %d blocks, %d bytes) in %.3f seconds at %d rows/sec to %q",
-		len(pws), srcRowsCount, srcBlocksCount, srcSize, dstRowsCount, dstBlocksCount, dstSize, durationSecs, rowsPerSec, dstPartPath)
+	logger.Infof("merged (%d parts, %d rows, %d blocks, %d bytes) into (1 part, %d rows, %d blocks, %d bytes) in %.3f seconds at %d rows/sec to %q; assisted: %t",
+		len(pws), srcRowsCount, srcBlocksCount, srcSize, dstRowsCount, dstBlocksCount, dstSize, durationSecs, rowsPerSec, dstPartPath, isAssisted)
 
 	return nil
 }

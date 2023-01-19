@@ -586,7 +586,7 @@ func (tb *Table) mergePartsOptimal(pws []*partWrapper) error {
 		}
 		pwsChunk := pws[:n]
 		pws = pws[n:]
-		err := tb.mergeParts(pwsChunk, nil, true)
+		err := tb.mergeParts(pwsChunk, nil, true, false)
 		if err == nil {
 			continue
 		}
@@ -807,7 +807,7 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 		}
 
 		atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
-		err := tb.mergeInmemoryParts()
+		err := tb.mergeInmemoryParts(true)
 		if err == nil {
 			continue
 		}
@@ -828,7 +828,7 @@ func (tb *Table) assistedMergeForFileParts() {
 		}
 
 		atomic.AddUint64(&tb.fileAssistedMerges, 1)
-		err := tb.mergeExistingParts(false)
+		err := tb.mergeExistingParts(false, true)
 		if err == nil {
 			continue
 		}
@@ -964,17 +964,17 @@ func (tb *Table) canBackgroundMerge() bool {
 
 var errReadOnlyMode = fmt.Errorf("storage is in readonly mode")
 
-func (tb *Table) mergeInmemoryParts() error {
+func (tb *Table) mergeInmemoryParts(isAssisted bool) error {
 	maxOutBytes := tb.getMaxFilePartSize()
 
 	tb.partsLock.Lock()
 	pws := getPartsToMerge(tb.inmemoryParts, maxOutBytes, false)
 	tb.partsLock.Unlock()
 
-	return tb.mergeParts(pws, tb.stopCh, false)
+	return tb.mergeParts(pws, tb.stopCh, false, isAssisted)
 }
 
-func (tb *Table) mergeExistingParts(isFinal bool) error {
+func (tb *Table) mergeExistingParts(isFinal bool, isAssisted bool) error {
 	if !tb.canBackgroundMerge() {
 		// Do not perform background merge in read-only mode
 		// in order to prevent from disk space shortage.
@@ -990,7 +990,7 @@ func (tb *Table) mergeExistingParts(isFinal bool) error {
 	pws := getPartsToMerge(dst, maxOutBytes, isFinal)
 	tb.partsLock.Unlock()
 
-	return tb.mergeParts(pws, tb.stopCh, isFinal)
+	return tb.mergeParts(pws, tb.stopCh, isFinal, isAssisted)
 }
 
 func (tb *Table) mergeWorker() {
@@ -1000,7 +1000,7 @@ func (tb *Table) mergeWorker() {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
 		// across tables may exceed the the cap(mergeWorkersLimitCh).
 		mergeWorkersLimitCh <- struct{}{}
-		err := tb.mergeExistingParts(isFinal)
+		err := tb.mergeExistingParts(isFinal, false)
 		<-mergeWorkersLimitCh
 		if err == nil {
 			// Try merging additional parts.
@@ -1067,7 +1067,7 @@ func (tb *Table) releasePartsToMerge(pws []*partWrapper) {
 // If isFinal is set, then the resulting part will be stored to disk.
 //
 // All the parts inside pws must have isInMerge field set to true.
-func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool) error {
+func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal bool, isAssisted bool) error {
 	if len(pws) == 0 {
 		// Nothing to merge.
 		return errNothingToMerge
@@ -1174,8 +1174,8 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	}
 	durationSecs := d.Seconds()
 	itemsPerSec := int(float64(srcItemsCount) / durationSecs)
-	logger.Infof("merged (%d parts, %d items, %d blocks, %d bytes) into (1 part, %d items, %d blocks, %d bytes) in %.3f seconds at %d items/sec to %q",
-		len(pws), srcItemsCount, srcBlocksCount, srcSize, dstItemsCount, dstBlocksCount, dstSize, durationSecs, itemsPerSec, dstPartPath)
+	logger.Infof("merged (%d parts, %d items, %d blocks, %d bytes) into (1 part, %d items, %d blocks, %d bytes) in %.3f seconds at %d items/sec to %q; assisted: %t",
+		len(pws), srcItemsCount, srcBlocksCount, srcSize, dstItemsCount, dstBlocksCount, dstSize, durationSecs, itemsPerSec, dstPartPath, isAssisted)
 
 	return nil
 }
