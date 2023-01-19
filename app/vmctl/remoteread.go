@@ -18,7 +18,6 @@ import (
 )
 
 var (
-	remoteRead                 = flag.Bool("remote-read", false, "Use Prometheus remote read protocol")
 	remoteReadUseStream        = flag.Bool("remote-read-use-stream", false, "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks")
 	remoteReadConcurrency      = flag.Int("remote-read-concurrency", 1, "Number of concurrently running remote read readers")
 	remoteReadFilterTimeStart  = flagutil.NewTime("remote-read-filter-time-start", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'").SetLayout(time.RFC3339)
