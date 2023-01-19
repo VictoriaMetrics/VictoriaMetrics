@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,25 +42,36 @@ func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
+	flagutil.RegisterSecretFlag("snapshot.createURL")
+	flagutil.RegisterSecretFlag("snapshot.deleteURL")
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()
 
 	if len(*snapshotCreateURL) > 0 {
+		// create net/url object
+		createUrl, err := url.Parse(*snapshotCreateURL)
+		if err != nil {
+			logger.Fatalf("cannot parse snapshotCreateURL: %s", err)
+		}
 		if len(*snapshotName) > 0 {
 			logger.Fatalf("-snapshotName shouldn't be set if -snapshot.createURL is set, since snapshots are created automatically in this case")
 		}
-		logger.Infof("Snapshot create url %s", *snapshotCreateURL)
+		logger.Infof("Snapshot create url %s", createUrl.Redacted())
 		if len(*snapshotDeleteURL) <= 0 {
 			err := flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
 			if err != nil {
 				logger.Fatalf("Failed to set snapshot.deleteURL flag: %v", err)
 			}
 		}
-		logger.Infof("Snapshot delete url %s", *snapshotDeleteURL)
+		deleteUrl, err := url.Parse(*snapshotCreateURL)
+		if err != nil {
+			logger.Fatalf("cannot parse snapshotDeleteURL: %s", err)
+		}
+		logger.Infof("Snapshot delete url %s", deleteUrl.Redacted())
 
-		name, err := snapshot.Create(*snapshotCreateURL)
+		name, err := snapshot.Create(createUrl.String())
 		if err != nil {
 			logger.Fatalf("cannot create snapshot: %s", err)
 		}
@@ -69,7 +81,7 @@ func main() {
 		}
 
 		defer func() {
-			err := snapshot.Delete(*snapshotDeleteURL, name)
+			err := snapshot.Delete(deleteUrl.String(), name)
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
