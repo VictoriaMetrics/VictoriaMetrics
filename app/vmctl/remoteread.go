@@ -187,14 +187,11 @@ func remoteReadImport([]string) {
 	}
 
 	go func() {
-		select {
-		case <-ctx.Done():
-			if err := ctx.Err(); err != nil {
-				logger.Errorf("context cancel err: %s\n", err)
-			}
-			importer.Close()
-			break
+		<-ctx.Done()
+		if err := ctx.Err(); err != nil {
+			logger.Errorf("context cancel err: %s\n", err)
 		}
+		importer.Close()
 	}()
 
 	rmp := remoteReadProcessor{
