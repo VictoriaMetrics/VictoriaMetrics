@@ -1,16 +1,10 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"fmt"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
@@ -20,38 +14,36 @@ var (
 )
 
 func main() {
-	var importer *vm.Importer
-
-	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
 	cmd := &flagutil.Command{
-		Name:  "vmctl",
-		Usage: "VictoriaMetrics command-line tool",
+		Name:   "vmctl",
+		Usage:  "VictoriaMetrics command-line tool",
+		Action: func(args []string) {},
 		Subcommands: []*flagutil.Command{
 			{
 				Name:   "opentsdb",
 				Usage:  "Migrate time series from OpenTSDB",
-				Action: otsdbImport(importer),
+				Action: otsdbImport,
 			},
 			{
 				Name:   "influx",
 				Usage:  "Migrate time series from InfluxDB",
-				Action: influxImporter(importer),
+				Action: influxImporter,
 			},
 			{
 				Name:   "remote-read",
 				Usage:  "Migrate time series via Prometheus remote-read protocol",
-				Action: remoteReadImport(ctx, importer),
+				Action: remoteReadImport,
 			},
 			{
 				Name:   "prometheus",
 				Usage:  "Migrate time series from Prometheus",
-				Action: prometheusImport(importer),
+				Action: prometheusImport,
 			},
 			{
 				Name:   "vm-native",
 				Usage:  "Migrate time series between VictoriaMetrics installations via native binary format",
-				Action: nativeImport(ctx),
+				Action: nativeImport,
 			},
 			{
 				Name:   "verify-block",
@@ -60,17 +52,6 @@ func main() {
 			},
 		},
 	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		<-c
-		fmt.Println("\r- Execution cancelled")
-		if importer != nil {
-			importer.Close()
-		}
-		cancelCtx()
-	}()
 
 	cmd.Run()
 	log.Printf("Total time: %v", time.Since(start))

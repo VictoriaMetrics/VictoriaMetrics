@@ -27,8 +27,6 @@ type Command struct {
 
 	// Args is an optional names of arguments passed to the given command.
 	Args []string
-
-	EnvArgs []string
 }
 
 type Action func(args []string)

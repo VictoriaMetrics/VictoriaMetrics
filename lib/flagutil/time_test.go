@@ -16,13 +16,10 @@ func TestTime_Set(t *testing.T) {
 		wantErr      bool
 	}{
 		{
-			name:   "empty value",
-			layout: "",
-			value:  "",
-			want: func() *time.Time {
-				date, _ := time.Parse("", "")
-				return &date
-			},
+			name:    "empty value",
+			layout:  "",
+			value:   "",
+			want:    func() *time.Time { return &time.Time{} },
 			wantErr: false,
 		},
 		{

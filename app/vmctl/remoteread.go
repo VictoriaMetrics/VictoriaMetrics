@@ -21,8 +21,8 @@ var (
 	remoteRead                 = flag.Bool("remote-read", false, "Use Prometheus remote read protocol")
 	remoteReadUseStream        = flag.Bool("remote-read-use-stream", false, "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks")
 	remoteReadConcurrency      = flag.Int("remote-read-concurrency", 1, "Number of concurrently running remote read readers")
-	remoteReadFilterTimeStart  = flagutil.NewTime("remote-read-filter-time-start", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'")
-	remoteReadFilterTimeEnd    = flagutil.NewTime("remote-read-filter-time-end", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'")
+	remoteReadFilterTimeStart  = flagutil.NewTime("remote-read-filter-time-start", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'").SetLayout(time.RFC3339)
+	remoteReadFilterTimeEnd    = flagutil.NewTime("remote-read-filter-time-end", "", "The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'").SetLayout(time.RFC3339)
 	remoteReadFilterLabel      = flag.String("remote-read-filter-label", "__name__", "Prometheus label name to filter timeseries by. E.g. '__name__' will filter timeseries by name.")
 	remoteReadFilterLabelValue = flag.String("remote-read-filter-label-value", ".*", "Prometheus regular expression to filter label from \"remote-read-filter-label\" flag.")
 	remoteReadStepInterval     = flag.String("remote-read-step-interval", "", fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are %q,%q,%q,%q.", "remote-read-filter-time-start", stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute))
@@ -53,7 +53,7 @@ type remoteReadFilter struct {
 
 func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) error {
 	rrp.dst.ResetStats()
-	if rrp.filter.timeEnd == nil {
+	if rrp.filter.timeEnd == nil || rrp.filter.timeEnd.IsZero() {
 		t := time.Now().In(rrp.filter.timeStart.Location())
 		rrp.filter.timeEnd = &t
 	}
@@ -148,57 +148,66 @@ func (rrp *remoteReadProcessor) do(ctx context.Context, filter *remoteread.Filte
 	})
 }
 
-func remoteReadImport(ctx context.Context, importer *vm.Importer) flagutil.Action {
-	return func(args []string) {
-		err := flagutil.SetFlagsFromEnvironment()
-		if err != nil {
-			logger.Fatalf("error set flags from environment variables: %s", err)
-		}
+func remoteReadImport([]string) {
+	ctx, cancel := context.WithCancel(context.Background())
+	signalHandler(cancel)
 
-		if *remoteReadSrcAddr == "" {
-			logger.Fatalf("flag --remote-read-src-addr cannot be empty")
-		}
-		if *remoteReadStepInterval == "" {
-			logger.Fatalf("flag --remote-read-step-interval cannot be empty")
-		}
+	err := flagutil.SetFlagsFromEnvironment()
+	if err != nil {
+		logger.Fatalf("error set flags from environment variables: %s", err)
+	}
 
-		rr, err := remoteread.NewClient(remoteread.Config{
-			Addr:               *remoteReadSrcAddr,
-			Username:           *remoteReadUser,
-			Password:           *remoteReadPassword,
-			Timeout:            *remoteReadHTTPTimeout,
-			UseStream:          *remoteReadUseStream,
-			Headers:            *remoteReadHeaders,
-			LabelName:          *remoteReadFilterLabel,
-			LabelValue:         *remoteReadFilterLabelValue,
-			InsecureSkipVerify: *remoteReadInsecureSkipVerify,
-		})
-		if err != nil {
-			logger.Fatalf("error create remote read client: %s", err)
-		}
+	if *remoteReadSrcAddr == "" {
+		logger.Fatalf("flag --remote-read-src-addr cannot be empty")
+	}
+	if *remoteReadStepInterval == "" {
+		logger.Fatalf("flag --remote-read-step-interval cannot be empty")
+	}
 
-		vmCfg := initConfigVM()
+	rr, err := remoteread.NewClient(remoteread.Config{
+		Addr:               *remoteReadSrcAddr,
+		Username:           *remoteReadUser,
+		Password:           *remoteReadPassword,
+		Timeout:            *remoteReadHTTPTimeout,
+		UseStream:          *remoteReadUseStream,
+		Headers:            *remoteReadHeaders,
+		LabelName:          *remoteReadFilterLabel,
+		LabelValue:         *remoteReadFilterLabelValue,
+		InsecureSkipVerify: *remoteReadInsecureSkipVerify,
+	})
+	if err != nil {
+		logger.Fatalf("error create remote read client: %s", err)
+	}
 
-		importer, err = vm.NewImporter(vmCfg)
-		if err != nil {
-			logger.Fatalf("failed to create VM importer: %s", err)
-		}
+	vmCfg := initConfigVM()
 
-		remoteReadFilterTimeStart.SetLayout(time.RFC3339)
-		remoteReadFilterTimeEnd.SetLayout(time.RFC3339)
+	importer, err := vm.NewImporter(vmCfg)
+	if err != nil {
+		logger.Fatalf("failed to create VM importer: %s", err)
+	}
 
-		rmp := remoteReadProcessor{
-			src: rr,
-			dst: importer,
-			filter: remoteReadFilter{
-				timeStart: &remoteReadFilterTimeStart.Timestamp,
-				timeEnd:   &remoteReadFilterTimeEnd.Timestamp,
-				chunk:     *remoteReadStepInterval,
-			},
-			cc: *remoteReadConcurrency,
+	go func() {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != nil {
+				logger.Errorf("context cancel err: %s\n", err)
+			}
+			importer.Close()
+			break
 		}
-		if err := rmp.run(ctx, *globalSilent, *globalVerbose); err != nil {
-			logger.Fatalf("error run import via remote read protocol: %s", err)
-		}
+	}()
+
+	rmp := remoteReadProcessor{
+		src: rr,
+		dst: importer,
+		filter: remoteReadFilter{
+			timeStart: &remoteReadFilterTimeStart.Timestamp,
+			timeEnd:   &remoteReadFilterTimeEnd.Timestamp,
+			chunk:     *remoteReadStepInterval,
+		},
+		cc: *remoteReadConcurrency,
+	}
+	if err := rmp.run(ctx, *globalSilent, *globalVerbose); err != nil {
+		logger.Fatalf("error run import via remote read protocol: %s", err)
 	}
 }

@@ -34,19 +34,27 @@ func (t *Time) String() string {
 }
 
 // SetLayout sets the Time layout for future parsing
-func (t *Time) SetLayout(layout string) {
+func (t *Time) SetLayout(layout string) *Time {
 	t.layout = layout
+	return t
 }
 
 // SetLocation perceived timezone of the to-be parsed time string
-func (t *Time) SetLocation(loc *time.Location) {
+func (t *Time) SetLocation(loc *time.Location) *Time {
 	t.location = loc
+	return t
 }
 
 // Set implements flag.Value interface
 func (t *Time) Set(value string) error {
 	var timestamp time.Time
 	var err error
+
+	// short path
+	if value == "" {
+		t.Timestamp = timestamp
+		return nil
+	}
 
 	if t.location != nil {
 		timestamp, err = time.ParseInLocation(t.layout, value, t.location)

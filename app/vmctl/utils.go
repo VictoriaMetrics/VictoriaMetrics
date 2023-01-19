@@ -2,9 +2,12 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
@@ -50,4 +53,14 @@ func wrapErr(vmErr *vm.ImportError, verbose bool) error {
 	}
 	return fmt.Errorf("%s\n\tImporting batch failed for timestamps range %d - %d %s\n%s",
 		vmErr.Err, minTS, maxTS, verboseMsg, errTS)
+}
+
+func signalHandler(cancel context.CancelFunc) {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-c
+		fmt.Println("\r- Execution cancelled")
+		cancel()
+	}()
 }

@@ -300,50 +300,51 @@ func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error
 	return resp, err
 }
 
-func nativeImport(ctx context.Context) flagutil.Action {
-	return func(args []string) {
-		fmt.Println("VictoriaMetrics Native import mode")
+func nativeImport([]string) {
+	fmt.Println("VictoriaMetrics Native import mode")
 
-		if *vmNativeSrcAddr == "" {
-			logger.Fatalf("flag --vm-native-src-addr cannot be empty")
-		}
+	ctx, cancel := context.WithCancel(context.Background())
+	signalHandler(cancel)
 
-		if *vmNativeDstAddr == "" {
-			logger.Fatalf("flag --vm-native-dst-addr cannot be empty")
-		}
+	if *vmNativeSrcAddr == "" {
+		logger.Fatalf("flag --vm-native-src-addr cannot be empty")
+	}
 
-		err := flagutil.SetFlagsFromEnvironment()
-		if err != nil {
-			logger.Fatalf("error set flags from environment variables: %s", err)
-		}
+	if *vmNativeDstAddr == "" {
+		logger.Fatalf("flag --vm-native-dst-addr cannot be empty")
+	}
 
-		if *vmNativeFilterMatch == "" {
-			logger.Fatalf("flag %q can't be empty", *vmNativeFilterMatch)
-		}
+	err := flagutil.SetFlagsFromEnvironment()
+	if err != nil {
+		logger.Fatalf("error set flags from environment variables: %s", err)
+	}
 
-		p := vmNativeProcessor{
-			rateLimit:    *vmRateLimit,
-			interCluster: *vmInterCluster,
-			filter: filter{
-				match:     *vmNativeFilterMatch,
-				timeStart: *vmNativeFilterTimeStart,
-				timeEnd:   *vmNativeFilterTimeEnd,
-				chunk:     *vmNativeStepInterval,
-			},
-			src: &vmNativeClient{
-				addr:     strings.Trim(*vmNativeSrcAddr, "/"),
-				user:     *vmNativeSrcUser,
-				password: *vmNativeSrcPassword,
-			},
-			dst: &vmNativeClient{
-				addr:        strings.Trim(*vmNativeDstAddr, "/"),
-				user:        *vmNativeDstUser,
-				password:    *vmNativeDstPassword,
-				extraLabels: *vmExtraLabel,
-			},
-		}
-		if err := p.run(ctx); err != nil {
-			logger.Fatalf("error run vm-native process: %s", err)
-		}
+	if *vmNativeFilterMatch == "" {
+		logger.Fatalf("flag %q can't be empty", *vmNativeFilterMatch)
+	}
+
+	p := vmNativeProcessor{
+		rateLimit:    *vmRateLimit,
+		interCluster: *vmInterCluster,
+		filter: filter{
+			match:     *vmNativeFilterMatch,
+			timeStart: *vmNativeFilterTimeStart,
+			timeEnd:   *vmNativeFilterTimeEnd,
+			chunk:     *vmNativeStepInterval,
+		},
+		src: &vmNativeClient{
+			addr:     strings.Trim(*vmNativeSrcAddr, "/"),
+			user:     *vmNativeSrcUser,
+			password: *vmNativeSrcPassword,
+		},
+		dst: &vmNativeClient{
+			addr:        strings.Trim(*vmNativeDstAddr, "/"),
+			user:        *vmNativeDstUser,
+			password:    *vmNativeDstPassword,
+			extraLabels: *vmExtraLabel,
+		},
+	}
+	if err := p.run(ctx); err != nil {
+		logger.Fatalf("error run vm-native process: %s", err)
 	}
 }

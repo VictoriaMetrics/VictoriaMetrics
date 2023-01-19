@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -195,53 +196,65 @@ func (op *otsdbProcessor) do(s queryObj) error {
 	return nil
 }
 
-func otsdbImport(importer *vm.Importer) flagutil.Action {
-	return func(args []string) {
-		fmt.Println("OpenTSDB import mode")
+func otsdbImport([]string) {
+	fmt.Println("OpenTSDB import mode")
 
-		if *otsdbAddr == "" {
-			logger.Fatalf("flag --otsdb-addr is required")
-		}
-		if len(*otsdbRetentions) == 0 {
-			logger.Fatalf("flag --otsdb-retentions should contains at least one retention")
-		}
+	ctx, cancel := context.WithCancel(context.Background())
+	signalHandler(cancel)
 
-		if err := otsdbFilters.Set("a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z"); err != nil {
-			logger.Fatalf("error set default values to otsdb-filter flag: %s", err)
-		}
+	if *otsdbAddr == "" {
+		logger.Fatalf("flag --otsdb-addr is required")
+	}
+	if len(*otsdbRetentions) == 0 {
+		logger.Fatalf("flag --otsdb-retentions should contains at least one retention")
+	}
 
-		err := flagutil.SetFlagsFromEnvironment()
-		if err != nil {
-			logger.Fatalf("error set flags from environment variables: %s", err)
-		}
+	if err := otsdbFilters.Set("a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, x, y, z"); err != nil {
+		logger.Fatalf("error set default values to otsdb-filter flag: %s", err)
+	}
 
-		oCfg := opentsdb.Config{
-			Addr:       *otsdbAddr,
-			Limit:      *otsdbQueryLimit,
-			Offset:     *otsdbOffsetDays,
-			HardTS:     *otsdbHardTSStart,
-			Retentions: *otsdbRetentions,
-			Filters:    *otsdbFilters,
-			Normalize:  *otsdbNormalize,
-			MsecsTime:  *otsdbMsecsTime,
-		}
-		otsdbClient, err := opentsdb.NewClient(oCfg)
-		if err != nil {
-			logger.Fatalf("failed to create opentsdb client: %s", err)
-		}
+	err := flagutil.SetFlagsFromEnvironment()
+	if err != nil {
+		logger.Fatalf("error set flags from environment variables: %s", err)
+	}
 
-		vmCfg := initConfigVM()
-		// disable progress bars since openTSDB implementation
-		// does not use progress bar pool
-		vmCfg.DisableProgressBar = true
-		importer, err = vm.NewImporter(vmCfg)
-		if err != nil {
-			logger.Fatalf("failed to create VM importer: %s", err)
-		}
+	oCfg := opentsdb.Config{
+		Addr:       *otsdbAddr,
+		Limit:      *otsdbQueryLimit,
+		Offset:     *otsdbOffsetDays,
+		HardTS:     *otsdbHardTSStart,
+		Retentions: *otsdbRetentions,
+		Filters:    *otsdbFilters,
+		Normalize:  *otsdbNormalize,
+		MsecsTime:  *otsdbMsecsTime,
+	}
+	otsdbClient, err := opentsdb.NewClient(oCfg)
+	if err != nil {
+		logger.Fatalf("failed to create opentsdb client: %s", err)
+	}
 
-		otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, *otsdbConcurrency)
-		if err := otsdbProcessor.run(*globalSilent, *globalVerbose); err != nil {
-			logger.Fatalf("error run otsb processor: %s", err)
+	vmCfg := initConfigVM()
+	// disable progress bars since openTSDB implementation
+	// does not use progress bar pool
+	vmCfg.DisableProgressBar = true
+	importer, err := vm.NewImporter(vmCfg)
+	if err != nil {
+		logger.Fatalf("failed to create VM importer: %s", err)
+	}
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			if err := ctx.Err(); err != nil {
+				logger.Errorf("context cancel err: %s\n", err)
+			}
+			importer.Close()
+			break
 		}
+	}()
+
+	otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, *otsdbConcurrency)
+	if err := otsdbProcessor.run(*globalSilent, *globalVerbose); err != nil {
+		logger.Fatalf("error run otsb processor: %s", err)
 	}
 }

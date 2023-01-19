@@ -16,7 +16,7 @@ var (
 	blockPath = flag.String("blockPath", "", "Defines path to verified blocks")
 )
 
-func verifyBlocks(args []string) {
+func verifyBlocks([]string) {
 	if len(*blockPath) == 0 {
 		logger.Fatalf("you must provide path for exported data block")
 	}
