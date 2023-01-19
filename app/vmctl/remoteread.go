@@ -191,8 +191,8 @@ func remoteReadImport(ctx context.Context, importer *vm.Importer) flagutil.Actio
 			src: rr,
 			dst: importer,
 			filter: remoteReadFilter{
-				timeStart: remoteReadFilterTimeStart.Timestamp,
-				timeEnd:   remoteReadFilterTimeEnd.Timestamp,
+				timeStart: &remoteReadFilterTimeStart.Timestamp,
+				timeEnd:   &remoteReadFilterTimeEnd.Timestamp,
 				chunk:     *remoteReadStepInterval,
 			},
 			cc: *remoteReadConcurrency,

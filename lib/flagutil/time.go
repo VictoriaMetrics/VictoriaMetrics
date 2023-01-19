@@ -8,7 +8,7 @@ import (
 
 // NewTime returns new `time` flag with the given name, defaultValue and description.
 //
-// DefaultValue is in time.Now().
+// DefaultValue is in time.Time.
 func NewTime(name string, defaultValue string, description string) *Time {
 	t := &Time{}
 	if err := t.Set(defaultValue); err != nil {
@@ -21,7 +21,7 @@ func NewTime(name string, defaultValue string, description string) *Time {
 // Time is a flag for holding time.Time value.
 type Time struct {
 	// Timestamp contains parsed duration in milliseconds.
-	Timestamp *time.Time
+	Timestamp time.Time
 
 	location    *time.Location
 	layout      string
@@ -58,6 +58,6 @@ func (t *Time) Set(value string) error {
 		return err
 	}
 
-	t.Timestamp = &timestamp
+	t.Timestamp = timestamp
 	return nil
 }
