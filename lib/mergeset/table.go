@@ -998,7 +998,7 @@ func (tb *Table) mergeWorker() {
 	isFinal := false
 	for {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
-		// across tables may exceed the the cap(mergeWorkersLimitCh).
+		// across tables may exceed the cap(mergeWorkersLimitCh).
 		mergeWorkersLimitCh <- struct{}{}
 		err := tb.mergeExistingParts(isFinal, false)
 		<-mergeWorkersLimitCh

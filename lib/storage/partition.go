@@ -1054,7 +1054,7 @@ func (pt *partition) mergeWorker() {
 	isFinal := false
 	for {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
-		// across partitions may exceed the the cap(mergeWorkersLimitCh).
+		// across partitions may exceed the cap(mergeWorkersLimitCh).
 		mergeWorkersLimitCh <- struct{}{}
 		err := pt.mergeExistingParts(isFinal, false)
 		<-mergeWorkersLimitCh
