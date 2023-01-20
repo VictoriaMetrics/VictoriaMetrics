@@ -130,11 +130,12 @@ type Storage struct {
 	deletedMetricIDs           atomic.Value
 	deletedMetricIDsUpdateLock sync.Mutex
 
-	isReadOnly uint32
+	isReadOnly    uint32
+	forceReadOnly bool
 }
 
 // OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
+func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int, forceReadOnly bool) (*Storage, error) {
 	path, err := filepath.Abs(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
@@ -145,11 +146,20 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	if retentionMsecs > maxRetentionMsecs {
 		retentionMsecs = maxRetentionMsecs
 	}
+
+	isReadOnly := uint32(0)
+
+	if forceReadOnly {
+		isReadOnly = 1
+	}
+
 	s := &Storage{
 		path:           path,
 		cachePath:      path + "/cache",
 		retentionMsecs: retentionMsecs,
 		stop:           make(chan struct{}),
+		isReadOnly:     isReadOnly,
+		forceReadOnly:  forceReadOnly,
 	}
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
@@ -307,6 +317,10 @@ func (s *Storage) DebugFlush() {
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
 func (s *Storage) CreateSnapshot() (string, error) {
+	if s.forceReadOnly {
+		return "", errReadOnlyMode
+	}
+
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
 
@@ -394,6 +408,10 @@ func (s *Storage) ListSnapshots() ([]string, error) {
 
 // DeleteSnapshot deletes the given snapshot.
 func (s *Storage) DeleteSnapshot(snapshotName string) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	if err := snapshot.Validate(snapshotName); err != nil {
 		return fmt.Errorf("invalid snapshotName %q: %w", snapshotName, err)
 	}
@@ -414,6 +432,10 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 
 // DeleteStaleSnapshots deletes snapshot older than given maxAge
 func (s *Storage) DeleteStaleSnapshots(maxAge time.Duration) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	list, err := s.ListSnapshots()
 	if err != nil {
 		return err
@@ -604,6 +626,11 @@ func (s *Storage) IsReadOnly() bool {
 }
 
 func (s *Storage) startFreeDiskSpaceWatcher() {
+	if s.forceReadOnly {
+		//Do not start free space watcher due to the forced read only mode.
+		return
+	}
+
 	f := func() {
 		freeSpaceBytes := fs.MustGetFreeSpace(s.path)
 		if freeSpaceBytes < freeDiskSpaceLimitBytes {
@@ -636,6 +663,11 @@ func (s *Storage) startFreeDiskSpaceWatcher() {
 }
 
 func (s *Storage) startRetentionWatcher() {
+	if s.forceReadOnly {
+		//Do not start retention watcher due to the forced read only mode.
+		return
+	}
+
 	s.retentionWatcherWG.Add(1)
 	go func() {
 		s.retentionWatcher()
@@ -907,6 +939,10 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
+	if s.forceReadOnly {
+		return
+	}
+
 	name := "next_day_metric_ids"
 	path := s.cachePath + "/" + name
 	logger.Infof("saving %s to %q...", name, path)
@@ -926,6 +962,10 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 }
 
 func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
+	if s.forceReadOnly {
+		return
+	}
+
 	path := s.cachePath + "/" + name
 	logger.Infof("saving %s to %q...", name, path)
 	startTime := time.Now()
@@ -1018,6 +1058,9 @@ func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcac
 }
 
 func (s *Storage) mustSaveCache(c *workingsetcache.Cache, info, name string) {
+	if s.forceReadOnly {
+		return
+	}
 	saveCacheLock.Lock()
 	defer saveCacheLock.Unlock()
 
@@ -1204,6 +1247,10 @@ var ErrDeadlineExceeded = fmt.Errorf("deadline exceeded")
 //
 // Returns the number of metrics deleted.
 func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int, error) {
+	if s.forceReadOnly {
+		return 0, errReadOnlyMode
+	}
+
 	deletedCount, err := s.idb().DeleteTSIDs(qt, tfss)
 	if err != nil {
 		return deletedCount, fmt.Errorf("cannot delete tsids: %w", err)
@@ -1493,6 +1540,10 @@ func (mr *MetricRow) UnmarshalX(src []byte) ([]byte, error) {
 //
 // Partitions are merged sequentially in order to reduce load on the system.
 func (s *Storage) ForceMergePartitions(partitionNamePrefix string) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	return s.tb.ForceMergePartitions(partitionNamePrefix)
 }
 
@@ -1503,6 +1554,10 @@ var rowsAddedTotal uint64
 // The caller should limit the number of concurrent AddRows calls to the number
 // of available CPU cores in order to limit memory usage.
 func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	if len(mrs) == 0 {
 		return nil
 	}
@@ -1565,6 +1620,10 @@ const maxMetricRowsPerBlock = 8000
 // The the MetricRow.Timestamp is used for registering the metric name starting from the given timestamp.
 // Th MetricRow.Value field is ignored.
 func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	qt = qt.NewChild("registering %d series", len(mrs))
 	defer qt.Done()
 	var metricName []byte
@@ -1606,6 +1665,10 @@ func (s *Storage) RegisterMetricNames(qt *querytracer.Tracer, mrs []MetricRow) e
 }
 
 func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
 	defer idb.putIndexSearch(is)
@@ -1881,6 +1944,10 @@ func putPendingMetricRows(pmrs *pendingMetricRows) {
 var pendingMetricRowsPool sync.Pool
 
 func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
+	if s.forceReadOnly {
+		return errReadOnlyMode
+	}
+
 	var date uint64
 	var hour uint64
 	var prevTimestamp int64

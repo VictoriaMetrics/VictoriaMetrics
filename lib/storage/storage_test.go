@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"os"
@@ -421,7 +422,7 @@ func TestNextRetentionDuration(t *testing.T) {
 func TestStorageOpenClose(t *testing.T) {
 	path := "TestStorageOpenClose"
 	for i := 0; i < 10; i++ {
-		s, err := OpenStorage(path, -1, 1e5, 1e6)
+		s, err := OpenStorage(path, -1, 1e5, 1e6, false)
 		if err != nil {
 			t.Fatalf("cannot open storage: %s", err)
 		}
@@ -434,13 +435,13 @@ func TestStorageOpenClose(t *testing.T) {
 
 func TestStorageOpenMultipleTimes(t *testing.T) {
 	path := "TestStorageOpenMultipleTimes"
-	s1, err := OpenStorage(path, -1, 0, 0)
+	s1, err := OpenStorage(path, -1, 0, 0, false)
 	if err != nil {
 		t.Fatalf("cannot open storage the first time: %s", err)
 	}
 
 	for i := 0; i < 10; i++ {
-		s2, err := OpenStorage(path, -1, 0, 0)
+		s2, err := OpenStorage(path, -1, 0, 0, false)
 		if err == nil {
 			s2.MustClose()
 			t.Fatalf("expecting non-nil error when opening already opened storage")
@@ -455,7 +456,7 @@ func TestStorageOpenMultipleTimes(t *testing.T) {
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
 	retentionMsecs := int64(10 * msecsPerMonth)
-	s, err := OpenStorage(path, retentionMsecs, 0, 0)
+	s, err := OpenStorage(path, retentionMsecs, 0, 0, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -465,7 +466,7 @@ func TestStorageRandTimestamps(t *testing.T) {
 				t.Fatalf("error on iteration %d: %s", i, err)
 			}
 			s.MustClose()
-			s, err = OpenStorage(path, retentionMsecs, 0, 0)
+			s, err = OpenStorage(path, retentionMsecs, 0, 0, false)
 			if err != nil {
 				t.Fatalf("cannot open storage on iteration %d: %s", i, err)
 			}
@@ -545,7 +546,7 @@ func testStorageRandTimestamps(s *Storage) error {
 
 func TestStorageDeleteSeries(t *testing.T) {
 	path := "TestStorageDeleteSeries"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -568,7 +569,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 			// Re-open the storage in order to check how deleted metricIDs
 			// are persisted.
 			s.MustClose()
-			s, err = OpenStorage(path, 0, 0, 0)
+			s, err = OpenStorage(path, 0, 0, 0, false)
 			if err != nil {
 				t.Fatalf("cannot open storage after closing on iteration %d: %s", i, err)
 			}
@@ -765,7 +766,7 @@ func checkLabelNames(lns []string, lnsExpected map[string]bool) error {
 
 func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesSerial"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -780,7 +781,7 @@ func TestStorageRegisterMetricNamesSerial(t *testing.T) {
 
 func TestStorageRegisterMetricNamesConcurrent(t *testing.T) {
 	path := "TestStorageRegisterMetricNamesConcurrent"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -931,7 +932,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 func TestStorageAddRowsSerial(t *testing.T) {
 	path := "TestStorageAddRowsSerial"
 	retentionMsecs := int64(msecsPerMonth * 10)
-	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5)
+	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -947,7 +948,7 @@ func TestStorageAddRowsSerial(t *testing.T) {
 func TestStorageAddRowsConcurrent(t *testing.T) {
 	path := "TestStorageAddRowsConcurrent"
 	retentionMsecs := int64(msecsPerMonth * 10)
-	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5)
+	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -1034,7 +1035,7 @@ func testStorageAddRows(s *Storage) error {
 
 	// Try opening the storage from snapshot.
 	snapshotPath := s.path + "/snapshots/" + snapshotName
-	s1, err := OpenStorage(snapshotPath, 0, 0, 0)
+	s1, err := OpenStorage(snapshotPath, 0, 0, 0, false)
 	if err != nil {
 		return fmt.Errorf("cannot open storage from snapshot: %w", err)
 	}
@@ -1081,7 +1082,7 @@ func testStorageAddRows(s *Storage) error {
 
 func TestStorageRotateIndexDB(t *testing.T) {
 	path := "TestStorageRotateIndexDB"
-	s, err := OpenStorage(path, 0, 0, 0)
+	s, err := OpenStorage(path, 0, 0, 0, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -1166,7 +1167,7 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	path := "TestStorageDeleteStaleSnapshots"
 	retentionMsecs := int64(msecsPerMonth * 10)
-	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5)
+	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5, false)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
@@ -1214,6 +1215,77 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	}
 	s.MustClose()
 	if err := os.RemoveAll(path); err != nil {
+		t.Fatalf("cannot remove %q: %s", path, err)
+	}
+}
+
+func TestStorageForceReadOnly(t *testing.T) {
+	path := "TestStorageForceReadOnly"
+	s, err := OpenStorage(path, int64(msecsPerMonth*10), 1e5, 1e5, true)
+
+	if err != nil {
+		t.Fatalf("cannot open storage: %s", err)
+	}
+
+	rows := testGenerateMetricRows(1, timestampFromTime(time.Now())-1, timestampFromTime(time.Now()))
+
+	t.Run("AddRows", func(t *testing.T) {
+		err := s.AddRows(rows, defaultPrecisionBits)
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on AddRows in read-only mode")
+		}
+	})
+
+	t.Run("CreateSnapshot", func(t *testing.T) {
+		_, err := s.CreateSnapshot()
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on CreateSnapshot in read-only mode")
+		}
+	})
+
+	t.Run("DeleteSnapshot", func(t *testing.T) {
+		err := s.DeleteSnapshot("snapshot/path")
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on DeleteSnapshot in read-only mode")
+		}
+	})
+
+	t.Run("DeleteStaleSnapshots", func(t *testing.T) {
+		err := s.DeleteStaleSnapshots(time.Hour)
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on DeleteStaleSnapshots in read-only mode")
+		}
+	})
+
+	t.Run("DeleteSeries", func(t *testing.T) {
+		_, err := s.DeleteSeries(nil, []*TagFilters{NewTagFilters()})
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on DeleteSeries in read-only mode")
+		}
+	})
+
+	t.Run("ForceMergePartitions", func(t *testing.T) {
+		err := s.ForceMergePartitions("")
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on ForceMergePartitions in read-only mode")
+		}
+	})
+
+	t.Run("RegisterMetricNames", func(t *testing.T) {
+		err := s.RegisterMetricNames(nil, rows)
+
+		if !errors.Is(err, errReadOnlyMode) {
+			t.Fatalf("no error on RegisterMetricNames in read-only mode")
+		}
+	})
+
+	if err = os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
 }
