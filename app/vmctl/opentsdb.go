@@ -213,11 +213,6 @@ func otsdbImport([]string) {
 		logger.Fatalf("error set default values to otsdb-filter flag: %s", err)
 	}
 
-	err := flagutil.SetFlagsFromEnvironment()
-	if err != nil {
-		logger.Fatalf("error set flags from environment variables: %s", err)
-	}
-
 	oCfg := opentsdb.Config{
 		Addr:       *otsdbAddr,
 		Limit:      *otsdbQueryLimit,

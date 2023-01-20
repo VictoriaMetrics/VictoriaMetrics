@@ -11,7 +11,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -196,11 +195,6 @@ func influxImporter([]string) {
 
 	if *influxDB == "" {
 		logger.Fatalf("flag --influx-database cannot be empty")
-	}
-
-	err := flagutil.SetFlagsFromEnvironment()
-	if err != nil {
-		logger.Fatalf("error set flags from environment variables: %s", err)
 	}
 
 	iCfg := influx.Config{

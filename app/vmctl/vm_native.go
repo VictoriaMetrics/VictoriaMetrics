@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
 
@@ -312,11 +311,6 @@ func nativeImport([]string) {
 
 	if *vmNativeDstAddr == "" {
 		logger.Fatalf("flag --vm-native-dst-addr cannot be empty")
-	}
-
-	err := flagutil.SetFlagsFromEnvironment()
-	if err != nil {
-		logger.Fatalf("error set flags from environment variables: %s", err)
 	}
 
 	if *vmNativeFilterMatch == "" {

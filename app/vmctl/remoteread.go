@@ -151,11 +151,6 @@ func remoteReadImport([]string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	signalHandler(cancel)
 
-	err := flagutil.SetFlagsFromEnvironment()
-	if err != nil {
-		logger.Fatalf("error set flags from environment variables: %s", err)
-	}
-
 	if *remoteReadSrcAddr == "" {
 		logger.Fatalf("flag --remote-read-src-addr cannot be empty")
 	}
