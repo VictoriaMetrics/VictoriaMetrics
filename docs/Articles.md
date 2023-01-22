@@ -19,6 +19,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
 * [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Fly's Prometheus Metrics](https://fly.io/blog/measuring-fly/)
+* [Ultra Monitoring with Victoria Metrics](https://dev.to/aws-builders/ultra-monitoring-with-victoria-metrics-1p2)
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/nerd-for-tech/sismology-iguana-solutions-monitoring-system-f46e4170447f)
 * [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
