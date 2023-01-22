@@ -23,6 +23,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/nerd-for-tech/sismology-iguana-solutions-monitoring-system-f46e4170447f)
 * [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
+* [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics)
 * [How we improved our Kubernetes monitoring at Smarkets, and how you could too](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3)
 * [Kubernetes and VictoriaMetrics in Mist v4.6](https://mist.io/blog/2021-11-26-kubernetes-and-victoriametrics-in-Mist-v4-6)
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
@@ -60,6 +61,9 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
 * [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
 * [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
+* [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
+* [VictoriaMetrics static scraper](https://blog.differentpla.net/blog/2022/10/16/victoria-metrics-static-scraper/)
+* [VictoriaMetrics and Open Cosmos boldly takes edge computing to the edge of space](https://www.iot-now.com/2022/07/19/122423-victoriametrics-and-open-cosmos-boldly-takes-edge-computing-to-the-edge-of-space/)
 
 ## Our articles
 
