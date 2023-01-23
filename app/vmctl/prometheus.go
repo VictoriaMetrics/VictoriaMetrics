@@ -168,7 +168,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 func prometheusImport([]string) {
 	fmt.Println("Prometheus import mode")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	signalHandler(cancel)
 
 	if *promSnapshot == "" {
@@ -180,14 +180,7 @@ func prometheusImport([]string) {
 	if err != nil {
 		logger.Fatalf("failed to create VM importer: %s", err)
 	}
-
-	go func() {
-		<-ctx.Done()
-		if err := ctx.Err(); err != nil {
-			logger.Errorf("context cancel err: %s\n", err)
-		}
-		importer.Close()
-	}()
+	defer importer.Close()
 
 	promCfg := prometheus.Config{
 		Snapshot: *promSnapshot,

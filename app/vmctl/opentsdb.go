@@ -199,7 +199,7 @@ func (op *otsdbProcessor) do(s queryObj) error {
 func otsdbImport([]string) {
 	fmt.Println("OpenTSDB import mode")
 
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	signalHandler(cancel)
 
 	if *otsdbAddr == "" {
@@ -236,14 +236,7 @@ func otsdbImport([]string) {
 	if err != nil {
 		logger.Fatalf("failed to create VM importer: %s", err)
 	}
-
-	go func() {
-		<-ctx.Done()
-		if err := ctx.Err(); err != nil {
-			logger.Errorf("context cancel err: %s\n", err)
-		}
-		importer.Close()
-	}()
+	defer importer.Close()
 
 	otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, *otsdbConcurrency)
 	if err := otsdbProcessor.run(*globalSilent, *globalVerbose); err != nil {

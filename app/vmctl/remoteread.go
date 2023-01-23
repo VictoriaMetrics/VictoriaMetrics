@@ -179,14 +179,7 @@ func remoteReadImport([]string) {
 	if err != nil {
 		logger.Fatalf("failed to create VM importer: %s", err)
 	}
-
-	go func() {
-		<-ctx.Done()
-		if err := ctx.Err(); err != nil {
-			logger.Errorf("context cancel err: %s\n", err)
-		}
-		importer.Close()
-	}()
+	defer importer.Close()
 
 	rmp := remoteReadProcessor{
 		src: rr,
