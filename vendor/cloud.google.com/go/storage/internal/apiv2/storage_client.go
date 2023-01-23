@@ -1,4 +1,4 @@
-// Copyright 2022 Google LLC
+// Copyright 2023 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -238,17 +238,26 @@ func (c *Client) LockBucketRetentionPolicy(ctx context.Context, req *storagepb.L
 }
 
 // GetIamPolicy gets the IAM policy for a specified bucket or object.
+// The resource field in the request should be
+// projects//buckets/<bucket_name> for a bucket or
+// projects//buckets/<bucket_name>/objects/<object_name> for an object.
 func (c *Client) GetIamPolicy(ctx context.Context, req *iampb.GetIamPolicyRequest, opts ...gax.CallOption) (*iampb.Policy, error) {
 	return c.internalClient.GetIamPolicy(ctx, req, opts...)
 }
 
 // SetIamPolicy updates an IAM policy for the specified bucket or object.
+// The resource field in the request should be
+// projects//buckets/<bucket_name> for a bucket or
+// projects//buckets/<bucket_name>/objects/<object_name> for an object.
 func (c *Client) SetIamPolicy(ctx context.Context, req *iampb.SetIamPolicyRequest, opts ...gax.CallOption) (*iampb.Policy, error) {
 	return c.internalClient.SetIamPolicy(ctx, req, opts...)
 }
 
 // TestIamPermissions tests a set of permissions on the given bucket or object to see which, if
 // any, are held by the caller.
+// The resource field in the request should be
+// projects//buckets/<bucket_name> for a bucket or
+// projects//buckets/<bucket_name>/objects/<object_name> for an object.
 func (c *Client) TestIamPermissions(ctx context.Context, req *iampb.TestIamPermissionsRequest, opts ...gax.CallOption) (*iampb.TestIamPermissionsResponse, error) {
 	return c.internalClient.TestIamPermissions(ctx, req, opts...)
 }
@@ -1048,6 +1057,7 @@ func (c *gRPCClient) ReadObject(ctx context.Context, req *storagepb.ReadObjectRe
 	md := metadata.Pairs("x-goog-request-params", routingHeaders)
 
 	ctx = insertMetadata(ctx, c.xGoogMetadata, md)
+	opts = append((*c.CallOptions).ReadObject[0:len((*c.CallOptions).ReadObject):len((*c.CallOptions).ReadObject)], opts...)
 	var resp storagepb.Storage_ReadObjectClient
 	err := gax.Invoke(ctx, func(ctx context.Context, settings gax.CallSettings) error {
 		var err error
