@@ -35,6 +35,7 @@ import (
 	raw "google.golang.org/api/storage/v1"
 	dpb "google.golang.org/genproto/googleapis/type/date"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // BucketHandle provides operations on a Google Cloud Storage bucket.
@@ -1389,12 +1390,12 @@ func (rp *RetentionPolicy) toProtoRetentionPolicy() *storagepb.Bucket_RetentionP
 	}
 	// RetentionPeriod must be greater than 0, so if it is 0, the user left it
 	// unset, and so we should not send it in the request i.e. nil is sent.
-	var period *int64
+	var dur *durationpb.Duration
 	if rp.RetentionPeriod != 0 {
-		period = proto.Int64(int64(rp.RetentionPeriod / time.Second))
+		dur = durationpb.New(rp.RetentionPeriod)
 	}
 	return &storagepb.Bucket_RetentionPolicy{
-		RetentionPeriod: period,
+		RetentionDuration: dur,
 	}
 }
 
@@ -1418,7 +1419,7 @@ func toRetentionPolicyFromProto(rp *storagepb.Bucket_RetentionPolicy) *Retention
 		return nil
 	}
 	return &RetentionPolicy{
-		RetentionPeriod: time.Duration(rp.GetRetentionPeriod()) * time.Second,
+		RetentionPeriod: rp.GetRetentionDuration().AsDuration(),
 		EffectiveTime:   rp.GetEffectiveTime().AsTime(),
 		IsLocked:        rp.GetIsLocked(),
 	}
