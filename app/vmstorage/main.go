@@ -84,14 +84,6 @@ func CheckTimeRange(tr storage.TimeRange) error {
 
 // Init initializes vmstorage.
 func Init(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
-	InitWithoutMetrics(resetCacheIfNeeded)
-	registerStorageMetrics(Storage)
-}
-
-// InitWithoutMetrics must be called instead of Init inside tests.
-//
-// This allows multiple Init / Stop cycles.
-func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	if err := encoding.CheckPrecisionBits(uint8(*precisionBits)); err != nil {
 		logger.Fatalf("invalid `-precisionBits`: %s", err)
 	}
@@ -130,6 +122,7 @@ func InitWithoutMetrics(resetCacheIfNeeded func(mrs []storage.MetricRow)) {
 	sizeBytes := tm.SmallSizeBytes + tm.BigSizeBytes
 	logger.Infof("successfully opened storage %q in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
 		*DataPath, time.Since(startTime).Seconds(), partsCount, blocksCount, rowsCount, sizeBytes)
+	registerStorageMetrics(Storage)
 }
 
 // Storage is a storage.
