@@ -1,12 +1,13 @@
 package prometheusimport
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -30,17 +31,14 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
+	urlPath := httpserver.GetQuotedRemoteAddr(req)
+	remoteAddr := httpserver.GetRequestURI(req)
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 		return insertRows(at, rows, extraLabels)
-	}, nil)
-}
-
-// InsertHandlerForReader processes metrics from given reader with optional gzip format
-func InsertHandlerForReader(r io.Reader, isGzipped bool) error {
-	return parser.ParseStream(r, 0, isGzipped, func(rows []parser.Row) error {
-		return insertRows(nil, rows, nil)
-	}, nil)
+	}, func(s string) {
+		logger.Errorf("error parsing prometheus text protocol, path - %s, remote address - %q: %s", urlPath, remoteAddr, s)
+	})
 }
 
 func insertRows(at *auth.Token, rows []parser.Row, extraLabels []prompbmarshal.Label) error {
