@@ -2,6 +2,9 @@ import React, { render } from "preact/compat";
 import "./constants/dayjsPlugins";
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
+import "@fontsource/jetbrains-mono";
+import "@fontsource/lato";
+import "@fontsource/lato/700.css";
 import "./styles/style.scss";
 
 const root = document.getElementById("root");

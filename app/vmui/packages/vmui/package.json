@@ -4,6 +4,8 @@
   "private": true,
   "homepage": "./",
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^4.5.12",
+    "@fontsource/lato": "^4.5.10",
     "@testing-library/jest-dom": "^5.16.2",
     "@testing-library/react": "^13.0.0",
     "@testing-library/user-event": "^14.0.4",
