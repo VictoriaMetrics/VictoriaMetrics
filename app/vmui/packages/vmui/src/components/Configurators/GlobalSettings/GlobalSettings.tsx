@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { SettingsIcon } from "../../Main/Icons";
@@ -9,21 +9,16 @@ import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
 import { SeriesLimits } from "../../../types";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
-import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
+import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
 import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
-import { useEffect } from "react";
-import TenantsConfiguration from "./TenantsConfiguration/TenantsConfiguration";
 
 const title = "Settings";
 
 const GlobalSettings: FC = () => {
 
   const appModeEnable = getAppModeEnable();
-  const { inputTenantID } = getAppModeParams();
-  const showServerSettings = inputTenantID || !appModeEnable;
-
   const { serverUrl: stateServerUrl } = useAppState();
   const { timezone: stateTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
@@ -70,18 +65,13 @@ const GlobalSettings: FC = () => {
         onClose={handleClose}
       >
         <div className="vm-server-configurator">
-          {showServerSettings && (
-            <div className="vm-server-configurator__input vm-server-configurator__input_server">
-              <div className="vm-server-configurator__title">
-                Server
-              </div>
-              {!appModeEnable && (
-                <ServerConfigurator
-                  serverUrl={serverUrl}
-                  onChange={setServerUrl}
-                  onEnter={handlerApply}
-                />)}
-              <TenantsConfiguration/>
+          {!appModeEnable && (
+            <div className="vm-server-configurator__input">
+              <ServerConfigurator
+                serverUrl={serverUrl}
+                onChange={setServerUrl}
+                onEnter={handlerApply}
+              />
             </div>
           )}
           <div className="vm-server-configurator__input">
@@ -103,13 +93,13 @@ const GlobalSettings: FC = () => {
               color="error"
               onClick={handleClose}
             >
-                Cancel
+              Cancel
             </Button>
             <Button
               variant="contained"
               onClick={handlerApply}
             >
-                apply
+              apply
             </Button>
           </div>
         </div>
