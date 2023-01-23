@@ -319,5 +319,5 @@ func shouldSkipLog(level string) bool {
 // SetOutputForTests redefine output for logger. Use for Tests only. Call ResetOutputForTest to return output state to default
 func SetOutputForTests(writer io.Writer) { output = writer }
 
-// ResetOutputForTest set logger output to default valur
+// ResetOutputForTest set logger output to default value
 func ResetOutputForTest() { output = os.Stderr }
