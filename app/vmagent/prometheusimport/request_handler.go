@@ -31,13 +31,13 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	urlPath := httpserver.GetQuotedRemoteAddr(req)
-	remoteAddr := httpserver.GetRequestURI(req)
+	remoteAddr := httpserver.GetQuotedRemoteAddr(req)
+	uri := httpserver.GetRequestURI(req)
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 		return insertRows(at, rows, extraLabels)
 	}, func(s string) {
-		logger.Errorf("error parsing prometheus text protocol, path - %s, remote address - %q: %s", urlPath, remoteAddr, s)
+		logger.Errorf("error parsing prometheus text protocol, uri - %s, remote address - %q: %s", uri, remoteAddr, s)
 	})
 }
 
