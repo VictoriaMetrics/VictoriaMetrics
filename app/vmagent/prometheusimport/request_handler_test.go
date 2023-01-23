@@ -28,7 +28,7 @@ go_memstats_alloc_bytes_total 1`))
 		t.Errorf("unxepected error %s", err)
 	}
 	if msg := "error parsing prometheus text protocol"; !strings.Contains(testOutput.String(), msg) {
-		t.Errorf("output %q should containt %q", testOutput.String(), msg)
+		t.Errorf("output %q should contain %q", testOutput.String(), msg)
 	}
 }
 
