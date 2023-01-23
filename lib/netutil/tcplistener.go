@@ -12,7 +12,11 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var enableTCP6 = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used")
+var (
+	enableTCP6          = flag.Bool("enableTCP6", false, "Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used")
+	enableProxyProtocol = flag.Bool("enableProxyProtocol", false, "Whether to enable reading remote address information within proxy protocol. Usual case for network load balancers."+
+		"Note, only v2 protocol version is supported")
+)
 
 // NewTCPListener returns new TCP listener for the given addr and optional tlsConfig.
 //
@@ -86,6 +90,14 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			}
 			ln.acceptErrors.Inc()
 			return nil, err
+		}
+		if *enableProxyProtocol {
+			// the reason, why connection is wrapped
+			// to support at the same time proxy-protocol and general connections
+			conn, err = newProxyProtocolConn(conn)
+			if err != nil {
+				return nil, fmt.Errorf("cannot accept connection for proxy protocol: %w", err)
+			}
 		}
 		ln.conns.Inc()
 		sc := &statConn{
