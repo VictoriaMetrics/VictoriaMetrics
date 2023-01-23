@@ -14,7 +14,7 @@ const Layout: FC = () => {
 
   const { pathname } = useLocation();
   useEffect(() => {
-    const defaultTitle = "VM UI";
+    const defaultTitle = "vmui";
     const routeTitle = routerOptions[pathname]?.title;
     document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
   }, [pathname]);
