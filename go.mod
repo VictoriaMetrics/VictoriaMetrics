@@ -23,7 +23,7 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.7.0
 	github.com/influxdata/influxdb v1.11.0
-	github.com/klauspost/compress v1.15.14
+	github.com/klauspost/compress v1.15.15
 	github.com/prometheus/prometheus v0.41.0
 	github.com/urfave/cli/v2 v2.23.7
 	github.com/valyala/fastjson v1.6.4
