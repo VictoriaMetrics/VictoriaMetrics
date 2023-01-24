@@ -16,6 +16,7 @@
       cursor: pointer;
       z-index: 2;
       transition: color 200ms ease-out;
+      user-select: none;
 
       &:last-child {
         border: none;

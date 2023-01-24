@@ -6,7 +6,7 @@
   justify-content: flex-start;
   gap: $padding-global;
   font-size: $font-size-small;
-  font-weight: 600;
+  font-weight: bold;
 
   &-item {
     position: relative;
@@ -53,7 +53,7 @@
       opacity: 1;
       transform-origin: top center;
       font-size: $font-size-small;
-      font-weight: 600;
+      font-weight: bold;
 
       &-item {
         cursor: pointer;

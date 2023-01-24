@@ -20,7 +20,7 @@ export const TimeSelector: FC = () => {
   const { darkTheme } = useAppState();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const documentSize = useResize(document.body);
-  const displayFullDate = useMemo(() => documentSize.width > 1120, [documentSize]);
+  const displayFullDate = useMemo(() => documentSize.width > 1280, [documentSize]);
 
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
@@ -123,7 +123,7 @@ export const TimeSelector: FC = () => {
 
   return <>
     <div ref={buttonRef}>
-      <Tooltip title="Time range controls">
+      <Tooltip title={displayFullDate ? "Time range controls" : dateTitle}>
         <Button
           className={appModeEnable ? "" : "vm-header-button"}
           variant="contained"

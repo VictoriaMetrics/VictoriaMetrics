@@ -54,7 +54,8 @@
     }
 
     &_gray {
-      color: rgba($color-black, 0.4);
+      color: $color-text;
+      opacity: 0.4;
     }
 
     &_right {
