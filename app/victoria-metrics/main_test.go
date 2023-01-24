@@ -129,7 +129,7 @@ func setUp() {
 	storagePath = filepath.Join(os.TempDir(), testStorageSuffix)
 	processFlags()
 	logger.Init()
-	vmstorage.InitWithoutMetrics(promql.ResetRollupResultCacheIfNeeded)
+	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
 	go httpserver.Serve(*httpListenAddr, requestHandler)
@@ -189,10 +189,8 @@ func tearDown() {
 
 func TestWriteRead(t *testing.T) {
 	t.Run("write", testWrite)
+	vmstorage.Storage.DebugFlush()
 	time.Sleep(1 * time.Second)
-	vmstorage.Stop()
-	// open storage after stop in write
-	vmstorage.InitWithoutMetrics(promql.ResetRollupResultCacheIfNeeded)
 	t.Run("read", testRead)
 }
 
