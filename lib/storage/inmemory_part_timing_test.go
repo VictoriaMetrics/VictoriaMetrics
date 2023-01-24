@@ -26,12 +26,13 @@ func benchmarkInmemoryPartInitFromRows(b *testing.B, rows []rawRow) {
 
 // Each row belongs to an unique TSID
 var benchRawRowsWorstCase = func() []rawRow {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	for i := 0; i < 1e5; i++ {
 		r.TSID.MetricID = uint64(i)
-		r.Timestamp = rand.Int63()
-		r.Value = rand.NormFloat64()
+		r.Timestamp = rng.Int63()
+		r.Value = rng.NormFloat64()
 		r.PrecisionBits = uint8(i%64) + 1
 		rows = append(rows, r)
 	}
