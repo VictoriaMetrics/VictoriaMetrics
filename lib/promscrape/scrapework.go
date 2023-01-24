@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -789,28 +790,44 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		writeRequestCtxPool.Put(wc)
 	}()
 	if bodyString != "" {
-		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
-		srcRows := wc.rows.Rows
-		for i := range srcRows {
-			sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
+		// Send stale markers in streaming mode in order to reduce memory usage
+		// when stale markers for targets exposing big number of metrics must be generated.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
+		var mu sync.Mutex
+		br := bytes.NewBufferString(bodyString)
+		err := parser.ParseStream(br, timestamp, false, func(rows []parser.Row) error {
+			mu.Lock()
+			defer mu.Unlock()
+			for i := range rows {
+				sw.addRowToTimeseries(wc, &rows[i], timestamp, true)
+			}
+			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
+			if sw.seriesLimitExceeded {
+				sw.applySeriesLimit(wc)
+			}
+			// Push the collected rows to sw before returning from the callback, since they cannot be held
+			// after returning from the callback - this will result in data race.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
+			setStaleMarkersForRows(wc.writeRequest.Timeseries)
+			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+			wc.resetNoRows()
+			return nil
+		}, sw.logError)
+		if err != nil {
+			sw.logError(fmt.Errorf("cannot send stale markers: %s", err).Error())
 		}
 	}
 	if addAutoSeries {
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
 	}
+	setStaleMarkersForRows(wc.writeRequest.Timeseries)
+	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+}
 
-	// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
-	if sw.seriesLimitExceeded {
-		sw.applySeriesLimit(wc)
-	}
-
-	series := wc.writeRequest.Timeseries
-	if len(series) == 0 {
-		return
-	}
-	// Substitute all the values with Prometheus stale markers.
+func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {
 	for _, tss := range series {
 		samples := tss.Samples
 		for i := range samples {
@@ -818,7 +835,6 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		}
 		staleSamplesCreated.Add(len(samples))
 	}
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 }
 
 var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)

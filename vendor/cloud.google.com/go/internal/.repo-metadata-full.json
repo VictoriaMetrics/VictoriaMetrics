@@ -548,6 +548,15 @@
     "release_level": "beta",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/datacatalog/lineage/apiv1": {
+    "distribution_name": "cloud.google.com/go/datacatalog/lineage/apiv1",
+    "description": "Data Lineage API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/datacatalog/latest/lineage/apiv1",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/dataflow/apiv1beta3": {
     "distribution_name": "cloud.google.com/go/dataflow/apiv1beta3",
     "description": "Dataflow API",

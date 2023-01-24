@@ -50,19 +50,20 @@ func BenchmarkInmemoryBlockMarshal(b *testing.B) {
 
 func benchmarkInmemoryBlockMarshal(b *testing.B, prefix string) {
 	const itemsCount = 500
-	var ibSrc inmemoryBlock
-	for i := 0; i < itemsCount; i++ {
-		item := []byte(fmt.Sprintf("%s%d", prefix, i))
-		if !ibSrc.Add(item) {
-			b.Fatalf("cannot add more than %d items", i)
-		}
-	}
-	sort.Sort(&ibSrc)
 
 	b.ResetTimer()
 	b.SetBytes(int64(itemsCount * len(prefix)))
 	b.ReportAllocs()
 	b.RunParallel(func(pb *testing.PB) {
+		var ibSrc inmemoryBlock
+		for i := 0; i < itemsCount; i++ {
+			item := []byte(fmt.Sprintf("%s%d", prefix, i))
+			if !ibSrc.Add(item) {
+				b.Fatalf("cannot add more than %d items", i)
+			}
+		}
+		sort.Sort(&ibSrc)
+
 		var sb storageBlock
 		var firstItem, commonPrefix []byte
 		var n uint32

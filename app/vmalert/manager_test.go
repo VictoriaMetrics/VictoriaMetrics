@@ -64,17 +64,18 @@ func TestManagerUpdateConcurrent(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
-		go func() {
+		go func(n int) {
 			defer wg.Done()
+			r := rand.New(rand.NewSource(int64(n)))
 			for i := 0; i < iterations; i++ {
-				rnd := rand.Intn(len(paths))
+				rnd := r.Intn(len(paths))
 				cfg, err := config.Parse([]string{paths[rnd]}, notifier.ValidateTemplates, true)
 				if err != nil { // update can fail and this is expected
 					continue
 				}
 				_ = m.update(context.Background(), cfg, false)
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 }
