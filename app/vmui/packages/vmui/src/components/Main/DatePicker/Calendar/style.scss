@@ -281,7 +281,7 @@
       &__input {
         width: 64px;
         height: 32px;
-        border: 1px solid $color-alto;
+        border: $border-divider;
         border-radius: $border-radius-small;
         font-size: $font-size-medium;
         padding: 2px $padding-small;
