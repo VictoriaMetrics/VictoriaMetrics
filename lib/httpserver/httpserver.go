@@ -705,3 +705,10 @@ func Redirect(w http.ResponseWriter, url string) {
 	// This may require browser cache cleaning after the incorrect redirect is fixed.
 	w.WriteHeader(http.StatusFound)
 }
+
+// LogError logs the errStr with the context from req.
+func LogError(req *http.Request, errStr string) {
+	uri := GetRequestURI(req)
+	remoteAddr := GetQuotedRemoteAddr(req)
+	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
+}

@@ -27,8 +27,9 @@ go_memstats_alloc_bytes_total 1`))
 	if err := InsertHandler(nil, req); err != nil {
 		t.Errorf("unxepected error %s", err)
 	}
-	if msg := "error parsing prometheus text protocol"; !strings.Contains(testOutput.String(), msg) {
-		t.Errorf("output %q should contain %q", testOutput.String(), msg)
+	expectedMsg := "cannot unmarshal Prometheus line"
+	if !strings.Contains(testOutput.String(), expectedMsg) {
+		t.Errorf("output %q should contain %q", testOutput.String(), expectedMsg)
 	}
 }
 
