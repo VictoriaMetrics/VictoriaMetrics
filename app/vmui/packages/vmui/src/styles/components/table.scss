@@ -12,7 +12,7 @@
     transition: background-color 200ms ease;
 
     &:hover:not(&_header) {
-      background-color: rgba($color-black, 0.05);
+      background-color: $color-hover-black;
     }
 
     &_header {
@@ -43,7 +43,7 @@
       cursor: pointer;
 
       &:hover {
-        background-color: rgba($color-black, 0.05);
+        background-color: $color-hover-black;
       }
     }
 
@@ -54,7 +54,8 @@
     }
 
     &_gray {
-      color: rgba($color-black, 0.4);
+      color: $color-text;
+      opacity: 0.4;
     }
 
     &_right {

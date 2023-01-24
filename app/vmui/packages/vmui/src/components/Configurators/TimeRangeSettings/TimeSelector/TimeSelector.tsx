@@ -13,11 +13,14 @@ import useResize from "../../../../hooks/useResize";
 import DatePicker from "../../../Main/DatePicker/DatePicker";
 import "./style.scss";
 import useClickOutside from "../../../../hooks/useClickOutside";
+import classNames from "classnames";
+import { useAppState } from "../../../../state/common/StateContext";
 
 export const TimeSelector: FC = () => {
+  const { darkTheme } = useAppState();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const documentSize = useResize(document.body);
-  const displayFullDate = useMemo(() => documentSize.width > 1120, [documentSize]);
+  const displayFullDate = useMemo(() => documentSize.width > 1280, [documentSize]);
 
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
@@ -120,7 +123,7 @@ export const TimeSelector: FC = () => {
 
   return <>
     <div ref={buttonRef}>
-      <Tooltip title="Time range controls">
+      <Tooltip title={displayFullDate ? "Time range controls" : dateTitle}>
         <Button
           className={appModeEnable ? "" : "vm-header-button"}
           variant="contained"
@@ -144,7 +147,12 @@ export const TimeSelector: FC = () => {
         ref={wrapperRef}
       >
         <div className="vm-time-selector-left">
-          <div className="vm-time-selector-left-inputs">
+          <div
+            className={classNames({
+              "vm-time-selector-left-inputs": true,
+              "vm-time-selector-left-inputs_dark": darkTheme
+            })}
+          >
             <div
               className="vm-time-selector-left-inputs__date"
               ref={fromRef}

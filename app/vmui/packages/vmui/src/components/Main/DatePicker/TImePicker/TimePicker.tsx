@@ -2,6 +2,7 @@ import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { Dayjs } from "dayjs";
 import { FormEvent, FocusEvent } from "react";
 import classNames from "classnames";
+import { useAppState } from "../../../../state/common/StateContext";
 
 interface CalendarTimepickerProps {
   selectDate: Dayjs
@@ -13,6 +14,7 @@ enum TimeUnits { hour, minutes, seconds }
 
 
 const TimePicker: FC<CalendarTimepickerProps>= ({ selectDate, onChangeTime, onClose }) => {
+  const { darkTheme } = useAppState();
 
   const [activeField, setActiveField] = useState<TimeUnits>(TimeUnits.hour);
   const [hours, setHours] = useState(selectDate.format("HH"));
@@ -154,7 +156,12 @@ const TimePicker: FC<CalendarTimepickerProps>= ({ selectDate, onChangeTime, onCl
           </div>
         ))}
       </div>
-      <div className="vm-calendar-time-picker-fields">
+      <div
+        className={classNames({
+          "vm-calendar-time-picker-fields": true,
+          "vm-calendar-time-picker-fields_dark": darkTheme
+        })}
+      >
         <input
           className="vm-calendar-time-picker-fields__input"
           value={hours}

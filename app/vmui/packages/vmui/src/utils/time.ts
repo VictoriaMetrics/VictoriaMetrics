@@ -2,6 +2,7 @@ import { RelativeTimeOption, TimeParams, TimePeriod, Timezone } from "../types";
 import dayjs, { UnitTypeShort } from "dayjs";
 import { getQueryStringValue } from "./query-string";
 import { DATE_ISO_FORMAT } from "../constants/date";
+import timezones from "../constants/timezones";
 
 const MAX_ITEMS_PER_CHART = window.innerWidth / 4;
 
@@ -9,7 +10,8 @@ export const limitsDurations = { min: 1, max: 1.578e+11 }; // min: 1 ms, max: 5 
 
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
-export const supportedTimezones = Intl.supportedValuesOf("timeZone") as string[];
+const supportedValuesOf = Intl.supportedValuesOf;
+export const supportedTimezones = supportedValuesOf ? supportedValuesOf("timeZone") as string[] : timezones;
 
 // The list of supported units could be the following -
 // https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations

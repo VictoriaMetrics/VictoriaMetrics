@@ -13,6 +13,7 @@ import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
 import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
+import ThemeControl from "../ThemeControl/ThemeControl";
 
 const title = "Settings";
 
@@ -81,6 +82,9 @@ const GlobalSettings: FC = () => {
               timezoneState={timezone}
               onChange={setTimezone}
             />
+          </div>
+          <div className="vm-server-configurator__input">
+            <ThemeControl/>
           </div>
           <div className="vm-server-configurator__footer">
             <Button
