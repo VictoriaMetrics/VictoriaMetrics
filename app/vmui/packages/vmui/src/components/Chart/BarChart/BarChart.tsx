@@ -3,11 +3,13 @@ import uPlot, { Options as uPlotOptions } from "uplot";
 import useResize from "../../../hooks/useResize";
 import { BarChartProps } from "./types";
 import "./style.scss";
+import { useAppState } from "../../../state/common/StateContext";
 
 const BarChart: FC<BarChartProps> = ({
   data,
   container,
   configs }) => {
+  const { darkTheme } = useAppState();
 
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
@@ -28,7 +30,7 @@ const BarChart: FC<BarChartProps> = ({
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
     return u.destroy;
-  }, [uPlotRef.current, layoutSize]);
+  }, [uPlotRef.current, layoutSize, darkTheme]);
 
   useEffect(() => updateChart(), [data]);
 

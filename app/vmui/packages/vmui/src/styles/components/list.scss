@@ -9,7 +9,7 @@
 
     &:hover,
     &_active {
-      background-color: rgba($color-black, 0.06);
+      background-color: $color-hover-black;
     }
 
     &_multiselect {

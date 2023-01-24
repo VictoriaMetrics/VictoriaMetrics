@@ -17,15 +17,11 @@ const App: FC = () => {
 
   const [loadingTheme, setLoadingTheme] = useState(true);
 
-  if (loadingTheme) return (
-    <>
-      <Spinner/>
-      <ThemeProvider setLoadingTheme={setLoadingTheme}/>;
-    </>
-  );
-
   return <>
-    <HashRouter>
+    {loadingTheme && <Spinner/>}
+    <ThemeProvider setLoadingTheme={setLoadingTheme}/>
+
+    <HashRouter key={`${loadingTheme}`}>
       <AppContextProvider>
         <Routes>
           <Route

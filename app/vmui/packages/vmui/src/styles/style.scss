@@ -30,4 +30,17 @@
   /* backgrounds */
   --color-background-body: #FEFEFF;
   --color-background-block: #FFFFFF;
+  --color-background-tooltip: rgba(97,97,97, 0.92);
+
+  /* text */
+  --color-text: #110f0f;
+  --color-text-secondary: #706F6F;
+  --color-text-disabled: #A09F9F;
+
+  /* box-shadow */
+  --box-shadow: rgba(0, 0, 0, 0.08) 1px 2px 6px;
+  --box-shadow-popper: rgba(0, 0, 0, 0.1) 0px 2px 8px 0px;
+
+  --border-divider: 1px solid rgba(0, 0, 0, 0.15);
+  --color-hover-black: rgba(0, 0, 0, 0.06);
 }
