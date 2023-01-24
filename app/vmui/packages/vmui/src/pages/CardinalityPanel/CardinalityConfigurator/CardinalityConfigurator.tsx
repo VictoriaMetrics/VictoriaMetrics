@@ -109,7 +109,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
       </div>
       <a
         className="vm-cardinality-configurator-bottom__docs"
-        href="https://victoriametrics.com/blog/cardinality-explorer/?_gl=1*qdhixt*_ga*MTE3OTAyMTU1My4xNjcwODI4MDQ2*_ga_N9SVT8S3HK*MTY3Mzg4NzIxNi4yMy4xLjE2NzM4ODg3NTYuMC4wLjA."
+        href="https://victoriametrics.com/blog/cardinality-explorer/"
         target="_blank"
         rel="help noreferrer"
       >
