@@ -6,10 +6,11 @@
   gap: $padding-small;
   align-items: center;
   justify-content: space-between;
-  background-color: $color-primary;
+  background-color: $color-background-block;
   padding: $padding-small $padding-small $padding-small $padding-global;
   border-radius: $border-radius-small $border-radius-small 0 0;
-  color: $color-white;
+  color: $color-text;
+  border-bottom: $border-divider;
 
   &__title {
     font-weight: bold;

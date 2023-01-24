@@ -18,6 +18,10 @@
       align-items: flex-start;
       justify-content: stretch;
 
+      &_dark &__date {
+        border-color: $color-text-disabled;
+      }
+
       &__date {
         display: grid;
         grid-template-columns: 1fr 14px;
@@ -70,7 +74,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background-color: rgba($color-black, 0.06);
+        background-color: $color-hover-black;
         padding: calc($padding-small/2);
         border-radius: $border-radius-small;
       }

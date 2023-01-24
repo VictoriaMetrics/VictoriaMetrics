@@ -75,4 +75,14 @@
       background-color: $color-warning;
     }
   }
+
+  &_dark {
+    &:after {
+      opacity: 0.1;
+    }
+  }
+
+  &_dark &__content {
+    filter: none;
+  }
 }

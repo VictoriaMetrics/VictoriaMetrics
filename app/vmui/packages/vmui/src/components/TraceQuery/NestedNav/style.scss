@@ -5,6 +5,10 @@
   border-radius: $border-radius-small;
   background-color: rgba($color-tropical-blue, 0.4);
 
+  &_dark {
+    background-color: rgba($color-black, 0.1);
+  }
+
   &-header {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -15,7 +19,7 @@
     cursor: pointer;
 
     &:hover {
-      background-color: rgba($color-black, 0.06);
+      background-color: $color-hover-black;
     }
 
     &__icon {
