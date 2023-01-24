@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
@@ -687,19 +688,24 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 }
 
 func TestSendStaleSeries(t *testing.T) {
-	var sw scrapeWork
-	sw.Config = &ScrapeWork{
-		NoStaleMarkers: false,
-	}
-
-	var timeseriesExpectedN int
-	sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	f := func(lastScrape, currScrape string, staleMarksExpected int) {
 		t.Helper()
-		if len(wr.Timeseries) != timeseriesExpectedN {
-			t.Fatalf("expected to get %d stale series; got %d", timeseriesExpectedN, len(wr.Timeseries))
+		var sw scrapeWork
+		sw.Config = &ScrapeWork{
+			NoStaleMarkers: false,
+		}
+		common.StartUnmarshalWorkers()
+		defer common.StopUnmarshalWorkers()
+
+		var staleMarks int
+		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+			staleMarks += len(wr.Timeseries)
+		}
+		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
+		if staleMarks != staleMarksExpected {
+			t.Fatalf("unexpected number of stale marks; got %d; want %d", staleMarks, staleMarksExpected)
 		}
 	}
-
 	generateScrape := func(n int) string {
 		w := strings.Builder{}
 		for i := 0; i < n; i++ {
@@ -708,20 +714,13 @@ func TestSendStaleSeries(t *testing.T) {
 		return w.String()
 	}
 
-	timeseriesExpectedN = 0
-	sw.sendStaleSeries("", "", 0, false)
-
-	timeseriesExpectedN = 0
-	sw.sendStaleSeries(generateScrape(10), generateScrape(10), 0, false)
-
-	timeseriesExpectedN = 10
-	sw.sendStaleSeries(generateScrape(10), "", 0, false)
-
-	timeseriesExpectedN = 5
-	sw.sendStaleSeries(generateScrape(10), generateScrape(5), 0, false)
-
-	timeseriesExpectedN = maxStaleSeriesAtOnce
-	sw.sendStaleSeries(generateScrape(maxStaleSeriesAtOnce*2), "", 0, false)
+	f("", "", 0)
+	f(generateScrape(10), generateScrape(10), 0)
+	f(generateScrape(10), "", 10)
+	f("", generateScrape(10), 0)
+	f(generateScrape(10), generateScrape(3), 7)
+	f(generateScrape(3), generateScrape(10), 0)
+	f(generateScrape(20000), generateScrape(10), 19990)
 }
 
 func parsePromRow(data string) *parser.Row {

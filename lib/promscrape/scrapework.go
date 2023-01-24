@@ -1,6 +1,7 @@
 package promscrape
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -767,11 +768,6 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 
 var sendStaleSeriesConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
-// maxStaleSeriesAtOnce defines the max number of stale series
-// to process and send at once. It prevents from excessive memory usage
-// when big number of metrics become stale at the same time.
-const maxStaleSeriesAtOnce = 1e3
-
 func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
 	// This function is CPU-bound, while it may allocate big amounts of memory.
 	// That's why it is a good idea to limit the number of concurrent calls to this function
@@ -794,46 +790,50 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		writeRequestCtxPool.Put(wc)
 	}()
 	if bodyString != "" {
-		wc.rows.UnmarshalWithErrLogger(bodyString, sw.logError)
-	}
-
-	srcRows := wc.rows.Rows
-	for from := 0; from < len(srcRows); from += maxStaleSeriesAtOnce {
-		to := from + maxStaleSeriesAtOnce
-		if to > len(srcRows) {
-			to = len(srcRows)
-		}
-
-		for i := range srcRows[from:to] {
-			sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
-		}
-
-		// add auto series at the last iteration
-		if addAutoSeries && to == len(srcRows) {
-			am := &autoMetrics{}
-			sw.addAutoMetrics(am, wc, timestamp)
-		}
-
-		// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
-		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
-		if sw.seriesLimitExceeded {
-			sw.applySeriesLimit(wc)
-		}
-
-		series := wc.writeRequest.Timeseries
-		if len(series) == 0 {
-			continue
-		}
-		// Substitute all the values with Prometheus stale markers.
-		for _, tss := range series {
-			samples := tss.Samples
-			for i := range samples {
-				samples[i].Value = decimal.StaleNaN
+		// Send stale markers in streaming mode in order to reduce memory usage
+		// when stale markers for targets exposing big number of metrics must be generated.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
+		var mu sync.Mutex
+		br := bytes.NewBufferString(bodyString)
+		err := parser.ParseStream(br, timestamp, false, func(rows []parser.Row) error {
+			mu.Lock()
+			defer mu.Unlock()
+			for i := range rows {
+				sw.addRowToTimeseries(wc, &rows[i], timestamp, true)
 			}
-			staleSamplesCreated.Add(len(samples))
+			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
+			if sw.seriesLimitExceeded {
+				sw.applySeriesLimit(wc)
+			}
+			// Push the collected rows to sw before returning from the callback, since they cannot be held
+			// after returning from the callback - this will result in data race.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
+			setStaleMarkersForRows(wc.writeRequest.Timeseries)
+			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+			wc.resetNoRows()
+			return nil
+		}, sw.logError)
+		if err != nil {
+			sw.logError(fmt.Errorf("cannot send stale markers: %s", err).Error())
 		}
-		sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
-		wc.reset()
+	}
+	if addAutoSeries {
+		am := &autoMetrics{}
+		sw.addAutoMetrics(am, wc, timestamp)
+	}
+	setStaleMarkersForRows(wc.writeRequest.Timeseries)
+	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+}
+
+func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {
+	for _, tss := range series {
+		samples := tss.Samples
+		for i := range samples {
+			samples[i].Value = decimal.StaleNaN
+		}
+		staleSamplesCreated.Add(len(samples))
 	}
 }
 
