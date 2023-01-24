@@ -7,7 +7,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -31,13 +30,11 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	remoteAddr := httpserver.GetQuotedRemoteAddr(req)
-	uri := httpserver.GetRequestURI(req)
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
 	return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 		return insertRows(at, rows, extraLabels)
 	}, func(s string) {
-		logger.Errorf("error parsing prometheus text protocol, uri - %s, remote address - %q: %s", uri, remoteAddr, s)
+		httpserver.LogError(req, s)
 	})
 }
 
