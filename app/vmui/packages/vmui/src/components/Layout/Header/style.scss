@@ -6,17 +6,18 @@
   align-items: center;
   justify-content: flex-start;
   padding: $padding-small $padding-medium;
-  gap: $padding-large;
+  gap: 0 $padding-large;
+  z-index: 99;
 
   &_app {
     padding: $padding-small 0;
   }
 
-  @media (max-width: 1200px) {
-    gap: $padding-global;
-
-    .vm-tabs {
-      gap: 0;
+  &_dark {
+    .vm-header-button,
+    button:before,
+    button {
+      background-color: $color-background-block;
     }
   }
 
@@ -41,11 +42,6 @@
       max-width: 65px;
       min-width: 65px;
     }
-  }
-
-  &-nav {
-    font-size: $font-size-small;
-    font-weight: 600;
   }
 
   &__settings {

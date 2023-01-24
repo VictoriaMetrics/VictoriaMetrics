@@ -1,6 +1,7 @@
 import React, { FC, KeyboardEvent, useEffect, useRef, HTMLInputTypeAttribute, ReactNode } from "react";
 import classNames from "classnames";
 import { useMemo } from "preact/compat";
+import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
 
 interface TextFieldProps {
@@ -38,6 +39,7 @@ const TextField: FC<TextFieldProps> = ({
   onFocus,
   onBlur
 }) => {
+  const { darkTheme } = useAppState();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -81,6 +83,7 @@ const TextField: FC<TextFieldProps> = ({
     className={classNames({
       "vm-text-field": true,
       "vm-text-field_textarea": type === "textarea",
+      "vm-text-field_dark": darkTheme
     })}
     data-replicated-value={value}
   >

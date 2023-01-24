@@ -4,6 +4,7 @@ import { getSecondsFromDuration, roundToMilliseconds } from "../time";
 import { AxisRange } from "../../state/graph/reducer";
 import { formatTicks, sizeAxis } from "./helpers";
 import { TimeParams } from "../../types";
+import { getCssVariable } from "../theme";
 
 // see https://github.com/leeoniya/uPlot/tree/master/docs#axis--grid-opts
 const timeValues = [
@@ -22,10 +23,11 @@ export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(n
     scale: a,
     show: true,
     size: sizeAxis,
+    stroke: getCssVariable("color-text"),
     font: "10px Arial",
     values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
   };
-  if (!a) return { space: 80, values: timeValues };
+  if (!a) return { space: 80, values: timeValues, stroke: getCssVariable("color-text") };
   if (!(Number(a) % 2)) return { ...axis, side: 1 };
   return axis;
 });

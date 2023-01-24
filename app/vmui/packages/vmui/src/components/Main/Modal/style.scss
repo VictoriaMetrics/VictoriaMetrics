@@ -8,7 +8,7 @@ $padding-modal: 22px;
   left: 0;
   right: 0;
   bottom: 0;
-  z-index: 100;
+  z-index: 999;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -16,9 +16,11 @@ $padding-modal: 22px;
 
   &-content {
     padding: $padding-modal;
-    background: $color-white;
+    background: $color-background-block;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
     border-radius: $border-radius-small;
+    max-height: 90vh;
+    overflow: auto;
 
     &-header {
       display: grid;

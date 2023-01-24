@@ -21,6 +21,7 @@ import "./style.scss";
 import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
+import { useAppState } from "../../../state/common/StateContext";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -47,6 +48,8 @@ const LineChart: FC<LineChartProps> = ({
   container,
   height
 }) => {
+  const { darkTheme } = useAppState();
+
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
@@ -222,7 +225,7 @@ const LineChart: FC<LineChartProps> = ({
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
     return u.destroy;
-  }, [uPlotRef.current, series, layoutSize, height]);
+  }, [uPlotRef.current, series, layoutSize, height, darkTheme]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);

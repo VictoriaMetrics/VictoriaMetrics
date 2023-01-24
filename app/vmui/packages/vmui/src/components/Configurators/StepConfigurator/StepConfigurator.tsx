@@ -158,7 +158,7 @@ const StepConfigurator: FC = () => {
               className="vm-link vm-link_colored"
               href="https://docs.victoriametrics.com/keyConcepts.html#range-query"
               target="_blank"
-              rel="noreferrer"
+              rel="help noreferrer"
             >
               Read more about Range query
             </a>

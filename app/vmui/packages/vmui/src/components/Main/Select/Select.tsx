@@ -3,6 +3,7 @@ import classNames from "classnames";
 import { ArrowDropDownIcon, CloseIcon } from "../Icons";
 import { FormEvent, MouseEvent } from "react";
 import Autocomplete from "../Autocomplete/Autocomplete";
+import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
 
 interface SelectProps {
@@ -26,6 +27,7 @@ const Select: FC<SelectProps> = ({
   autofocus,
   onChange
 }) => {
+  const { darkTheme } = useAppState();
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
@@ -106,7 +108,12 @@ const Select: FC<SelectProps> = ({
   }, []);
 
   return (
-    <div className="vm-select">
+    <div
+      className={classNames({
+        "vm-select": true,
+        "vm-select_dark": darkTheme
+      })}
+    >
       <div
         className="vm-select-input"
         onClick={handleToggleList}
