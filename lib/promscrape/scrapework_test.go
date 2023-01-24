@@ -686,6 +686,44 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 		`metric{a="e",foo="bar"} 0 123`)
 }
 
+func TestSendStaleSeries(t *testing.T) {
+	var sw scrapeWork
+	sw.Config = &ScrapeWork{
+		NoStaleMarkers: false,
+	}
+
+	var timeseriesExpectedN int
+	sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+		t.Helper()
+		if len(wr.Timeseries) != timeseriesExpectedN {
+			t.Fatalf("expected to get %d stale series; got %d", timeseriesExpectedN, len(wr.Timeseries))
+		}
+	}
+
+	generateScrape := func(n int) string {
+		w := strings.Builder{}
+		for i := 0; i < n; i++ {
+			w.WriteString(fmt.Sprintf("foo_%d 1\n", i))
+		}
+		return w.String()
+	}
+
+	timeseriesExpectedN = 0
+	sw.sendStaleSeries("", "", 0, false)
+
+	timeseriesExpectedN = 0
+	sw.sendStaleSeries(generateScrape(10), generateScrape(10), 0, false)
+
+	timeseriesExpectedN = 10
+	sw.sendStaleSeries(generateScrape(10), "", 0, false)
+
+	timeseriesExpectedN = 5
+	sw.sendStaleSeries(generateScrape(10), generateScrape(5), 0, false)
+
+	timeseriesExpectedN = maxStaleSeriesAtOnce
+	sw.sendStaleSeries(generateScrape(maxStaleSeriesAtOnce*2), "", 0, false)
+}
+
 func parsePromRow(data string) *parser.Row {
 	var rows parser.Rows
 	errLogger := func(s string) {
