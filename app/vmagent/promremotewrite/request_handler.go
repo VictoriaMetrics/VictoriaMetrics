@@ -1,7 +1,6 @@
 package promremotewrite
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
@@ -30,13 +29,6 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	}
 	return parser.ParseStream(req.Body, func(tss []prompb.TimeSeries) error {
 		return insertRows(at, tss, extraLabels)
-	})
-}
-
-// InsertHandlerForReader processes metrics from given reader
-func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
-	return parser.ParseStream(r, func(tss []prompb.TimeSeries) error {
-		return insertRows(at, tss, nil)
 	})
 }
 
