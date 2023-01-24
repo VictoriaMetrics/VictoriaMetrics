@@ -1,12 +1,16 @@
 package bytesutil
 
 import (
+	"flag"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
+
+var internStringMaxLen = flag.Int("internStringMaxLen", 300, "The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. "+
+	"See https://en.wikipedia.org/wiki/String_interning")
 
 // InternBytes interns b as a string
 func InternBytes(b []byte) string {
@@ -30,6 +34,12 @@ func InternString(s string) string {
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := strings.Clone(s)
+	if len(sCopy) > *internStringMaxLen {
+		// Do not intern long strings, since this may result in high memory usage
+		// like in https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+		return sCopy
+	}
+
 	e := &ismEntry{
 		lastAccessTime: ct,
 		s:              sCopy,
