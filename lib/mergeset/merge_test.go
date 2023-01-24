@@ -23,8 +23,10 @@ func TestMergeBlockStreams(t *testing.T) {
 }
 
 func TestMultilevelMerge(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+
 	// Prepare blocks to merge.
-	bsrs, items := newTestInmemoryBlockStreamReaders(10, 4000)
+	bsrs, items := newTestInmemoryBlockStreamReaders(r, 10, 4000)
 	var itemsMerged uint64
 
 	// First level merge
@@ -70,7 +72,8 @@ func TestMultilevelMerge(t *testing.T) {
 }
 
 func TestMergeForciblyStop(t *testing.T) {
-	bsrs, _ := newTestInmemoryBlockStreamReaders(20, 4000)
+	r := rand.New(rand.NewSource(1))
+	bsrs, _ := newTestInmemoryBlockStreamReaders(r, 20, 4000)
 	var dstIP inmemoryPart
 	var bsw blockStreamWriter
 	bsw.InitFromInmemoryPart(&dstIP, 1)
@@ -88,16 +91,18 @@ func TestMergeForciblyStop(t *testing.T) {
 func testMergeBlockStreams(t *testing.T, blocksToMerge, maxItemsPerBlock int) {
 	t.Helper()
 
-	if err := testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock); err != nil {
+	r := rand.New(rand.NewSource(1))
+	if err := testMergeBlockStreamsSerial(r, blocksToMerge, maxItemsPerBlock); err != nil {
 		t.Fatalf("unexpected error in serial test: %s", err)
 	}
 
 	const concurrency = 3
 	ch := make(chan error, concurrency)
 	for i := 0; i < concurrency; i++ {
-		go func() {
-			ch <- testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock)
-		}()
+		go func(n int) {
+			rLocal := rand.New(rand.NewSource(int64(n)))
+			ch <- testMergeBlockStreamsSerial(rLocal, blocksToMerge, maxItemsPerBlock)
+		}(i)
 	}
 
 	for i := 0; i < concurrency; i++ {
@@ -112,9 +117,9 @@ func testMergeBlockStreams(t *testing.T, blocksToMerge, maxItemsPerBlock int) {
 	}
 }
 
-func testMergeBlockStreamsSerial(blocksToMerge, maxItemsPerBlock int) error {
+func testMergeBlockStreamsSerial(r *rand.Rand, blocksToMerge, maxItemsPerBlock int) error {
 	// Prepare blocks to merge.
-	bsrs, items := newTestInmemoryBlockStreamReaders(blocksToMerge, maxItemsPerBlock)
+	bsrs, items := newTestInmemoryBlockStreamReaders(r, blocksToMerge, maxItemsPerBlock)
 
 	// Merge blocks.
 	var itemsMerged uint64
@@ -175,14 +180,14 @@ func testCheckItems(dstIP *inmemoryPart, items []string) error {
 	return nil
 }
 
-func newTestInmemoryBlockStreamReaders(blocksCount, maxItemsPerBlock int) ([]*blockStreamReader, []string) {
+func newTestInmemoryBlockStreamReaders(r *rand.Rand, blocksCount, maxItemsPerBlock int) ([]*blockStreamReader, []string) {
 	var items []string
 	var bsrs []*blockStreamReader
 	for i := 0; i < blocksCount; i++ {
 		var ib inmemoryBlock
-		itemsPerBlock := rand.Intn(maxItemsPerBlock) + 1
+		itemsPerBlock := r.Intn(maxItemsPerBlock) + 1
 		for j := 0; j < itemsPerBlock; j++ {
-			item := getRandomBytes()
+			item := getRandomBytes(r)
 			if !ib.Add(item) {
 				break
 			}
