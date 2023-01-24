@@ -114,11 +114,13 @@ func TestPartitionSearch(t *testing.T) {
 func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, maxRowsPerPart, tsidsCount int) {
 	t.Helper()
 
+	rng := rand.New(rand.NewSource(1))
+
 	// Generate tsids to search.
 	var tsids []TSID
 	var tsid TSID
 	for i := 0; i < 25; i++ {
-		tsid.MetricID = uint64(rand.Intn(tsidsCount * 2))
+		tsid.MetricID = uint64(rng.Intn(tsidsCount * 2))
 		tsids = append(tsids, tsid)
 	}
 	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
@@ -135,13 +137,13 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 		var r rawRow
 		r.PrecisionBits = 30
 		timestamp := ptr.MinTimestamp
-		rowsCount := 1 + rand.Intn(maxRowsPerPart)
+		rowsCount := 1 + rng.Intn(maxRowsPerPart)
 		for j := 0; j < rowsCount; j++ {
-			r.TSID.MetricID = uint64(rand.Intn(tsidsCount))
+			r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
 			r.Timestamp = timestamp
-			r.Value = float64(int(rand.NormFloat64() * 1e5))
+			r.Value = float64(int(rng.NormFloat64() * 1e5))
 
-			timestamp += int64(rand.Intn(1e4))
+			timestamp += int64(rng.Intn(1e4))
 			if timestamp > ptr.MaxTimestamp {
 				break
 			}

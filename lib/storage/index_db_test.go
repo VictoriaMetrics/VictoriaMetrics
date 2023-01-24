@@ -614,6 +614,8 @@ func TestIndexDB(t *testing.T) {
 }
 
 func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount, metricGroups int) ([]MetricName, []TSID, []string, error) {
+	r := rand.New(rand.NewSource(1))
+
 	// Create tsids.
 	var mns []MetricName
 	var tsids []TSID
@@ -635,7 +637,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		mn.MetricGroup = []byte(fmt.Sprintf("metricGroup.%d\x00\x01\x02", i%metricGroups))
 
 		// Init other tags.
-		tagsCount := rand.Intn(10) + 1
+		tagsCount := r.Intn(10) + 1
 		for j := 0; j < tagsCount; j++ {
 			key := fmt.Sprintf("key\x01\x02\x00_%d_%d", i, j)
 			value := fmt.Sprintf("val\x01_%d\x00_%d\x02", i, j)
@@ -1564,6 +1566,7 @@ func TestMatchTagFilters(t *testing.T) {
 }
 
 func TestIndexDBRepopulateAfterRotation(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	path := "TestIndexRepopulateAfterRotation"
 	s, err := OpenStorage(path, msecsPerMonth, 1e5, 1e5)
 	if err != nil {
@@ -1584,7 +1587,7 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	const metricRowsN = 1000
 	// use min-max timestamps of 1month range to create smaller number of partitions
 	timeMin, timeMax := time.Now().Add(-730*time.Hour), time.Now()
-	mrs := testGenerateMetricRows(metricRowsN, timeMin.UnixMilli(), timeMax.UnixMilli())
+	mrs := testGenerateMetricRows(r, metricRowsN, timeMin.UnixMilli(), timeMax.UnixMilli())
 	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 		t.Fatalf("unexpected error when adding mrs: %s", err)
 	}
