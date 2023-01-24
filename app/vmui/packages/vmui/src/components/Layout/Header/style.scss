@@ -44,6 +44,11 @@
     }
   }
 
+  &-nav {
+    font-size: $font-size-small;
+    font-weight: bold;
+  }
+
   &__settings {
     display: flex;
     align-items: center;
