@@ -12,7 +12,7 @@ and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics
 The stream aggregation is configured via the following command-line flags:
 
 - `-remoteWrite.streamAggr.config` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
-  This flag can be specified individually per each specified `-remoteWrite.url`.
+  This flag can be specified individually per each `-remoteWrite.url`.
   This allows writing different aggregates to different remote storage destinations.
 - `-streamAggr.config` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
@@ -22,12 +22,22 @@ By default only the aggregated data is written to the storage. If the original i
 then the following command-line flags must be specified:
 
 - `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
-  This flag can be specified individually per each specified `-remoteWrite.url`.
+  This flag can be specified individually per each `-remoteWrite.url`.
   This allows writing both raw and aggregate data to different remote storage destinations.
 - `-streamAggr.keepInput` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
 Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 It expects that the ingested samples have timestamps close to the current time.
+
+By default all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
+For example, if the samples are received from replicated sources.
+The following command-line flag can be used for enabling the [de-duplication](https://docs.victoriametrics.com/#deduplication)
+before aggregation in this case:
+
+- `-remoteWrite.streamAggr.dedupInterval` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
+  This flag can be specified individually per each `-remoteWrite.url`.
+  This allows setting different de-duplication intervals per each configured remote storage.
+- `-streamAggr.dedupInterval` at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html).
 
 ## Use cases
 
