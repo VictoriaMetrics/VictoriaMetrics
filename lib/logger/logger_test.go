@@ -49,7 +49,6 @@ func TestLogLevelMapping(t *testing.T) {
 }
 
 func TestLoggerSkipFrames(t *testing.T) {
-	defer restore(&output, output)
 	defer restore(disableTimestamps, *disableTimestamps)
 
 	_, fullPath, _, ok := runtime.Caller(0)
@@ -79,7 +78,7 @@ func TestLoggerSkipFrames(t *testing.T) {
 	f0(callerLocation(0))
 
 	var capturedOutput bytes.Buffer
-	output = &capturedOutput
+	defer SetOutput(SetOutput(&capturedOutput))
 	*disableTimestamps = true
 
 	f := func() {
@@ -136,13 +135,13 @@ func TestLoggerSkipFrames(t *testing.T) {
 }
 
 func TestLogLimiter(t *testing.T) {
+	defer SetOutput(SetOutput(io.Discard))
 	defer restore(&output, output)
 	defer restore(&limitPeriod, limitPeriod)
 	defer restore(&limiter, limiter)
 	defer restore(warnsPerSecondLimit, *warnsPerSecondLimit)
 	defer restore(errorsPerSecondLimit, *errorsPerSecondLimit)
 
-	output = io.Discard
 	limitPeriod = timestep
 	limiter = newLogLimiter()
 	*warnsPerSecondLimit = 2
@@ -174,9 +173,7 @@ func TestLogLimiter(t *testing.T) {
 }
 
 func TestLogThrottler(t *testing.T) {
-	defer restore(&output, output)
-
-	output = io.Discard
+	defer SetOutput(SetOutput(io.Discard))
 
 	lt := newLogThrottler(timestep)
 

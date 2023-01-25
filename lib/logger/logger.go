@@ -33,18 +33,25 @@ func Init() {
 	logAllFlags()
 }
 
+// SetOutput sets the output writer directly to allow tests to capture the logged messages.
+// The previous writer is returned so that it can be restored afterwards, if needed.
+func SetOutput(writer io.Writer) (prev io.Writer) {
+	prev, output = output, writer
+	return
+}
+
+var output io.Writer = os.Stderr
+
 func setLoggerOutput() {
 	switch *loggerOutput {
 	case "stderr":
-		output = os.Stderr
+		SetOutput(os.Stderr)
 	case "stdout":
-		output = os.Stdout
+		SetOutput(os.Stdout)
 	default:
 		panic(fmt.Errorf("FATAL: unsupported `loggerOutput` value: %q; supported values are: stderr, stdout", *loggerOutput))
 	}
 }
-
-var output io.Writer = os.Stderr
 
 // Infof logs info message.
 func Infof(format string, args ...interface{}) {
@@ -168,9 +175,3 @@ func (lw *stdErrorWriter) Write(p []byte) (int, error) {
 	ErrorfSkipframes(3, "%s", p)
 	return len(p), nil
 }
-
-// SetOutputForTests redefine output for logger. Use for Tests only. Call ResetOutputForTest to return output state to default
-func SetOutputForTests(writer io.Writer) { output = writer }
-
-// ResetOutputForTest set logger output to default value
-func ResetOutputForTest() { output = os.Stderr }

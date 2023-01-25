@@ -3,6 +3,7 @@ package prometheusimport
 import (
 	"bytes"
 	"flag"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +17,9 @@ import (
 )
 
 var (
-	srv        *httptest.Server
-	testOutput *bytes.Buffer
+	srv         *httptest.Server
+	savedOutput io.Writer
+	testOutput  *bytes.Buffer
 )
 
 func TestInsertHandler(t *testing.T) {
@@ -26,7 +28,7 @@ func TestInsertHandler(t *testing.T) {
 	req := httptest.NewRequest("POST", "/insert/0/api/v1/import/prometheus", bytes.NewBufferString(`{"foo":"bar"}
 go_memstats_alloc_bytes_total 1`))
 	if err := InsertHandler(nil, req); err != nil {
-		t.Errorf("unxepected error %s", err)
+		t.Errorf("unexpected error %s", err)
 	}
 	expectedMsg := "cannot unmarshal Prometheus line"
 	if !strings.Contains(testOutput.String(), expectedMsg) {
@@ -43,18 +45,16 @@ func setUp() {
 	if err := flag.Lookup(remoteWriteFlag).Value.Set(srv.URL); err != nil {
 		log.Fatalf("unable to set %q with value %q, err: %v", remoteWriteFlag, srv.URL, err)
 	}
-	logger.Init()
 	common.StartUnmarshalWorkers()
 	remotewrite.Init()
 	testOutput = &bytes.Buffer{}
-	logger.SetOutputForTests(testOutput)
+	savedOutput = logger.SetOutput(testOutput)
 }
 
 func tearDown() {
 	common.StopUnmarshalWorkers()
 	srv.Close()
-	logger.ResetOutputForTest()
+	logger.SetOutput(savedOutput)
 	tmpDataDir := flag.Lookup("remoteWrite.tmpDataPath").Value.String()
 	fs.MustRemoveAll(tmpDataDir)
-
 }
