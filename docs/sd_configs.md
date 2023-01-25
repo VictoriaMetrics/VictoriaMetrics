@@ -1274,8 +1274,8 @@ scrape_configs:
   # scrape_offset: <duration>
 
   # series_limit is an optional limit on the number of unique time series
-  # a single target can expose during all the scrapes.
-  # By default there is no limit on the number of exposed series.
+  # a single target can expose during all the scrapes on the time window of 24h.
+  # By default, there is no limit on the number of exposed series.
   # See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter .
   # The series_limit can be set on a per-target basis by specifying `__series_limit__`
   # label during target relabeling phase.
@@ -1283,7 +1283,7 @@ scrape_configs:
   # series_limit: ...
 
   # no_stale_markers allows disabling staleness tracking.
-  # By default staleness tracking is enabled for all the discovered scrape targets.
+  # By default, staleness tracking is enabled for all the discovered scrape targets.
   # See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
   # no_stale_markers: <boolean>
 
