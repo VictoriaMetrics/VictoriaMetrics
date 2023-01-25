@@ -16,10 +16,12 @@ import (
 var (
 	streamAggrConfig = flag.String("streamAggr.config", "", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
-		"See also -remoteWrite.streamAggr.keepInput")
+		"See also -remoteWrite.streamAggr.keepInput and -streamAggr.dedupInterval")
 	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep input samples after the aggregation with -streamAggr.config. "+
 		"By default the input is dropped after the aggregation, so only the aggregate data is stored. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
+	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
+		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
 
 // InitStreamAggr must be called after flag.Parse and before using the common package.
@@ -30,7 +32,7 @@ func InitStreamAggr() {
 		// Nothing to initialize
 		return
 	}
-	a, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries)
+	a, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, *streamAggrDedupInterval)
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
