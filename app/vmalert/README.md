@@ -346,10 +346,13 @@ For example:
 -rule="/path/to/file". Path to a single file with alerting rules
 -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
 ```
-`-rule` value may contain %{ENV_VAR} placeholders, which are substituted by the corresponding ENV vars. 
 
-Support of remote storage for rules loading supposed to simplify rules management procedures 
-for multiple `vmalert` deployments.
+`-rule` value may contain %{ENV_VAR} placeholders, which are substituted by the corresponding ENV vars. 
+For example, use `ENV=prod` and `-rule="gcs://vmalert-rules/%{ENV}` will resolve itself into `gcs://vmalert-rules/prod`.
+
+Support of remote storage for rules loading supposed to simplify rules management procedures
+for multiple `vmalert` deployments. For example, update rules in the remote storage and all `vmalert` processes 
+will [hot-reload](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#hot-config-reload) their configs accordingly. 
 
 ### Alerts state on restarts
 
@@ -1115,7 +1118,8 @@ The shortlist of configuration flags is the following:
      Path to the files with alert rules.
      Example: gs://bucket/path/to/rules, s3://bucket/path/to/rules, or fs:///path/to/local/rules/dir
      If scheme remote storage scheme is omitted, local file system is used.
-     Local file system supports hierarchical patterns and regexes. Remote file system supports only matching by prefix.
+     Remote file system supports only matching by prefix, e.g. s3://bucket/dir/rule_ will match all files with prefix
+     rule_ in folder dir.
      Flag can be specified multiple times.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules

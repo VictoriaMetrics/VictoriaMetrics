@@ -31,8 +31,10 @@ var (
 	rulePath = flagutil.NewArrayString("rule", `Path to the files with alert rules.
 Example: gs://bucket/path/to/rules, s3://bucket/path/to/rules, or fs:///path/to/local/rules/dir
 If scheme remote storage scheme is omitted, local file system is used.
-Local file system supports hierarchical patterns and regexes. Remote file system supports only matching by prefix.
-Flag can be specified multiple times.
+Local file system supports hierarchical patterns and regexes. 
+Remote file system supports only matching by prefix, e.g. s3://bucket/dir/rule_ will match all files with prefix
+rule_ in folder dir.
+This flag can be specified multiple times.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
  -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 

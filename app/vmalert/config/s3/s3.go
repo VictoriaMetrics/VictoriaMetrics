@@ -3,13 +3,11 @@ package s3
 import (
 	"context"
 	"fmt"
-	"io"
-	"strings"
-
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"io"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
@@ -111,7 +109,6 @@ func (fs *FS) Read() (map[string][]byte, error) {
 		Bucket: aws.String(fs.Bucket),
 		Prefix: aws.String(fs.Prefix),
 	})
-	prefix := fs.Prefix
 	result := make(map[string][]byte)
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(context.Background())
@@ -120,9 +117,6 @@ func (fs *FS) Read() (map[string][]byte, error) {
 		}
 		for _, obj := range page.Contents {
 			file := *obj.Key
-			if !strings.HasPrefix(file, prefix) {
-				return nil, fmt.Errorf("unexpected prefix for s3 key %q; want %q", file, prefix)
-			}
 			input := &s3.GetObjectInput{
 				Bucket: aws.String(fs.Bucket),
 				Key:    aws.String(file),

@@ -117,6 +117,9 @@ func newFS(path string, initFS bool) (FS, error) {
 
 func parseRemotePath(path string) (string, string) {
 	n := strings.Index(path, "://")
+	if n == -1 {
+		return "", ""
+	}
 	path = path[n+len("://"):]
 	bucket := path
 	prefix := ""
