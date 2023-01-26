@@ -237,6 +237,30 @@ for sending data from `vminsert` to `vmstorage` node according to `-vminsertAddr
 
 The currently discovered `vmstorage` nodes can be [monitored](#monitoring) with `vm_rpc_vmstorage_is_reachable` and `vm_rpc_vmstorage_is_read_only` metrics.
 
+## Security
+
+General security recommendations:
+
+- All the VictoriaMetrics components must run in protected private networks without direct access from untrusted networks such as Internet. The exception is [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html).
+- All the requests from untrusted networks to VictoriaMetrics components must go through auth proxy such as vmauth or vmgateway. The proxy must be set up with proper authentication and authorization.
+- Prefer using lists of allowed API endpoints, while disallowing access to other endpoints when configuring auth proxy in front of VictoriaMetrics components.
+
+VictoriaMetrics Cluster provides the following security-related command-line flags:
+
+* `-tls`, `-tlsCertFile` and `-tlsKeyFile` for switching from HTTP to HTTPS.
+* `-httpAuth.username` and `-httpAuth.password` for protecting all the HTTP endpoints
+  with [HTTP Basic Authentication](https://en.wikipedia.org/wiki/Basic_access_authentication).
+* `-snapshotAuthKey` for protecting `/snapshot*` endpoints. See [how to work with snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots) and [backups](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#backups).
+* `-forceMergeAuthKey` for protecting `/internal/force_merge` endpoint. See [force merge docs](https://docs.victoriametrics.com/#forced-merge).
+* `-search.resetCacheAuthKey` for protecting `/internal/resetRollupResultCache` endpoint. See [backfilling](https://docs.victoriametrics.com/#backfilling) for more details.
+* `-flagsAuthKey` for protecting `/flags` endpoint.
+* `-pprofAuthKey` for protecting `/debug/pprof/*` endpoints, which can be used for [profiling](https://docs.victoriametrics.com/#profiling).
+* `-denyQueryTracing` for disallowing [query tracing](https://docs.victoriametrics.com/#query-tracing).
+
+VictoriaMetrics Cluster supports [multiple isolated tenants](#multitenancy) (aka namespaces) and do not provide flag `-deleteAuthKey` to secure time series from deletion via API. It is strongly recommend to use [vmauth](https://docs.victoriametrics.com/vmauth.html) or [vmgateway](https://docs.victoriametrics.com/vmgateway.html) to protect `/delete/<accountID>/prometheus/api/v1/admin/tsdb/delete_series`.
+
+VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
+
 ## mTLS protection
 
 By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmstorage` nodes, since it is assumed that all the cluster components run in a protected environment. [Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) provides optional support for [mTLS connections](https://en.wikipedia.org/wiki/Mutual_authentication#mTLS) between cluster components. Pass `-cluster.tls=true` command-line flag to `vminsert`, `vmselect` and `vmstorage` nodes in order to enable mTLS protection. Additionally, `vminsert`, `vmselect` and `vmstorage` must be configured with mTLS certificates via `-cluster.tlsCertFile`, `-cluster.tlsKeyFile` command-line options. These certificates are mutually verified when `vminsert` and `vmselect` dial `vmstorage`.
