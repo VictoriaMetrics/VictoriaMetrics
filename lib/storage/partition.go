@@ -952,6 +952,7 @@ func (pt *partition) ForceMergeAllParts() error {
 		if newPartSize > maxOutBytes {
 			freeSpaceNeededBytes := newPartSize - maxOutBytes
 			forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
+			pt.releasePartsToMerge(pws)
 			return nil
 		}
 
@@ -963,6 +964,7 @@ func (pt *partition) ForceMergeAllParts() error {
 		}
 		pws = pt.getAllPartsForMerge()
 		if len(pws) <= 1 {
+			pt.releasePartsToMerge(pws)
 			return nil
 		}
 	}

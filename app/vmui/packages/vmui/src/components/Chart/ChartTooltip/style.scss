@@ -25,7 +25,6 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
   pointer-events: none;
 
   &_sticky {
-    background-color: $color-dove-gray;
     pointer-events: auto;
     z-index: 99;
   }

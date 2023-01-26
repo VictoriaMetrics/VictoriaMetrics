@@ -109,7 +109,7 @@ func (cfg *Config) GetEC2APIResponse(action, filtersQueryString, nextPageToken s
 	if len(nextPageToken) > 0 {
 		apiURL += fmt.Sprintf("&NextToken=%s", url.QueryEscape(nextPageToken))
 	}
-	apiURL += "&Version=2013-10-15"
+	apiURL += "&Version=2016-11-15"
 	req, err := newSignedGetRequest(apiURL, "ec2", cfg.region, ac)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create signed request: %w", err)

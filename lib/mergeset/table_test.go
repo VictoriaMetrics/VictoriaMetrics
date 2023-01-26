@@ -3,6 +3,7 @@ package mergeset
 import (
 	"bytes"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"sync/atomic"
@@ -61,6 +62,7 @@ func TestTableOpenMultipleTimes(t *testing.T) {
 }
 
 func TestTableAddItemsSerial(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
 	const path = "TestTableAddItemsSerial"
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
@@ -80,7 +82,7 @@ func TestTableAddItemsSerial(t *testing.T) {
 	}
 
 	const itemsCount = 10e3
-	testAddItemsSerial(tb, itemsCount)
+	testAddItemsSerial(r, tb, itemsCount)
 
 	// Verify items count after pending items flush.
 	tb.DebugFlush()
@@ -105,16 +107,16 @@ func TestTableAddItemsSerial(t *testing.T) {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
 	const moreItemsCount = itemsCount * 3
-	testAddItemsSerial(tb, moreItemsCount)
+	testAddItemsSerial(r, tb, moreItemsCount)
 	tb.MustClose()
 
 	// Re-open the table and verify itemsCount again.
 	testReopenTable(t, path, itemsCount+moreItemsCount)
 }
 
-func testAddItemsSerial(tb *Table, itemsCount int) {
+func testAddItemsSerial(r *rand.Rand, tb *Table, itemsCount int) {
 	for i := 0; i < itemsCount; i++ {
-		item := getRandomBytes()
+		item := getRandomBytes(r)
 		if len(item) > maxInmemoryBlockSize {
 			item = item[:maxInmemoryBlockSize]
 		}
@@ -263,16 +265,17 @@ func testAddItemsConcurrent(tb *Table, itemsCount int) {
 	var wg sync.WaitGroup
 	for i := 0; i < goroutinesCount; i++ {
 		wg.Add(1)
-		go func() {
+		go func(n int) {
 			defer wg.Done()
+			r := rand.New(rand.NewSource(int64(n)))
 			for range workCh {
-				item := getRandomBytes()
+				item := getRandomBytes(r)
 				if len(item) > maxInmemoryBlockSize {
 					item = item[:maxInmemoryBlockSize]
 				}
 				tb.AddItems([][]byte{item})
 			}
-		}()
+		}(i)
 	}
 	for i := 0; i < itemsCount; i++ {
 		workCh <- i

@@ -11,13 +11,14 @@ import (
 )
 
 func TestBlockMarshalUnmarshalPortable(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var b Block
 	for i := 0; i < 1000; i++ {
 		b.Reset()
-		rowsCount := rand.Intn(maxRowsPerBlock) + 1
+		rowsCount := rng.Intn(maxRowsPerBlock) + 1
 		b.timestamps = getRandTimestamps(rowsCount)
 		b.values = getRandValues(rowsCount)
-		b.bh.Scale = int16(rand.Intn(30) - 15)
+		b.bh.Scale = int16(rng.Intn(30) - 15)
 		b.bh.PrecisionBits = uint8(64 - (i % 64))
 		testBlockMarshalUnmarshalPortable(t, &b)
 	}
@@ -129,19 +130,21 @@ func getValuesForPrecisionBits(values []int64, precisionBits uint8) []int64 {
 }
 
 func getRandValues(rowsCount int) []int64 {
+	rng := rand.New(rand.NewSource(1))
 	a := make([]int64, rowsCount)
 	for i := 0; i < rowsCount; i++ {
-		a[i] = int64(rand.Intn(1e5) - 0.5e5)
+		a[i] = int64(rng.Intn(1e5) - 0.5e5)
 	}
 	return a
 }
 
 func getRandTimestamps(rowsCount int) []int64 {
+	rng := rand.New(rand.NewSource(1))
 	a := make([]int64, rowsCount)
-	ts := int64(rand.Intn(1e9))
+	ts := int64(rng.Intn(1e9))
 	for i := 0; i < rowsCount; i++ {
 		a[i] = ts
-		ts += int64(rand.Intn(1e5))
+		ts += int64(rng.Intn(1e5))
 	}
 	return a
 }

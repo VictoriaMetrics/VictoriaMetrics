@@ -7,6 +7,7 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "SERIES_LIMITS"
     | "TABLE_COMPACT"
     | "TIMEZONE"
+    | "DARK_THEME"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {
@@ -15,6 +16,7 @@ export const saveToStorage = (key: StorageKeys, value: string | boolean | Record
   } else {
     removeFromStorage([key]);
   }
+  window.dispatchEvent(new Event("storage"));
 };
 
 // TODO: make this aware of data type that is stored

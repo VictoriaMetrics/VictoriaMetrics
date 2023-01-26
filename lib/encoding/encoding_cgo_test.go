@@ -9,6 +9,8 @@ import (
 )
 
 func TestMarshalUnmarshalInt64Array(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+
 	var va []int64
 	var v int64
 
@@ -16,7 +18,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	va = va[:0]
 	v = 0
 	for i := 0; i < 8*1024; i++ {
-		v += int64(rand.NormFloat64() * 1e6)
+		v += int64(r.NormFloat64() * 1e6)
 		va = append(va, v)
 	}
 	for precisionBits := uint8(1); precisionBits < 23; precisionBits++ {
@@ -30,7 +32,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	va = va[:0]
 	v = 0
 	for i := 0; i < 8*1024; i++ {
-		v += 30e6 + int64(rand.NormFloat64()*1e6)
+		v += 30e6 + int64(r.NormFloat64()*1e6)
 		va = append(va, v)
 	}
 	for precisionBits := uint8(1); precisionBits < 24; precisionBits++ {
@@ -44,7 +46,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	va = va[:0]
 	v = 1000
 	for i := 0; i < 6; i++ {
-		v += int64(rand.NormFloat64() * 100)
+		v += int64(r.NormFloat64() * 100)
 		va = append(va, v)
 	}
 	for precisionBits := uint8(1); precisionBits < 65; precisionBits++ {
@@ -55,7 +57,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 	va = va[:0]
 	v = 0
 	for i := 0; i < 6; i++ {
-		v += 3000 + int64(rand.NormFloat64()*100)
+		v += 3000 + int64(r.NormFloat64()*100)
 		va = append(va, v)
 	}
 	for precisionBits := uint8(5); precisionBits < 65; precisionBits++ {
@@ -64,11 +66,13 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 }
 
 func TestMarshalInt64ArraySize(t *testing.T) {
+	r := rand.New(rand.NewSource(1))
+
 	var va []int64
-	v := int64(rand.Float64() * 1e9)
+	v := int64(r.Float64() * 1e9)
 	for i := 0; i < 8*1024; i++ {
 		va = append(va, v)
-		v += 30e3 + int64(rand.NormFloat64()*1e3)
+		v += 30e3 + int64(r.NormFloat64()*1e3)
 	}
 
 	testMarshalInt64ArraySize(t, va, 1, 180, 1400)

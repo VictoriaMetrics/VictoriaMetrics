@@ -62,10 +62,12 @@ var (
 
 	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
-		"See also -remoteWrite.streamAggr.keepInput")
+		"See also -remoteWrite.streamAggr.keepInput and -remoteWrite.streamAggr.dedupInterval")
 	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
 		"By default the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
+	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
+		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
 
 var (
@@ -509,7 +511,8 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	// Initialize sas
 	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 	if sasFile != "" {
-		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternal)
+		dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(argIdx, 0)
+		sas, err := streamaggr.LoadFromFile(sasFile, rwctx.pushInternal, dedupInterval)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggrFile=%q: %s", sasFile, err)
 		}

@@ -10,6 +10,8 @@ import (
 )
 
 func TestTableSearch(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
+
 	var trData TimeRange
 	trData.fromPartitionTime(time.Now())
 	trData.MinTimestamp -= 5 * 365 * 24 * 3600 * 1000
@@ -19,7 +21,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 1, 10, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 1, 10, 1000, 10)
 	})
 
 	t.Run("SinglePartPerPartition", func(t *testing.T) {
@@ -27,7 +29,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 12, 1, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 12, 1, 1000, 10)
 	})
 
 	t.Run("SingleRowPerPartition", func(t *testing.T) {
@@ -35,7 +37,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 12, 20, 1, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 12, 20, 1, 10)
 	})
 
 	t.Run("SingleTSID", func(t *testing.T) {
@@ -43,7 +45,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 12, 5, 1000, 1)
+		testTableSearchEx(t, rng, trData, trSearch, 12, 5, 1000, 1)
 	})
 
 	t.Run("ManyPartitions", func(t *testing.T) {
@@ -51,7 +53,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 20, 10, 30, 20)
+		testTableSearchEx(t, rng, trData, trSearch, 20, 10, 30, 20)
 	})
 
 	t.Run("ManyTSIDs", func(t *testing.T) {
@@ -59,7 +61,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 5000, 1000)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 5000, 1000)
 	})
 
 	t.Run("ExactTimeRange", func(t *testing.T) {
@@ -67,7 +69,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp,
 			MaxTimestamp: trData.MaxTimestamp,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 
 	t.Run("InnerTimeRange", func(t *testing.T) {
@@ -75,7 +77,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 
 	t.Run("OuterTimeRange", func(t *testing.T) {
@@ -83,7 +85,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp - 1e6,
 			MaxTimestamp: trData.MaxTimestamp + 1e6,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 
 	t.Run("LowTimeRange", func(t *testing.T) {
@@ -91,7 +93,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp - 2e6,
 			MaxTimestamp: trData.MinTimestamp - 1e6,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 
 	t.Run("HighTimeRange", func(t *testing.T) {
@@ -99,7 +101,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MaxTimestamp + 1e6,
 			MaxTimestamp: trData.MaxTimestamp + 2e6,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 
 	t.Run("LowerEndTimeRange", func(t *testing.T) {
@@ -107,7 +109,7 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp - 1e6,
 			MaxTimestamp: trData.MaxTimestamp - 4e3,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 
 	t.Run("HigherEndTimeRange", func(t *testing.T) {
@@ -115,18 +117,18 @@ func TestTableSearch(t *testing.T) {
 			MinTimestamp: trData.MinTimestamp + 4e3,
 			MaxTimestamp: trData.MaxTimestamp + 1e6,
 		}
-		testTableSearchEx(t, trData, trSearch, 2, 5, 1000, 10)
+		testTableSearchEx(t, rng, trData, trSearch, 2, 5, 1000, 10)
 	})
 }
 
-func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount, maxPartsPerPartition, maxRowsPerPart, tsidsCount int) {
+func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange, partitionsCount, maxPartsPerPartition, maxRowsPerPart, tsidsCount int) {
 	t.Helper()
 
 	// Generate tsids to search.
 	var tsids []TSID
 	var tsid TSID
 	for i := 0; i < 25; i++ {
-		tsid.MetricID = uint64(rand.Intn(tsidsCount * 2))
+		tsid.MetricID = uint64(rng.Intn(tsidsCount * 2))
 		tsids = append(tsids, tsid)
 	}
 	sort.Slice(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) })
@@ -142,17 +144,17 @@ func testTableSearchEx(t *testing.T, trData, trSearch TimeRange, partitionsCount
 	ptr.fromPartitionTimestamp(trData.MinTimestamp)
 	var rowss [][]rawRow
 	for i := 0; i < partitionsCount; i++ {
-		partsCount := rand.Intn(maxPartsPerPartition) + 1
+		partsCount := rng.Intn(maxPartsPerPartition) + 1
 		for j := 0; j < partsCount; j++ {
 			var rows []rawRow
 			timestamp := ptr.MinTimestamp
-			rowsCount := rand.Intn(maxRowsPerPart) + 1
+			rowsCount := rng.Intn(maxRowsPerPart) + 1
 			for k := 0; k < rowsCount; k++ {
-				r.TSID.MetricID = uint64(rand.Intn(tsidsCount))
+				r.TSID.MetricID = uint64(rng.Intn(tsidsCount))
 				r.Timestamp = timestamp
-				r.Value = float64(int(rand.NormFloat64() * 1e5))
+				r.Value = float64(int(rng.NormFloat64() * 1e5))
 
-				timestamp += int64(rand.Intn(1e4)) + 1
+				timestamp += int64(rng.Intn(1e4)) + 1
 				if timestamp > ptr.MaxTimestamp {
 					break
 				}

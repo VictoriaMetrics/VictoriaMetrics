@@ -79,17 +79,18 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	var wg sync.WaitGroup
 	for k := 0; k < cgroup.AvailableCPUs(); k++ {
 		wg.Add(1)
-		go func() {
+		go func(n int) {
+			rng := rand.New(rand.NewSource(int64(n)))
 			rows := make([]rawRow, rowsPerInsert)
 			value := float64(100)
 			for int(atomic.AddUint64(&insertsCount, ^uint64(0))) >= 0 {
 				for j := 0; j < rowsPerInsert; j++ {
-					ts := atomic.AddUint64(&timestamp, uint64(10+rand.Int63n(2)))
-					value += float64(int(rand.NormFloat64() * 5))
+					ts := atomic.AddUint64(&timestamp, uint64(10+rng.Int63n(2)))
+					value += float64(int(rng.NormFloat64() * 5))
 
 					r := &rows[j]
 					r.PrecisionBits = defaultPrecisionBits
-					r.TSID.MetricID = uint64(rand.Intn(tsidsCount) + 1)
+					r.TSID.MetricID = uint64(rng.Intn(tsidsCount) + 1)
 					r.Timestamp = int64(ts)
 					r.Value = value
 				}
@@ -98,7 +99,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 				}
 			}
 			wg.Done()
-		}()
+		}(k)
 	}
 	wg.Wait()
 
