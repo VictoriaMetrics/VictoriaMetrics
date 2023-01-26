@@ -40,7 +40,7 @@ func benchmarkAggregatorsPush(b *testing.B, output string) {
 	pushFunc := func(tss []prompbmarshal.TimeSeries) {
 		panic(fmt.Errorf("unexpected pushFunc call"))
 	}
-	a, err := NewAggregatorsFromData([]byte(config), pushFunc)
+	a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
 	if err != nil {
 		b.Fatalf("unexpected error when initializing aggregators: %s", err)
 	}

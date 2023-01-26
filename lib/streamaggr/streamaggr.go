@@ -38,13 +38,16 @@ var supportedOutputs = []string{
 
 // LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
+// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
+// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+//
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
-func LoadFromFile(path string, pushFunc PushFunc) (*Aggregators, error) {
+func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	as, err := NewAggregatorsFromData(data, pushFunc)
+	as, err := NewAggregatorsFromData(data, pushFunc, dedupInterval)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
 	}
@@ -53,13 +56,16 @@ func LoadFromFile(path string, pushFunc PushFunc) (*Aggregators, error) {
 
 // NewAggregatorsFromData initializes Aggregators from the given data and uses the given pushFunc for pushing the aggregated data.
 //
+// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
+// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+//
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
-func NewAggregatorsFromData(data []byte, pushFunc PushFunc) (*Aggregators, error) {
+func NewAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
 		return nil, err
 	}
-	return NewAggregators(cfgs, pushFunc)
+	return NewAggregators(cfgs, pushFunc, dedupInterval)
 }
 
 // Config is a configuration for a single stream aggregation.
@@ -130,14 +136,17 @@ type Aggregators struct {
 //
 // pushFunc is called when the aggregated data must be flushed.
 //
+// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
+// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+//
 // MustStop must be called on the returned Aggregators when they are no longer needed.
-func NewAggregators(cfgs []*Config, pushFunc PushFunc) (*Aggregators, error) {
+func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	if len(cfgs) == 0 {
 		return nil, nil
 	}
 	as := make([]*aggregator, len(cfgs))
 	for i, cfg := range cfgs {
-		a, err := newAggregator(cfg, pushFunc)
+		a, err := newAggregator(cfg, pushFunc, dedupInterval)
 		if err != nil {
 			return nil, fmt.Errorf("cannot initialize aggregator #%d: %w", i, err)
 		}
@@ -179,6 +188,10 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
+	// dedupAggr is set to non-nil if input samples must be de-duplicated according
+	// to the dedupInterval passed to newAggregator().
+	dedupAggr *lastAggrState
+
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
 
@@ -205,8 +218,11 @@ type PushFunc func(tss []prompbmarshal.TimeSeries)
 
 // newAggregator creates new aggregator for the given cfg, which pushes the aggregate data to pushFunc.
 //
+// If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
+// e.g. only the last sample per each time series per each dedupInterval is aggregated.
+//
 // The returned aggregator must be stopped when no longer needed by calling MustStop().
-func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
+func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) (*aggregator, error) {
 	// check cfg.Interval
 	interval, err := time.ParseDuration(cfg.Interval)
 	if err != nil {
@@ -309,6 +325,11 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 	}
 	suffix += "_"
 
+	var dedupAggr *lastAggrState
+	if dedupInterval > 0 {
+		dedupAggr = newLastAggrState()
+	}
+
 	// initialize the aggregator
 	a := &aggregator{
 		match: cfg.Match,
@@ -320,6 +341,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
 
+		dedupAggr:  dedupAggr,
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
@@ -328,13 +350,39 @@ func newAggregator(cfg *Config, pushFunc PushFunc) (*aggregator, error) {
 		stopCh: make(chan struct{}),
 	}
 
+	if dedupAggr != nil {
+		a.wg.Add(1)
+		go func() {
+			a.runDedupFlusher(dedupInterval)
+			a.wg.Done()
+		}()
+	}
 	a.wg.Add(1)
 	go func() {
 		a.runFlusher(interval)
-		defer a.wg.Done()
+		a.wg.Done()
 	}()
 
 	return a, nil
+}
+
+func (a *aggregator) runDedupFlusher(interval time.Duration) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-a.stopCh:
+			return
+		case <-t.C:
+		}
+
+		// Globally limit the concurrency for metrics' flush
+		// in order to limit memory usage when big number of aggregators
+		// are flushed at the same time.
+		flushConcurrencyCh <- struct{}{}
+		a.dedupFlush()
+		<-flushConcurrencyCh
+	}
 }
 
 func (a *aggregator) runFlusher(interval time.Duration) {
@@ -357,6 +405,15 @@ func (a *aggregator) runFlusher(interval time.Duration) {
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
+
+func (a *aggregator) dedupFlush() {
+	ctx := &flushCtx{
+		skipAggrSuffix: true,
+	}
+	a.dedupAggr.appendSeriesForFlush(ctx)
+	logger.Errorf("series after dedup: %v", ctx.tss)
+	a.push(ctx.tss)
+}
 
 func (a *aggregator) flush() {
 	ctx := &flushCtx{
@@ -395,8 +452,29 @@ func (a *aggregator) MustStop() {
 	a.wg.Wait()
 }
 
-// Push pushes series to a.
+// Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries) {
+	if a.dedupAggr == nil {
+		a.push(tss)
+		return
+	}
+
+	// deduplication is enabled.
+	// push samples to dedupAggr, so later they will be pushed to the configured aggregators.
+	pushSample := a.dedupAggr.pushSample
+	inputKey := ""
+	bb := bbPool.Get()
+	for _, ts := range tss {
+		bb.B = marshalLabelsFast(bb.B[:0], ts.Labels)
+		outputKey := bytesutil.InternBytes(bb.B)
+		for _, sample := range ts.Samples {
+			pushSample(inputKey, outputKey, sample.Value)
+		}
+	}
+	bbPool.Put(bb)
+}
+
+func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
@@ -545,7 +623,8 @@ func unmarshalLabelsFast(dst []prompbmarshal.Label, src []byte) ([]prompbmarshal
 }
 
 type flushCtx struct {
-	suffix string
+	skipAggrSuffix bool
+	suffix         string
 
 	tss     []prompbmarshal.TimeSeries
 	labels  []prompbmarshal.Label
@@ -567,7 +646,9 @@ func (ctx *flushCtx) appendSeries(labelsMarshaled, suffix string, timestamp int6
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal labels from output key: %s", err)
 	}
-	ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.suffix, suffix)
+	if !ctx.skipAggrSuffix {
+		ctx.labels = addMetricSuffix(ctx.labels, labelsLen, ctx.suffix, suffix)
+	}
 	ctx.samples = append(ctx.samples, prompbmarshal.Sample{
 		Timestamp: timestamp,
 		Value:     value,

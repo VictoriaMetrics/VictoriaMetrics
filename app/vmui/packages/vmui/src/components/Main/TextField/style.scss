@@ -67,6 +67,8 @@
     min-height: 34px;
     resize: none;
     overflow: hidden;
+    background-color: transparent;
+    color: $color-text;
 
     &:focus {
       border: 1px solid $color-primary;

@@ -24,7 +24,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background-color: rgba($color-black, 0.06);
+        background-color: $color-hover-black;
         padding: 2px 2px 2px 6px;
         border-radius: $border-radius-small;
         font-size: $font-size;
@@ -60,6 +60,8 @@
       z-index: 2;
       min-width: 100px;
       flex-grow: 1;
+      background-color: transparent;
+      color: $color-text;
 
       &:placeholder-shown {
         width: auto;

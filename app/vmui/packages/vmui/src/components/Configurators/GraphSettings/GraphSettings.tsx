@@ -57,6 +57,7 @@ const GraphSettings: FC<GraphSettingsProps> = ({ yaxis, setYaxisLimits, toggleEn
             </h3>
             <Button
               size="small"
+              variant="text"
               startIcon={<CloseIcon/>}
               onClick={handleClose}
             />

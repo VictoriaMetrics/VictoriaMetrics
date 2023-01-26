@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
@@ -684,6 +685,42 @@ func TestAddRowToTimeseriesNoRelabeling(t *testing.T) {
 			HonorLabels: true,
 		},
 		`metric{a="e",foo="bar"} 0 123`)
+}
+
+func TestSendStaleSeries(t *testing.T) {
+	f := func(lastScrape, currScrape string, staleMarksExpected int) {
+		t.Helper()
+		var sw scrapeWork
+		sw.Config = &ScrapeWork{
+			NoStaleMarkers: false,
+		}
+		common.StartUnmarshalWorkers()
+		defer common.StopUnmarshalWorkers()
+
+		var staleMarks int
+		sw.PushData = func(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+			staleMarks += len(wr.Timeseries)
+		}
+		sw.sendStaleSeries(lastScrape, currScrape, 0, false)
+		if staleMarks != staleMarksExpected {
+			t.Fatalf("unexpected number of stale marks; got %d; want %d", staleMarks, staleMarksExpected)
+		}
+	}
+	generateScrape := func(n int) string {
+		w := strings.Builder{}
+		for i := 0; i < n; i++ {
+			w.WriteString(fmt.Sprintf("foo_%d 1\n", i))
+		}
+		return w.String()
+	}
+
+	f("", "", 0)
+	f(generateScrape(10), generateScrape(10), 0)
+	f(generateScrape(10), "", 10)
+	f("", generateScrape(10), 0)
+	f(generateScrape(10), generateScrape(3), 7)
+	f(generateScrape(3), generateScrape(10), 0)
+	f(generateScrape(20000), generateScrape(10), 19990)
 }
 
 func parsePromRow(data string) *parser.Row {

@@ -27,7 +27,8 @@ func TestTableSearchSerial(t *testing.T) {
 	const itemsCount = 1e5
 
 	items := func() []string {
-		tb, items, err := newTestTable(path, itemsCount)
+		r := rand.New(rand.NewSource(1))
+		tb, items, err := newTestTable(r, path, itemsCount)
 		if err != nil {
 			t.Fatalf("cannot create test table: %s", err)
 		}
@@ -63,7 +64,8 @@ func TestTableSearchConcurrent(t *testing.T) {
 
 	const itemsCount = 1e5
 	items := func() []string {
-		tb, items, err := newTestTable(path, itemsCount)
+		r := rand.New(rand.NewSource(2))
+		tb, items, err := newTestTable(r, path, itemsCount)
 		if err != nil {
 			t.Fatalf("cannot create test table: %s", err)
 		}
@@ -148,7 +150,7 @@ func testTableSearchSerial(tb *Table, items []string) error {
 	return nil
 }
 
-func newTestTable(path string, itemsCount int) (*Table, []string, error) {
+func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, error) {
 	var flushes uint64
 	flushCallback := func() {
 		atomic.AddUint64(&flushes, 1)
@@ -160,7 +162,7 @@ func newTestTable(path string, itemsCount int) (*Table, []string, error) {
 	}
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
-		item := fmt.Sprintf("%d:%d", rand.Intn(1e9), i)
+		item := fmt.Sprintf("%d:%d", r.Intn(1e9), i)
 		tb.AddItems([][]byte{[]byte(item)})
 		items[i] = item
 	}

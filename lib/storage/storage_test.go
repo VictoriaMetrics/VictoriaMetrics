@@ -374,10 +374,10 @@ func TestUpdateCurrHourMetricIDs(t *testing.T) {
 func TestMetricRowMarshalUnmarshal(t *testing.T) {
 	var buf []byte
 	typ := reflect.TypeOf(&MetricRow{})
-	rnd := rand.New(rand.NewSource(1))
+	rng := rand.New(rand.NewSource(1))
 
 	for i := 0; i < 1000; i++ {
-		v, ok := quick.Value(typ, rnd)
+		v, ok := quick.Value(typ, rng)
 		if !ok {
 			t.Fatalf("cannot create random MetricRow via quick.Value")
 		}
@@ -504,7 +504,7 @@ func testStorageRandTimestamps(s *Storage) error {
 	currentTime := timestampFromTime(time.Now())
 	const rowsPerAdd = 5e3
 	const addsCount = 3
-	rnd := rand.New(rand.NewSource(1))
+	rng := rand.New(rand.NewSource(1))
 
 	for i := 0; i < addsCount; i++ {
 		var mrs []MetricRow
@@ -514,10 +514,10 @@ func testStorageRandTimestamps(s *Storage) error {
 			{[]byte("instance"), []byte("1.2.3.4")},
 		}
 		for j := 0; j < rowsPerAdd; j++ {
-			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rand.Intn(100)))
+			mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", rng.Intn(100)))
 			metricNameRaw := mn.marshalRaw(nil)
-			timestamp := currentTime - int64((rnd.Float64()-0.2)*float64(2*s.retentionMsecs))
-			value := rnd.NormFloat64() * 1e11
+			timestamp := currentTime - int64((rng.Float64()-0.2)*float64(2*s.retentionMsecs))
+			value := rng.NormFloat64() * 1e11
 
 			mr := MetricRow{
 				MetricNameRaw: metricNameRaw,
@@ -618,6 +618,7 @@ func TestStorageDeleteSeries(t *testing.T) {
 }
 
 func testStorageDeleteSeries(s *Storage, workerNum int) error {
+	rng := rand.New(rand.NewSource(1))
 	const rowsPerMetric = 100
 	const metricsCount = 30
 
@@ -642,8 +643,8 @@ func testStorageDeleteSeries(s *Storage, workerNum int) error {
 		metricNameRaw := mn.marshalRaw(nil)
 
 		for j := 0; j < rowsPerMetric; j++ {
-			timestamp := rand.Int63n(1e10)
-			value := rand.NormFloat64() * 1e6
+			timestamp := rng.Int63n(1e10)
+			value := rng.NormFloat64() * 1e6
 
 			mr := MetricRow{
 				MetricNameRaw: metricNameRaw,
@@ -929,13 +930,14 @@ func testStorageRegisterMetricNames(s *Storage) error {
 }
 
 func TestStorageAddRowsSerial(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageAddRowsSerial"
 	retentionMsecs := int64(msecsPerMonth * 10)
 	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5)
 	if err != nil {
 		t.Fatalf("cannot open storage: %s", err)
 	}
-	if err := testStorageAddRows(s); err != nil {
+	if err := testStorageAddRows(rng, s); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	s.MustClose()
@@ -953,9 +955,10 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 	}
 	ch := make(chan error, 3)
 	for i := 0; i < cap(ch); i++ {
-		go func() {
-			ch <- testStorageAddRows(s)
-		}()
+		go func(n int) {
+			rLocal := rand.New(rand.NewSource(int64(n)))
+			ch <- testStorageAddRows(rLocal, s)
+		}(i)
 	}
 	for i := 0; i < cap(ch); i++ {
 		select {
@@ -973,7 +976,7 @@ func TestStorageAddRowsConcurrent(t *testing.T) {
 	}
 }
 
-func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []MetricRow {
+func testGenerateMetricRows(rng *rand.Rand, rows uint64, timestampMin, timestampMax int64) []MetricRow {
 	var mrs []MetricRow
 	var mn MetricName
 	mn.Tags = []Tag{
@@ -983,8 +986,8 @@ func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []Met
 	for i := 0; i < int(rows); i++ {
 		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d", i))
 		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rand.Int63n(timestampMax-timestampMin) + timestampMin
-		value := rand.NormFloat64() * 1e6
+		timestamp := rng.Int63n(timestampMax-timestampMin) + timestampMin
+		value := rng.NormFloat64() * 1e6
 
 		mr := MetricRow{
 			MetricNameRaw: metricNameRaw,
@@ -996,14 +999,14 @@ func testGenerateMetricRows(rows uint64, timestampMin, timestampMax int64) []Met
 	return mrs
 }
 
-func testStorageAddRows(s *Storage) error {
+func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	const rowsPerAdd = 1e3
 	const addsCount = 10
 
 	maxTimestamp := timestampFromTime(time.Now())
 	minTimestamp := maxTimestamp - s.retentionMsecs
 	for i := 0; i < addsCount; i++ {
-		mrs := testGenerateMetricRows(rowsPerAdd, minTimestamp, maxTimestamp)
+		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 			return fmt.Errorf("unexpected error when adding mrs: %w", err)
 		}
@@ -1130,6 +1133,7 @@ func TestStorageRotateIndexDB(t *testing.T) {
 }
 
 func testStorageAddMetrics(s *Storage, workerNum int) error {
+	rng := rand.New(rand.NewSource(1))
 	const rowsCount = 1e3
 
 	var mn MetricName
@@ -1138,10 +1142,10 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 		{[]byte("instance"), []byte("1.2.3.4")},
 	}
 	for i := 0; i < rowsCount; i++ {
-		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", workerNum, rand.Intn(10)))
+		mn.MetricGroup = []byte(fmt.Sprintf("metric_%d_%d", workerNum, rng.Intn(10)))
 		metricNameRaw := mn.marshalRaw(nil)
-		timestamp := rand.Int63n(1e10)
-		value := rand.NormFloat64() * 1e6
+		timestamp := rng.Int63n(1e10)
+		value := rng.NormFloat64() * 1e6
 
 		mr := MetricRow{
 			MetricNameRaw: metricNameRaw,
@@ -1164,6 +1168,7 @@ func testStorageAddMetrics(s *Storage, workerNum int) error {
 }
 
 func TestStorageDeleteStaleSnapshots(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	path := "TestStorageDeleteStaleSnapshots"
 	retentionMsecs := int64(msecsPerMonth * 10)
 	s, err := OpenStorage(path, retentionMsecs, 1e5, 1e5)
@@ -1175,7 +1180,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 	maxTimestamp := timestampFromTime(time.Now())
 	minTimestamp := maxTimestamp - s.retentionMsecs
 	for i := 0; i < addsCount; i++ {
-		mrs := testGenerateMetricRows(rowsPerAdd, minTimestamp, maxTimestamp)
+		mrs := testGenerateMetricRows(rng, rowsPerAdd, minTimestamp, maxTimestamp)
 		if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 			t.Fatalf("unexpected error when adding mrs: %s", err)
 		}

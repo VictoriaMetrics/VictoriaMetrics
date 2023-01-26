@@ -179,7 +179,7 @@ func (uw *unmarshalWork) Unmarshal() {
 	// Fill missing timestamps with the current timestamp.
 	defaultTimestamp := uw.defaultTimestamp
 	if defaultTimestamp <= 0 {
-		defaultTimestamp = int64(time.Now().UnixNano() / 1e6)
+		defaultTimestamp = time.Now().UnixNano() / 1e6
 	}
 	for i := range rows {
 		r := &rows[i]
