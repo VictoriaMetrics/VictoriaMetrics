@@ -12,12 +12,11 @@ import (
 )
 
 // Returns a set of temporary security credentials that you can use to access
-// Amazon Web Services resources that you might not normally have access to. These
-// temporary credentials consist of an access key ID, a secret access key, and a
-// security token. Typically, you use AssumeRole within your account or for
-// cross-account access. For a comparison of AssumeRole with other API operations
-// that produce temporary credentials, see Requesting Temporary Security
-// Credentials
+// Amazon Web Services resources. These temporary credentials consist of an access
+// key ID, a secret access key, and a security token. Typically, you use AssumeRole
+// within your account or for cross-account access. For a comparison of AssumeRole
+// with other API operations that produce temporary credentials, see Requesting
+// Temporary Security Credentials
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html)
 // and Comparing the Amazon Web Services STS API operations
 // (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp_request.html#stsapi_comparison)
