@@ -15,6 +15,7 @@ import classNames from "classnames";
 import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
 import { useAppState } from "../../../state/common/StateContext";
 import HeaderNav from "./HeaderNav/HeaderNav";
+import TenantsConfiguration from "../../Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";
 
 const Header: FC = () => {
   const { darkTheme } = useAppState();
@@ -36,7 +37,6 @@ const Header: FC = () => {
 
   const navigate = useNavigate();
   const { search, pathname } = useLocation();
-
 
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
@@ -70,6 +70,7 @@ const Header: FC = () => {
       background={background}
     />
     <div className="vm-header__settings">
+      {headerSetup?.tenant && <TenantsConfiguration/>}
       {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}

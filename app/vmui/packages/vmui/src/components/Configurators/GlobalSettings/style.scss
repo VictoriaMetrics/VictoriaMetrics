@@ -8,9 +8,15 @@
 
   &__input {
 
+    &_server {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 0 $padding-small;
+    }
   }
 
   &__title {
+    grid-column: auto / span 2;
     display: flex;
     align-items: center;
     justify-content: flex-start;
