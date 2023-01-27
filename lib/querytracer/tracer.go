@@ -50,7 +50,7 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 	message := fmt.Sprintf(format, args...)
 	message = buildinfo.Version + ": " + message
 	return &Tracer{
-		enabled:   *denyQueryTracing || !enabled,
+		enabled:   !*denyQueryTracing && enabled,
 		message:   message,
 		startTime: time.Now(),
 	}
@@ -58,7 +58,7 @@ func New(enabled bool, format string, args ...interface{}) *Tracer {
 
 // Enabled returns true if the t is enabled.
 func (t *Tracer) Enabled() bool {
-	return t.enabled
+	return t != nil && t.enabled
 }
 
 // NewChild adds a new child Tracer to t with the given fmt.Sprintf(format, args...) message.
