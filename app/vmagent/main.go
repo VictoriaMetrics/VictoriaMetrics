@@ -236,7 +236,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusNoContent)
+		statusCode := http.StatusNoContent
+		if strings.HasPrefix(path, "/prometheus/api/v1/import/prometheus/metrics/job/") ||
+			strings.HasPrefix(path, "/api/v1/import/prometheus/metrics/job/") {
+			// Return 200 status code for pushgateway requests.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636
+			statusCode = http.StatusOK
+		}
+		w.WriteHeader(statusCode)
 		return true
 	}
 	if strings.HasPrefix(path, "datadog/") {
