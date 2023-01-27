@@ -43,7 +43,7 @@ type SDConfig struct {
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 }
 
-// GetLabels returns Consul labels according to sdc.
+// GetLabels returns Azure labels according to sdc.
 func (sdc *SDConfig) GetLabels(baseDir string) ([]*promutils.Labels, error) {
 	ac, err := getAPIConfig(sdc, baseDir)
 	if err != nil {

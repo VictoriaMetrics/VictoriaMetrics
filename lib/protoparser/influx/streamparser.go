@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -27,6 +28,10 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
+
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -63,6 +68,7 @@ func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback fun
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
+		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
@@ -76,7 +82,7 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.N)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineSize.IntN())
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()

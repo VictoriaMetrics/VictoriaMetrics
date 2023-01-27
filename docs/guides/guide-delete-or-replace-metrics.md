@@ -75,7 +75,7 @@ When you're sure [time series selector](https://prometheus.io/docs/prometheus/la
 <div class="with-copy" markdown="1">
 
 ```console
-curl -s 'http://vmselect:8481/select/0/prometheus/api/v1/series?match[]=process_cpu_cores_available'
+curl -s 'http://vmselect:8481/delete/0/prometheus/api/v1/admin/tsdb/delete_series?match[]=process_cpu_cores_available'
 ```
 
 </div>

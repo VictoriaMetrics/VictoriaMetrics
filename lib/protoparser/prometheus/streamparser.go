@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -19,6 +20,10 @@ import (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []Row) error, errLogger func(string)) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
+
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
@@ -38,6 +43,7 @@ func ParseStream(r io.Reader, defaultTimestamp int64, isGzipped bool, callback f
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
+		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {
@@ -173,7 +179,7 @@ func (uw *unmarshalWork) Unmarshal() {
 	// Fill missing timestamps with the current timestamp.
 	defaultTimestamp := uw.defaultTimestamp
 	if defaultTimestamp <= 0 {
-		defaultTimestamp = int64(time.Now().UnixNano() / 1e6)
+		defaultTimestamp = time.Now().UnixNano() / 1e6
 	}
 	for i := range rows {
 		r := &rows[i]

@@ -9,6 +9,7 @@ html, body, #root {
   background-repeat: no-repeat;
   background-attachment: fixed;
   margin: 0;
+  background-color: $color-background-body;
 }
 
 body {
@@ -33,6 +34,11 @@ input {
   cursor: text;
 }
 
+input::placeholder,
+textarea::placeholder {
+  user-select: none;
+}
+
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -48,4 +54,25 @@ input[type=number]::-webkit-outer-spin-button {
 
 svg {
   width: 100%;
+}
+
+/* Works on Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: $color-text-disabled $color-background-block;
+}
+
+/* Works on Chrome, Edge, and Safari */
+*::-webkit-scrollbar {
+  width: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: $color-background-block;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: $color-text-disabled;
+  border-radius: 20px;
+  border: 3px solid $color-background-block;
 }

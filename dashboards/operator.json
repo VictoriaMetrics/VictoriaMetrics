@@ -1,4 +1,38 @@
 {
+  "__inputs": [],
+  "__elements": {},
+  "__requires": [
+    {
+      "type": "grafana",
+      "id": "grafana",
+      "name": "Grafana",
+      "version": "9.2.2"
+    },
+    {
+      "type": "panel",
+      "id": "graph",
+      "name": "Graph (old)",
+      "version": ""
+    },
+    {
+      "type": "datasource",
+      "id": "prometheus",
+      "name": "Prometheus",
+      "version": "1.0.0"
+    },
+    {
+      "type": "panel",
+      "id": "stat",
+      "name": "Stat",
+      "version": ""
+    },
+    {
+      "type": "panel",
+      "id": "text",
+      "name": "Text",
+      "version": ""
+    }
+  ],
   "annotations": {
     "list": [
       {
@@ -25,13 +59,16 @@
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
-  "id": 38,
-  "iteration": 1653261405647,
+  "id": null,
   "links": [],
   "liveNow": false,
   "panels": [
     {
       "collapsed": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -40,6 +77,15 @@
       },
       "id": 8,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Overview",
       "type": "row"
     },
@@ -56,10 +102,24 @@
       },
       "id": 24,
       "options": {
+        "code": {
+          "language": "plaintext",
+          "showLineNumbers": false,
+          "showMiniMap": false
+        },
         "content": "<div style=\"text-align: center;\">$version</div>",
         "mode": "markdown"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "9.2.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Version",
       "type": "text"
     },
@@ -113,7 +173,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "9.2.2",
       "targets": [
         {
           "datasource": {
@@ -179,7 +239,7 @@
         },
         "textMode": "auto"
       },
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "9.2.2",
       "targets": [
         {
           "datasource": {
@@ -236,7 +296,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "9.2.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -324,7 +384,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "8.3.2",
+      "pluginVersion": "9.2.2",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -377,6 +437,10 @@
     },
     {
       "collapsed": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -385,6 +449,15 @@
       },
       "id": 6,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "Troubleshooting",
       "type": "row"
     },
@@ -762,6 +835,10 @@
     },
     {
       "collapsed": false,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "$ds"
+      },
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -770,6 +847,15 @@
       },
       "id": 4,
       "panels": [],
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "$ds"
+          },
+          "refId": "A"
+        }
+      ],
       "title": "resources",
       "type": "row"
     },
@@ -1169,7 +1255,7 @@
     }
   ],
   "refresh": "",
-  "schemaVersion": 33,
+  "schemaVersion": 37,
   "style": "dark",
   "tags": [
     "operator",
@@ -1180,13 +1266,13 @@
       {
         "current": {
           "selected": false,
-          "text": "cloud-test-13",
-          "value": "cloud-test-13"
+          "text": "cloud-c15",
+          "value": "cloud-c15"
         },
         "hide": 0,
         "includeAll": false,
         "multi": false,
-        "name": "datasource",
+        "name": "ds",
         "options": [],
         "query": "prometheus",
         "queryValue": "",
@@ -1196,11 +1282,7 @@
         "type": "datasource"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "vm-operator-victoria-metrics-operator",
-          "value": "vm-operator-victoria-metrics-operator"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
@@ -1222,11 +1304,7 @@
         "type": "query"
       },
       {
-        "current": {
-          "selected": false,
-          "text": "All",
-          "value": "$__all"
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"
@@ -1248,12 +1326,7 @@
         "type": "query"
       },
       {
-        "current": {
-          "isNone": true,
-          "selected": false,
-          "text": "None",
-          "value": ""
-        },
+        "current": {},
         "datasource": {
           "type": "prometheus",
           "uid": "$ds"

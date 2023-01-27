@@ -162,14 +162,15 @@ consul_sd_configs:
 	wg := sync.WaitGroup{}
 	wg.Add(workers)
 	for i := 0; i < workers; i++ {
-		go func() {
+		go func(n int) {
 			defer wg.Done()
+			r := rand.New(rand.NewSource(int64(n)))
 			for i := 0; i < iterations; i++ {
-				rnd := rand.Intn(len(paths))
+				rnd := r.Intn(len(paths))
 				_ = cw.reload(paths[rnd]) // update can fail and this is expected
 				_ = cw.notifiers()
 			}
-		}()
+		}(i)
 	}
 	wg.Wait()
 }

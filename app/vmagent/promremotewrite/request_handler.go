@@ -1,7 +1,6 @@
 package promremotewrite
 
 import (
-	"io"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/common"
@@ -13,7 +12,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -29,19 +27,8 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req.Body, func(tss []prompb.TimeSeries) error {
-			return insertRows(at, tss, extraLabels)
-		})
-	})
-}
-
-// InsertHandlerForReader processes metrics from given reader
-func InsertHandlerForReader(at *auth.Token, r io.Reader) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, func(tss []prompb.TimeSeries) error {
-			return insertRows(at, tss, nil)
-		})
+	return parser.ParseStream(req.Body, func(tss []prompb.TimeSeries) error {
+		return insertRows(at, tss, extraLabels)
 	})
 }
 

@@ -23,7 +23,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background-color: rgba($color-black, 0.06);
+      background-color: $color-hover-black;
       padding: calc($padding-small/2);
       border-radius: $border-radius-small;
     }
@@ -47,7 +47,7 @@
 
   &-list {
     min-width: 600px;
-    max-height: 300px;
+    max-height: 200px;
     background-color: $color-background-block;
     border-radius: $border-radius-medium;
     overflow: auto;

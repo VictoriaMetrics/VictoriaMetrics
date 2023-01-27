@@ -79,8 +79,7 @@ Currently, vmanomaly ships with a few common models:
 
 5. **ARIMA**
 
-   Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.
-   org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
+   Commonly used forecasting model. See [statsmodels.org documentation](https://www.statsmodels.org/stable/generated/statsmodels.tsa.arima.model.ARIMA.html) for ARIMA.
 
 6. **Rolling Quantile**
 

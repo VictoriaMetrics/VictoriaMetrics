@@ -62,7 +62,7 @@ func Init() {
 	netstorage.InitTmpBlocksDir(tmpDirPath)
 	promql.InitRollupResultCache(*vmstorage.DataPath + "/cache/rollupResult")
 
-	concurrencyCh = make(chan struct{}, *maxConcurrentRequests)
+	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
 	initVMAlertProxy()
 }
 
@@ -71,17 +71,17 @@ func Stop() {
 	promql.StopRollupResultCache()
 }
 
-var concurrencyCh chan struct{}
+var concurrencyLimitCh chan struct{}
 
 var (
 	concurrencyLimitReached = metrics.NewCounter(`vm_concurrent_select_limit_reached_total`)
 	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_select_limit_timeout_total`)
 
 	_ = metrics.NewGauge(`vm_concurrent_select_capacity`, func() float64 {
-		return float64(cap(concurrencyCh))
+		return float64(cap(concurrencyLimitCh))
 	})
 	_ = metrics.NewGauge(`vm_concurrent_select_current`, func() float64 {
-		return float64(len(concurrencyCh))
+		return float64(len(concurrencyLimitCh))
 	})
 )
 
@@ -99,8 +99,8 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	// Limit the number of concurrent queries.
 	select {
-	case concurrencyCh <- struct{}{}:
-		defer func() { <-concurrencyCh }()
+	case concurrencyLimitCh <- struct{}{}:
+		defer func() { <-concurrencyLimitCh }()
 	default:
 		// Sleep for a while until giving up. This should resolve short bursts in requests.
 		concurrencyLimitReached.Inc()
@@ -110,18 +110,18 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		t := timerpool.Get(d)
 		select {
-		case concurrencyCh <- struct{}{}:
-			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
+		case concurrencyLimitCh <- struct{}{}:
 			timerpool.Put(t)
-			defer func() { <-concurrencyCh }()
+			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
+			defer func() { <-concurrencyLimitCh }()
 		case <-t.C:
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
 			err := &httpserver.ErrorWithStatusCode{
-				Err: fmt.Errorf("cannot handle more than %d concurrent search requests during %s; possible solutions: "+
-					"increase `-search.maxQueueDuration`; increase `-search.maxQueryDuration`; increase `-search.maxConcurrentRequests`; "+
-					"increase server capacity",
-					*maxConcurrentRequests, d),
+				Err: fmt.Errorf("couldn't start executing the request in %.3f seconds, since -search.maxConcurrentRequests=%d concurrent requests "+
+					"are executed. Possible solutions: to reduce query load; to add more compute resources to the server; "+
+					"to increase -search.maxQueueDuration=%s; to increase -search.maxQueryDuration; to increase -search.maxConcurrentRequests",
+					d.Seconds(), *maxConcurrentRequests, maxQueueDuration),
 				StatusCode: http.StatusServiceUnavailable,
 			}
 			httpserver.Errorf(w, r, "%s", err)
@@ -145,8 +145,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	path := strings.Replace(r.URL.Path, "//", "/", -1)
 	if path == "/internal/resetRollupResultCache" {
-		if len(*resetCacheAuthKey) > 0 && r.FormValue("authKey") != *resetCacheAuthKey {
-			sendPrometheusError(w, r, fmt.Errorf("invalid authKey=%q for %q", r.FormValue("authKey"), path))
+		if !httpserver.CheckAuthFlag(w, r, *resetCacheAuthKey, "resetCacheAuthKey") {
 			return true
 		}
 		promql.ResetRollupResultCache()
@@ -162,8 +161,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case strings.HasPrefix(path, "/graphite/"):
 		path = path[len("/graphite"):]
 	}
+
 	// vmui access.
-	if path == "/vmui" || path == "/graph" {
+	switch {
+	case path == "/vmui" || path == "/graph":
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
 		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
@@ -172,18 +173,31 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		newURL := path + "/?" + r.Form.Encode()
 		httpserver.Redirect(w, newURL)
 		return true
-	}
-	if strings.HasPrefix(path, "/vmui/") {
+	case strings.HasPrefix(path, "/vmui/"):
+		if path == "/vmui/custom-dashboards" {
+			if err := handleVMUICustomDashboards(w); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
 		r.URL.Path = path
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
-	}
-	if strings.HasPrefix(path, "/graph/") {
+	case strings.HasPrefix(path, "/graph/"):
 		// This is needed for serving /graph URLs from Prometheus datasource in Grafana.
+		if path == "/graph/custom-dashboards" {
+			if err := handleVMUICustomDashboards(w); err != nil {
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
 		r.URL.Path = strings.Replace(path, "/graph/", "/vmui/", 1)
 		vmuiFileServer.ServeHTTP(w, r)
 		return true
 	}
+
 	if strings.HasPrefix(path, "/api/v1/label/") {
 		s := path[len("/api/v1/label/"):]
 		if strings.HasSuffix(s, "/values") {
@@ -412,12 +426,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	case "/tags/delSeries":
-		graphiteTagsDelSeriesRequests.Inc()
-		authKey := r.FormValue("authKey")
-		if authKey != *deleteAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
 			return true
 		}
+		graphiteTagsDelSeriesRequests.Inc()
 		if err := graphite.TagsDelSeriesHandler(startTime, w, r); err != nil {
 			graphiteTagsDelSeriesErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -431,6 +443,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	case "/target-relabel-debug":
 		promscrapeTargetRelabelDebugRequests.Inc()
 		promscrape.WriteTargetRelabelDebug(w, r)
+		return true
+	case "/expand-with-exprs":
+		expandWithExprsRequests.Inc()
+		prometheus.ExpandWithExprs(w, r)
 		return true
 	case "/api/v1/rules", "/rules":
 		rulesRequests.Inc()
@@ -470,12 +486,10 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "%s", `{"status":"success","data":[]}`)
 		return true
 	case "/api/v1/admin/tsdb/delete_series":
-		deleteRequests.Inc()
-		authKey := r.FormValue("authKey")
-		if authKey != *deleteAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -deleteAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, *deleteAuthKey, "deleteAuthKey") {
 			return true
 		}
+		deleteRequests.Inc()
 		if err := prometheus.DeleteHandler(startTime, r); err != nil {
 			deleteErrors.Inc()
 			httpserver.Errorf(w, r, "%s", err)
@@ -600,6 +614,8 @@ var (
 	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
+
+	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 
 	vmalertRequests = metrics.NewCounter(`vm_http_requests_total{path="/vmalert"}`)
 	rulesRequests   = metrics.NewCounter(`vm_http_requests_total{path="/api/v1/rules"}`)

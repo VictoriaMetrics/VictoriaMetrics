@@ -400,6 +400,34 @@ func TestParsedRelabelConfigsApply(t *testing.T) {
   source_labels: [xxx, bar]
 `, `{xxx="yyy",bar="yyy"}`, true, `{}`)
 	})
+	t.Run("keepequal-hit", func(t *testing.T) {
+		f(`
+- action: keepequal
+  source_labels: [foo]
+  target_label: bar
+`, `{foo="a",bar="a"}`, true, `{bar="a",foo="a"}`)
+	})
+	t.Run("keepequal-miss", func(t *testing.T) {
+		f(`
+- action: keepequal
+  source_labels: [foo]
+  target_label: bar
+`, `{foo="a",bar="x"}`, true, `{}`)
+	})
+	t.Run("dropequal-hit", func(t *testing.T) {
+		f(`
+- action: dropequal
+  source_labels: [foo]
+  target_label: bar
+`, `{foo="a",bar="a"}`, true, `{}`)
+	})
+	t.Run("dropequal-miss", func(t *testing.T) {
+		f(`
+- action: dropequal
+  source_labels: [foo]
+  target_label: bar
+`, `{foo="a",bar="x"}`, true, `{bar="x",foo="a"}`)
+	})
 	t.Run("keep-miss", func(t *testing.T) {
 		f(`
 - action: keep

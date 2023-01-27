@@ -13,14 +13,11 @@ $color-warning-text: var(--color-warning-text);
 $color-info-text: var(--color-info-text);
 $color-success-text: var(--color-success-text);
 
-$color-text: #110f0f;
-$color-text-secondary: rgba($color-text, 0.6);
-$color-text-disabled: rgba($color-text, 0.4);
+$color-text: var(--color-text);
+$color-text-secondary: var(--color-text-secondary);
+$color-text-disabled: var(--color-text-disabled);
 
 $color-black: #110f0f;
-$color-dove-gray: #616161;
-$color-silver: #C4C4C4;
-$color-alto: #D8D8D8;
 $color-white: #ffffff;
 
 $color-dodger-blue: #1A90FF;
@@ -30,8 +27,7 @@ $color-tropical-blue: #C9E3F6;
 /************* background *************/
 $color-background-body: var(--color-background-body);
 $color-background-block: var(--color-background-block);
-$color-background-modal: rgba($color-black, 0.7);
-$color-background-tooltip: rgba($color-dove-gray, 0.92);
+$color-background-tooltip: var(--color-background-tooltip);
 
 
 /************* padding *************/
@@ -43,7 +39,7 @@ $padding-small: 8px;
 
 /************* fonts *************/
 $font-family-global: 'Lato', sans-serif;
-$font-family-monospace: 'JetBrains Mono', monospace;
+$font-family-monospace: monospace;
 $font-size-large: 16px;
 $font-size-medium: 14px;
 $font-size: 12px;
@@ -51,7 +47,7 @@ $font-size-small: 10px;
 
 
 /************* border *************/
-$border-divider: 1px solid rgba($color-black, 0.15);
+$border-divider: var(--border-divider);
 
 
 /************* border-radius *************/
@@ -61,6 +57,7 @@ $border-radius-large: 16px;
 
 
 /************* box-shadows *************/
-$box-shadow: 1px 2px 12px rgba($color-black, 0.08);
-$box-shadow-bottom: rgba($color-black, 0.04) 0px 3px 5px;
-$box-shadow-popper: rgba($color-black, 0.2) 0px 2px 8px 0px;
+$box-shadow: var(--box-shadow);
+$box-shadow-popper: var(--box-shadow-popper);
+
+$color-hover-black: var(--color-hover-black);

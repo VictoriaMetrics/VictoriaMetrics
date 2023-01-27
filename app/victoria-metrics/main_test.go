@@ -129,10 +129,10 @@ func setUp() {
 	storagePath = filepath.Join(os.TempDir(), testStorageSuffix)
 	processFlags()
 	logger.Init()
-	vmstorage.InitWithoutMetrics(promql.ResetRollupResultCacheIfNeeded)
+	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
-	go httpserver.Serve(*httpListenAddr, requestHandler)
+	go httpserver.Serve(*httpListenAddr, false, requestHandler)
 	readyStorageCheckFunc := func() bool {
 		resp, err := http.Get(testHealthHTTPPath)
 		if err != nil {
@@ -189,10 +189,8 @@ func tearDown() {
 
 func TestWriteRead(t *testing.T) {
 	t.Run("write", testWrite)
+	vmstorage.Storage.DebugFlush()
 	time.Sleep(1 * time.Second)
-	vmstorage.Stop()
-	// open storage after stop in write
-	vmstorage.InitWithoutMetrics(promql.ResetRollupResultCacheIfNeeded)
 	t.Run("read", testRead)
 }
 
@@ -261,7 +259,7 @@ func testRead(t *testing.T) {
 					for _, q := range test.Query {
 						q = testutil.PopulateTimeTplString(q, insertionTime)
 						if test.Issue != "" {
-							test.Issue = "Regression in " + test.Issue
+							test.Issue = "\nRegression in " + test.Issue
 						}
 						switch true {
 						case strings.HasPrefix(q, "/api/v1/export"):
@@ -284,7 +282,7 @@ func testRead(t *testing.T) {
 							queryResult := Query{}
 							httpReadStruct(t, testReadHTTPPath, q, &queryResult)
 							if err := checkQueryResult(queryResult, test.ResultQuery); err != nil {
-								t.Fatalf("Query. %s fails with error %s.%s", q, err, test.Issue)
+								t.Fatalf("Query. %s fails with error: %s.%s", q, err, test.Issue)
 							}
 						default:
 							t.Fatalf("unsupported read query %s", q)

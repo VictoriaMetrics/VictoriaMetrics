@@ -9,7 +9,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -25,10 +24,8 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(req, func(rows []parser.Row) error {
-			return insertRows(at, rows, extraLabels)
-		})
+	return parser.ParseStream(req, func(rows []parser.Row) error {
+		return insertRows(at, rows, extraLabels)
 	})
 }
 

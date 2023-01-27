@@ -4609,7 +4609,7 @@
                 "uid": "$ds"
               },
               "editorMode": "code",
-              "expr": "max_over_time(vm_concurrent_addrows_capacity{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
+              "expr": "max_over_time(vm_concurrent_insert_capacity{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
               "format": "time_series",
               "interval": "",
               "intervalFactor": 1,
@@ -4622,7 +4622,7 @@
                 "type": "prometheus",
                 "uid": "$ds"
               },
-              "expr": "sum(vm_concurrent_addrows_current{job=~\"$job\", instance=~\"$instance\"})",
+              "expr": "sum(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"})",
               "format": "time_series",
               "intervalFactor": 1,
               "legendFormat": "current",
@@ -5182,7 +5182,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },

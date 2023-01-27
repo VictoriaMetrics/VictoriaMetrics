@@ -1,13 +1,10 @@
 name: main
 on:
-  push:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
-  pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
+  workflow_run:
+    workflows: ["main - test"]
+    types:
+      - completed
+
 permissions:
   contents: read
 
@@ -16,30 +13,19 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Go
-        uses: actions/setup-go@main
-        with:
-          go-version: 1.19.4
-        id: go
       - name: Code checkout
-        uses: actions/checkout@master
-      - name: Dependencies
-        run: |
-          make install-golint
-          make install-errcheck
-          make install-golangci-lint
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: 1.19.5
+          check-latest: true
+          cache: true
+
       - name: Build
         run: |
-          export PATH=$PATH:$(go env GOPATH)/bin # temporary fix. See https://github.com/actions/setup-go/issues/14
-          make check-all
-          git diff --exit-code
-          make test-full
-          make test-pure
-          make test-full-386
           make victoria-metrics-crossbuild
           make vmuitils-crossbuild
-      - name: Publish coverage
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.txt
-

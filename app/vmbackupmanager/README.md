@@ -67,7 +67,7 @@ credentials.json
   "project_id": "<project>",
   "private_key_id": "",
   "private_key": "-----BEGIN PRIVATE KEY-----\-----END PRIVATE KEY-----\n",
-  "client_email": “test@<project>.iam.gserviceaccount.com",
+  "client_email": "test@<project>.iam.gserviceaccount.com",
   "client_id": "",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
   "token_uri": "https://oauth2.googleapis.com/token",
@@ -158,7 +158,7 @@ The result on the GCS bucket. We see only 3 daily backups:
 * GET `/api/v1/backups` - returns list of backups in remote storage.
   Example output:
   ```json
-  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  [{"name":"daily/2022-11-30","size_bytes":26664689,"size":"25.429Mi"},{"name":"daily/2022-12-01","size_bytes":40160965,"size":"38.300Mi"},{"name":"hourly/2022-11-30:12","size_bytes":5846529,"size":"5.576Mi"},{"name":"hourly/2022-11-30:13","size_bytes":17651847,"size":"16.834Mi"},{"name":"hourly/2022-11-30:13:22","size_bytes":8797831,"size":"8.390Mi"},{"name":"hourly/2022-11-30:14","size_bytes":10680454,"size":"10.186Mi"}]
   ```
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
@@ -211,7 +211,7 @@ It can be changed by using flag:
 `vmbackupmanager backup list` lists backups in remote storage:
 ```console
 $ ./vmbackupmanager backup list
-["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+[{"name":"daily/2022-11-30","size_bytes":26664689,"size":"25.429Mi"},{"name":"daily/2022-12-01","size_bytes":40160965,"size":"38.300Mi"},{"name":"hourly/2022-11-30:12","size_bytes":5846529,"size":"5.576Mi"},{"name":"hourly/2022-11-30:13","size_bytes":17651847,"size":"16.834Mi"},{"name":"hourly/2022-11-30:13:22","size_bytes":8797831,"size":"8.390Mi"},{"name":"hourly/2022-11-30:14","size_bytes":10680454,"size":"10.186Mi"}]
 ```
 
 ### Restore commands
@@ -270,7 +270,15 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 
 ### How to restore in Kubernetes
 
-1. Enter container running `vmbackupmanager`
+1. Ensure there is an init container with `vmbackupmanager restore` in `vmstorage` or `vmsingle` pod.
+   For [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) deployments it is required to add:
+   ```yaml
+   vmbackup:
+     restore:
+       onStart: "true"
+   ```
+   See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
+2. Enter container running `vmbackupmanager`
 2. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
@@ -286,6 +294,43 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2022-10-06
     ```
 4. Restart pod
+
+#### Restore cluster into another cluster
+
+These steps are assuming that [VictoriaMetrics operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html) is used to manage `VMCluster`.
+Clusters here are referred to as `source` and `destination`.
+
+1. Create a new cluster with access to *source* cluster `vmbackupmanager` storage and same number of storage nodes.
+   Add the following section in order to enable restore on start (operator `VMStorage` schema can be found [here](https://docs.victoriametrics.com/operator/api.html#vmstorage):
+   ```yaml
+   vmbackup:
+     restore:
+       onStart: "true"
+   ```
+   Note: it is safe to leave this section in the cluster configuration, since it will be ignored if restore mark doesn't exist.
+   > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
+2. Enter container running `vmbackupmanager` in *source* cluster
+2. Use `vmbackupmanager backup list` to get list of available backups:
+  ```console
+  $ /vmbackupmanager-prod backup list
+  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  ```
+3. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
+   Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
+   For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
+  ```console
+  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2022-10-06
+  ```
+
+## Monitoring
+
+`vmbackupmanager` exports various metrics in Prometheus exposition format at `http://vmbackupmanager:8300/metrics` page. It is recommended setting up regular scraping of this page
+either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
+
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/17798-victoriametrics-backupmanager/) for `vmbackupmanager` overview.
+Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
+If you have suggestions for improvements or have found a bug - please open an issue on github or add
+a review to the dashboard.
 
 ## Configuration
 
@@ -372,6 +417,8 @@ command-line flags:
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
@@ -384,7 +431,7 @@ command-line flags:
      The maximum upload speed. There is no limit if it is set to 0
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string

@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,25 +42,36 @@ func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
 	flag.CommandLine.SetOutput(os.Stdout)
 	flag.Usage = usage
+	flagutil.RegisterSecretFlag("snapshot.createURL")
+	flagutil.RegisterSecretFlag("snapshot.deleteURL")
 	envflag.Parse()
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()
 
 	if len(*snapshotCreateURL) > 0 {
+		// create net/url object
+		createUrl, err := url.Parse(*snapshotCreateURL)
+		if err != nil {
+			logger.Fatalf("cannot parse snapshotCreateURL: %s", err)
+		}
 		if len(*snapshotName) > 0 {
 			logger.Fatalf("-snapshotName shouldn't be set if -snapshot.createURL is set, since snapshots are created automatically in this case")
 		}
-		logger.Infof("Snapshot create url %s", *snapshotCreateURL)
+		logger.Infof("Snapshot create url %s", createUrl.Redacted())
 		if len(*snapshotDeleteURL) <= 0 {
 			err := flag.Set("snapshot.deleteURL", strings.Replace(*snapshotCreateURL, "/create", "/delete", 1))
 			if err != nil {
 				logger.Fatalf("Failed to set snapshot.deleteURL flag: %v", err)
 			}
 		}
-		logger.Infof("Snapshot delete url %s", *snapshotDeleteURL)
+		deleteUrl, err := url.Parse(*snapshotCreateURL)
+		if err != nil {
+			logger.Fatalf("cannot parse snapshotDeleteURL: %s", err)
+		}
+		logger.Infof("Snapshot delete url %s", deleteUrl.Redacted())
 
-		name, err := snapshot.Create(*snapshotCreateURL)
+		name, err := snapshot.Create(createUrl.String())
 		if err != nil {
 			logger.Fatalf("cannot create snapshot: %s", err)
 		}
@@ -69,7 +81,7 @@ func main() {
 		}
 
 		defer func() {
-			err := snapshot.Delete(*snapshotDeleteURL, name)
+			err := snapshot.Delete(deleteUrl.String(), name)
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
@@ -81,7 +93,7 @@ func main() {
 		logger.Fatalf("invalid -snapshotName=%q: %s", *snapshotName, err)
 	}
 
-	go httpserver.Serve(*httpListenAddr, nil)
+	go httpserver.Serve(*httpListenAddr, false, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {
@@ -118,7 +130,7 @@ func main() {
 
 func usage() {
 	const s = `
-vmbackup performs backups for VictoriaMetrics data from instant snapshots to gcs, s3
+vmbackup performs backups for VictoriaMetrics data from instant snapshots to gcs, s3, azblob
 or local filesystem. Backed up data can be restored with vmrestore.
 
 See the docs at https://docs.victoriametrics.com/vmbackup.html .
@@ -145,7 +157,7 @@ func newSrcFS() (*fslocal.FS, error) {
 
 	fs := &fslocal.FS{
 		Dir:               snapshotPath,
-		MaxBytesPerSecond: maxBytesPerSecond.N,
+		MaxBytesPerSecond: maxBytesPerSecond.IntN(),
 	}
 	if err := fs.Init(); err != nil {
 		return nil, fmt.Errorf("cannot initialize fs: %w", err)

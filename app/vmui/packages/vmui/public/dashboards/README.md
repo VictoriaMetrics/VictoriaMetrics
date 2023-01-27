@@ -3,6 +3,24 @@
 2. Import your config file into the `dashboards/index.js`
 3. Add filename into the array `window.__VMUI_PREDEFINED_DASHBOARDS__`
 
+It is possible to define path to the predefined dashboards by setting `--vmui.customDashboardsPath`.
+
+1. Single Version
+If you use single version of the VictoriaMetrics this flag should be provided for you execution file.
+```
+./victoria-metrics  --vmui.customDashboardsPath=/path/to/your/dashboards
+```
+
+2. Cluster Version
+If you use cluster version this flag should be defined for each `vmselect` component.
+```
+./vmselect -storageNode=:8418 --vmui.customDashboardsPath=/path/to/your/dashboards
+```
+At that moment all predefined dashboards files show be near each  `vmselect`. For example 
+if you have 3 `vmselect` instances you should create 3 copy of your predefined dashboards.    
+
+
+
 ### Configuration options
 
 <br/>

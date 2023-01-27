@@ -1,12 +1,22 @@
 package bytesutil
 
 import (
+	"flag"
 	"strings"
 	"sync"
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 )
+
+var internStringMaxLen = flag.Int("internStringMaxLen", 300, "The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. "+
+	"See https://en.wikipedia.org/wiki/String_interning")
+
+// InternBytes interns b as a string
+func InternBytes(b []byte) string {
+	s := ToUnsafeString(b)
+	return InternString(s)
+}
 
 // InternString returns interned s.
 //
@@ -24,16 +34,20 @@ func InternString(s string) string {
 	}
 	// Make a new copy for s in order to remove references from possible bigger string s refers to.
 	sCopy := strings.Clone(s)
+	if len(sCopy) > *internStringMaxLen {
+		// Do not intern long strings, since this may result in high memory usage
+		// like in https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+		return sCopy
+	}
+
 	e := &ismEntry{
 		lastAccessTime: ct,
 		s:              sCopy,
 	}
 	internStringsMap.Store(sCopy, e)
 
-	if atomic.LoadUint64(&internStringsMapLastCleanupTime)+61 < ct {
-		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed
-		// during the last 5 minutes.
-		atomic.StoreUint64(&internStringsMapLastCleanupTime, ct)
+	if needCleanup(&internStringsMapLastCleanupTime, ct) {
+		// Perform a global cleanup for internStringsMap by removing items, which weren't accessed during the last 5 minutes.
 		m := &internStringsMap
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*ismEntry)

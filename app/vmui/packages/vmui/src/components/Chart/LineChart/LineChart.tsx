@@ -21,6 +21,7 @@ import "./style.scss";
 import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
+import { useAppState } from "../../../state/common/StateContext";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -30,7 +31,8 @@ export interface LineChartProps {
   series: uPlotSeries[];
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null
+  container: HTMLDivElement | null;
+  height?: number;
 }
 
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
@@ -43,11 +45,15 @@ const LineChart: FC<LineChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container
+  container,
+  height
 }) => {
+  const { darkTheme } = useAppState();
+
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
+  const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const layoutSize = useResize(container);
 
@@ -126,6 +132,7 @@ const LineChart: FC<LineChartProps> = ({
       unit,
       series,
       metrics,
+      yRange,
       tooltipIdx,
       tooltipOffset,
     };
@@ -151,7 +158,11 @@ const LineChart: FC<LineChartProps> = ({
   };
 
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
+
   const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
+    if (axis == "1") {
+      setYRange([min, max]);
+    }
     if (yaxis.limits.enable) return yaxis.limits.range[axis];
     return getMinMaxBuffer(min, max);
   };
@@ -172,6 +183,7 @@ const LineChart: FC<LineChartProps> = ({
     axes: getAxes( [{}, { scale: "1" }], unit),
     scales: { ...getScales() },
     width: layoutSize.width || 400,
+    height: height || 500,
     plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus } }],
     hooks: {
       setSelect: [
@@ -213,7 +225,7 @@ const LineChart: FC<LineChartProps> = ({
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
     return u.destroy;
-  }, [uPlotRef.current, series, layoutSize]);
+  }, [uPlotRef.current, series, layoutSize, height, darkTheme]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -255,6 +267,7 @@ const LineChart: FC<LineChartProps> = ({
           u={uPlotInst}
           series={series}
           metrics={metrics}
+          yRange={yRange}
           tooltipIdx={tooltipIdx}
           tooltipOffset={tooltipOffset}
           id={tooltipId}

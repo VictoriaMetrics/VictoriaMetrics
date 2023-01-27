@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -29,8 +30,11 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(req *http.Request, callback func(rows []Row) error) error {
+	wcr := writeconcurrencylimiter.GetReader(req.Body)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r := io.Reader(req.Body)
+
 	readCalls.Inc()
-	r := req.Body
 	if req.Header.Get("Content-Encoding") == "gzip" {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {

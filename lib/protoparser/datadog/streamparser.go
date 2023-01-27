@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -33,6 +34,10 @@ var (
 //
 // callback shouldn't hold series after returning.
 func ParseStream(r io.Reader, contentEncoding string, callback func(series []Series) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
+
 	switch contentEncoding {
 	case "gzip":
 		zr, err := common.GetGzipReader(r)

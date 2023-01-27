@@ -19,9 +19,11 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [VictoriaMetrics vs. OpenTSDB](https://blg.robot-house.us/posts/tsdbs-grow/)
 * [Monitoring of multiple OpenShift clusters with VictoriaMetrics](https://medium.com/ibm-garage/monitoring-of-multiple-openshift-clusters-with-victoriametrics-d4f0979e2544)
 * [Fly's Prometheus Metrics](https://fly.io/blog/measuring-fly/)
+* [Ultra Monitoring with Victoria Metrics](https://dev.to/aws-builders/ultra-monitoring-with-victoria-metrics-1p2)
 * [Infrastructure monitoring with Prometheus at Zerodha](https://zerodha.tech/blog/infra-monitoring-at-zerodha/)
 * [Sismology: Iguana Solutions’ Monitoring System](https://medium.com/nerd-for-tech/sismology-iguana-solutions-monitoring-system-f46e4170447f)
 * [Prometheus High Availability and Fault Tolerance strategy, long term storage with VictoriaMetrics](https://medium.com/miro-engineering/prometheus-high-availability-and-fault-tolerance-strategy-long-term-storage-with-victoriametrics-82f6f3f0409e)
+* [Monitoring with Prometheus, Grafana, AlertManager and VictoriaMetrics](https://www.sensedia.com/post/monitoring-with-prometheus-grafana-alertmanager-and-victoriametrics)
 * [How we improved our Kubernetes monitoring at Smarkets, and how you could too](https://smarketshq.com/monitoring-kubernetes-clusters-41a4b24c19e3)
 * [Kubernetes and VictoriaMetrics in Mist v4.6](https://mist.io/blog/2021-11-26-kubernetes-and-victoriametrics-in-Mist-v4-6)
 * [Foiled by the Firewall: A Tale of Transition From Prometheus to VictoriaMetrics](https://www.percona.com/blog/2020/12/01/foiled-by-the-firewall-a-tale-of-transition-from-prometheus-to-victoriametrics/)
@@ -59,6 +61,9 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
 * [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
 * [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
+* [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
+* [VictoriaMetrics static scraper](https://blog.differentpla.net/blog/2022/10/16/victoria-metrics-static-scraper/)
+* [VictoriaMetrics and Open Cosmos boldly takes edge computing to the edge of space](https://www.iot-now.com/2022/07/19/122423-victoriametrics-and-open-cosmos-boldly-takes-edge-computing-to-the-edge-of-space/)
 
 ## Our articles
 
@@ -113,5 +118,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [OSA Con 2022: Specifics of data analysis in Time Series Databases](https://www.youtube.com/watch?v=_zORxrgLtec)
 * [OSMC 2022. VictoriaMetrics: scaling to 100 million metrics per second](https://www.youtube.com/watch?v=xfed9_Q0_qU). See also [slides](https://www.slideshare.net/NETWAYS/osmc-2022-victoriametrics-scaling-to-100-million-metrics-per-second-by-aliaksandr-valialkin)
 * [CNCF Paris Meetup 2022-09-15 - VictoriaMetrics - The cost of scale in Prometheus ecosystem](https://www.youtube.com/watch?v=gcZYHpri2Hw). See also [slides](https://docs.google.com/presentation/d/1jhZuKnAXi15M-mdBP5a4ZAiyrMeHhYmzO8xcZ6pMyLc/edit?usp=sharing)
+* [VictoriaMetrics Meetup December 2022](https://www.youtube.com/watch?v=Mesc6JBFNhQ). See also [slides for "VictoriaMetrics 2022: new features" talk](https://docs.google.com/presentation/d/1jI7XZoodmuzLymdu4MToG9onAKQjzCNwMO2NDupyUkQ/edit?usp=sharing).
 * [Comparing Thanos to VictoriaMetrics cluster](https://faun.pub/comparing-thanos-to-victoriametrics-cluster-b193bea1683)
 * [Evaluation performance and correctness: VictoriaMetrics response](https://valyala.medium.com/evaluating-performance-and-correctness-victoriametrics-response-e27315627e87)

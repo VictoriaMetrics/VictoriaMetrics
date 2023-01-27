@@ -38,7 +38,7 @@ func main() {
 	logger.Init()
 	pushmetrics.Init()
 
-	go httpserver.Serve(*httpListenAddr, nil)
+	go httpserver.Serve(*httpListenAddr, false, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {
@@ -83,7 +83,7 @@ func newDstFS() (*fslocal.FS, error) {
 	}
 	fs := &fslocal.FS{
 		Dir:               *storageDataPath,
-		MaxBytesPerSecond: maxBytesPerSecond.N,
+		MaxBytesPerSecond: maxBytesPerSecond.IntN(),
 	}
 	if err := fs.Init(); err != nil {
 		return nil, fmt.Errorf("cannot initialize local fs: %w", err)

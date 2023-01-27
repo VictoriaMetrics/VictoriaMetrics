@@ -42,7 +42,7 @@ func NewArrayInt(name, description string) *ArrayInt {
 
 // NewArrayBytes returns new ArrayBytes with the given name and description.
 func NewArrayBytes(name, description string) *ArrayBytes {
-	description += "\nSupports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB."
+	description += "\nSupports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB."
 	description += "\nSupports `array` of values separated by comma or specified via multiple flags."
 	var a ArrayBytes
 	flag.Var(&a, name, description)
@@ -308,7 +308,7 @@ func (a *ArrayBytes) Set(value string) error {
 }
 
 // GetOptionalArgOrDefault returns optional arg under the given argIdx.
-func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx, defaultValue int) int {
+func (a *ArrayBytes) GetOptionalArgOrDefault(argIdx int, defaultValue int64) int64 {
 	x := *a
 	if argIdx < len(x) {
 		return x[argIdx].N

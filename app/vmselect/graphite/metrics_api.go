@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+	"github.com/VictoriaMetrics/metricsql"
 )
 
 var maxTagValueSuffixes = flag.Int("search.maxTagValueSuffixesPerSearch", 100e3, "The maximum number of tag value suffixes returned from /metrics/find")
@@ -349,7 +350,7 @@ func getRegexpForQuery(query string, delimiter byte) (*regexp.Regexp, error) {
 	if len(tail) > 0 {
 		return nil, fmt.Errorf("unexpected tail left after parsing query %q; tail: %q", query, tail)
 	}
-	re, err := regexp.Compile(rs)
+	re, err := metricsql.CompileRegexp(rs)
 	regexpCache[k] = &regexpCacheEntry{
 		re:  re,
 		err: err,

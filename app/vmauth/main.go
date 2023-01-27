@@ -19,9 +19,12 @@ import (
 )
 
 var (
-	httpListenAddr       = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections")
-	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
-	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
+	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
+	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	logInvalidAuthTokens   = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 )
 
@@ -37,7 +40,7 @@ func main() {
 	logger.Infof("starting vmauth at %q...", *httpListenAddr)
 	startTime := time.Now()
 	initAuthConfig()
-	go httpserver.Serve(*httpListenAddr, requestHandler)
+	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started vmauth in %.3f seconds", time.Since(startTime).Seconds())
 
 	sig := procutil.WaitForSigterm()
@@ -56,9 +59,7 @@ func main() {
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch r.URL.Path {
 	case "/-/reload":
-		authKey := r.FormValue("authKey")
-		if authKey != *reloadAuthKey {
-			httpserver.Errorf(w, r, "invalid authKey %q. It must match the value from -reloadAuthKey command line flag", authKey)
+		if !httpserver.CheckAuthFlag(w, r, *reloadAuthKey, "reloadAuthKey") {
 			return true
 		}
 		configReloadRequests.Inc()

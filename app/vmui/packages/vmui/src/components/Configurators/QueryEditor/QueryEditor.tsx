@@ -1,4 +1,4 @@
-import React, { FC, useRef } from "preact/compat";
+import React, { FC, useRef, useState } from "preact/compat";
 import { KeyboardEvent } from "react";
 import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
@@ -32,6 +32,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   disabled = false
 }) => {
 
+  const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
 
   const handleSelect = (val: string) => {
@@ -59,7 +60,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
     }
 
     // execute query
-    if (enter && !shiftKey) {
+    if (enter && !shiftKey && !openAutocomplete) {
       onEnter();
     }
   };
@@ -84,6 +85,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
         options={options}
         anchor={autocompleteAnchorEl}
         onSelect={handleSelect}
+        onOpenAutocomplete={setOpenAutocomplete}
       />
     )}
   </div>;

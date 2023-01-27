@@ -160,7 +160,7 @@ func (inst *Instance) appendTargetLabels(ms []*promutils.Labels, project, tagSep
 	for _, item := range inst.Metadata.Items {
 		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_metadata_"+item.Key), item.Value)
 	}
-	for _, label := range inst.Labels.Labels {
+	for _, label := range inst.Labels.GetLabels() {
 		m.Add(discoveryutils.SanitizeLabelName("__meta_gce_label_"+label.Name), label.Value)
 	}
 	if len(iface.AccessConfigs) > 0 {

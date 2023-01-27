@@ -121,14 +121,15 @@ func main() {
 				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					rr, err := remoteread.NewClient(remoteread.Config{
-						Addr:       c.String(remoteReadSrcAddr),
-						Username:   c.String(remoteReadUser),
-						Password:   c.String(remoteReadPassword),
-						Timeout:    c.Duration(remoteReadHTTPTimeout),
-						UseStream:  c.Bool(remoteReadUseStream),
-						Headers:    c.String(remoteReadHeaders),
-						LabelName:  c.String(remoteReadFilterLabel),
-						LabelValue: c.String(remoteReadFilterLabelValue),
+						Addr:               c.String(remoteReadSrcAddr),
+						Username:           c.String(remoteReadUser),
+						Password:           c.String(remoteReadPassword),
+						Timeout:            c.Duration(remoteReadHTTPTimeout),
+						UseStream:          c.Bool(remoteReadUseStream),
+						Headers:            c.String(remoteReadHeaders),
+						LabelName:          c.String(remoteReadFilterLabel),
+						LabelValue:         c.String(remoteReadFilterLabelValue),
+						InsecureSkipVerify: c.Bool(remoteReadInsecureSkipVerify),
 					})
 					if err != nil {
 						return fmt.Errorf("error create remote read client: %s", err)

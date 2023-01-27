@@ -20,14 +20,15 @@ func TestMergeBlockStreamsOneStreamOneRow(t *testing.T) {
 }
 
 func TestMergeBlockStreamsOneStreamOneBlockManyRows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 4
 	minTimestamp := int64(1<<63 - 1)
 	maxTimestamp := int64(-1 << 63)
 	for i := 0; i < maxRowsPerBlock; i++ {
-		r.Timestamp = int64(rand.Intn(1e9))
-		r.Value = rand.NormFloat64() * 2332
+		r.Timestamp = int64(rng.Intn(1e9))
+		r.Value = rng.NormFloat64() * 2332
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -43,6 +44,7 @@ func TestMergeBlockStreamsOneStreamOneBlockManyRows(t *testing.T) {
 }
 
 func TestMergeBlockStreamsOneStreamManyBlocksOneRow(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 4
@@ -52,8 +54,8 @@ func TestMergeBlockStreamsOneStreamManyBlocksOneRow(t *testing.T) {
 	for i := 0; i < blocksCount; i++ {
 		initTestTSID(&r.TSID)
 		r.TSID.MetricID = uint64(i * 123)
-		r.Timestamp = int64(rand.Intn(1e9))
-		r.Value = rand.NormFloat64() * 2332
+		r.Timestamp = int64(rng.Intn(1e9))
+		r.Value = rng.NormFloat64() * 2332
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -69,6 +71,7 @@ func TestMergeBlockStreamsOneStreamManyBlocksOneRow(t *testing.T) {
 }
 
 func TestMergeBlockStreamsOneStreamManyBlocksManyRows(t *testing.T) {
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	initTestTSID(&r.TSID)
@@ -79,8 +82,8 @@ func TestMergeBlockStreamsOneStreamManyBlocksManyRows(t *testing.T) {
 	maxTimestamp := int64(-1 << 63)
 	for i := 0; i < rowsCount; i++ {
 		r.TSID.MetricID = uint64(i % blocksCount)
-		r.Timestamp = int64(rand.Intn(1e9))
-		r.Value = rand.NormFloat64() * 2332
+		r.Timestamp = int64(rng.Intn(1e9))
+		r.Value = rng.NormFloat64() * 2332
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -169,6 +172,7 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 	minTimestamp := int64(1<<63 - 1)
 	maxTimestamp := int64(-1 << 63)
 
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	initTestTSID(&r.TSID)
@@ -176,8 +180,8 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 	const rowsCount1 = 4938
 	for i := 0; i < rowsCount1; i++ {
 		r.TSID.MetricID = uint64(i % blocksCount)
-		r.Timestamp = int64(rand.Intn(1e9))
-		r.Value = rand.NormFloat64() * 2332
+		r.Timestamp = int64(rng.Intn(1e9))
+		r.Value = rng.NormFloat64() * 2332
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -193,8 +197,8 @@ func TestMergeBlockStreamsTwoStreamsManyBlocksManyRows(t *testing.T) {
 	const rowsCount2 = 3281
 	for i := 0; i < rowsCount2; i++ {
 		r.TSID.MetricID = uint64((i + 17) % blocksCount)
-		r.Timestamp = int64(rand.Intn(1e9))
-		r.Value = rand.NormFloat64() * 2332
+		r.Timestamp = int64(rng.Intn(1e9))
+		r.Value = rng.NormFloat64() * 2332
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -214,13 +218,14 @@ func TestMergeBlockStreamsTwoStreamsBigOverlappingBlocks(t *testing.T) {
 	minTimestamp := int64(1<<63 - 1)
 	maxTimestamp := int64(-1 << 63)
 
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 5
 	const rowsCount1 = maxRowsPerBlock + 234
 	for i := 0; i < rowsCount1; i++ {
 		r.Timestamp = int64(i * 2894)
-		r.Value = float64(int(rand.NormFloat64() * 1e2))
+		r.Value = float64(int(rng.NormFloat64() * 1e2))
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -236,7 +241,7 @@ func TestMergeBlockStreamsTwoStreamsBigOverlappingBlocks(t *testing.T) {
 	const rowsCount2 = maxRowsPerBlock + 2344
 	for i := 0; i < rowsCount2; i++ {
 		r.Timestamp = int64(i * 2494)
-		r.Value = float64(int(rand.NormFloat64() * 1e2))
+		r.Value = float64(int(rng.NormFloat64() * 1e2))
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -256,13 +261,14 @@ func TestMergeBlockStreamsTwoStreamsBigSequentialBlocks(t *testing.T) {
 	minTimestamp := int64(1<<63 - 1)
 	maxTimestamp := int64(-1 << 63)
 
+	rng := rand.New(rand.NewSource(1))
 	var rows []rawRow
 	var r rawRow
 	r.PrecisionBits = 5
 	const rowsCount1 = maxRowsPerBlock + 234
 	for i := 0; i < rowsCount1; i++ {
 		r.Timestamp = int64(i * 2894)
-		r.Value = float64(int(rand.NormFloat64() * 1e2))
+		r.Value = float64(int(rng.NormFloat64() * 1e2))
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -279,7 +285,7 @@ func TestMergeBlockStreamsTwoStreamsBigSequentialBlocks(t *testing.T) {
 	const rowsCount2 = maxRowsPerBlock - 233
 	for i := 0; i < rowsCount2; i++ {
 		r.Timestamp = maxTimestampB1 + int64(i*2494)
-		r.Value = float64(int(rand.NormFloat64() * 1e2))
+		r.Value = float64(int(rng.NormFloat64() * 1e2))
 		rows = append(rows, r)
 
 		if r.Timestamp < minTimestamp {
@@ -303,16 +309,17 @@ func TestMergeBlockStreamsManyStreamsManyBlocksManyRows(t *testing.T) {
 	initTestTSID(&r.TSID)
 	r.PrecisionBits = defaultPrecisionBits
 
+	rng := rand.New(rand.NewSource(1))
 	rowsCount := 0
 	const blocksCount = 113
 	var bsrs []*blockStreamReader
 	for i := 0; i < 20; i++ {
-		rowsPerStream := rand.Intn(500)
+		rowsPerStream := rng.Intn(500)
 		var rows []rawRow
 		for j := 0; j < rowsPerStream; j++ {
 			r.TSID.MetricID = uint64(j % blocksCount)
-			r.Timestamp = int64(rand.Intn(1e9))
-			r.Value = rand.NormFloat64()
+			r.Timestamp = int64(rng.Intn(1e9))
+			r.Value = rng.NormFloat64()
 			rows = append(rows, r)
 
 			if r.Timestamp < minTimestamp {
@@ -337,15 +344,16 @@ func TestMergeForciblyStop(t *testing.T) {
 	initTestTSID(&r.TSID)
 	r.PrecisionBits = defaultPrecisionBits
 
+	rng := rand.New(rand.NewSource(1))
 	const blocksCount = 113
 	var bsrs []*blockStreamReader
 	for i := 0; i < 20; i++ {
-		rowsPerStream := rand.Intn(1000)
+		rowsPerStream := rng.Intn(1000)
 		var rows []rawRow
 		for j := 0; j < rowsPerStream; j++ {
 			r.TSID.MetricID = uint64(j % blocksCount)
-			r.Timestamp = int64(rand.Intn(1e9))
-			r.Value = rand.NormFloat64()
+			r.Timestamp = int64(rng.Intn(1e9))
+			r.Value = rng.NormFloat64()
 			rows = append(rows, r)
 
 			if r.Timestamp < minTimestamp {

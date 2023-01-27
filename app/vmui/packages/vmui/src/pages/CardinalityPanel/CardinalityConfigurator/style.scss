@@ -18,12 +18,18 @@
 
   &-bottom {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     align-items: flex-end;
-    gap: $padding-medium;
+    gap: $padding-small;
 
     &__info {
       font-size: $font-size;
+    }
+
+    &__docs {
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
   }
 }

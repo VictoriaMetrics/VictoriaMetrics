@@ -79,7 +79,10 @@ type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 // by calling DisableResponseCompression before writing the first byte to w.
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
-func Serve(addr string, rh RequestHandler) {
+//
+// If useProxyProtocol is set to true, then the incoming connections are accepted via proxy protocol.
+// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+func Serve(addr string, useProxyProtocol bool, rh RequestHandler) {
 	if rh == nil {
 		rh = func(w http.ResponseWriter, r *http.Request) bool {
 			return false
@@ -103,7 +106,7 @@ func Serve(addr string, rh RequestHandler) {
 		}
 		tlsConfig = tc
 	}
-	ln, err := netutil.NewTCPListener(scheme, addr, tlsConfig)
+	ln, err := netutil.NewTCPListener(scheme, addr, useProxyProtocol, tlsConfig)
 	if err != nil {
 		logger.Fatalf("cannot start http server at %s: %s", addr, err)
 	}
@@ -292,8 +295,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		return
 	case "/metrics":
 		metricsRequests.Inc()
-		if len(*metricsAuthKey) > 0 && r.FormValue("authKey") != *metricsAuthKey {
-			http.Error(w, "The provided authKey doesn't match -metricsAuthKey", http.StatusUnauthorized)
+		if !CheckAuthFlag(w, r, *metricsAuthKey, "metricsAuthKey") {
 			return
 		}
 		startTime := time.Now()
@@ -302,8 +304,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		metricsHandlerDuration.UpdateDuration(startTime)
 		return
 	case "/flags":
-		if len(*flagsAuthKey) > 0 && r.FormValue("authKey") != *flagsAuthKey {
-			http.Error(w, "The provided authKey doesn't match -flagsAuthKey", http.StatusUnauthorized)
+		if !CheckAuthFlag(w, r, *flagsAuthKey, "flagsAuthKey") {
 			return
 		}
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -322,8 +323,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()
-			if len(*pprofAuthKey) > 0 && r.FormValue("authKey") != *pprofAuthKey {
-				http.Error(w, "The provided authKey doesn't match -pprofAuthKey", http.StatusUnauthorized)
+			if !CheckAuthFlag(w, r, *pprofAuthKey, "pprofAuthKey") {
 				return
 			}
 			DisableResponseCompression(w)
@@ -331,7 +331,7 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 			return
 		}
 
-		if !checkBasicAuth(w, r) {
+		if !CheckBasicAuth(w, r) {
 			return
 		}
 		if rh(w, r) {
@@ -344,7 +344,23 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 	}
 }
 
-func checkBasicAuth(w http.ResponseWriter, r *http.Request) bool {
+// CheckAuthFlag checks whether the given authKey is set and valid
+//
+// Falls back to checkBasicAuth if authKey is not set
+func CheckAuthFlag(w http.ResponseWriter, r *http.Request, flagValue string, flagName string) bool {
+	if flagValue == "" {
+		return CheckBasicAuth(w, r)
+	}
+	if r.FormValue("authKey") != flagValue {
+		http.Error(w, fmt.Sprintf("The provided authKey doesn't match -%s", flagName), http.StatusUnauthorized)
+		return false
+	}
+	return true
+}
+
+// CheckBasicAuth validates credentials provided in request if httpAuth.* flags are set
+// returns true if credentials are valid or httpAuth.* flags are not set
+func CheckBasicAuth(w http.ResponseWriter, r *http.Request) bool {
 	if len(*httpAuthUsername) == 0 {
 		// HTTP Basic Auth is disabled.
 		return true
@@ -691,4 +707,11 @@ func Redirect(w http.ResponseWriter, url string) {
 	// since browsers can cache incorrect redirects returned with StatusMovedPermanently.
 	// This may require browser cache cleaning after the incorrect redirect is fixed.
 	w.WriteHeader(http.StatusFound)
+}
+
+// LogError logs the errStr with the context from req.
+func LogError(req *http.Request, errStr string) {
+	uri := GetRequestURI(req)
+	remoteAddr := GetQuotedRemoteAddr(req)
+	logger.Errorf("uri: %s, remote address: %q: %s", uri, remoteAddr, errStr)
 }

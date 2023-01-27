@@ -15,7 +15,6 @@ import (
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -35,10 +34,8 @@ var (
 //
 // See https://github.com/influxdata/telegraf/tree/master/plugins/inputs/socket_listener/
 func InsertHandlerForReader(r io.Reader) error {
-	return writeconcurrencylimiter.Do(func() error {
-		return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
-			return insertRows(db, rows, nil)
-		})
+	return parser.ParseStream(r, false, "", "", func(db string, rows []parser.Row) error {
+		return insertRows(db, rows, nil)
 	})
 }
 
@@ -50,15 +47,13 @@ func InsertHandlerForHTTP(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return writeconcurrencylimiter.Do(func() error {
-		isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-		q := req.URL.Query()
-		precision := q.Get("precision")
-		// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
-		db := q.Get("db")
-		return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
-			return insertRows(db, rows, extraLabels)
-		})
+	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
+	q := req.URL.Query()
+	precision := q.Get("precision")
+	// Read db tag from https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint
+	db := q.Get("db")
+	return parser.ParseStream(req.Body, isGzipped, precision, db, func(db string, rows []parser.Row) error {
+		return insertRows(db, rows, extraLabels)
 	})
 }
 

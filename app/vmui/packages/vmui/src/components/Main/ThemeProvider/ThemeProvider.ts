@@ -2,6 +2,8 @@ import { FC, useEffect } from "preact/compat";
 import { getContrastColor } from "../../../utils/color";
 import { getCssVariable, setCssVariable } from "../../../utils/theme";
 import { AppParams, getAppModeParams } from "../../../utils/app-mode";
+import { getFromStorage } from "../../../utils/storage";
+import { darkPalette, lightPalette } from "../../../constants/palette";
 
 interface StyleVariablesProps {
   setLoadingTheme: (val: boolean) => void
@@ -27,13 +29,6 @@ export const ThemeProvider: FC<StyleVariablesProps> = ({ setLoadingTheme }) => {
     setCssVariable("scrollbar-height", `${innerHeight - clientHeight}px`);
   };
 
-  const setAppModePalette = () => {
-    colorVariables.forEach(variable => {
-      const colorFromAppMode = palette[variable as keyof AppParams["palette"]];
-      if (colorFromAppMode) setCssVariable(`color-${variable}`, colorFromAppMode);
-    });
-  };
-
   const setContrastText = () => {
     colorVariables.forEach(variable => {
       const color = getCssVariable(`color-${variable}`);
@@ -42,11 +37,34 @@ export const ThemeProvider: FC<StyleVariablesProps> = ({ setLoadingTheme }) => {
     });
   };
 
+  const setAppModePalette = () => {
+    colorVariables.forEach(variable => {
+      const colorFromAppMode = palette[variable as keyof AppParams["palette"]];
+      if (colorFromAppMode) setCssVariable(`color-${variable}`, colorFromAppMode);
+    });
+
+    setContrastText();
+  };
+
+  const setTheme = () => {
+    const darkTheme = getFromStorage("DARK_THEME");
+    const palette = darkTheme ? darkPalette : lightPalette;
+    Object.entries(palette).forEach(([variable, value]) => {
+      setCssVariable(variable, value);
+    });
+    setContrastText();
+  };
+
   useEffect(() => {
     setAppModePalette();
     setScrollbarSize();
-    setContrastText();
+    setTheme();
     setLoadingTheme(false);
+
+    window.addEventListener("storage", setTheme);
+    return () => {
+      window.removeEventListener("storage", setTheme);
+    };
   }, []);
 
   return null;

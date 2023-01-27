@@ -308,13 +308,19 @@ The shortlist of configuration flags include the following:
   -httpAuth.username string
      Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     TCP address to listen for http connections (default ":8431")
+     TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8431")
+  -httpListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+  -internStringMaxLen int
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 300)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
@@ -325,7 +331,7 @@ The shortlist of configuration flags include the following:
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string

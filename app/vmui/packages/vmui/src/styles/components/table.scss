@@ -12,7 +12,7 @@
     transition: background-color 200ms ease;
 
     &:hover:not(&_header) {
-      background-color: rgba($color-black, 0.05);
+      background-color: $color-hover-black;
     }
 
     &_header {
@@ -30,7 +30,8 @@
     padding: $padding-small;
     border-bottom: $border-divider;
     height: 40px;
-    vertical-align: middle;
+    vertical-align: top;
+    line-height: 25px;
 
     &__content {
       display: flex;
@@ -42,7 +43,7 @@
       cursor: pointer;
 
       &:hover {
-        background-color: rgba($color-black, 0.05);
+        background-color: $color-hover-black;
       }
     }
 
@@ -53,7 +54,8 @@
     }
 
     &_gray {
-      color: rgba($color-black, 0.4);
+      color: $color-text;
+      opacity: 0.4;
     }
 
     &_right {

@@ -2,27 +2,34 @@ import { MetricResult } from "../../api/types";
 import { Series } from "uplot";
 import { getNameForMetric } from "../metric";
 import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
-import { getColorLine } from "./helpers";
 import { HideSeriesArgs } from "./types";
+import { baseContrastColors, getColorFromString } from "../color";
 
 interface SeriesItem extends Series {
   freeFormFields: {[key: string]: string};
 }
 
-export const getSeriesItem = (d: MetricResult, hideSeries: string[], alias: string[]): SeriesItem => {
-  const name = getNameForMetric(d, alias[d.group - 1]);
-  const label = `[${d.group}]${name}`;
-  return {
-    label,
-    freeFormFields: d.metric,
-    width: 1.4,
-    stroke: getColorLine(label),
-    show: !includesHideSeries(label, hideSeries),
-    scale: "1",
-    points: {
-      size: 4.2,
-      width: 1.4
-    }
+export const getSeriesItemContext = () => {
+  const colorState: {[key: string]: string} = {};
+
+  return (d: MetricResult, hideSeries: string[], alias: string[]): SeriesItem => {
+    const label = getNameForMetric(d, alias[d.group - 1]);
+    const countSavedColors = Object.keys(colorState).length;
+    const hasBasicColors = countSavedColors < baseContrastColors.length;
+    if (hasBasicColors) colorState[label] = colorState[label] || baseContrastColors[countSavedColors];
+
+    return {
+      label,
+      freeFormFields: d.metric,
+      width: 1.4,
+      stroke: colorState[label] || getColorFromString(label),
+      show: !includesHideSeries(label, hideSeries),
+      scale: "1",
+      points: {
+        size: 4.2,
+        width: 1.4
+      }
+    };
   };
 };
 

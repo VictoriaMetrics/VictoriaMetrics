@@ -1,105 +1,76 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import React, { FC, useMemo } from "preact/compat";
 import { ExecutionControls } from "../../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
 import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
 import { TimeSelector } from "../../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import GlobalSettings from "../../Configurators/GlobalSettings/GlobalSettings";
 import { useLocation, useNavigate } from "react-router-dom";
 import router, { RouterOptions, routerOptions } from "../../../router";
-import { useEffect } from "react";
 import ShortcutKeys from "../../Main/ShortcutKeys/ShortcutKeys";
 import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
 import CardinalityDatePicker from "../../Configurators/CardinalityDatePicker/CardinalityDatePicker";
 import { LogoFullIcon } from "../../Main/Icons";
 import { getCssVariable } from "../../../utils/theme";
-import Tabs from "../../Main/Tabs/Tabs";
 import "./style.scss";
 import classNames from "classnames";
+import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
+import { useAppState } from "../../../state/common/StateContext";
+import HeaderNav from "./HeaderNav/HeaderNav";
 
 const Header: FC = () => {
-  const primaryColor = getCssVariable("color-primary");
+  const { darkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
 
-  const { headerStyles: {
-    background = appModeEnable ? "#FFF" : primaryColor,
-    color = appModeEnable ? primaryColor : "#FFF",
-  } = {} } = getAppModeParams();
+  const primaryColor = useMemo(() => {
+    const variable = darkTheme ? "color-background-block" : "color-primary";
+    return getCssVariable(variable);
+  }, [darkTheme]);
+
+  const { background, color } = useMemo(() => {
+    const { headerStyles: {
+      background = appModeEnable ? "#FFF" : primaryColor,
+      color = appModeEnable ? primaryColor : "#FFF",
+    } = {} } = getAppModeParams();
+
+    return { background, color };
+  }, [primaryColor]);
 
   const navigate = useNavigate();
   const { search, pathname } = useLocation();
-  const routes = useMemo(() => ([
-    {
-      label: "Custom panel",
-      value: router.home,
-    },
-    {
-      label: "Dashboards",
-      value: router.dashboards,
-      hide: appModeEnable
-    },
-    {
-      label: "Cardinality",
-      value: router.cardinality,
-    },
-    {
-      label: "Top queries",
-      value: router.topQueries,
-    },
-    {
-      label: "Trace analyzer",
-      value: router.trace,
-    }
-  ]), [appModeEnable]);
 
-  const [activeMenu, setActiveMenu] = useState(pathname);
-
-  const handleChangeTab = (value: string) => {
-    setActiveMenu(value);
-    navigate(value);
-  };
 
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
 
   const onClickLogo = () => {
-    navigateHandler(router.home);
+    navigate({ pathname: router.home, search: search });
     setQueryStringWithoutPageReload({});
     window.location.reload();
   };
 
-  const navigateHandler = (pathname: string) => {
-    navigate({ pathname, search: search });
-  };
-
-  useEffect(() => {
-    setActiveMenu(pathname);
-  }, [pathname]);
-
   return <header
     className={classNames({
       "vm-header": true,
-      "vm-header_app": appModeEnable
+      "vm-header_app": appModeEnable,
+      "vm-header_dark": darkTheme
     })}
     style={{ background, color }}
   >
     {!appModeEnable && (
       <div
-        className="vm-header__logo"
+        className="vm-header-logo"
         onClick={onClickLogo}
         style={{ color }}
       >
         <LogoFullIcon/>
       </div>
     )}
-    <div className="vm-header-nav">
-      <Tabs
-        activeItem={activeMenu}
-        items={routes.filter(r => !r.hide)}
-        color={color}
-        onChange={handleChangeTab}
-      />
-    </div>
+    <HeaderNav
+      color={color}
+      background={background}
+    />
     <div className="vm-header__settings">
+      {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
       {headerSetup?.executionControls && <ExecutionControls/>}

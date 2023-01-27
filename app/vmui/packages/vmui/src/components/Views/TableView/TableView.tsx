@@ -41,13 +41,17 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     return `${__name__} ${JSON.stringify(fields)}`;
   };
 
+  const groups = new Set(data?.map(d => d.group));
+  const showQueryName = groups.size > 1;
+
   const rows: InstantDataSeries[] = useMemo(() => {
     const rows = data?.map(d => ({
       metadata: sortedColumns.map(c => (tableCompact
-        ? getNameForMetric(d, undefined, "=", true)
+        ? getNameForMetric(d, "", showQueryName)
         : (d.metric[c.key] || "-")
       )),
       value: d.value ? d.value[1] : "-",
+      values: d.values ? d.values.map(([time, val]) => `${val} @${time}`) : [],
       copyValue: getCopyValue(d.metric)
     }));
     const orderByValue = orderBy === "Value";
@@ -171,8 +175,8 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
                   {rowMeta}
                 </td>
               ))}
-              <td className="vm-table-cell vm-table-cell_right">
-                {row.value}
+              <td className="vm-table-cell vm-table-cell_right vm-table-cell_no-wrap">
+                {!row.values.length ? row.value : row.values.map(val => <p key={val}>{val}</p>)}
               </td>
               {hasCopyValue && (
                 <td className="vm-table-cell vm-table-cell_right">

@@ -1,9 +1,10 @@
 import uPlot, { Axis, Series } from "uplot";
 import { getMaxFromArray, getMinFromArray } from "../math";
-import { roundToMilliseconds } from "../time";
+import { getSecondsFromDuration, roundToMilliseconds } from "../time";
 import { AxisRange } from "../../state/graph/reducer";
 import { formatTicks, sizeAxis } from "./helpers";
 import { TimeParams } from "../../types";
+import { getCssVariable } from "../theme";
 
 // see https://github.com/leeoniya/uPlot/tree/master/docs#axis--grid-opts
 const timeValues = [
@@ -22,15 +23,17 @@ export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(n
     scale: a,
     show: true,
     size: sizeAxis,
+    stroke: getCssVariable("color-text"),
     font: "10px Arial",
     values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
   };
-  if (!a) return { space: 80, values: timeValues };
+  if (!a) return { space: 80, values: timeValues, stroke: getCssVariable("color-text") };
   if (!(Number(a) % 2)) return { ...axis, side: 1 };
   return axis;
 });
 
-export const getTimeSeries = (times: number[], step: number, period: TimeParams): number[] => {
+export const getTimeSeries = (times: number[], stepDuration: string, period: TimeParams): number[] => {
+  const step = getSecondsFromDuration(stepDuration) || 1;
   const allTimes = Array.from(new Set(times)).sort((a, b) => a - b);
   let t = period.start;
   const tEnd = roundToMilliseconds(period.end + step);

@@ -30,6 +30,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
@@ -40,9 +41,10 @@ import (
 )
 
 var (
-	noStaleMarkers = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
-	strictParse    = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
-	dryRun         = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
+	noStaleMarkers       = flag.Bool("promscrape.noStaleMarkers", false, "Whether to disable sending Prometheus stale markers for metrics when scrape target disappears. This option may reduce memory usage if stale markers aren't needed for your setup. This option also disables populating the scrape_series_added metric. See https://prometheus.io/docs/concepts/jobs_instances/#automatically-generated-labels-and-time-series")
+	seriesLimitPerTarget = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
+	strictParse          = flag.Bool("promscrape.config.strictParse", true, "Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields")
+	dryRun               = flag.Bool("promscrape.config.dryRun", false, "Checks -promscrape.config file for errors and unsupported fields and then exits. "+
 		"Returns non-zero exit code on parsing errors and emits these errors to stderr. "+
 		"See also -promscrape.config.strictParse command-line flag. "+
 		"Pass -loggerLevel=ERROR if you don't need to see info messages in the output.")
@@ -262,6 +264,7 @@ type ScrapeConfig struct {
 	GCESDConfigs          []gce.SDConfig          `yaml:"gce_sd_configs,omitempty"`
 	HTTPSDConfigs         []http.SDConfig         `yaml:"http_sd_configs,omitempty"`
 	KubernetesSDConfigs   []kubernetes.SDConfig   `yaml:"kubernetes_sd_configs,omitempty"`
+	NomadSDConfigs        []nomad.SDConfig        `yaml:"nomad_sd_configs,omitempty"`
 	OpenStackSDConfigs    []openstack.SDConfig    `yaml:"openstack_sd_configs,omitempty"`
 	StaticConfigs         []StaticConfig          `yaml:"static_configs,omitempty"`
 	YandexCloudSDConfigs  []yandexcloud.SDConfig  `yaml:"yandexcloud_sd_configs,omitempty"`
@@ -328,6 +331,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.KubernetesSDConfigs {
 		sc.KubernetesSDConfigs[i].MustStop()
+	}
+	for i := range sc.NomadSDConfigs {
+		sc.NomadSDConfigs[i].MustStop()
 	}
 	for i := range sc.OpenStackSDConfigs {
 		sc.OpenStackSDConfigs[i].MustStop()
@@ -806,6 +812,33 @@ func (cfg *Config) getKubernetesSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return dst
 }
 
+// getNomadSDScrapeWork returns `nomad_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getNomadSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for _, sc := range cfg.ScrapeConfigs {
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.NomadSDConfigs {
+			sdc := &sc.NomadSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "nomad_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering nomad_sd_config targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
 // getOpenStackSDScrapeWork returns `openstack_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getOpenStackSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
@@ -939,6 +972,10 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.NoStaleMarkers != nil {
 		noStaleTracking = *sc.NoStaleMarkers
 	}
+	seriesLimit := *seriesLimitPerTarget
+	if sc.SeriesLimit > 0 {
+		seriesLimit = sc.SeriesLimit
+	}
 	swc := &scrapeWorkConfig{
 		scrapeInterval:       scrapeInterval,
 		scrapeIntervalString: scrapeInterval.String(),
@@ -963,7 +1000,7 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		streamParse:          sc.StreamParse,
 		scrapeAlignInterval:  sc.ScrapeAlignInterval.Duration(),
 		scrapeOffset:         sc.ScrapeOffset.Duration(),
-		seriesLimit:          sc.SeriesLimit,
+		seriesLimit:          seriesLimit,
 		noStaleMarkers:       noStaleTracking,
 	}
 	return swc, nil
@@ -1338,8 +1375,7 @@ func getScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr stri
 	b = append(b, metricsPath...)
 	b = append(b, optionalQuestion...)
 	b = append(b, paramsStr...)
-	s := bytesutil.ToUnsafeString(b)
-	s = bytesutil.InternString(s)
+	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
 	return s

@@ -3,6 +3,7 @@ import classNames from "classnames";
 import useClickOutside from "../../../hooks/useClickOutside";
 import Popper from "../Popper/Popper";
 import "./style.scss";
+import { DoneIcon } from "../Icons";
 
 interface AutocompleteProps {
   value: string
@@ -10,7 +11,12 @@ interface AutocompleteProps {
   anchor: Ref<HTMLElement>
   disabled?: boolean
   maxWords?: number
-  onSelect: (val: string) => void
+  minLength?: number
+  fullWidth?: boolean
+  noOptionsText?: string
+  selected?: string[]
+  onSelect: (val: string) => void,
+  onOpenAutocomplete?: (val: boolean) => void
 }
 
 const Autocomplete: FC<AutocompleteProps> = ({
@@ -19,7 +25,12 @@ const Autocomplete: FC<AutocompleteProps> = ({
   anchor,
   disabled,
   maxWords = 1,
+  minLength = 2,
+  fullWidth,
+  selected,
+  noOptionsText,
   onSelect,
+  onOpenAutocomplete
 }) => {
   const wrapperEl = useRef<HTMLDivElement>(null);
 
@@ -37,6 +48,10 @@ const Autocomplete: FC<AutocompleteProps> = ({
     }
   }, [openAutocomplete, options, value]);
 
+  const displayNoOptionsText = useMemo(() => {
+    return noOptionsText && !foundOptions.length;
+  }, [noOptionsText,foundOptions]);
+
   const handleCloseAutocomplete = () => {
     setOpenAutocomplete(false);
   };
@@ -44,7 +59,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const createHandlerSelect = (item: string) => () => {
     if (disabled) return;
     onSelect(item);
-    handleCloseAutocomplete();
+    if (!selected) handleCloseAutocomplete();
   };
 
   const scrollToValue = () => {
@@ -72,7 +87,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (key === "Enter") {
       const value = foundOptions[focusOption];
       value && onSelect(value);
-      handleCloseAutocomplete();
+      if (!selected) handleCloseAutocomplete();
     }
 
     if (key === "Escape") {
@@ -82,7 +97,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
 
   useEffect(() => {
     const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
-    setOpenAutocomplete(value.length > 2 && words <= maxWords);
+    setOpenAutocomplete(value.length > minLength && words <= maxWords);
   }, [value]);
 
   useEffect(() => {
@@ -99,7 +114,11 @@ const Autocomplete: FC<AutocompleteProps> = ({
     setFocusOption(-1);
   }, [foundOptions]);
 
-  useClickOutside(wrapperEl, handleCloseAutocomplete);
+  useEffect(() => {
+    onOpenAutocomplete && onOpenAutocomplete(openAutocomplete);
+  }, [openAutocomplete]);
+
+  useClickOutside(wrapperEl, handleCloseAutocomplete, anchor);
 
   return (
     <Popper
@@ -107,22 +126,27 @@ const Autocomplete: FC<AutocompleteProps> = ({
       buttonRef={anchor}
       placement="bottom-left"
       onClose={handleCloseAutocomplete}
+      fullWidth={fullWidth}
     >
       <div
         className="vm-autocomplete"
         ref={wrapperEl}
       >
+        {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}
         {foundOptions.map((option, i) =>
           <div
             className={classNames({
-              "vm-list__item": true,
-              "vm-list__item_active": i === focusOption
+              "vm-list-item": true,
+              "vm-list-item_active": i === focusOption,
+              "vm-list-item_multiselect": selected,
+              "vm-list-item_multiselect_selected": selected?.includes(option)
             })}
             id={`$autocomplete$${option}`}
             key={option}
             onClick={createHandlerSelect(option)}
           >
-            {option}
+            {selected?.includes(option) && <DoneIcon/>}
+            <span>{option}</span>
           </div>
         )}
       </div>

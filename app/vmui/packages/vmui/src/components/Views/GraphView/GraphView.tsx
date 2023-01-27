@@ -1,9 +1,9 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
 import LineChart from "../../Chart/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
 import Legend from "../../Chart/Legend/Legend";
-import { getHideSeries, getLegendItem, getSeriesItem } from "../../../utils/uplot/series";
+import { getHideSeries, getLegendItem, getSeriesItemContext } from "../../../utils/uplot/series";
 import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
 import { LegendItemType } from "../../../utils/uplot/types";
 import { TimeParams } from "../../../types";
@@ -16,7 +16,7 @@ import "./style.scss";
 export interface GraphViewProps {
   data?: MetricResult[];
   period: TimeParams;
-  customStep: number;
+  customStep: string;
   query: string[];
   alias?: string[],
   yaxis: YaxisState;
@@ -25,6 +25,7 @@ export interface GraphViewProps {
   setYaxisLimits: (val: AxisRange) => void
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void
   fullWidth?: boolean
+  height?: number
 }
 
 const promValueToNumber = (s: string): number => {
@@ -53,10 +54,12 @@ const GraphView: FC<GraphViewProps> = ({
   setYaxisLimits,
   setPeriod,
   alias = [],
-  fullWidth = true
+  fullWidth = true,
+  height
 }) => {
   const { timezone } = useTimeState();
-  const currentStep = useMemo(() => customStep || period.step || 1, [period.step, customStep]);
+  const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
+  const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
@@ -157,6 +160,7 @@ const GraphView: FC<GraphViewProps> = ({
           unit={unit}
           setPeriod={setPeriod}
           container={containerRef?.current}
+          height={height}
         />}
       {showLegend && <Legend
         labels={legend}

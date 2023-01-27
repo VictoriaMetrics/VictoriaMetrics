@@ -77,9 +77,12 @@ The list of MetricsQL features:
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
-* Metric names and metric labels may contain escaped chars. For instance, `foo\-bar{baz\=aa="b"}` is valid expression.
+* Metric names and label names may contain any unicode letter. For example `температура{город="Киев"}` is a value MetricsQL expression.
+* Metric names and labels names may contain escaped chars. For example, `foo\-bar{baz\=aa="b"}` is valid expression.
   It returns time series with name `foo-bar` containing label `baz=aa` with value `b`.
-  Additionally, `\xXX` escape sequence is supported, where `XX` is hexadecimal representation of escaped char.
+  Additionally, the following escape sequences are supported:
+  - `\xXX`, where `XX` is hexadecimal representation of the escaped ascii char.
+  - `\uXXXX`, where `XXXX` is a hexadecimal representation of the escaped unicode char.
 * Aggregate functions support optional `limit N` suffix in order to limit the number of output series.
   For example, `sum(x) by (y) limit 3` limits the number of output time series after the aggregation to 3.
   All the other time series are dropped.
@@ -90,7 +93,7 @@ The list of MetricsQL features:
 * `if` binary operator. `q1 if q2` removes values from `q1` for missing values from `q2`.
 * `ifnot` binary operator. `q1 ifnot q2` removes values from `q1` for existing values from `q2`.
 * `WITH` templates. This feature simplifies writing and managing complex queries.
-  Go to [WITH templates playground](https://play.victoriametrics.com/promql/expand-with-exprs) and try it.
+  Go to [WITH templates playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) and try it.
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
 * `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions) and [transform functions](#transform-functions).

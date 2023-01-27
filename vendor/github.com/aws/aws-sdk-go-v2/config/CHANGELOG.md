@@ -1,3 +1,20 @@
+# v1.18.8 (2023-01-05)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.7 (2022-12-20)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.6 (2022-12-19)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.18.5 (2022-12-15)
+
+* **Bug Fix**: Unify logic between shared config and in finding home directory
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.18.4 (2022-12-02)
 
 * **Dependency Update**: Updated to the latest SDK module versions

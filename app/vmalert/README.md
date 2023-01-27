@@ -69,16 +69,17 @@ Then configure `vmalert` accordingly:
     -external.label=replica=a                # Multiple external labels may be set
 ```
 
-Note there's a separate `remoteWrite.url` to allow writing results of
+Note there's a separate `-remoteWrite.url` command-line flag to allow writing results of
 alerting/recording rules into a different storage than the initial data that's
 queried. This allows using `vmalert` to aggregate data from a short-term,
 high-frequency, high-cardinality storage into a long-term storage with
 decreased cardinality and a bigger interval between samples.
+See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html).
 
 See the full list of configuration flags in [configuration](#configuration) section.
 
 If you run multiple `vmalert` services for the same datastore or AlertManager - do not forget
-to specify different `external.label` flags in order to define which `vmalert` generated rules or alerts.
+to specify different `-external.label` command-line flags in order to define which `vmalert` generated rules or alerts.
 
 Configuration for [recording](https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/)
 and [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/) rules is very
@@ -190,6 +191,11 @@ expr: <string>
 # information - it will be printed to logs.
 # Is applicable to alerting rules only.
 [ debug: <bool> | default = false ]
+
+# Defines the number of rule's updates entries stored in memory
+# and available for view on rule's Details page.
+# Overrides `rule.updateEntriesLimit` value for this specific rule.
+[ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
 labels:
@@ -319,6 +325,12 @@ expr: <string>
 # Labels to add or overwrite before storing the result.
 labels:
   [ <labelname>: <labelvalue> ]
+
+
+# Defines the number of rule's updates entries stored in memory
+# and available for view on rule's Details page.
+# Overrides `rule.updateEntriesLimit` value for this specific rule.
+[ update_entries_limit: <integer> | default 0 ]
 ```
 
 For recording rules to work `-remoteWrite.url` must be specified.
@@ -469,7 +481,8 @@ Alertmanager will automatically deduplicate alerts with identical labels, so ens
 all `vmalert`s are having the same config.
 
 Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
-for Alertmanagers for better reliability.
+for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert's `-notifier.url` 
+to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
 This example uses single-node VM server for the sake of simplicity.
 Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics) if needed.
@@ -502,8 +515,8 @@ groups:
       expr: avg_over_time(http_requests[5m])
 ```
 
-Ability of `vmalert` to be configured with different `datasource.url` and `remoteWrite.url` allows
-reading data from one data source and backfilling results to another. This helps to build a system
+Ability of `vmalert` to be configured with different `-datasource.url` and `-remoteWrite.url` command-line flags
+allows reading data from one data source and backfilling results to another. This helps to build a system
 for aggregating and downsampling the data.
 
 The following example shows how to build a topology where `vmalert` will process data from one cluster
@@ -527,7 +540,7 @@ Please note, [replay](#rules-backfilling) feature may be used for transforming h
 
 Flags `-remoteRead.url` and `-notifier.url` are omitted since we assume only recording rules are used.
 
-See also [downsampling docs](https://docs.victoriametrics.com/#downsampling).
+See also [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) and [downsampling](https://docs.victoriametrics.com/#downsampling).
 
 #### Multiple remote writes
 
@@ -678,7 +691,7 @@ The default list of alerting rules for these metric can be found [here](https://
 We recommend setting up regular scraping of this page either through `vmagent` or by Prometheus so that the exported
 metrics may be analyzed later.
 
-Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950) for `vmalert` overview. 
+Use the official [Grafana dashboard](https://grafana.com/grafana/dashboards/14950-victoriametrics-vmalert/) for `vmalert` overview. 
 Graphs on this dashboard contain useful hints - hover the `i` icon in the top left corner of each graph in order to read it.
 If you have suggestions for improvements or have found a bug - please open an issue on github or add
 a review to the dashboard.
@@ -695,10 +708,10 @@ may get empty response from datasource and produce empty recording rules or rese
 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
-_By default recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
-This behavior is controlled by `-search.latencyOffset` command-line flag on vmselect. Usually, this results into
-a 30s shift for recording rules results.
-Note that too small value passed to `-search.latencyOffset` may lead to incomplete query results._
+By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
+This behavior is controlled by `-search.latencyOffset` command-line flag and the `latency_offset` query ag at `vmselect`.
+Usually, this results into a 30s shift for recording rules results.
+Note that too small value passed to `-search.latencyOffset` or to `latency_offest` query arg may lead to incomplete query results.
 
 Try the following recommendations in such cases:
 
@@ -721,8 +734,9 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) or Grafana to track how alerts state
 changed in time.
 
-vmalert also stores last N state updates for each rule. To check updates, click on `Details` link next to rule's name
-on `/vmalert/groups` page and check the `Last updates` section:
+vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert.html#alerting-rules)) 
+state updates for each rule. To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
+and check the `Last updates` section:
 
 <img alt="vmalert state" src="vmalert_state.png">
 
@@ -731,7 +745,7 @@ HTTP request sent by vmalert to the `-datasource.url` during evaluation. If spec
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
 moment when rule was evaluated.
 
-vmalert also alows configuring more detailed logging for specific rule. Just set `debug: true` in rule's configuration
+vmalert allows configuring more detailed logging for specific alerting rule. Just set `debug: true` in rule's configuration
 and vmalert will start printing additional log messages:
 ```terminal
 2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
@@ -883,13 +897,21 @@ The shortlist of configuration flags is the following:
   -httpAuth.username string
      Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     Address to listen for http connections (default ":8880")
+     Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
+  -httpListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+  -insert.maxQueueDuration duration
+     The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+  -internStringMaxLen int
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 300)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
      Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
   -loggerFormat string
      Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+     Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
   -loggerLevel string
      Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
   -loggerOutput string
@@ -898,9 +920,11 @@ The shortlist of configuration flags is the following:
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxConcurrentInserts int
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
-     Supports the following optional suffixes for size values: KB, MB, GB, KiB, MiB, GiB (default 0)
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
   -memory.allowedPercent float
      Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
@@ -955,7 +979,7 @@ The shortlist of configuration flags is the following:
      Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
-     Prometheus alertmanager URL, e.g. http://127.0.0.1:9093
+     Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
@@ -1102,6 +1126,8 @@ The shortlist of configuration flags is the following:
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
      Supports an array of values separated by comma or specified via multiple flags.
+  -rule.updateEntriesLimit int
+     Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overriden per rule via update_entries_limit param. (default 20)
   -rule.validateExpressions
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
@@ -1185,6 +1211,8 @@ dns_sd_configs:
 ```
 
 The list of configured or discovered Notifiers can be explored via [UI](#Web).
+If Alertmanager runs in cluster mode then all its URLs needs to be available during discovery
+to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
 The configuration file [specification](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmalert/notifier/config.go)
 is the following:

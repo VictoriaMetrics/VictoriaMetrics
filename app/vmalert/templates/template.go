@@ -27,11 +27,11 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	textTpl "text/template"
 	"time"
 
-	textTpl "text/template"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/formatutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -350,15 +350,7 @@ func templateFuncs() textTpl.FuncMap {
 			if math.Abs(v) <= 1 || math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Sprintf("%.4g", v), nil
 			}
-			prefix := ""
-			for _, p := range []string{"ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"} {
-				if math.Abs(v) < 1024 {
-					break
-				}
-				prefix = p
-				v /= 1024
-			}
-			return fmt.Sprintf("%.4g%s", v, prefix), nil
+			return formatutil.HumanizeBytes(v), nil
 		},
 
 		// humanizeDuration converts given seconds to a human-readable duration

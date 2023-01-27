@@ -27,15 +27,16 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	startTimestamp := timestampFromTime(time.Now())
 	timestamp := startTimestamp
 	value := float64(100)
+	rng := rand.New(rand.NewSource(1))
 	for i := 0; i < rowsPerInsert; i++ {
 		r := &rows[i]
 		r.PrecisionBits = defaultPrecisionBits
-		r.TSID.MetricID = uint64(rand.Intn(tsidsCount) + 1)
+		r.TSID.MetricID = uint64(rng.Intn(tsidsCount) + 1)
 		r.Timestamp = timestamp
 		r.Value = value
 
-		timestamp += 10 + rand.Int63n(2)
-		value += float64(int(rand.NormFloat64() * 5))
+		timestamp += 10 + rng.Int63n(2)
+		value += float64(int(rng.NormFloat64() * 5))
 	}
 	timestampDelta := timestamp - startTimestamp
 

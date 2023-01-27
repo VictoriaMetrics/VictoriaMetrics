@@ -12,7 +12,7 @@ func TestPopulateTimeTplString(t *testing.T) {
 	}
 	f := func(s, resultExpected string) {
 		t.Helper()
-		result := PopulateTimeTplString(s, now)
+		result := PopulateTimeTplString(s, now.UTC())
 		if result != resultExpected {
 			t.Fatalf("unexpected result; got %q; want %q", result, resultExpected)
 		}

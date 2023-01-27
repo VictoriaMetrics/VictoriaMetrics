@@ -58,13 +58,18 @@ func newRecordingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rul
 		Labels:  cfg.Labels,
 		GroupID: group.ID(),
 		metrics: &recordingRuleMetrics{},
-		state:   newRuleState(),
 		q: qb.BuildWithParams(datasource.QuerierParams{
 			DataSourceType:     group.Type.String(),
 			EvaluationInterval: group.Interval,
 			QueryParams:        group.Params,
 			Headers:            group.Headers,
 		}),
+	}
+
+	if cfg.UpdateEntriesLimit != nil {
+		rr.state = newRuleState(*cfg.UpdateEntriesLimit)
+	} else {
+		rr.state = newRuleState(*ruleUpdateEntriesLimit)
 	}
 
 	labels := fmt.Sprintf(`recording=%q, group=%q, id="%d"`, rr.Name, group.Name, rr.ID())
@@ -212,6 +217,7 @@ func (rr *RecordingRule) ToAPI() APIRule {
 		EvaluationTime: lastState.duration.Seconds(),
 		Health:         "ok",
 		LastSamples:    lastState.samples,
+		MaxUpdates:     rr.state.size(),
 		Updates:        rr.state.getAll(),
 
 		// encode as strings to avoid rounding

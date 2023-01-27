@@ -276,6 +276,10 @@ func (dt *droppedTargets) getTargetsList() []droppedTarget {
 }
 
 func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConfigs *promrelabel.ParsedConfigs) {
+	if *dropOriginalLabels {
+		// The originalLabels must be dropped, so do not register it.
+		return
+	}
 	// It is better to have hash collisions instead of spending additional CPU on originalLabels.String() call.
 	key := labelsHash(originalLabels)
 	currentTime := fasttime.UnixTimestamp()
@@ -301,7 +305,7 @@ func (dt *droppedTargets) Register(originalLabels *promutils.Labels, relabelConf
 
 func labelsHash(labels *promutils.Labels) uint64 {
 	d := xxhashPool.Get().(*xxhash.Digest)
-	for _, label := range labels.Labels {
+	for _, label := range labels.GetLabels() {
 		_, _ = d.WriteString(label.Name)
 		_, _ = d.WriteString(label.Value)
 	}
@@ -516,7 +520,20 @@ type targetLabelsByJob struct {
 	droppedTargets int
 }
 
-func getRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+func getMetricRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
+	tsmGlobal.mu.Lock()
+	defer tsmGlobal.mu.Unlock()
+
+	for sw := range tsmGlobal.m {
+		// The target is uniquely identified by a pointer to its original labels.
+		if getLabelsID(sw.Config.OriginalLabels) == targetID {
+			return sw.Config.MetricRelabelConfigs, sw.Config.Labels, true
+		}
+	}
+	return nil, nil, false
+}
+
+func getTargetRelabelContextByTargetID(targetID string) (*promrelabel.ParsedConfigs, *promutils.Labels, bool) {
 	var relabelConfigs *promrelabel.ParsedConfigs
 	var labels *promutils.Labels
 	found := false

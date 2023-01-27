@@ -1,16 +1,24 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { Component, FC, useRef, useState } from "preact/compat";
 import { ReactNode, useEffect } from "react";
-import "./style.scss";
-import classNames from "classnames";
 import { getCssVariable } from "../../../utils/theme";
 import useResize from "../../../hooks/useResize";
+import TabItem from "./TabItem";
+import "./style.scss";
+
+export interface TabItemType {
+  value: string
+  label?: string
+  icon?: ReactNode
+  className?: string
+}
 
 interface TabsProps {
   activeItem: string
-  items: {value: string, label?: string, icon?: ReactNode, className?: string}[]
+  items: TabItemType[]
   color?: string
-  onChange: (value: string) => void
+  onChange?: (value: string) => void
   indicatorPlacement?: "bottom" | "top"
+  isNavLink?: boolean
 }
 
 const Tabs: FC<TabsProps> = ({
@@ -18,19 +26,16 @@ const Tabs: FC<TabsProps> = ({
   items,
   color = getCssVariable("color-primary"),
   onChange,
-  indicatorPlacement = "bottom"
+  indicatorPlacement = "bottom",
+  isNavLink,
 }) => {
   const windowSize = useResize(document.body);
-  const activeNavRef = useRef<HTMLDivElement>(null);
+  const activeNavRef = useRef<Component>(null);
   const [indicatorPosition, setIndicatorPosition] = useState({ left: 0, width: 0, bottom: 0 });
 
-  const createHandlerClickTab = (value: string) => () => {
-    onChange(value);
-  };
-
   useEffect(() => {
-    if(activeNavRef.current) {
-      const { offsetLeft: left, offsetWidth: width, offsetHeight: height } = activeNavRef.current;
+    if(activeNavRef.current?.base instanceof HTMLElement) {
+      const { offsetLeft: left, offsetWidth: width, offsetHeight: height } = activeNavRef.current.base;
       const positionTop = indicatorPlacement === "top";
       setIndicatorPosition({ left, width, bottom: positionTop ? height - 2 : 0 });
     }
@@ -38,29 +43,15 @@ const Tabs: FC<TabsProps> = ({
 
   return <div className="vm-tabs">
     {items.map(item => (
-      <div
-        className={classNames({
-          "vm-tabs-item": true,
-          "vm-tabs-item_active": activeItem === item.value,
-          [item.className || ""]: item.className
-        })}
-        ref={activeItem === item.value ? activeNavRef : undefined}
+      <TabItem
         key={item.value}
-        style={{ color: color }}
-        onClick={createHandlerClickTab(item.value)}
-      >
-        {item.icon && (
-          <div
-            className={classNames({
-              "vm-tabs-item__icon": true,
-              "vm-tabs-item__icon_single": !item.label
-            })}
-          >
-            {item.icon}
-          </div>
-        )}
-        {item.label}
-      </div>
+        activeItem={activeItem}
+        item={item}
+        onChange={onChange}
+        color={color}
+        activeNavRef={activeNavRef}
+        isNavLink={isNavLink}
+      />
     ))}
     <div
       className="vm-tabs__indicator"

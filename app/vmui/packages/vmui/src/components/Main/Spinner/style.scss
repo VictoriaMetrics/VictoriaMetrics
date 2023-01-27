@@ -15,6 +15,10 @@
   z-index: 99;
   animation: vm-fade 2s cubic-bezier(0.280, 0.840, 0.420, 1.1);
 
+  &_dark {
+    background-color: rgba($color-black, 0.2);
+  }
+
   &__message {
     margin-top: $padding-medium;
     white-space: pre-line;

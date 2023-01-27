@@ -85,7 +85,7 @@
       }
     ]
   },
-  "description": "Overview for cluster VictoriaMetrics v1.83.0 or higher",
+  "description": "Overview for cluster VictoriaMetrics v1.86.0 or higher",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 1,
@@ -5021,7 +5021,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "max(\n    max_over_time(vm_concurrent_addrows_current{job=~\"$job_storage\", \n    instance=~\"$instance\"}[$__rate_interval])\n)",
+              "expr": "max(\n    max_over_time(vm_concurrent_insert_current{job=~\"$job_storage\", \n    instance=~\"$instance\"}[$__rate_interval])\n)",
               "interval": "",
               "legendFormat": "current",
               "range": true,
@@ -5034,7 +5034,7 @@
               },
               "editorMode": "code",
               "exemplar": true,
-              "expr": "min(vm_concurrent_addrows_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
+              "expr": "min(vm_concurrent_insert_capacity{job=~\"$job_storage\", instance=~\"$instance\"})",
               "hide": false,
               "interval": "",
               "legendFormat": "max",
@@ -7098,7 +7098,7 @@
             "type": "prometheus",
             "uid": "$ds"
           },
-          "description": "Shows the max number of ongoing insertions.\n* `max` - equal to number of CPU * 4 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
+          "description": "Shows the max number of ongoing insertions.\n* `max` - equal to number of CPU * 2 by default. May be configured with `maxConcurrentInserts` flag;\n* `current` - current number of goroutines busy with processing requests.\n\n`-maxConcurrentInserts` limits the number of insert requests which may be actively processed at any given point in time. All the other insert requests are queued for up to `-insert.maxQueueDuration` in the hope they will get a chance to be processed. This queue is used mostly for absorbing spikes for incoming insert request rate.\n\nWhen `current` hits `max` constantly, it means vminsert node is overloaded and requires more CPU or higher limits.",
           "fieldConfig": {
             "defaults": {
               "color": {
@@ -8630,9 +8630,9 @@
     "list": [
       {
         "current": {
-          "selected": false,
-          "text": "VictoriaMetrics - cluster",
-          "value": "VictoriaMetrics - cluster"
+          "selected": true,
+          "text": "VictoriaMetrics",
+          "value": "VictoriaMetrics"
         },
         "hide": 0,
         "includeAll": false,
@@ -8652,81 +8652,6 @@
           "type": "prometheus",
           "uid": "$ds"
         },
-        "definition": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
-        "hide": 2,
-        "includeAll": false,
-        "multi": false,
-        "name": "job_insert",
-        "options": [],
-        "query": {
-          "query": "label_values(vm_app_version{version=~\"^vminsert.*\"}, job)",
-          "refId": "VictoriaMetrics-job_insert-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$ds"
-        },
-        "definition": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
-        "hide": 2,
-        "includeAll": false,
-        "multi": false,
-        "name": "job_select",
-        "options": [],
-        "query": {
-          "query": "label_values(vm_app_version{version=~\"^vmselect.*\"}, job)",
-          "refId": "VictoriaMetrics-job_select-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$ds"
-        },
-        "definition": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
-        "hide": 2,
-        "includeAll": false,
-        "multi": false,
-        "name": "job_storage",
-        "options": [],
-        "query": {
-          "query": "label_values(vm_app_version{version=~\"^vmstorage.*\"}, job)",
-          "refId": "VictoriaMetrics-job_storage-Variable-Query"
-        },
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "tagValuesQuery": "",
-        "tagsQuery": "",
-        "type": "query",
-        "useTags": false
-      },
-      {
-        "current": {},
-        "datasource": {
-          "type": "prometheus",
-          "uid": "$ds"
-        },
         "definition": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
         "hide": 0,
         "includeAll": true,
@@ -8736,6 +8661,81 @@
         "query": {
           "query": "label_values(vm_app_version{version=~\"^vm(insert|select|storage).*\"}, job)",
           "refId": "VictoriaMetrics-job-Variable-Query"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vminsert.*\"}, job)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "job_insert",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\", version=~\"^vminsert.*\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmselect.*\"}, job)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "job_select",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmselect.*\"}, job)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 0,
+        "tagValuesQuery": "",
+        "tagsQuery": "",
+        "type": "query",
+        "useTags": false
+      },
+      {
+        "current": {},
+        "datasource": {
+          "type": "prometheus",
+          "uid": "$ds"
+        },
+        "definition": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmstorage.*\"}, job)",
+        "hide": 2,
+        "includeAll": false,
+        "multi": false,
+        "name": "job_storage",
+        "options": [],
+        "query": {
+          "query": "label_values(vm_app_version{job=~\"$job\", version=~\"^vmstorage.*\"}, job)",
+          "refId": "StandardVariableQuery"
         },
         "refresh": 1,
         "regex": "",

@@ -121,6 +121,8 @@ type APIRule struct {
 	// GroupID is an unique Group's ID
 	GroupID string `json:"group_id"`
 
+	// MaxUpdates is the max number of recorded ruleStateEntry objects
+	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
 	Updates []ruleStateEntry `json:"updates"`
 }

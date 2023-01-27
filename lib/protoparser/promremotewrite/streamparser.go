@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/golang/snappy"
 )
@@ -21,6 +22,10 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 //
 // callback shouldn't hold tss after returning.
 func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
+
 	ctx := getPushCtx(r)
 	defer putPushCtx(ctx)
 	if err := ctx.Read(); err != nil {
@@ -37,7 +42,7 @@ func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) erro
 	if err != nil {
 		return fmt.Errorf("cannot decompress request with length %d: %w", len(ctx.reqBuf.B), err)
 	}
-	if len(bb.B) > maxInsertRequestSize.N {
+	if int64(len(bb.B)) > maxInsertRequestSize.N {
 		return fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
 	}
 	wr := getWriteRequest()

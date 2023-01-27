@@ -20,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/mergeset"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
@@ -33,12 +32,12 @@ const maxBigPartSize = 1e12
 // The maximum number of inmemory parts in the partition.
 //
 // If the number of inmemory parts reaches this value, then assisted merge runs during data ingestion.
-const maxInmemoryPartsPerPartition = 32
+const maxInmemoryPartsPerPartition = 20
 
 // The maximum number of small parts in the partition.
 //
 // If the number of small parts reaches this value, then assisted merge runs during data ingestion.
-const maxSmallPartsPerPartition = 128
+const maxSmallPartsPerPartition = 30
 
 // Default number of parts to merge at once.
 //
@@ -154,6 +153,10 @@ type partition struct {
 
 	// Contains file-based parts with big number of items.
 	bigParts []*partWrapper
+
+	// This channel is used for signaling the background mergers that there are parts,
+	// which may need to be merged.
+	needMergeCh chan struct{}
 
 	snapshotLock sync.RWMutex
 
@@ -281,6 +284,9 @@ func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition,
 	}
 	pt.startBackgroundWorkers()
 
+	// Wake up a single background merger, so it could start merging parts if needed.
+	pt.notifyBackgroundMergers()
+
 	return pt, nil
 }
 
@@ -292,8 +298,10 @@ func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partit
 
 		s: s,
 
-		mergeIdx: uint64(time.Now().UnixNano()),
-		stopCh:   make(chan struct{}),
+		mergeIdx:    uint64(time.Now().UnixNano()),
+		needMergeCh: make(chan struct{}, cgroup.AvailableCPUs()),
+
+		stopCh: make(chan struct{}),
 	}
 	p.rawRows.init()
 	return p
@@ -498,7 +506,7 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 
 	rrs.mu.Lock()
 	if cap(rrs.rows) == 0 {
-		rrs.rows = newRawRowsBlock()
+		rrs.rows = newRawRows()
 	}
 	n := copy(rrs.rows[len(rrs.rows):cap(rrs.rows)], rows)
 	rrs.rows = rrs.rows[:len(rrs.rows)+n]
@@ -516,6 +524,14 @@ func (rrs *rawRowsShard) addRows(pt *partition, rows []rawRow) []rawRow {
 	if rrb != nil {
 		pt.flushRowsToParts(rrb.rows)
 		putRawRowsBlock(rrb)
+
+		// Run assisted merges if needed.
+		flushConcurrencyCh <- struct{}{}
+		pt.assistedMergeForInmemoryParts()
+		pt.assistedMergeForSmallParts()
+		// There is no need in assisted merges for big parts,
+		// since the bottleneck is possible only at inmemory and small parts.
+		<-flushConcurrencyCh
 	}
 
 	return rows
@@ -525,7 +541,7 @@ type rawRowsBlock struct {
 	rows []rawRow
 }
 
-func newRawRowsBlock() []rawRow {
+func newRawRows() []rawRow {
 	n := getMaxRawRowsPerShard()
 	return make([]rawRow, 0, n)
 }
@@ -534,7 +550,7 @@ func getRawRowsBlock() *rawRowsBlock {
 	v := rawRowsBlockPool.Get()
 	if v == nil {
 		return &rawRowsBlock{
-			rows: newRawRowsBlock(),
+			rows: newRawRows(),
 		}
 	}
 	return v.(*rawRowsBlock)
@@ -582,35 +598,43 @@ func (pt *partition) flushRowsToParts(rows []rawRow) {
 
 	pt.partsLock.Lock()
 	pt.inmemoryParts = append(pt.inmemoryParts, pws...)
+	for range pws {
+		if !pt.notifyBackgroundMergers() {
+			break
+		}
+	}
 	pt.partsLock.Unlock()
+}
 
-	flushConcurrencyCh <- struct{}{}
-	pt.assistedMergeForInmemoryParts()
-	pt.assistedMergeForSmallParts()
-	<-flushConcurrencyCh
-	// There is no need in assisted merges for small and big parts,
-	// since the bottleneck is possible only at inmemory parts.
+func (pt *partition) notifyBackgroundMergers() bool {
+	select {
+	case pt.needMergeCh <- struct{}{}:
+		return true
+	default:
+		return false
+	}
 }
 
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
 
+func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
+	if len(pws) < maxParts {
+		return false
+	}
+	return getNotInMergePartsCount(pws) >= defaultPartsToMerge
+}
+
 func (pt *partition) assistedMergeForInmemoryParts() {
 	for {
 		pt.partsLock.Lock()
-		ok := getNotInMergePartsCount(pt.inmemoryParts) < maxInmemoryPartsPerPartition
+		needMerge := needAssistedMerge(pt.inmemoryParts, maxInmemoryPartsPerPartition)
 		pt.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
-		// There are too many unmerged inmemory parts.
-		// This usually means that the app cannot keep up with the data ingestion rate.
-		// Assist with mering inmemory parts.
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&pt.inmemoryAssistedMerges, 1)
 		err := pt.mergeInmemoryParts()
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
@@ -624,20 +648,14 @@ func (pt *partition) assistedMergeForInmemoryParts() {
 func (pt *partition) assistedMergeForSmallParts() {
 	for {
 		pt.partsLock.Lock()
-		ok := getNotInMergePartsCount(pt.smallParts) < maxSmallPartsPerPartition
+		needMerge := needAssistedMerge(pt.smallParts, maxSmallPartsPerPartition)
 		pt.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
-		// There are too many unmerged small parts.
-		// This usually means that the app cannot keep up with the data ingestion rate.
-		// Assist with mering small parts.
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&pt.smallAssistedMerges, 1)
 		err := pt.mergeExistingParts(false)
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
@@ -934,6 +952,7 @@ func (pt *partition) ForceMergeAllParts() error {
 		if newPartSize > maxOutBytes {
 			freeSpaceNeededBytes := newPartSize - maxOutBytes
 			forceMergeLogger.Warnf("cannot initiate force merge for the partition %s; additional space needed: %d bytes", pt.name, freeSpaceNeededBytes)
+			pt.releasePartsToMerge(pws)
 			return nil
 		}
 
@@ -945,6 +964,7 @@ func (pt *partition) ForceMergeAllParts() error {
 		}
 		pws = pt.getAllPartsForMerge()
 		if len(pws) <= 1 {
+			pt.releasePartsToMerge(pws)
 			return nil
 		}
 	}
@@ -1031,16 +1051,9 @@ func (pt *partition) startMergeWorkers() {
 	}
 }
 
-const (
-	minMergeSleepTime = 10 * time.Millisecond
-	maxMergeSleepTime = 10 * time.Second
-)
-
 func (pt *partition) mergeWorker() {
-	sleepTime := minMergeSleepTime
 	var lastMergeTime uint64
 	isFinal := false
-	t := time.NewTimer(sleepTime)
 	for {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
 		// across partitions may exceed the the cap(mergeWorkersLimitCh).
@@ -1049,7 +1062,6 @@ func (pt *partition) mergeWorker() {
 		<-mergeWorkersLimitCh
 		if err == nil {
 			// Try merging additional parts.
-			sleepTime = minMergeSleepTime
 			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = false
 			continue
@@ -1070,16 +1082,11 @@ func (pt *partition) mergeWorker() {
 			continue
 		}
 
-		// Nothing to merge. Sleep for a while and try again.
-		sleepTime *= 2
-		if sleepTime > maxMergeSleepTime {
-			sleepTime = maxMergeSleepTime
-		}
+		// Nothing to merge. Wait for the notification of new merge.
 		select {
 		case <-pt.stopCh:
 			return
-		case <-t.C:
-			t.Reset(sleepTime)
+		case <-pt.needMergeCh:
 		}
 	}
 }
@@ -1571,6 +1578,7 @@ func (pt *partition) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper,
 		default:
 			logger.Panicf("BUG: unknown partType=%d", dstPartType)
 		}
+		pt.notifyBackgroundMergers()
 	}
 	pt.partsLock.Unlock()
 

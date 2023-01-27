@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -26,6 +27,10 @@ var (
 //
 // callback shouldn't hold rows after returning.
 func ParseStream(r io.Reader, callback func(rows []Row) error) error {
+	wcr := writeconcurrencylimiter.GetReader(r)
+	defer writeconcurrencylimiter.PutReader(wcr)
+	r = wcr
+
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
 
@@ -36,6 +41,7 @@ func ParseStream(r io.Reader, callback func(rows []Row) error) error {
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
+		wcr.DecConcurrency()
 	}
 	ctx.wg.Wait()
 	if err := ctx.Error(); err != nil {

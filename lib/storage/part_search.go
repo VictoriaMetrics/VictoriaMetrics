@@ -69,7 +69,7 @@ func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange) {
 		if isInTest && !sort.SliceIsSorted(tsids, func(i, j int) bool { return tsids[i].Less(&tsids[j]) }) {
 			logger.Panicf("BUG: tsids must be sorted; got %+v", tsids)
 		}
-		// take ownership of of tsids.
+		// take ownership of tsids.
 		ps.tsids = tsids
 	}
 	ps.tr = tr
@@ -120,14 +120,38 @@ func (ps *partSearch) nextTSID() bool {
 	return true
 }
 
+func (ps *partSearch) skipTSIDsSmallerThan(tsid *TSID) bool {
+	if !ps.BlockRef.bh.TSID.Less(tsid) {
+		return true
+	}
+	if !ps.nextTSID() {
+		return false
+	}
+	if !ps.BlockRef.bh.TSID.Less(tsid) {
+		// Fast path: the next TSID isn't smaller than the tsid.
+		return true
+	}
+
+	// Slower path - binary search for the next TSID, which isn't smaller than the tsid.
+	tsids := ps.tsids[ps.tsidIdx:]
+	ps.tsidIdx += sort.Search(len(tsids), func(i int) bool {
+		return !tsids[i].Less(tsid)
+	})
+	if ps.tsidIdx >= len(ps.tsids) {
+		ps.tsidIdx = len(ps.tsids)
+		ps.err = io.EOF
+		return false
+	}
+	ps.BlockRef.bh.TSID = ps.tsids[ps.tsidIdx]
+	ps.tsidIdx++
+	return true
+}
+
 func (ps *partSearch) nextBHS() bool {
 	for len(ps.metaindex) > 0 {
-		// Optimization: skip tsid values smaller than the minimum value
-		// from ps.metaindex.
-		for ps.BlockRef.bh.TSID.Less(&ps.metaindex[0].TSID) {
-			if !ps.nextTSID() {
-				return false
-			}
+		// Optimization: skip tsid values smaller than the minimum value from ps.metaindex.
+		if !ps.skipTSIDsSmallerThan(&ps.metaindex[0].TSID) {
+			return false
 		}
 		// Invariant: ps.BlockRef.bh.TSID >= ps.metaindex[0].TSID
 
@@ -232,22 +256,24 @@ func (ps *partSearch) searchBHS() bool {
 	for len(bhs) > 0 {
 		// Skip block headers with tsids smaller than the given tsid.
 		tsid := &ps.BlockRef.bh.TSID
-		n := sort.Search(len(bhs), func(i int) bool {
-			return !bhs[i].TSID.Less(tsid)
-		})
-		if n == len(bhs) {
-			// Nothing found.
-			break
+		if bhs[0].TSID.Less(tsid) {
+			n := sort.Search(len(bhs), func(i int) bool {
+				return !bhs[i].TSID.Less(tsid)
+			})
+			if n == len(bhs) {
+				// Nothing found.
+				break
+			}
+			bhs = bhs[n:]
 		}
-		bhs = bhs[n:]
+		bh := &bhs[0]
 
 		// Invariant: tsid <= bh.TSID
 
-		bh := &bhs[0]
 		if bh.TSID.MetricID != tsid.MetricID {
 			// tsid < bh.TSID: no more blocks with the given tsid.
 			// Proceed to the next (bigger) tsid.
-			if !ps.nextTSID() {
+			if !ps.skipTSIDsSmallerThan(&bh.TSID) {
 				return false
 			}
 			continue

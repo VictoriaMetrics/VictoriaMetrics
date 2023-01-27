@@ -1,4 +1,4 @@
-@use "../../../../styles/variables" as *;
+@use "src/styles/variables" as *;
 
 .vm-calendar {
   display: grid;
@@ -104,7 +104,7 @@
         transition: color 200ms ease, background-color 300ms ease-in-out;
 
         &:hover {
-          background-color: rgba($color-black, 0.05);
+          background-color: $color-hover-black;
         }
 
         &_empty {
@@ -144,7 +144,7 @@
       transition: color 200ms ease, background-color 300ms ease-in-out;
 
       &:hover {
-        background-color: rgba($color-black, 0.05);
+        background-color: $color-hover-black;
       }
 
       &_selected {
@@ -270,6 +270,10 @@
       justify-content: space-between;
       margin-top: $padding-global;
 
+      &_dark &__input {
+        border-color: $color-text-disabled;
+      }
+
       span {
         margin: 0 $padding-small;
       }
@@ -277,11 +281,13 @@
       &__input {
         width: 64px;
         height: 32px;
-        border: 1px solid $color-alto;
+        border: $border-divider;
         border-radius: $border-radius-small;
         font-size: $font-size-medium;
         padding: 2px $padding-small;
         text-align: center;
+        background-color: transparent;
+        color: $color-text;
 
         &:focus {
           border-color: $color-primary;

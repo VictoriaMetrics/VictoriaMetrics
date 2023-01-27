@@ -1,30 +1,52 @@
-@use "../../../styles/variables" as *;
+@use "src/styles/variables" as *;
 
 .vm-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
   padding: $padding-small $padding-medium;
-  gap: $padding-large;
+  gap: 0 $padding-large;
+  z-index: 99;
 
   &_app {
     padding: $padding-small 0;
   }
 
-  &__logo {
+  &_dark {
+    .vm-header-button,
+    button:before,
+    button {
+      background-color: $color-background-block;
+    }
+  }
+
+  &-logo {
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     cursor: pointer;
     width: 100%;
     max-width: 65px;
+    min-width: 65px;
     margin-bottom: 2px;
+    overflow: hidden;
+
+    @media (max-width: 1200px) {
+      min-width: 14px;
+      max-width: 14px;
+    }
+
+    svg {
+      max-width: 65px;
+      min-width: 65px;
+    }
   }
 
   &-nav {
     font-size: $font-size-small;
-    font-weight: 600;
+    font-weight: bold;
   }
 
   &__settings {

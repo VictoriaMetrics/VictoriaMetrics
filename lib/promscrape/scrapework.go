@@ -1,9 +1,9 @@
 package promscrape
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"io"
 	"math"
 	"math/bits"
@@ -11,8 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -36,7 +38,6 @@ var (
 		"See also -promscrape.suppressScrapeErrorsDelay")
 	suppressScrapeErrorsDelay = flag.Duration("promscrape.suppressScrapeErrorsDelay", 0, "The delay for suppressing repeated scrape errors logging per each scrape targets. "+
 		"This may be used for reducing the number of log lines related to scrape errors. See also -promscrape.suppressScrapeErrors")
-	seriesLimitPerTarget          = flag.Int("promscrape.seriesLimitPerTarget", 0, "Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info")
 	minResponseSizeForStreamParse = flagutil.NewBytes("promscrape.minResponseSizeForStreamParse", 1e6, "The minimum target response size for automatic switching to stream parsing mode, which can reduce memory usage. See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode")
 )
 
@@ -216,11 +217,14 @@ type scrapeWork struct {
 	// equals to or exceeds -promscrape.minResponseSizeForStreamParse
 	lastScrapeCompressed []byte
 
-	// lastErrLogTimestamp is the timestamp in unix seconds of the last logged scrape error
-	lastErrLogTimestamp uint64
+	// nextErrorLogTime is the timestamp in millisecond when the next scrape error should be logged.
+	nextErrorLogTime int64
 
-	// errsSuppressedCount is the number of suppressed scrape errors since lastErrLogTimestamp
-	errsSuppressedCount int
+	// failureRequestsCount is the number of suppressed scrape errors during the last suppressScrapeErrorsDelay
+	failureRequestsCount int
+
+	// successRequestsCount is the number of success requests during the last suppressScrapeErrorsDelay
+	successRequestsCount int
 }
 
 func (sw *scrapeWork) loadLastScrape() string {
@@ -235,7 +239,7 @@ func (sw *scrapeWork) loadLastScrape() string {
 }
 
 func (sw *scrapeWork) storeLastScrape(lastScrape []byte) {
-	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.N
+	mustCompress := minResponseSizeForStreamParse.N > 0 && len(lastScrape) >= minResponseSizeForStreamParse.IntN()
 	if mustCompress {
 		sw.lastScrapeCompressed = encoding.CompressZSTDLevel(sw.lastScrapeCompressed[:0], lastScrape, 1)
 		sw.lastScrape = nil
@@ -354,21 +358,26 @@ func (sw *scrapeWork) logError(s string) {
 
 func (sw *scrapeWork) scrapeAndLogError(scrapeTimestamp, realTimestamp int64) {
 	err := sw.scrapeInternal(scrapeTimestamp, realTimestamp)
+	if *suppressScrapeErrors {
+		return
+	}
 	if err == nil {
+		sw.successRequestsCount++
 		return
 	}
-	d := time.Duration(fasttime.UnixTimestamp()-sw.lastErrLogTimestamp) * time.Second
-	if *suppressScrapeErrors || d < *suppressScrapeErrorsDelay {
-		sw.errsSuppressedCount++
+	sw.failureRequestsCount++
+	if sw.nextErrorLogTime == 0 {
+		sw.nextErrorLogTime = realTimestamp + suppressScrapeErrorsDelay.Milliseconds()
+	}
+	if realTimestamp < sw.nextErrorLogTime {
 		return
 	}
-	err = fmt.Errorf("cannot scrape %q (job %q, labels %s): %w", sw.Config.ScrapeURL, sw.Config.Job(), sw.Config.Labels.String(), err)
-	if sw.errsSuppressedCount > 0 {
-		err = fmt.Errorf("%w; %d similar errors suppressed during the last %.1f seconds", err, sw.errsSuppressedCount, d.Seconds())
-	}
-	logger.Warnf("%s", err)
-	sw.lastErrLogTimestamp = fasttime.UnixTimestamp()
-	sw.errsSuppressedCount = 0
+	totalRequests := sw.failureRequestsCount + sw.successRequestsCount
+	logger.Warnf("cannot scrape target %q (%s) %d out of %d times during -promscrape.suppressScrapeErrorsDelay=%s; the last error: %s",
+		sw.Config.ScrapeURL, sw.Config.Labels.String(), sw.failureRequestsCount, totalRequests, *suppressScrapeErrorsDelay, err)
+	sw.nextErrorLogTime = realTimestamp + suppressScrapeErrorsDelay.Milliseconds()
+	sw.failureRequestsCount = 0
+	sw.successRequestsCount = 0
 }
 
 var (
@@ -384,7 +393,7 @@ func (sw *scrapeWork) mustSwitchToStreamParseMode(responseSize int) bool {
 	if minResponseSizeForStreamParse.N <= 0 {
 		return false
 	}
-	return sw.Config.canSwitchToStreamParseMode() && responseSize >= minResponseSizeForStreamParse.N
+	return sw.Config.canSwitchToStreamParseMode() && responseSize >= minResponseSizeForStreamParse.IntN()
 }
 
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
@@ -416,6 +425,24 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	body := leveledbytebufferpool.Get(sw.prevBodyLen)
 	var err error
 	body.B, err = sw.ReadData(body.B[:0])
+	releaseBody, err := sw.processScrapedData(scrapeTimestamp, realTimestamp, body, err)
+	if releaseBody {
+		leveledbytebufferpool.Put(body)
+	}
+	return err
+}
+
+var processScrapedDataConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+
+func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, body *bytesutil.ByteBuffer, err error) (bool, error) {
+	// This function is CPU-bound, while it may allocate big amounts of memory.
+	// That's why it is a good idea to limit the number of concurrent calls to this function
+	// in order to limit memory usage under high load without sacrificing the performance.
+	processScrapedDataConcurrencyLimitCh <- struct{}{}
+	defer func() {
+		<-processScrapedDataConcurrencyLimitCh
+	}()
+
 	endTimestamp := time.Now().UnixNano() / 1e6
 	duration := float64(endTimestamp-realTimestamp) / 1e3
 	scrapeDuration.Update(duration)
@@ -424,7 +451,7 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
 	lastScrape := sw.loadLastScrape()
 	bodyString := bytesutil.ToUnsafeString(body.B)
-	areIdenticalSeries := sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+	areIdenticalSeries := sw.areIdenticalSeries(lastScrape, bodyString)
 	if err != nil {
 		up = 0
 		scrapesFailed.Inc()
@@ -458,9 +485,6 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 	samplesDropped := 0
 	if sw.seriesLimitExceeded || !areIdenticalSeries {
 		samplesDropped = sw.applySeriesLimit(wc)
-		if samplesDropped > 0 {
-			sw.seriesLimitExceeded = true
-		}
 	}
 	am := &autoMetrics{
 		up:                        up,
@@ -489,13 +513,8 @@ func (sw *scrapeWork) scrapeInternal(scrapeTimestamp, realTimestamp int64) error
 		sw.storeLastScrape(body.B)
 	}
 	sw.finalizeLastScrape()
-	if !mustSwitchToStreamParse {
-		// Return body to the pool only if its size is smaller than -promscrape.minResponseSizeForStreamParse
-		// This should reduce memory usage when scraping targets which return big responses.
-		leveledbytebufferpool.Put(body)
-	}
 	tsmGlobal.Update(sw, up == 1, realTimestamp, int64(duration*1000), samplesScraped, err)
-	return err
+	return !mustSwitchToStreamParse, err
 }
 
 func (sw *scrapeWork) pushData(at *auth.Token, wr *prompbmarshal.WriteRequest) {
@@ -555,7 +574,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		err = sbr.Init(sr)
 		if err == nil {
 			bodyString = bytesutil.ToUnsafeString(sbr.body)
-			areIdenticalSeries = sw.Config.NoStaleMarkers || parser.AreIdenticalSeriesFast(lastScrape, bodyString)
+			areIdenticalSeries = sw.areIdenticalSeries(lastScrape, bodyString)
 			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
@@ -572,9 +591,6 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				}
 				if sw.seriesLimitExceeded || !areIdenticalSeries {
 					samplesDropped += sw.applySeriesLimit(wc)
-					if samplesDropped > 0 && !sw.seriesLimitExceeded {
-						sw.seriesLimitExceeded = true
-					}
 				}
 				// Push the collected rows to sw before returning from the callback, since they cannot be held
 				// after returning from the callback - this will result in data race.
@@ -631,6 +647,15 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 	// Do not track active series in streaming mode, since this may need too big amounts of memory
 	// when the target exports too big number of metrics.
 	return err
+}
+
+func (sw *scrapeWork) areIdenticalSeries(prevData, currData string) bool {
+	if sw.Config.NoStaleMarkers && sw.Config.SeriesLimit <= 0 {
+		// Do not spend CPU time on tracking the changes in series if stale markers are disabled.
+		// The check for series_limit is needed for https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
+		return true
+	}
+	return parser.AreIdenticalSeriesFast(prevData, currData)
 }
 
 // leveledWriteRequestCtxPool allows reducing memory usage when writeRequesCtx
@@ -716,17 +741,13 @@ func (sw *scrapeWork) getSeriesAdded(lastScrape, currScrape string) int {
 }
 
 func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
-	seriesLimit := *seriesLimitPerTarget
-	if sw.Config.SeriesLimit > 0 {
-		seriesLimit = sw.Config.SeriesLimit
-	}
-	if sw.seriesLimiter == nil && seriesLimit > 0 {
-		sw.seriesLimiter = bloomfilter.NewLimiter(seriesLimit, 24*time.Hour)
-	}
-	sl := sw.seriesLimiter
-	if sl == nil {
+	if sw.Config.SeriesLimit <= 0 {
 		return 0
 	}
+	if sw.seriesLimiter == nil {
+		sw.seriesLimiter = bloomfilter.NewLimiter(sw.Config.SeriesLimit, 24*time.Hour)
+	}
+	sl := sw.seriesLimiter
 	dstSeries := wc.writeRequest.Timeseries[:0]
 	samplesDropped := 0
 	for _, ts := range wc.writeRequest.Timeseries {
@@ -739,10 +760,23 @@ func (sw *scrapeWork) applySeriesLimit(wc *writeRequestCtx) int {
 	}
 	prompbmarshal.ResetTimeSeries(wc.writeRequest.Timeseries[len(dstSeries):])
 	wc.writeRequest.Timeseries = dstSeries
+	if samplesDropped > 0 && !sw.seriesLimitExceeded {
+		sw.seriesLimitExceeded = true
+	}
 	return samplesDropped
 }
 
+var sendStaleSeriesConcurrencyLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+
 func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp int64, addAutoSeries bool) {
+	// This function is CPU-bound, while it may allocate big amounts of memory.
+	// That's why it is a good idea to limit the number of concurrent calls to this function
+	// in order to limit memory usage under high load without sacrificing the performance.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
+	sendStaleSeriesConcurrencyLimitCh <- struct{}{}
+	defer func() {
+		<-sendStaleSeriesConcurrencyLimitCh
+	}()
 	if sw.Config.NoStaleMarkers {
 		return
 	}
@@ -750,23 +784,50 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 	if currScrape != "" {
 		bodyString = parser.GetRowsDiff(lastScrape, currScrape)
 	}
-	wc := &writeRequestCtx{}
+	wc := writeRequestCtxPool.Get(sw.prevLabelsLen)
+	defer func() {
+		wc.reset()
+		writeRequestCtxPool.Put(wc)
+	}()
 	if bodyString != "" {
-		wc.rows.Unmarshal(bodyString)
-		srcRows := wc.rows.Rows
-		for i := range srcRows {
-			sw.addRowToTimeseries(wc, &srcRows[i], timestamp, true)
+		// Send stale markers in streaming mode in order to reduce memory usage
+		// when stale markers for targets exposing big number of metrics must be generated.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3668
+		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
+		var mu sync.Mutex
+		br := bytes.NewBufferString(bodyString)
+		err := parser.ParseStream(br, timestamp, false, func(rows []parser.Row) error {
+			mu.Lock()
+			defer mu.Unlock()
+			for i := range rows {
+				sw.addRowToTimeseries(wc, &rows[i], timestamp, true)
+			}
+			// Apply series limit to stale markers in order to prevent sending stale markers for newly created series.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3660
+			if sw.seriesLimitExceeded {
+				sw.applySeriesLimit(wc)
+			}
+			// Push the collected rows to sw before returning from the callback, since they cannot be held
+			// after returning from the callback - this will result in data race.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
+			setStaleMarkersForRows(wc.writeRequest.Timeseries)
+			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+			wc.resetNoRows()
+			return nil
+		}, sw.logError)
+		if err != nil {
+			sw.logError(fmt.Errorf("cannot send stale markers: %s", err).Error())
 		}
 	}
 	if addAutoSeries {
 		am := &autoMetrics{}
 		sw.addAutoMetrics(am, wc, timestamp)
 	}
-	series := wc.writeRequest.Timeseries
-	if len(series) == 0 {
-		return
-	}
-	// Substitute all the values with Prometheus stale markers.
+	setStaleMarkersForRows(wc.writeRequest.Timeseries)
+	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+}
+
+func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {
 	for _, tss := range series {
 		samples := tss.Samples
 		for i := range samples {
@@ -774,7 +835,6 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		}
 		staleSamplesCreated.Add(len(samples))
 	}
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 }
 
 var staleSamplesCreated = metrics.NewCounter(`vm_promscrape_stale_samples_created_total`)
@@ -848,7 +908,7 @@ func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, tim
 		bb := bbPool.Get()
 		bb.B = append(bb.B, "exported_"...)
 		bb.B = append(bb.B, metric...)
-		metric = bytesutil.InternString(bytesutil.ToUnsafeString(bb.B))
+		metric = bytesutil.InternBytes(bb.B)
 		bbPool.Put(bb)
 	}
 	labelsLen := len(wc.labels)

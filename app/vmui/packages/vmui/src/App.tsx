@@ -10,20 +10,18 @@ import TopQueries from "./pages/TopQueries";
 import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
 import Spinner from "./components/Main/Spinner/Spinner";
 import TracePage from "./pages/TracePage";
+import ExploreMetrics from "./pages/ExploreMetrics";
+import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 
 const App: FC = () => {
 
   const [loadingTheme, setLoadingTheme] = useState(true);
 
-  if (loadingTheme) return (
-    <>
-      <Spinner/>
-      <ThemeProvider setLoadingTheme={setLoadingTheme}/>;
-    </>
-  );
-
   return <>
-    <HashRouter>
+    {loadingTheme && <Spinner/>}
+    <ThemeProvider setLoadingTheme={setLoadingTheme}/>
+
+    <HashRouter key={`${loadingTheme}`}>
       <AppContextProvider>
         <Routes>
           <Route
@@ -35,8 +33,8 @@ const App: FC = () => {
               element={<CustomPanel/>}
             />
             <Route
-              path={router.dashboards}
-              element={<DashboardsLayout/>}
+              path={router.metrics}
+              element={<ExploreMetrics/>}
             />
             <Route
               path={router.cardinality}
@@ -49,6 +47,14 @@ const App: FC = () => {
             <Route
               path={router.trace}
               element={<TracePage/>}
+            />
+            <Route
+              path={router.dashboards}
+              element={<DashboardsLayout/>}
+            />
+            <Route
+              path={router.icons}
+              element={<PreviewIcons/>}
             />
           </Route>
         </Routes>

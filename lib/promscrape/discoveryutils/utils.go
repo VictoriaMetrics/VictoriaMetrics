@@ -41,8 +41,7 @@ func JoinHostPort(host string, port int) string {
 	}
 	b = append(b, ':')
 	b = strconv.AppendInt(b, int64(port), 10)
-	s := bytesutil.ToUnsafeString(b)
-	s = bytesutil.InternString(s)
+	s := bytesutil.InternBytes(b)
 	bb.B = b
 	bbPool.Put(bb)
 	return s

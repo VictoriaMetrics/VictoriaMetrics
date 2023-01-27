@@ -27,12 +27,13 @@ func TestClient_Push(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create client: %s", err)
 	}
+	r := rand.New(rand.NewSource(1))
 	const rowsN = 1e4
 	var sent int
 	for i := 0; i < rowsN; i++ {
 		s := prompbmarshal.TimeSeries{
 			Samples: []prompbmarshal.Sample{{
-				Value:     rand.Float64(),
+				Value:     r.Float64(),
 				Timestamp: time.Now().Unix(),
 			}},
 		}

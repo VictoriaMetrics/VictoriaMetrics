@@ -1,5 +1,5 @@
 @use "src/styles/variables" as *;
-$chart-tooltip-width: 300px;
+$chart-tooltip-width: 325px;
 $chart-tooltip-icon-width: 25px;
 $chart-tooltip-half-icon: calc($chart-tooltip-icon-width/2);
 $chart-tooltip-date-width: $chart-tooltip-width - (2*$chart-tooltip-icon-width) - (2*$padding-global) - $padding-small;
@@ -25,7 +25,6 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
   pointer-events: none;
 
   &_sticky {
-    background-color: $color-dove-gray;
     pointer-events: auto;
     z-index: 99;
   }

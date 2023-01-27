@@ -1,9 +1,10 @@
 import React, { FC, useState } from "preact/compat";
 import LineProgress from "../../Main/LineProgress/LineProgress";
 import Trace from "../Trace";
-import { ArrowUpIcon } from "../../Main/Icons";
+import { ArrowDownIcon } from "../../Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
+import { useAppState } from "../../../state/common/StateContext";
 
 interface RecursiveProps {
   trace: Trace;
@@ -15,6 +16,7 @@ interface OpenLevels {
 }
 
 const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
+  const { darkTheme } = useAppState();
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
 
   const handleListClick = (level: number) => () => {
@@ -26,7 +28,12 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
   const progress = trace.duration / totalMsec * 100;
 
   return (
-    <div className="vm-nested-nav">
+    <div
+      className={classNames({
+        "vm-nested-nav": true,
+        "vm-nested-nav_dark": darkTheme,
+      })}
+    >
       <div
         className="vm-nested-nav-header"
         onClick={handleListClick(trace.idValue)}
@@ -38,7 +45,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
               "vm-nested-nav-header__icon_open": openLevels[trace.idValue]
             })}
           >
-            <ArrowUpIcon />
+            <ArrowDownIcon />
           </div>
         )}
         <div className="vm-nested-nav-header__progress">

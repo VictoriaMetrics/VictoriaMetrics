@@ -16,3 +16,11 @@ each package, which is the pattern followed by some other languages. External
 tools would then talk to pkg.go.dev or some other service to get the overall
 list of packages and use the `.repo-metadata.json` files to get the additional
 metadata required. For now, `.repo-metadata-full.json` includes everything.
+
+## cloudbuild.yaml
+
+To kick off a build locally run from the repo root:
+
+```bash
+gcloud builds submit --project=cloud-devrel-kokoro-resources --config=internal/cloudbuild.yaml
+```

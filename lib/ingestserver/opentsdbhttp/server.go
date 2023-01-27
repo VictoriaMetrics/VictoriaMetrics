@@ -27,10 +27,13 @@ type Server struct {
 
 // MustStart starts HTTP OpenTSDB server on the given addr.
 //
+// If useProxyProtocol is set to true, then the incoming connections are accepted via proxy protocol.
+// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+//
 // MustStop must be called on the returned server when it is no longer needed.
-func MustStart(addr string, insertHandler func(r *http.Request) error) *Server {
+func MustStart(addr string, useProxyProtocol bool, insertHandler func(r *http.Request) error) *Server {
 	logger.Infof("starting HTTP OpenTSDB server at %q", addr)
-	lnTCP, err := netutil.NewTCPListener("opentsdbhttp", addr, nil)
+	lnTCP, err := netutil.NewTCPListener("opentsdbhttp", addr, useProxyProtocol, nil)
 	if err != nil {
 		logger.Fatalf("cannot start HTTP OpenTSDB collector at %q: %s", addr, err)
 	}
@@ -86,6 +89,9 @@ func (s *Server) MustStop() {
 
 func newRequestHandler(insertHandler func(r *http.Request) error) http.Handler {
 	rh := func(w http.ResponseWriter, r *http.Request) {
+		if !httpserver.CheckBasicAuth(w, r) {
+			return
+		}
 		writeRequests.Inc()
 		if err := insertHandler(r); err != nil {
 			writeErrors.Inc()

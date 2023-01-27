@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storagepacelimiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/syncwg"
 )
 
@@ -27,14 +26,14 @@ import (
 // This number may be reached when the insertion pace outreaches merger pace.
 // If this number is reached, then assisted merges are performed
 // during data ingestion.
-const maxInmemoryParts = 64
+const maxInmemoryParts = 30
 
 // maxFileParts is the maximum number of file parts in the table.
 //
 // This number may be reached when the insertion pace outreaches merger pace.
 // If this number is reached, then assisted merges are performed
 // during data ingestion.
-const maxFileParts = 256
+const maxFileParts = 64
 
 // Default number of parts to merge at once.
 //
@@ -137,6 +136,10 @@ type Table struct {
 
 	// fileParts contains file-backed parts.
 	fileParts []*partWrapper
+
+	// This channel is used for signaling the background mergers that there are parts,
+	// which may need to be merged.
+	needMergeCh chan struct{}
 
 	snapshotLock sync.RWMutex
 
@@ -255,6 +258,14 @@ func (ris *rawItemsShard) addItems(tb *Table, items [][]byte) [][]byte {
 
 	tb.flushBlocksToParts(ibsToFlush, false)
 
+	if len(ibsToFlush) > 0 {
+		// Run assisted merges if needed.
+		flushConcurrencyCh <- struct{}{}
+		tb.assistedMergeForInmemoryParts()
+		tb.assistedMergeForFileParts()
+		<-flushConcurrencyCh
+	}
+
 	return tailItems
 }
 
@@ -316,7 +327,8 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	// Protect from concurrent opens.
 	flockF, err := fs.CreateFlockFile(path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot create lock file in %q; "+
+			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
 	}
 
 	// Open table parts.
@@ -332,11 +344,15 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		isReadOnly:    isReadOnly,
 		fileParts:     pws,
 		mergeIdx:      uint64(time.Now().UnixNano()),
+		needMergeCh:   make(chan struct{}, 1),
 		flockF:        flockF,
 		stopCh:        make(chan struct{}),
 	}
 	tb.rawItems.init()
 	tb.startBackgroundWorkers()
+
+	// Wake up a single background merger, so it could start merging parts if needed.
+	tb.notifyBackgroundMergers()
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)
@@ -747,12 +763,12 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 
 	tb.partsLock.Lock()
 	tb.inmemoryParts = append(tb.inmemoryParts, pws...)
+	for range pws {
+		if !tb.notifyBackgroundMergers() {
+			break
+		}
+	}
 	tb.partsLock.Unlock()
-
-	flushConcurrencyCh <- struct{}{}
-	tb.assistedMergeForInmemoryParts()
-	tb.assistedMergeForFileParts()
-	<-flushConcurrencyCh
 
 	if tb.flushCallback != nil {
 		if isFinal {
@@ -763,22 +779,35 @@ func (tb *Table) flushBlocksToParts(ibs []*inmemoryBlock, isFinal bool) {
 	}
 }
 
+func (tb *Table) notifyBackgroundMergers() bool {
+	select {
+	case tb.needMergeCh <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
 var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
+
+func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
+	if len(pws) < maxParts {
+		return false
+	}
+	return getNotInMergePartsCount(pws) >= defaultPartsToMerge
+}
 
 func (tb *Table) assistedMergeForInmemoryParts() {
 	for {
 		tb.partsLock.Lock()
-		ok := getNotInMergePartsCount(tb.inmemoryParts) < maxInmemoryParts
+		needMerge := needAssistedMerge(tb.inmemoryParts, maxInmemoryParts)
 		tb.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&tb.inmemoryAssistedMerges, 1)
 		err := tb.mergeInmemoryParts()
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
@@ -792,17 +821,14 @@ func (tb *Table) assistedMergeForInmemoryParts() {
 func (tb *Table) assistedMergeForFileParts() {
 	for {
 		tb.partsLock.Lock()
-		ok := getNotInMergePartsCount(tb.fileParts) < maxFileParts
+		needMerge := needAssistedMerge(tb.fileParts, maxFileParts)
 		tb.partsLock.Unlock()
-		if ok {
+		if !needMerge {
 			return
 		}
 
-		// Prioritize assisted merges over searches.
-		storagepacelimiter.Search.Inc()
 		atomic.AddUint64(&tb.fileAssistedMerges, 1)
 		err := tb.mergeExistingParts(false)
-		storagepacelimiter.Search.Dec()
 		if err == nil {
 			continue
 		}
@@ -967,16 +993,9 @@ func (tb *Table) mergeExistingParts(isFinal bool) error {
 	return tb.mergeParts(pws, tb.stopCh, isFinal)
 }
 
-const (
-	minMergeSleepTime = 10 * time.Millisecond
-	maxMergeSleepTime = 10 * time.Second
-)
-
 func (tb *Table) mergeWorker() {
-	sleepTime := minMergeSleepTime
 	var lastMergeTime uint64
 	isFinal := false
-	t := time.NewTimer(sleepTime)
 	for {
 		// Limit the number of concurrent calls to mergeExistingParts, since the total number of merge workers
 		// across tables may exceed the the cap(mergeWorkersLimitCh).
@@ -985,7 +1004,6 @@ func (tb *Table) mergeWorker() {
 		<-mergeWorkersLimitCh
 		if err == nil {
 			// Try merging additional parts.
-			sleepTime = minMergeSleepTime
 			lastMergeTime = fasttime.UnixTimestamp()
 			isFinal = false
 			continue
@@ -1006,16 +1024,11 @@ func (tb *Table) mergeWorker() {
 			continue
 		}
 
-		// Nothing to merge. Sleep for a while and try again.
-		sleepTime *= 2
-		if sleepTime > maxMergeSleepTime {
-			sleepTime = maxMergeSleepTime
-		}
+		// Nothing to merge. Wait for the notification of new merge.
 		select {
 		case <-tb.stopCh:
 			return
-		case <-t.C:
-			t.Reset(sleepTime)
+		case <-tb.needMergeCh:
 		}
 	}
 }
@@ -1336,6 +1349,7 @@ func (tb *Table) swapSrcWithDstParts(pws []*partWrapper, pwNew *partWrapper, dst
 		default:
 			logger.Panicf("BUG: unknown partType=%d", dstPartType)
 		}
+		tb.notifyBackgroundMergers()
 	}
 	tb.partsLock.Unlock()
 

@@ -49,14 +49,18 @@ absolute path to all .tpl files in root.`)
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
-	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+	httpListenAddr   = flag.String("httpListenAddr", ":8880", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
 	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
 	maxResolveDuration  = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
 		"which is by default equal to 3 evaluation intervals of the parent group.")
-	resendDelay = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
+	resendDelay            = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
+	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
+		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overriden per rule via update_entries_limit param.")
 
 	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
@@ -168,7 +172,7 @@ func main() {
 	go configReload(ctx, manager, groupsCfg, sighupCh)
 
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(*httpListenAddr, rh.handler)
+	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, rh.handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)
