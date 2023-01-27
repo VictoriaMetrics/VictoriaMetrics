@@ -767,7 +767,8 @@ scrape_configs:
 
 ## Cardinality limiter
 
-By default `vmagent` doesn't limit the number of time series each scrape target can expose. The limit can be enforced in the following places:
+By default `vmagent` doesn't limit the number of time series each scrape target can expose. 
+The limit can be enforced in the following places:
 
 * Via `-promscrape.seriesLimitPerTarget` command-line option. This limit is applied individually
   to all the scrape targets defined in the file pointed by `-promscrape.config`.
@@ -778,10 +779,7 @@ By default `vmagent` doesn't limit the number of time series each scrape target 
   via [Kubernetes annotations](https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/) for targets,
   which may expose too high number of time series.
 
-See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
-
-Scraped metrics are dropped for time series exceeding the given limit.
-
+Scraped metrics are dropped for time series exceeding the given limit on the time window of 24h.
 `vmagent` creates the following additional per-target metrics for targets with non-zero series limit:
 
 - `scrape_series_limit_samples_dropped` - the number of dropped samples during the scrape when the unique series limit is exceeded.
@@ -795,6 +793,7 @@ These metrics allow building the following alerting rules:
 - `scrape_series_current / scrape_series_limit > 0.9` - alerts when the number of series exposed by the target reaches 90% of the limit.
 - `sum_over_time(scrape_series_limit_samples_dropped[1h]) > 0` - alerts when some samples are dropped because the series limit on a particular target is reached.
 
+See also `sample_limit` option at [scrape_config section](https://docs.victoriametrics.com/sd_configs.html#scrape_configs).
 
 By default `vmagent` doesn't limit the number of time series written to remote storage systems specified at `-remoteWrite.url`.
 The limit can be enforced by setting the following command-line flags:

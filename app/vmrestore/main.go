@@ -38,7 +38,7 @@ func main() {
 	logger.Init()
 	pushmetrics.Init()
 
-	go httpserver.Serve(*httpListenAddr, nil)
+	go httpserver.Serve(*httpListenAddr, false, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {

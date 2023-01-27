@@ -24,7 +24,9 @@ import (
 )
 
 var (
-	httpListenAddr    = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections")
+	httpListenAddr   = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
@@ -75,7 +77,7 @@ func main() {
 	vminsert.Init()
 	startSelfScraper()
 
-	go httpserver.Serve(*httpListenAddr, requestHandler)
+	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	logger.Infof("started VictoriaMetrics in %.3f seconds", time.Since(startTime).Seconds())
 
 	sig := procutil.WaitForSigterm()
