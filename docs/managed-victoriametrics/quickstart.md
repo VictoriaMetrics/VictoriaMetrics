@@ -9,7 +9,35 @@ monitoring, logs collection, access protection, software updates, backups, etc.
 Managed VictoriaMetrics id distributed via [AWS Marketplace](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc).
 To start using the service, one should have already registered AWS account 
 and visit [VictoriaMetrics product page](https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc).
-See more details [here](https://dbaas.victoriametrics.com/howToRegister).
+
+### Amazon Web Services
+
+Managed VictoriaMetrics id distributed via <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">AWS Marketplace</a>.
+To start using the service, one should have already registered AWS account. Then, go to the
+<a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc">VictoriaMetrics product page</a>
+and click "Continue to Subscribe" button:
+
+<p>
+  <img src="/assets/images/managed/quickstart/continue-subscribe.png" width="800">
+</p>
+
+Then on product page press the "Subscribe" button:
+
+<p>
+  <img src="/assets/images/managed/quickstart/subscribe.png" width="800">
+</p>
+
+You'll be taken to <a href="https://dbaas.victoriametrics.com/signIn">Managed VictoriaMetrics auth page</a>:
+
+<p>
+  <img src="/assets/images/managed/quickstart/quickstart-signIn.png" width="800">
+</p>
+
+Choose to register manually or via Google Auth.
+
+Please note, that initial registering is only possible via link from <a href="https://aws.amazon.com/marketplace/pp/prodview-4tbfq5icmbmyc" target="_blank">AWS Marketplace</a>.
+
+See what to do after registering in Quick Start guide.
 
 ## How to restore password
 
