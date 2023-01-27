@@ -284,8 +284,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxConcurrentRequests int
+     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend (default 1000)
   -maxIdleConnsPerBackend int
-     The maximum number of idle connections vmauth can open per each backend host (default 100)
+     The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -305,6 +307,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -reloadAuthKey string
      Auth key for /-/reload http endpoint. It must be passed as authKey=...
+  -responseTimeout duration
+     The timeout for receiving a response from backend (default 5m0s)
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string
