@@ -99,7 +99,7 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 		case 1:
 			// ipv4 (aka AF_INET)
 			if len(bb.B) < 12 {
-				return nil, fmt.Errorf("cannot ipv4 address from proxy protocol block with the length %d bytes; expected at least 12 bytes", len(bb.B))
+				return nil, fmt.Errorf("cannot read ipv4 address from proxy protocol block with the length %d bytes; expected at least 12 bytes", len(bb.B))
 			}
 			remoteAddr := &net.TCPAddr{
 				IP:   net.IPv4(bb.B[0], bb.B[1], bb.B[2], bb.B[3]),
