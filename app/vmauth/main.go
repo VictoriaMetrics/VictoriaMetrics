@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -28,10 +29,13 @@ var (
 	httpListenAddr   = flag.String("httpListenAddr", ":8427", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
 		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
-	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host")
-	responseTimeout        = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
-	reloadAuthKey          = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
-	logInvalidAuthTokens   = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
+	maxIdleConnsPerBackend = flag.Int("maxIdleConnsPerBackend", 100, "The maximum number of idle connections vmauth can open per each backend host. "+
+		"See also -maxConcurrentRequests")
+	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
+	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
+		"'429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend")
+	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
+	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
 )
 
@@ -85,6 +89,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		// See https://docs.influxdata.com/influxdb/v2.0/api/
 		authToken = strings.Replace(authToken, "Token", "Bearer", 1)
 	}
+
 	ac := authConfig.Load().(map[string]*UserInfo)
 	ui := ac[authToken]
 	if ui == nil {
@@ -108,6 +113,26 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	// Limit the concurrency of requests to backends
+	concurrencyLimitOnce.Do(concurrencyLimitInit)
+	select {
+	case concurrencyLimitCh <- struct{}{}:
+	default:
+		concurrentRequestsLimitReachedTotal.Inc()
+		w.Header().Add("Retry-After", "10")
+		err := &httpserver.ErrorWithStatusCode{
+			Err:        fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh)),
+			StatusCode: http.StatusTooManyRequests,
+		}
+		httpserver.Errorf(w, r, "%s", err)
+		return true
+	}
+	processRequest(w, r, targetURL, headers)
+	<-concurrencyLimitCh
+	return true
+}
+
+func processRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headers []Header) {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
@@ -122,7 +147,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			StatusCode: http.StatusBadGateway,
 		}
 		httpserver.Errorf(w, r, "%s", err)
-		return true
+		return
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
@@ -137,10 +162,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
-		return true
+		return
 	}
-
-	return true
 }
 
 var copyBufPool bytesutil.ByteBufferPool
@@ -230,6 +253,23 @@ func transportInit() {
 	}
 	transport = tr
 }
+
+var (
+	concurrencyLimitCh   chan struct{}
+	concurrencyLimitOnce sync.Once
+)
+
+func concurrencyLimitInit() {
+	concurrencyLimitCh = make(chan struct{}, *maxConcurrentRequests)
+	_ = metrics.NewGauge("vmauth_concurrent_requests_capacity", func() float64 {
+		return float64(*maxConcurrentRequests)
+	})
+	_ = metrics.NewGauge("vmauth_concurrent_requests_current", func() float64 {
+		return float64(len(concurrencyLimitCh))
+	})
+}
+
+var concurrentRequestsLimitReachedTotal = metrics.NewCounter("vmauth_concurrent_requests_limit_reached_total")
 
 func usage() {
 	const s = `
