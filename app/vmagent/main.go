@@ -44,16 +44,29 @@ import (
 var (
 	httpListenAddr = flag.String("httpListenAddr", ":8429", "TCP address to listen for http connections. "+
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
-		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''")
+		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. "+
-		"This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write")
-	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty")
+		"This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write . "+
+		"See also -influxListenAddr.useProxyProtocol")
+	influxUseProxyProtocol = flag.Bool("influxListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -influxListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	graphiteListenAddr = flag.String("graphiteListenAddr", "", "TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. "+
+		"See also -graphiteListenAddr.useProxyProtocol")
+	graphiteUseProxyProtocol = flag.Bool("graphiteListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -graphiteListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	opentsdbListenAddr = flag.String("opentsdbListenAddr", "", "TCP and UDP address to listen for OpentTSDB metrics. "+
 		"Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. "+
-		"Usually :4242 must be set. Doesn't work if empty")
-	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty")
-	configAuthKey          = flag.String("configAuthKey", "", "Authorization key for accessing /config page. It must be passed via authKey query arg")
-	dryRun                 = flag.Bool("dryRun", false, "Whether to check only config files without running vmagent. The following files are checked: "+
+		"Usually :4242 must be set. Doesn't work if empty. See also -opentsdbListenAddr.useProxyProtocol")
+	opentsdbUseProxyProtocol = flag.Bool("opentsdbListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -opentsdbListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	opentsdbHTTPListenAddr = flag.String("opentsdbHTTPListenAddr", "", "TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. "+
+		"See also -opentsdbHTTPListenAddr.useProxyProtocol")
+	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
+		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+	configAuthKey = flag.String("configAuthKey", "", "Authorization key for accessing /config page. It must be passed via authKey query arg")
+	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmagent. The following files are checked: "+
 		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
 )
@@ -104,26 +117,26 @@ func main() {
 	remotewrite.Init()
 	common.StartUnmarshalWorkers()
 	if len(*influxListenAddr) > 0 {
-		influxServer = influxserver.MustStart(*influxListenAddr, func(r io.Reader) error {
+		influxServer = influxserver.MustStart(*influxListenAddr, *influxUseProxyProtocol, func(r io.Reader) error {
 			return influx.InsertHandlerForReader(r, false)
 		})
 	}
 	if len(*graphiteListenAddr) > 0 {
-		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, graphite.InsertHandler)
+		graphiteServer = graphiteserver.MustStart(*graphiteListenAddr, *graphiteUseProxyProtocol, graphite.InsertHandler)
 	}
 	if len(*opentsdbListenAddr) > 0 {
 		httpInsertHandler := getOpenTSDBHTTPInsertHandler()
-		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, opentsdb.InsertHandler, httpInsertHandler)
+		opentsdbServer = opentsdbserver.MustStart(*opentsdbListenAddr, *opentsdbUseProxyProtocol, opentsdb.InsertHandler, httpInsertHandler)
 	}
 	if len(*opentsdbHTTPListenAddr) > 0 {
 		httpInsertHandler := getOpenTSDBHTTPInsertHandler()
-		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, httpInsertHandler)
+		opentsdbhttpServer = opentsdbhttpserver.MustStart(*opentsdbHTTPListenAddr, *opentsdbHTTPUseProxyProtocol, httpInsertHandler)
 	}
 
 	promscrape.Init(remotewrite.Push)
 
 	if len(*httpListenAddr) > 0 {
-		go httpserver.Serve(*httpListenAddr, requestHandler)
+		go httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	}
 	logger.Infof("started vmagent in %.3f seconds", time.Since(startTime).Seconds())
 
@@ -223,7 +236,14 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		w.WriteHeader(http.StatusNoContent)
+		statusCode := http.StatusNoContent
+		if strings.HasPrefix(path, "/prometheus/api/v1/import/prometheus/metrics/job/") ||
+			strings.HasPrefix(path, "/api/v1/import/prometheus/metrics/job/") {
+			// Return 200 status code for pushgateway requests.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3636
+			statusCode = http.StatusOK
+		}
+		w.WriteHeader(statusCode)
 		return true
 	}
 	if strings.HasPrefix(path, "datadog/") {

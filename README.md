@@ -1616,7 +1616,9 @@ VictoriaMetrics provides the following security-related command-line flags:
 Explicitly set internal network interface for TCP and UDP ports for data ingestion with Graphite and OpenTSDB formats.
 For example, substitute `-graphiteListenAddr=:2003` with `-graphiteListenAddr=<internal_iface_ip>:2003`. This protects from unexpected requests from untrusted network interfaces.
 
-VictoriaMetrics has achieved security certifications for Database Software Development and Software-Based Monitoring Services. We apply strict security measures in everything we do. See our [Security page](https://victoriametrics.com/security/) for more details.
+See also [security recommendation for VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#security)
+and [the general security page at VictoriaMetrics website](https://victoriametrics.com/security/).
+
 
 ## Tuning
 
@@ -2172,7 +2174,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -fs.disableMmap
      Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
-     TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty
+     TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
+  -graphiteListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -graphiteListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -graphiteTrimTimestamp duration
      Trim timestamps for Graphite data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -http.connTimeout duration
@@ -2192,7 +2196,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -httpAuth.username string
      Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
-     TCP address to listen for http connections (default ":8428")
+     TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8428")
+  -httpListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
@@ -2205,7 +2211,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -influxDBLabel string
      Default label for the DB name sent over '?db={db_name}' query parameter (default "db")
   -influxListenAddr string
-     TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write
+     TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. This flag isn't needed when ingesting data over HTTP - just send it to http://<victoriametrics>:8428/write . See also -influxListenAddr.useProxyProtocol
+  -influxListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -influxListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -influxMeasurementFieldSeparator string
      Separator for '{measurement}{separator}{field_name}' metric name when inserted via InfluxDB line protocol (default "_")
   -influxSkipMeasurement
@@ -2255,9 +2263,13 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -opentsdbHTTPListenAddr string
-     TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty
+     TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbHTTPListenAddr.useProxyProtocol
+  -opentsdbHTTPListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -opentsdbListenAddr string
-     TCP and UDP address to listen for OpentTSDB metrics. Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. Usually :4242 must be set. Doesn't work if empty
+     TCP and UDP address to listen for OpentTSDB metrics. Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. Usually :4242 must be set. Doesn't work if empty. See also -opentsdbListenAddr.useProxyProtocol
+  -opentsdbListenAddr.useProxyProtocol
+     Whether to use proxy protocol for connections accepted at -opentsdbListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -opentsdbTrimTimestamp duration
      Trim timestamps for OpenTSDB 'telnet put' data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)
   -opentsdbhttp.maxInsertRequestSize size

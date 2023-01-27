@@ -174,3 +174,8 @@ and [backups](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.htm
 To avoid excessive resource usage or performance degradation limits must be in place:
 * [Resource usage limits](https://docs.victoriametrics.com/FAQ.html#how-to-set-a-memory-limit-for-victoriametrics-components);
 * [Cardinality limiter](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cardinality-limiter).
+
+### Security recommendations
+
+* [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
+* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#security)
