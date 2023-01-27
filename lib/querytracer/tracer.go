@@ -23,6 +23,8 @@ var denyQueryTracing = flag.Bool("denyQueryTracing", false, "Whether to disable 
 // Tracer may contain sub-tracers (branches) in order to build tree-like execution order.
 // Call Tracer.NewChild func for adding sub-tracer.
 type Tracer struct {
+	// memoryUsageBytes holds query memory usage reported to the tracer in bytes.
+	memoryUsageBytes int64
 	// startTime is the time when Tracer was created
 	startTime time.Time
 	// doneTime is the time when Done or Donef was called
@@ -37,8 +39,6 @@ type Tracer struct {
 	// enabled is true when query tracing shall be enabled.
 	// False value does not prevent tracking memory usage.
 	enabled bool
-	// memoryUsageBytes holds query memory usage reported to the tracer in bytes.
-	memoryUsageBytes int64
 }
 
 // New creates a new instance of the tracer with the given fmt.Sprintf(format, args...) message.
