@@ -132,7 +132,7 @@ func setUp() {
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	vmselect.Init()
 	vminsert.Init()
-	go httpserver.Serve(*httpListenAddr, requestHandler)
+	go httpserver.Serve(*httpListenAddr, false, requestHandler)
 	readyStorageCheckFunc := func() bool {
 		resp, err := http.Get(testHealthHTTPPath)
 		if err != nil {
