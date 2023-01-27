@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -99,15 +100,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
 		return true
 	}
-	r.Header.Set("vm-target-url", targetURL.String())
 	for _, h := range headers {
 		r.Header.Set(h.Name, h.Value)
 	}
+	ctx := context.WithValue(r.Context(), targetURLKey, targetURL)
+	r = r.WithContext(ctx)
 	proxyRequest(w, r)
 	return true
 }
 
 func proxyRequest(w http.ResponseWriter, r *http.Request) {
+	reverseProxyOnce.Do(initReverseProxy)
 	defer func() {
 		err := recover()
 		if err == nil || err == http.ErrAbortHandler {
@@ -118,7 +121,7 @@ func proxyRequest(w http.ResponseWriter, r *http.Request) {
 		// Forward other panics to the caller.
 		panic(err)
 	}()
-	getReverseProxy().ServeHTTP(w, r)
+	reverseProxy.ServeHTTP(w, r)
 }
 
 var (
@@ -132,21 +135,12 @@ var (
 	reverseProxyOnce sync.Once
 )
 
-func getReverseProxy() *httputil.ReverseProxy {
-	reverseProxyOnce.Do(initReverseProxy)
-	return reverseProxy
-}
-
 // initReverseProxy must be called after flag.Parse(), since it uses command-line flags.
 func initReverseProxy() {
 	reverseProxy = &httputil.ReverseProxy{
 		Director: func(r *http.Request) {
-			targetURL := r.Header.Get("vm-target-url")
-			target, err := url.Parse(targetURL)
-			if err != nil {
-				logger.Panicf("BUG: unexpected error when parsing targetURL=%q: %s", targetURL, err)
-			}
-			r.URL = target
+			targetURL := r.Context().Value(targetURLKey).(*url.URL)
+			r.URL = targetURL
 		},
 		Transport: func() *http.Transport {
 			tr := http.DefaultTransport.(*http.Transport).Clone()
@@ -164,6 +158,8 @@ func initReverseProxy() {
 		ErrorLog:      logger.StdErrorLogger(),
 	}
 }
+
+var targetURLKey interface{} = "vm-target-url"
 
 func usage() {
 	const s = `
