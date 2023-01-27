@@ -37,7 +37,7 @@ type UserInfo struct {
 	Username    string     `yaml:"username,omitempty"`
 	Password    string     `yaml:"password,omitempty"`
 	URLPrefix   *URLPrefix `yaml:"url_prefix,omitempty"`
-	URLMap      []URLMap   `yaml:"url_map,omitempty"`
+	URLMaps     []URLMap   `yaml:"url_map,omitempty"`
 	Headers     []Header   `yaml:"headers,omitempty"`
 
 	requests *metrics.Counter
@@ -284,7 +284,7 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 				return nil, err
 			}
 		}
-		for _, e := range ui.URLMap {
+		for _, e := range ui.URLMaps {
 			if len(e.SrcPaths) == 0 {
 				return nil, fmt.Errorf("missing `src_paths` in `url_map`")
 			}
@@ -295,7 +295,7 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 				return nil, err
 			}
 		}
-		if len(ui.URLMap) == 0 && ui.URLPrefix == nil {
+		if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 			return nil, fmt.Errorf("missing `url_prefix`")
 		}
 		if ui.BearerToken != "" {
