@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
@@ -15,6 +16,12 @@ type proxyProtocolConn struct {
 }
 
 func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
+	// Limit the time needed for reading the proxy protocol header.
+	d := time.Now().Add(5 * time.Second)
+	if err := c.SetReadDeadline(d); err != nil {
+		return nil, fmt.Errorf("cannot set deadline for reading proxy protocol header: %s", err)
+	}
+
 	remoteAddr, err := readProxyProto(c)
 	if err != nil {
 		return nil, fmt.Errorf("proxy protocol error: %w", err)
@@ -22,6 +29,12 @@ func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
 	if remoteAddr == nil {
 		remoteAddr = c.RemoteAddr()
 	}
+
+	// Reset the read deadline.
+	if err := c.SetReadDeadline(time.Time{}); err != nil {
+		return nil, fmt.Errorf("cannot reset deadline after reading proxy protocol header: %s", err)
+	}
+
 	return &proxyProtocolConn{
 		Conn:       c,
 		remoteAddr: remoteAddr,
