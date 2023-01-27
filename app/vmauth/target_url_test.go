@@ -54,7 +54,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 
 	// Complex routing with `url_map`
 	ui := &UserInfo{
-		URLMap: []URLMap{
+		URLMaps: []URLMap{
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
@@ -86,7 +86,7 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 
 	// Complex routing regexp paths in `url_map`
 	ui = &UserInfo{
-		URLMap: []URLMap{
+		URLMaps: []URLMap{
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query(_range)?", "/api/v1/label/[^/]+/values"}),
 				URLPrefix: mustParseURL("http://vmselect/0/prometheus"),
@@ -132,7 +132,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 	}
 	f(&UserInfo{}, "/foo/bar")
 	f(&UserInfo{
-		URLMap: []URLMap{
+		URLMaps: []URLMap{
 			{
 				SrcPaths:  getSrcPaths([]string{"/api/v1/query"}),
 				URLPrefix: mustParseURL("http://foobar/baz"),
