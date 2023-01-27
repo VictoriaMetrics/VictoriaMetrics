@@ -40,7 +40,7 @@ type VMInsertServer struct {
 
 // NewVMInsertServer starts VMInsertServer at the given addr serving the given storage.
 func NewVMInsertServer(addr string, storage *storage.Storage) (*VMInsertServer, error) {
-	ln, err := netutil.NewTCPListener("vminsert", addr, nil)
+	ln, err := netutil.NewTCPListener("vminsert", addr, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vminsertAddr %s: %w", addr, err)
 	}

@@ -49,7 +49,9 @@ absolute path to all .tpl files in root.`)
 	configCheckInterval = flag.Duration("configCheckInterval", 0, "Interval for checking for changes in '-rule' or '-notifier.config' files. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.")
 
-	httpListenAddr     = flag.String("httpListenAddr", ":8880", "Address to listen for http connections")
+	httpListenAddr   = flag.String("httpListenAddr", ":8880", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
@@ -170,7 +172,7 @@ func main() {
 	go configReload(ctx, manager, groupsCfg, sighupCh)
 
 	rh := &requestHandler{m: manager}
-	go httpserver.Serve(*httpListenAddr, rh.handler)
+	go httpserver.Serve(*httpListenAddr, *useProxyProtocol, rh.handler)
 
 	sig := procutil.WaitForSigterm()
 	logger.Infof("service received signal %s", sig)

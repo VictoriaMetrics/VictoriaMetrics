@@ -102,7 +102,7 @@ type Limits struct {
 //
 // If disableResponseCompression is set to true, then the returned server doesn't compress responses.
 func NewServer(addr string, api API, limits Limits, disableResponseCompression bool) (*Server, error) {
-	ln, err := netutil.NewTCPListener("vmselect", addr, nil)
+	ln, err := netutil.NewTCPListener("vmselect", addr, false, nil)
 	if err != nil {
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}

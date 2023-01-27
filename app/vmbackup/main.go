@@ -93,7 +93,7 @@ func main() {
 		logger.Fatalf("invalid -snapshotName=%q: %s", *snapshotName, err)
 	}
 
-	go httpserver.Serve(*httpListenAddr, nil)
+	go httpserver.Serve(*httpListenAddr, false, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {

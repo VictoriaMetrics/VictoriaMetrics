@@ -25,8 +25,10 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter")
-	httpListenAddr    = flag.String("httpListenAddr", ":8482", "Address to listen for http connections")
+	retentionPeriod  = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter")
+	httpListenAddr   = flag.String("httpListenAddr", ":8482", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
+	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	storageDataPath   = flag.String("storageDataPath", "vmstorage-data", "Path to storage data")
 	vminsertAddr      = flag.String("vminsertAddr", ":8400", "TCP address to accept connections from vminsert services")
 	vmselectAddr      = flag.String("vmselectAddr", ":8401", "TCP address to accept connections from vmselect services")
@@ -123,7 +125,7 @@ func main() {
 
 	requestHandler := newRequestHandler(strg)
 	go func() {
-		httpserver.Serve(*httpListenAddr, requestHandler)
+		httpserver.Serve(*httpListenAddr, *useProxyProtocol, requestHandler)
 	}()
 
 	sig := procutil.WaitForSigterm()
