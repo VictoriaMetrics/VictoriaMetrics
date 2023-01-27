@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmagent/remotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 )
@@ -53,4 +54,7 @@ func tearDown() {
 	common.StopUnmarshalWorkers()
 	srv.Close()
 	logger.ResetOutputForTest()
+	tmpDataDir := flag.Lookup("remoteWrite.tmpDataPath").Value.String()
+	fs.MustRemoveAll(tmpDataDir)
+
 }
