@@ -1,176 +1,116 @@
 package netutil
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"net"
-	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 )
-
-var bufioReaderPool = sync.Pool{}
-
-func getBufioReader(r io.Reader) *bufio.Reader {
-	v := bufioReaderPool.Get()
-	if v == nil {
-		return bufio.NewReader(r)
-	}
-	br := v.(*bufio.Reader)
-	br.Reset(r)
-	return br
-}
-
-func putBufioReader(r *bufio.Reader) {
-	bufioReaderPool.Put(r)
-}
 
 type proxyProtocolConn struct {
 	net.Conn
-	br         *bufio.Reader
 	remoteAddr net.Addr
 }
 
-func newProxyProtocolConn(srcConn net.Conn) (net.Conn, error) {
-	br := getBufioReader(srcConn)
-	maybeSrcAddr, err := readProxyProto(br)
+func newProxyProtocolConn(c net.Conn) (net.Conn, error) {
+	remoteAddr, err := readProxyProto(c)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read proxy protocol from connection: %w", err)
+		return nil, fmt.Errorf("proxy protocol error: %w", err)
 	}
-	if maybeSrcAddr == nil {
-		maybeSrcAddr = srcConn.RemoteAddr()
+	if remoteAddr == nil {
+		remoteAddr = c.RemoteAddr()
 	}
 	return &proxyProtocolConn{
-		Conn:       srcConn,
-		br:         br,
-		remoteAddr: maybeSrcAddr,
+		Conn:       c,
+		remoteAddr: remoteAddr,
 	}, nil
-}
-
-func (ppc *proxyProtocolConn) Read(b []byte) (n int, err error) {
-	return ppc.br.Read(b)
 }
 
 func (ppc *proxyProtocolConn) RemoteAddr() net.Addr {
 	return ppc.remoteAddr
 }
 
-func (ppc *proxyProtocolConn) Close() error {
-	putBufioReader(ppc.br)
-	return ppc.Conn.Close()
-}
+func readProxyProto(r io.Reader) (net.Addr, error) {
+	bb := bbPool.Get()
+	defer bbPool.Put(bb)
 
-var (
-	V2Identifier = []byte("\r\n\r\n\x00\r\nQUIT\n")
-)
-
-// https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-func readProxyProto(r *bufio.Reader) (net.Addr, error) {
-	// first 12 bytes - signature
-	// 13 byte - protocol and command
-	maybeProto, err := r.Peek(13)
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("cannot read data from buffer: %w", err)
-	}
-	if !bytes.HasPrefix(maybeProto, V2Identifier) {
-		// it's not a proxy protocol
-		return nil, nil
-	}
-	command := maybeProto[12]
-	// advance reader
-	if _, err := r.Discard(13); err != nil {
-		return nil, fmt.Errorf("cannot adavance prefix reader, possible bug: %w", err)
-	}
-	// Ensure the version is 2
-	if (command & 0xF0) != 0x20 {
-		return nil, fmt.Errorf("unsupported proxy protocol version, only v2 protocol version is supported, got: %d", command&0xF0)
-	}
-	return readSrcProxyAddr(r, command)
-}
-
-func readSrcProxyAddr(r *bufio.Reader, command byte) (net.Addr, error) {
-	var srcAddr net.Addr
-
-	// Read protocol header
-	// 1 byte contain the transport proto and family
-	// 2-3 byte the length of the header
-	h, err := r.Peek(3)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read proxy protocol header prefix: %w", err)
-	}
-	ipFamily := h[0]
-	// The length of the remainder of the header including any TLVs in network byte order
-	// 0, 1, 2
-	length := int(binary.BigEndian.Uint16(h[1:3]))
-	// in general RFC doesn't limit header length, but for sane check lets limit it to 2kb
-	// in theory TLVs may occupy some space
-	if length > 2048 {
-		return nil, fmt.Errorf("too big proxy protocol header length: %d", length)
-	}
-	if _, err := r.Discard(3); err != nil {
-		return nil, fmt.Errorf("cannot advance header prefix reader, possible bug: %w", err)
-	}
-	// Read the remainder of the header
-	ppHeader, err := r.Peek(length)
-	if err != nil {
+	// Read the first 16 bytes of proxy protocol header:
+	// - bytes 0-11: v2Identifier
+	// - byte 12: version and command
+	// - byte 13: family and protocol
+	// - bytes 14-15: payload length
+	//
+	// See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, 16)
+	if _, err := io.ReadFull(r, bb.B); err != nil {
 		return nil, fmt.Errorf("cannot read proxy protocol header: %w", err)
 	}
-	switch command & 0x0F {
-	case 0x00:
-		// proxy LOCAL command
-		// no-op
-	case 0x01:
-		// Translate the addresses according to the family
-		switch ipFamily {
-		// ipv4
-		case 0x11, 0x12:
-			if len(ppHeader) < 12 {
-				return nil, fmt.Errorf("expected %d bytes for IPV4 address", 12)
-			}
-			srcAddr = &net.TCPAddr{
-				IP:   net.IPv4(ppHeader[0], ppHeader[1], ppHeader[2], ppHeader[3]),
-				Port: int(binary.BigEndian.Uint16(ppHeader[8:10])),
-			}
-			if (ipFamily & 0x0F) == 0x02 {
-				srcAddr = &net.UDPAddr{
-					IP:   net.IPv4(ppHeader[0], ppHeader[1], ppHeader[2], ppHeader[3]),
-					Port: int(binary.BigEndian.Uint16(ppHeader[8:10])),
-				}
-			}
-			// ipv6
-		case 0x21, 0x22:
-			if len(ppHeader) < 36 {
-				return nil, fmt.Errorf("expected %d bytes for IPV6 address", 36)
-			}
+	ident := bb.B[:12]
+	if string(ident) != v2Identifier {
+		return nil, fmt.Errorf("unexpected proxy protocol header: %q; want %q", ident, v2Identifier)
+	}
+	version := bb.B[12] >> 4
+	command := bb.B[12] & 0x0f
+	family := bb.B[13] >> 4
+	proto := bb.B[13] & 0x0f
+	if version != 2 {
+		return nil, fmt.Errorf("unsupported proxy protocol version, only v2 protocol version is supported, got: %d", version)
+	}
+	if proto != 1 {
+		// Only TCP is supported (aka STREAM).
+		return nil, fmt.Errorf("the proxy protocol implementation doesn't support proto %d; expecting 1", proto)
+	}
+	// The length of the remainder of the header including any TLVs in network byte order
+	// 0, 1, 2
+	blockLen := int(binary.BigEndian.Uint16(bb.B[14:16]))
+	// in general RFC doesn't limit block length, but for sanity check lets limit it to 2kb
+	// in theory TLVs may occupy some space
+	if blockLen > 2048 {
+		return nil, fmt.Errorf("too big proxy protocol block length: %d; it mustn't exceed 2048 bytes", blockLen)
+	}
 
-			srcAddr = &net.TCPAddr{
-				IP:   ppHeader[0:16],
-				Port: int(binary.BigEndian.Uint16(ppHeader[32:34])),
+	// Read the protocol block itself
+	bb.B = bytesutil.ResizeNoCopyMayOverallocate(bb.B, blockLen)
+	if _, err := io.ReadFull(r, bb.B); err != nil {
+		return nil, fmt.Errorf("cannot read proxy protocol block with the lehgth %d bytes: %w", blockLen, err)
+	}
+	switch command {
+	case 0:
+		// Proxy LOCAL command. Ignore the protocol block. The real sender address should be used.
+		return nil, nil
+	case 1:
+		// Parse the protocol block according to the family.
+		switch family {
+		case 1:
+			// ipv4 (aka AF_INET)
+			if len(bb.B) < 12 {
+				return nil, fmt.Errorf("cannot ipv4 address from proxy protocol block with the length %d bytes; expected at least 12 bytes", len(bb.B))
 			}
-
-			if (ipFamily & 0x0F) == 0x02 { // UDP
-				srcAddr = &net.UDPAddr{
-					IP:   ppHeader[0:16],
-					Port: int(binary.BigEndian.Uint16(ppHeader[32:34])),
-				}
+			remoteAddr := &net.TCPAddr{
+				IP:   net.IPv4(bb.B[0], bb.B[1], bb.B[2], bb.B[3]),
+				Port: int(binary.BigEndian.Uint16(bb.B[8:10])),
 			}
-			// not supported proto family
+			return remoteAddr, nil
+		case 2:
+			// ipv6 (aka AF_INET6)
+			if len(bb.B) < 36 {
+				return nil, fmt.Errorf("cannot read ipv6 address from proxy protocol block with the length %d bytes; expected at least 36 bytes", len(bb.B))
+			}
+			remoteAddr := &net.TCPAddr{
+				IP:   bb.B[0:16],
+				Port: int(binary.BigEndian.Uint16(bb.B[32:34])),
+			}
+			return remoteAddr, nil
 		default:
-			return nil, fmt.Errorf("unsupported protocol family: %d", ipFamily)
+			return nil, fmt.Errorf("the proxy protocol implementation doesn't support protocol family %d; supported values: 1, 2", family)
 		}
-		// not supported proto families
 	default:
-		return nil, fmt.Errorf("unsupported proxy protocol command: %d", command)
+		return nil, fmt.Errorf("the proxy protocol implementation doesn't support command %d; suppoted values: 0, 1", command)
 	}
-	// we skip any TLVs, it's not interested to us
-	// advance reader
-	if _, err := r.Discard(length); err != nil {
-		return nil, fmt.Errorf("cannot advance header reader, possible bug: %w", err)
-	}
-	return srcAddr, nil
 }
+
+const v2Identifier = "\r\n\r\n\x00\r\nQUIT\n"
+
+var bbPool bytesutil.ByteBufferPool
