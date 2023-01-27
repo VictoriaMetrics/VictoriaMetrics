@@ -4,18 +4,20 @@ import { getFromStorage, saveToStorage } from "../../utils/storage";
 
 export interface AppState {
   serverUrl: string;
-  tenantId: number;
+  tenantId: string;
   darkTheme: boolean
 }
 
 export type Action =
   | { type: "SET_SERVER", payload: string }
-  | { type: "SET_TENANT_ID", payload: number }
   | { type: "SET_DARK_THEME", payload: boolean }
+  | { type: "SET_TENANT_ID", payload: string }
+
+const tenantId = getQueryStringValue("g0.tenantID", "") as string;
 
 export const initialState: AppState = {
-  serverUrl: getDefaultServer(),
-  tenantId: Number(getQueryStringValue("g0.tenantID", 0)),
+  serverUrl: getDefaultServer(tenantId),
+  tenantId,
   darkTheme: !!getFromStorage("DARK_THEME")
 };
 
