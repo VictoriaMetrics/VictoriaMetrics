@@ -175,8 +175,7 @@ To avoid excessive resource usage or performance degradation limits must be in p
 * [Resource usage limits](https://docs.victoriametrics.com/FAQ.html#how-to-set-a-memory-limit-for-victoriametrics-components);
 * [Cardinality limiter](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#cardinality-limiter).
 
-### Security recommendation
+### Security recommendations
 
-Enabling HTTPS encrypts the communication between clients and the VictoriaMetrics database. HTTPS can also verify the authenticity of the VictoriaMetrics database to connecting clients. General security recommendations for:
-* [Single node](https://docs.victoriametrics.com/#security)
-* [Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#security)
+* [Security recommendations for single-node VictoriaMetrics](https://docs.victoriametrics.com/#security)
+* [Security recommendations for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#security)
