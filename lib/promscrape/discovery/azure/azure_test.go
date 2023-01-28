@@ -16,12 +16,16 @@ func TestAppendMachineLabels(t *testing.T) {
 	}
 	f("single vm", []virtualMachine{
 		{
-			Name:       "vm-1",
-			ID:         "id-2",
-			Type:       "Azure",
-			Location:   "eu-west-1",
-			Properties: virtualMachineProperties{OsProfile: osProfile{ComputerName: "test-1"}, StorageProfile: storageProfile{OsDisk: osDisk{OsType: "Linux"}}},
-			Tags:       map[string]string{"key-1": "value-1"},
+			Name:     "vm-1",
+			ID:       "id-2",
+			Type:     "Azure",
+			Location: "eu-west-1",
+			Properties: virtualMachineProperties{
+				OsProfile:       osProfile{ComputerName: "test-1"},
+				StorageProfile:  storageProfile{OsDisk: osDisk{OsType: "Linux"}},
+				HardwareProfile: hardwareProfile{VMSize: "big"},
+			},
+			Tags: map[string]string{"key-1": "value-1"},
 			ipAddresses: []vmIPAddress{
 				{privateIP: "10.10.10.1"},
 			},
@@ -36,6 +40,7 @@ func TestAppendMachineLabels(t *testing.T) {
 			"__meta_azure_machine_computer_name": "test-1",
 			"__meta_azure_machine_location":      "eu-west-1",
 			"__meta_azure_machine_private_ip":    "10.10.10.1",
+			"__meta_azure_machine_size":          "big",
 			"__meta_azure_machine_tag_key_1":     "value-1",
 		}),
 	})

@@ -97,6 +97,9 @@ func appendMachineLabels(vms []virtualMachine, port int, sdc *SDConfig) []*promu
 			if vm.scaleSet != "" {
 				m.Add("__meta_azure_machine_scale_set", vm.scaleSet)
 			}
+			if vm.Properties.HardwareProfile.VMSize != "" {
+				m.Add("__meta_azure_machine_size", vm.Properties.HardwareProfile.VMSize)
+			}
 			for k, v := range vm.Tags {
 				m.Add(discoveryutils.SanitizeLabelName("__meta_azure_machine_tag_"+k), v)
 			}
