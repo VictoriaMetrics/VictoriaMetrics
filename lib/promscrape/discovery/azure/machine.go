@@ -29,9 +29,14 @@ type vmIPAddress struct {
 }
 
 type virtualMachineProperties struct {
-	NetworkProfile networkProfile `json:"networkProfile,omitempty"`
-	OsProfile      osProfile      `json:"osProfile,omitempty"`
-	StorageProfile storageProfile `json:"storageProfile,omitempty"`
+	NetworkProfile  networkProfile  `json:"networkProfile,omitempty"`
+	OsProfile       osProfile       `json:"osProfile,omitempty"`
+	StorageProfile  storageProfile  `json:"storageProfile,omitempty"`
+	HardwareProfile hardwareProfile `json:"hardwareProfile,omitempty"`
+}
+
+type hardwareProfile struct {
+	VMSize string `json:"vmSize,omitempty"`
 }
 
 type storageProfile struct {
@@ -45,6 +50,7 @@ type osDisk struct {
 type osProfile struct {
 	ComputerName string `json:"computerName,omitempty"`
 }
+
 type networkProfile struct {
 	// NetworkInterfaces - Specifies the list of resource Ids for the network interfaces associated with the virtual machine.
 	NetworkInterfaces []networkInterfaceReference `json:"networkInterfaces,omitempty"`
