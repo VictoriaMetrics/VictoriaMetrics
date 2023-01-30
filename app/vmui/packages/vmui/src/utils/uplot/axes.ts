@@ -19,15 +19,17 @@ const timeValues = [
 ];
 
 export const getAxes = (series: Series[], unit?: string): Axis[] => Array.from(new Set(series.map(s => s.scale))).map(a => {
+  const font = "10px Arial";
+  const stroke = getCssVariable("color-text");
   const axis = {
     scale: a,
     show: true,
     size: sizeAxis,
-    stroke: getCssVariable("color-text"),
-    font: "10px Arial",
+    stroke,
+    font,
     values: (u: uPlot, ticks: number[]) => formatTicks(u, ticks, unit)
   };
-  if (!a) return { space: 80, values: timeValues, stroke: getCssVariable("color-text") };
+  if (!a) return { space: 80, values: timeValues, stroke, font };
   if (!(Number(a) % 2)) return { ...axis, side: 1 };
   return axis;
 });
