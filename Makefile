@@ -144,6 +144,7 @@ vmutils-windows-amd64: \
 	vmctl-windows-amd64
 
 victoria-metrics-crossbuild: \
+	victoria-metrics-linux-386 \
 	victoria-metrics-linux-amd64 \
 	victoria-metrics-linux-arm64 \
 	victoria-metrics-linux-arm \
@@ -155,6 +156,7 @@ victoria-metrics-crossbuild: \
 	victoria-metrics-openbsd-amd64
 
 vmutils-crossbuild: \
+	vmutils-linux-386 \
 	vmutils-linux-amd64 \
 	vmutils-linux-arm64 \
 	vmutils-linux-arm \
@@ -177,6 +179,7 @@ release: \
 	release-vmutils
 
 release-victoria-metrics: \
+	release-victoria-metrics-linux-386 \
 	release-victoria-metrics-linux-amd64 \
 	release-victoria-metrics-linux-arm \
 	release-victoria-metrics-linux-arm64 \
@@ -184,6 +187,10 @@ release-victoria-metrics: \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
 	release-victoria-metrics-openbsd-amd64
+
+# adds i386 arch
+release-victoria-metrics-linux-386:
+	GOOS=linux GOARCH=386 $(MAKE) release-victoria-metrics-goos-goarch
 
 release-victoria-metrics-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
@@ -216,6 +223,7 @@ release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
 	cd bin && rm -rf victoria-metrics-$(GOOS)-$(GOARCH)-prod
 
 release-vmutils: \
+	release-vmutils-linux-386 \
 	release-vmutils-linux-amd64 \
 	release-vmutils-linux-arm64 \
 	release-vmutils-linux-arm \
@@ -225,6 +233,9 @@ release-vmutils: \
 	release-vmutils-openbsd-amd64 \
 	release-vmutils-windows-amd64
 
+release-vmutils-linux-386:
+	GOOS=linux GOARCH=386 $(MAKE) release-vmutils-goos-goarch
+	
 release-vmutils-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmutils-goos-goarch
 
