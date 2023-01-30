@@ -469,6 +469,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 		wc.resetNoRows()
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
+                sw.addSamplelimitMetrics(wc, scrapeTimestamp)
 		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 	}
@@ -586,6 +587,9 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
 					wc.resetNoRows()
 					scrapesSkippedBySampleLimit.Inc()
+                                        sw.addSamplelimitMetrics(wc, scrapeTimestamp)
+					sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+					wc.resetNoRows()
 					return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 						"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 				}
@@ -898,6 +902,21 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value 
 	sw.tmpRow.Metric = name
 	sw.tmpRow.Tags = nil
 	sw.tmpRow.Value = value
+	sw.tmpRow.Timestamp = timestamp
+	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, false)
+}
+
+var sampleLimitCount = 0
+func (sw *scrapeWork) addSamplelimitMetrics(wc *writeRequestCtx, timestamp int64) {
+	sampleLimitCount++
+	sw.tmpRow.Metric = "scrape_sample_limit_count"
+	for _, label := range sw.Config.Labels.GetLabels() {
+		sw.tmpRow.Tags = append(sw.tmpRow.Tags, parser.Tag{
+			Key:   label.Name,
+			Value: label.Value,
+		})
+	}
+	sw.tmpRow.Value = float64(sampleLimitCount)
 	sw.tmpRow.Timestamp = timestamp
 	sw.addRowToTimeseries(wc, &sw.tmpRow, timestamp, false)
 }
