@@ -9,6 +9,13 @@ protocol and require `-remoteWrite.url` to be configured.
 Vmalert is heavily inspired by [Prometheus](https://prometheus.io/docs/alerting/latest/overview/)
 implementation and aims to be compatible with its syntax.
 
+A [single-node](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
+or [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
+of VictoriaMetrics are capable of proxying requests to vmalert via `-vmalert.proxyURL` command-line flag. 
+Use this feature for the following cases:
+* for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
+* for accessing vmalert's UI through VictoriaMetrics Web interface.
+
 ## Features
 
 * Integration with [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics) TSDB;
