@@ -119,3 +119,9 @@ export interface GraphSize {
   isDefault?: boolean,
   height: () => number
 }
+
+export enum Theme {
+  system = "system",
+  light = "light",
+  dark = "dark",
+}

@@ -8,16 +8,18 @@ const router = {
   icons: "/icons"
 };
 
+export interface RouterOptionsHeader {
+  tenant?: boolean,
+  stepControl?: boolean,
+  timeSelector?: boolean,
+  executionControls?: boolean,
+  globalSettings?: boolean,
+  cardinalityDatePicker?: boolean
+}
+
 export interface RouterOptions {
   title?: string,
-  header: {
-    tenant?: boolean,
-    stepControl?: boolean,
-    timeSelector?: boolean,
-    executionControls?: boolean,
-    globalSettings?: boolean,
-    cardinalityDatePicker?: boolean
-  }
+  header: RouterOptionsHeader
 }
 
 const routerOptionsDefault = {
