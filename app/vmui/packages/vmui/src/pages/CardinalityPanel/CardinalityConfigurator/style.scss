@@ -16,20 +16,23 @@
     }
   }
 
+  &-additional {
+    display: flex;
+    align-items: center;
+  }
+
   &-bottom {
-    display: grid;
-    grid-template-columns: 1fr auto auto;
-    align-items: flex-end;
-    gap: $padding-small;
+    display: flex;
+    align-items: center;
+    gap: $padding-global;
 
     &__info {
+      flex-grow: 1;
       font-size: $font-size;
     }
 
-    &__docs {
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    a {
+      color: $color-text-secondary;
     }
   }
 }
