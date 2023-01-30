@@ -1796,10 +1796,16 @@ func appendPartsToMerge(dst, src []*partWrapper, maxPartsToMerge int, maxOutByte
 	// Exhaustive search for parts giving the lowest write amplification when merged.
 	var pws []*partWrapper
 	maxM := float64(0)
+	outSize := uint64(0)
 	for i := minSrcParts; i <= maxSrcParts; i++ {
+		outSize = uint64(0)
 		for j := 0; j <= len(src)-i; j++ {
 			a := src[j : j+i]
-			outSize := getPartsSize(a)
+			if outSize == 0 {
+				outSize = getPartsSize(a)
+			} else {
+				outSize += src[j+i-1].p.size - src[j-1].p.size
+			}
 			if outSize > maxOutBytes {
 				needFreeSpace = true
 			}
