@@ -496,13 +496,13 @@ func resetRollupResultCaches() {
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
+		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			_ = resp.Body.Close()
 			logger.Errorf("unexpected status code at %q; got %d; want %d", callURL, resp.StatusCode, http.StatusOK)
 			resetRollupResultCacheErrors.Inc()
 			continue
 		}
-		_ = resp.Body.Close()
 	}
 }
 
