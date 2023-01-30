@@ -907,6 +907,7 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value 
 }
 
 var sampleLimitCount = 0
+
 func (sw *scrapeWork) addSamplelimitMetrics(wc *writeRequestCtx, timestamp int64) {
 	sampleLimitCount++
 	sw.tmpRow.Metric = "scrape_sample_limit_count"
