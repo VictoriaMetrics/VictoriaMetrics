@@ -469,7 +469,7 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 		wc.resetNoRows()
 		up = 0
 		scrapesSkippedBySampleLimit.Inc()
-                sw.addSamplelimitMetrics(wc, scrapeTimestamp)
+		sw.addSamplelimitMetrics(wc, scrapeTimestamp)
 		err = fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
 			"either reduce the sample count for the target or increase sample_limit", sw.Config.ScrapeURL, sw.Config.SampleLimit)
 	}
@@ -587,7 +587,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				if sw.Config.SampleLimit > 0 && samplesPostRelabeling > sw.Config.SampleLimit {
 					wc.resetNoRows()
 					scrapesSkippedBySampleLimit.Inc()
-                                        sw.addSamplelimitMetrics(wc, scrapeTimestamp)
+					sw.addSamplelimitMetrics(wc, scrapeTimestamp)
 					sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
 					wc.resetNoRows()
 					return fmt.Errorf("the response from %q exceeds sample_limit=%d; "+
