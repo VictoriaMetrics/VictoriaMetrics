@@ -1,14 +1,14 @@
 {
   "files": {
-    "main.css": "./static/css/main.9c397960.css",
-    "main.js": "./static/js/main.df0f4d01.js",
+    "main.css": "./static/css/main.3f9cb68f.css",
+    "main.js": "./static/js/main.b1572032.js",
     "static/js/27.c1ccfd29.chunk.js": "./static/js/27.c1ccfd29.chunk.js",
     "static/media/Lato-Regular.ttf": "./static/media/Lato-Regular.d714fec1633b69a9c2e9.ttf",
     "static/media/Lato-Bold.ttf": "./static/media/Lato-Bold.32360ba4b57802daa4d6.ttf",
     "index.html": "./index.html"
   },
   "entrypoints": [
-    "static/css/main.9c397960.css",
-    "static/js/main.df0f4d01.js"
+    "static/css/main.3f9cb68f.css",
+    "static/js/main.b1572032.js"
   ]
 }
