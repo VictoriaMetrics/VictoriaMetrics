@@ -1,19 +1,16 @@
 import React from "react";
 import "./style.scss";
-import classNames from "classnames";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
+import { Theme } from "../../../types";
+import Toggle from "../../Main/Toggle/Toggle";
 
-const options = [
-  { title: "Light", value: false },
-  { title: "Dark", value: true }
-];
-
+const options = Object.values(Theme).map(value => ({ title: value, value }));
 const ThemeControl = () => {
-  const { darkTheme } = useAppState();
+  const { theme } = useAppState();
   const dispatch = useAppDispatch();
 
-  const createHandlerClickItem = (value: boolean) => () => {
-    dispatch({ type: "SET_DARK_THEME", payload: value });
+  const handleClickItem = (value: string) => {
+    dispatch({ type: "SET_THEME", payload: value as Theme });
   };
 
   return (
@@ -21,21 +18,12 @@ const ThemeControl = () => {
       <div className="vm-server-configurator__title">
         Theme preferences
       </div>
-      <div className="vm-theme-control-options">
-        <div
-          className="vm-theme-control-options__highlight"
-          style={{ left: darkTheme ? "50%" : 0 }}
+      <div className="vm-theme-control__toggle">
+        <Toggle
+          options={options}
+          value={theme}
+          onChange={handleClickItem}
         />
-        {options.map(item => (
-          <div
-            className={classNames({
-              "vm-theme-control-options__item": true,
-              "vm-theme-control-options__item_active": item.value === darkTheme
-            })}
-            onClick={createHandlerClickItem(item.value)}
-            key={item.title}
-          >{item.title}</div>
-        ))}
       </div>
     </div>
   );

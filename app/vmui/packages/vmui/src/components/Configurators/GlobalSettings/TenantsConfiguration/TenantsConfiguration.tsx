@@ -3,7 +3,6 @@ import { useAppDispatch, useAppState } from "../../../../state/common/StateConte
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { ArrowDownIcon, StorageIcons } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
-import { useFetchAccountIds } from "./hooks/useFetchAccountIds";
 import "./style.scss";
 import { replaceTenantId } from "../../../../utils/default-server-url";
 import classNames from "classnames";
@@ -11,13 +10,12 @@ import Popper from "../../../Main/Popper/Popper";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 
-const TenantsConfiguration: FC = () => {
+const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const appModeEnable = getAppModeEnable();
 
   const { tenantId: tenantIdState, serverUrl } = useAppState();
   const dispatch = useAppDispatch();
   const timeDispatch = useTimeDispatch();
-  const { accountIds } = useFetchAccountIds();
 
   const [openOptions, setOpenOptions] = useState(false);
   const optionsButtonRef = useRef<HTMLDivElement>(null);
@@ -46,7 +44,6 @@ const TenantsConfiguration: FC = () => {
     if (serverUrl) {
       const updateServerUrl = replaceTenantId(serverUrl, tenant);
       if (updateServerUrl === serverUrl) return;
-      console.log("SET_SERVER", updateServerUrl);
       dispatch({ type: "SET_SERVER", payload: updateServerUrl });
       timeDispatch({ type: "RUN_QUERY" });
     }

@@ -1,0 +1,81 @@
+@use "src/styles/variables" as *;
+
+.vm-toggles {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  width: 100%;
+
+  &__label {
+    padding: 0 $padding-global;
+    color: $color-text-secondary;
+    font-size: $font-size-small;
+    line-height: 1;
+  }
+
+  &-group {
+    position: relative;
+    display: grid;
+    width: 100%;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    &-item {
+      position: relative;
+      display: grid;
+      align-items: center;
+      justify-content: center;
+      padding: $padding-small;
+      border-right: $border-divider;
+      border-top: $border-divider;
+      border-bottom: $border-divider;
+      font-size: $font-size-small;
+      color: $color-text-secondary;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      transition: color 150ms ease-in;
+      z-index: 2;
+      user-select: none;
+
+      &_first {
+        border-radius: 16px 0 0 16px;
+        border-left: $border-divider
+      }
+
+      &:last-child {
+        border-radius: 0 16px 16px 0;
+        border-left: none;
+      }
+
+      &_icon {
+        grid-template-columns: 14px auto;
+        gap: 4px;
+      }
+
+      &:hover {
+        color: $color-primary;
+      }
+
+      &_active {
+        color: $color-primary;
+        border-color: transparent;
+
+        &:hover {
+          background-color: transparent;
+        }
+      }
+    }
+
+    &__highlight {
+      position: absolute;
+      top: 0;
+      height: 100%;
+      background-color: rgba($color-primary, 0.08);
+      border: 1px solid $color-primary;
+      transition: left 200ms cubic-bezier(0.280, 0.840, 0.420, 1), border-radius 200ms linear;
+      z-index: 1;
+    }
+  }
+}
