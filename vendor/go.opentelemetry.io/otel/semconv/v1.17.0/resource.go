@@ -14,7 +14,7 @@
 
 // Code generated from semantic convention specification. DO NOT EDIT.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.17.0"
 
 import "go.opentelemetry.io/otel/attribute"
 
@@ -23,35 +23,45 @@ const (
 	// Array of brand name and version separated by a space
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: ' Not A;Brand 99', 'Chromium 99', 'Chrome 99'
 	// Note: This value is intended to be taken from the [UA client hints
 	// API](https://wicg.github.io/ua-client-hints/#interface)
-	// (navigator.userAgentData.brands).
+	// (`navigator.userAgentData.brands`).
 	BrowserBrandsKey = attribute.Key("browser.brands")
 	// The platform on which the browser is running
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Windows', 'macOS', 'Android'
 	// Note: This value is intended to be taken from the [UA client hints
 	// API](https://wicg.github.io/ua-client-hints/#interface)
-	// (navigator.userAgentData.platform). If unavailable, the legacy
+	// (`navigator.userAgentData.platform`). If unavailable, the legacy
 	// `navigator.platform` API SHOULD NOT be used instead and this attribute SHOULD
 	// be left unset in order for the values to be consistent.
 	// The list of possible values is defined in the [W3C User-Agent Client Hints
 	// specification](https://wicg.github.io/ua-client-hints/#sec-ch-ua-platform).
 	// Note that some (but not all) of these values can overlap with values in the
-	// [os.type and os.name attributes](./os.md). However, for consistency, the values
-	// in the `browser.platform` attribute should capture the exact value that the
-	// user agent provides.
+	// [`os.type` and `os.name` attributes](./os.md). However, for consistency, the
+	// values in the `browser.platform` attribute should capture the exact value that
+	// the user agent provides.
 	BrowserPlatformKey = attribute.Key("browser.platform")
+	// A boolean that is true if the browser is running on a mobile device
+	//
+	// Type: boolean
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Note: This value is intended to be taken from the [UA client hints
+	// API](https://wicg.github.io/ua-client-hints/#interface)
+	// (`navigator.userAgentData.mobile`). If unavailable, this attribute SHOULD be
+	// left unset.
+	BrowserMobileKey = attribute.Key("browser.mobile")
 	// Full user-agent string provided by the browser
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36
 	// (KHTML, '
@@ -61,6 +71,15 @@ const (
 	// Agent Client Hints API. To retrieve the value, the legacy `navigator.userAgent`
 	// API can be used.
 	BrowserUserAgentKey = attribute.Key("browser.user_agent")
+	// Preferred language of the user using the browser
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'en', 'en-US', 'fr', 'fr-FR'
+	// Note: This value is intended to be taken from the Navigator API
+	// `navigator.language`.
+	BrowserLanguageKey = attribute.Key("browser.language")
 )
 
 // A cloud environment (e.g. GCP, Azure, AWS)
@@ -68,20 +87,20 @@ const (
 	// Name of the cloud provider.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	CloudProviderKey = attribute.Key("cloud.provider")
 	// The cloud account ID the resource is assigned to.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '111111111111', 'opentelemetry'
 	CloudAccountIDKey = attribute.Key("cloud.account.id")
 	// The geographical region the resource is running.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'us-central1', 'us-east-1'
 	// Note: Refer to your provider's docs to see the available regions, for example
@@ -97,7 +116,7 @@ const (
 	// is running.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'us-east-1c'
 	// Note: Availability zones are called "zones" on Alibaba Cloud and Google Cloud.
@@ -105,7 +124,7 @@ const (
 	// The cloud platform in use.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Note: The prefix of the service SHOULD match the one specified in
 	// `cloud.provider`.
@@ -121,6 +140,8 @@ var (
 	CloudProviderAzure = CloudProviderKey.String("azure")
 	// Google Cloud Platform
 	CloudProviderGCP = CloudProviderKey.String("gcp")
+	// IBM Cloud
+	CloudProviderIbmCloud = CloudProviderKey.String("ibm_cloud")
 	// Tencent Cloud
 	CloudProviderTencentCloud = CloudProviderKey.String("tencent_cloud")
 )
@@ -130,6 +151,8 @@ var (
 	CloudPlatformAlibabaCloudECS = CloudPlatformKey.String("alibaba_cloud_ecs")
 	// Alibaba Cloud Function Compute
 	CloudPlatformAlibabaCloudFc = CloudPlatformKey.String("alibaba_cloud_fc")
+	// Red Hat OpenShift on Alibaba Cloud
+	CloudPlatformAlibabaCloudOpenshift = CloudPlatformKey.String("alibaba_cloud_openshift")
 	// AWS Elastic Compute Cloud
 	CloudPlatformAWSEC2 = CloudPlatformKey.String("aws_ec2")
 	// AWS Elastic Container Service
@@ -142,6 +165,8 @@ var (
 	CloudPlatformAWSElasticBeanstalk = CloudPlatformKey.String("aws_elastic_beanstalk")
 	// AWS App Runner
 	CloudPlatformAWSAppRunner = CloudPlatformKey.String("aws_app_runner")
+	// Red Hat OpenShift on AWS (ROSA)
+	CloudPlatformAWSOpenshift = CloudPlatformKey.String("aws_openshift")
 	// Azure Virtual Machines
 	CloudPlatformAzureVM = CloudPlatformKey.String("azure_vm")
 	// Azure Container Instances
@@ -152,6 +177,8 @@ var (
 	CloudPlatformAzureFunctions = CloudPlatformKey.String("azure_functions")
 	// Azure App Service
 	CloudPlatformAzureAppService = CloudPlatformKey.String("azure_app_service")
+	// Azure Red Hat OpenShift
+	CloudPlatformAzureOpenshift = CloudPlatformKey.String("azure_openshift")
 	// Google Cloud Compute Engine (GCE)
 	CloudPlatformGCPComputeEngine = CloudPlatformKey.String("gcp_compute_engine")
 	// Google Cloud Run
@@ -162,6 +189,10 @@ var (
 	CloudPlatformGCPCloudFunctions = CloudPlatformKey.String("gcp_cloud_functions")
 	// Google Cloud App Engine (GAE)
 	CloudPlatformGCPAppEngine = CloudPlatformKey.String("gcp_app_engine")
+	// Red Hat OpenShift on Google Cloud
+	CloudPlatformGoogleCloudOpenshift = CloudPlatformKey.String("google_cloud_openshift")
+	// Red Hat OpenShift on IBM Cloud
+	CloudPlatformIbmCloudOpenshift = CloudPlatformKey.String("ibm_cloud_openshift")
 	// Tencent Cloud Cloud Virtual Machine (CVM)
 	CloudPlatformTencentCloudCvm = CloudPlatformKey.String("tencent_cloud_cvm")
 	// Tencent Cloud Elastic Kubernetes Service (EKS)
@@ -176,7 +207,7 @@ const (
 	// amazon.com/AmazonECS/latest/developerguide/ECS_instances.html).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:ecs:us-
 	// west-1:123456789123:container/32624152-9086-4f0e-acae-1a75b14fe4d9'
@@ -185,7 +216,7 @@ const (
 	// perguide/clusters.html).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster'
 	AWSECSClusterARNKey = attribute.Key("aws.ecs.cluster.arn")
@@ -193,14 +224,14 @@ const (
 	// aunch_types.html) for an ECS task.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	AWSECSLaunchtypeKey = attribute.Key("aws.ecs.launchtype")
 	// The ARN of an [ECS task definition](https://docs.aws.amazon.com/AmazonECS/lates
 	// t/developerguide/task_definitions.html).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:ecs:us-
 	// west-1:123456789123:task/10838bed-421f-43ef-870a-f43feacbbb5b'
@@ -208,14 +239,14 @@ const (
 	// The task definition family this task definition is a member of.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry-family'
 	AWSECSTaskFamilyKey = attribute.Key("aws.ecs.task.family")
 	// The revision for this task definition.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '8', '26'
 	AWSECSTaskRevisionKey = attribute.Key("aws.ecs.task.revision")
@@ -233,7 +264,7 @@ const (
 	// The ARN of an EKS cluster.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:ecs:us-west-2:123456789123:cluster/my-cluster'
 	AWSEKSClusterARNKey = attribute.Key("aws.eks.cluster.arn")
@@ -244,7 +275,7 @@ const (
 	// The name(s) of the AWS log group(s) an application is writing to.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '/aws/lambda/my-function', 'opentelemetry-service'
 	// Note: Multiple log groups must be supported for cases like multi-container
@@ -254,7 +285,7 @@ const (
 	// The Amazon Resource Name(s) (ARN) of the AWS log group(s).
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:*'
 	// Note: See the [log group ARN format
@@ -264,14 +295,14 @@ const (
 	// The name(s) of the AWS log stream(s) an application is writing to.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'logs/main/10838bed-421f-43ef-870a-f43feacbbb5b'
 	AWSLogStreamNamesKey = attribute.Key("aws.log.stream.names")
 	// The ARN(s) of the AWS log stream(s).
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:logs:us-west-1:123456789012:log-group:/aws/my/group:log-
 	// stream:logs/main/10838bed-421f-43ef-870a-f43feacbbb5b'
@@ -288,7 +319,7 @@ const (
 	// Container name used by container runtime.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry-autoconf'
 	ContainerNameKey = attribute.Key("container.name")
@@ -297,28 +328,28 @@ const (
 	// identification). The UUID might be abbreviated.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'a3bf90e006b2'
 	ContainerIDKey = attribute.Key("container.id")
 	// The container runtime managing this container.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'docker', 'containerd', 'rkt'
 	ContainerRuntimeKey = attribute.Key("container.runtime")
 	// Name of the image the container was built on.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'gcr.io/opentelemetry/operator'
 	ContainerImageNameKey = attribute.Key("container.image.name")
 	// Container image tag.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '0.1'
 	ContainerImageTagKey = attribute.Key("container.image.tag")
@@ -331,7 +362,7 @@ const (
 	// deployment tier).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'staging', 'production'
 	DeploymentEnvironmentKey = attribute.Key("deployment.environment")
@@ -342,7 +373,7 @@ const (
 	// A unique identifier representing the device
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '2ab2916d-a51f-4ac8-80ee-45ac31a28092'
 	// Note: The device identifier MUST only be defined using the values outlined
@@ -360,7 +391,7 @@ const (
 	// The model identifier for the device
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'iPhone3,4', 'SM-G920F'
 	// Note: It's recommended this value represents a machine readable version of the
@@ -370,7 +401,7 @@ const (
 	// The marketing name for the device model
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'iPhone 6s Plus', 'Samsung Galaxy S6'
 	// Note: It's recommended this value represents a human readable version of the
@@ -379,7 +410,7 @@ const (
 	// The name of the device manufacturer
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Apple', 'Samsung'
 	// Note: The Android OS provides this field via
@@ -393,7 +424,7 @@ const (
 	// The name of the single function that this runtime instance executes.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'my-function', 'myazurefunctionapp/some-function-name'
 	// Note: This is the name of the function as configured/deployed on the FaaS
@@ -417,7 +448,7 @@ const (
 	// The unique ID of the single function that this runtime instance executes.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:lambda:us-west-2:123456789012:function:my-function'
 	// Note: On some cloud providers, it may not be possible to determine the full ID
@@ -449,7 +480,7 @@ const (
 	// The immutable version of the function being executed.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '26', 'pinkfroid-00002'
 	// Note: Depending on the cloud provider and platform, use:
@@ -471,7 +502,7 @@ const (
 	// other invocations to the same function/function version.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '2021/06/28/[$LATEST]2f399eb14537447da05ab2a2e39309de'
 	// Note: * **AWS Lambda:** Use the (full) log stream name.
@@ -479,7 +510,7 @@ const (
 	// The amount of memory available to the serverless function in MiB.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 128
 	// Note: It's recommended to set this attribute since e.g. too little memory can
@@ -492,46 +523,47 @@ const (
 // A host is defined as a general computing instance.
 const (
 	// Unique host ID. For Cloud, this must be the instance_id assigned by the cloud
-	// provider.
+	// provider. For non-containerized Linux systems, the `machine-id` located in
+	// `/etc/machine-id` or `/var/lib/dbus/machine-id` may be used.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: 'opentelemetry-test'
+	// Examples: 'fdbf79e8af94cb7f9e8df36789187052'
 	HostIDKey = attribute.Key("host.id")
 	// Name of the host. On Unix systems, it may contain what the hostname command
 	// returns, or the fully qualified hostname, or another name specified by the
 	// user.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry-test'
 	HostNameKey = attribute.Key("host.name")
 	// Type of host. For Cloud, this must be the machine type.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'n1-standard-1'
 	HostTypeKey = attribute.Key("host.type")
 	// The CPU architecture the host system is running on.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	HostArchKey = attribute.Key("host.arch")
 	// Name of the VM image or OS install the host was instantiated from.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'infra-ami-eks-worker-node-7d4ec78312', 'CentOS-8-x86_64-1905'
 	HostImageNameKey = attribute.Key("host.image.name")
 	// VM image ID. For Cloud, this value is from the provider.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'ami-07b06b442921831e5'
 	HostImageIDKey = attribute.Key("host.image.id")
@@ -539,7 +571,7 @@ const (
 	// Attributes](README.md#version-attributes).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '0.1'
 	HostImageVersionKey = attribute.Key("host.image.version")
@@ -569,7 +601,7 @@ const (
 	// The name of the cluster.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry-cluster'
 	K8SClusterNameKey = attribute.Key("k8s.cluster.name")
@@ -580,14 +612,14 @@ const (
 	// The name of the Node.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'node-1'
 	K8SNodeNameKey = attribute.Key("k8s.node.name")
 	// The UID of the Node.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '1eb3a0c6-0477-4080-a9cb-0cb7db65c6a2'
 	K8SNodeUIDKey = attribute.Key("k8s.node.uid")
@@ -598,7 +630,7 @@ const (
 	// The name of the namespace that the pod is running in.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'default'
 	K8SNamespaceNameKey = attribute.Key("k8s.namespace.name")
@@ -609,14 +641,14 @@ const (
 	// The UID of the Pod.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SPodUIDKey = attribute.Key("k8s.pod.uid")
 	// The name of the Pod.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry-pod-autoconf'
 	K8SPodNameKey = attribute.Key("k8s.pod.name")
@@ -629,7 +661,7 @@ const (
 	// (`container.name`).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'redis'
 	K8SContainerNameKey = attribute.Key("k8s.container.name")
@@ -637,7 +669,7 @@ const (
 	// identify a particular container (running or stopped) within a container spec.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 0, 2
 	K8SContainerRestartCountKey = attribute.Key("k8s.container.restart_count")
@@ -648,14 +680,14 @@ const (
 	// The UID of the ReplicaSet.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SReplicaSetUIDKey = attribute.Key("k8s.replicaset.uid")
 	// The name of the ReplicaSet.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	K8SReplicaSetNameKey = attribute.Key("k8s.replicaset.name")
@@ -666,14 +698,14 @@ const (
 	// The UID of the Deployment.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SDeploymentUIDKey = attribute.Key("k8s.deployment.uid")
 	// The name of the Deployment.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	K8SDeploymentNameKey = attribute.Key("k8s.deployment.name")
@@ -684,14 +716,14 @@ const (
 	// The UID of the StatefulSet.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SStatefulSetUIDKey = attribute.Key("k8s.statefulset.uid")
 	// The name of the StatefulSet.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	K8SStatefulSetNameKey = attribute.Key("k8s.statefulset.name")
@@ -702,14 +734,14 @@ const (
 	// The UID of the DaemonSet.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SDaemonSetUIDKey = attribute.Key("k8s.daemonset.uid")
 	// The name of the DaemonSet.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	K8SDaemonSetNameKey = attribute.Key("k8s.daemonset.name")
@@ -720,14 +752,14 @@ const (
 	// The UID of the Job.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SJobUIDKey = attribute.Key("k8s.job.uid")
 	// The name of the Job.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	K8SJobNameKey = attribute.Key("k8s.job.name")
@@ -738,14 +770,14 @@ const (
 	// The UID of the CronJob.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '275ecb36-5aa8-4c2a-9c47-d8bb681b9aff'
 	K8SCronJobUIDKey = attribute.Key("k8s.cronjob.uid")
 	// The name of the CronJob.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	K8SCronJobNameKey = attribute.Key("k8s.cronjob.name")
@@ -756,21 +788,21 @@ const (
 	// The operating system type.
 	//
 	// Type: Enum
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	OSTypeKey = attribute.Key("os.type")
 	// Human readable (not intended to be parsed) OS version information, like e.g.
 	// reported by `ver` or `lsb_release -a` commands.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Microsoft Windows [Version 10.0.18363.778]', 'Ubuntu 18.04.1 LTS'
 	OSDescriptionKey = attribute.Key("os.description")
 	// Human readable operating system name.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'iOS', 'Android', 'Ubuntu'
 	OSNameKey = attribute.Key("os.name")
@@ -778,7 +810,7 @@ const (
 	// Attributes](../../resource/semantic_conventions/README.md#version-attributes).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '14.2.1', '18.04.1'
 	OSVersionKey = attribute.Key("os.version")
@@ -814,16 +846,23 @@ const (
 	// Process identifier (PID).
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 1234
 	ProcessPIDKey = attribute.Key("process.pid")
+	// Parent Process identifier (PID).
+	//
+	// Type: int
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 111
+	ProcessParentPIDKey = attribute.Key("process.parent_pid")
 	// The name of the process executable. On Linux based systems, can be set to the
 	// `Name` in `proc/[pid]/status`. On Windows, can be set to the base name of
 	// `GetProcessImageFileNameW`.
 	//
 	// Type: string
-	// Required: See below
+	// RequirementLevel: ConditionallyRequired (See alternative attributes below.)
 	// Stability: stable
 	// Examples: 'otelcol'
 	ProcessExecutableNameKey = attribute.Key("process.executable.name")
@@ -832,7 +871,7 @@ const (
 	// `GetProcessImageFileNameW`.
 	//
 	// Type: string
-	// Required: See below
+	// RequirementLevel: ConditionallyRequired (See alternative attributes below.)
 	// Stability: stable
 	// Examples: '/usr/bin/cmd/otelcol'
 	ProcessExecutablePathKey = attribute.Key("process.executable.path")
@@ -841,7 +880,7 @@ const (
 	// can be set to the first parameter extracted from `GetCommandLineW`.
 	//
 	// Type: string
-	// Required: See below
+	// RequirementLevel: ConditionallyRequired (See alternative attributes below.)
 	// Stability: stable
 	// Examples: 'cmd/otelcol'
 	ProcessCommandKey = attribute.Key("process.command")
@@ -851,7 +890,7 @@ const (
 	// `process.command_args` instead.
 	//
 	// Type: string
-	// Required: See below
+	// RequirementLevel: ConditionallyRequired (See alternative attributes below.)
 	// Stability: stable
 	// Examples: 'C:\\cmd\\otecol --config="my directory\\config.yaml"'
 	ProcessCommandLineKey = attribute.Key("process.command_line")
@@ -862,14 +901,14 @@ const (
 	// the full argv vector passed to `main`.
 	//
 	// Type: string[]
-	// Required: See below
+	// RequirementLevel: ConditionallyRequired (See alternative attributes below.)
 	// Stability: stable
 	// Examples: 'cmd/otecol', '--config=config.yaml'
 	ProcessCommandArgsKey = attribute.Key("process.command_args")
 	// The username of the user that owns the process.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'root'
 	ProcessOwnerKey = attribute.Key("process.owner")
@@ -881,7 +920,7 @@ const (
 	// SHOULD be the name of the compiler.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'OpenJDK Runtime Environment'
 	ProcessRuntimeNameKey = attribute.Key("process.runtime.name")
@@ -889,7 +928,7 @@ const (
 	// modification.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '14.0.2'
 	ProcessRuntimeVersionKey = attribute.Key("process.runtime.version")
@@ -897,7 +936,7 @@ const (
 	// specific vendor customization of the runtime environment.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Eclipse OpenJ9 Eclipse OpenJ9 VM openj9-0.21.0'
 	ProcessRuntimeDescriptionKey = attribute.Key("process.runtime.description")
@@ -908,7 +947,7 @@ const (
 	// Logical name of the service.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'shoppingcart'
 	// Note: MUST be the same for all instances of horizontally scaled services. If
@@ -920,7 +959,7 @@ const (
 	// A namespace for `service.name`.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Shop'
 	// Note: A string value having a meaning that helps to distinguish a group of
@@ -934,7 +973,7 @@ const (
 	// The string ID of the service instance.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '627cc493-f310-47de-96bd-71410b7dec09'
 	// Note: MUST be unique for each instance of the same
@@ -953,7 +992,7 @@ const (
 	// The version string of the service API or implementation.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '2.0.0'
 	ServiceVersionKey = attribute.Key("service.version")
@@ -964,27 +1003,27 @@ const (
 	// The name of the telemetry SDK as defined above.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'opentelemetry'
 	TelemetrySDKNameKey = attribute.Key("telemetry.sdk.name")
 	// The language of the telemetry SDK.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	TelemetrySDKLanguageKey = attribute.Key("telemetry.sdk.language")
 	// The version string of the telemetry SDK.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '1.2.3'
 	TelemetrySDKVersionKey = attribute.Key("telemetry.sdk.version")
 	// The version string of the auto instrumentation agent, if used.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '1.2.3'
 	TelemetryAutoVersionKey = attribute.Key("telemetry.auto.version")
@@ -1020,14 +1059,14 @@ const (
 	// The name of the web engine.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'WildFly'
 	WebEngineNameKey = attribute.Key("webengine.name")
 	// The version of the web engine.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '21.0.0'
 	WebEngineVersionKey = attribute.Key("webengine.version")
@@ -1035,8 +1074,45 @@ const (
 	// information).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'WildFly Full 21.0.0.Final (WildFly Core 13.0.1.Final) - 2.2.2.Final'
 	WebEngineDescriptionKey = attribute.Key("webengine.description")
+)
+
+// Attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.
+const (
+	// The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'io.opentelemetry.contrib.mongodb'
+	OtelScopeNameKey = attribute.Key("otel.scope.name")
+	// The version of the instrumentation scope - (`InstrumentationScope.Version` in
+	// OTLP).
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: '1.0.0'
+	OtelScopeVersionKey = attribute.Key("otel.scope.version")
+)
+
+// Span attributes used by non-OTLP exporters to represent OpenTelemetry Scope's concepts.
+const (
+	// Deprecated, use the `otel.scope.name` attribute.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: deprecated
+	// Examples: 'io.opentelemetry.contrib.mongodb'
+	OtelLibraryNameKey = attribute.Key("otel.library.name")
+	// Deprecated, use the `otel.scope.version` attribute.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: deprecated
+	// Examples: '1.0.0'
+	OtelLibraryVersionKey = attribute.Key("otel.library.version")
 )
