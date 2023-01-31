@@ -14,9 +14,70 @@
 
 // Code generated from semantic convention specification. DO NOT EDIT.
 
-package semconv // import "go.opentelemetry.io/otel/semconv/v1.12.0"
+package semconv // import "go.opentelemetry.io/otel/semconv/v1.17.0"
 
 import "go.opentelemetry.io/otel/attribute"
+
+// This document defines the shared attributes used to report a single exception associated with a span or log.
+const (
+	// The type of the exception (its fully-qualified class name, if applicable). The
+	// dynamic type of the exception should be preferred over the static type in
+	// languages that support it.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'java.net.ConnectException', 'OSError'
+	ExceptionTypeKey = attribute.Key("exception.type")
+	// The exception message.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'Division by zero', "Can't convert 'int' object to str implicitly"
+	ExceptionMessageKey = attribute.Key("exception.message")
+	// A stacktrace as a string in the natural representation for the language
+	// runtime. The representation is to be determined and documented by each language
+	// SIG.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'Exception in thread "main" java.lang.RuntimeException: Test
+	// exception\\n at '
+	//  'com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at '
+	//  'com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at '
+	//  'com.example.GenerateTrace.main(GenerateTrace.java:5)'
+	ExceptionStacktraceKey = attribute.Key("exception.stacktrace")
+)
+
+// This document defines attributes for Events represented using Log Records.
+const (
+	// The name identifies the event.
+	//
+	// Type: string
+	// RequirementLevel: Required
+	// Stability: stable
+	// Examples: 'click', 'exception'
+	EventNameKey = attribute.Key("event.name")
+	// The domain identifies the business context for the events.
+	//
+	// Type: Enum
+	// RequirementLevel: Required
+	// Stability: stable
+	// Note: Events across different domains may have same `event.name`, yet be
+	// unrelated events.
+	EventDomainKey = attribute.Key("event.domain")
+)
+
+var (
+	// Events from browser apps
+	EventDomainBrowser = EventDomainKey.String("browser")
+	// Events from mobile apps
+	EventDomainDevice = EventDomainKey.String("device")
+	// Events from Kubernetes
+	EventDomainK8S = EventDomainKey.String("k8s")
+)
 
 // Span attributes used by AWS Lambda (in addition to general `faas` attributes).
 const (
@@ -25,7 +86,7 @@ const (
 	// applicable).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'arn:aws:lambda:us-east-1:123456:function:myfunction:myalias'
 	// Note: This may be different from `faas.id` if an alias is involved.
@@ -38,7 +99,7 @@ const (
 	// .md#id) uniquely identifies the event.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: '123e4567-e89b-12d3-a456-426614174000', '0001'
 	CloudeventsEventIDKey = attribute.Key("cloudevents.event_id")
@@ -46,7 +107,7 @@ const (
 	// d#source-1) identifies the context in which an event happened.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'https://github.com/cloudevents', '/cloudevents/spec/pull/123', 'my-
 	// service'
@@ -55,7 +116,7 @@ const (
 	// pec/blob/v1.0.2/cloudevents/spec.md#specversion) which the event uses.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '1.0'
 	CloudeventsEventSpecVersionKey = attribute.Key("cloudevents.event_spec_version")
@@ -64,7 +125,7 @@ const (
 	// originating occurrence.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'com.github.pull_request.opened', 'com.example.object.deleted.v2'
 	CloudeventsEventTypeKey = attribute.Key("cloudevents.event_type")
@@ -73,7 +134,7 @@ const (
 	// source).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'mynewfile.jpg'
 	CloudeventsEventSubjectKey = attribute.Key("cloudevents.event_subject")
@@ -84,7 +145,7 @@ const (
 	// Parent-child Reference type
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Note: The causal relationship between a child Span and a parent Span.
 	OpentracingRefTypeKey = attribute.Key("opentracing.ref_type")
@@ -103,21 +164,21 @@ const (
 	// below for a list of well-known identifiers.
 	//
 	// Type: Enum
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	DBSystemKey = attribute.Key("db.system")
 	// The connection string used to connect to the database. It is recommended to
 	// remove embedded credentials.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Server=(localdb)\\v11.0;Integrated Security=true;'
 	DBConnectionStringKey = attribute.Key("db.connection_string")
 	// Username for accessing the database.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'readonly_user', 'reporting_user'
 	DBUserKey = attribute.Key("db.user")
@@ -126,7 +187,7 @@ const (
 	// used to connect.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'org.postgresql.Driver',
 	// 'com.microsoft.sqlserver.jdbc.SQLServerDriver'
@@ -136,7 +197,7 @@ const (
 	// (even if the command fails).
 	//
 	// Type: string
-	// Required: Required, if applicable.
+	// RequirementLevel: ConditionallyRequired (If applicable.)
 	// Stability: stable
 	// Examples: 'customers', 'main'
 	// Note: In some SQL databases, the database name to be used is called "schema
@@ -147,8 +208,8 @@ const (
 	// The database statement being executed.
 	//
 	// Type: string
-	// Required: Required if applicable and not explicitly disabled via
-	// instrumentation configuration.
+	// RequirementLevel: ConditionallyRequired (If applicable and not explicitly
+	// disabled via instrumentation configuration.)
 	// Stability: stable
 	// Examples: 'SELECT * FROM wuser_table', 'SET mykey "WuValue"'
 	// Note: The value may be sanitized to exclude sensitive information.
@@ -158,7 +219,7 @@ const (
 	// such as `findAndModify`, or the SQL keyword.
 	//
 	// Type: string
-	// Required: Required, if `db.statement` is not applicable.
+	// RequirementLevel: ConditionallyRequired (If `db.statement` is not applicable.)
 	// Stability: stable
 	// Examples: 'findAndModify', 'HMSET', 'SELECT'
 	// Note: When setting this to an SQL keyword, it is not recommended to attempt any
@@ -264,6 +325,10 @@ var (
 	DBSystemMemcached = DBSystemKey.String("memcached")
 	// CockroachDB
 	DBSystemCockroachdb = DBSystemKey.String("cockroachdb")
+	// OpenSearch
+	DBSystemOpensearch = DBSystemKey.String("opensearch")
+	// ClickHouse
+	DBSystemClickhouse = DBSystemKey.String("clickhouse")
 )
 
 // Connection-level attributes for Microsoft SQL Server
@@ -273,7 +338,7 @@ const (
 	// connecting to. This name is used to determine the port of a named instance.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'MSSQLSERVER'
 	// Note: If setting a `db.mssql.instance_name`, `net.peer.port` is no longer
@@ -286,7 +351,7 @@ const (
 	// The fetch size used for paging, i.e. how many rows will be returned at once.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 5000
 	DBCassandraPageSizeKey = attribute.Key("db.cassandra.page_size")
@@ -295,14 +360,14 @@ const (
 	// oss/3.0/cassandra/dml/dmlConfigConsistency.html).
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	DBCassandraConsistencyLevelKey = attribute.Key("db.cassandra.consistency_level")
 	// The name of the primary table that the operation is acting upon, including the
 	// keyspace name (if applicable).
 	//
 	// Type: string
-	// Required: Recommended if available.
+	// RequirementLevel: Recommended
 	// Stability: stable
 	// Examples: 'mytable'
 	// Note: This mirrors the db.sql.table attribute but references cassandra rather
@@ -314,28 +379,28 @@ const (
 	// Whether or not the query is idempotent.
 	//
 	// Type: boolean
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	DBCassandraIdempotenceKey = attribute.Key("db.cassandra.idempotence")
 	// The number of times a query was speculatively executed. Not set or `0` if the
 	// query was not executed speculatively.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 0, 2
 	DBCassandraSpeculativeExecutionCountKey = attribute.Key("db.cassandra.speculative_execution_count")
 	// The ID of the coordinating node for a query.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'be13faa2-8574-4d71-926d-27f16cf8a7af'
 	DBCassandraCoordinatorIDKey = attribute.Key("db.cassandra.coordinator.id")
 	// The data center of the coordinating node for a query.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'us-west-2'
 	DBCassandraCoordinatorDCKey = attribute.Key("db.cassandra.coordinator.dc")
@@ -373,7 +438,8 @@ const (
 	// instead of the generic `db.name` attribute.
 	//
 	// Type: int
-	// Required: Required, if other than the default database (`0`).
+	// RequirementLevel: ConditionallyRequired (If other than the default database
+	// (`0`).)
 	// Stability: stable
 	// Examples: 0, 1, 15
 	DBRedisDBIndexKey = attribute.Key("db.redis.database_index")
@@ -384,7 +450,7 @@ const (
 	// The collection being accessed within the database stated in `db.name`.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'customers', 'products'
 	DBMongoDBCollectionKey = attribute.Key("db.mongodb.collection")
@@ -396,7 +462,7 @@ const (
 	// database name (if applicable).
 	//
 	// Type: string
-	// Required: Recommended if available.
+	// RequirementLevel: Recommended
 	// Stability: stable
 	// Examples: 'public.users', 'customers'
 	// Note: It is not recommended to attempt any client-side parsing of
@@ -406,61 +472,29 @@ const (
 	DBSQLTableKey = attribute.Key("db.sql.table")
 )
 
-// This document defines the attributes used to report a single exception associated with a span.
+// Span attributes used by non-OTLP exporters to represent OpenTelemetry Span's concepts.
 const (
-	// The type of the exception (its fully-qualified class name, if applicable). The
-	// dynamic type of the exception should be preferred over the static type in
-	// languages that support it.
+	// Name of the code, either "OK" or "ERROR". MUST NOT be set if the status code is
+	// UNSET.
+	//
+	// Type: Enum
+	// RequirementLevel: Optional
+	// Stability: stable
+	OtelStatusCodeKey = attribute.Key("otel.status_code")
+	// Description of the Status if it has a value, otherwise not set.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: 'java.net.ConnectException', 'OSError'
-	ExceptionTypeKey = attribute.Key("exception.type")
-	// The exception message.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: 'Division by zero', "Can't convert 'int' object to str implicitly"
-	ExceptionMessageKey = attribute.Key("exception.message")
-	// A stacktrace as a string in the natural representation for the language
-	// runtime. The representation is to be determined and documented by each language
-	// SIG.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: 'Exception in thread "main" java.lang.RuntimeException: Test
-	// exception\\n at '
-	//  'com.example.GenerateTrace.methodB(GenerateTrace.java:13)\\n at '
-	//  'com.example.GenerateTrace.methodA(GenerateTrace.java:9)\\n at '
-	//  'com.example.GenerateTrace.main(GenerateTrace.java:5)'
-	ExceptionStacktraceKey = attribute.Key("exception.stacktrace")
-	// SHOULD be set to true if the exception event is recorded at a point where it is
-	// known that the exception is escaping the scope of the span.
-	//
-	// Type: boolean
-	// Required: No
-	// Stability: stable
-	// Note: An exception is considered to have escaped (or left) the scope of a span,
-	// if that span is ended while the exception is still logically "in flight".
-	// This may be actually "in flight" in some languages (e.g. if the exception
-	// is passed to a Context manager's `__exit__` method in Python) but will
-	// usually be caught at the point of recording the exception in most languages.
+	// Examples: 'resource not found'
+	OtelStatusDescriptionKey = attribute.Key("otel.status_description")
+)
 
-	// It is usually not possible to determine at the point where an exception is
-	// thrown
-	// whether it will escape the scope of a span.
-	// However, it is trivial to know that an exception
-	// will escape, if one checks for an active exception just before ending the span,
-	// as done in the [example above](#recording-an-exception).
-
-	// It follows that an exception may still escape the scope of the span
-	// even if the `exception.escaped` attribute was not set or set to false,
-	// since the event might have been recorded at a time where it was not
-	// clear whether the exception will escape.
-	ExceptionEscapedKey = attribute.Key("exception.escaped")
+var (
+	// The operation has been validated by an Application developer or Operator to have completed successfully
+	OtelStatusCodeOk = OtelStatusCodeKey.String("OK")
+	// The operation contains an error
+	OtelStatusCodeError = OtelStatusCodeKey.String("ERROR")
 )
 
 // This semantic convention describes an instance of a function that runs without provisioning or managing of servers (also known as serverless functions or Function as a Service (FaaS)) with spans.
@@ -468,7 +502,7 @@ const (
 	// Type of the trigger which caused this function execution.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Note: For the server/consumer span on the incoming side,
 	// `faas.trigger` MUST be set.
@@ -483,7 +517,7 @@ const (
 	// The execution ID of the current function execution.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'af9d5aa4-a685-4c5f-a22b-444f80b3cc28'
 	FaaSExecutionKey = attribute.Key("faas.execution")
@@ -509,14 +543,14 @@ const (
 	// DB to the database name.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'myBucketName', 'myDBName'
 	FaaSDocumentCollectionKey = attribute.Key("faas.document.collection")
 	// Describes the type of the operation that was performed on the data.
 	//
 	// Type: Enum
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	FaaSDocumentOperationKey = attribute.Key("faas.document.operation")
 	// A string containing the time when the data was accessed in the [ISO
@@ -524,7 +558,7 @@ const (
 	// in [UTC](https://www.w3.org/TR/NOTE-datetime).
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '2020-01-23T13:47:06Z'
 	FaaSDocumentTimeKey = attribute.Key("faas.document.time")
@@ -532,7 +566,7 @@ const (
 	// Storage or S3 is the name of the file, and in Cosmos DB the table name.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'myFile.txt', 'myTableName'
 	FaaSDocumentNameKey = attribute.Key("faas.document.name")
@@ -554,7 +588,7 @@ const (
 	// in [UTC](https://www.w3.org/TR/NOTE-datetime).
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '2020-01-23T13:47:06Z'
 	FaaSTimeKey = attribute.Key("faas.time")
@@ -562,7 +596,7 @@ const (
 	// e.com/cd/E12058_01/doc/doc.1014/e12030/cron_expressions.htm).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '0/5 * * * ? *'
 	FaaSCronKey = attribute.Key("faas.cron")
@@ -574,7 +608,7 @@ const (
 	// time (aka cold-start).
 	//
 	// Type: boolean
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	FaaSColdstartKey = attribute.Key("faas.coldstart")
 )
@@ -584,7 +618,7 @@ const (
 	// The name of the invoked function.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'my-function'
 	// Note: SHOULD be equal to the `faas.name` resource attribute of the invoked
@@ -593,7 +627,7 @@ const (
 	// The cloud provider of the invoked function.
 	//
 	// Type: Enum
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Note: SHOULD be equal to the `cloud.provider` resource attribute of the invoked
 	// function.
@@ -601,12 +635,13 @@ const (
 	// The cloud region of the invoked function.
 	//
 	// Type: string
-	// Required: For some cloud providers, like AWS or GCP, the region in which a
-	// function is hosted is essential to uniquely identify the function and also part
-	// of its endpoint. Since it's part of the endpoint being called, the region is
-	// always known to clients. In these cases, `faas.invoked_region` MUST be set
-	// accordingly. If the region is unknown to the client or not required for
-	// identifying the invoked function, setting `faas.invoked_region` is optional.
+	// RequirementLevel: ConditionallyRequired (For some cloud providers, like AWS or
+	// GCP, the region in which a function is hosted is essential to uniquely identify
+	// the function and also part of its endpoint. Since it's part of the endpoint
+	// being called, the region is always known to clients. In these cases,
+	// `faas.invoked_region` MUST be set accordingly. If the region is unknown to the
+	// client or not required for identifying the invoked function, setting
+	// `faas.invoked_region` is optional.)
 	// Stability: stable
 	// Examples: 'eu-central-1'
 	// Note: SHOULD be equal to the `cloud.region` resource attribute of the invoked
@@ -632,58 +667,113 @@ const (
 	// Transport protocol used. See note below.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	NetTransportKey = attribute.Key("net.transport")
-	// Remote address of the peer (dotted decimal for IPv4 or
-	// [RFC5952](https://tools.ietf.org/html/rfc5952) for IPv6)
+	// Application layer protocol used. The value SHOULD be normalized to lowercase.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: '127.0.0.1'
-	NetPeerIPKey = attribute.Key("net.peer.ip")
-	// Remote port number.
+	// Examples: 'amqp', 'http', 'mqtt'
+	NetAppProtocolNameKey = attribute.Key("net.app.protocol.name")
+	// Version of the application layer protocol used. See note below.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: '3.1.1'
+	// Note: `net.app.protocol.version` refers to the version of the protocol used and
+	// might be different from the protocol client's version. If the HTTP client used
+	// has a version of `0.27.2`, but sends HTTP version `1.1`, this attribute should
+	// be set to `1.1`.
+	NetAppProtocolVersionKey = attribute.Key("net.app.protocol.version")
+	// Remote socket peer name.
+	//
+	// Type: string
+	// RequirementLevel: Recommended (If available and different from `net.peer.name`
+	// and if `net.sock.peer.addr` is set.)
+	// Stability: stable
+	// Examples: 'proxy.example.com'
+	NetSockPeerNameKey = attribute.Key("net.sock.peer.name")
+	// Remote socket peer address: IPv4 or IPv6 for internet protocols, path for local
+	// communication, [etc](https://man7.org/linux/man-
+	// pages/man7/address_families.7.html).
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: '127.0.0.1', '/tmp/mysql.sock'
+	NetSockPeerAddrKey = attribute.Key("net.sock.peer.addr")
+	// Remote socket peer port.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Recommended (If defined for the address family and if
+	// different than `net.peer.port` and if `net.sock.peer.addr` is set.)
 	// Stability: stable
-	// Examples: 80, 8080, 443
-	NetPeerPortKey = attribute.Key("net.peer.port")
-	// Remote hostname or similar, see note below.
+	// Examples: 16456
+	NetSockPeerPortKey = attribute.Key("net.sock.peer.port")
+	// Protocol [address family](https://man7.org/linux/man-
+	// pages/man7/address_families.7.html) which is used for communication.
+	//
+	// Type: Enum
+	// RequirementLevel: ConditionallyRequired (If different than `inet` and if any of
+	// `net.sock.peer.addr` or `net.sock.host.addr` are set. Consumers of telemetry
+	// SHOULD accept both IPv4 and IPv6 formats for the address in
+	// `net.sock.peer.addr` if `net.sock.family` is not set. This is to support
+	// instrumentations that follow previous versions of this document.)
+	// Stability: stable
+	// Examples: 'inet6', 'bluetooth'
+	NetSockFamilyKey = attribute.Key("net.sock.family")
+	// Logical remote hostname, see note below.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'example.com'
 	// Note: `net.peer.name` SHOULD NOT be set if capturing it would require an extra
 	// DNS lookup.
 	NetPeerNameKey = attribute.Key("net.peer.name")
-	// Like `net.peer.ip` but for the host IP. Useful in case of a multi-IP host.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: '192.168.0.1'
-	NetHostIPKey = attribute.Key("net.host.ip")
-	// Like `net.peer.port` but for the host port.
+	// Logical remote port number
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: 35555
-	NetHostPortKey = attribute.Key("net.host.port")
-	// Local hostname or similar, see note below.
+	// Examples: 80, 8080, 443
+	NetPeerPortKey = attribute.Key("net.peer.port")
+	// Logical local hostname or similar, see note below.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'localhost'
 	NetHostNameKey = attribute.Key("net.host.name")
+	// Logical local port number, preferably the one that the peer used to connect
+	//
+	// Type: int
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 8080
+	NetHostPortKey = attribute.Key("net.host.port")
+	// Local socket address. Useful in case of a multi-IP host.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: '192.168.0.1'
+	NetSockHostAddrKey = attribute.Key("net.sock.host.addr")
+	// Local socket port number.
+	//
+	// Type: int
+	// RequirementLevel: Recommended (If defined for the address family and if
+	// different than `net.host.port` and if `net.sock.host.addr` is set.)
+	// Stability: stable
+	// Examples: 35555
+	NetSockHostPortKey = attribute.Key("net.sock.host.port")
 	// The internet connection type currently being used by the host.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'wifi'
 	NetHostConnectionTypeKey = attribute.Key("net.host.connection.type")
@@ -692,28 +782,28 @@ const (
 	// about a wifi connection.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'LTE'
 	NetHostConnectionSubtypeKey = attribute.Key("net.host.connection.subtype")
 	// The name of the mobile carrier.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'sprint'
 	NetHostCarrierNameKey = attribute.Key("net.host.carrier.name")
 	// The mobile carrier country code.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '310'
 	NetHostCarrierMccKey = attribute.Key("net.host.carrier.mcc")
 	// The mobile carrier network code.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '001'
 	NetHostCarrierMncKey = attribute.Key("net.host.carrier.mnc")
@@ -721,7 +811,7 @@ const (
 	// carrier network.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'DE'
 	NetHostCarrierIccKey = attribute.Key("net.host.carrier.icc")
@@ -732,16 +822,21 @@ var (
 	NetTransportTCP = NetTransportKey.String("ip_tcp")
 	// ip_udp
 	NetTransportUDP = NetTransportKey.String("ip_udp")
-	// Another IP-based protocol
-	NetTransportIP = NetTransportKey.String("ip")
-	// Unix Domain socket. See below
-	NetTransportUnix = NetTransportKey.String("unix")
 	// Named or anonymous pipe. See note below
 	NetTransportPipe = NetTransportKey.String("pipe")
 	// In-process communication
 	NetTransportInProc = NetTransportKey.String("inproc")
 	// Something else (non IP-based)
 	NetTransportOther = NetTransportKey.String("other")
+)
+
+var (
+	// IPv4 address
+	NetSockFamilyInet = NetSockFamilyKey.String("inet")
+	// IPv6 address
+	NetSockFamilyInet6 = NetSockFamilyKey.String("inet6")
+	// Unix domain socket path
+	NetSockFamilyUnix = NetSockFamilyKey.String("unix")
 )
 
 var (
@@ -809,7 +904,7 @@ const (
 	// attribute of the remote service if any.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'AuthTokenCache'
 	PeerServiceKey = attribute.Key("peer.service")
@@ -822,7 +917,7 @@ const (
 	// inbound request from outside the system.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'username'
 	EnduserIDKey = attribute.Key("enduser.id")
@@ -830,7 +925,7 @@ const (
 	// or application security context.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'admin'
 	EnduserRoleKey = attribute.Key("enduser.role")
@@ -842,7 +937,7 @@ const (
 	// open.org/security/saml/Post2.0/sstc-saml-tech-overview-2.0.html).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'read:message, write:files'
 	EnduserScopeKey = attribute.Key("enduser.scope")
@@ -853,14 +948,14 @@ const (
 	// Current "managed" thread ID (as opposed to OS thread ID).
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 42
 	ThreadIDKey = attribute.Key("thread.id")
 	// Current thread name.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'main'
 	ThreadNameKey = attribute.Key("thread.name")
@@ -872,7 +967,7 @@ const (
 	// unit's name).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'serveRequest'
 	CodeFunctionKey = attribute.Key("code.function")
@@ -881,7 +976,7 @@ const (
 	// `code.function` form a unique identifier for the code unit.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'com.example.MyHTTPService'
 	CodeNamespaceKey = attribute.Key("code.namespace")
@@ -889,7 +984,7 @@ const (
 	// (preferably an absolute file path).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '/usr/local/MyApplication/content_root/app/index.php'
 	CodeFilepathKey = attribute.Key("code.filepath")
@@ -897,10 +992,18 @@ const (
 	// point within the code unit named in `code.function`.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 42
 	CodeLineNumberKey = attribute.Key("code.lineno")
+	// The column number in `code.filepath` best representing the operation. It SHOULD
+	// point within the code unit named in `code.function`.
+	//
+	// Type: int
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 16
+	CodeColumnKey = attribute.Key("code.column")
 )
 
 // This document defines semantic conventions for HTTP client and server Spans.
@@ -908,117 +1011,55 @@ const (
 	// HTTP request method.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'GET', 'POST', 'HEAD'
 	HTTPMethodKey = attribute.Key("http.method")
-	// Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`.
-	// Usually the fragment is not transmitted over HTTP, but if it is known, it
-	// should be included nevertheless.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: 'https://www.foo.bar/search?q=OpenTelemetry#SemConv'
-	// Note: `http.url` MUST NOT contain credentials passed via URL in form of
-	// `https://username:password@www.example.com/`. In such case the attribute's
-	// value should be `https://www.example.com/`.
-	HTTPURLKey = attribute.Key("http.url")
-	// The full request target as passed in a HTTP request line or equivalent.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: '/path/12314/?q=ddds#123'
-	HTTPTargetKey = attribute.Key("http.target")
-	// The value of the [HTTP host
-	// header](https://tools.ietf.org/html/rfc7230#section-5.4). An empty Host header
-	// should also be reported, see note.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: 'www.example.org'
-	// Note: When the header is present but empty the attribute SHOULD be set to the
-	// empty string. Note that this is a valid situation that is expected in certain
-	// cases, according the aforementioned [section of RFC
-	// 7230](https://tools.ietf.org/html/rfc7230#section-5.4). When the header is not
-	// set the attribute MUST NOT be set.
-	HTTPHostKey = attribute.Key("http.host")
-	// The URI scheme identifying the used protocol.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: 'http', 'https'
-	HTTPSchemeKey = attribute.Key("http.scheme")
 	// [HTTP response status code](https://tools.ietf.org/html/rfc7231#section-6).
 	//
 	// Type: int
-	// Required: If and only if one was received/sent.
+	// RequirementLevel: ConditionallyRequired (If and only if one was received/sent.)
 	// Stability: stable
 	// Examples: 200
 	HTTPStatusCodeKey = attribute.Key("http.status_code")
 	// Kind of HTTP protocol used.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Note: If `net.transport` is not specified, it can be assumed to be `IP.TCP`
 	// except if `http.flavor` is `QUIC`, in which case `IP.UDP` is assumed.
 	HTTPFlavorKey = attribute.Key("http.flavor")
-	// Value of the [HTTP User-
-	// Agent](https://tools.ietf.org/html/rfc7231#section-5.5.3) header sent by the
-	// client.
+	// Value of the [HTTP User-Agent](https://www.rfc-
+	// editor.org/rfc/rfc9110.html#field.user-agent) header sent by the client.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'CERN-LineMode/2.15 libwww/2.17b3'
 	HTTPUserAgentKey = attribute.Key("http.user_agent")
 	// The size of the request payload body in bytes. This is the number of bytes
 	// transferred excluding headers and is often, but not always, present as the
-	// [Content-Length](https://tools.ietf.org/html/rfc7230#section-3.3.2) header. For
-	// requests using transport encoding, this should be the compressed size.
+	// [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-
+	// length) header. For requests using transport encoding, this should be the
+	// compressed size.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 3495
 	HTTPRequestContentLengthKey = attribute.Key("http.request_content_length")
-	// The size of the uncompressed request payload body after transport decoding. Not
-	// set if transport encoding not used.
-	//
-	// Type: int
-	// Required: No
-	// Stability: stable
-	// Examples: 5493
-	HTTPRequestContentLengthUncompressedKey = attribute.Key("http.request_content_length_uncompressed")
 	// The size of the response payload body in bytes. This is the number of bytes
 	// transferred excluding headers and is often, but not always, present as the
-	// [Content-Length](https://tools.ietf.org/html/rfc7230#section-3.3.2) header. For
-	// requests using transport encoding, this should be the compressed size.
+	// [Content-Length](https://www.rfc-editor.org/rfc/rfc9110.html#field.content-
+	// length) header. For requests using transport encoding, this should be the
+	// compressed size.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 3495
 	HTTPResponseContentLengthKey = attribute.Key("http.response_content_length")
-	// The size of the uncompressed response payload body after transport decoding.
-	// Not set if transport encoding not used.
-	//
-	// Type: int
-	// Required: No
-	// Stability: stable
-	// Examples: 5493
-	HTTPResponseContentLengthUncompressedKey = attribute.Key("http.response_content_length_uncompressed")
-	// The ordinal number of request re-sending attempt.
-	//
-	// Type: int
-	// Required: If and only if a request was retried.
-	// Stability: stable
-	// Examples: 3
-	HTTPRetryCountKey = attribute.Key("http.retry_count")
 )
 
 var (
@@ -1036,45 +1077,78 @@ var (
 	HTTPFlavorQUIC = HTTPFlavorKey.String("QUIC")
 )
 
+// Semantic Convention for HTTP Client
+const (
+	// Full HTTP request URL in the form `scheme://host[:port]/path?query[#fragment]`.
+	// Usually the fragment is not transmitted over HTTP, but if it is known, it
+	// should be included nevertheless.
+	//
+	// Type: string
+	// RequirementLevel: Required
+	// Stability: stable
+	// Examples: 'https://www.foo.bar/search?q=OpenTelemetry#SemConv'
+	// Note: `http.url` MUST NOT contain credentials passed via URL in form of
+	// `https://username:password@www.example.com/`. In such case the attribute's
+	// value should be `https://www.example.com/`.
+	HTTPURLKey = attribute.Key("http.url")
+	// The ordinal number of request resending attempt (for any reason, including
+	// redirects).
+	//
+	// Type: int
+	// RequirementLevel: Recommended (if and only if request was retried.)
+	// Stability: stable
+	// Examples: 3
+	// Note: The resend count SHOULD be updated each time an HTTP request gets resent
+	// by the client, regardless of what was the cause of the resending (e.g.
+	// redirection, authorization failure, 503 Server Unavailable, network issues, or
+	// any other).
+	HTTPResendCountKey = attribute.Key("http.resend_count")
+)
+
 // Semantic Convention for HTTP Server
 const (
-	// The primary server name of the matched virtual host. This should be obtained
-	// via configuration. If no such configuration can be obtained, this attribute
-	// MUST NOT be set ( `net.host.name` should be used instead).
+	// The URI scheme identifying the used protocol.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Required
 	// Stability: stable
-	// Examples: 'example.com'
-	// Note: `http.url` is usually not readily available on the server side but would
-	// have to be assembled in a cumbersome and sometimes lossy process from other
-	// information (see e.g. open-telemetry/opentelemetry-python/pull/148). It is thus
-	// preferred to supply the raw data that is available.
-	HTTPServerNameKey = attribute.Key("http.server_name")
-	// The matched route (path template).
+	// Examples: 'http', 'https'
+	HTTPSchemeKey = attribute.Key("http.scheme")
+	// The full request target as passed in a HTTP request line or equivalent.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Required
 	// Stability: stable
-	// Examples: '/users/:userID?'
+	// Examples: '/path/12314/?q=ddds'
+	HTTPTargetKey = attribute.Key("http.target")
+	// The matched route (path template in the format used by the respective server
+	// framework). See note below
+	//
+	// Type: string
+	// RequirementLevel: ConditionallyRequired (If and only if it's available)
+	// Stability: stable
+	// Examples: '/users/:userID?', '{controller}/{action}/{id?}'
+	// Note: 'http.route' MUST NOT be populated when this is not supported by the HTTP
+	// server framework as the route attribute should have low-cardinality and the URI
+	// path can NOT substitute it.
 	HTTPRouteKey = attribute.Key("http.route")
 	// The IP address of the original client behind all proxies, if known (e.g. from
 	// [X-Forwarded-For](https://developer.mozilla.org/en-
 	// US/docs/Web/HTTP/Headers/X-Forwarded-For)).
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '83.164.160.102'
-	// Note: This is not necessarily the same as `net.peer.ip`, which would
+	// Note: This is not necessarily the same as `net.sock.peer.addr`, which would
 	// identify the network-level peer, which may be a proxy.
 
 	// This attribute should be set when a source of information different
-	// from the one used for `net.peer.ip`, is available even if that other
-	// source just confirms the same value as `net.peer.ip`.
-	// Rationale: For `net.peer.ip`, one typically does not know if it
+	// from the one used for `net.sock.peer.addr`, is available even if that other
+	// source just confirms the same value as `net.sock.peer.addr`.
+	// Rationale: For `net.sock.peer.addr`, one typically does not know if it
 	// comes from a proxy, reverse proxy, or the actual client. Setting
-	// `http.client_ip` when it's the same as `net.peer.ip` means that
+	// `http.client_ip` when it's the same as `net.sock.peer.addr` means that
 	// one is at least somewhat confident that the address is not that of
 	// the closest proxy.
 	HTTPClientIPKey = attribute.Key("http.client_ip")
@@ -1085,7 +1159,7 @@ const (
 	// The keys in the `RequestItems` object field.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Users', 'Cats'
 	AWSDynamoDBTableNamesKey = attribute.Key("aws.dynamodb.table_names")
@@ -1093,7 +1167,7 @@ const (
 	// field.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '{ "CapacityUnits": number, "GlobalSecondaryIndexes": { "string" : {
 	// "CapacityUnits": number, "ReadCapacityUnits": number, "WriteCapacityUnits":
@@ -1106,7 +1180,7 @@ const (
 	// The JSON-serialized value of the `ItemCollectionMetrics` response field.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '{ "string" : [ { "ItemCollectionKey": { "string" : { "B": blob,
 	// "BOOL": boolean, "BS": [ blob ], "L": [ "AttributeValue" ], "M": { "string" :
@@ -1116,27 +1190,27 @@ const (
 	// The value of the `ProvisionedThroughput.ReadCapacityUnits` request parameter.
 	//
 	// Type: double
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 1.0, 2.0
 	AWSDynamoDBProvisionedReadCapacityKey = attribute.Key("aws.dynamodb.provisioned_read_capacity")
 	// The value of the `ProvisionedThroughput.WriteCapacityUnits` request parameter.
 	//
 	// Type: double
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 1.0, 2.0
 	AWSDynamoDBProvisionedWriteCapacityKey = attribute.Key("aws.dynamodb.provisioned_write_capacity")
 	// The value of the `ConsistentRead` request parameter.
 	//
 	// Type: boolean
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	AWSDynamoDBConsistentReadKey = attribute.Key("aws.dynamodb.consistent_read")
 	// The value of the `ProjectionExpression` request parameter.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Title', 'Title, Price, Color', 'Title, Description, RelatedItems,
 	// ProductReviews'
@@ -1144,28 +1218,28 @@ const (
 	// The value of the `Limit` request parameter.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 10
 	AWSDynamoDBLimitKey = attribute.Key("aws.dynamodb.limit")
 	// The value of the `AttributesToGet` request parameter.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'lives', 'id'
 	AWSDynamoDBAttributesToGetKey = attribute.Key("aws.dynamodb.attributes_to_get")
 	// The value of the `IndexName` request parameter.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'name_to_group'
 	AWSDynamoDBIndexNameKey = attribute.Key("aws.dynamodb.index_name")
 	// The value of the `Select` request parameter.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'ALL_ATTRIBUTES', 'COUNT'
 	AWSDynamoDBSelectKey = attribute.Key("aws.dynamodb.select")
@@ -1177,7 +1251,7 @@ const (
 	// field
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '{ "IndexName": "string", "KeySchema": [ { "AttributeName": "string",
 	// "KeyType": "string" } ], "Projection": { "NonKeyAttributes": [ "string" ],
@@ -1188,7 +1262,7 @@ const (
 	// field.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '{ "IndexARN": "string", "IndexName": "string", "IndexSizeBytes":
 	// number, "ItemCount": number, "KeySchema": [ { "AttributeName": "string",
@@ -1202,14 +1276,14 @@ const (
 	// The value of the `ExclusiveStartTableName` request parameter.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Users', 'CatsTable'
 	AWSDynamoDBExclusiveStartTableKey = attribute.Key("aws.dynamodb.exclusive_start_table")
 	// The the number of items in the `TableNames` response parameter.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 20
 	AWSDynamoDBTableCountKey = attribute.Key("aws.dynamodb.table_count")
@@ -1220,7 +1294,7 @@ const (
 	// The value of the `ScanIndexForward` request parameter.
 	//
 	// Type: boolean
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	AWSDynamoDBScanForwardKey = attribute.Key("aws.dynamodb.scan_forward")
 )
@@ -1230,28 +1304,28 @@ const (
 	// The value of the `Segment` request parameter.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 10
 	AWSDynamoDBSegmentKey = attribute.Key("aws.dynamodb.segment")
 	// The value of the `TotalSegments` request parameter.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 100
 	AWSDynamoDBTotalSegmentsKey = attribute.Key("aws.dynamodb.total_segments")
 	// The value of the `Count` response parameter.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 10
 	AWSDynamoDBCountKey = attribute.Key("aws.dynamodb.count")
 	// The value of the `ScannedCount` response parameter.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 50
 	AWSDynamoDBScannedCountKey = attribute.Key("aws.dynamodb.scanned_count")
@@ -1263,7 +1337,7 @@ const (
 	// field.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '{ "AttributeName": "string", "AttributeType": "string" }'
 	AWSDynamoDBAttributeDefinitionsKey = attribute.Key("aws.dynamodb.attribute_definitions")
@@ -1271,7 +1345,7 @@ const (
 	// request field.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '{ "Create": { "IndexName": "string", "KeySchema": [ {
 	// "AttributeName": "string", "KeyType": "string" } ], "Projection": {
@@ -1281,90 +1355,121 @@ const (
 	AWSDynamoDBGlobalSecondaryIndexUpdatesKey = attribute.Key("aws.dynamodb.global_secondary_index_updates")
 )
 
-// This document defines the attributes used in messaging systems.
+// This document defines semantic conventions to apply when instrumenting the GraphQL implementation. They map GraphQL operations to attributes on a Span.
 const (
-	// A string identifying the messaging system.
+	// The name of the operation being executed.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: 'kafka', 'rabbitmq', 'rocketmq', 'activemq', 'AmazonSQS'
-	MessagingSystemKey = attribute.Key("messaging.system")
-	// The message destination name. This might be equal to the span name but is
-	// required nevertheless.
-	//
-	// Type: string
-	// Required: Always
-	// Stability: stable
-	// Examples: 'MyQueue', 'MyTopic'
-	MessagingDestinationKey = attribute.Key("messaging.destination")
-	// The kind of message destination
+	// Examples: 'findBookByID'
+	GraphqlOperationNameKey = attribute.Key("graphql.operation.name")
+	// The type of the operation being executed.
 	//
 	// Type: Enum
-	// Required: Required only if the message destination is either a `queue` or
-	// `topic`.
+	// RequirementLevel: Optional
 	// Stability: stable
-	MessagingDestinationKindKey = attribute.Key("messaging.destination_kind")
-	// A boolean that is true if the message destination is temporary.
-	//
-	// Type: boolean
-	// Required: If missing, it is assumed to be false.
-	// Stability: stable
-	MessagingTempDestinationKey = attribute.Key("messaging.temp_destination")
-	// The name of the transport protocol.
+	// Examples: 'query', 'mutation', 'subscription'
+	GraphqlOperationTypeKey = attribute.Key("graphql.operation.type")
+	// The GraphQL document being executed.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: 'AMQP', 'MQTT'
-	MessagingProtocolKey = attribute.Key("messaging.protocol")
-	// The version of the transport protocol.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: '0.9.1'
-	MessagingProtocolVersionKey = attribute.Key("messaging.protocol_version")
-	// Connection string.
-	//
-	// Type: string
-	// Required: No
-	// Stability: stable
-	// Examples: 'tibjmsnaming://localhost:7222',
-	// 'https://queue.amazonaws.com/80398EXAMPLE/MyQueue'
-	MessagingURLKey = attribute.Key("messaging.url")
+	// Examples: 'query findBookByID { bookByID(id: ?) { name } }'
+	// Note: The value may be sanitized to exclude sensitive information.
+	GraphqlDocumentKey = attribute.Key("graphql.document")
+)
+
+var (
+	// GraphQL query
+	GraphqlOperationTypeQuery = GraphqlOperationTypeKey.String("query")
+	// GraphQL mutation
+	GraphqlOperationTypeMutation = GraphqlOperationTypeKey.String("mutation")
+	// GraphQL subscription
+	GraphqlOperationTypeSubscription = GraphqlOperationTypeKey.String("subscription")
+)
+
+// Semantic convention describing per-message attributes populated on messaging spans or links.
+const (
 	// A value used by the messaging system as an identifier for the message,
 	// represented as a string.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '452a7c7c7c7048c2f887f61572b18fc2'
-	MessagingMessageIDKey = attribute.Key("messaging.message_id")
+	MessagingMessageIDKey = attribute.Key("messaging.message.id")
 	// The [conversation ID](#conversations) identifying the conversation to which the
 	// message belongs, represented as a string. Sometimes called "Correlation ID".
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'MyConversationID'
-	MessagingConversationIDKey = attribute.Key("messaging.conversation_id")
+	MessagingMessageConversationIDKey = attribute.Key("messaging.message.conversation_id")
 	// The (uncompressed) size of the message payload in bytes. Also use this
 	// attribute if it is unknown whether the compressed or uncompressed payload size
 	// is reported.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 2738
-	MessagingMessagePayloadSizeBytesKey = attribute.Key("messaging.message_payload_size_bytes")
+	MessagingMessagePayloadSizeBytesKey = attribute.Key("messaging.message.payload_size_bytes")
 	// The compressed size of the message payload in bytes.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 2048
-	MessagingMessagePayloadCompressedSizeBytesKey = attribute.Key("messaging.message_payload_compressed_size_bytes")
+	MessagingMessagePayloadCompressedSizeBytesKey = attribute.Key("messaging.message.payload_compressed_size_bytes")
+)
+
+// Semantic convention for attributes that describe messaging destination on broker
+const (
+	// The message destination name
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'MyQueue', 'MyTopic'
+	// Note: Destination name SHOULD uniquely identify a specific queue, topic or
+	// other entity within the broker. If
+	// the broker does not have such notion, the destination name SHOULD uniquely
+	// identify the broker.
+	MessagingDestinationNameKey = attribute.Key("messaging.destination.name")
+	// The kind of message destination
+	//
+	// Type: Enum
+	// RequirementLevel: Optional
+	// Stability: stable
+	MessagingDestinationKindKey = attribute.Key("messaging.destination.kind")
+	// Low cardinality representation of the messaging destination name
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: '/customers/{customerID}'
+	// Note: Destination names could be constructed from templates. An example would
+	// be a destination name involving a user name or product id. Although the
+	// destination name in this case is of high cardinality, the underlying template
+	// is of low cardinality and can be effectively used for grouping and aggregation.
+	MessagingDestinationTemplateKey = attribute.Key("messaging.destination.template")
+	// A boolean that is true if the message destination is temporary and might not
+	// exist anymore after messages are processed.
+	//
+	// Type: boolean
+	// RequirementLevel: Optional
+	// Stability: stable
+	MessagingDestinationTemporaryKey = attribute.Key("messaging.destination.temporary")
+	// A boolean that is true if the message destination is anonymous (could be
+	// unnamed or have auto-generated name).
+	//
+	// Type: boolean
+	// RequirementLevel: Optional
+	// Stability: stable
+	MessagingDestinationAnonymousKey = attribute.Key("messaging.destination.anonymous")
 )
 
 var (
@@ -1374,35 +1479,114 @@ var (
 	MessagingDestinationKindTopic = MessagingDestinationKindKey.String("topic")
 )
 
-// Semantic convention for a consumer of messages received from a messaging system
+// Semantic convention for attributes that describe messaging source on broker
 const (
-	// A string identifying the kind of message consumption as defined in the
-	// [Operation names](#operation-names) section above. If the operation is "send",
-	// this attribute MUST NOT be set, since the operation can be inferred from the
-	// span kind in that case.
-	//
-	// Type: Enum
-	// Required: No
-	// Stability: stable
-	MessagingOperationKey = attribute.Key("messaging.operation")
-	// The identifier for the consumer receiving a message. For Kafka, set it to
-	// `{messaging.kafka.consumer_group} - {messaging.kafka.client_id}`, if both are
-	// present, or only `messaging.kafka.consumer_group`. For brokers, such as
-	// RabbitMQ and Artemis, set it to the `client_id` of the client consuming the
-	// message.
+	// The message source name
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	// Examples: 'mygroup - client-6'
-	MessagingConsumerIDKey = attribute.Key("messaging.consumer_id")
+	// Examples: 'MyQueue', 'MyTopic'
+	// Note: Source name SHOULD uniquely identify a specific queue, topic, or other
+	// entity within the broker. If
+	// the broker does not have such notion, the source name SHOULD uniquely identify
+	// the broker.
+	MessagingSourceNameKey = attribute.Key("messaging.source.name")
+	// The kind of message source
+	//
+	// Type: Enum
+	// RequirementLevel: Optional
+	// Stability: stable
+	MessagingSourceKindKey = attribute.Key("messaging.source.kind")
+	// Low cardinality representation of the messaging source name
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: '/customers/{customerID}'
+	// Note: Source names could be constructed from templates. An example would be a
+	// source name involving a user name or product id. Although the source name in
+	// this case is of high cardinality, the underlying template is of low cardinality
+	// and can be effectively used for grouping and aggregation.
+	MessagingSourceTemplateKey = attribute.Key("messaging.source.template")
+	// A boolean that is true if the message source is temporary and might not exist
+	// anymore after messages are processed.
+	//
+	// Type: boolean
+	// RequirementLevel: Optional
+	// Stability: stable
+	MessagingSourceTemporaryKey = attribute.Key("messaging.source.temporary")
+	// A boolean that is true if the message source is anonymous (could be unnamed or
+	// have auto-generated name).
+	//
+	// Type: boolean
+	// RequirementLevel: Optional
+	// Stability: stable
+	MessagingSourceAnonymousKey = attribute.Key("messaging.source.anonymous")
 )
 
 var (
+	// A message received from a queue
+	MessagingSourceKindQueue = MessagingSourceKindKey.String("queue")
+	// A message received from a topic
+	MessagingSourceKindTopic = MessagingSourceKindKey.String("topic")
+)
+
+// This document defines general attributes used in messaging systems.
+const (
+	// A string identifying the messaging system.
+	//
+	// Type: string
+	// RequirementLevel: Required
+	// Stability: stable
+	// Examples: 'kafka', 'rabbitmq', 'rocketmq', 'activemq', 'AmazonSQS'
+	MessagingSystemKey = attribute.Key("messaging.system")
+	// A string identifying the kind of messaging operation as defined in the
+	// [Operation names](#operation-names) section above.
+	//
+	// Type: Enum
+	// RequirementLevel: Required
+	// Stability: stable
+	// Note: If a custom value is used, it MUST be of low cardinality.
+	MessagingOperationKey = attribute.Key("messaging.operation")
+	// The number of messages sent, received, or processed in the scope of the
+	// batching operation.
+	//
+	// Type: int
+	// RequirementLevel: ConditionallyRequired (If the span describes an operation on
+	// a batch of messages.)
+	// Stability: stable
+	// Examples: 0, 1, 2
+	// Note: Instrumentations SHOULD NOT set `messaging.batch.message_count` on spans
+	// that operate with a single message. When a messaging client library supports
+	// both batch and single-message API for the same operation, instrumentations
+	// SHOULD use `messaging.batch.message_count` for batching APIs and SHOULD NOT use
+	// it for single-message APIs.
+	MessagingBatchMessageCountKey = attribute.Key("messaging.batch.message_count")
+)
+
+var (
+	// publish
+	MessagingOperationPublish = MessagingOperationKey.String("publish")
 	// receive
 	MessagingOperationReceive = MessagingOperationKey.String("receive")
 	// process
 	MessagingOperationProcess = MessagingOperationKey.String("process")
+)
+
+// Semantic convention for a consumer of messages received from a messaging system
+const (
+	// The identifier for the consumer receiving a message. For Kafka, set it to
+	// `{messaging.kafka.consumer.group} - {messaging.kafka.client_id}`, if both are
+	// present, or only `messaging.kafka.consumer.group`. For brokers, such as
+	// RabbitMQ and Artemis, set it to the `client_id` of the client consuming the
+	// message.
+	//
+	// Type: string
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 'mygroup - client-6'
+	MessagingConsumerIDKey = attribute.Key("messaging.consumer.id")
 )
 
 // Attributes for RabbitMQ
@@ -1410,54 +1594,69 @@ const (
 	// RabbitMQ message routing key.
 	//
 	// Type: string
-	// Required: Unless it is empty.
+	// RequirementLevel: ConditionallyRequired (If not empty.)
 	// Stability: stable
 	// Examples: 'myKey'
-	MessagingRabbitmqRoutingKeyKey = attribute.Key("messaging.rabbitmq.routing_key")
+	MessagingRabbitmqDestinationRoutingKeyKey = attribute.Key("messaging.rabbitmq.destination.routing_key")
 )
 
 // Attributes for Apache Kafka
 const (
 	// Message keys in Kafka are used for grouping alike messages to ensure they're
-	// processed on the same partition. They differ from `messaging.message_id` in
+	// processed on the same partition. They differ from `messaging.message.id` in
 	// that they're not unique. If the key is `null`, the attribute MUST NOT be set.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'myKey'
 	// Note: If the key type is not string, it's string representation has to be
 	// supplied for the attribute. If the key has no unambiguous, canonical string
 	// form, don't include its value.
-	MessagingKafkaMessageKeyKey = attribute.Key("messaging.kafka.message_key")
+	MessagingKafkaMessageKeyKey = attribute.Key("messaging.kafka.message.key")
 	// Name of the Kafka Consumer Group that is handling the message. Only applies to
 	// consumers, not producers.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'my-group'
-	MessagingKafkaConsumerGroupKey = attribute.Key("messaging.kafka.consumer_group")
+	MessagingKafkaConsumerGroupKey = attribute.Key("messaging.kafka.consumer.group")
 	// Client ID for the Consumer or Producer that is handling the message.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'client-5'
 	MessagingKafkaClientIDKey = attribute.Key("messaging.kafka.client_id")
 	// Partition the message is sent to.
 	//
 	// Type: int
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 2
-	MessagingKafkaPartitionKey = attribute.Key("messaging.kafka.partition")
+	MessagingKafkaDestinationPartitionKey = attribute.Key("messaging.kafka.destination.partition")
+	// Partition the message is received from.
+	//
+	// Type: int
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 2
+	MessagingKafkaSourcePartitionKey = attribute.Key("messaging.kafka.source.partition")
+	// The offset of a record in the corresponding Kafka partition.
+	//
+	// Type: int
+	// RequirementLevel: Optional
+	// Stability: stable
+	// Examples: 42
+	MessagingKafkaMessageOffsetKey = attribute.Key("messaging.kafka.message.offset")
 	// A boolean that is true if the message is a tombstone.
 	//
 	// Type: boolean
-	// Required: If missing, it is assumed to be false.
+	// RequirementLevel: ConditionallyRequired (If value is `true`. When missing, the
+	// value is assumed to be `false`.)
 	// Stability: stable
-	MessagingKafkaTombstoneKey = attribute.Key("messaging.kafka.tombstone")
+	MessagingKafkaMessageTombstoneKey = attribute.Key("messaging.kafka.message.tombstone")
 )
 
 // Attributes for Apache RocketMQ
@@ -1466,7 +1665,7 @@ const (
 	// individual.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'myNamespace'
 	MessagingRocketmqNamespaceKey = attribute.Key("messaging.rocketmq.namespace")
@@ -1474,41 +1673,67 @@ const (
 	// client type is identified by the SpanKind.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'myConsumerGroup'
 	MessagingRocketmqClientGroupKey = attribute.Key("messaging.rocketmq.client_group")
 	// The unique identifier for each client.
 	//
 	// Type: string
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	// Examples: 'myhost@8742@s8083jm'
 	MessagingRocketmqClientIDKey = attribute.Key("messaging.rocketmq.client_id")
+	// The timestamp in milliseconds that the delay message is expected to be
+	// delivered to consumer.
+	//
+	// Type: int
+	// RequirementLevel: ConditionallyRequired (If the message type is delay and delay
+	// time level is not specified.)
+	// Stability: stable
+	// Examples: 1665987217045
+	MessagingRocketmqMessageDeliveryTimestampKey = attribute.Key("messaging.rocketmq.message.delivery_timestamp")
+	// The delay time level for delay message, which determines the message delay
+	// time.
+	//
+	// Type: int
+	// RequirementLevel: ConditionallyRequired (If the message type is delay and
+	// delivery timestamp is not specified.)
+	// Stability: stable
+	// Examples: 3
+	MessagingRocketmqMessageDelayTimeLevelKey = attribute.Key("messaging.rocketmq.message.delay_time_level")
+	// It is essential for FIFO message. Messages that belong to the same message
+	// group are always processed one by one within the same consumer group.
+	//
+	// Type: string
+	// RequirementLevel: ConditionallyRequired (If the message type is FIFO.)
+	// Stability: stable
+	// Examples: 'myMessageGroup'
+	MessagingRocketmqMessageGroupKey = attribute.Key("messaging.rocketmq.message.group")
 	// Type of message.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
-	MessagingRocketmqMessageTypeKey = attribute.Key("messaging.rocketmq.message_type")
+	MessagingRocketmqMessageTypeKey = attribute.Key("messaging.rocketmq.message.type")
 	// The secondary classifier of message besides topic.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'tagA'
-	MessagingRocketmqMessageTagKey = attribute.Key("messaging.rocketmq.message_tag")
+	MessagingRocketmqMessageTagKey = attribute.Key("messaging.rocketmq.message.tag")
 	// Key(s) of message, another way to mark message besides message id.
 	//
 	// Type: string[]
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'keyA', 'keyB'
-	MessagingRocketmqMessageKeysKey = attribute.Key("messaging.rocketmq.message_keys")
+	MessagingRocketmqMessageKeysKey = attribute.Key("messaging.rocketmq.message.keys")
 	// Model of message consumption. This only applies to consumer spans.
 	//
 	// Type: Enum
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	MessagingRocketmqConsumptionModelKey = attribute.Key("messaging.rocketmq.consumption_model")
 )
@@ -1537,14 +1762,14 @@ const (
 	// identifiers.
 	//
 	// Type: Enum
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	RPCSystemKey = attribute.Key("rpc.system")
 	// The full (logical) name of the service being called, including its package
 	// name, if applicable.
 	//
 	// Type: string
-	// Required: No, but recommended
+	// RequirementLevel: Recommended
 	// Stability: stable
 	// Examples: 'myservice.EchoService'
 	// Note: This is the logical name of the service from the RPC interface
@@ -1558,7 +1783,7 @@ const (
 	// part in the span name.
 	//
 	// Type: string
-	// Required: No, but recommended
+	// RequirementLevel: Recommended
 	// Stability: stable
 	// Examples: 'exampleMethod'
 	// Note: This is the logical name of the method from the RPC interface
@@ -1587,7 +1812,7 @@ const (
 	// request.
 	//
 	// Type: Enum
-	// Required: Always
+	// RequirementLevel: Required
 	// Stability: stable
 	RPCGRPCStatusCodeKey = attribute.Key("rpc.grpc.status_code")
 )
@@ -1635,7 +1860,8 @@ const (
 	// 1.0 does not specify this, the value can be omitted.
 	//
 	// Type: string
-	// Required: If missing, it is assumed to be "1.0".
+	// RequirementLevel: ConditionallyRequired (If other than the default version
+	// (`1.0`))
 	// Stability: stable
 	// Examples: '2.0', '1.0'
 	RPCJsonrpcVersionKey = attribute.Key("rpc.jsonrpc.version")
@@ -1645,60 +1871,22 @@ const (
 	// if this is a notification.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: '10', 'request-7', ''
 	RPCJsonrpcRequestIDKey = attribute.Key("rpc.jsonrpc.request_id")
 	// `error.code` property of response if it is an error response.
 	//
 	// Type: int
-	// Required: If missing, response is assumed to be successful.
+	// RequirementLevel: ConditionallyRequired (If response is not successful.)
 	// Stability: stable
 	// Examples: -32700, 100
 	RPCJsonrpcErrorCodeKey = attribute.Key("rpc.jsonrpc.error_code")
 	// `error.message` property of response if it is an error response.
 	//
 	// Type: string
-	// Required: No
+	// RequirementLevel: Optional
 	// Stability: stable
 	// Examples: 'Parse error', 'User already exists'
 	RPCJsonrpcErrorMessageKey = attribute.Key("rpc.jsonrpc.error_message")
-)
-
-// RPC received/sent message.
-const (
-	// Whether this is a received or sent message.
-	//
-	// Type: Enum
-	// Required: No
-	// Stability: stable
-	MessageTypeKey = attribute.Key("message.type")
-	// MUST be calculated as two different counters starting from `1` one for sent
-	// messages and one for received message.
-	//
-	// Type: int
-	// Required: No
-	// Stability: stable
-	// Note: This way we guarantee that the values will be consistent between
-	// different implementations.
-	MessageIDKey = attribute.Key("message.id")
-	// Compressed size of the message in bytes.
-	//
-	// Type: int
-	// Required: No
-	// Stability: stable
-	MessageCompressedSizeKey = attribute.Key("message.compressed_size")
-	// Uncompressed size of the message in bytes.
-	//
-	// Type: int
-	// Required: No
-	// Stability: stable
-	MessageUncompressedSizeKey = attribute.Key("message.uncompressed_size")
-)
-
-var (
-	// sent
-	MessageTypeSent = MessageTypeKey.String("SENT")
-	// received
-	MessageTypeReceived = MessageTypeKey.String("RECEIVED")
 )
