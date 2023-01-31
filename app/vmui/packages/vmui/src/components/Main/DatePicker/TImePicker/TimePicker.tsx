@@ -14,7 +14,7 @@ enum TimeUnits { hour, minutes, seconds }
 
 
 const TimePicker: FC<CalendarTimepickerProps>= ({ selectDate, onChangeTime, onClose }) => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
 
   const [activeField, setActiveField] = useState<TimeUnits>(TimeUnits.hour);
   const [hours, setHours] = useState(selectDate.format("HH"));
@@ -159,7 +159,7 @@ const TimePicker: FC<CalendarTimepickerProps>= ({ selectDate, onChangeTime, onCl
       <div
         className={classNames({
           "vm-calendar-time-picker-fields": true,
-          "vm-calendar-time-picker-fields_dark": darkTheme
+          "vm-calendar-time-picker-fields_dark": isDarkTheme
         })}
       >
         <input

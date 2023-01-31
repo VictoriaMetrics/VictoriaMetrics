@@ -20,14 +20,14 @@ const icons = {
 const Alert: FC<AlertProps> = ({
   variant,
   children }) => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
 
   return (
     <div
       className={classNames({
         "vm-alert": true,
         [`vm-alert_${variant}`]: variant,
-        "vm-alert_dark": darkTheme
+        "vm-alert_dark": isDarkTheme
       })}
     >
       <div className="vm-alert__icon">{icons[variant || "info"]}</div>

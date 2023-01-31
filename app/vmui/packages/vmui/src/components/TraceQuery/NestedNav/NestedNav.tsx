@@ -16,7 +16,7 @@ interface OpenLevels {
 }
 
 const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
 
   const handleListClick = (level: number) => () => {
@@ -31,7 +31,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
     <div
       className={classNames({
         "vm-nested-nav": true,
-        "vm-nested-nav_dark": darkTheme,
+        "vm-nested-nav_dark": isDarkTheme,
       })}
     >
       <div
