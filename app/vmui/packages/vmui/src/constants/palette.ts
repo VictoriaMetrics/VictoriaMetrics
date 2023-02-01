@@ -7,7 +7,7 @@ export const darkPalette = {
   "color-success": "#57ab5a",
   "color-background-body": "#22272e",
   "color-background-block": "#2d333b",
-  "color-background-tooltip": "rgba(22, 22, 22, 0.6)",
+  "color-background-tooltip": "rgba(22, 22, 22, 0.8)",
   "color-text": "#cdd9e5",
   "color-text-secondary": "#768390",
   "color-text-disabled": "#636e7b",

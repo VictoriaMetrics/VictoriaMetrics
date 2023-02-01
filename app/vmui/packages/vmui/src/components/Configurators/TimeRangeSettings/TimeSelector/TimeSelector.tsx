@@ -17,7 +17,7 @@ import classNames from "classnames";
 import { useAppState } from "../../../../state/common/StateContext";
 
 export const TimeSelector: FC = () => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const documentSize = useResize(document.body);
   const displayFullDate = useMemo(() => documentSize.width > 1280, [documentSize]);
@@ -150,7 +150,7 @@ export const TimeSelector: FC = () => {
           <div
             className={classNames({
               "vm-time-selector-left-inputs": true,
-              "vm-time-selector-left-inputs_dark": darkTheme
+              "vm-time-selector-left-inputs_dark": isDarkTheme
             })}
           >
             <div

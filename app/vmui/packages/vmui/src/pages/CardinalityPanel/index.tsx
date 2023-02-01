@@ -31,10 +31,6 @@ const Index: FC = () => {
     cardinalityDispatch({ type: "RUN_QUERY" });
   };
 
-  const onSetQuery = (query: string) => {
-    setQuery(query);
-  };
-
   const onSetHistory = (step: number) => {
     const newIndexHistory = queryHistoryIndex + step;
     if (newIndexHistory < 0 || newIndexHistory >= queryHistory.length) return;
@@ -86,7 +82,7 @@ const Index: FC = () => {
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         focusLabel={focusLabel}
         onRunQuery={onRunQuery}
-        onSetQuery={onSetQuery}
+        onSetQuery={setQuery}
         onSetHistory={onSetHistory}
         onTopNChange={onTopNChange}
         onFocusLabelChange={onFocusLabelChange}

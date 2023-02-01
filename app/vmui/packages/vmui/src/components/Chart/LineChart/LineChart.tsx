@@ -48,7 +48,7 @@ const LineChart: FC<LineChartProps> = ({
   container,
   height
 }) => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
 
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
@@ -225,7 +225,7 @@ const LineChart: FC<LineChartProps> = ({
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
     return u.destroy;
-  }, [uPlotRef.current, series, layoutSize, height, darkTheme]);
+  }, [uPlotRef.current, series, layoutSize, height, isDarkTheme]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);

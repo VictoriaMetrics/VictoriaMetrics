@@ -173,13 +173,14 @@ func VisitSeries(sq *storage.SearchQuery, deadline searchutils.Deadline, f Serie
 		values     []float64
 		timestamps []int64
 	)
+	var it chunkenc.Iterator
 	for ss.Next() {
 		s := ss.At()
 		convertPromLabelsToMetricName(&mn, s.Labels())
 		metricName = mn.SortAndMarshal(metricName[:0])
 		values = values[:0]
 		timestamps = timestamps[:0]
-		it := s.Iterator()
+		it = s.Iterator(it)
 		for {
 			typ := it.Next()
 			if typ == chunkenc.ValNone {

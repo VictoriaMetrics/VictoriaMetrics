@@ -8,6 +8,14 @@
     color: $color-primary;
   }
 
+  &_with-icon {
+    display: grid;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    grid-template-columns: 14px auto;
+  }
+
   &:hover {
     color: $color-primary;
     text-decoration: underline;

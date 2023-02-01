@@ -736,12 +736,15 @@ func (pt *partition) HasTimestamp(timestamp int64) bool {
 // GetParts appends parts snapshot to dst and returns it.
 //
 // The appended parts must be released with PutParts.
-func (pt *partition) GetParts(dst []*partWrapper) []*partWrapper {
+func (pt *partition) GetParts(dst []*partWrapper, addInMemory bool) []*partWrapper {
 	pt.partsLock.Lock()
-	for _, pw := range pt.inmemoryParts {
-		pw.incRef()
+	if addInMemory {
+		for _, pw := range pt.inmemoryParts {
+			pw.incRef()
+		}
+		dst = append(dst, pt.inmemoryParts...)
 	}
-	dst = append(dst, pt.inmemoryParts...)
+
 	for _, pw := range pt.smallParts {
 		pw.incRef()
 	}
@@ -1227,7 +1230,7 @@ func (pt *partition) runFinalDedup() error {
 }
 
 func (pt *partition) getRequiredDedupInterval() (int64, int64) {
-	pws := pt.GetParts(nil)
+	pws := pt.GetParts(nil, false)
 	defer pt.PutParts(pws)
 	dedupInterval := GetDedupInterval(pt.tr.MaxTimestamp)
 	minDedupInterval := getMinDedupInterval(pws)
@@ -1275,12 +1278,13 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		}()
 	}
 
-	if isFinal && len(pws) == 1 && pws[0].mp != nil {
+	if !isDedupEnabled() && isFinal && len(pws) == 1 && pws[0].mp != nil {
 		// Fast path: flush a single in-memory part to disk.
 		mp := pws[0].mp
 		if tmpPartPath == "" {
 			logger.Panicf("BUG: tmpPartPath must be non-empty")
 		}
+
 		if err := mp.StoreToDisk(tmpPartPath); err != nil {
 			return fmt.Errorf("cannot store in-memory part to %q: %w", tmpPartPath, err)
 		}

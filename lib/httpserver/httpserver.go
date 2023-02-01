@@ -199,7 +199,7 @@ func gzipHandler(s *server, rh RequestHandler) http.HandlerFunc {
 		w = maybeGzipResponseWriter(w, r)
 		handlerWrapper(s, w, r, rh)
 		if zrw, ok := w.(*gzipResponseWriter); ok {
-			if err := zrw.Close(); err != nil && !isTrivialNetworkError(err) {
+			if err := zrw.Close(); err != nil && !netutil.IsTrivialNetworkError(err) {
 				logger.Warnf("gzipResponseWriter.Close: %s", err)
 			}
 		}
@@ -503,10 +503,10 @@ func (zrw *gzipResponseWriter) Flush() {
 		_, _ = zrw.Write(nil)
 	}
 	if !zrw.disableCompression {
-		if err := zrw.bw.Flush(); err != nil && !isTrivialNetworkError(err) {
+		if err := zrw.bw.Flush(); err != nil && !netutil.IsTrivialNetworkError(err) {
 			logger.Warnf("gzipResponseWriter.Flush (buffer): %s", err)
 		}
-		if err := zrw.zw.Flush(); err != nil && !isTrivialNetworkError(err) {
+		if err := zrw.zw.Flush(); err != nil && !netutil.IsTrivialNetworkError(err) {
 			logger.Warnf("gzipResponseWriter.Flush (gzip): %s", err)
 		}
 	}
@@ -641,14 +641,6 @@ func (e *ErrorWithStatusCode) Unwrap() error {
 // Error implements error interface.
 func (e *ErrorWithStatusCode) Error() string {
 	return e.Err.Error()
-}
-
-func isTrivialNetworkError(err error) bool {
-	s := err.Error()
-	if strings.Contains(s, "broken pipe") || strings.Contains(s, "reset by peer") {
-		return true
-	}
-	return false
 }
 
 // IsTLS indicates is tls enabled or not

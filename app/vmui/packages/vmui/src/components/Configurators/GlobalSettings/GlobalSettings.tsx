@@ -1,4 +1,4 @@
-import React, { FC, useState } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { SettingsIcon } from "../../Main/Icons";
@@ -42,6 +42,11 @@ const GlobalSettings: FC = () => {
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
     handleClose();
   };
+
+  useEffect(() => {
+    if (stateServerUrl === serverUrl) return;
+    setServerUrl(stateServerUrl);
+  }, [stateServerUrl]);
 
   return <>
     <Tooltip title={title}>
@@ -92,13 +97,13 @@ const GlobalSettings: FC = () => {
               color="error"
               onClick={handleClose}
             >
-                Cancel
+              Cancel
             </Button>
             <Button
               variant="contained"
               onClick={handlerApply}
             >
-                apply
+              apply
             </Button>
           </div>
         </div>

@@ -7,7 +7,7 @@ export type StorageKeys = "BASIC_AUTH_DATA"
     | "SERIES_LIMITS"
     | "TABLE_COMPACT"
     | "TIMEZONE"
-    | "DARK_THEME"
+    | "THEME"
 
 export const saveToStorage = (key: StorageKeys, value: string | boolean | Record<string, unknown>): void => {
   if (value) {

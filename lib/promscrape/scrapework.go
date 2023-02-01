@@ -133,7 +133,7 @@ type ScrapeWork struct {
 	// See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
 	NoStaleMarkers bool
 
-	//The Tenant Info
+	// The Tenant Info
 	AuthToken *auth.Token
 
 	// The original 'job_name'
@@ -904,7 +904,19 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value 
 
 func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, timestamp int64, needRelabel bool) {
 	metric := r.Metric
-	if needRelabel && isAutoMetric(metric) {
+
+	// Add `exported_` prefix to metrics, which clash with the automatically generated
+	// metric names only if the following conditions are met:
+	//
+	// - The `honor_labels` option isn't set to true in the scrape_config.
+	//   If `honor_labels: true`, then the scraped metric name must remain unchanged
+	//   because the user explicitly asked about it in the config.
+	// - The metric has no labels (tags). If it has labels, then the metric value
+	//   will be written into a separate time series comparing to automatically generated time series.
+	//
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3557
+	// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3406
+	if needRelabel && !sw.Config.HonorLabels && len(r.Tags) == 0 && isAutoMetric(metric) {
 		bb := bbPool.Get()
 		bb.B = append(bb.B, "exported_"...)
 		bb.B = append(bb.B, metric...)

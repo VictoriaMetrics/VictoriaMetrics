@@ -39,7 +39,7 @@ const TextField: FC<TextFieldProps> = ({
   onFocus,
   onBlur
 }) => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -83,7 +83,7 @@ const TextField: FC<TextFieldProps> = ({
     className={classNames({
       "vm-text-field": true,
       "vm-text-field_textarea": type === "textarea",
-      "vm-text-field_dark": darkTheme
+      "vm-text-field_dark": isDarkTheme
     })}
     data-replicated-value={value}
   >

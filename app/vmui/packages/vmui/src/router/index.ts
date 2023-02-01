@@ -8,19 +8,23 @@ const router = {
   icons: "/icons"
 };
 
+export interface RouterOptionsHeader {
+  tenant?: boolean,
+  stepControl?: boolean,
+  timeSelector?: boolean,
+  executionControls?: boolean,
+  globalSettings?: boolean,
+  cardinalityDatePicker?: boolean
+}
+
 export interface RouterOptions {
   title?: string,
-  header: {
-    stepControl?: boolean,
-    timeSelector?: boolean,
-    executionControls?: boolean,
-    globalSettings?: boolean,
-    cardinalityDatePicker?: boolean
-  }
+  header: RouterOptionsHeader
 }
 
 const routerOptionsDefault = {
   header: {
+    tenant: true,
     stepControl: true,
     timeSelector: true,
     executionControls: true,
@@ -35,6 +39,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.metrics]: {
     title: "Explore metrics",
     header: {
+      tenant: true,
       stepControl: true,
       timeSelector: true,
     }
@@ -42,12 +47,15 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.cardinality]: {
     title: "Explore cardinality",
     header: {
+      tenant: true,
       cardinalityDatePicker: true,
     }
   },
   [router.topQueries]: {
     title: "Top queries",
-    header: {}
+    header: {
+      tenant: true,
+    }
   },
   [router.trace]: {
     title: "Trace analyzer",
