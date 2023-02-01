@@ -39,6 +39,7 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
     const { clientWidth, clientHeight } = document.documentElement;
     setCssVariable("scrollbar-width", `${innerWidth - clientWidth}px`);
     setCssVariable("scrollbar-height", `${innerHeight - clientHeight}px`);
+    setCssVariable("vh", `${innerHeight * 0.01}px`);
   };
 
   const setContrastText = () => {

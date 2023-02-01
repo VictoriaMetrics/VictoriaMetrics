@@ -145,7 +145,10 @@ export const checkDurationLimit = (dur: string): string => {
   return dur;
 };
 
-export const dateFromSeconds = (epochTimeInSeconds: number): Date => dayjs(epochTimeInSeconds * 1000).toDate();
+export const dateFromSeconds = (epochTimeInSeconds: number): Date => {
+  const date = dayjs(epochTimeInSeconds * 1000);
+  return date.isValid() ? date.toDate() : new Date();
+};
 
 const getYesterday = () => dayjs().tz().subtract(1, "day").endOf("day").toDate();
 const getToday = () => dayjs().tz().endOf("day").toDate();

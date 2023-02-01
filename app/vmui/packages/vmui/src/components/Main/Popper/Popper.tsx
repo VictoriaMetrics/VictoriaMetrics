@@ -99,11 +99,19 @@ const Popper: FC<PopperProps> = ({
     if (isOverflowLeft) position.left = buttonPos.left + offsetLeft;
 
     if (fullWidth) position.width = `${buttonPos.width}px`;
+    if (position.top < 0) position.top = 20;
 
     return position;
   },[buttonRef, placement, isOpen, children, fullWidth]);
 
   if (clickOutside) useClickOutside(popperRef, () => setIsOpen(false), buttonRef);
+
+  useEffect(() => {
+    if (!popperRef.current || !isOpen) return;
+    const { right, width } = popperRef.current.getBoundingClientRect();
+    if (right > window.innerWidth) popperRef.current.style.left = `${window.innerWidth - 20 -width}px`;
+  }, [isOpen, popperRef]);
+
 
   const popperClasses = classNames({
     "vm-popper": true,

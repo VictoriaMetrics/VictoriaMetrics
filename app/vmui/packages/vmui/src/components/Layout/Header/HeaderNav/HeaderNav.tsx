@@ -7,13 +7,15 @@ import { useEffect } from "react";
 import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";
+import classNames from "classnames";
 
 interface HeaderNavProps {
   color: string
   background: string
+  direction?: "row" | "column"
 }
 
-const HeaderNav: FC<HeaderNavProps> = ({ color, background }) => {
+const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
   const appModeEnable = getAppModeEnable();
   const { dashboardsSettings } = useDashboardsState();
   const { pathname } = useLocation();
@@ -59,7 +61,12 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background }) => {
 
 
   return (
-    <nav className="vm-header-nav">
+    <nav
+      className={classNames({
+        "vm-header-nav": true,
+        [`vm-header-nav_${direction}`]: direction
+      })}
+    >
       {menu.map(m => (
         m.submenu
           ? (
@@ -70,6 +77,7 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background }) => {
               submenu={m.submenu}
               color={color}
               background={background}
+              direction={direction}
             />
           )
           : (

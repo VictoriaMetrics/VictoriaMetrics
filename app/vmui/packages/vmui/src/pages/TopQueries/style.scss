@@ -9,10 +9,16 @@
     display: grid;
     gap: $padding-small;
 
-    &__fields {
-      display: grid;
-      grid-template-columns: 1fr auto;
+    &-fields {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
       gap: $padding-medium;
+
+      &__item {
+        flex-grow: 1;
+        min-width: 200px;
+      }
     }
 
     &-bottom {

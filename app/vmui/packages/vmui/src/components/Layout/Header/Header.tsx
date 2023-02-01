@@ -17,8 +17,13 @@ import { useAppState } from "../../../state/common/StateContext";
 import HeaderNav from "./HeaderNav/HeaderNav";
 import TenantsConfiguration from "../../Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";
 import { useFetchAccountIds } from "../../Configurators/GlobalSettings/TenantsConfiguration/hooks/useFetchAccountIds";
+import useResize from "../../../hooks/useResize";
+import SidebarHeader from "./SidebarNav/SidebarHeader";
 
 const Header: FC = () => {
+  const windowSize = useResize(document.body);
+  const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
+
   const { isDarkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
   const { accountIds } = useFetchAccountIds();
@@ -58,27 +63,37 @@ const Header: FC = () => {
     })}
     style={{ background, color }}
   >
-    {!appModeEnable && (
-      <div
-        className="vm-header-logo"
-        onClick={onClickLogo}
-        style={{ color }}
-      >
-        <LogoFullIcon/>
-      </div>
+    {displaySidebar ? (
+      <SidebarHeader
+        background={background}
+        color={color}
+        onClickLogo={onClickLogo}
+      />
+    ) : (
+      <>
+        {!appModeEnable && (
+          <div
+            className="vm-header-logo"
+            onClick={onClickLogo}
+            style={{ color }}
+          >
+            <LogoFullIcon/>
+          </div>
+        )}
+        <HeaderNav
+          color={color}
+          background={background}
+        />
+      </>
     )}
-    <HeaderNav
-      color={color}
-      background={background}
-    />
     <div className="vm-header__settings">
       {headerSetup?.tenant && <TenantsConfiguration accountIds={accountIds}/>}
       {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}
       {headerSetup?.executionControls && <ExecutionControls/>}
-      <GlobalSettings/>
-      <ShortcutKeys/>
+      {!displaySidebar && <GlobalSettings/>}
+      {!displaySidebar && <ShortcutKeys/>}
     </div>
   </header>;
 };

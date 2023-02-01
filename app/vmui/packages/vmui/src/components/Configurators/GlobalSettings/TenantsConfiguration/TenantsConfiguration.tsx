@@ -1,7 +1,7 @@
 import React, { FC, useState, useRef, useEffect, useMemo } from "preact/compat";
 import { useAppDispatch, useAppState } from "../../../../state/common/StateContext";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
-import { ArrowDownIcon, StorageIcons } from "../../../Main/Icons";
+import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import "./style.scss";
 import { replaceTenantId } from "../../../../utils/default-server-url";
@@ -9,9 +9,11 @@ import classNames from "classnames";
 import Popper from "../../../Main/Popper/Popper";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const appModeEnable = getAppModeEnable();
+  const { isMobile } = useDeviceDetect();
 
   const { tenantId: tenantIdState, serverUrl } = useAppState();
   const dispatch = useAppDispatch();
@@ -71,8 +73,8 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
             variant="contained"
             color="primary"
             fullWidth
-            startIcon={<StorageIcons/>}
-            endIcon={(
+            startIcon={<StorageIcon/>}
+            endIcon={!isMobile ? (
               <div
                 className={classNames({
                   "vm-execution-controls-buttons__arrow": true,
@@ -81,10 +83,10 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
               >
                 <ArrowDownIcon/>
               </div>
-            )}
+            ) : undefined}
             onClick={toggleOpenOptions}
           >
-            {tenantIdState}
+            {!isMobile && tenantIdState}
           </Button>
         </div>
       </Tooltip>
