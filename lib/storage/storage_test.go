@@ -1199,7 +1199,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	}
 	ptws := s1.tb.GetPartitions(nil)
 	for _, ptw := range ptws {
-		pws := ptw.pt.GetParts(nil)
+		pws := ptw.pt.GetParts(nil, true)
 		numParts := len(pws)
 		ptw.pt.PutParts(pws)
 		if numParts != 1 {
