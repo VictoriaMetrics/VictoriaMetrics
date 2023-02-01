@@ -361,9 +361,27 @@ func TestScrapeWorkScrapeInternalSuccess(t *testing.T) {
 	`, &ScrapeWork{
 		ScrapeTimeout: time.Second * 42,
 	}, `
-		exported_up{bar="baz"} 34.44 123
-		exported_scrape_series_added 3.435 123
+		up{bar="baz"} 34.44 123
 		bar{a="b",c="d"} -3e4 123
+		exported_scrape_series_added 3.435 123
+		up 1 123
+		scrape_duration_seconds 0 123
+		scrape_samples_scraped 3 123
+		scrape_samples_post_metric_relabeling 3 123
+		scrape_timeout_seconds 42 123
+		scrape_series_added 3 123
+	`)
+	f(`
+		up{bar="baz"} 34.44
+		bar{a="b",c="d"} -3e4
+		scrape_series_added 3.435
+	`, &ScrapeWork{
+		ScrapeTimeout: time.Second * 42,
+		HonorLabels:   true,
+	}, `
+		up{bar="baz"} 34.44 123
+		bar{a="b",c="d"} -3e4 123
+		scrape_series_added 3.435 123
 		up 1 123
 		scrape_samples_scraped 3 123
 		scrape_duration_seconds 0 123
