@@ -36,6 +36,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): allow re-entering authorization info in the web browser if the entered info was incorrect. Previously it was non-trivial to do via the web browser, since `vmauth` was returning `400 Bad Request` instead of `401 Unauthorized` http response code.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): always log the client address and the requested URL on proxying errors. Previously some errors could miss this information.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): fix snapshot not being deleted after backup completion. This issue could result in unnecessary snapshots being stored, it is required to delete unnecessary snapshots manually. See the [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3735).
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix panic on top-level vmselect nodes of [multi-level setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) when the `-replicationFactor` flag is set and request contains `trace` query parameter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3734).
 
 ## [v1.86.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.2)
 
