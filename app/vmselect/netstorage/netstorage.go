@@ -1650,7 +1650,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
 	qtChild := qt.NewChild("rpc call %s()", funcName)
 	err := sn.execOnConn(qtChild, funcName, f, deadline)
-	qtChild.Done()
+	defer qtChild.Done()
 	if err == nil {
 		return nil
 	}
@@ -1661,9 +1661,9 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 		return err
 	}
 	// Repeat the query in the hope the error was temporary.
-	qtChild = qt.NewChild("retry rpc call %s() after error", funcName)
-	err = sn.execOnConn(qtChild, funcName, f, deadline)
-	qtChild.Done()
+	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
+	err = sn.execOnConn(qtRetry, funcName, f, deadline)
+	qtRetry.Done()
 	return err
 }
 
