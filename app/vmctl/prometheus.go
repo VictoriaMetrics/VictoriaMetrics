@@ -102,6 +102,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 	if err != nil {
 		return fmt.Errorf("failed to read block: %s", err)
 	}
+	var it chunkenc.Iterator
 	for ss.Next() {
 		var name string
 		var labels []vm.LabelPair
@@ -123,7 +124,7 @@ func (pp *prometheusProcessor) do(b tsdb.BlockReader) error {
 
 		var timestamps []int64
 		var values []float64
-		it := series.Iterator()
+		it = series.Iterator(it)
 		for {
 			typ := it.Next()
 			if typ == chunkenc.ValNone {
