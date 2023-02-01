@@ -2014,7 +2014,7 @@ func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcN
 	}
 	// Repeat the query in the hope the error was temporary.
 	qtRetry := qtChild.NewChild("retry rpc call %s() after error", funcName)
-	err = sn.execOnConn(qtChild, funcName, f, deadline)
+	err = sn.execOnConn(qtRetry, funcName, f, deadline)
 	qtRetry.Done()
 	return err
 }
