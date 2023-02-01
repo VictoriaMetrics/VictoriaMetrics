@@ -15,6 +15,7 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/prompb"
 	"github.com/prometheus/prometheus/storage/remote"
+	"github.com/prometheus/prometheus/tsdb/chunks"
 )
 
 const (
@@ -154,7 +155,7 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 			t.Fatalf("error unmarshal read request: %s", err)
 		}
 
-		var chunks []prompb.Chunk
+		var chks []prompb.Chunk
 		ctx := context.Background()
 		for idx, r := range req.Queries {
 			startTs := r.StartTimestampMs
@@ -171,9 +172,10 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 			}
 
 			ss := q.Select(false, nil, matchers...)
+			var iter chunks.Iterator
 			for ss.Next() {
 				series := ss.At()
-				iter := series.Iterator()
+				iter = series.Iterator(iter)
 				labels := remote.MergeLabels(labelsToLabelsProto(series.Labels()), nil)
 
 				frameBytesLeft := maxBytesInFrame
@@ -190,14 +192,14 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 						t.Fatalf("error found not populated chunk returned by SeriesSet at ref: %v", chunk.Ref)
 					}
 
-					chunks = append(chunks, prompb.Chunk{
+					chks = append(chks, prompb.Chunk{
 						MinTimeMs: chunk.MinTime,
 						MaxTimeMs: chunk.MaxTime,
 						Type:      prompb.Chunk_Encoding(chunk.Chunk.Encoding()),
 						Data:      chunk.Chunk.Bytes(),
 					})
 
-					frameBytesLeft -= chunks[len(chunks)-1].Size()
+					frameBytesLeft -= chks[len(chks)-1].Size()
 
 					// We are fine with minor inaccuracy of max bytes per frame. The inaccuracy will be max of full chunk size.
 					isNext = iter.Next()
@@ -207,7 +209,7 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 
 					resp := &prompb.ChunkedReadResponse{
 						ChunkedSeries: []*prompb.ChunkedSeries{
-							{Labels: labels, Chunks: chunks},
+							{Labels: labels, Chunks: chks},
 						},
 						QueryIndex: int64(idx),
 					}
@@ -220,7 +222,7 @@ func (rrs *RemoteReadServer) getStreamReadHandler(t *testing.T) http.Handler {
 					if _, err := stream.Write(b); err != nil {
 						t.Fatalf("error write to stream: %s", err)
 					}
-					chunks = chunks[:0]
+					chks = chks[:0]
 					rrs.storage.Reset()
 				}
 				if err := iter.Err(); err != nil {
