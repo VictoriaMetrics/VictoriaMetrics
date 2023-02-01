@@ -36,6 +36,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): allow re-entering authorization info in the web browser if the entered info was incorrect. Previously it was non-trivial to do via the web browser, since `vmauth` was returning `400 Bad Request` instead of `401 Unauthorized` http response code.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): always log the client address and the requested URL on proxying errors. Previously some errors could miss this information.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): fix snapshot not being deleted after backup completion. This issue could result in unnecessary snapshots being stored, it is required to delete unnecessary snapshots manually. See the [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3735).
+* BUGFIX: fix bug with `honor_labels` usage. With new logic `exported_` prefix will be added only if auto metrics has no labels. Previously `exported_` prefix was added to metric name if we got auto metrics from scrape target. See the [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3557).
 
 ## [v1.86.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.86.2)
 

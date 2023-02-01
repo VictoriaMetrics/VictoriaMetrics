@@ -133,7 +133,7 @@ type ScrapeWork struct {
 	// See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
 	NoStaleMarkers bool
 
-	//The Tenant Info
+	// The Tenant Info
 	AuthToken *auth.Token
 
 	// The original 'job_name'
@@ -905,11 +905,13 @@ func (sw *scrapeWork) addAutoTimeseries(wc *writeRequestCtx, name string, value 
 func (sw *scrapeWork) addRowToTimeseries(wc *writeRequestCtx, r *parser.Row, timestamp int64, needRelabel bool) {
 	metric := r.Metric
 	if needRelabel && isAutoMetric(metric) {
-		bb := bbPool.Get()
-		bb.B = append(bb.B, "exported_"...)
-		bb.B = append(bb.B, metric...)
-		metric = bytesutil.InternBytes(bb.B)
-		bbPool.Put(bb)
+		if !sw.Config.HonorLabels && len(r.Tags) == 0 {
+			bb := bbPool.Get()
+			bb.B = append(bb.B, "exported_"...)
+			bb.B = append(bb.B, metric...)
+			metric = bytesutil.InternBytes(bb.B)
+			bbPool.Put(bb)
+		}
 	}
 	labelsLen := len(wc.labels)
 	targetLabels := sw.Config.Labels.GetLabels()
