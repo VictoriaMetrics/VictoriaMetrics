@@ -15,15 +15,18 @@ import classNames from "classnames";
 import StepConfigurator from "../../Configurators/StepConfigurator/StepConfigurator";
 import { useAppState } from "../../../state/common/StateContext";
 import HeaderNav from "./HeaderNav/HeaderNav";
+import TenantsConfiguration from "../../Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";
+import { useFetchAccountIds } from "../../Configurators/GlobalSettings/TenantsConfiguration/hooks/useFetchAccountIds";
 
 const Header: FC = () => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
   const appModeEnable = getAppModeEnable();
+  const { accountIds } = useFetchAccountIds();
 
   const primaryColor = useMemo(() => {
-    const variable = darkTheme ? "color-background-block" : "color-primary";
+    const variable = isDarkTheme ? "color-background-block" : "color-primary";
     return getCssVariable(variable);
-  }, [darkTheme]);
+  }, [isDarkTheme]);
 
   const { background, color } = useMemo(() => {
     const { headerStyles: {
@@ -36,7 +39,6 @@ const Header: FC = () => {
 
   const navigate = useNavigate();
   const { search, pathname } = useLocation();
-
 
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
@@ -52,7 +54,7 @@ const Header: FC = () => {
     className={classNames({
       "vm-header": true,
       "vm-header_app": appModeEnable,
-      "vm-header_dark": darkTheme
+      "vm-header_dark": isDarkTheme
     })}
     style={{ background, color }}
   >
@@ -70,6 +72,7 @@ const Header: FC = () => {
       background={background}
     />
     <div className="vm-header__settings">
+      {headerSetup?.tenant && <TenantsConfiguration accountIds={accountIds}/>}
       {headerSetup?.stepControl && <StepConfigurator/>}
       {headerSetup?.timeSelector && <TimeSelector/>}
       {headerSetup?.cardinalityDatePicker && <CardinalityDatePicker/>}

@@ -9,7 +9,7 @@ const BarChart: FC<BarChartProps> = ({
   data,
   container,
   configs }) => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
 
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
@@ -30,7 +30,7 @@ const BarChart: FC<BarChartProps> = ({
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
     return u.destroy;
-  }, [uPlotRef.current, layoutSize, darkTheme]);
+  }, [uPlotRef.current, layoutSize, isDarkTheme]);
 
   useEffect(() => updateChart(), [data]);
 

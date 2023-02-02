@@ -82,8 +82,9 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_azure_machine_private_ip`: the machine's private IP
 * `__meta_azure_machine_public_ip`: the machine's public IP if it exists
 * `__meta_azure_machine_resource_group`: the machine's resource group
-* `__meta_azure_machine_tag_<tagname>`: each tag value of the machine
 * `__meta_azure_machine_scale_set`: the name of the scale set which the vm is part of (this value is only set if you are using a scale set)
+* `__meta_azure_machine_size`: the machine size
+* `__meta_azure_machine_tag_<tagname>`: each tag value of the machine
 * `__meta_azure_subscription_id`: the subscription ID
 * `__meta_azure_tenant_id`: the tenant ID
 
@@ -788,8 +789,9 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_pod_labelpresent_<labelname>`: "true" for each label from the pod object.
   * `__meta_kubernetes_pod_annotation_<annotationname>`: Each annotation from the pod object.
   * `__meta_kubernetes_pod_annotationpresent_<annotationname>`: "true" for each annotation from the pod object.
-  * `__meta_kubernetes_pod_container_init`: "true" if the container is an InitContainer
+  * `__meta_kubernetes_pod_container_id`: ID of the container in the form `<type>://<container_id>`.
   * `__meta_kubernetes_pod_container_image`: Container image the target address points to.
+  * `__meta_kubernetes_pod_container_init`: "true" if the container is an InitContainer.
   * `__meta_kubernetes_pod_container_name`: Name of the container the target address points to.
   * `__meta_kubernetes_pod_container_port_name`: Name of the container port.
   * `__meta_kubernetes_pod_container_port_number`: Number of the container port.
@@ -1274,8 +1276,8 @@ scrape_configs:
   # scrape_offset: <duration>
 
   # series_limit is an optional limit on the number of unique time series
-  # a single target can expose during all the scrapes.
-  # By default there is no limit on the number of exposed series.
+  # a single target can expose during all the scrapes on the time window of 24h.
+  # By default, there is no limit on the number of exposed series.
   # See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter .
   # The series_limit can be set on a per-target basis by specifying `__series_limit__`
   # label during target relabeling phase.
@@ -1283,7 +1285,7 @@ scrape_configs:
   # series_limit: ...
 
   # no_stale_markers allows disabling staleness tracking.
-  # By default staleness tracking is enabled for all the discovered scrape targets.
+  # By default, staleness tracking is enabled for all the discovered scrape targets.
   # See https://docs.victoriametrics.com/vmagent.html#prometheus-staleness-markers
   # no_stale_markers: <boolean>
 

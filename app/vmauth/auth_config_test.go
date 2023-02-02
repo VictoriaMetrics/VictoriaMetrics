@@ -278,7 +278,7 @@ users:
 `, map[string]*UserInfo{
 		getAuthToken("foo", "", ""): {
 			BearerToken: "foo",
-			URLMap: []URLMap{
+			URLMaps: []URLMap{
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
@@ -304,7 +304,7 @@ users:
 		},
 		getAuthToken("", "foo", ""): {
 			BearerToken: "foo",
-			URLMap: []URLMap{
+			URLMaps: []URLMap{
 				{
 					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
 					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),

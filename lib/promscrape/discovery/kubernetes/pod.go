@@ -82,10 +82,12 @@ type ContainerPort struct {
 //
 // See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.17/#podstatus-v1-core
 type PodStatus struct {
-	Phase      string
-	PodIP      string
-	HostIP     string
-	Conditions []PodCondition
+	Phase                 string
+	PodIP                 string
+	HostIP                string
+	Conditions            []PodCondition
+	ContainerStatuses     []ContainerStatus
+	InitContainerStatuses []ContainerStatus
 }
 
 // PodCondition implements k8s pod condition.
@@ -94,6 +96,27 @@ type PodStatus struct {
 type PodCondition struct {
 	Type   string
 	Status string
+}
+
+// ContainerStatus implements k8s container status.
+//
+// See https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.20/#containerstatus-v1-core
+type ContainerStatus struct {
+	Name        string
+	ContainerID string
+}
+
+func getContainerID(p *Pod, containerName string, isInit bool) string {
+	css := p.Status.ContainerStatuses
+	if isInit {
+		css = p.Status.InitContainerStatuses
+	}
+	for _, cs := range css {
+		if cs.Name == containerName {
+			return cs.ContainerID
+		}
+	}
+	return ""
 }
 
 // getTargetLabels returns labels for each port of the given p.
@@ -105,12 +128,12 @@ func (p *Pod) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 		return nil
 	}
 	var ms []*promutils.Labels
-	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, "false")
-	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, "true")
+	ms = appendPodLabels(ms, gw, p, p.Spec.Containers, false)
+	ms = appendPodLabels(ms, gw, p, p.Spec.InitContainers, true)
 	return ms
 }
 
-func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Container, isInit string) []*promutils.Labels {
+func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Container, isInit bool) []*promutils.Labels {
 	for _, c := range cs {
 		for _, cp := range c.Ports {
 			ms = appendPodLabelsInternal(ms, gw, p, c, &cp, isInit)
@@ -122,14 +145,24 @@ func appendPodLabels(ms []*promutils.Labels, gw *groupWatcher, p *Pod, cs []Cont
 	return ms
 }
 
-func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c Container, cp *ContainerPort, isInit string) []*promutils.Labels {
+func appendPodLabelsInternal(ms []*promutils.Labels, gw *groupWatcher, p *Pod, c Container, cp *ContainerPort, isInit bool) []*promutils.Labels {
 	addr := p.Status.PodIP
 	if cp != nil {
 		addr = discoveryutils.JoinHostPort(addr, cp.ContainerPort)
 	}
 	m := promutils.GetLabels()
 	m.Add("__address__", addr)
-	m.Add("__meta_kubernetes_pod_container_init", isInit)
+	isInitStr := "false"
+	if isInit {
+		isInitStr = "true"
+	}
+	m.Add("__meta_kubernetes_pod_container_init", isInitStr)
+
+	containerID := getContainerID(p, c.Name, isInit)
+	if containerID != "" {
+		m.Add("__meta_kubernetes_pod_container_id", containerID)
+	}
+
 	p.appendCommonLabels(m, gw)
 	p.appendContainerLabels(m, c, cp)
 	return append(ms, m)

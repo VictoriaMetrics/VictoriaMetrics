@@ -65,7 +65,7 @@ func main() {
 				logger.Fatalf("Failed to set snapshot.deleteURL flag: %v", err)
 			}
 		}
-		deleteUrl, err := url.Parse(*snapshotCreateURL)
+		deleteUrl, err := url.Parse(*snapshotDeleteURL)
 		if err != nil {
 			logger.Fatalf("cannot parse snapshotDeleteURL: %s", err)
 		}
@@ -93,7 +93,7 @@ func main() {
 		logger.Fatalf("invalid -snapshotName=%q: %s", *snapshotName, err)
 	}
 
-	go httpserver.Serve(*httpListenAddr, nil)
+	go httpserver.Serve(*httpListenAddr, false, nil)
 
 	srcFS, err := newSrcFS()
 	if err != nil {

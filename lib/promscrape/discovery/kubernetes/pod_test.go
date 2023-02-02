@@ -262,6 +262,7 @@ func TestParsePodListSuccess(t *testing.T) {
 			"__meta_kubernetes_pod_controller_kind":          "Node",
 			"__meta_kubernetes_pod_controller_name":          "m01",
 			"__meta_kubernetes_pod_container_init":           "false",
+			"__meta_kubernetes_pod_container_id":             "docker://a28f0800855008485376c1eece1cf61de97cb7026b9188d138b0d55d92fc2f5c",
 
 			"__meta_kubernetes_pod_label_component": "etcd",
 			"__meta_kubernetes_pod_label_tier":      "control-plane",

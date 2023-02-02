@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
@@ -18,7 +19,7 @@ func TestAggregatorsFailure(t *testing.T) {
 		pushFunc := func(tss []prompbmarshal.TimeSeries) {
 			panic(fmt.Errorf("pushFunc shouldn't be called"))
 		}
-		a, err := NewAggregatorsFromData([]byte(config), pushFunc)
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -136,7 +137,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 			}
 			tssOutputLock.Unlock()
 		}
-		a, err := NewAggregatorsFromData([]byte(config), pushFunc)
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
 		if err != nil {
 			t.Fatalf("cannot initialize aggregators: %s", err)
 		}
@@ -638,6 +639,83 @@ cpu_usage{cpu="2"} 90
 `, `cpu_usage:1m_without_cpu_quantiles{quantile="0"} 12
 cpu_usage:1m_without_cpu_quantiles{quantile="0.5"} 13.3
 cpu_usage:1m_without_cpu_quantiles{quantile="1"} 90
+`)
+}
+
+func TestAggregatorsWithDedupInterval(t *testing.T) {
+	f := func(config, inputMetrics, outputMetricsExpected string) {
+		t.Helper()
+
+		// Initialize Aggregators
+		var tssOutput []prompbmarshal.TimeSeries
+		var tssOutputLock sync.Mutex
+		pushFunc := func(tss []prompbmarshal.TimeSeries) {
+			tssOutputLock.Lock()
+			for _, ts := range tss {
+				labelsCopy := append([]prompbmarshal.Label{}, ts.Labels...)
+				samplesCopy := append([]prompbmarshal.Sample{}, ts.Samples...)
+				tssOutput = append(tssOutput, prompbmarshal.TimeSeries{
+					Labels:  labelsCopy,
+					Samples: samplesCopy,
+				})
+			}
+			tssOutputLock.Unlock()
+		}
+		const dedupInterval = time.Hour
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, dedupInterval)
+		if err != nil {
+			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+
+		// Push the inputMetrics to Aggregators
+		tssInput := mustParsePromMetrics(inputMetrics)
+		a.Push(tssInput)
+		if a != nil {
+			for _, aggr := range a.as {
+				aggr.dedupFlush()
+				aggr.flush()
+			}
+		}
+		a.MustStop()
+
+		// Verify the tssOutput contains the expected metrics
+		tsStrings := make([]string, len(tssOutput))
+		for i, ts := range tssOutput {
+			tsStrings[i] = timeSeriesToString(ts)
+		}
+		sort.Strings(tsStrings)
+		outputMetrics := strings.Join(tsStrings, "")
+		if outputMetrics != outputMetricsExpected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
+		}
+	}
+
+	f(`
+- interval: 1m
+  outputs: [sum_samples]
+`, `
+foo 123
+bar 567
+`, `bar:1m_sum_samples 567
+foo:1m_sum_samples 123
+`)
+
+	f(`
+- interval: 1m
+  outputs: [sum_samples]
+`, `
+foo 123
+bar{baz="qwe"} 1.32
+bar{baz="qwe"} 4.34
+bar{baz="qwe"} 2
+foo{baz="qwe"} -5
+bar{baz="qwer"} 343
+bar{baz="qwer"} 344
+foo{baz="qwe"} 10
+`, `bar:1m_sum_samples{baz="qwe"} 2
+bar:1m_sum_samples{baz="qwer"} 344
+foo:1m_sum_samples 123
+foo:1m_sum_samples{baz="qwe"} 10
 `)
 }
 

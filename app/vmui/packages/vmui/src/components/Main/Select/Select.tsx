@@ -27,7 +27,7 @@ const Select: FC<SelectProps> = ({
   autofocus,
   onChange
 }) => {
-  const { darkTheme } = useAppState();
+  const { isDarkTheme } = useAppState();
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
@@ -111,7 +111,7 @@ const Select: FC<SelectProps> = ({
     <div
       className={classNames({
         "vm-select": true,
-        "vm-select_dark": darkTheme
+        "vm-select_dark": isDarkTheme
       })}
     >
       <div

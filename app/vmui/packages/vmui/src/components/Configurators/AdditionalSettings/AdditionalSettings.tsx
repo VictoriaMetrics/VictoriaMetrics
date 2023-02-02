@@ -1,14 +1,10 @@
 import React, { FC } from "preact/compat";
-import { getAppModeParams } from "../../../utils/app-mode";
-import TenantsConfiguration from "../TenantsConfiguration/TenantsConfiguration";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
 
 const AdditionalSettings: FC = () => {
-
-  const { inputTenantID } = getAppModeParams();
 
   const { autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
@@ -44,11 +40,6 @@ const AdditionalSettings: FC = () => {
       value={isTracingEnabled}
       onChange={onChangeQueryTracing}
     />
-    {!!inputTenantID && (
-      <div className="vm-additional-settings__input">
-        <TenantsConfiguration/>
-      </div>
-    )}
   </div>;
 };
 
