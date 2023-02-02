@@ -1,6 +1,6 @@
 export interface AppParams {
   serverURL?: string
-  inputTenantID?: string
+  useTenantID?: boolean
   headerStyles?: {
     background?: string
     color?: string

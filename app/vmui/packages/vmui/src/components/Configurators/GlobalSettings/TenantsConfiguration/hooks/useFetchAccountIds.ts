@@ -5,7 +5,7 @@ import { getAccountIds } from "../../../../../api/accountId";
 import { getAppModeParams } from "../../../../../utils/app-mode";
 
 export const useFetchAccountIds = () => {
-  const { inputTenantID } = getAppModeParams();
+  const { useTenantID } = getAppModeParams();
   const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -15,7 +15,7 @@ export const useFetchAccountIds = () => {
   const fetchUrl = useMemo(() => getAccountIds(serverUrl), [serverUrl]);
 
   useEffect(() => {
-    if (inputTenantID !== "true") return;
+    if (!useTenantID) return;
     const fetchData = async () => {
       setIsLoading(true);
       try {
