@@ -26,7 +26,9 @@ Install the Helm chart in a custom namespace
 ```
 kubectl create namespace monitoring
 ```
+
 2. Create kubernetes-secrets with token to access your dbaas deployment
+
 ```
 kubectl --namespace monitoring create secret generic dbaas-write-access-token --from-literal=bearerToken=your-token
 
@@ -34,7 +36,8 @@ kubectl --namespace monitoring create secret generic dbaas-read-access-token --f
 ```
 
 > You can find your access token on the "Access" tab of your deployment
-> ![access token](./k8s-monitoring-access-token.png)
+
+![access token](./k8s-monitoring-access-token.png)
 
 
 3. Set up a Helm repository using the following commands:
