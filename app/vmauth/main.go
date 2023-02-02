@@ -113,7 +113,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
-	// Limit per user the concurrency of requests to backends
+	// Limit per user concurrency of requests to backends
+	// This limit enables only if max_concurrent_requests value bigger that
+	// flag --maxConcurrentRequests value
 	if *maxConcurrentRequests < ui.MaxConcurrentRequests {
 		if err := ui.proxyRequests(func() { processRequest(w, r, targetURL, headers) }); err != nil {
 			handleLimitError(w, r, ui.MaxConcurrentRequests)
