@@ -85,6 +85,7 @@ const NavSubItem: FC<NavItemProps> = ({
               activeMenu={activeMenu}
               value={sm.value}
               label={sm.label || ""}
+              color={color}
             />
           ))}
         </div>

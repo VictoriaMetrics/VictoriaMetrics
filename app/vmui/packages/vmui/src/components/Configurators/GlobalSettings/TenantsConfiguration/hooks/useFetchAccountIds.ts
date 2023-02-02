@@ -2,8 +2,10 @@ import { useAppState } from "../../../../../state/common/StateContext";
 import { useEffect, useMemo, useState } from "preact/compat";
 import { ErrorTypes } from "../../../../../types";
 import { getAccountIds } from "../../../../../api/accountId";
+import { getAppModeParams } from "../../../../../utils/app-mode";
 
 export const useFetchAccountIds = () => {
+  const { inputTenantID } = getAppModeParams();
   const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -13,6 +15,7 @@ export const useFetchAccountIds = () => {
   const fetchUrl = useMemo(() => getAccountIds(serverUrl), [serverUrl]);
 
   useEffect(() => {
+    if (inputTenantID !== "true") return;
     const fetchData = async () => {
       setIsLoading(true);
       try {
