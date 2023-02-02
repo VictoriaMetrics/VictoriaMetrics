@@ -12,3 +12,4 @@ sort: 26
 6. [Migrate from InfluxDB to VictoriaMetrics](https://docs.victoriametrics.com/guides/migrate-from-influx.html)
 7. [Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions.html)
 8. [How to delete or replace metrics in VictoriaMetrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html)
+9. [How to monitor kubernetes cluster using Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/how-to-monitor-k8s.html)
