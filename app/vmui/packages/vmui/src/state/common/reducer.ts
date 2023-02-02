@@ -3,6 +3,7 @@ import { getQueryStringValue } from "../../utils/query-string";
 import { getFromStorage, saveToStorage } from "../../utils/storage";
 import { Theme } from "../../types";
 import { isDarkTheme } from "../../utils/theme";
+import { getAppModeEnable } from "../../utils/app-mode";
 
 export interface AppState {
   serverUrl: string;
@@ -17,12 +18,15 @@ export type Action =
   | { type: "SET_TENANT_ID", payload: string }
   | { type: "SET_DARK_THEME" }
 
+const appModeEnable = getAppModeEnable();
+if (appModeEnable) saveToStorage("THEME", Theme.light);
+
 const tenantId = getQueryStringValue("g0.tenantID", "") as string;
 
 export const initialState: AppState = {
   serverUrl: getDefaultServer(tenantId),
   tenantId,
-  theme: (getFromStorage("THEME") || Theme.system) as Theme,
+  theme: appModeEnable ? Theme.light : (getFromStorage("THEME") || Theme.system) as Theme,
   isDarkTheme: null
 };
 
