@@ -123,10 +123,25 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+
+   # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
+   # header are proxied to http://localhost:8428 with connections that can be proxied by vmauth to backends.
+   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+   # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
+   # If max_concurrent_requests are processed at any given moment, then all the new requests are rejected with 429 HTTP error
+- bearer_token: "XXXX"
+  url_prefix: "http://localhost:8428"
+  max_concurrent_requests: 1500
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
 This may be useful for passing secrets to the config.
+
+See also max_concurrent_requests option in per-user section at https://docs.victoriametrics.com/vmauth.html#auth-config (default 0).
+The maximum number of concurrent requests vmauth can proxy at any given time.
+Additional requests are rejected with 429 HTTP status code. There is no limit if set to 0.
+If flag `--maxConcurrentRequests` bigger that max_concurrent_requests per-user than all requests will be limited by
+`--maxConcurrentRequests` flag value.
 
 ## Security
 

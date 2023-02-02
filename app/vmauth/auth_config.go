@@ -32,15 +32,32 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name        string     `yaml:"name,omitempty"`
-	BearerToken string     `yaml:"bearer_token,omitempty"`
-	Username    string     `yaml:"username,omitempty"`
-	Password    string     `yaml:"password,omitempty"`
-	URLPrefix   *URLPrefix `yaml:"url_prefix,omitempty"`
-	URLMaps     []URLMap   `yaml:"url_map,omitempty"`
-	Headers     []Header   `yaml:"headers,omitempty"`
+	Name                  string     `yaml:"name,omitempty"`
+	BearerToken           string     `yaml:"bearer_token,omitempty"`
+	Username              string     `yaml:"username,omitempty"`
+	Password              string     `yaml:"password,omitempty"`
+	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
+	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
+	Headers               []Header   `yaml:"headers,omitempty"`
+	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
 
-	requests *metrics.Counter
+	limiter      chan struct{}
+	requests     *metrics.Counter
+	limitReached *metrics.Counter
+}
+
+func (ui *UserInfo) proxyRequests(cb func()) error {
+	if ui.MaxConcurrentRequests > 0 {
+		select {
+		case ui.limiter <- struct{}{}:
+		default:
+			ui.limitReached.Inc()
+			return fmt.Errorf("cannot handle more than %d connections", ui.MaxConcurrentRequests)
+		}
+	}
+	cb()
+	<-ui.limiter
+	return nil
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -298,8 +315,9 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 			return nil, fmt.Errorf("missing `url_prefix`")
 		}
+		var name string
 		if ui.BearerToken != "" {
-			name := "bearer_token"
+			name = "bearer_token"
 			if ui.Name != "" {
 				name = ui.Name
 			}
@@ -309,11 +327,21 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
 		if ui.Username != "" {
-			name := ui.Username
+			name = ui.Username
 			if ui.Name != "" {
 				name = ui.Name
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
+		}
+		if ui.MaxConcurrentRequests > 0 {
+			ui.limitReached = metrics.NewCounter(fmt.Sprintf(`vmauth_concurrent_requests_limit_reached_total{username=%q}`, name))
+			ui.limiter = make(chan struct{}, ui.MaxConcurrentRequests)
+			_ = metrics.NewGauge(fmt.Sprintf(`vmauth_concurrent_requests_capacity{username=%q}`, name), func() float64 {
+				return float64(ui.MaxConcurrentRequests)
+			})
+			_ = metrics.NewGauge(fmt.Sprintf(`vmauth_concurrent_requests_current{username=%q}`, name), func() float64 {
+				return float64(len(ui.limiter))
+			})
 		}
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui

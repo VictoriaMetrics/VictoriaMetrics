@@ -113,18 +113,21 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 
+	// Limit per user the concurrency of requests to backends
+	if *maxConcurrentRequests < ui.MaxConcurrentRequests {
+		if err := ui.proxyRequests(func() { processRequest(w, r, targetURL, headers) }); err != nil {
+			handleLimitError(w, r, ui.MaxConcurrentRequests)
+			return true
+		}
+		return true
+	}
 	// Limit the concurrency of requests to backends
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
 	default:
 		concurrentRequestsLimitReachedTotal.Inc()
-		w.Header().Add("Retry-After", "10")
-		err := &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh)),
-			StatusCode: http.StatusTooManyRequests,
-		}
-		httpserver.Errorf(w, r, "%s", err)
+		handleLimitError(w, r, cap(concurrencyLimitCh))
 		return true
 	}
 	processRequest(w, r, targetURL, headers)
@@ -278,4 +281,13 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth.html .
 `
 	flagutil.Usage(s)
+}
+
+func handleLimitError(w http.ResponseWriter, r *http.Request, maxConcurrentRequests int) {
+	w.Header().Add("Retry-After", "10")
+	err := &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", maxConcurrentRequests),
+		StatusCode: http.StatusTooManyRequests,
+	}
+	httpserver.Errorf(w, r, "%s", err)
 }

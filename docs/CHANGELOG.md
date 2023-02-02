@@ -14,6 +14,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 ## tip
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add support of the limit for connections, that can be proxied by vmauth to backends per auth record. If flag `--maxConcurrentRequests` bigger that max_concurrent_requests per auth record than all requests will be limited by
+  `--maxConcurrentRequests` flag value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3346).
 
 ## [v1.87.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.0)
 
