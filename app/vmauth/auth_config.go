@@ -50,13 +50,13 @@ func (ui *UserInfo) proxyRequests(cb func()) error {
 	if ui.MaxConcurrentRequests > 0 {
 		select {
 		case ui.limiter <- struct{}{}:
+			defer func() { <-ui.limiter }()
 		default:
 			ui.limitReached.Inc()
 			return fmt.Errorf("cannot handle more than %d connections", ui.MaxConcurrentRequests)
 		}
 	}
 	cb()
-	<-ui.limiter
 	return nil
 }
 
