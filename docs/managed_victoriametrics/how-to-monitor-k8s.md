@@ -34,7 +34,7 @@ kubectl --namespace monitoring create secret generic dbaas-read-access-token --f
 ```
 
 > You can find your access token on the "Access" tab of your deployment
-> ![access tijen](./k8s-monitoring-access-token.png)
+> ![access token](./k8s-monitoring-access-token.png)
 
 
 3. Set up a Helm repository using the following commands:
