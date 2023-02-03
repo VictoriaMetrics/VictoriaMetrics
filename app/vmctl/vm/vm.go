@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"strings"
 	"sync"
@@ -14,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/cheggaaa/pb/v3"
 )
@@ -75,7 +75,8 @@ type Importer struct {
 	wg   sync.WaitGroup
 	once sync.Once
 
-	s *stats
+	s     *stats
+	retry *utils.Retry
 }
 
 // ResetStats resets im stats.
@@ -264,30 +265,16 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 	}
 }
 
-const (
-	// TODO: make configurable
-	backoffRetries     = 5
-	backoffFactor      = 1.7
-	backoffMinDuration = time.Second
-)
-
 func (im *Importer) flush(b []*TimeSeries) error {
-	var err error
-	for i := 0; i < backoffRetries; i++ {
-		err = im.Import(b)
-		if err == nil {
-			return nil
-		}
-		if errors.Is(err, ErrBadRequest) {
-			return err // fail fast if not recoverable
-		}
-		im.s.Lock()
-		im.s.retries++
-		im.s.Unlock()
-		backoff := float64(backoffMinDuration) * math.Pow(backoffFactor, float64(i))
-		time.Sleep(time.Duration(backoff))
+	cb := func() error { return im.Import(b) }
+	attempts, err := im.retry.Do(cb)
+	if err != nil {
+		return fmt.Errorf("import failed with %d retries: %s", attempts, err)
 	}
-	return fmt.Errorf("import failed with %d retries: %s", backoffRetries, err)
+	im.s.Lock()
+	im.s.retries = attempts
+	im.s.Unlock()
+	return nil
 }
 
 // Ping sends a ping to im.addr.
