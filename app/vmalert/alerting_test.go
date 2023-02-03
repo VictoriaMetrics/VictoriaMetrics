@@ -563,7 +563,6 @@ func TestGroup_Restore(t *testing.T) {
 		return metricWithValueAndLabels(t, float64(value.Unix()), labels...)
 	}
 
-	ts := time.Now().Truncate(time.Hour)
 	// one active alert, no previous state
 	fn(
 		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
@@ -575,7 +574,7 @@ func TestGroup_Restore(t *testing.T) {
 	fqr.reset()
 
 	// one active alert with state restore
-	ts = time.Now().Truncate(time.Hour)
+	ts := time.Now().Truncate(time.Hour)
 	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
 		stateMetric("foo", ts))
 	fn(
