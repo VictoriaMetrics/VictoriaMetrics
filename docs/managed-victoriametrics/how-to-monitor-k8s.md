@@ -38,7 +38,7 @@ kubectl --namespace monitoring create secret generic dbaas-read-access-token --f
 > You can find your access token on the "Access" tab of your deployment
 
 <p>
-    <img src="k8s-monitoring-access-token.png" width="800">
+    <img src="how-to-monitor-k8s_access-token.png" width="800">
 </p>
 
 3. Set up a Helm repository using the following commands:
@@ -116,7 +116,7 @@ kubectl --namespace monitoring port-forward service/vm-grafana 3000:80
    Choose VictoriaMetrics or Prometheus as datasource type. Make sure you made this datasource as default for dashboards to work.
 
 <p>
-    <img src="k8s-monitoring-datasource.png" width="800">
+    <img src="how-to-monitor-k8s_datasource.png" width="800">
 </p>
 
 
