@@ -120,11 +120,11 @@ users:
     headers:
     - "X-Scope-OrgID: abc"
 
-     # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
-     # header are proxied to http://localhost:8428 with connections that can be proxied by vmauth to backends.
-     # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
-     # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
-     # If max_concurrent_requests are processed at any given moment, then all the new requests are rejected with 429 HTTP error
+  # Requests with the 'Authorization: Bearer XXXX' and 'Authorization: Token XXXX'
+  # header are proxied to http://localhost:8428 with connections that can be proxied by vmauth to backends.
+  # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  # Requests with the Basic Auth username=XXXX are proxied to http://localhost:8428 as well.
+  # If max_concurrent_requests are processed at any given moment, then all the new requests are rejected with 429 HTTP error
 - bearer_token: "XXXX"
   url_prefix: "http://localhost:8428"
   max_concurrent_requests: 1500
@@ -136,9 +136,11 @@ This may be useful for passing secrets to the config.
 
 See also max_concurrent_requests option in per-user section at https://docs.victoriametrics.com/vmauth.html#auth-config (default 0).
 The maximum number of concurrent requests vmauth can proxy at any given time.
-Additional requests are rejected with 429 HTTP status code. There is no limit if set to 0.
-If flag `--maxConcurrentRequests` bigger that max_concurrent_requests per-user than all requests will be limited by
-`--maxConcurrentRequests` flag value.
+Excessive requests are rejected with 429 HTTP status code. There is no limit if set to 0.
+It is recommended to set the global limit to a lower value and increase the limit for specific users. 
+To do this, the per-user limit should be set higher than the `--maxConcurrentRequests` flag. For instance, 
+if you have `--maxConcurrentRequests=2000` and you want to set a limit of 500 for a user, you should decrease the 
+`--maxConcurrentRequests` flag to `--maxConcurrentRequests=450`.
 
 ## Security
 
