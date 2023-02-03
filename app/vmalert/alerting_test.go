@@ -6,12 +6,15 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
 func TestAlertingRule_ToTimeSeries(t *testing.T) {
@@ -502,118 +505,157 @@ func TestAlertingRule_ExecRange(t *testing.T) {
 	}
 }
 
-func TestAlertingRule_Restore(t *testing.T) {
-	testCases := []struct {
-		rule      *AlertingRule
-		metrics   []datasource.Metric
-		expAlerts map[uint64]*notifier.Alert
-	}{
-		{
-			newTestRuleWithLabels("no extra labels"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(nil): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-			},
-		},
-		{
-			newTestRuleWithLabels("metric labels"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					alertNameLabel, "metric labels",
-					alertGroupNameLabel, "groupID",
-					"foo", "bar",
-					"namespace", "baz",
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(map[string]string{
-					alertNameLabel:      "metric labels",
-					alertGroupNameLabel: "groupID",
-					"foo":               "bar",
-					"namespace":         "baz",
-				}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-			},
-		},
-		{
-			newTestRuleWithLabels("rule labels", "source", "vm"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"foo", "bar",
-					"namespace", "baz",
-					// extra labels set by rule
-					"source", "vm",
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(map[string]string{
-					"foo":       "bar",
-					"namespace": "baz",
-					"source":    "vm",
-				}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-			},
-		},
-		{
-			newTestRuleWithLabels("multiple alerts"),
-			[]datasource.Metric{
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"host", "localhost-1",
-				),
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(2*time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"host", "localhost-2",
-				),
-				metricWithValueAndLabels(t, float64(time.Now().Truncate(3*time.Hour).Unix()),
-					"__name__", alertForStateMetricName,
-					"host", "localhost-3",
-				),
-			},
-			map[uint64]*notifier.Alert{
-				hash(map[string]string{"host": "localhost-1"}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(time.Hour)},
-				hash(map[string]string{"host": "localhost-2"}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(2 * time.Hour)},
-				hash(map[string]string{"host": "localhost-3"}): {State: notifier.StatePending,
-					ActiveAt: time.Now().Truncate(3 * time.Hour)},
-			},
-		},
+func TestGroup_Restore(t *testing.T) {
+	defaultTS := time.Now()
+	fqr := &fakeQuerierWithRegistry{}
+	fn := func(rules []config.Rule, expAlerts map[uint64]*notifier.Alert) {
+		t.Helper()
+		defer fqr.reset()
+
+		for _, r := range rules {
+			fqr.set(r.Expr, metricWithValueAndLabels(t, 0, "__name__", r.Alert))
+		}
+
+		fg := newGroup(config.Group{Name: "TestRestore", Rules: rules}, fqr, time.Second, nil)
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			nts := func() []notifier.Notifier { return []notifier.Notifier{&fakeNotifier{}} }
+			fg.start(context.Background(), nts, nil, fqr)
+			wg.Done()
+		}()
+		fg.close()
+		wg.Wait()
+
+		gotAlerts := make(map[uint64]*notifier.Alert)
+		for _, rs := range fg.Rules {
+			alerts := rs.(*AlertingRule).alerts
+			for k, v := range alerts {
+				if !v.Restored {
+					// set not restored alerts to predictable timestamp
+					v.ActiveAt = defaultTS
+				}
+				gotAlerts[k] = v
+			}
+		}
+
+		if len(gotAlerts) != len(expAlerts) {
+			t.Fatalf("expected %d alerts; got %d", len(expAlerts), len(gotAlerts))
+		}
+		for key, exp := range expAlerts {
+			got, ok := gotAlerts[key]
+			if !ok {
+				t.Fatalf("expected to have key %d", key)
+			}
+			if got.State != notifier.StatePending {
+				t.Fatalf("expected state %d; got %d", notifier.StatePending, got.State)
+			}
+			if got.ActiveAt != exp.ActiveAt {
+				t.Fatalf("expected ActiveAt %v; got %v", exp.ActiveAt, got.ActiveAt)
+			}
+		}
 	}
-	fakeGroup := Group{Name: "TestRule_Exec"}
-	for _, tc := range testCases {
-		t.Run(tc.rule.Name, func(t *testing.T) {
-			fq := &fakeQuerier{}
-			tc.rule.GroupID = fakeGroup.ID()
-			tc.rule.q = fq
-			fq.add(tc.metrics...)
-			if err := tc.rule.Restore(context.TODO(), fq, time.Hour, nil); err != nil {
-				t.Fatalf("unexpected err: %s", err)
-			}
-			if len(tc.rule.alerts) != len(tc.expAlerts) {
-				t.Fatalf("expected %d alerts; got %d", len(tc.expAlerts), len(tc.rule.alerts))
-			}
-			for key, exp := range tc.expAlerts {
-				got, ok := tc.rule.alerts[key]
-				if !ok {
-					t.Fatalf("expected to have key %d", key)
-				}
-				if got.State != exp.State {
-					t.Fatalf("expected state %d; got %d", exp.State, got.State)
-				}
-				if got.ActiveAt != exp.ActiveAt {
-					t.Fatalf("expected ActiveAt %v; got %v", exp.ActiveAt, got.ActiveAt)
-				}
-			}
+
+	stateMetric := func(name string, value time.Time, labels ...string) datasource.Metric {
+		labels = append(labels, "__name__", alertForStateMetricName)
+		labels = append(labels, alertNameLabel, name)
+		labels = append(labels, alertGroupNameLabel, "TestRestore")
+		return metricWithValueAndLabels(t, float64(value.Unix()), labels...)
+	}
+
+	ts := time.Now().Truncate(time.Hour)
+	// one active alert, no previous state
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: defaultTS,
+			},
 		})
-	}
+	fqr.reset()
+
+	// one active alert with state restore
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+		stateMetric("foo", ts))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts},
+		})
+
+	// two rules, two active alerts, one with state restored
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+		stateMetric("foo", ts))
+	fn(
+		[]config.Rule{
+			{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutils.NewDuration(time.Second)},
+		},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: defaultTS,
+			},
+			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts},
+		})
+
+	// two rules, two active alerts, two with state restored
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo"}[3600s])`,
+		stateMetric("foo", ts))
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="bar"}[3600s])`,
+		stateMetric("bar", ts))
+	fn(
+		[]config.Rule{
+			{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)},
+			{Alert: "bar", Expr: "bar", For: promutils.NewDuration(time.Second)},
+		},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts,
+			},
+			hash(map[string]string{alertNameLabel: "bar", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: ts},
+		})
+
+	// one active alert but wrong state restore
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertname="bar",alertgroup="TestRestore"}[3600s])`,
+		stateMetric("wrong alert", ts))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore"}): {
+				ActiveAt: defaultTS,
+			},
+		})
+
+	// one active alert with labels
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+		stateMetric("foo", ts, "env", "dev"))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
+				ActiveAt: ts,
+			},
+		})
+
+	// one active alert with restore labels missmatch
+	ts = time.Now().Truncate(time.Hour)
+	fqr.set(`last_over_time(ALERTS_FOR_STATE{alertgroup="TestRestore",alertname="foo",env="dev"}[3600s])`,
+		stateMetric("foo", ts, "env", "dev", "team", "foo"))
+	fn(
+		[]config.Rule{{Alert: "foo", Expr: "foo", Labels: map[string]string{"env": "dev"}, For: promutils.NewDuration(time.Second)}},
+		map[uint64]*notifier.Alert{
+			hash(map[string]string{alertNameLabel: "foo", alertGroupNameLabel: "TestRestore", "env": "dev"}): {
+				ActiveAt: defaultTS,
+			},
+		})
 }
 
 func TestAlertingRule_Exec_Negative(t *testing.T) {
