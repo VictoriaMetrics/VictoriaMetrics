@@ -1,12 +1,25 @@
 @use "src/styles/variables" as *;
 
 .vm-server-configurator {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   gap: $padding-medium;
   width: 600px;
 
+  &_mobile {
+    grid-auto-rows: min-content;
+    align-items: flex-start;
+    height: 100%;
+    width: 100%;
+  }
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+
   &__input {
+    width: 100%;
 
     &_server {
       display: grid;
@@ -33,5 +46,11 @@
     gap: $padding-small;
     margin-left: auto;
     margin-right: 0;
+  }
+
+  &_mobile &__footer {
+    align-items: flex-end;
+    flex-grow: 1;
+    width: 100%;
   }
 }

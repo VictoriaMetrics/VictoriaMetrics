@@ -100,10 +100,15 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     const overflowX = leftOnChart + tooltipWidth >= width ? tooltipWidth + (2 * margin) : 0;
     const overflowY = topOnChart + tooltipHeight >= height ? tooltipHeight + (2 * margin) : 0;
 
-    setPosition({
+    const position = {
       top: topOnChart + tooltipOffset.top + margin - overflowY,
       left: leftOnChart + tooltipOffset.left + margin - overflowX
-    });
+    };
+
+    if (position.left < 0) position.left = 20;
+    if (position.top < 0) position.top = 20;
+
+    setPosition(position);
   };
 
   useEffect(calcPosition, [u, value, dataTime, seriesIdx, tooltipOffset, tooltipRef]);
@@ -170,7 +175,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           style={{ background: color }}
         />
         <p>
-          {metricName}: 
+          {metricName}:
           <b className="vm-chart-tooltip-data__value">{valueFormat}</b>
           {unit}
         </p>

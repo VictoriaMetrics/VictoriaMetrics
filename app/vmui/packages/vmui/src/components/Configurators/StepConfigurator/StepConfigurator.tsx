@@ -111,7 +111,12 @@ const StepConfigurator: FC = () => {
           startIcon={<TimelineIcon/>}
           onClick={toggleOpenOptions}
         >
-          STEP {customStep}
+          <p>
+            STEP
+            <p className="vm-step-control__value">
+              {customStep}
+            </p>
+          </p>
         </Button>
       </Tooltip>
       <Popper
