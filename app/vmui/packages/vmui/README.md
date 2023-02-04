@@ -60,7 +60,7 @@ VMUI can be used to paste into other applications
 | Name                    |   Default   |                                                                           Description |
 |:------------------------|:-----------:|--------------------------------------------------------------------------------------:|
 | serverURL               | domain name |                                                          Can't be changed from the UI |
-| inputTenantID           |      -      |                            If the flag is present, the "Tenant ID" field is displayed |
+| useTenantID             |      -      |                           If the flag is present, the "Tenant ID" select is displayed |
 | headerStyles.background |  `#FFFFFF`  |                                                               Header background color |
 | headerStyles.color      |  `#3F51B5`  |                                                                     Header font color |
 | palette.primary         |  `#3F51B5`  |                               used to represent primary interface elements for a user |
@@ -74,7 +74,7 @@ VMUI can be used to paste into other applications
 ```json
 {
   "serverURL": "http://localhost:8428",
-  "inputTenantID": "true",
+  "useTenantID": true,
   "headerStyles": {
     "background": "#FFFFFF",
     "color": "#538DE8"
@@ -93,7 +93,7 @@ VMUI can be used to paste into other applications
 
 #### HTML example:
 ```html
-<div id="root" data-params='{"serverURL":"http://localhost:8428","inputTenantID":"true","headerStyles":{"background":"#FFFFFF","color":"#538DE8"},"palette":{"primary":"#538DE8","secondary":"#F76F8E","error":"#FD151B","warning":"#FFB30F","success":"#7BE622","info":"#0F5BFF"}}'></div>
+<div id="root" data-params='{"serverURL":"http://localhost:8428","useTenantID":true,"headerStyles":{"background":"#FFFFFF","color":"#538DE8"},"palette":{"primary":"#538DE8","secondary":"#F76F8E","error":"#FD151B","warning":"#FFB30F","success":"#7BE622","info":"#0F5BFF"}}'></div>
 ```
 
 
