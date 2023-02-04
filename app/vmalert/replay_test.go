@@ -37,6 +37,10 @@ func (fr *fakeReplayQuerier) QueryRange(_ context.Context, q string, from, to ti
 	return nil, nil
 }
 
+func (fr *fakeReplayQuerier) Health() bool {
+	return false
+}
+
 func TestReplay(t *testing.T) {
 	testCases := []struct {
 		name     string

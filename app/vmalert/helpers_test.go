@@ -61,6 +61,10 @@ func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]dataso
 	return cp, req, nil
 }
 
+func (fq *fakeQuerier) Health() bool {
+	return false
+}
+
 type fakeNotifier struct {
 	sync.Mutex
 	alerts []notifier.Alert
@@ -70,6 +74,7 @@ type fakeNotifier struct {
 
 func (*fakeNotifier) Close()       {}
 func (*fakeNotifier) Addr() string { return "" }
+func (*fakeNotifier) Health() bool { return false }
 func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
 	fn.Lock()
 	defer fn.Unlock()

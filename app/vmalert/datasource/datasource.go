@@ -18,6 +18,7 @@ type Querier interface {
 	// It returns list of Metric in response and error if any.
 	// QueryRange should stop once ctx is cancelled.
 	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
+	Health() bool
 }
 
 // QuerierBuilder builds Querier with given params.
