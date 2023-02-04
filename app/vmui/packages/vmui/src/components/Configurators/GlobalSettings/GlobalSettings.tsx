@@ -100,9 +100,11 @@ const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
               onChange={setTimezone}
             />
           </div>
-          <div className="vm-server-configurator__input">
-            <ThemeControl/>
-          </div>
+          {!appModeEnable && (
+            <div className="vm-server-configurator__input">
+              <ThemeControl/>
+            </div>
+          )}
           <div className="vm-server-configurator__footer">
             <Button
               variant="outlined"
