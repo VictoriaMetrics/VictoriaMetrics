@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/cheggaaa/pb/v3"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -23,6 +24,7 @@ type vmNativeProcessor struct {
 	dst          *vmNativeClient
 	src          *vmNativeClient
 	interCluster bool
+	retry        *utils.Retry
 }
 
 type vmNativeClient struct {
@@ -182,9 +184,14 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
 
-	_, err = io.Copy(w, barReader)
+	cb := func() error {
+		_, err = io.Copy(w, barReader)
+		return err
+	}
+
+	attempts, err := p.retry.Do(cb)
 	if err != nil {
-		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
+		return fmt.Errorf("failed to write into %q: %s, after retries: %d", p.dst.addr, err, attempts)
 	}
 
 	if err := pw.Close(); err != nil {

@@ -29,6 +29,11 @@ var (
 			Value: false,
 			Usage: "Whether to enable verbosity in logs output.",
 		},
+	}
+)
+
+var (
+	retryFlags = []cli.Flag{
 		&cli.IntFlag{
 			Name:  backoffRetries,
 			Usage: "How many retries we need to check if callback was successful.",
@@ -41,7 +46,7 @@ var (
 		},
 		&cli.DurationFlag{
 			Name:  backoffMinDuration,
-			Usage: "Configure minimum (initial) repeat interval",
+			Usage: "Configure minimum (initial) repeat interval.",
 			Value: time.Second,
 		},
 	}

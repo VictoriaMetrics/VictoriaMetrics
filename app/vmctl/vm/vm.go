@@ -54,6 +54,13 @@ type Config struct {
 	RateLimit int64
 	// Whether to disable progress bar per VM worker
 	DisableProgressBar bool
+
+	// BackoffRetries defines how many retries we need to check if callback was successful.
+	BackoffRetries int
+	// BackoffFactor configure the length of delay after each failed attempt.
+	BackoffFactor float64
+	// BackoffMinDuration configure minimum (initial) repeat interval
+	BackoffMinDuration time.Duration
 }
 
 // Importer performs insertion of timeseries
@@ -137,6 +144,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
+		retry:      utils.NewRetry(cfg.BackoffRetries, cfg.BackoffFactor, cfg.BackoffMinDuration),
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -220,7 +228,9 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 			exitErr := &ImportError{
 				Batch: batch,
 			}
-			if err := im.Import(batch); err != nil {
+			cb := func() error { return im.Import(batch) }
+			_, err := im.retry.Do(cb)
+			if err != nil {
 				exitErr.Err = err
 			}
 			im.errors <- exitErr
