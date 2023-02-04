@@ -2,6 +2,20 @@
 
 .vm-metrics-content {
   &-header {
-    margin: -$padding-medium 0-$padding-medium $padding-medium;
+    margin: -$padding-medium 0-$padding-medium 0;
+  }
+
+  &__table {
+    padding-top: $padding-medium;
+    width: calc(100vw - ($padding-medium * 4) - var(--scrollbar-width));
+    overflow: auto;
+
+    @media (max-width: 768px) {
+      width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
+    }
+
+    .vm-table-cell_header {
+      white-space: nowrap;
+    }
   }
 }

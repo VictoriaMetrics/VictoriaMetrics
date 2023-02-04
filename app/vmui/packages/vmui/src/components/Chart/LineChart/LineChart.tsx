@@ -55,6 +55,7 @@ const LineChart: FC<LineChartProps> = ({
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
   const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
+  const [startTouchDistance, setStartTouchDistance] = useState(0);
   const layoutSize = useResize(container);
 
   const [showTooltip, setShowTooltip] = useState(false);
@@ -84,6 +85,7 @@ const LineChart: FC<LineChartProps> = ({
       left: parseFloat(u.over.style.left),
       top: parseFloat(u.over.style.top)
     });
+
     u.over.addEventListener("mousedown", e => {
       const { ctrlKey, metaKey, button } = e;
       const leftClick = button === 0;
@@ -92,6 +94,10 @@ const LineChart: FC<LineChartProps> = ({
         // drag pan
         dragChart({ u, e, setPanning, setPlotScale, factor });
       }
+    });
+
+    u.over.addEventListener("touchstart", e => {
+      dragChart({ u, e, setPanning, setPlotScale, factor });
     });
 
     u.over.addEventListener("wheel", e => {
@@ -235,6 +241,47 @@ const LineChart: FC<LineChartProps> = ({
     };
   }, [xRange]);
 
+  const handleTouchStart = (e: TouchEvent) => {
+    if (e.touches.length !== 2) return;
+    e.preventDefault();
+
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    setStartTouchDistance(Math.sqrt(dx * dx + dy * dy));
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (e.touches.length !== 2 || !uPlotInst) return;
+    e.preventDefault();
+
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    const endTouchDistance = Math.sqrt(dx * dx + dy * dy);
+    const diffDistance = startTouchDistance - endTouchDistance;
+
+    const max = (uPlotInst.scales.x.max || xRange.max);
+    const min = (uPlotInst.scales.x.min || xRange.min);
+    const dur = max - min;
+    const dir = (diffDistance > 0 ? -1 : 1);
+
+    const zoomFactor = dur / 50 * dir;
+    uPlotInst.batch(() => setPlotScale({
+      u: uPlotInst,
+      min: min + zoomFactor,
+      max: max - zoomFactor
+    }));
+  };
+
+  useEffect(() => {
+    window.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("touchstart", handleTouchStart);
+
+    return () => {
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchstart", handleTouchStart);
+    };
+  }, [uPlotInst, startTouchDistance]);
+
   useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
@@ -256,6 +303,10 @@ const LineChart: FC<LineChartProps> = ({
         "vm-line-chart": true,
         "vm-line-chart_panning": isPanning
       })}
+      style={{
+        minWidth: `${layoutSize.width || 400}px`,
+        minHeight: `${height || 500}px`
+      }}
     >
       <div
         className="vm-line-chart__u-plot"

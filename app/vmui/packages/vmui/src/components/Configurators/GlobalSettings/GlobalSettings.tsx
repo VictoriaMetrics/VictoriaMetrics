@@ -14,10 +14,12 @@ import classNames from "classnames";
 import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import ThemeControl from "../ThemeControl/ThemeControl";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 const title = "Settings";
 
-const GlobalSettings: FC = () => {
+const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
+  const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
   const { serverUrl: stateServerUrl } = useAppState();
@@ -49,7 +51,10 @@ const GlobalSettings: FC = () => {
   }, [stateServerUrl]);
 
   return <>
-    <Tooltip title={title}>
+    <Tooltip
+      open={showTitle === true ? false : undefined}
+      title={title}
+    >
       <Button
         className={classNames({
           "vm-header-button": !appModeEnable
@@ -58,14 +63,21 @@ const GlobalSettings: FC = () => {
         color="primary"
         startIcon={<SettingsIcon/>}
         onClick={handleOpen}
-      />
+      >
+        {showTitle && title}
+      </Button>
     </Tooltip>
     {open && (
       <Modal
         title={title}
         onClose={handleClose}
       >
-        <div className="vm-server-configurator">
+        <div
+          className={classNames({
+            "vm-server-configurator": true,
+            "vm-server-configurator_mobile": isMobile
+          })}
+        >
           {!appModeEnable && (
             <div className="vm-server-configurator__input">
               <ServerConfigurator

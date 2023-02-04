@@ -79,7 +79,7 @@ export const sizeAxis = (u: uPlot, values: string[], axisIdx: number, cycleNum: 
   let axisSize = 6 + (axis?.ticks?.size || 0) + (axis.gap || 0);
 
   const longestVal = (values ?? []).reduce((acc, val) => val.length > acc.length ? val : acc, "");
-  if (longestVal != "") axisSize += getTextWidth(longestVal, u.ctx.font);
+  if (longestVal != "") axisSize += getTextWidth(longestVal, "10px Arial");
 
   return Math.ceil(axisSize);
 };

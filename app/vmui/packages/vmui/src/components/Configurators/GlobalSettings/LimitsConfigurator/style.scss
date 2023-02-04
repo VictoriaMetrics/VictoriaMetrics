@@ -12,10 +12,14 @@
   }
 
   &__inputs {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: $padding-global;
+
+    div {
+      flex-grow: 1;
+    }
   }
 }

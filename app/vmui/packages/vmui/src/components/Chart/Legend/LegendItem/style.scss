@@ -6,7 +6,7 @@
   grid-gap: $padding-small;
   align-items: start;
   justify-content: start;
-  padding: $padding-small $padding-large $padding-small $padding-small;
+  padding: $padding-small;
   background-color: $color-background-block;
   cursor: pointer;
   transition: 0.2s ease;
@@ -30,9 +30,9 @@
 
   &-info {
     font-weight: normal;
+    word-break: break-all;
 
     &__label {
-
     }
 
     &__free-fields {

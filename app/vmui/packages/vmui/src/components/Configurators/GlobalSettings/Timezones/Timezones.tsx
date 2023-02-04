@@ -91,6 +91,7 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
         buttonRef={targetRef}
         placement="bottom-left"
         onClose={handleCloseList}
+        fullWidth
       >
         <div className="vm-timezones-list">
           <div className="vm-timezones-list-header">
