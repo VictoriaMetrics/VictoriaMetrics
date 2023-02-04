@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -82,24 +83,38 @@ func (m *manager) close() {
 	m.wg.Wait()
 }
 
-func (m *manager) startGroup(ctx context.Context, group *Group, restore bool) error {
-	if restore && m.rr != nil {
-		err := group.Restore(ctx, m.rr, *remoteReadLookBack, m.labels)
-		if err != nil {
-			if !*remoteReadIgnoreRestoreErrors {
-				return fmt.Errorf("failed to restore ruleState for group %q: %w", group.Name, err)
-			}
-			logger.Errorf("error while restoring ruleState for group %q: %s", group.Name, err)
-		}
-	}
-
+func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error {
 	m.wg.Add(1)
-	id := group.ID()
+	id := g.ID()
 	go func() {
-		group.start(ctx, m.notifiers, m.rw)
+		// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+		if !skipRandSleepOnGroupStart {
+			randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
+			sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+			if randSleep < sleepOffset {
+				randSleep += uint64(g.Interval)
+			}
+			randSleep -= sleepOffset
+			sleepTimer := time.NewTimer(time.Duration(randSleep))
+			select {
+			case <-ctx.Done():
+				sleepTimer.Stop()
+				return
+			case <-g.doneCh:
+				sleepTimer.Stop()
+				return
+			case <-sleepTimer.C:
+			}
+		}
+		if restore {
+			g.start(ctx, m.notifiers, m.rw, m.rr)
+		} else {
+			g.start(ctx, m.notifiers, m.rw, nil)
+		}
+
 		m.wg.Done()
 	}()
-	m.groups[id] = group
+	m.groups[id] = g
 	return nil
 }
 

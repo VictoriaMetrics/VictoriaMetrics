@@ -94,6 +94,10 @@ func main() {
 	logger.Init()
 	pushmetrics.Init()
 
+	if !*remoteReadIgnoreRestoreErrors {
+		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next versions.")
+	}
+
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {
 		logger.Fatalf("failed to parse %q: %s", *ruleTemplatesPath, err)
