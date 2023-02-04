@@ -13,12 +13,13 @@ html, body, #root {
 }
 
 body {
-  overflow: scroll;
+  overflow: auto;
 }
 
 * {
   font: inherit;
   cursor: inherit;
+  touch-action: pan-x pan-y;
 }
 
 code {

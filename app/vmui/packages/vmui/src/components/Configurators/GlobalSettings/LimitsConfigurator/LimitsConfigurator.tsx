@@ -70,15 +70,16 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
       </div>
       <div className="vm-limits-configurator__inputs">
         {fields.map(f => (
-          <TextField
-            key={f.type}
-            label={f.label}
-            value={limits[f.type]}
-            error={error[f.type]}
-            onChange={createChangeHandler(f.type)}
-            onEnter={onEnter}
-            type="number"
-          />
+          <div key={f.type}>
+            <TextField
+              label={f.label}
+              value={limits[f.type]}
+              error={error[f.type]}
+              onChange={createChangeHandler(f.type)}
+              onEnter={onEnter}
+              type="number"
+            />
+          </div>
         ))}
       </div>
     </div>

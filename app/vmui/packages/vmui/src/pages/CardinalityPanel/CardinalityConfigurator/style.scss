@@ -12,6 +12,10 @@
     gap: 0 $padding-medium;
 
     &__query {
+      flex-grow: 8;
+    }
+
+    &__item {
       flex-grow: 1;
     }
   }
@@ -19,12 +23,20 @@
   &-additional {
     display: flex;
     align-items: center;
+    margin-bottom: $padding-small;
   }
 
   &-bottom {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: $padding-global;
+
+    &__docs {
+      display: flex;
+      align-items: center;
+      gap: $padding-global;
+    }
 
     &__info {
       flex-grow: 1;
@@ -33,6 +45,10 @@
 
     a {
       color: $color-text-secondary;
+    }
+
+    button {
+      margin: 0 0 0 auto;
     }
   }
 }

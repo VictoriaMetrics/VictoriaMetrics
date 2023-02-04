@@ -5,16 +5,18 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: $padding-small calc($padding-small + 10px);
+  gap: $padding-global calc($padding-small + 10px);
 
   &__job {
-    flex-grow: 0.5;
-    min-width: 200px;
+    flex-grow: 1;
   }
 
   &__instance {
+    flex-grow: 2;
+  }
+
+  &__size {
     flex-grow: 1;
-    min-width: 300px;
   }
 
   &-metrics {

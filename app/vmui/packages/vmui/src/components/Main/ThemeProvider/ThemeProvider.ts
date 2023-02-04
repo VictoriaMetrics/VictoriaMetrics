@@ -1,7 +1,7 @@
 import { FC, useEffect, useState } from "preact/compat";
 import { getContrastColor } from "../../../utils/color";
 import { getCssVariable, isSystemDark, setCssVariable } from "../../../utils/theme";
-import { AppParams, getAppModeParams } from "../../../utils/app-mode";
+import { AppParams, getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
 import { getFromStorage } from "../../../utils/storage";
 import { darkPalette, lightPalette } from "../../../constants/palette";
 import { Theme } from "../../../types";
@@ -23,6 +23,7 @@ const colorVariables = [
 
 export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
 
+  const appModeEnable = getAppModeEnable();
   const { palette: paletteAppMode = {} } = getAppModeParams();
   const { theme } = useAppState();
   const isDarkTheme = useSystemTheme();
@@ -39,6 +40,7 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
     const { clientWidth, clientHeight } = document.documentElement;
     setCssVariable("scrollbar-width", `${innerWidth - clientWidth}px`);
     setCssVariable("scrollbar-height", `${innerHeight - clientHeight}px`);
+    setCssVariable("vh", `${innerHeight * 0.01}px`);
   };
 
   const setContrastText = () => {
@@ -70,6 +72,8 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
       setCssVariable(variable, value);
     });
     setContrastText();
+
+    if (appModeEnable) setAppModePalette();
   };
 
   const updatePalette = () => {
@@ -85,12 +89,17 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
   };
 
   useEffect(() => {
-    setAppModePalette();
     setScrollbarSize();
     setTheme();
   }, [palette]);
 
   useEffect(updatePalette, [theme, isDarkTheme]);
+
+  useEffect(() => {
+    if (appModeEnable) {
+      dispatch({ type: "SET_THEME", payload: Theme.light });
+    }
+  }, []);
 
   return null;
 };

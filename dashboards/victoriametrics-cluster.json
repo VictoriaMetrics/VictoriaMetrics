@@ -6837,7 +6837,7 @@
               "refId": "A"
             }
           ],
-          "title": "Datapoints scanned per series ($instance)",
+          "title": "Datapoints scanned per query ($instance)",
           "type": "timeseries"
         },
         {
