@@ -3,9 +3,6 @@ on:
   schedule:
     # Daily at 2:48am
     - cron: '48 2 * * *'
-  push:
-    branches:
-      - nightly-build
 
 permissions:
   contents: read
