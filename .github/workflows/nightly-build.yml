@@ -3,6 +3,9 @@ on:
   schedule:
     # Daily at 2:48am
     - cron: '48 2 * * *'
+  push:
+    branches:
+      - nightly-build
 
 permissions:
   contents: read
@@ -33,6 +36,11 @@ jobs:
       -
         name: Code checkout
         uses: actions/checkout@master
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        with:
+          use: linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386
       -
         name: Publish
         run: |
