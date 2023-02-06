@@ -1,0 +1,53 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-heatmap {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+
+  &__value {
+    color: $color-text;
+    font-size: $font-size-small;
+
+    &:last-child {
+      text-align: right;
+    }
+  }
+
+  &-gradient {
+    $gradient-height: $font-size-small;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    grid-column: 1/-1;
+    height: $gradient-height;
+    width: 200px;
+
+    &__value {
+      position: absolute;
+      top: calc($gradient-height + 4px);
+      margin-left: calc(-1 * ($padding-small));
+      padding: 0 $padding-small;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $color-text;
+      font-size: $font-size-small;
+      background-color: $color-background-block;
+
+      &:after {
+        content: '';
+        position: absolute;
+        bottom: calc($gradient-height + 2px);
+        left: auto;
+        border-radius: 50%;
+        border: 2px solid $color-text;
+        width: $gradient-height;
+        height: $gradient-height;
+      }
+    }
+  }
+}
