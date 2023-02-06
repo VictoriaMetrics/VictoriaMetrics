@@ -21,26 +21,26 @@ This chart will install `VMOperator`, `VMAgent`, `NodeExporter`, `kube-state-met
 ## Installation steps
 Install the Helm chart in a custom namespace
 
-1. Create a unique Kubernetes namespace, for example monitoring
+1. Create a unique Kubernetes namespace, for example `monitoring`
   ```
   kubectl create namespace monitoring
   ```
-1. Create kubernetes-secrets with token to access your dbaas deployment
+2. Create kubernetes-secrets with token to access your dbaas deployment
   ```
   kubectl --namespace monitoring create secret generic dbaas-write-access-token --from-literal=bearerToken=your-token
   kubectl --namespace monitoring create secret generic dbaas-read-access-token --from-literal=bearerToken=your-token
   ```
   You can find your access token on the "Access" tab of your deployment
-  <img src="k8s-monitoring-access-token.png" width="800">
+  <img src="how-to-monitor-k8s_access-token.png" width="800">
 
-1. Set up a Helm repository using the following commands:
+3. Set up a Helm repository using the following commands:
   ```
   helm repo add grafana https://grafana.github.io/helm-charts
   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
   helm repo add vm https://victoriametrics.github.io/helm-charts
   helm repo update
   ```
-1. Create a YAML file of Helm values called dbaas.yaml with following content
+4. Create a YAML file of Helm values called dbaas.yaml with following content
   ```yaml
    externalVM:
      read:
@@ -78,13 +78,15 @@ Install the Helm chart in a custom namespace
    grafana:
      enabled: true
   ```
-1. Install VictoriaMetrics-k8s-stack helm chart
+5. Install VictoriaMetrics-k8s-stack helm chart
 
   ```
   helm --namespace monitoring install vm vm/victoria-metrics-k8s-stack -f dbaas.yaml -n monitoring
   ```
 
-## Connect to grafana and create your datasource
+## Connect grafana
+
+Connect to grafana and create your datasource
 
 > If you are using external grafana, you can skip steps 1-3 and you will need to import dashboards that can be found here manually
 
@@ -103,7 +105,7 @@ Install the Helm chart in a custom namespace
   Choose VictoriaMetrics or Prometheus as datasource type. Make sure you made this datasource as default for dashboards to work.
   > You can find token and URL in your deployment, on Access tab
   
-  <img src="k8s-monitoring-datasource.png" width="800">
+  <img src="how-to-monitor-k8s_datasource.png" width="800">
 
 ## Test it
 
