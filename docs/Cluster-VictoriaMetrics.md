@@ -315,10 +315,11 @@ The metric is set to `0` when the `vmstorage` isn't in read-only mode.
 
 ## URL format
 
-##### Differences in the URL structures for data ingestion between standalone/cluster
-A note on the differences between the cluster version and standalone version URL structures related to data ingestion.  In the standalone version where the import time series data formats for `csv`, `native` and `prometheus` are `/api/vi/import/<format>` (apart from `jsonl` which has no suffix `api/vi/import`). In the cluster version all endpoints to import time series data are prefixed with `/prometheus` so they become `/prometheus/api/vi/import/<format>`, apart from the `jsonl` format which also has no suffix in the cluster version `/prometheus/api/vi/import`)
+The main differences between URL formats of cluster and [Single server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+versions are that cluster has separate components for read and ingestion path, and because of multi-tenancy support.
+Also in the cluster version the `/prometheus/api/v1` endpoint ingests  `jsonl`, `csv`, `native` and `prometheus` data formats **not** only `prometheus` data.
+Check practical examples of VictoriaMetrics API [here](https://docs.victoriametrics.com/url-examples.html).
 
-#### URLs
 - URLs for data ingestion: `http://<vminsert>:8480/insert/<accountID>/<suffix>`, where:
   - `<accountID>` is an arbitrary 32-bit integer identifying namespace for data ingestion (aka tenant). It is possible to set it as `accountID:projectID`,
     where `projectID` is also arbitrary 32-bit integer. If `projectID` isn't set, then it equals to `0`. See [multitenancy docs](#multitenancy) for more details.
