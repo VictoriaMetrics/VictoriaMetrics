@@ -8,7 +8,7 @@ export interface HideSeriesArgs {
 }
 
 export interface DragArgs {
-    e: MouseEvent,
+    e: MouseEvent | TouchEvent,
     u: uPlot,
     factor: number,
     setPanning: (enable: boolean) => void,

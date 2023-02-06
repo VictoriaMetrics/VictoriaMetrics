@@ -3,9 +3,12 @@ import "./style.scss";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { Theme } from "../../../types";
 import Toggle from "../../Main/Toggle/Toggle";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 const options = Object.values(Theme).map(value => ({ title: value, value }));
 const ThemeControl = () => {
+  const { isMobile } = useDeviceDetect();
   const { theme } = useAppState();
   const dispatch = useAppDispatch();
 
@@ -14,11 +17,19 @@ const ThemeControl = () => {
   };
 
   return (
-    <div className="vm-theme-control">
+    <div
+      className={classNames({
+        "vm-theme-control": true,
+        "vm-theme-control_mobile": isMobile
+      })}
+    >
       <div className="vm-server-configurator__title">
         Theme preferences
       </div>
-      <div className="vm-theme-control__toggle">
+      <div
+        className="vm-theme-control__toggle"
+        key={`${isMobile}`}
+      >
         <Toggle
           options={options}
           value={theme}

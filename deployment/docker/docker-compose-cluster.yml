@@ -61,7 +61,7 @@ services:
       - "vmstorage-1"
       - "vmstorage-2"
     command:
-      - '--storageNode=vmstorage-1.87.0'
+      - '--storageNode=vmstorage-1:8400'
       - '--storageNode=vmstorage-2:8400'
     ports:
       - 8480:8480

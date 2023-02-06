@@ -118,24 +118,26 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
         at <b>{date}</b>{match && <span> for series selector <b>{match}</b></span>}.
         Show top {topN} entries per table.
       </div>
-      <a
-        className="vm-link vm-link_with-icon"
-        target="_blank"
-        href="https://docs.victoriametrics.com/#cardinality-explorer"
-        rel="help noreferrer"
-      >
-        <WikiIcon/>
-        Documentation
-      </a>
-      <a
-        className="vm-link vm-link_with-icon"
-        target="_blank"
-        href="https://victoriametrics.com/blog/cardinality-explorer/"
-        rel="help noreferrer"
-      >
-        <QuestionIcon/>
-        Example of using
-      </a>
+      <div className="vm-cardinality-configurator-bottom__docs">
+        <a
+          className="vm-link vm-link_with-icon"
+          target="_blank"
+          href="https://docs.victoriametrics.com/#cardinality-explorer"
+          rel="help noreferrer"
+        >
+          <WikiIcon/>
+         Documentation
+        </a>
+        <a
+          className="vm-link vm-link_with-icon"
+          target="_blank"
+          href="https://victoriametrics.com/blog/cardinality-explorer/"
+          rel="help noreferrer"
+        >
+          <QuestionIcon/>
+         Example of using
+        </a>
+      </div>
       <Button
         startIcon={<PlayIcon/>}
         onClick={onRunQuery}

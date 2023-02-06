@@ -7,6 +7,7 @@ import { ErrorTypes } from "../../../types";
 import classNames from "classnames";
 import { useSnack } from "../../../contexts/Snackbar";
 import { CopyIcon, RestartIcon } from "../../../components/Main/Icons";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface JsonFormProps {
   defaultJson?: string
@@ -28,6 +29,7 @@ const JsonForm: FC<JsonFormProps> = ({
   onUpload,
 }) => {
   const { showInfoMessage } = useSnack();
+  const { isMobile } = useDeviceDetect();
 
   const [json, setJson] = useState(defaultJson);
   const [title, setTitle] = useState(defaultTile);
@@ -77,7 +79,8 @@ const JsonForm: FC<JsonFormProps> = ({
     <div
       className={classNames({
         "vm-json-form": true,
-        "vm-json-form_one-field": !displayTitle
+        "vm-json-form_one-field": !displayTitle,
+        "vm-json-form_mobile": isMobile
       })}
     >
       {displayTitle && (

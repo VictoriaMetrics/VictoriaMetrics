@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import "./style.scss";
 import { ReactNode } from "react";
 import { ExoticComponent } from "react";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface TooltipProps {
   children: ReactNode
@@ -19,6 +20,7 @@ const Tooltip: FC<TooltipProps> = ({
   placement = "bottom-center",
   offset = { top: 6, left: 0 }
 }) => {
+  const { isMobile } = useDeviceDetect();
 
   const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
@@ -121,7 +123,7 @@ const Tooltip: FC<TooltipProps> = ({
         {children}
       </Fragment>
 
-      {isOpen && ReactDOM.createPortal((
+      {!isMobile && isOpen && ReactDOM.createPortal((
         <div
           className="vm-tooltip"
           ref={popperRef}

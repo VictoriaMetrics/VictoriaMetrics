@@ -3,8 +3,11 @@
 .vm-trace-page {
   display: flex;
   flex-direction: column;
-  padding: $padding-global;
   min-height: 100%;
+
+  @media (max-width: 768px) {
+    padding: $padding-medium 0;
+  }
 
   &-controls {
     display: grid;
@@ -21,12 +24,21 @@
     gap: $padding-global;
     margin-bottom: $padding-medium;
 
+    @media (max-width: 768px) {
+      grid-template-columns: 1fr;
+      padding: 0 $padding-medium;
+    }
+
     &-errors {
       display: grid;
       align-items: flex-start;
       justify-content: stretch;
       grid-template-columns: 1fr;
       gap: $padding-medium;
+
+      @media (max-width: 768px) {
+        grid-row: 2;
+      }
 
       &-item {
         position: relative;

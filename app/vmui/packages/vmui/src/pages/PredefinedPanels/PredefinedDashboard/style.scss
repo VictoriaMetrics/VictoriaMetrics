@@ -40,6 +40,10 @@
     gap: $padding-global;
     padding: 0;
 
+    @media (max-width: 1000px) {
+      grid-template-columns: 1fr;
+    }
+
     &-panel {
       position: relative;
       border-radius: $border-radius-medium;

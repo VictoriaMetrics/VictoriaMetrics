@@ -8,6 +8,15 @@
     text-transform: none;
   }
 
+  &__value {
+    display: inline;
+    margin-left: 3px;
+
+    @media (max-width: 500px) {
+      display: none;
+    }
+  }
+
   &-popper {
     display: grid;
     gap: $padding-small;

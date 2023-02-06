@@ -12,6 +12,7 @@ interface NavItemProps {
   submenu: {label: string | undefined, value: string}[],
   color?: string
   background?: string
+  direction?: "row" | "column"
 }
 
 const NavSubItem: FC<NavItemProps> = ({
@@ -19,7 +20,8 @@ const NavSubItem: FC<NavItemProps> = ({
   label,
   color,
   background,
-  submenu
+  submenu,
+  direction
 }) => {
   const { pathname } = useLocation();
 
@@ -49,6 +51,21 @@ const NavSubItem: FC<NavItemProps> = ({
   useEffect(() => {
     handleCloseSubmenu();
   }, [pathname]);
+
+  if (direction === "column") {
+    return (
+      <>
+        {submenu.map(sm => (
+          <NavItem
+            key={sm.value}
+            activeMenu={activeMenu}
+            value={sm.value}
+            label={sm.label || ""}
+          />
+        ))}
+      </>
+    );
+  }
 
   return (
     <div
@@ -85,6 +102,7 @@ const NavSubItem: FC<NavItemProps> = ({
               activeMenu={activeMenu}
               value={sm.value}
               label={sm.label || ""}
+              color={color}
             />
           ))}
         </div>

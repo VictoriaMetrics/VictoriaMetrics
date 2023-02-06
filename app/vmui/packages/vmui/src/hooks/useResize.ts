@@ -14,7 +14,7 @@ const useResize = (node: HTMLElement | null): {width: number, height: number} =>
     return () => {
       if (node) observer.unobserve(node);
     };
-  }, []);
+  }, [node]);
   return windowSize;
 };
 

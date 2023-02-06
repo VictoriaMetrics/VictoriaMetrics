@@ -5,12 +5,23 @@
   grid-template-columns: repeat(2, 230px);
   padding: $padding-global 0;
 
+  @media (max-width: 500px) {
+    grid-template-columns: 1fr;
+    min-width: 250px;
+  }
+
   &-left {
     display: flex;
     flex-direction: column;
     gap: $padding-small;
     border-right: $border-divider;
     padding: 0 $padding-global;
+
+    @media (max-width: 500px) {
+      border-right: none;
+      border-bottom: $border-divider;
+      padding-bottom: $padding-global;
+    }
 
     &-inputs {
       flex-grow: 1;
