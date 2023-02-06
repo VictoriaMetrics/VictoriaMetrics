@@ -441,7 +441,7 @@ github.com/russross/blackfriday/v2
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/require
-# github.com/urfave/cli/v2 v2.24.2
+# github.com/urfave/cli/v2 v2.24.3
 ## explicit; go 1.18
 github.com/urfave/cli/v2
 # github.com/valyala/bytebufferpool v1.0.0
