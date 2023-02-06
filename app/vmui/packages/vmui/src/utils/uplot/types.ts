@@ -45,3 +45,5 @@ export interface Fill {
     unit: number,
     values: (u: { data: number[][]; }) => string[],
 }
+
+export type ArrayRGB = [number, number, number]
