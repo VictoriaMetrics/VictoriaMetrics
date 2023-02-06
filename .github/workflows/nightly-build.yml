@@ -42,4 +42,7 @@ jobs:
       -
         name: Publish
         run: |
+          docker scan --login --token "$SNYK_TOKEN"
           LATEST_TAG=nightly PKG_TAG=nightly make publish
+        env: 
+          SNYK_TOKEN: ${{ secrets.SNYK_AUTH_TOKEN }}
