@@ -26,23 +26,23 @@ jobs:
           go-version: 1.19.5
         id: go
 
-      - uses: actions/cache@v3
-        with:
-          path: gocache-for-docker
-          key: ${{ runner.os }}-${{ steps.go.outputs.go-version }}-dockerbuild-${{ hashFiles('go.mod') }}
-
       - name: Setup docker scan
         run: |
           mkdir -p ~/.docker/cli-plugins && \
           curl https://github.com/docker/scan-cli-plugin/releases/latest/download/docker-scan_linux_amd64 -L -s -S -o ~/.docker/cli-plugins/docker-scan &&\
           chmod +x ~/.docker/cli-plugins/docker-scan
 
-      - name: Code checkout
-        uses: actions/checkout@master
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       
+      - name: Code checkout
+        uses: actions/checkout@master
+
+      - uses: actions/cache@v3
+        with:
+          path: gocache-for-docker
+          key: gocache-docker-${{ runner.os }}-${{ steps.go.outputs.go-version }}-${{ hashFiles('go.mod') }}
+
       - name: Publish
         run: |
           docker scan --login --token "$SNYK_TOKEN" --accept-license
