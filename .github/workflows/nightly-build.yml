@@ -39,8 +39,6 @@ jobs:
       -
         name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-        with:
-          use: linux/amd64,linux/arm,linux/arm64,linux/ppc64le,linux/386
       -
         name: Publish
         run: |
