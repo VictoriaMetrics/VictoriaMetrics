@@ -20,7 +20,7 @@ cloud.google.com/go/storage
 cloud.google.com/go/storage/internal
 cloud.google.com/go/storage/internal/apiv2
 cloud.google.com/go/storage/internal/apiv2/stubs
-# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.3.0
+# github.com/Azure/azure-sdk-for-go/sdk/azcore v1.3.1
 ## explicit; go 1.18
 github.com/Azure/azure-sdk-for-go/sdk/azcore
 github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud
