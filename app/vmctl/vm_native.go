@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/cheggaaa/pb/v3"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
@@ -115,7 +116,12 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 		srcURL := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
 		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
 
-		return p.runSingle(ctx, f, srcURL, dstURL)
+		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+		attempts, err := p.retry.Do(cb)
+		if err != nil {
+			return fmt.Errorf("failed to process: %s , attempts: %d", err, attempts)
+		}
+		return nil
 	}
 
 	tenants, err := p.getSourceTenants(ctx, f)
@@ -129,8 +135,10 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.addr, tenant, nativeExportAddr)
 		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.addr, tenant, nativeImportAddr)
 
-		if err := p.runSingle(ctx, f, srcURL, dstURL); err != nil {
-			return fmt.Errorf("failed to migrate data for tenant %q: %s", tenant, err)
+		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+		attempts, err := p.retry.Do(cb)
+		if err != nil {
+			return fmt.Errorf("failed to migrate data for tenant %q: %s, after attempts: %d", tenant, err, attempts)
 		}
 	}
 
@@ -151,14 +159,17 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 		defer func() { close(sync) }()
 		req, err := http.NewRequestWithContext(ctx, "POST", dstURL, pr)
 		if err != nil {
-			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
+			logger.Errorf("cannot create import request to %q: %s", p.dst.addr, err)
+			return
 		}
 		importResp, err := p.dst.do(req, http.StatusNoContent)
 		if err != nil {
-			log.Fatalf("import request failed: %s", err)
+			logger.Errorf("import request failed: %s", err)
+			return
 		}
 		if err := importResp.Body.Close(); err != nil {
-			log.Fatalf("cannot close import response body: %s", err)
+			logger.Errorf("cannot close import response body: %s", err)
+			return
 		}
 	}()
 
@@ -184,14 +195,9 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
 
-	cb := func() error {
-		_, err = io.Copy(w, barReader)
-		return err
-	}
-
-	attempts, err := p.retry.Do(cb)
+	_, err = io.Copy(w, barReader)
 	if err != nil {
-		return fmt.Errorf("failed to write into %q: %s, after retries: %d", p.dst.addr, err, attempts)
+		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
 	}
 
 	if err := pw.Close(); err != nil {
