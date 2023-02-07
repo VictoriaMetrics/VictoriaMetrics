@@ -116,10 +116,11 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 		srcURL := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
 		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
 
+		log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
 		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
 		attempts, err := p.retry.Do(cb)
 		if err != nil {
-			return fmt.Errorf("failed to process: %s , attempts: %d", err, attempts)
+			return fmt.Errorf("failed to migrate data from %s to %s: %s , after attempts: %d", srcURL, dstURL, err, attempts)
 		}
 		return nil
 	}
@@ -135,6 +136,7 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.addr, tenant, nativeExportAddr)
 		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.addr, tenant, nativeImportAddr)
 
+		log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
 		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
 		attempts, err := p.retry.Do(cb)
 		if err != nil {
@@ -146,7 +148,6 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dstURL string) error {
-	log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
 
 	exportReader, err := p.exportPipe(ctx, srcURL, f)
 	if err != nil {
