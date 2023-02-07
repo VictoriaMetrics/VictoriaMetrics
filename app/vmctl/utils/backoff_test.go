@@ -35,7 +35,7 @@ func TestRetry_Do(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name:               "first test",
+			name:               "only one retry test",
 			backoffRetries:     5,
 			backoffFactor:      1.7,
 			backoffMinDuration: time.Millisecond * 10,
@@ -57,7 +57,7 @@ func TestRetry_Do(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:               "first test",
+			name:               "all retries failed test",
 			backoffRetries:     5,
 			backoffFactor:      0.1,
 			backoffMinDuration: time.Millisecond * 10,
