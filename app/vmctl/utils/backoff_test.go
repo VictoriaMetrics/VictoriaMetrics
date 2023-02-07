@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -13,24 +14,28 @@ func TestRetry_Do(t *testing.T) {
 		backoffRetries     int
 		backoffFactor      float64
 		backoffMinDuration time.Duration
-		cb                 callback
+		retryableFunc      retryableFunc
+		ctx                context.Context
+		withCancel         bool
 		want               uint64
 		wantErr            bool
 	}{
 		{
 			name: "return bad request",
-			cb: func() error {
+			retryableFunc: func() error {
 				return ErrBadRequest
 			},
+			ctx:     context.Background(),
 			want:    0,
 			wantErr: true,
 		},
 		{
 			name: "empty retries values",
-			cb: func() error {
+			retryableFunc: func() error {
 				time.Sleep(time.Millisecond * 100)
 				return nil
 			},
+			ctx:     context.Background(),
 			want:    0,
 			wantErr: true,
 		},
@@ -39,7 +44,7 @@ func TestRetry_Do(t *testing.T) {
 			backoffRetries:     5,
 			backoffFactor:      1.7,
 			backoffMinDuration: time.Millisecond * 10,
-			cb: func() error {
+			retryableFunc: func() error {
 				t := time.NewTicker(time.Millisecond * 5)
 				defer t.Stop()
 				for range t.C {
@@ -53,6 +58,7 @@ func TestRetry_Do(t *testing.T) {
 				}
 				return nil
 			},
+			ctx:     context.Background(),
 			want:    1,
 			wantErr: false,
 		},
@@ -61,7 +67,7 @@ func TestRetry_Do(t *testing.T) {
 			backoffRetries:     5,
 			backoffFactor:      0.1,
 			backoffMinDuration: time.Millisecond * 10,
-			cb: func() error {
+			retryableFunc: func() error {
 				t := time.NewTicker(time.Millisecond * 5)
 				defer t.Stop()
 				for range t.C {
@@ -69,6 +75,7 @@ func TestRetry_Do(t *testing.T) {
 				}
 				return nil
 			},
+			ctx:     context.Background(),
 			want:    5,
 			wantErr: true,
 		},
@@ -80,7 +87,7 @@ func TestRetry_Do(t *testing.T) {
 				backoffFactor:      tt.backoffFactor,
 				backoffMinDuration: tt.backoffMinDuration,
 			}
-			got, err := r.Do(tt.cb)
+			got, err := r.Do(tt.ctx, tt.retryableFunc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Retry() error = %v, wantErr %v", err, tt.wantErr)
 				return

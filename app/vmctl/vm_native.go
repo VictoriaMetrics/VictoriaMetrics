@@ -117,8 +117,8 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
 
 		log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
-		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
-		attempts, err := p.retry.Do(cb)
+		retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+		attempts, err := p.retry.Do(ctx, retryableFunc)
 		if err != nil {
 			return fmt.Errorf("failed to migrate data from %s to %s: %s , after attempts: %d", srcURL, dstURL, err, attempts)
 		}
@@ -138,7 +138,7 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 
 		log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
 		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
-		attempts, err := p.retry.Do(cb)
+		attempts, err := p.retry.Do(ctx, cb)
 		if err != nil {
 			return fmt.Errorf("failed to migrate data for tenant %q: %s, after attempts: %d", tenant, err, attempts)
 		}

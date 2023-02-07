@@ -3,6 +3,7 @@ package vm
 import (
 	"bufio"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -228,8 +229,8 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 			exitErr := &ImportError{
 				Batch: batch,
 			}
-			cb := func() error { return im.Import(batch) }
-			_, err := im.retry.Do(cb)
+			retryableFunc := func() error { return im.Import(batch) }
+			_, err := im.retry.Do(context.Background(), retryableFunc)
 			if err != nil {
 				exitErr.Err = err
 			}
@@ -276,8 +277,8 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 }
 
 func (im *Importer) flush(b []*TimeSeries) error {
-	cb := func() error { return im.Import(b) }
-	attempts, err := im.retry.Do(cb)
+	retryableFunc := func() error { return im.Import(b) }
+	attempts, err := im.retry.Do(context.Background(), retryableFunc)
 	if err != nil {
 		return fmt.Errorf("import failed with %d retries: %s", attempts, err)
 	}

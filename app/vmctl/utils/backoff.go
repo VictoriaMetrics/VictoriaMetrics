@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -9,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-type callback func() error
+type retryableFunc func() error
 
 var ErrBadRequest = errors.New("bad request")
 
@@ -30,9 +31,14 @@ func NewRetry(backoffRetries int, backoffFactor float64, backoffMinDuration time
 }
 
 // Do process retries until all attempts are completed
-func (r *Retry) Do(cb callback) (uint64, error) {
+func (r *Retry) Do(ctx context.Context, cb retryableFunc) (uint64, error) {
 	var attempt uint64
 	for i := 0; i < r.backoffRetries; i++ {
+		select {
+		case <-ctx.Done():
+			return attempt, nil
+		default:
+		}
 		err := cb()
 		if err == nil {
 			return attempt, nil
