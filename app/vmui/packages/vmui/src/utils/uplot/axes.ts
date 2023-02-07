@@ -68,12 +68,12 @@ export const getMinMaxBuffer = (min: number | null, max: number | null): [number
   return [min - padding, max + padding];
 };
 
-export const getLimitsYAxis = (values: { [key: string]: number[] }): AxisRange => {
+export const getLimitsYAxis = (values: { [key: string]: number[] }, buffer: boolean): AxisRange => {
   const result: AxisRange = {};
   const numbers = Object.values(values).flat();
   const key = "1";
-  const min = getMinFromArray(numbers);
-  const max = getMaxFromArray(numbers);
-  result[key] = getMinMaxBuffer(min, max);
+  const min = getMinFromArray(numbers) || 0;
+  const max = getMaxFromArray(numbers) || 1;
+  result[key] = buffer ? getMinMaxBuffer(min, max) : [min, max];
   return result;
 };

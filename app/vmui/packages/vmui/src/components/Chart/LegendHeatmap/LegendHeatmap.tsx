@@ -1,5 +1,6 @@
 import React, { FC, useEffect, useState } from "preact/compat";
 import { gradMetal16 } from "../../../utils/uplot/heatmap";
+import { formatPrettyNumber } from "../../../utils/uplot/helpers";
 import "./style.scss";
 
 interface LegendHeatmapProps {
@@ -10,14 +11,17 @@ interface LegendHeatmapProps {
 
 const LegendHeatmap: FC<LegendHeatmapProps> = ({ min, max, value }) => {
 
-  const [hasValue, setHasValue] = useState(false);
   const [percent, setPercent] = useState(0);
+  const [valueFormat, setValueFormat] = useState("");
+  const [minFormat, setMinFormat] = useState("");
+  const [maxFormat, setMaxFormat] = useState("");
 
   useEffect(() => {
-    const valueIsNumber = typeof value === "number";
-    setPercent(valueIsNumber ? (value - min) / (max - min) * 100 : 0);
-    setHasValue(valueIsNumber);
-  }, [value]);
+    setPercent(value ? (value - min) / (max - min) * 100 : 0);
+    setValueFormat(value ? formatPrettyNumber(value, min, max) : "");
+    setMinFormat(formatPrettyNumber(min, min, max));
+    setMaxFormat(formatPrettyNumber(max, min, max));
+  }, [value, min, max]);
 
   return (
     <div className="vm-legend-heatmap">
@@ -25,17 +29,17 @@ const LegendHeatmap: FC<LegendHeatmapProps> = ({ min, max, value }) => {
         className="vm-legend-heatmap-gradient"
         style={{ background: `linear-gradient(to right, ${gradMetal16.join(", ")})` }}
       >
-        {hasValue && (
-          <span
+        {!!value && (
+          <div
             className="vm-legend-heatmap-gradient__value"
             style={{ left: `${percent}%` }}
           >
-            {value}
-          </span>
+            <span>{valueFormat}</span>
+          </div>
         )}
       </div>
-      <div className="vm-legend-heatmap__value">{min}</div>
-      <div className="vm-legend-heatmap__value">{max}</div>
+      <div className="vm-legend-heatmap__value">{minFormat}</div>
+      <div className="vm-legend-heatmap__value">{maxFormat}</div>
     </div>
   );
 };

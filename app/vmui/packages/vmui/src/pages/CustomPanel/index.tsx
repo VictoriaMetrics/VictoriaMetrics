@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, useState, useEffect, useMemo } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -20,6 +20,7 @@ import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import TableView from "../../components/Views/TableView/TableView";
 import Button from "../../components/Main/Button/Button";
+import { isHistogramData } from "../../utils/metric";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -32,6 +33,9 @@ const CustomPanel: FC = () => {
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
   const [showAllSeries, setShowAllSeries] = useState(false);
+
+  const [isHistogram, setIsHistogram] = useState<undefined | boolean>(undefined);
+  const loadingHistogram = useMemo(() => typeof isHistogram !== "boolean", [isHistogram]);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -83,6 +87,11 @@ const CustomPanel: FC = () => {
     setShowAllSeries(false);
   }, [query]);
 
+  useEffect(() => {
+    if (!graphData) return;
+    setIsHistogram(isHistogramData(graphData));
+  }, [graphData]);
+
   return (
     <div className="vm-custom-panel">
       <QueryConfigurator
@@ -115,7 +124,7 @@ const CustomPanel: FC = () => {
       <div className="vm-custom-panel-body vm-block">
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && (
+          {displayType === "chart" && !isHistogram && (
             <GraphSettings
               yaxis={yaxis}
               setYaxisLimits={setYaxisLimits}
@@ -130,7 +139,7 @@ const CustomPanel: FC = () => {
             />
           )}
         </div>
-        {graphData && period && (displayType === "chart") && (
+        {graphData && !loadingHistogram && period && (displayType === "chart") && (
           <GraphView
             data={graphData}
             period={period}
@@ -139,6 +148,7 @@ const CustomPanel: FC = () => {
             yaxis={yaxis}
             setYaxisLimits={setYaxisLimits}
             setPeriod={setPeriod}
+            isHistogram={isHistogram}
           />
         )}
         {liveData && (displayType === "code") && (

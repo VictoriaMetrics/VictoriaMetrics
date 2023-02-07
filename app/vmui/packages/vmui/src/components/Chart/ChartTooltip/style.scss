@@ -51,6 +51,13 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
       color: $color-white;
       cursor: move;
     }
+
+    &__date {
+      &_range {
+        display: grid;
+        gap: 2px;
+      }
+    }
   }
 
   &-data {
