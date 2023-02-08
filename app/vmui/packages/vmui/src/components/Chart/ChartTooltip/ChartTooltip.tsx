@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
-import uPlot, { Series } from "uplot";
+import uPlot from "uplot";
 import { MetricResult } from "../../../api/types";
 import { formatPrettyNumber } from "../../../utils/uplot/helpers";
 import dayjs from "dayjs";
@@ -11,12 +11,13 @@ import { CloseIcon, DragIcon } from "../../Main/Icons";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import "./style.scss";
+import { SeriesItem } from "../../../utils/uplot/series";
 
 export interface ChartTooltipProps {
   id: string,
   u: uPlot,
   metrics: MetricResult[],
-  series: Series[],
+  series: SeriesItem[],
   yRange: number[];
   unit?: string,
   isSticky?: boolean,
@@ -54,6 +55,8 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const date = dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
 
   const color = series[seriesIdx]?.stroke+"";
+
+  const calculations = Object.entries(series[seriesIdx]?.calculations || {});
 
   const groups = new Set(metrics.map(m => m.group));
   const showQueryNum = groups.size > 1;
@@ -180,6 +183,13 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           {unit}
         </p>
       </div>
+      {!!calculations.length && (
+        <div className="vm-chart-tooltip-info">
+          {calculations.map(([key, value]) => (
+            <div key={key}>{key}: {value}</div>
+          ))}
+        </div>
+      )}
       {!!fields.length && (
         <div className="vm-chart-tooltip-info">
           {fields.map((f, i) => (

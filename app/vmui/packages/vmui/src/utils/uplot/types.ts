@@ -21,6 +21,11 @@ export interface LegendItemType {
     color: string;
     checked: boolean;
     freeFormFields: {[key: string]: string};
+    calculations: {
+        max: string;
+        avg: string;
+        last: string;
+    }
 }
 
 export interface BarSeriesItem {

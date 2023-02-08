@@ -30,11 +30,11 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
     handleClickFreeField(freeField, id);
   };
 
-
   return (
     <div
       className={classNames({
         "vm-legend-item": true,
+        "vm-legend-row": true,
         "vm-legend-item_hide": !legend.checked,
       })}
       onClick={createHandlerClick(legend)}
@@ -69,6 +69,21 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
             &#125;
           </span>
         }
+      </div>
+      <div className="vm-legend-item-values">
+        {Object.entries(legend.calculations).map(([key, value]) => (
+          <div
+            className="vm-legend-item-values-item"
+            key={key}
+          >
+            <span className="vm-legend-item-values-item__label">
+              {key}:
+            </span>
+            <span className="vm-legend-item-values-item__value">
+              {value}
+            </span>
+          </div>
+        ))}
       </div>
     </div>
   );
