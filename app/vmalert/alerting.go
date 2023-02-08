@@ -500,6 +500,7 @@ func (ar *AlertingRule) ToAPI() APIRule {
 		LastSamples:    lastState.samples,
 		MaxUpdates:     ar.state.size(),
 		Updates:        ar.state.getAll(),
+		Debug:          ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
 		ID:      fmt.Sprintf("%d", ar.ID()),

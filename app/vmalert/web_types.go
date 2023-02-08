@@ -113,13 +113,15 @@ type APIRule struct {
 
 	// Additional fields
 
-	// Type of the rule: recording or alerting
+	// DatasourceType of the rule: prometheus or graphite
 	DatasourceType string `json:"datasourceType"`
 	LastSamples    int    `json:"lastSamples"`
 	// ID is a unique Alert's ID within a group
 	ID string `json:"id"`
 	// GroupID is an unique Group's ID
 	GroupID string `json:"group_id"`
+	// Debug shows whether debug mode is enabled
+	Debug bool `json:"debug"`
 
 	// MaxUpdates is the max number of recorded ruleStateEntry objects
 	MaxUpdates int `json:"max_updates_entries"`
