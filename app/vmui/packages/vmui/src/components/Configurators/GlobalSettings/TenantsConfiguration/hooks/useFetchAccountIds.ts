@@ -22,7 +22,7 @@ export const useFetchAccountIds = () => {
         const response = await fetch(fetchUrl);
         const resp = await response.json();
         const data = (resp.data || []) as string[];
-        setAccountIds(data);
+        setAccountIds(data.sort((a, b) => a.localeCompare(b)));
 
         if (response.ok) {
           setError(undefined);
