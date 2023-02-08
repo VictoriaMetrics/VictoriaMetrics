@@ -20,6 +20,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/streaming"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/internal/log"
 	"github.com/Azure/azure-sdk-for-go/sdk/internal/uuid"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/blob"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/base"
@@ -189,12 +190,11 @@ func (bb *Client) StageBlock(ctx context.Context, base64BlockID string, body io.
 // StageBlockFromURL copies the specified block from a source URL to the block blob's "staging area" to be later committed by a call to CommitBlockList.
 // If count is CountToEnd (0), then data is read from specified offset to the end.
 // For more information, see https://docs.microsoft.com/en-us/rest/api/storageservices/put-block-from-url.
-func (bb *Client) StageBlockFromURL(ctx context.Context, base64BlockID string, sourceURL string,
-	contentLength int64, options *StageBlockFromURLOptions) (StageBlockFromURLResponse, error) {
+func (bb *Client) StageBlockFromURL(ctx context.Context, base64BlockID string, sourceURL string, options *StageBlockFromURLOptions) (StageBlockFromURLResponse, error) {
 
 	stageBlockFromURLOptions, cpkInfo, cpkScopeInfo, leaseAccessConditions, sourceModifiedAccessConditions := options.format()
 
-	resp, err := bb.generated().StageBlockFromURL(ctx, base64BlockID, contentLength, sourceURL, stageBlockFromURLOptions,
+	resp, err := bb.generated().StageBlockFromURL(ctx, base64BlockID, 0, sourceURL, stageBlockFromURLOptions,
 		cpkInfo, cpkScopeInfo, leaseAccessConditions, sourceModifiedAccessConditions)
 
 	return resp, err
@@ -218,8 +218,8 @@ func (bb *Client) CommitBlockList(ctx context.Context, base64BlockIDs []string, 
 	var commitOptions *generated.BlockBlobClientCommitBlockListOptions
 	var headers *generated.BlobHTTPHeaders
 	var leaseAccess *blob.LeaseAccessConditions
-	var cpkInfo *generated.CpkInfo
-	var cpkScope *generated.CpkScopeInfo
+	var cpkInfo *generated.CPKInfo
+	var cpkScope *generated.CPKScopeInfo
 	var modifiedAccess *generated.ModifiedAccessConditions
 
 	if options != nil {
@@ -238,8 +238,8 @@ func (bb *Client) CommitBlockList(ctx context.Context, base64BlockIDs []string, 
 
 		headers = options.HTTPHeaders
 		leaseAccess, modifiedAccess = exported.FormatBlobAccessConditions(options.AccessConditions)
-		cpkInfo = options.CpkInfo
-		cpkScope = options.CpkScopeInfo
+		cpkInfo = options.CPKInfo
+		cpkScope = options.CPKScopeInfo
 	}
 
 	resp, err := bb.generated().CommitBlockList(ctx, blockLookupList, commitOptions, headers, leaseAccess, cpkInfo, cpkScope, modifiedAccess)
@@ -291,7 +291,7 @@ func (bb *Client) SetLegalHold(ctx context.Context, legalHold bool, options *blo
 
 // SetTier operation sets the tier on a blob. The operation is allowed on a page
 // blob in a premium storage account and on a block blob in a blob storage account (locally
-// redundant storage only). A premium page blob's tier determines the allowed size, IOPS, and
+// redundant storage only). A premium page blob's tier determines the allowed size, IOPs, and
 // bandwidth of the blob. A block blob's tier determines Hot/Cool/Archive storage type. This operation
 // does not update the blob's ETag.
 // For detailed information about block blob level tiering see https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers.
@@ -324,7 +324,7 @@ func (bb *Client) SetHTTPHeaders(ctx context.Context, HTTPHeaders blob.HTTPHeade
 
 // SetMetadata changes a blob's metadata.
 // https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata.
-func (bb *Client) SetMetadata(ctx context.Context, metadata map[string]string, o *blob.SetMetadataOptions) (blob.SetMetadataResponse, error) {
+func (bb *Client) SetMetadata(ctx context.Context, metadata map[string]*string, o *blob.SetMetadataOptions) (blob.SetMetadataResponse, error) {
 	return bb.BlobClient().SetMetadata(ctx, metadata, o)
 }
 
@@ -409,6 +409,14 @@ func (bb *Client) uploadFromReader(ctx context.Context, reader io.ReaderAt, actu
 	if numBlocks > MaxBlocks {
 		// prevent any math bugs from attempting to upload too many blocks which will always fail
 		return uploadFromReaderResponse{}, errors.New("block limit exceeded")
+	}
+
+	if log.Should(exported.EventUpload) {
+		urlparts, err := blob.ParseURL(bb.generated().Endpoint())
+		if err == nil {
+			log.Writef(exported.EventUpload, "blob name %s actual size %v block-size %v block-count %v",
+				urlparts.BlobName, actualSize, o.BlockSize, numBlocks)
+		}
 	}
 
 	blockIDList := make([]string, numBlocks) // Base-64 encoded block IDs

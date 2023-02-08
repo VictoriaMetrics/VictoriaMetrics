@@ -22,5 +22,5 @@ type AppendBlockFromURLResponse = generated.AppendBlobClientAppendBlockFromURLRe
 // SealResponse contains the response from method Client.Seal.
 type SealResponse = generated.AppendBlobClientSealResponse
 
-// SetExpiryResponse contains the response from method BlobClient.SetExpiry.
+// SetExpiryResponse contains the response from method Client.SetExpiry.
 type SetExpiryResponse = generated.BlobClientSetExpiryResponse

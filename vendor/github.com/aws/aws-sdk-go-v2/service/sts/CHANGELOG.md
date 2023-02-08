@@ -1,3 +1,8 @@
+# v1.18.3 (2023-02-03)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+* **Dependency Update**: Upgrade smithy to 1.27.2 and correct empty query list serialization.
+
 # v1.18.2 (2023-01-25)
 
 * **Documentation**: Doc only change to update wording in a key topic
