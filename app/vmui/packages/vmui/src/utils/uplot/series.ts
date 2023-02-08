@@ -25,12 +25,12 @@ export const getSeriesItemContext = () => {
     const hasBasicColors = countSavedColors < baseContrastColors.length;
     if (hasBasicColors) colorState[label] = colorState[label] || baseContrastColors[countSavedColors];
 
-    const values = d.values.map(v => promValueToNumber(v[1]));
-    const filterValues = values.filter(v => v !== Infinity && v !== -Infinity && v !== null);
-    const min = getMinFromArray(filterValues) || 0;
-    const max = getMaxFromArray(filterValues) || 1;
-    const avg = getAvgFromArray(filterValues);
-    const last = filterValues[filterValues.length - 1];
+    const excludeValues = [Infinity, -Infinity, null];
+    const values = d.values.map(v => promValueToNumber(v[1])).filter(v => !excludeValues.includes(v));
+    const min = getMinFromArray(values) || 0;
+    const max = getMaxFromArray(values) || 1;
+    const avg = getAvgFromArray(values);
+    const last = values[values.length - 1];
 
     return {
       label,
