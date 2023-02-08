@@ -126,7 +126,7 @@ type APIRule struct {
 	// MaxUpdates is the max number of recorded ruleStateEntry objects
 	MaxUpdates int `json:"max_updates_entries"`
 	// Updates contains the ordered list of recorded ruleStateEntry objects
-	Updates []ruleStateEntry `json:"updates"`
+	Updates []ruleStateEntry `json:"-"`
 }
 
 // WebLink returns a link to the alert which can be used in UI.
