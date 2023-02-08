@@ -15,8 +15,10 @@ func TestRule_stateDisabled(t *testing.T) {
 
 	state.add(ruleStateEntry{at: time.Now()})
 	state.add(ruleStateEntry{at: time.Now()})
+	state.add(ruleStateEntry{at: time.Now()})
 
 	if len(state.getAll()) != 1 {
+		// state should store at least one update at any circumstances
 		t.Fatalf("expected for state to have %d entries; got %d",
 			1, len(state.getAll()),
 		)
