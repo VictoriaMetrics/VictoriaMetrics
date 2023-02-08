@@ -171,9 +171,9 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []APIGr
 		for _, g := range groups {
 			for _, r := range g.Rules {
 				if r.LastError != "" {
-					rNotOk[g.Name]++
+					rNotOk[g.ID]++
 				} else {
-					rOk[g.Name]++
+					rOk[g.ID]++
 				}
 			}
 		}
@@ -189,7 +189,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []APIGr
 			qw422016.N().S(`
               <div class="group-heading`)
 //line app/vmalert/web.qtpl:53
-			if rNotOk[g.Name] > 0 {
+			if rNotOk[g.ID] > 0 {
 //line app/vmalert/web.qtpl:53
 				qw422016.N().S(` alert-danger`)
 //line app/vmalert/web.qtpl:53
@@ -230,11 +230,11 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []APIGr
 			qw422016.N().S(`s)</a>
                  `)
 //line app/vmalert/web.qtpl:56
-			if rNotOk[g.Name] > 0 {
+			if rNotOk[g.ID] > 0 {
 //line app/vmalert/web.qtpl:56
 				qw422016.N().S(`<span class="badge bg-danger" title="Number of rules with status Error">`)
 //line app/vmalert/web.qtpl:56
-				qw422016.N().D(rNotOk[g.Name])
+				qw422016.N().D(rNotOk[g.ID])
 //line app/vmalert/web.qtpl:56
 				qw422016.N().S(`</span> `)
 //line app/vmalert/web.qtpl:56
@@ -243,7 +243,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []APIGr
 			qw422016.N().S(`
                 <span class="badge bg-success" title="Number of rules withs status Ok">`)
 //line app/vmalert/web.qtpl:57
-			qw422016.N().D(rOk[g.Name])
+			qw422016.N().D(rOk[g.ID])
 //line app/vmalert/web.qtpl:57
 			qw422016.N().S(`</span>
                 <p class="fs-6 fw-lighter">`)
