@@ -421,7 +421,9 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
 	ar.EvalInterval = nr.EvalInterval
+	ar.Debug = nr.Debug
 	ar.q = nr.q
+	ar.state = nr.state
 	return nil
 }
 

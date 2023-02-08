@@ -23,6 +23,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic in nomad watcher because of improperly initialized object. Thanks to @mr-karan for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3784)
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix display of rules number per-group for groups with identical names in UI.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): prevent disabling state updates tracking per rule via setting values < 1. The minimum number of update states to track is now set to 1.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly update `debug` and `update_entries_limit` rule's params on config's hot-reload.
 
 ## [v1.87.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.0)
 
