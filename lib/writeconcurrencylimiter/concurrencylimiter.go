@@ -126,9 +126,11 @@ var (
 	concurrencyLimitTimeout = metrics.NewCounter(`vm_concurrent_insert_limit_timeout_total`)
 
 	_ = metrics.NewGauge(`vm_concurrent_insert_capacity`, func() float64 {
+		concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
 		return float64(cap(concurrencyLimitCh))
 	})
 	_ = metrics.NewGauge(`vm_concurrent_insert_current`, func() float64 {
+		concurrencyLimitChOnce.Do(initConcurrencyLimitCh)
 		return float64(len(concurrencyLimitCh))
 	})
 )

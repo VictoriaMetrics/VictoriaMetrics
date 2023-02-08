@@ -103,6 +103,7 @@ func (req *Request) OperationValue(value interface{}) bool {
 // SetBody sets the specified ReadSeekCloser as the HTTP request body, and sets Content-Type and Content-Length
 // accordingly. If the ReadSeekCloser is nil or empty, Content-Length won't be set. If contentType is "",
 // Content-Type won't be set.
+// Use streaming.NopCloser to turn an io.ReadSeeker into an io.ReadSeekCloser.
 func (req *Request) SetBody(body io.ReadSeekCloser, contentType string) error {
 	var err error
 	var size int64

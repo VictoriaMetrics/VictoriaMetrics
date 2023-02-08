@@ -25,8 +25,14 @@ type GetPropertiesResponse = generated.ContainerClientGetPropertiesResponse
 // ListBlobsFlatResponse contains the response from method Client.ListBlobFlatSegment.
 type ListBlobsFlatResponse = generated.ContainerClientListBlobFlatSegmentResponse
 
+// ListBlobsFlatSegmentResponse - An enumeration of blobs
+type ListBlobsFlatSegmentResponse = generated.ListBlobsFlatSegmentResponse
+
 // ListBlobsHierarchyResponse contains the response from method Client.ListBlobHierarchySegment.
 type ListBlobsHierarchyResponse = generated.ContainerClientListBlobHierarchySegmentResponse
+
+// ListBlobsHierarchySegmentResponse - An enumeration of blobs
+type ListBlobsHierarchySegmentResponse = generated.ListBlobsHierarchySegmentResponse
 
 // SetMetadataResponse contains the response from method Client.SetMetadata.
 type SetMetadataResponse = generated.ContainerClientSetMetadataResponse

@@ -8,7 +8,7 @@ package container
 
 import (
 	"context"
-	"errors"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"net/http"
 	"net/url"
 	"time"
@@ -147,13 +147,13 @@ func (c *Client) NewPageBlobClient(blobName string) *pageblob.Client {
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/create-container.
 func (c *Client) Create(ctx context.Context, options *CreateOptions) (CreateResponse, error) {
 	var opts *generated.ContainerClientCreateOptions
-	var cpkScopes *generated.ContainerCpkScopeInfo
+	var cpkScopes *generated.ContainerCPKScopeInfo
 	if options != nil {
 		opts = &generated.ContainerClientCreateOptions{
 			Access:   options.Access,
 			Metadata: options.Metadata,
 		}
-		cpkScopes = options.CpkScopeInfo
+		cpkScopes = options.CPKScopeInfo
 	}
 	resp, err := c.generated().Create(ctx, opts, cpkScopes)
 
@@ -217,15 +217,12 @@ func (c *Client) GetAccessPolicy(ctx context.Context, o *GetAccessPolicyOptions)
 
 // SetAccessPolicy sets the container's permissions. The access policy indicates whether blobs in a container may be accessed publicly.
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/set-container-acl.
-func (c *Client) SetAccessPolicy(ctx context.Context, containerACL []*SignedIdentifier, o *SetAccessPolicyOptions) (SetAccessPolicyResponse, error) {
-	accessPolicy, mac, lac := o.format()
-	for _, c := range containerACL {
-		err := formatTime(c)
-		if err != nil {
-			return SetAccessPolicyResponse{}, err
-		}
+func (c *Client) SetAccessPolicy(ctx context.Context, o *SetAccessPolicyOptions) (SetAccessPolicyResponse, error) {
+	accessPolicy, mac, lac, acl, err := o.format()
+	if err != nil {
+		return SetAccessPolicyResponse{}, err
 	}
-	resp, err := c.generated().SetAccessPolicy(ctx, containerACL, accessPolicy, mac, lac)
+	resp, err := c.generated().SetAccessPolicy(ctx, acl, accessPolicy, mac, lac)
 	return resp, err
 }
 
@@ -271,12 +268,9 @@ func (c *Client) NewListBlobsFlatPager(o *ListBlobsFlatOptions) *runtime.Pager[L
 
 // NewListBlobsHierarchyPager returns a channel of blobs starting from the specified Marker. Use an empty
 // Marker to start enumeration from the beginning. Blob names are returned in lexicographic order.
-// After getting a segment, process it, and then call ListBlobsHierarchicalSegment again (passing the the
+// After getting a segment, process it, and then call ListBlobsHierarchicalSegment again (passing the
 // previously-returned Marker) to get the next segment.
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/list-blobs.
-// AutoPagerTimeout specifies the amount of time with no read operations before the channel times out and closes. Specify no time and it will be ignored.
-// AutoPagerBufferSize specifies the channel's buffer size.
-// Both the blob item channel and error channel should be watched. Only one error will be released via this channel (or a nil error, to register a clean exit.)
 func (c *Client) NewListBlobsHierarchyPager(delimiter string, o *ListBlobsHierarchyOptions) *runtime.Pager[ListBlobsHierarchyResponse] {
 	listOptions := o.format()
 	return runtime.NewPager(runtime.PagingHandler[ListBlobsHierarchyResponse]{
@@ -309,23 +303,22 @@ func (c *Client) NewListBlobsHierarchyPager(delimiter string, o *ListBlobsHierar
 
 // GetSASURL is a convenience method for generating a SAS token for the currently pointed at container.
 // It can only be used if the credential supplied during creation was a SharedKeyCredential.
-func (c *Client) GetSASURL(permissions sas.ContainerPermissions, start time.Time, expiry time.Time) (string, error) {
+func (c *Client) GetSASURL(permissions sas.ContainerPermissions, expiry time.Time, o *GetSASURLOptions) (string, error) {
 	if c.sharedKey() == nil {
-		return "", errors.New("SAS can only be signed with a SharedKeyCredential")
+		return "", bloberror.MissingSharedKeyCredential
 	}
-
+	st := o.format()
 	urlParts, err := blob.ParseURL(c.URL())
 	if err != nil {
 		return "", err
 	}
-
 	// Containers do not have snapshots, nor versions.
 	qps, err := sas.BlobSignatureValues{
 		Version:       sas.Version,
 		Protocol:      sas.ProtocolHTTPS,
 		ContainerName: urlParts.ContainerName,
 		Permissions:   permissions.String(),
-		StartTime:     start.UTC(),
+		StartTime:     st,
 		ExpiryTime:    expiry.UTC(),
 	}.SignWithSharedKey(c.sharedKey())
 	if err != nil {

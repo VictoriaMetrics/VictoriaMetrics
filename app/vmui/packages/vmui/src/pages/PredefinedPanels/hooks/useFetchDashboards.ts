@@ -26,7 +26,8 @@ export const useFetchDashboards = (): {
   const fetchLocalDashboards = async () => {
     const filenames = window.__VMUI_PREDEFINED_DASHBOARDS__;
     if (!filenames?.length) return [];
-    return await Promise.all(filenames.map(async f => importModule(f)));
+    const dashboards = await Promise.all(filenames.map(async f => importModule(f)));
+    setDashboards((prevDash) => [...dashboards, ...prevDash]);
   };
 
   const fetchRemoteDashboards = async () => {
@@ -45,19 +46,20 @@ export const useFetchDashboards = (): {
         }
         setIsLoading(false);
       } else {
+        await fetchLocalDashboards();
         setError(resp.error);
         setIsLoading(false);
       }
     } catch (e) {
       setIsLoading(false);
       if (e instanceof Error) setError(`${e.name}: ${e.message}`);
+      await fetchLocalDashboards();
     }
   };
 
   useEffect(() => {
     if (appModeEnable) return;
     setDashboards([]);
-    fetchLocalDashboards().then(d => d.length && setDashboards((prevDash) => [...d, ...prevDash]));
     fetchRemoteDashboards();
   }, [serverUrl]);
 
