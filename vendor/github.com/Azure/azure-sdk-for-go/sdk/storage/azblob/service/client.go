@@ -8,7 +8,7 @@ package service
 
 import (
 	"context"
-	"errors"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"net/http"
 	"strings"
 	"time"
@@ -186,7 +186,7 @@ func (s *Client) NewListContainersPager(o *ListContainersOptions) *runtime.Pager
 			if page == nil {
 				req, err = s.generated().ListContainersSegmentCreateRequest(ctx, &listOptions)
 			} else {
-				listOptions.Marker = page.Marker
+				listOptions.Marker = page.NextMarker
 				req, err = s.generated().ListContainersSegmentCreateRequest(ctx, &listOptions)
 			}
 			if err != nil {
@@ -243,19 +243,17 @@ func (s *Client) GetStatistics(ctx context.Context, o *GetStatisticsOptions) (Ge
 
 // GetSASURL is a convenience method for generating a SAS token for the currently pointed at account.
 // It can only be used if the credential supplied during creation was a SharedKeyCredential.
-// This validity can be checked with CanGetAccountSASToken().
-func (s *Client) GetSASURL(resources sas.AccountResourceTypes, permissions sas.AccountPermissions, services sas.AccountServices, start time.Time, expiry time.Time) (string, error) {
+func (s *Client) GetSASURL(resources sas.AccountResourceTypes, permissions sas.AccountPermissions, expiry time.Time, o *GetSASURLOptions) (string, error) {
 	if s.sharedKey() == nil {
-		return "", errors.New("SAS can only be signed with a SharedKeyCredential")
+		return "", bloberror.MissingSharedKeyCredential
 	}
-
+	st := o.format()
 	qps, err := sas.AccountSignatureValues{
 		Version:       sas.Version,
 		Protocol:      sas.ProtocolHTTPS,
 		Permissions:   permissions.String(),
-		Services:      services.String(),
 		ResourceTypes: resources.String(),
-		StartTime:     start.UTC(),
+		StartTime:     st,
 		ExpiryTime:    expiry.UTC(),
 	}.SignWithSharedKey(s.sharedKey())
 	if err != nil {
@@ -277,8 +275,8 @@ func (s *Client) GetSASURL(resources sas.AccountResourceTypes, permissions sas.A
 // https://docs.microsoft.com/en-us/rest/api/storageservices/find-blobs-by-tags
 // eg. "dog='germanshepherd' and penguin='emperorpenguin'"
 // To specify a container, eg. "@container=’containerName’ and Name = ‘C’"
-func (s *Client) FilterBlobs(ctx context.Context, o *FilterBlobsOptions) (FilterBlobsResponse, error) {
+func (s *Client) FilterBlobs(ctx context.Context, where string, o *FilterBlobsOptions) (FilterBlobsResponse, error) {
 	serviceFilterBlobsOptions := o.format()
-	resp, err := s.generated().FilterBlobs(ctx, serviceFilterBlobsOptions)
+	resp, err := s.generated().FilterBlobs(ctx, where, serviceFilterBlobsOptions)
 	return resp, err
 }

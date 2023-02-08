@@ -37,9 +37,9 @@ type CreateOptions struct {
 
 	HTTPHeaders *blob.HTTPHeaders
 
-	CpkInfo *blob.CpkInfo
+	CPKInfo *blob.CPKInfo
 
-	CpkScopeInfo *blob.CpkScopeInfo
+	CPKScopeInfo *blob.CPKScopeInfo
 
 	// Optional. Used to set blob tags in various blob operations.
 	Tags map[string]string
@@ -49,10 +49,10 @@ type CreateOptions struct {
 	// are specified, the destination blob is created with the specified metadata, and metadata is not copied from the source
 	// blob or file. Note that beginning with version 2009-09-19, metadata names must adhere to the naming rules for C# identifiers.
 	// See Naming and Referencing Containers, Blobs, and Metadata for more information.
-	Metadata map[string]string
+	Metadata map[string]*string
 }
 
-func (o *CreateOptions) format() (*generated.AppendBlobClientCreateOptions, *generated.BlobHTTPHeaders, *generated.LeaseAccessConditions, *generated.CpkInfo, *generated.CpkScopeInfo, *generated.ModifiedAccessConditions) {
+func (o *CreateOptions) format() (*generated.AppendBlobClientCreateOptions, *generated.BlobHTTPHeaders, *generated.LeaseAccessConditions, *generated.CPKInfo, *generated.CPKScopeInfo, *generated.ModifiedAccessConditions) {
 	if o == nil {
 		return nil, nil, nil, nil, nil, nil
 	}
@@ -66,7 +66,7 @@ func (o *CreateOptions) format() (*generated.AppendBlobClientCreateOptions, *gen
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
-	return &options, o.HTTPHeaders, leaseAccessConditions, o.CpkInfo, o.CpkScopeInfo, modifiedAccessConditions
+	return &options, o.HTTPHeaders, leaseAccessConditions, o.CPKInfo, o.CPKScopeInfo, modifiedAccessConditions
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -79,21 +79,21 @@ type AppendBlockOptions struct {
 
 	AppendPositionAccessConditions *AppendPositionAccessConditions
 
-	CpkInfo *blob.CpkInfo
+	CPKInfo *blob.CPKInfo
 
-	CpkScopeInfo *blob.CpkScopeInfo
+	CPKScopeInfo *blob.CPKScopeInfo
 
 	AccessConditions *blob.AccessConditions
 }
 
 func (o *AppendBlockOptions) format() (*generated.AppendBlobClientAppendBlockOptions, *generated.AppendPositionAccessConditions,
-	*generated.CpkInfo, *generated.CpkScopeInfo, *generated.ModifiedAccessConditions, *generated.LeaseAccessConditions) {
+	*generated.CPKInfo, *generated.CPKScopeInfo, *generated.ModifiedAccessConditions, *generated.LeaseAccessConditions) {
 	if o == nil {
 		return nil, nil, nil, nil, nil, nil
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
-	return &generated.AppendBlobClientAppendBlockOptions{}, o.AppendPositionAccessConditions, o.CpkInfo, o.CpkScopeInfo, modifiedAccessConditions, leaseAccessConditions
+	return &generated.AppendBlobClientAppendBlockOptions{}, o.AppendPositionAccessConditions, o.CPKInfo, o.CPKScopeInfo, modifiedAccessConditions, leaseAccessConditions
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -105,9 +105,9 @@ type AppendBlockFromURLOptions struct {
 
 	AppendPositionAccessConditions *AppendPositionAccessConditions
 
-	CpkInfo *blob.CpkInfo
+	CPKInfo *blob.CPKInfo
 
-	CpkScopeInfo *blob.CpkScopeInfo
+	CPKScopeInfo *blob.CPKScopeInfo
 
 	SourceModifiedAccessConditions *blob.SourceModifiedAccessConditions
 
@@ -117,8 +117,8 @@ type AppendBlockFromURLOptions struct {
 	Range blob.HTTPRange
 }
 
-func (o *AppendBlockFromURLOptions) format() (*generated.AppendBlobClientAppendBlockFromURLOptions, *generated.CpkInfo,
-	*generated.CpkScopeInfo, *generated.LeaseAccessConditions, *generated.AppendPositionAccessConditions,
+func (o *AppendBlockFromURLOptions) format() (*generated.AppendBlobClientAppendBlockFromURLOptions, *generated.CPKInfo,
+	*generated.CPKScopeInfo, *generated.LeaseAccessConditions, *generated.AppendPositionAccessConditions,
 	*generated.ModifiedAccessConditions, *generated.SourceModifiedAccessConditions) {
 	if o == nil {
 		return nil, nil, nil, nil, nil, nil, nil
@@ -133,7 +133,7 @@ func (o *AppendBlockFromURLOptions) format() (*generated.AppendBlobClientAppendB
 	}
 
 	leaseAccessConditions, modifiedAccessConditions := exported.FormatBlobAccessConditions(o.AccessConditions)
-	return options, o.CpkInfo, o.CpkScopeInfo, leaseAccessConditions, o.AppendPositionAccessConditions, modifiedAccessConditions, o.SourceModifiedAccessConditions
+	return options, o.CPKInfo, o.CPKScopeInfo, leaseAccessConditions, o.AppendPositionAccessConditions, modifiedAccessConditions, o.SourceModifiedAccessConditions
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
