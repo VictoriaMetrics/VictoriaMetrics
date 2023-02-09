@@ -10,6 +10,7 @@ import { formatPrettyNumber } from "./helpers";
 export interface SeriesItem extends Series {
   freeFormFields: {[key: string]: string};
   calculations: {
+    min: string,
     max: string,
     avg: string,
     last: string
@@ -43,6 +44,7 @@ export const getSeriesItemContext = () => {
         width: 1.4
       },
       calculations: {
+        min: formatPrettyNumber(min, min, max),
         max: formatPrettyNumber(max, min, max),
         avg: formatPrettyNumber(avg, min, max),
         last: formatPrettyNumber(last, min, max),

@@ -66,4 +66,10 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
       height: 12px;
     }
   }
+
+  &-info {
+    display: grid;
+    grid-gap: 4px;
+    word-break: break-all;
+  }
 }

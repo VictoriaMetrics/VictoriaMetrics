@@ -63,10 +63,9 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const group = metrics[seriesIdx-1]?.group || 0;
 
   const metric = metrics[seriesIdx-1]?.metric || {};
-  const labelNames = Object.keys(metric).filter(x => x != "__name__");
-  const metricName = metric["__name__"] || "value";
 
   const fields = useMemo(() => {
+    const labelNames = Object.keys(metric).filter(x => x != "__name__");
     return labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
   }, [metrics, seriesIdx]);
 
@@ -177,24 +176,21 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           className="vm-chart-tooltip-data__marker"
           style={{ background: color }}
         />
-        <p>
-          {calculations.last !== undefined && (
-            <div>
-              avg:<b>{calculations.avg}</b>,
-              max:<b>{calculations.max}</b>,
-              last:<b>{calculations.last}</b>
-            </div>
-          )}
-          {metricName}:<b>{valueFormat}{unit}</b>
-        </p>
-      </div>
-      {!!fields.length && (
-        <div className="vm-chart-tooltip-info">
-          {fields.map((f, i) => (
-            <div key={`${f}_${i}`}>{f}</div>
-          ))}
+        <div>
+          curr:<b>{valueFormat}{unit}</b>, avg:<b>{calculations.avg}</b><br/>
+          min:<b>{calculations.min}</b>, max:<b>{calculations.max}</b>, last:<b>{calculations.last}</b>
         </div>
-      )}
+      </div>
+      <div className="vm-chart-tooltip-info">
+        {metric["__name__"]}
+        &#123;
+        {fields.map((f, i) => (
+          <span key="{i}">
+            {f}{i +1 < fields.length && ","}
+          </span>
+        ))}
+        &#125;
+      </div>
     </div>
   ), targetPortal);
 };
