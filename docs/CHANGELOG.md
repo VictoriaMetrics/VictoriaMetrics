@@ -507,6 +507,21 @@ Released at 2022-08-08
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show date picker at `Table` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2874).
 * BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
 
+## [v1.79.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.8)
+
+Released at 2023-02-03
+
+**v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
+
+* BUGFIX: fix a bug, which could prevent background merges for the previous partitions until restart if the storage didn't have enough disk space for final deduplication and down-sampling.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): update API version for [ec2_sd_configs](https://docs.victoriametrics.com/sd_configs.html#ec2_sd_configs) to fix [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3700) with missing `__meta_ec2_availability_zone_id` attribute.
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix panic on top-level vmselect nodes of [multi-level setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) when the `-replicationFactor` flag is set and request contains `trace` query parameter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3734).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): [dockerswarm_sd_configs](https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs): apply `filters` only to objects of the specified `role`. Previously filters were applied to all the objects, which could cause errors when different types of objects were used with filters that were not compatible with them. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3579).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): suppress all the scrape errors when `-promscrape.suppressScrapeErrors` is enabled. Previously some scrape errors were logged even if `-promscrape.suppressScrapeErrors` flag was set.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently put the scrape url with scrape target labels to all error logs for failed scrapes. Previously some failed scrapes were logged without this information.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly parse `M` and `Mi` suffixes as `1e6` multipliers in `1M` and `1Mi` numeric constants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3664). The issue has been introduced in [v1.79.7](https://docs.victoriametrics.com/CHANGELOG.html#v1797).
+
 ## [v1.79.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.7)
 
 Released at 2023-01-10
