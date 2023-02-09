@@ -2,6 +2,7 @@ package promscrape
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -341,7 +342,7 @@ func newScraperGroup(name string, pushData func(at *auth.Token, wr *prompbmarsha
 func (sg *scraperGroup) stop() {
 	sg.mLock.Lock()
 	for _, sc := range sg.m {
-		close(sc.stopCh)
+		sc.cancel()
 	}
 	sg.m = nil
 	sg.mLock.Unlock()
@@ -383,7 +384,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 	var stoppedChs []<-chan struct{}
 	for key, sc := range sg.m {
 		if _, ok := swsMap[key]; !ok {
-			close(sc.stopCh)
+			sc.cancel()
 			stoppedChs = append(stoppedChs, sc.stoppedCh)
 			delete(sg.m, key)
 			deletionsCount++
@@ -406,7 +407,7 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 				sg.wg.Done()
 				close(sc.stoppedCh)
 			}()
-			sc.sw.run(sc.stopCh, sg.globalStopCh)
+			sc.sw.run(sc.ctx.Done(), sg.globalStopCh)
 			tsmGlobal.Unregister(&sc.sw)
 			sg.activeScrapers.Dec()
 			sg.scrapersStopped.Inc()
@@ -425,19 +426,21 @@ func (sg *scraperGroup) update(sws []*ScrapeWork) {
 type scraper struct {
 	sw scrapeWork
 
-	// stopCh is unblocked when the given scraper must be stopped.
-	stopCh chan struct{}
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	// stoppedCh is unblocked when the given scraper is stopped.
 	stoppedCh chan struct{}
 }
 
 func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest)) *scraper {
+	ctx, cancel := context.WithCancel(context.Background())
 	sc := &scraper{
-		stopCh:    make(chan struct{}),
+		ctx:       ctx,
+		cancel:    cancel,
 		stoppedCh: make(chan struct{}),
 	}
-	c := newClient(sw)
+	c := newClient(sw, ctx)
 	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData

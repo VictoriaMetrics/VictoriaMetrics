@@ -43,6 +43,7 @@ type client struct {
 	// It may be useful for scraping targets with millions of metrics per target.
 	sc *http.Client
 
+	ctx                     context.Context
 	scrapeURL               string
 	scrapeTimeoutSecondsStr string
 	hostPort                string
@@ -77,7 +78,7 @@ func concatTwoStrings(x, y string) string {
 	return s
 }
 
-func newClient(sw *ScrapeWork) *client {
+func newClient(sw *ScrapeWork, ctx context.Context) *client {
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
 	hostPort := string(u.Host())
@@ -165,6 +166,7 @@ func newClient(sw *ScrapeWork) *client {
 	}
 	return &client{
 		hc:                      hc,
+		ctx:                     ctx,
 		sc:                      sc,
 		scrapeURL:               sw.ScrapeURL,
 		scrapeTimeoutSecondsStr: fmt.Sprintf("%.3f", sw.ScrapeTimeout.Seconds()),
@@ -182,7 +184,7 @@ func newClient(sw *ScrapeWork) *client {
 
 func (c *client) GetStreamReader() (*streamReader, error) {
 	deadline := time.Now().Add(c.sc.Timeout)
-	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	req, err := http.NewRequestWithContext(ctx, "GET", c.scrapeURL, nil)
 	if err != nil {
 		cancel()
