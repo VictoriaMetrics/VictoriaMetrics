@@ -42,7 +42,7 @@ jobs:
 
       - name: build & publish
         run: |
-          docker scan --login --token "$SNYK_TOKEN" --accept-license
+          docker scan --severity=medium --login --token "$SNYK_TOKEN" --accept-license
           LATEST_TAG=nightly PKG_TAG=nightly make publish
         env: 
           SNYK_TOKEN: ${{ secrets.SNYK_AUTH_TOKEN }}
