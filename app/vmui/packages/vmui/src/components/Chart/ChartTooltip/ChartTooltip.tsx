@@ -56,7 +56,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
 
   const color = series[seriesIdx]?.stroke+"";
 
-  const calculations = Object.entries(series[seriesIdx]?.calculations || {});
+  const calculations = series[seriesIdx]?.calculations || {};
 
   const groups = new Set(metrics.map(m => m.group));
   const showQueryNum = groups.size > 1;
@@ -178,18 +178,16 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           style={{ background: color }}
         />
         <p>
-          {metricName}:
-          <b className="vm-chart-tooltip-data__value">{valueFormat}</b>
-          {unit}
+          {calculations.last !== undefined && (
+            <div>
+              avg:<b>{calculations.avg}</b>,
+              max:<b>{calculations.max}</b>,
+              last:<b>{calculations.last}</b>
+            </div>
+          )}
+          {metricName}:<b>{valueFormat}{unit}</b>
         </p>
       </div>
-      {!!calculations.length && (
-        <div className="vm-chart-tooltip-info">
-          {calculations.map(([key, value]) => (
-            <div key={key}>{key}: {value}</div>
-          ))}
-        </div>
-      )}
       {!!fields.length && (
         <div className="vm-chart-tooltip-info">
           {fields.map((f, i) => (

@@ -14,6 +14,7 @@ interface LegendItemProps {
 const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
   const [copiedValue, setCopiedValue] = useState("");
   const freeFormFields = useMemo(() => getFreeFields(legend), [legend]);
+  const calculations = legend.calculations;
 
   const handleClickFreeField = async (val: string, id: string) => {
     await navigator.clipboard.writeText(val);
@@ -70,21 +71,11 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
           </span>
         }
       </div>
-      <div className="vm-legend-item-values">
-        {Object.entries(legend.calculations).map(([key, value]) => (
-          <div
-            className="vm-legend-item-values-item"
-            key={key}
-          >
-            <span className="vm-legend-item-values-item__label">
-              {key}:
-            </span>
-            <span className="vm-legend-item-values-item__value">
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
+      {calculations.last !== undefined && (
+        <div className="vm-legend-item-values">
+          avg:{calculations.avg}, max:{calculations.max}, last:{calculations.last}
+        </div>
+      )}
     </div>
   );
 };

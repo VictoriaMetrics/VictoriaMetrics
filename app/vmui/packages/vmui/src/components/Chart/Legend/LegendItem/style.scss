@@ -56,18 +56,5 @@
     display: flex;
     align-items: center;
     gap: $padding-small;
-
-    &-item {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-
-      &__label {
-        color: $color-text-secondary;
-      }
-
-      &__value {
-      }
-    }
   }
 }

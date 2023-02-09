@@ -4,7 +4,7 @@ import { getNameForMetric, promValueToNumber } from "../metric";
 import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
 import { HideSeriesArgs } from "./types";
 import { baseContrastColors, getColorFromString } from "../color";
-import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../math";
+import { getAvgFromArray, getMaxFromArray, getMinFromArray, getLastFromArray } from "../math";
 import { formatPrettyNumber } from "./helpers";
 
 export interface SeriesItem extends Series {
@@ -25,12 +25,11 @@ export const getSeriesItemContext = () => {
     const hasBasicColors = countSavedColors < baseContrastColors.length;
     if (hasBasicColors) colorState[label] = colorState[label] || baseContrastColors[countSavedColors];
 
-    const excludeValues = [Infinity, -Infinity, null];
-    const values = d.values.map(v => promValueToNumber(v[1])).filter(v => !excludeValues.includes(v));
-    const min = getMinFromArray(values) || 0;
-    const max = getMaxFromArray(values) || 1;
+    const values = d.values.map(v => promValueToNumber(v[1]));
+    const min = getMinFromArray(values);
+    const max = getMaxFromArray(values);
     const avg = getAvgFromArray(values);
-    const last = values[values.length - 1];
+    const last = getLastFromArray(values);
 
     return {
       label,
