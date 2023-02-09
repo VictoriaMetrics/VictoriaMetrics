@@ -10,6 +10,7 @@ import Popper from "../../../Main/Popper/Popper";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import TextField from "../../../Main/TextField/TextField";
 
 const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const appModeEnable = getAppModeEnable();
@@ -19,8 +20,20 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const dispatch = useAppDispatch();
   const timeDispatch = useTimeDispatch();
 
+  const [search, setSearch] = useState("");
   const [openOptions, setOpenOptions] = useState(false);
   const optionsButtonRef = useRef<HTMLDivElement>(null);
+
+  const accountIdsFiltered = useMemo(() => {
+    if (!search) return accountIds;
+    try {
+      const regexp = new RegExp(search, "i");
+      const found = accountIds.filter((item) => regexp.test(item));
+      return found.sort((a,b) => (a.match(regexp)?.index || 0) - (b.match(regexp)?.index || 0));
+    } catch (e) {
+      return [];
+    }
+  }, [search, accountIds]);
 
   const getTenantIdFromUrl = (url: string) => {
     const regexp = /(\/select\/)(\d+|\d.+)(\/)(.+)/;
@@ -92,13 +105,20 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
       </Tooltip>
       <Popper
         open={openOptions}
-        placement="bottom-left"
+        placement="bottom-right"
         onClose={handleCloseOptions}
         buttonRef={optionsButtonRef}
-        fullWidth
       >
-        <div className="vm-list">
-          {accountIds.map(id => (
+        <div className="vm-list vm-tenant-input-list">
+          <div className="vm-tenant-input-list__search">
+            <TextField
+              autofocus
+              label="Search"
+              value={search}
+              onChange={setSearch}
+            />
+          </div>
+          {accountIdsFiltered.map(id => (
             <div
               className={classNames({
                 "vm-list-item": true,

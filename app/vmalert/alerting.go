@@ -421,7 +421,9 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
 	ar.EvalInterval = nr.EvalInterval
+	ar.Debug = nr.Debug
 	ar.q = nr.q
+	ar.state = nr.state
 	return nil
 }
 
@@ -498,6 +500,7 @@ func (ar *AlertingRule) ToAPI() APIRule {
 		LastSamples:    lastState.samples,
 		MaxUpdates:     ar.state.size(),
 		Updates:        ar.state.getAll(),
+		Debug:          ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
 		ID:      fmt.Sprintf("%d", ar.ID()),

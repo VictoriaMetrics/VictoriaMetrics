@@ -7,9 +7,11 @@
 package service
 
 import (
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/exported"
 	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/internal/generated"
+	"time"
 )
 
 // SharedKeyCredential contains an account's name and its primary or secondary key.
@@ -30,7 +32,7 @@ type UserDelegationKey = generated.UserDelegationKey
 // KeyInfo contains KeyInfo struct.
 type KeyInfo = generated.KeyInfo
 
-// GetUserDelegationCredentialOptions contains optional parameters for Service.GetUserDelegationKey method
+// GetUserDelegationCredentialOptions contains optional parameters for Service.GetUserDelegationKey method.
 type GetUserDelegationCredentialOptions struct {
 	// placeholder for future options
 }
@@ -51,11 +53,11 @@ type ContainerItem = generated.ContainerItem
 // ContainerProperties - Properties of a container
 type ContainerProperties = generated.ContainerProperties
 
-// CpkInfo contains a group of parameters for the BlobClient.Download method.
-type CpkInfo = generated.CpkInfo
+// CPKInfo contains a group of parameters for the BlobClient.Download method.
+type CPKInfo = generated.CPKInfo
 
-// CpkScopeInfo contains a group of parameters for the BlobClient.SetMetadata method.
-type CpkScopeInfo = generated.CpkScopeInfo
+// CPKScopeInfo contains a group of parameters for the BlobClient.SetMetadata method.
+type CPKScopeInfo = generated.CPKScopeInfo
 
 // CreateContainerOptions contains the optional parameters for the container.Client.Create method.
 type CreateContainerOptions = container.CreateOptions
@@ -66,28 +68,34 @@ type DeleteContainerOptions = container.DeleteOptions
 // RestoreContainerOptions contains the optional parameters for the container.Client.Restore method.
 type RestoreContainerOptions = container.RestoreOptions
 
-// CorsRule - CORS is an HTTP feature that enables a web application running under one domain to access resources in another
+// CORSRule - CORS is an HTTP feature that enables a web application running under one domain to access resources in another
 // domain. Web browsers implement a security restriction known as same-origin policy that
 // prevents a web page from calling APIs in a different domain; CORS provides a secure way to allow one domain (the origin
-// domain) to call APIs in another domain
-type CorsRule = generated.CorsRule
+// domain) to call APIs in another domain.
+type CORSRule = generated.CORSRule
 
-// FilterBlobItem - Blob info returned from method Client.FilterBlobs
+// FilterBlobSegment - The result of a Filter Blobs API call.
+type FilterBlobSegment = generated.FilterBlobSegment
+
+// BlobTags - Blob tags
+type BlobTags = generated.BlobTags
+
+// FilterBlobItem - Blob info returned from method Client.FilterBlobs.
 type FilterBlobItem = generated.FilterBlobItem
 
-// GeoReplication - Geo-Replication information for the Secondary Storage Service
+// GeoReplication - Geo-Replication information for the Secondary Storage Service.
 type GeoReplication = generated.GeoReplication
 
-// RetentionPolicy - the retention policy which determines how long the associated data should persist
+// RetentionPolicy - the retention policy which determines how long the associated data should persist.
 type RetentionPolicy = generated.RetentionPolicy
 
-// Metrics - a summary of request statistics grouped by API in hour or minute aggregates for blobs
+// Metrics - a summary of request statistics grouped by API in hour or minute aggregates for blobs.
 type Metrics = generated.Metrics
 
 // Logging - Azure Analytics Logging settings.
 type Logging = generated.Logging
 
-// StaticWebsite - The properties that enable an account to host a static website
+// StaticWebsite - The properties that enable an account to host a static website.
 type StaticWebsite = generated.StaticWebsite
 
 // StorageServiceProperties - Storage Service Properties.
@@ -120,7 +128,7 @@ func (o *GetPropertiesOptions) format() *generated.ServiceClientGetPropertiesOpt
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// ListContainersOptions provides set of configurations for ListContainers operation
+// ListContainersOptions provides set of configurations for ListContainers operation.
 type ListContainersOptions struct {
 	Include ListContainersInclude
 
@@ -154,25 +162,28 @@ type ListContainersInclude struct {
 // SetPropertiesOptions provides set of options for Client.SetProperties
 type SetPropertiesOptions struct {
 	// The set of CORS rules.
-	Cors []*CorsRule
+	CORS []*CORSRule
 
 	// The default version to use for requests to the Blob service if an incoming request's version is not specified. Possible
-	// values include version 2008-10-27 and all more recent versions
+	// values include version 2008-10-27 and all more recent versions.
 	DefaultServiceVersion *string
 
-	// the retention policy which determines how long the associated data should persist
+	// the retention policy which determines how long the associated data should persist.
 	DeleteRetentionPolicy *RetentionPolicy
 
 	// a summary of request statistics grouped by API in hour or minute aggregates for blobs
+	// If version is not set - we default to "1.0"
 	HourMetrics *Metrics
 
 	// Azure Analytics Logging settings.
+	// If version is not set - we default to "1.0"
 	Logging *Logging
 
 	// a summary of request statistics grouped by API in hour or minute aggregates for blobs
+	// If version is not set - we default to "1.0"
 	MinuteMetrics *Metrics
 
-	// The properties that enable an account to host a static website
+	// The properties that enable an account to host a static website.
 	StaticWebsite *StaticWebsite
 }
 
@@ -181,8 +192,45 @@ func (o *SetPropertiesOptions) format() (generated.StorageServiceProperties, *ge
 		return generated.StorageServiceProperties{}, nil
 	}
 
+	defaultVersion := to.Ptr[string]("1.0")
+	defaultAge := to.Ptr[int32](0)
+	emptyStr := to.Ptr[string]("")
+
+	if o.CORS != nil {
+		for i := 0; i < len(o.CORS); i++ {
+			if o.CORS[i].AllowedHeaders == nil {
+				o.CORS[i].AllowedHeaders = emptyStr
+			}
+			if o.CORS[i].ExposedHeaders == nil {
+				o.CORS[i].ExposedHeaders = emptyStr
+			}
+			if o.CORS[i].MaxAgeInSeconds == nil {
+				o.CORS[i].MaxAgeInSeconds = defaultAge
+			}
+		}
+	}
+
+	if o.HourMetrics != nil {
+		if o.HourMetrics.Version == nil {
+			o.HourMetrics.Version = defaultVersion
+		}
+	}
+
+	if o.Logging != nil {
+		if o.Logging.Version == nil {
+			o.Logging.Version = defaultVersion
+		}
+	}
+
+	if o.MinuteMetrics != nil {
+		if o.MinuteMetrics.Version == nil {
+			o.MinuteMetrics.Version = defaultVersion
+		}
+
+	}
+
 	return generated.StorageServiceProperties{
-		Cors:                  o.Cors,
+		CORS:                  o.CORS,
 		DefaultServiceVersion: o.DefaultServiceVersion,
 		DeleteRetentionPolicy: o.DeleteRetentionPolicy,
 		HourMetrics:           o.HourMetrics,
@@ -190,6 +238,27 @@ func (o *SetPropertiesOptions) format() (generated.StorageServiceProperties, *ge
 		MinuteMetrics:         o.MinuteMetrics,
 		StaticWebsite:         o.StaticWebsite,
 	}, nil
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+
+// GetSASURLOptions contains the optional parameters for the Client.GetSASURL method.
+type GetSASURLOptions struct {
+	StartTime *time.Time
+}
+
+func (o *GetSASURLOptions) format() time.Time {
+	if o == nil {
+		return time.Time{}
+	}
+
+	var st time.Time
+	if o.StartTime != nil {
+		st = o.StartTime.UTC()
+	} else {
+		st = time.Time{}
+	}
+	return st
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -205,7 +274,7 @@ func (o *GetStatisticsOptions) format() *generated.ServiceClientGetStatisticsOpt
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-// FilterBlobsOptions provides set of options for Client.FindBlobsByTags
+// FilterBlobsOptions provides set of options for Client.FindBlobsByTags.
 type FilterBlobsOptions struct {
 	// A string value that identifies the portion of the list of containers to be returned with the next listing operation. The
 	// operation returns the NextMarker value within the response body if the listing
@@ -219,8 +288,6 @@ type FilterBlobsOptions struct {
 	// of the results. For this reason, it is possible that the service will
 	// return fewer results than specified by maxresults, or than the default of 5000.
 	MaxResults *int32
-	// Filters the results to return only to return only blobs whose tags match the specified expression.
-	Where *string
 }
 
 func (o *FilterBlobsOptions) format() *generated.ServiceClientFilterBlobsOptions {
@@ -230,6 +297,5 @@ func (o *FilterBlobsOptions) format() *generated.ServiceClientFilterBlobsOptions
 	return &generated.ServiceClientFilterBlobsOptions{
 		Marker:     o.Marker,
 		Maxresults: o.MaxResults,
-		Where:      o.Where,
 	}
 }

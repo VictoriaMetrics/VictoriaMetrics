@@ -155,8 +155,11 @@ export const useFetchQuery = ({
   },
   [serverUrl, period, displayType, customStep, hideQuery]);
 
+  const [prevUrl, setPrevUrl] = useState<string[]>([]);
+
   useEffect(() => {
-    if (!visible || !fetchUrl?.length) return;
+    const isLazyPredefined = (fetchUrl === prevUrl && !!predefinedQuery);
+    if (!visible || !fetchUrl?.length || isLazyPredefined) return;
     setIsLoading(true);
     const expr = predefinedQuery ?? query;
     throttledFetchData({
@@ -168,6 +171,7 @@ export const useFetchQuery = ({
       showAllSeries,
       hideQuery,
     });
+    setPrevUrl(fetchUrl);
   }, [fetchUrl, visible, stateSeriesLimits, showAllSeries]);
 
   useEffect(() => {

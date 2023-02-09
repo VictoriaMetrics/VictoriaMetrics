@@ -45,7 +45,7 @@ type serviceWatcher struct {
 
 // newNomadWatcher creates new watcher and starts background service discovery for Nomad.
 func newNomadWatcher(client *discoveryutils.Client, sdc *SDConfig, namespace, region string) *nomadWatcher {
-	var qa url.Values
+	qa := url.Values{}
 	if sdc.AllowStale == nil || *sdc.AllowStale {
 		qa.Set("stale", "")
 	}

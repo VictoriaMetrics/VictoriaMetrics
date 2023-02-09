@@ -14,6 +14,21 @@ export const getNameForMetric = (result: MetricBase, alias?: string, showQueryNu
   ).join(", ")}}`;
 };
 
+export const promValueToNumber = (s: string): number => {
+  // See https://prometheus.io/docs/prometheus/latest/querying/api/#expression-query-result-formats
+  switch (s) {
+    case "NaN":
+      return NaN;
+    case "Inf":
+    case "+Inf":
+      return Infinity;
+    case "-Inf":
+      return -Infinity;
+    default:
+      return parseFloat(s);
+  }
+};
+
 export const isHistogramData = (result: MetricResult[]) => {
   if (result.length < 2) return false;
   const histogramNames = ["le", "vmrange"];

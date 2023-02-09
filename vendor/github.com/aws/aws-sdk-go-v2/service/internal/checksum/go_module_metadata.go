@@ -3,4 +3,4 @@
 package checksum
 
 // goModuleVersion is the tagged release for this module
-const goModuleVersion = "1.1.22"
+const goModuleVersion = "1.1.23"
