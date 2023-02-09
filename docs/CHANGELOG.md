@@ -18,7 +18,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): alerts state restore procedure was changed to become asynchronous. It doesn't block groups start anymore which significantly improves vmalert's startup time.
   This also means that `-remoteRead.ignoreRestoreErrors` command-line flag becomes deprecated now and will have no effect if configured.
   While previously state restore attempt was made for all the loaded alerting rules, now it is called only for alerts which became active after the first evaluation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2608).
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): optimize VMUI for use from smarthones and tablets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3707).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): optimize VMUI for use from smartphones and tablets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3707).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to search tenants in the drop-down list for the tenant selector. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3792).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add avg/max/last values to line legends and tooltips for graphs. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3706).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): hide the default `per-job resource usage` dashboard if there is a custom dashboard exists at the directory specified via `-vmui.customDashboardsPath` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3740).
 
