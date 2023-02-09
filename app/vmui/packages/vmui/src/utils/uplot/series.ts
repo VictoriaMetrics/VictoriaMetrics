@@ -1,12 +1,19 @@
 import { MetricResult } from "../../api/types";
 import { Series } from "uplot";
-import { getNameForMetric } from "../metric";
+import { getNameForMetric, promValueToNumber } from "../metric";
 import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
 import { HideSeriesArgs } from "./types";
 import { baseContrastColors, getColorFromString } from "../color";
+import { getAvgFromArray, getMaxFromArray, getMinFromArray, getLastFromArray } from "../math";
+import { formatPrettyNumber } from "./helpers";
 
-interface SeriesItem extends Series {
+export interface SeriesItem extends Series {
   freeFormFields: {[key: string]: string};
+  calculations: {
+    max: string,
+    avg: string,
+    last: string
+  }
 }
 
 export const getSeriesItemContext = () => {
@@ -18,6 +25,12 @@ export const getSeriesItemContext = () => {
     const hasBasicColors = countSavedColors < baseContrastColors.length;
     if (hasBasicColors) colorState[label] = colorState[label] || baseContrastColors[countSavedColors];
 
+    const values = d.values.map(v => promValueToNumber(v[1]));
+    const min = getMinFromArray(values);
+    const max = getMaxFromArray(values);
+    const avg = getAvgFromArray(values);
+    const last = getLastFromArray(values);
+
     return {
       label,
       freeFormFields: d.metric,
@@ -28,6 +41,11 @@ export const getSeriesItemContext = () => {
       points: {
         size: 4.2,
         width: 1.4
+      },
+      calculations: {
+        max: formatPrettyNumber(max, min, max),
+        avg: formatPrettyNumber(avg, min, max),
+        last: formatPrettyNumber(last, min, max),
       }
     };
   };
@@ -39,6 +57,7 @@ export const getLegendItem = (s: SeriesItem, group: number): LegendItemType => (
   color: s.stroke as string,
   checked: s.show || false,
   freeFormFields: s.freeFormFields,
+  calculations: s.calculations,
 });
 
 export const getHideSeries = ({ hideSeries, legend, metaKey, series }: HideSeriesArgs): string[] => {
