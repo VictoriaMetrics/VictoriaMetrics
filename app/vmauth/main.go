@@ -34,6 +34,8 @@ var (
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
 		"'429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend")
+	maxConcurrentRequestsPerUser = flag.Int("maxConcurrentRequestsPerUser", 0, "The maximum number of concurrent requests vmauth can process per user. "+
+		"It can be used if you want to set one limit per each user. This limit can be updated by setting max_concurrent_requests field in auth config file per each user.")
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
@@ -114,10 +116,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 
 	// Limit per user concurrency of requests to backends
-	// This limit enables only if max_concurrent_requests value bigger that
-	// flag --maxConcurrentRequests value
-	if *maxConcurrentRequests < ui.MaxConcurrentRequests {
-		if err := ui.proxyRequests(func() { processRequest(w, r, targetURL, headers) }); err != nil {
+	// This limit enables only if max_concurrent_requests has value
+	if ui.MaxConcurrentRequests > 0 {
+		if err := ui.doRateLimit(func() { processRequest(w, r, targetURL, headers) }); err != nil {
 			handleLimitError(w, r, ui.MaxConcurrentRequests)
 			return true
 		}

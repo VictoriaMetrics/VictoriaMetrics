@@ -41,16 +41,16 @@ type UserInfo struct {
 	Headers               []Header   `yaml:"headers,omitempty"`
 	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
 
-	limiter      chan struct{}
+	limitC       chan struct{}
 	requests     *metrics.Counter
 	limitReached *metrics.Counter
 }
 
-func (ui *UserInfo) proxyRequests(cb func()) error {
+func (ui *UserInfo) doRateLimit(cb func()) error {
 	if ui.MaxConcurrentRequests > 0 {
 		select {
-		case ui.limiter <- struct{}{}:
-			defer func() { <-ui.limiter }()
+		case ui.limitC <- struct{}{}:
+			defer func() { <-ui.limitC }()
 		default:
 			ui.limitReached.Inc()
 			return fmt.Errorf("cannot handle more than %d connections", ui.MaxConcurrentRequests)
@@ -333,14 +333,17 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
+		if ui.MaxConcurrentRequests == 0 {
+			ui.MaxConcurrentRequests = *maxConcurrentRequestsPerUser
+		}
 		if ui.MaxConcurrentRequests > 0 {
-			ui.limitReached = metrics.NewCounter(fmt.Sprintf(`vmauth_concurrent_requests_limit_reached_total{username=%q}`, name))
-			ui.limiter = make(chan struct{}, ui.MaxConcurrentRequests)
-			_ = metrics.NewGauge(fmt.Sprintf(`vmauth_concurrent_requests_capacity{username=%q}`, name), func() float64 {
+			ui.limitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_concurrent_requests_limit_reached_total{username=%q}`, name))
+			ui.limitC = make(chan struct{}, ui.MaxConcurrentRequests)
+			_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_concurrent_requests_capacity{username=%q}`, name), func() float64 {
 				return float64(ui.MaxConcurrentRequests)
 			})
-			_ = metrics.NewGauge(fmt.Sprintf(`vmauth_concurrent_requests_current{username=%q}`, name), func() float64 {
-				return float64(len(ui.limiter))
+			_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_concurrent_requests_current{username=%q}`, name), func() float64 {
+				return float64(len(ui.limitC))
 			})
 		}
 		byAuthToken[at1] = ui
