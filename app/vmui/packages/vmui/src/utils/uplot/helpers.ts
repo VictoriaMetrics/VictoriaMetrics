@@ -32,10 +32,12 @@ export const formatTicks = (u: uPlot, ticks: number[], unit = ""): string[] => {
   return ticks.map(v => `${formatPrettyNumber(v, min, max)} ${unit}`);
 };
 
-export const formatPrettyNumber = (n: number | null | undefined, min = 0, max = 0): string => {
+export const formatPrettyNumber = (n: number | null | undefined, min: number | null | undefined, max: number | null | undefined): string => {
   if (n === undefined || n === null) {
     return "";
   }
+  max = max || 0;
+  min = min || 0;
   const range = Math.abs(max - min);
   if (isNaN(range) || range == 0) {
     // Return the constant number as is if the range isn't set of it is too small.

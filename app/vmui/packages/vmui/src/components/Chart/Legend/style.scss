@@ -9,12 +9,13 @@
 
   &-group {
     min-width: 23%;
+    width: 100%;
     margin: 0 $padding-global $padding-global 0;
 
     &-title {
       display: flex;
       align-items: center;
-      padding: 0 $padding-small $padding-small;
+      padding: $padding-small;
       margin-bottom: 1px;
       border-bottom: $border-divider;
 

@@ -14,6 +14,7 @@ interface LegendItemProps {
 const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
   const [copiedValue, setCopiedValue] = useState("");
   const freeFormFields = useMemo(() => getFreeFields(legend), [legend]);
+  const calculations = legend.calculations;
 
   const handleClickFreeField = async (val: string, id: string) => {
     await navigator.clipboard.writeText(val);
@@ -30,11 +31,11 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
     handleClickFreeField(freeField, id);
   };
 
-
   return (
     <div
       className={classNames({
         "vm-legend-item": true,
+        "vm-legend-row": true,
         "vm-legend-item_hide": !legend.checked,
       })}
       onClick={createHandlerClick(legend)}
@@ -70,6 +71,11 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
           </span>
         }
       </div>
+      {calculations.last !== undefined && (
+        <div className="vm-legend-item-values">
+          avg:{calculations.avg}, max:{calculations.max}, last:{calculations.last}
+        </div>
+      )}
     </div>
   );
 };
