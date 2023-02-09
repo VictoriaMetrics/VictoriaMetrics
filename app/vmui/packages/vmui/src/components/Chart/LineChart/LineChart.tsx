@@ -22,6 +22,7 @@ import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
 import { useAppState } from "../../../state/common/StateContext";
+import { SeriesItem } from "../../../utils/uplot/series";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -316,7 +317,7 @@ const LineChart: FC<LineChartProps> = ({
         <ChartTooltip
           unit={unit}
           u={uPlotInst}
-          series={series}
+          series={series as SeriesItem[]}
           metrics={metrics}
           yRange={yRange}
           tooltipIdx={tooltipIdx}

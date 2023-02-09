@@ -18,14 +18,17 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): alerts state restore procedure was changed to become asynchronous. It doesn't block groups start anymore which significantly improves vmalert's startup time.
   This also means that `-remoteRead.ignoreRestoreErrors` command-line flag becomes deprecated now and will have no effect if configured.
   While previously state restore attempt was made for all the loaded alerting rules, now it is called only for alerts which became active after the first evaluation. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2608).
-* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): optimize VMUI for use from smarthones and tablets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3707).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): optimize VMUI for use from smartphones and tablets. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3707).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add ability to search tenants in the drop-down list for the tenant selector. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3792).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add avg/max/last values to line legends and tooltips for graphs. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3706).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): hide the default `per-job resource usage` dashboard if there is a custom dashboard exists at the directory specified via `-vmui.customDashboardsPath` command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3740).
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic in nomad watcher because of improperly initialized object. Thanks to @mr-karan for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3784)
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic in [HashiCorp Nomad service discovery](https://docs.victoriametrics.com/sd_configs.html#nomad_sd_configs). Thanks to @mr-karan for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3784).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): fix display of rules number per-group for groups with identical names in UI.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): prevent disabling state updates tracking per rule via setting values < 1. The minimum number of update states to track is now set to 1.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly update `debug` and `update_entries_limit` rule's params on config's hot-reload.
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix cancelling in-flight scrape requests during configuration reload when using `streamParse` mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3747). 
-
+* BUGFIX: properly initialize the `vm_concurrent_insert_current` metric before exposing it. Previously this metric could be left uninitialized in some cases, e.g. its value was zero. This could lead to false alerts for the query `avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3761).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix cancelling in-flight scrape requests during configuration reload when using `streamParse` mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3747).
 
 ## [v1.87.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.0)
 
@@ -505,6 +508,21 @@ Released at 2022-08-08
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): return series from `q1` if `q2` doesn't return matching time series in the query `q1 ifnot q2`. Previously series from `q1` weren't returned in this case.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly show date picker at `Table` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2874).
 * BUGFIX: properly generate http redirects if `-http.pathPrefix` command-line flag is set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2918).
+
+## [v1.79.8](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.8)
+
+Released at 2023-02-03
+
+**v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
+
+* BUGFIX: fix a bug, which could prevent background merges for the previous partitions until restart if the storage didn't have enough disk space for final deduplication and down-sampling.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): update API version for [ec2_sd_configs](https://docs.victoriametrics.com/sd_configs.html#ec2_sd_configs) to fix [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3700) with missing `__meta_ec2_availability_zone_id` attribute.
+* BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): fix panic on top-level vmselect nodes of [multi-level setup](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup) when the `-replicationFactor` flag is set and request contains `trace` query parameter. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3734).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): [dockerswarm_sd_configs](https://docs.victoriametrics.com/sd_configs.html#dockerswarm_sd_configs): apply `filters` only to objects of the specified `role`. Previously filters were applied to all the objects, which could cause errors when different types of objects were used with filters that were not compatible with them. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3579).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): suppress all the scrape errors when `-promscrape.suppressScrapeErrors` is enabled. Previously some scrape errors were logged even if `-promscrape.suppressScrapeErrors` flag was set.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): consistently put the scrape url with scrape target labels to all error logs for failed scrapes. Previously some failed scrapes were logged without this information.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): properly parse `M` and `Mi` suffixes as `1e6` multipliers in `1M` and `1Mi` numeric constants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3664). The issue has been introduced in [v1.79.7](https://docs.victoriametrics.com/CHANGELOG.html#v1797).
 
 ## [v1.79.7](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.7)
 
