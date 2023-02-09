@@ -46,36 +46,31 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
       />
       <div className="vm-legend-item-info">
         <span className="vm-legend-item-info__label">
-          {legend.freeFormFields["__name__"] || (freeFormFields.length == 0 ? "{}" : "")}
-        </span>
-        {freeFormFields.length > 0 &&
-          <span>
-            &#123;
-            {freeFormFields.map(f => (
-              <Tooltip
-                key={f.id}
-                open={copiedValue === f.id}
-                title={"Copied!"}
-                placement="top-center"
+          {legend.freeFormFields["__name__"]}
+          &#123;
+          {freeFormFields.map((f, i) => (
+            <Tooltip
+              key={f.id}
+              open={copiedValue === f.id}
+              title={"copied!"}
+              placement="top-center"
+            >
+              <span
+                className="vm-legend-item-info__free-fields"
+                key={f.key}
+                onClick={createHandlerCopy(f.freeField, f.id)}
+                title="copy to clipboard"
               >
-                <span
-                  className="vm-legend-item-info__free-fields"
-                  key={f.key}
-                  onClick={createHandlerCopy(f.freeField, f.id)}
-                >
-                  {f.freeField}
-                </span>
-              </Tooltip>
-            ))}
-            &#125;
-          </span>
-        }
+                {f.freeField}{i + 1 < freeFormFields.length && ","}
+              </span>
+            </Tooltip>
+          ))}
+          &#125;
+        </span>
       </div>
-      {calculations.last !== undefined && (
-        <div className="vm-legend-item-values">
-          avg:{calculations.avg}, max:{calculations.max}, last:{calculations.last}
-        </div>
-      )}
+      <div className="vm-legend-item-values">
+        avg:{calculations.avg}, min:{calculations.min}, max:{calculations.max}, last:{calculations.last}
+      </div>
     </div>
   );
 };

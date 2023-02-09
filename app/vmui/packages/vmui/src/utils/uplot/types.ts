@@ -22,6 +22,7 @@ export interface LegendItemType {
     checked: boolean;
     freeFormFields: {[key: string]: string};
     calculations: {
+        min: string;
         max: string;
         avg: string;
         last: string;
