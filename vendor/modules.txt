@@ -81,7 +81,7 @@ github.com/VividCortex/ewma
 # github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 ## explicit; go 1.15
 github.com/alecthomas/units
-# github.com/aws/aws-sdk-go v1.44.196
+# github.com/aws/aws-sdk-go v1.44.198
 ## explicit; go 1.11
 github.com/aws/aws-sdk-go/aws
 github.com/aws/aws-sdk-go/aws/awserr
@@ -310,7 +310,7 @@ github.com/google/go-cmp/cmp/internal/value
 # github.com/google/uuid v1.3.0
 ## explicit
 github.com/google/uuid
-# github.com/googleapis/enterprise-certificate-proxy v0.2.1
+# github.com/googleapis/enterprise-certificate-proxy v0.2.2
 ## explicit; go 1.19
 github.com/googleapis/enterprise-certificate-proxy/client
 github.com/googleapis/enterprise-certificate-proxy/client/util
@@ -527,10 +527,9 @@ go.uber.org/goleak/internal/stack
 ## explicit; go 1.18
 golang.org/x/exp/constraints
 golang.org/x/exp/slices
-# golang.org/x/net v0.5.0
+# golang.org/x/net v0.6.0
 ## explicit; go 1.17
 golang.org/x/net/context
-golang.org/x/net/context/ctxhttp
 golang.org/x/net/http/httpguts
 golang.org/x/net/http2
 golang.org/x/net/http2/hpack
@@ -539,7 +538,7 @@ golang.org/x/net/internal/socks
 golang.org/x/net/internal/timeseries
 golang.org/x/net/proxy
 golang.org/x/net/trace
-# golang.org/x/oauth2 v0.4.0
+# golang.org/x/oauth2 v0.5.0
 ## explicit; go 1.17
 golang.org/x/oauth2
 golang.org/x/oauth2/authhandler
@@ -557,7 +556,7 @@ golang.org/x/sync/errgroup
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.6.0
+# golang.org/x/text v0.7.0
 ## explicit; go 1.17
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
@@ -603,7 +602,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-# google.golang.org/genproto v0.0.0-20230202175211-008b39050e57
+# google.golang.org/genproto v0.0.0-20230209215440-0dfe4f8abfcc
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
