@@ -6,10 +6,11 @@
   grid-gap: $padding-small;
   align-items: start;
   justify-content: start;
-  padding: $padding-small $padding-large $padding-small $padding-small;
+  padding: $padding-small;
   background-color: $color-background-block;
   cursor: pointer;
   transition: 0.2s ease;
+  margin-bottom: $padding-small;
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.1);
@@ -30,22 +31,26 @@
 
   &-info {
     font-weight: normal;
+    word-break: break-all;
 
     &__label {
-
+      margin-right: 2px;
     }
 
     &__free-fields {
-      padding: 3px;
+      padding: 2px;
       cursor: pointer;
 
       &:hover {
         text-decoration: underline;
       }
-
-      &:not(:last-child):after {
-        content: ",";
-      }
     }
+  }
+
+  &-values {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    gap: $padding-small;
   }
 }

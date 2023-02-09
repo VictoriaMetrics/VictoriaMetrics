@@ -37,8 +37,6 @@ type ruleState struct {
 	sync.RWMutex
 	entries []ruleStateEntry
 	cur     int
-	// disabled defines whether ruleState tracks ruleStateEntry
-	disabled bool
 }
 
 type ruleStateEntry struct {
@@ -61,7 +59,7 @@ type ruleStateEntry struct {
 
 func newRuleState(size int) *ruleState {
 	if size < 1 {
-		return &ruleState{disabled: true}
+		size = 1
 	}
 	return &ruleState{
 		entries: make([]ruleStateEntry, size),
@@ -69,10 +67,6 @@ func newRuleState(size int) *ruleState {
 }
 
 func (s *ruleState) getLast() ruleStateEntry {
-	if s.disabled {
-		return ruleStateEntry{}
-	}
-
 	s.RLock()
 	defer s.RUnlock()
 	return s.entries[s.cur]
@@ -85,10 +79,6 @@ func (s *ruleState) size() int {
 }
 
 func (s *ruleState) getAll() []ruleStateEntry {
-	if s.disabled {
-		return nil
-	}
-
 	entries := make([]ruleStateEntry, 0)
 
 	s.RLock()
@@ -111,10 +101,6 @@ func (s *ruleState) getAll() []ruleStateEntry {
 }
 
 func (s *ruleState) add(e ruleStateEntry) {
-	if s.disabled {
-		return
-	}
-
 	s.Lock()
 	defer s.Unlock()
 

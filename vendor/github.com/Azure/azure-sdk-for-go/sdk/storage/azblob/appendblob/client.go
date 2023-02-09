@@ -37,7 +37,9 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 	authPolicy := runtime.NewBearerTokenPolicy(cred, []string{shared.TokenScope}, nil)
 	conOptions := shared.GetClientOptions(options)
 	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	pl := runtime.NewPipeline(exported.ModuleName,
+		exported.ModuleVersion, runtime.PipelineOptions{},
+		&conOptions.ClientOptions)
 
 	return (*Client)(base.NewAppendBlobClient(blobURL, pl, nil)), nil
 }
@@ -48,7 +50,10 @@ func NewClient(blobURL string, cred azcore.TokenCredential, options *ClientOptio
 //   - options - client options; pass nil to accept the default values
 func NewClientWithNoCredential(blobURL string, options *ClientOptions) (*Client, error) {
 	conOptions := shared.GetClientOptions(options)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	pl := runtime.NewPipeline(exported.ModuleName,
+		exported.ModuleVersion,
+		runtime.PipelineOptions{},
+		&conOptions.ClientOptions)
 
 	return (*Client)(base.NewAppendBlobClient(blobURL, pl, nil)), nil
 }
@@ -61,7 +66,10 @@ func NewClientWithSharedKeyCredential(blobURL string, cred *blob.SharedKeyCreden
 	authPolicy := exported.NewSharedKeyCredPolicy(cred)
 	conOptions := shared.GetClientOptions(options)
 	conOptions.PerRetryPolicies = append(conOptions.PerRetryPolicies, authPolicy)
-	pl := runtime.NewPipeline(exported.ModuleName, exported.ModuleVersion, runtime.PipelineOptions{}, &conOptions.ClientOptions)
+	pl := runtime.NewPipeline(exported.ModuleName,
+		exported.ModuleVersion,
+		runtime.PipelineOptions{},
+		&conOptions.ClientOptions)
 
 	return (*Client)(base.NewAppendBlobClient(blobURL, pl, cred)), nil
 }
@@ -166,7 +174,15 @@ func (ab *Client) AppendBlock(ctx context.Context, body io.ReadSeekCloser, o *Ap
 		}
 	}
 
-	resp, err := ab.generated().AppendBlock(ctx, count, body, appendOptions, leaseAccessConditions, appendPositionAccessConditions, cpkInfo, cpkScope, modifiedAccessConditions)
+	resp, err := ab.generated().AppendBlock(ctx,
+		count,
+		body,
+		appendOptions,
+		leaseAccessConditions,
+		appendPositionAccessConditions,
+		cpkInfo,
+		cpkScope,
+		modifiedAccessConditions)
 
 	return resp, err
 }
@@ -174,11 +190,25 @@ func (ab *Client) AppendBlock(ctx context.Context, body io.ReadSeekCloser, o *Ap
 // AppendBlockFromURL copies a new block of data from source URL to the end of the existing append blob.
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/append-block-from-url.
 func (ab *Client) AppendBlockFromURL(ctx context.Context, source string, o *AppendBlockFromURLOptions) (AppendBlockFromURLResponse, error) {
-	appendBlockFromURLOptions, cpkInfo, cpkScopeInfo, leaseAccessConditions, appendPositionAccessConditions, modifiedAccessConditions, sourceModifiedAccessConditions := o.format()
+	appendBlockFromURLOptions,
+		cpkInfo,
+		cpkScopeInfo,
+		leaseAccessConditions,
+		appendPositionAccessConditions,
+		modifiedAccessConditions,
+		sourceModifiedAccessConditions := o.format()
 
 	// content length should be 0 on * from URL. always. It's a 400 if it isn't.
-	resp, err := ab.generated().AppendBlockFromURL(ctx, source, 0, appendBlockFromURLOptions, cpkInfo, cpkScopeInfo,
-		leaseAccessConditions, appendPositionAccessConditions, modifiedAccessConditions, sourceModifiedAccessConditions)
+	resp, err := ab.generated().AppendBlockFromURL(ctx,
+		source,
+		0,
+		appendBlockFromURLOptions,
+		cpkInfo,
+		cpkScopeInfo,
+		leaseAccessConditions,
+		appendPositionAccessConditions,
+		modifiedAccessConditions,
+		sourceModifiedAccessConditions)
 	return resp, err
 }
 
@@ -186,7 +216,11 @@ func (ab *Client) AppendBlockFromURL(ctx context.Context, source string, o *Appe
 // https://docs.microsoft.com/en-us/rest/api/storageservices/append-blob-seal
 func (ab *Client) Seal(ctx context.Context, o *SealOptions) (SealResponse, error) {
 	leaseAccessConditions, modifiedAccessConditions, positionAccessConditions := o.format()
-	resp, err := ab.generated().Seal(ctx, nil, leaseAccessConditions, modifiedAccessConditions, positionAccessConditions)
+	resp, err := ab.generated().Seal(ctx,
+		nil,
+		leaseAccessConditions,
+		modifiedAccessConditions,
+		positionAccessConditions)
 	return resp, err
 }
 
@@ -256,7 +290,7 @@ func (ab *Client) SetHTTPHeaders(ctx context.Context, HTTPHeaders blob.HTTPHeade
 
 // SetMetadata changes a blob's metadata.
 // https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata.
-func (ab *Client) SetMetadata(ctx context.Context, metadata map[string]string, o *blob.SetMetadataOptions) (blob.SetMetadataResponse, error) {
+func (ab *Client) SetMetadata(ctx context.Context, metadata map[string]*string, o *blob.SetMetadataOptions) (blob.SetMetadataResponse, error) {
 	return ab.BlobClient().SetMetadata(ctx, metadata, o)
 }
 

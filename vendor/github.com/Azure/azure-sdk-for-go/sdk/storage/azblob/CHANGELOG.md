@@ -1,5 +1,45 @@
 # Release History
 
+## 1.0.0 (2023-02-07)
+
+### Features Added
+
+* Add support to log calculated block size and count during uploads
+* Added MissingSharedKeyCredential error type for cleaner UX. Related to [#19864](https://github.com/Azure/azure-sdk-for-go/issues/19864).
+
+### Breaking Changes
+
+* Changed API signatures to map correctly to Azure Storage REST APIs, These changes impact:
+  * `blob.GetSASURL()`
+  * `blockblob.StageBlockFromURL()`
+  * `container.SetAccessPolicy()`
+  * `container.GetSASURL()`
+  * `service.GetSASURL()`
+  * `service.FilterBlobs()`
+  * `lease.AcquireLease()` (blobs and containers)
+  * `lease.ChangeLease()` (blobs and containers)
+* Type name changes:
+  * `CpkInfo` -> `CPKInfo`
+  * `CpkScopeInfo` -> `CPKScopeInfo`
+  * `RuleId` -> `RuleID`
+  * `PolicyId` -> `PolicyID`
+  * `CorsRule` -> `CORSRule`
+* Remove `AccountServices` it is now hardcoded to blobs
+
+### Bugs Fixed
+
+* Fixed encoding issues seen in FilterBlobs. Fixes [#17421](https://github.com/Azure/azure-sdk-for-go/issues/17421).
+* Fixing inconsistency seen with Metadata and ORS response. Fixes [#19688](https://github.com/Azure/azure-sdk-for-go/issues/19688).
+* Fixed endless loop during pagination issue [#19773](https://github.com/Azure/azure-sdk-for-go/pull/19773).
+
+### Other Changes
+
+* Exported some missing types in the `blob`, `container` and `service` packages. Fixes [#19775](https://github.com/Azure/azure-sdk-for-go/issues/19775).
+* SAS changes [#19781](https://github.com/Azure/azure-sdk-for-go/pull/19781):
+  * AccountSASPermissions: SetImmutabilityPolicy support
+  * ContainerSASPermissions: Move support
+  * Validations to ensure correct sas perm ordering
+
 ## 0.6.1 (2022-12-09)
 
 ### Bugs Fixed

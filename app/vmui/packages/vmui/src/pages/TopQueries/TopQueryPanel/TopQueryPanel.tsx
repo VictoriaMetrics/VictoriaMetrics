@@ -40,7 +40,7 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
         </div>
       </div>
 
-      <div>
+      <div className="vm-top-queries-panel__table">
         {activeTab === 0 && (
           <TopQueryTable
             rows={rows}

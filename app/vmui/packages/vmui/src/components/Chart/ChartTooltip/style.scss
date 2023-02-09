@@ -61,11 +61,6 @@ $chart-tooltip-y: -1 * ($padding-small + $chart-tooltip-half-icon);
     word-break: break-all;
     line-height: 12px;
 
-    &__value {
-      padding: 4px;
-      font-weight: bold;
-    }
-
     &__marker {
       width: 12px;
       height: 12px;

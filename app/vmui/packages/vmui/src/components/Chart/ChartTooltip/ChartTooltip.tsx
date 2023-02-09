@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
-import uPlot, { Series } from "uplot";
+import uPlot from "uplot";
 import { MetricResult } from "../../../api/types";
 import { formatPrettyNumber } from "../../../utils/uplot/helpers";
 import dayjs from "dayjs";
@@ -11,12 +11,13 @@ import { CloseIcon, DragIcon } from "../../Main/Icons";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import "./style.scss";
+import { SeriesItem } from "../../../utils/uplot/series";
 
 export interface ChartTooltipProps {
   id: string,
   u: uPlot,
   metrics: MetricResult[],
-  series: Series[],
+  series: SeriesItem[],
   yRange: number[];
   unit?: string,
   isSticky?: boolean,
@@ -55,15 +56,16 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
 
   const color = series[seriesIdx]?.stroke+"";
 
+  const calculations = series[seriesIdx]?.calculations || {};
+
   const groups = new Set(metrics.map(m => m.group));
   const showQueryNum = groups.size > 1;
   const group = metrics[seriesIdx-1]?.group || 0;
 
   const metric = metrics[seriesIdx-1]?.metric || {};
-  const labelNames = Object.keys(metric).filter(x => x != "__name__");
-  const metricName = metric["__name__"] || "value";
 
   const fields = useMemo(() => {
+    const labelNames = Object.keys(metric).filter(x => x != "__name__");
     return labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
   }, [metrics, seriesIdx]);
 
@@ -100,10 +102,15 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     const overflowX = leftOnChart + tooltipWidth >= width ? tooltipWidth + (2 * margin) : 0;
     const overflowY = topOnChart + tooltipHeight >= height ? tooltipHeight + (2 * margin) : 0;
 
-    setPosition({
+    const position = {
       top: topOnChart + tooltipOffset.top + margin - overflowY,
       left: leftOnChart + tooltipOffset.left + margin - overflowX
-    });
+    };
+
+    if (position.left < 0) position.left = 20;
+    if (position.top < 0) position.top = 20;
+
+    setPosition(position);
   };
 
   useEffect(calcPosition, [u, value, dataTime, seriesIdx, tooltipOffset, tooltipRef]);
@@ -169,19 +176,21 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           className="vm-chart-tooltip-data__marker"
           style={{ background: color }}
         />
-        <p>
-          {metricName}: 
-          <b className="vm-chart-tooltip-data__value">{valueFormat}</b>
-          {unit}
-        </p>
-      </div>
-      {!!fields.length && (
-        <div className="vm-chart-tooltip-info">
-          {fields.map((f, i) => (
-            <div key={`${f}_${i}`}>{f}</div>
-          ))}
+        <div>
+          curr:<b>{valueFormat}{unit}</b>, avg:<b>{calculations.avg}</b><br/>
+          min:<b>{calculations.min}</b>, max:<b>{calculations.max}</b>, last:<b>{calculations.last}</b>
         </div>
-      )}
+      </div>
+      <div className="vm-chart-tooltip-info">
+        {metric["__name__"]}
+        &#123;
+        {fields.map((f, i) => (
+          <span key="{i}">
+            {f}{i +1 < fields.length && ","}
+          </span>
+        ))}
+        &#125;
+      </div>
     </div>
   ), targetPortal);
 };

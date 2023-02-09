@@ -40,7 +40,7 @@ const Index: FC = () => {
   const getQueryStatsTitle = (key: keyof TopQueryStats) => {
     if (!data) return key;
     const value = data[key];
-    if (typeof value === "number") return formatPrettyNumber(value);
+    if (typeof value === "number") return formatPrettyNumber(value, value, value);
     return value || key;
   };
 
@@ -71,23 +71,27 @@ const Index: FC = () => {
       {loading && <Spinner containerStyles={{ height: "500px" }}/>}
 
       <div className="vm-top-queries-controls vm-block">
-        <div className="vm-top-queries-controls__fields">
-          <TextField
-            label="Max lifetime"
-            value={maxLifetime}
-            error={errorMaxLife}
-            helperText={`For example ${exampleDuration}`}
-            onChange={onMaxLifetimeChange}
-            onKeyDown={onKeyDown}
-          />
-          <TextField
-            label="Number of returned queries"
-            type="number"
-            value={topN || ""}
-            error={errorTopN}
-            onChange={onTopNChange}
-            onKeyDown={onKeyDown}
-          />
+        <div className="vm-top-queries-controls-fields">
+          <div className="vm-top-queries-controls-fields__item">
+            <TextField
+              label="Max lifetime"
+              value={maxLifetime}
+              error={errorMaxLife}
+              helperText={`For example ${exampleDuration}`}
+              onChange={onMaxLifetimeChange}
+              onKeyDown={onKeyDown}
+            />
+          </div>
+          <div className="vm-top-queries-controls-fields__item">
+            <TextField
+              label="Number of returned queries"
+              type="number"
+              value={topN || ""}
+              error={errorTopN}
+              onChange={onTopNChange}
+              onKeyDown={onKeyDown}
+            />
+          </div>
         </div>
         <div className="vm-top-queries-controls-bottom">
           <div className="vm-top-queries-controls-bottom__info">

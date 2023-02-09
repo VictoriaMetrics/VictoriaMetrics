@@ -34,7 +34,7 @@ func PossibleAccessTierValues() []AccessTier {
 	return generated.PossibleAccessTierValues()
 }
 
-// PublicAccessType defines values for AccessType - private (default) or blob or container
+// PublicAccessType defines values for AccessType - private (default) or blob or container.
 type PublicAccessType = generated.PublicAccessType
 
 const (
@@ -47,7 +47,7 @@ func PossiblePublicAccessTypeValues() []PublicAccessType {
 	return generated.PossiblePublicAccessTypeValues()
 }
 
-// SKUName defines values for SkuName - LRS, GRS, RAGRS, ZRS, Premium LRS
+// SKUName defines values for SkuName - LRS, GRS, RAGRS, ZRS, Premium LRS.
 type SKUName = generated.SKUName
 
 const (

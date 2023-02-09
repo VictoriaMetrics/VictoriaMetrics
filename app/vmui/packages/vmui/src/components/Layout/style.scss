@@ -3,13 +3,17 @@
 .vm-container {
   display: flex;
   flex-direction: column;
-  min-height: calc(100vh - var(--scrollbar-height));
+  min-height: calc(($vh * 100) - var(--scrollbar-height));
 
   &-body {
     flex-grow: 1;
     min-height: 100%;
     padding: $padding-medium;
     background-color: $color-background-body;
+
+    @media (max-width: 768px) {
+      padding: 0;
+    }
 
     &_app {
       padding: $padding-small 0;

@@ -16,6 +16,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
 	"io"
 	"net/http"
 	"strconv"
@@ -31,8 +32,8 @@ type ContainerClient struct {
 }
 
 // NewContainerClient creates a new instance of ContainerClient with the specified values.
-// endpoint - The URL of the service account, container, or blob that is the target of the desired operation.
-// pl - the pipeline used for sending requests and handling responses.
+//   - endpoint - The URL of the service account, container, or blob that is the target of the desired operation.
+//   - pl - the pipeline used for sending requests and handling responses.
 func NewContainerClient(endpoint string, pl runtime.Pipeline) *ContainerClient {
 	client := &ContainerClient{
 		endpoint: endpoint,
@@ -44,11 +45,15 @@ func NewContainerClient(endpoint string, pl runtime.Pipeline) *ContainerClient {
 // AcquireLease - [Update] establishes and manages a lock on a container for delete operations. The lock duration can be 15
 // to 60 seconds, or can be infinite
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientAcquireLeaseOptions contains the optional parameters for the ContainerClient.AcquireLease method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
-func (client *ContainerClient) AcquireLease(ctx context.Context, options *ContainerClientAcquireLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientAcquireLeaseResponse, error) {
-	req, err := client.acquireLeaseCreateRequest(ctx, options, modifiedAccessConditions)
+//   - duration - Specifies the duration of the lease, in seconds, or negative one (-1) for a lease that never expires. A non-infinite
+//     lease can be between 15 and 60 seconds. A lease duration cannot be changed using
+//     renew or change.
+//   - options - ContainerClientAcquireLeaseOptions contains the optional parameters for the ContainerClient.AcquireLease method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+func (client *ContainerClient) AcquireLease(ctx context.Context, duration int32, options *ContainerClientAcquireLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientAcquireLeaseResponse, error) {
+	req, err := client.acquireLeaseCreateRequest(ctx, duration, options, modifiedAccessConditions)
 	if err != nil {
 		return ContainerClientAcquireLeaseResponse{}, err
 	}
@@ -63,7 +68,7 @@ func (client *ContainerClient) AcquireLease(ctx context.Context, options *Contai
 }
 
 // acquireLeaseCreateRequest creates the AcquireLease request.
-func (client *ContainerClient) acquireLeaseCreateRequest(ctx context.Context, options *ContainerClientAcquireLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (*policy.Request, error) {
+func (client *ContainerClient) acquireLeaseCreateRequest(ctx context.Context, duration int32, options *ContainerClientAcquireLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (*policy.Request, error) {
 	req, err := runtime.NewRequest(ctx, http.MethodPut, client.endpoint)
 	if err != nil {
 		return nil, err
@@ -76,9 +81,7 @@ func (client *ContainerClient) acquireLeaseCreateRequest(ctx context.Context, op
 	}
 	req.Raw().URL.RawQuery = reqQP.Encode()
 	req.Raw().Header["x-ms-lease-action"] = []string{"acquire"}
-	if options != nil && options.Duration != nil {
-		req.Raw().Header["x-ms-lease-duration"] = []string{strconv.FormatInt(int64(*options.Duration), 10)}
-	}
+	req.Raw().Header["x-ms-lease-duration"] = []string{strconv.FormatInt(int64(duration), 10)}
 	if options != nil && options.ProposedLeaseID != nil {
 		req.Raw().Header["x-ms-proposed-lease-id"] = []string{*options.ProposedLeaseID}
 	}
@@ -134,9 +137,10 @@ func (client *ContainerClient) acquireLeaseHandleResponse(resp *http.Response) (
 // BreakLease - [Update] establishes and manages a lock on a container for delete operations. The lock duration can be 15
 // to 60 seconds, or can be infinite
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientBreakLeaseOptions contains the optional parameters for the ContainerClient.BreakLease method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - options - ContainerClientBreakLeaseOptions contains the optional parameters for the ContainerClient.BreakLease method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) BreakLease(ctx context.Context, options *ContainerClientBreakLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientBreakLeaseResponse, error) {
 	req, err := client.breakLeaseCreateRequest(ctx, options, modifiedAccessConditions)
 	if err != nil {
@@ -226,13 +230,14 @@ func (client *ContainerClient) breakLeaseHandleResponse(resp *http.Response) (Co
 // ChangeLease - [Update] establishes and manages a lock on a container for delete operations. The lock duration can be 15
 // to 60 seconds, or can be infinite
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// leaseID - Specifies the current lease ID on the resource.
-// proposedLeaseID - Proposed lease ID, in a GUID string format. The Blob service returns 400 (Invalid request) if the proposed
-// lease ID is not in the correct format. See Guid Constructor (String) for a list of valid GUID
-// string formats.
-// options - ContainerClientChangeLeaseOptions contains the optional parameters for the ContainerClient.ChangeLease method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - leaseID - Specifies the current lease ID on the resource.
+//   - proposedLeaseID - Proposed lease ID, in a GUID string format. The Blob service returns 400 (Invalid request) if the proposed
+//     lease ID is not in the correct format. See Guid Constructor (String) for a list of valid GUID
+//     string formats.
+//   - options - ContainerClientChangeLeaseOptions contains the optional parameters for the ContainerClient.ChangeLease method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) ChangeLease(ctx context.Context, leaseID string, proposedLeaseID string, options *ContainerClientChangeLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientChangeLeaseResponse, error) {
 	req, err := client.changeLeaseCreateRequest(ctx, leaseID, proposedLeaseID, options, modifiedAccessConditions)
 	if err != nil {
@@ -316,11 +321,12 @@ func (client *ContainerClient) changeLeaseHandleResponse(resp *http.Response) (C
 // Create - creates a new container under the specified account. If the container with the same name already exists, the operation
 // fails
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientCreateOptions contains the optional parameters for the ContainerClient.Create method.
-// ContainerCpkScopeInfo - ContainerCpkScopeInfo contains a group of parameters for the ContainerClient.Create method.
-func (client *ContainerClient) Create(ctx context.Context, options *ContainerClientCreateOptions, containerCpkScopeInfo *ContainerCpkScopeInfo) (ContainerClientCreateResponse, error) {
-	req, err := client.createCreateRequest(ctx, options, containerCpkScopeInfo)
+//   - options - ContainerClientCreateOptions contains the optional parameters for the ContainerClient.Create method.
+//   - ContainerCPKScopeInfo - ContainerCPKScopeInfo contains a group of parameters for the ContainerClient.Create method.
+func (client *ContainerClient) Create(ctx context.Context, options *ContainerClientCreateOptions, containerCPKScopeInfo *ContainerCPKScopeInfo) (ContainerClientCreateResponse, error) {
+	req, err := client.createCreateRequest(ctx, options, containerCPKScopeInfo)
 	if err != nil {
 		return ContainerClientCreateResponse{}, err
 	}
@@ -335,7 +341,7 @@ func (client *ContainerClient) Create(ctx context.Context, options *ContainerCli
 }
 
 // createCreateRequest creates the Create request.
-func (client *ContainerClient) createCreateRequest(ctx context.Context, options *ContainerClientCreateOptions, containerCpkScopeInfo *ContainerCpkScopeInfo) (*policy.Request, error) {
+func (client *ContainerClient) createCreateRequest(ctx context.Context, options *ContainerClientCreateOptions, containerCPKScopeInfo *ContainerCPKScopeInfo) (*policy.Request, error) {
 	req, err := runtime.NewRequest(ctx, http.MethodPut, client.endpoint)
 	if err != nil {
 		return nil, err
@@ -348,7 +354,9 @@ func (client *ContainerClient) createCreateRequest(ctx context.Context, options 
 	req.Raw().URL.RawQuery = reqQP.Encode()
 	if options != nil && options.Metadata != nil {
 		for k, v := range options.Metadata {
-			req.Raw().Header["x-ms-meta-"+k] = []string{v}
+			if v != nil {
+				req.Raw().Header["x-ms-meta-"+k] = []string{*v}
+			}
 		}
 	}
 	if options != nil && options.Access != nil {
@@ -358,11 +366,11 @@ func (client *ContainerClient) createCreateRequest(ctx context.Context, options 
 	if options != nil && options.RequestID != nil {
 		req.Raw().Header["x-ms-client-request-id"] = []string{*options.RequestID}
 	}
-	if containerCpkScopeInfo != nil && containerCpkScopeInfo.DefaultEncryptionScope != nil {
-		req.Raw().Header["x-ms-default-encryption-scope"] = []string{*containerCpkScopeInfo.DefaultEncryptionScope}
+	if containerCPKScopeInfo != nil && containerCPKScopeInfo.DefaultEncryptionScope != nil {
+		req.Raw().Header["x-ms-default-encryption-scope"] = []string{*containerCPKScopeInfo.DefaultEncryptionScope}
 	}
-	if containerCpkScopeInfo != nil && containerCpkScopeInfo.PreventEncryptionScopeOverride != nil {
-		req.Raw().Header["x-ms-deny-encryption-scope-override"] = []string{strconv.FormatBool(*containerCpkScopeInfo.PreventEncryptionScopeOverride)}
+	if containerCPKScopeInfo != nil && containerCPKScopeInfo.PreventEncryptionScopeOverride != nil {
+		req.Raw().Header["x-ms-deny-encryption-scope-override"] = []string{strconv.FormatBool(*containerCPKScopeInfo.PreventEncryptionScopeOverride)}
 	}
 	req.Raw().Header["Accept"] = []string{"application/xml"}
 	return req, nil
@@ -403,10 +411,11 @@ func (client *ContainerClient) createHandleResponse(resp *http.Response) (Contai
 // Delete - operation marks the specified container for deletion. The container and any blobs contained within it are later
 // deleted during garbage collection
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientDeleteOptions contains the optional parameters for the ContainerClient.Delete method.
-// LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - options - ContainerClientDeleteOptions contains the optional parameters for the ContainerClient.Delete method.
+//   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) Delete(ctx context.Context, options *ContainerClientDeleteOptions, leaseAccessConditions *LeaseAccessConditions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientDeleteResponse, error) {
 	req, err := client.deleteCreateRequest(ctx, options, leaseAccessConditions, modifiedAccessConditions)
 	if err != nil {
@@ -476,10 +485,11 @@ func (client *ContainerClient) deleteHandleResponse(resp *http.Response) (Contai
 // GetAccessPolicy - gets the permissions for the specified container. The permissions indicate whether container data may
 // be accessed publicly.
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientGetAccessPolicyOptions contains the optional parameters for the ContainerClient.GetAccessPolicy
-// method.
-// LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
+//   - options - ContainerClientGetAccessPolicyOptions contains the optional parameters for the ContainerClient.GetAccessPolicy
+//     method.
+//   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
 func (client *ContainerClient) GetAccessPolicy(ctx context.Context, options *ContainerClientGetAccessPolicyOptions, leaseAccessConditions *LeaseAccessConditions) (ContainerClientGetAccessPolicyResponse, error) {
 	req, err := client.getAccessPolicyCreateRequest(ctx, options, leaseAccessConditions)
 	if err != nil {
@@ -559,9 +569,10 @@ func (client *ContainerClient) getAccessPolicyHandleResponse(resp *http.Response
 
 // GetAccountInfo - Returns the sku name and account kind
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientGetAccountInfoOptions contains the optional parameters for the ContainerClient.GetAccountInfo
-// method.
+//   - options - ContainerClientGetAccountInfoOptions contains the optional parameters for the ContainerClient.GetAccountInfo
+//     method.
 func (client *ContainerClient) GetAccountInfo(ctx context.Context, options *ContainerClientGetAccountInfoOptions) (ContainerClientGetAccountInfoResponse, error) {
 	req, err := client.getAccountInfoCreateRequest(ctx, options)
 	if err != nil {
@@ -623,9 +634,10 @@ func (client *ContainerClient) getAccountInfoHandleResponse(resp *http.Response)
 // GetProperties - returns all user-defined metadata and system properties for the specified container. The data returned
 // does not include the container's list of blobs
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientGetPropertiesOptions contains the optional parameters for the ContainerClient.GetProperties method.
-// LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
+//   - options - ContainerClientGetPropertiesOptions contains the optional parameters for the ContainerClient.GetProperties method.
+//   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
 func (client *ContainerClient) GetProperties(ctx context.Context, options *ContainerClientGetPropertiesOptions, leaseAccessConditions *LeaseAccessConditions) (ContainerClientGetPropertiesResponse, error) {
 	req, err := client.getPropertiesCreateRequest(ctx, options, leaseAccessConditions)
 	if err != nil {
@@ -670,9 +682,9 @@ func (client *ContainerClient) getPropertiesHandleResponse(resp *http.Response) 
 	for hh := range resp.Header {
 		if len(hh) > len("x-ms-meta-") && strings.EqualFold(hh[:len("x-ms-meta-")], "x-ms-meta-") {
 			if result.Metadata == nil {
-				result.Metadata = map[string]string{}
+				result.Metadata = map[string]*string{}
 			}
-			result.Metadata[hh[len("x-ms-meta-"):]] = resp.Header.Get(hh)
+			result.Metadata[hh[len("x-ms-meta-"):]] = to.Ptr(resp.Header.Get(hh))
 		}
 	}
 	if val := resp.Header.Get("ETag"); val != "" {
@@ -748,10 +760,11 @@ func (client *ContainerClient) getPropertiesHandleResponse(resp *http.Response) 
 }
 
 // NewListBlobFlatSegmentPager - [Update] The List Blobs operation returns a list of the blobs under the specified container
-// If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientListBlobFlatSegmentOptions contains the optional parameters for the ContainerClient.ListBlobFlatSegment
-// method.
+//   - options - ContainerClientListBlobFlatSegmentOptions contains the optional parameters for the ContainerClient.NewListBlobFlatSegmentPager
+//     method.
+//
 // listBlobFlatSegmentCreateRequest creates the ListBlobFlatSegment request.
 func (client *ContainerClient) ListBlobFlatSegmentCreateRequest(ctx context.Context, options *ContainerClientListBlobFlatSegmentOptions) (*policy.Request, error) {
 	req, err := runtime.NewRequest(ctx, http.MethodGet, client.endpoint)
@@ -814,13 +827,13 @@ func (client *ContainerClient) ListBlobFlatSegmentHandleResponse(resp *http.Resp
 }
 
 // NewListBlobHierarchySegmentPager - [Update] The List Blobs operation returns a list of the blobs under the specified container
-// If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// delimiter - When the request includes this parameter, the operation returns a BlobPrefix element in the response body that
-// acts as a placeholder for all blobs whose names begin with the same substring up to the
-// appearance of the delimiter character. The delimiter may be a single character or a string.
-// options - ContainerClientListBlobHierarchySegmentOptions contains the optional parameters for the ContainerClient.ListBlobHierarchySegment
-// method.
+//   - delimiter - When the request includes this parameter, the operation returns a BlobPrefix element in the response body that
+//     acts as a placeholder for all blobs whose names begin with the same substring up to the
+//     appearance of the delimiter character. The delimiter may be a single character or a string.
+//   - options - ContainerClientListBlobHierarchySegmentOptions contains the optional parameters for the ContainerClient.NewListBlobHierarchySegmentPager
+//     method.
 func (client *ContainerClient) NewListBlobHierarchySegmentPager(delimiter string, options *ContainerClientListBlobHierarchySegmentOptions) *runtime.Pager[ContainerClientListBlobHierarchySegmentResponse] {
 	return runtime.NewPager(runtime.PagingHandler[ContainerClientListBlobHierarchySegmentResponse]{
 		More: func(page ContainerClientListBlobHierarchySegmentResponse) bool {
@@ -914,10 +927,11 @@ func (client *ContainerClient) ListBlobHierarchySegmentHandleResponse(resp *http
 // ReleaseLease - [Update] establishes and manages a lock on a container for delete operations. The lock duration can be 15
 // to 60 seconds, or can be infinite
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// leaseID - Specifies the current lease ID on the resource.
-// options - ContainerClientReleaseLeaseOptions contains the optional parameters for the ContainerClient.ReleaseLease method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - leaseID - Specifies the current lease ID on the resource.
+//   - options - ContainerClientReleaseLeaseOptions contains the optional parameters for the ContainerClient.ReleaseLease method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) ReleaseLease(ctx context.Context, leaseID string, options *ContainerClientReleaseLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientReleaseLeaseResponse, error) {
 	req, err := client.releaseLeaseCreateRequest(ctx, leaseID, options, modifiedAccessConditions)
 	if err != nil {
@@ -996,9 +1010,10 @@ func (client *ContainerClient) releaseLeaseHandleResponse(resp *http.Response) (
 
 // Rename - Renames an existing container.
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// sourceContainerName - Required. Specifies the name of the container to rename.
-// options - ContainerClientRenameOptions contains the optional parameters for the ContainerClient.Rename method.
+//   - sourceContainerName - Required. Specifies the name of the container to rename.
+//   - options - ContainerClientRenameOptions contains the optional parameters for the ContainerClient.Rename method.
 func (client *ContainerClient) Rename(ctx context.Context, sourceContainerName string, options *ContainerClientRenameOptions) (ContainerClientRenameResponse, error) {
 	req, err := client.renameCreateRequest(ctx, sourceContainerName, options)
 	if err != nil {
@@ -1064,10 +1079,11 @@ func (client *ContainerClient) renameHandleResponse(resp *http.Response) (Contai
 // RenewLease - [Update] establishes and manages a lock on a container for delete operations. The lock duration can be 15
 // to 60 seconds, or can be infinite
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// leaseID - Specifies the current lease ID on the resource.
-// options - ContainerClientRenewLeaseOptions contains the optional parameters for the ContainerClient.RenewLease method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - leaseID - Specifies the current lease ID on the resource.
+//   - options - ContainerClientRenewLeaseOptions contains the optional parameters for the ContainerClient.RenewLease method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) RenewLease(ctx context.Context, leaseID string, options *ContainerClientRenewLeaseOptions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientRenewLeaseResponse, error) {
 	req, err := client.renewLeaseCreateRequest(ctx, leaseID, options, modifiedAccessConditions)
 	if err != nil {
@@ -1149,8 +1165,9 @@ func (client *ContainerClient) renewLeaseHandleResponse(resp *http.Response) (Co
 
 // Restore - Restores a previously-deleted container.
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientRestoreOptions contains the optional parameters for the ContainerClient.Restore method.
+//   - options - ContainerClientRestoreOptions contains the optional parameters for the ContainerClient.Restore method.
 func (client *ContainerClient) Restore(ctx context.Context, options *ContainerClientRestoreOptions) (ContainerClientRestoreResponse, error) {
 	req, err := client.restoreCreateRequest(ctx, options)
 	if err != nil {
@@ -1218,12 +1235,13 @@ func (client *ContainerClient) restoreHandleResponse(resp *http.Response) (Conta
 // SetAccessPolicy - sets the permissions for the specified container. The permissions indicate whether blobs in a container
 // may be accessed publicly.
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// containerACL - the acls for the container
-// options - ContainerClientSetAccessPolicyOptions contains the optional parameters for the ContainerClient.SetAccessPolicy
-// method.
-// LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - containerACL - the acls for the container
+//   - options - ContainerClientSetAccessPolicyOptions contains the optional parameters for the ContainerClient.SetAccessPolicy
+//     method.
+//   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) SetAccessPolicy(ctx context.Context, containerACL []*SignedIdentifier, options *ContainerClientSetAccessPolicyOptions, leaseAccessConditions *LeaseAccessConditions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientSetAccessPolicyResponse, error) {
 	req, err := client.setAccessPolicyCreateRequest(ctx, containerACL, options, leaseAccessConditions, modifiedAccessConditions)
 	if err != nil {
@@ -1310,10 +1328,11 @@ func (client *ContainerClient) setAccessPolicyHandleResponse(resp *http.Response
 
 // SetMetadata - operation sets one or more user-defined name-value pairs for the specified container.
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// options - ContainerClientSetMetadataOptions contains the optional parameters for the ContainerClient.SetMetadata method.
-// LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
-// ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
+//   - options - ContainerClientSetMetadataOptions contains the optional parameters for the ContainerClient.SetMetadata method.
+//   - LeaseAccessConditions - LeaseAccessConditions contains a group of parameters for the ContainerClient.GetProperties method.
+//   - ModifiedAccessConditions - ModifiedAccessConditions contains a group of parameters for the ContainerClient.Delete method.
 func (client *ContainerClient) SetMetadata(ctx context.Context, options *ContainerClientSetMetadataOptions, leaseAccessConditions *LeaseAccessConditions, modifiedAccessConditions *ModifiedAccessConditions) (ContainerClientSetMetadataResponse, error) {
 	req, err := client.setMetadataCreateRequest(ctx, options, leaseAccessConditions, modifiedAccessConditions)
 	if err != nil {
@@ -1347,7 +1366,9 @@ func (client *ContainerClient) setMetadataCreateRequest(ctx context.Context, opt
 	}
 	if options != nil && options.Metadata != nil {
 		for k, v := range options.Metadata {
-			req.Raw().Header["x-ms-meta-"+k] = []string{v}
+			if v != nil {
+				req.Raw().Header["x-ms-meta-"+k] = []string{*v}
+			}
 		}
 	}
 	if modifiedAccessConditions != nil && modifiedAccessConditions.IfModifiedSince != nil {
@@ -1395,12 +1416,13 @@ func (client *ContainerClient) setMetadataHandleResponse(resp *http.Response) (C
 
 // SubmitBatch - The Batch operation allows multiple API calls to be embedded into a single HTTP request.
 // If the operation fails it returns an *azcore.ResponseError type.
+//
 // Generated from API version 2020-10-02
-// contentLength - The length of the request.
-// multipartContentType - Required. The value of this header must be multipart/mixed with a batch boundary. Example header
-// value: multipart/mixed; boundary=batch_
-// body - Initial data
-// options - ContainerClientSubmitBatchOptions contains the optional parameters for the ContainerClient.SubmitBatch method.
+//   - contentLength - The length of the request.
+//   - multipartContentType - Required. The value of this header must be multipart/mixed with a batch boundary. Example header
+//     value: multipart/mixed; boundary=batch_
+//   - body - Initial data
+//   - options - ContainerClientSubmitBatchOptions contains the optional parameters for the ContainerClient.SubmitBatch method.
 func (client *ContainerClient) SubmitBatch(ctx context.Context, contentLength int64, multipartContentType string, body io.ReadSeekCloser, options *ContainerClientSubmitBatchOptions) (ContainerClientSubmitBatchResponse, error) {
 	req, err := client.submitBatchCreateRequest(ctx, contentLength, multipartContentType, body, options)
 	if err != nil {

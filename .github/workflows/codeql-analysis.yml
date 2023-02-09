@@ -15,6 +15,7 @@ on:
   push:
     branches: [master, cluster]
     paths-ignore:
+      - "docs/**"
       - "**.md"
       - "**.txt"
       - "**.js"
@@ -22,11 +23,16 @@ on:
     # The branches below must be a subset of the branches above
     branches: [master, cluster]
     paths-ignore:
+      - "docs/**"
       - "**.md"
       - "**.txt"
       - "**.js"
   schedule:
     - cron: "30 18 * * 2"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   analyze:
@@ -51,7 +57,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v3
         with:
-          go-version: 1.19.5
+          go-version: 1.20.0
           check-latest: true
           cache: true
         if: ${{ matrix.language == 'go' }}

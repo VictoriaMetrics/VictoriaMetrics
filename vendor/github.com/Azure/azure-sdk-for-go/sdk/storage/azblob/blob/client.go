@@ -8,7 +8,7 @@ package blob
 
 import (
 	"context"
-	"errors"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/bloberror"
 	"io"
 	"os"
 	"sync"
@@ -148,10 +148,10 @@ func (b *Client) Undelete(ctx context.Context, o *UndeleteOptions) (UndeleteResp
 
 // SetTier operation sets the tier on a blob. The operation is allowed on a page
 // blob in a premium storage account and on a block blob in a blob storage account (locally
-// redundant storage only). A premium page blob's tier determines the allowed size, IOPS, and
+// redundant storage only). A premium page blob's tier determines the allowed size, IOPs, and
 // bandwidth of the blob. A block blob's tier determines Hot/Cool/Archive storage type. This operation
 // does not update the blob's ETag.
-// For detailed information about block blob level tiering see https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers.
+// For detailed information about block blob level tiers see https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers.
 func (b *Client) SetTier(ctx context.Context, tier AccessTier, o *SetTierOptions) (SetTierResponse, error) {
 	opts, leaseAccessConditions, modifiedAccessConditions := o.format()
 	resp, err := b.generated().SetTier(ctx, tier, opts, leaseAccessConditions, modifiedAccessConditions)
@@ -176,7 +176,7 @@ func (b *Client) SetHTTPHeaders(ctx context.Context, HTTPHeaders HTTPHeaders, o 
 
 // SetMetadata changes a blob's metadata.
 // https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata.
-func (b *Client) SetMetadata(ctx context.Context, metadata map[string]string, o *SetMetadataOptions) (SetMetadataResponse, error) {
+func (b *Client) SetMetadata(ctx context.Context, metadata map[string]*string, o *SetMetadataOptions) (SetMetadataResponse, error) {
 	basics := generated.BlobClientSetMetadataOptions{Metadata: metadata}
 	leaseAccessConditions, cpkInfo, cpkScope, modifiedAccessConditions := o.format()
 	resp, err := b.generated().SetMetadata(ctx, &basics, leaseAccessConditions, cpkInfo, cpkScope, modifiedAccessConditions)
@@ -266,9 +266,9 @@ func (b *Client) CopyFromURL(ctx context.Context, copySource string, options *Co
 
 // GetSASURL is a convenience method for generating a SAS token for the currently pointed at blob.
 // It can only be used if the credential supplied during creation was a SharedKeyCredential.
-func (b *Client) GetSASURL(permissions sas.BlobPermissions, start time.Time, expiry time.Time) (string, error) {
+func (b *Client) GetSASURL(permissions sas.BlobPermissions, expiry time.Time, o *GetSASURLOptions) (string, error) {
 	if b.sharedKey() == nil {
-		return "", errors.New("credential is not a SharedKeyCredential. SAS can only be signed with a SharedKeyCredential")
+		return "", bloberror.MissingSharedKeyCredential
 	}
 
 	urlParts, err := ParseURL(b.URL())
@@ -281,17 +281,16 @@ func (b *Client) GetSASURL(permissions sas.BlobPermissions, start time.Time, exp
 	if err != nil {
 		t = time.Time{}
 	}
+	st := o.format()
 
 	qps, err := sas.BlobSignatureValues{
 		ContainerName: urlParts.ContainerName,
 		BlobName:      urlParts.BlobName,
 		SnapshotTime:  t,
 		Version:       sas.Version,
-
-		Permissions: permissions.String(),
-
-		StartTime:  start.UTC(),
-		ExpiryTime: expiry.UTC(),
+		Permissions:   permissions.String(),
+		StartTime:     st,
+		ExpiryTime:    expiry.UTC(),
 	}.SignWithSharedKey(b.sharedKey())
 
 	if err != nil {
@@ -387,12 +386,12 @@ func (b *Client) DownloadStream(ctx context.Context, o *DownloadStreamOptions) (
 	}
 
 	return DownloadStreamResponse{
-		client:                     b,
-		BlobClientDownloadResponse: dr,
-		getInfo:                    httpGetterInfo{Range: o.Range, ETag: dr.ETag},
-		ObjectReplicationRules:     deserializeORSPolicies(dr.ObjectReplicationRules),
-		cpkInfo:                    o.CpkInfo,
-		cpkScope:                   o.CpkScopeInfo,
+		client:                 b,
+		DownloadResponse:       dr,
+		getInfo:                httpGetterInfo{Range: o.Range, ETag: dr.ETag},
+		ObjectReplicationRules: deserializeORSPolicies(dr.ObjectReplicationRules),
+		cpkInfo:                o.CPKInfo,
+		cpkScope:               o.CPKScopeInfo,
 	}, err
 }
 

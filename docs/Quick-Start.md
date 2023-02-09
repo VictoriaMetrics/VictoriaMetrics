@@ -96,7 +96,7 @@ The same API is also used by
 [VMUI](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) - graphical User Interface
 for querying and visualizing metrics.
 
-[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) - is he query language for executing read queries
+[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) - is the query language for executing read queries
 in VictoriaMetrics. MetricsQL is a [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics) 
 -like query language with a powerful set of functions and features for working specifically with time series data.
 
@@ -150,7 +150,7 @@ See more details in the article [VictoriaMetrics Monitoring](https://victoriamet
 ### Capacity planning
 
 See capacity planning sections in [docs](https://docs.victoriametrics.com) for
-[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning).
+[Single-server-VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#capacity-planning)
 and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#capacity-planning).
 
 Capacity planning isn't possible without [monitoring](#monitoring), so consider configuring it first.

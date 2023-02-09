@@ -8,6 +8,20 @@
   font-size: $font-size-small;
   font-weight: bold;
 
+  &_column {
+    flex-direction: column;
+    align-items: stretch;
+    gap: $padding-small;
+  }
+
+  &_column &-item {
+    padding: $padding-global 0;
+
+    &_sub {
+      justify-content: stretch;
+    }
+  }
+
   &-item {
     position: relative;
     padding: $padding-global $padding-small;
