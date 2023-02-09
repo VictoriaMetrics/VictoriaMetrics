@@ -28,6 +28,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): prevent disabling state updates tracking per rule via setting values < 1. The minimum number of update states to track is now set to 1.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly update `debug` and `update_entries_limit` rule's params on config's hot-reload.
 * BUGFIX: properly initialize the `vm_concurrent_insert_current` metric before exposing it. Previously this metric could be left uninitialized in some cases, e.g. its value was zero. This could lead to false alerts for the query `avg_over_time(vm_concurrent_insert_current[1m]) >= vm_concurrent_insert_capacity`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3761).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): immediately cancel in-flight scrape requests during configuration reload when using [stream parsing mode](https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode). Previously `vmagent` could wait for long time until all the in-flight requests are completed before reloading the configuration. This could significantly slow down configuration reload. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3747).
 
 ## [v1.87.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.0)
 
