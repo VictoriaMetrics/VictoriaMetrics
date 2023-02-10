@@ -28,17 +28,18 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the files with alert rules.
-Example: gs://bucket/path/to/rules, s3://bucket/path/to/rules, or fs:///path/to/local/rules/dir
-If scheme remote storage scheme is omitted, local file system is used.
-Local file system supports hierarchical patterns and regexes. 
-Remote file system supports only matching by prefix, e.g. s3://bucket/dir/rule_ will match all files with prefix
-rule_ in folder dir.
-This flag can be specified multiple times.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files with alerting and/or recording rules.
+Supports hierarchical patterns and regexpes.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
  -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
-Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars
+Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+
+Enterprise version of vmalert supports S3 and GCS paths to rules.
+For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+all files with prefix rule_ in folder dir.
+See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
 `)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
