@@ -13,10 +13,12 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
-		target, headers, err := createTargetURL(ui, u)
+		u = normalizeURL(u)
+		up, headers, err := ui.getURLPrefix(u)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
+		target := up.mergeURLs(u)
 		if target.String() != expectedTarget {
 			t.Fatalf("unexpected target; got %q; want %q", target, expectedTarget)
 		}
@@ -119,15 +121,16 @@ func TestCreateTargetURLFailure(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
-		target, headers, err := createTargetURL(ui, u)
+		u = normalizeURL(u)
+		up, headers, err := ui.getURLPrefix(u)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
-		if target != nil {
-			t.Fatalf("unexpected target=%q; want empty string", target)
+		if up != nil {
+			t.Fatalf("unexpected non-empty up=%q", up)
 		}
 		if headers != nil {
-			t.Fatalf("unexpected headers=%q; want empty string", headers)
+			t.Fatalf("unexpected non-empty headers=%q", headers)
 		}
 	}
 	f(&UserInfo{}, "/foo/bar")
