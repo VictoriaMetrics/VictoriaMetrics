@@ -107,11 +107,6 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	ui.requests.Inc()
-	targetURL, headers, err := createTargetURL(ui, r.URL)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
-		return true
-	}
 
 	// Limit the concurrency of requests to backends
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
@@ -128,13 +123,34 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		handleConcurrencyLimitError(w, r, err)
 		return true
 	}
-	processRequest(w, r, targetURL, headers)
+	processRequest(w, r, ui)
 	ui.endConcurrencyLimit()
 	<-concurrencyLimitCh
 	return true
 }
 
-func processRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headers []Header) {
+func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
+	u := normalizeURL(r.URL)
+	up, headers, err := ui.getURLPrefix(u)
+	if err != nil {
+		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
+		return
+	}
+	maxAttempts := up.getBackendsCount()
+	for i := 0; i < maxAttempts; i++ {
+		targetURL := up.mergeURLs(u)
+		if tryProcessingRequest(w, r, targetURL, headers) {
+			return
+		}
+	}
+	err = &httpserver.ErrorWithStatusCode{
+		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
+		StatusCode: http.StatusServiceUnavailable,
+	}
+	httpserver.Errorf(w, r, "%s", err)
+}
+
+func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, headers []Header) bool {
 	// This code has been copied from net/http/httputil/reverseproxy.go
 	req := sanitizeRequestHeaders(r)
 	req.URL = targetURL
@@ -144,12 +160,20 @@ func processRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, 
 	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	if err != nil {
-		err = &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("error when proxying the request to %q: %s", targetURL, err),
-			StatusCode: http.StatusBadGateway,
+		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+		requestURI := httpserver.GetRequestURI(r)
+		if r.Method == "POST" || r.Method == "PUT" {
+			// It is impossible to retry POST and PUT requests,
+			// since we already proxied the request body to the backend.
+			err = &httpserver.ErrorWithStatusCode{
+				Err:        fmt.Errorf("cannot proxy the request to %q: %w", targetURL, err),
+				StatusCode: http.StatusServiceUnavailable,
+			}
+			httpserver.Errorf(w, r, "%s", err)
+			return true
 		}
-		httpserver.Errorf(w, r, "%s", err)
-		return
+		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying the request to %q: %s", remoteAddr, requestURI, targetURL, err)
+		return false
 	}
 	removeHopHeaders(res.Header)
 	copyHeader(w.Header(), res.Header)
@@ -164,8 +188,9 @@ func processRequest(w http.ResponseWriter, r *http.Request, targetURL *url.URL, 
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
 		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying response body from %s: %s", remoteAddr, requestURI, targetURL, err)
-		return
+		return true
 	}
+	return true
 }
 
 var copyBufPool bytesutil.ByteBufferPool
