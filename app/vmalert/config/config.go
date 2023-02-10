@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/url"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 
@@ -203,19 +201,15 @@ type ValidateTplFn func(annotations map[string]string) error
 
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	var fp []string
-	for _, pattern := range pathPatterns {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			return nil, fmt.Errorf("error reading file pattern %s: %w", pattern, err)
-		}
-		fp = append(fp, matches...)
+	files, err := readFromFS(pathPatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
-	for _, file := range fp {
+	for file, data := range files {
 		uniqueGroups := map[string]struct{}{}
-		gr, err := parseFile(file)
+		gr, err := parseConfig(data)
 		if err != nil {
 			errGroup.Add(fmt.Errorf("failed to parse file %q: %w", file, err))
 			continue
@@ -243,14 +237,10 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	return groups, nil
 }
 
-func parseFile(path string) ([]Group, error) {
-	data, err := os.ReadFile(path)
+func parseConfig(data []byte) ([]Group, error) {
+	data, err := envtemplate.ReplaceBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf("error reading alert rule file %q: %w", path, err)
-	}
-	data, err = envtemplate.ReplaceBytes(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars in %q: %w", path, err)
+		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 	g := struct {
 		Groups []Group `yaml:"groups"`
