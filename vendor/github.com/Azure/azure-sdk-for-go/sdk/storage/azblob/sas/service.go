@@ -141,13 +141,7 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 		return QueryParameters{}, fmt.Errorf("cannot sign SAS query without User Delegation Key")
 	}
 
-	//Make sure the permission characters are in the correct order
-	perms, err := parseBlobPermissions(v.Permissions)
-	if err != nil {
-		return QueryParameters{}, err
-	}
-	v.Permissions = perms.String()
-
+	// Parse the resource
 	resource := "c"
 	if !v.SnapshotTime.IsZero() {
 		resource = "bs"
@@ -160,6 +154,20 @@ func (v BlobSignatureValues) SignWithUserDelegation(userDelegationCredential *Us
 		// do nothing
 	} else {
 		resource = "b"
+	}
+	// make sure the permission characters are in the correct order
+	if resource == "c" {
+		perms, err := parseContainerPermissions(v.Permissions)
+		if err != nil {
+			return QueryParameters{}, err
+		}
+		v.Permissions = perms.String()
+	} else {
+		perms, err := parseBlobPermissions(v.Permissions)
+		if err != nil {
+			return QueryParameters{}, err
+		}
+		v.Permissions = perms.String()
 	}
 
 	if v.Version == "" {
@@ -253,15 +261,15 @@ func getCanonicalName(account string, containerName string, blobName string, dir
 }
 
 // ContainerPermissions type simplifies creating the permissions string for an Azure Storage container SAS.
-// Initialize an instance of this type and then call its String method to set BlobSASSignatureValues's Permissions field.
+// Initialize an instance of this type and then call Client.GetSASURL with it or use the String method to set BlobSASSignatureValues Permissions field.
 // All permissions descriptions can be found here: https://docs.microsoft.com/en-us/rest/api/storageservices/create-service-sas#permissions-for-a-directory-container-or-blob
 type ContainerPermissions struct {
-	Read, Add, Create, Write, Delete, DeletePreviousVersion, List, FilterByTags bool
-	Execute, ModifyOwnership, ModifyPermissions, SetImmutabilityPolicy          bool // Hierarchical Namespace only
+	Read, Add, Create, Write, Delete, DeletePreviousVersion, List, FilterByTags, Move, SetImmutabilityPolicy bool
+	Execute, ModifyOwnership, ModifyPermissions                                                              bool // Meant for hierarchical namespace accounts
 }
 
 // String produces the SAS permissions string for an Azure Storage container.
-// Call this method to set BlobSASSignatureValues's Permissions field.
+// Call this method to set BlobSASSignatureValues' Permissions field.
 func (p *ContainerPermissions) String() string {
 	var b bytes.Buffer
 	if p.Read {
@@ -288,6 +296,9 @@ func (p *ContainerPermissions) String() string {
 	if p.FilterByTags {
 		b.WriteRune('f')
 	}
+	if p.Move {
+		b.WriteRune('m')
+	}
 	if p.Execute {
 		b.WriteRune('e')
 	}
@@ -303,8 +314,8 @@ func (p *ContainerPermissions) String() string {
 	return b.String()
 }
 
-// Parse initializes the ContainerSASPermissions' fields from a string.
-/*func parseContainerPermissions(s string) (ContainerPermissions, error) {
+// Parse initializes ContainerPermissions' fields from a string.
+func parseContainerPermissions(s string) (ContainerPermissions, error) {
 	p := ContainerPermissions{} // Clear the flags
 	for _, r := range s {
 		switch r {
@@ -322,29 +333,33 @@ func (p *ContainerPermissions) String() string {
 			p.DeletePreviousVersion = true
 		case 'l':
 			p.List = true
-		case 't':
+		case 'f':
 			p.FilterByTags = true
+		case 'm':
+			p.Move = true
 		case 'e':
 			p.Execute = true
 		case 'o':
 			p.ModifyOwnership = true
 		case 'p':
 			p.ModifyPermissions = true
+		case 'i':
+			p.SetImmutabilityPolicy = true
 		default:
 			return ContainerPermissions{}, fmt.Errorf("invalid permission: '%v'", r)
 		}
 	}
 	return p, nil
-}*/
+}
 
 // BlobPermissions type simplifies creating the permissions string for an Azure Storage blob SAS.
-// Initialize an instance of this type and then call its String method to set BlobSASSignatureValues's Permissions field.
+// Initialize an instance of this type and then call Client.GetSASURL with it or use the String method to set BlobSASSignatureValues Permissions field.
 type BlobPermissions struct {
-	Read, Add, Create, Write, Delete, DeletePreviousVersion, Tag, List, Move, Execute, Ownership, Permissions, PermanentDelete bool
+	Read, Add, Create, Write, Delete, DeletePreviousVersion, PermanentDelete, List, Tag, Move, Execute, Ownership, Permissions, SetImmutabilityPolicy bool
 }
 
 // String produces the SAS permissions string for an Azure Storage blob.
-// Call this method to set BlobSignatureValues's Permissions field.
+// Call this method to set BlobSignatureValue's Permissions field.
 func (p *BlobPermissions) String() string {
 	var b bytes.Buffer
 	if p.Read {
@@ -386,10 +401,13 @@ func (p *BlobPermissions) String() string {
 	if p.Permissions {
 		b.WriteRune('p')
 	}
+	if p.SetImmutabilityPolicy {
+		b.WriteRune('i')
+	}
 	return b.String()
 }
 
-// Parse initializes the BlobSASPermissions's fields from a string.
+// Parse initializes BlobPermissions' fields from a string.
 func parseBlobPermissions(s string) (BlobPermissions, error) {
 	p := BlobPermissions{} // Clear the flags
 	for _, r := range s {
@@ -406,12 +424,12 @@ func parseBlobPermissions(s string) (BlobPermissions, error) {
 			p.Delete = true
 		case 'x':
 			p.DeletePreviousVersion = true
-		case 't':
-			p.Tag = true
 		case 'y':
 			p.PermanentDelete = true
 		case 'l':
 			p.List = true
+		case 't':
+			p.Tag = true
 		case 'm':
 			p.Move = true
 		case 'e':
@@ -420,6 +438,8 @@ func parseBlobPermissions(s string) (BlobPermissions, error) {
 			p.Ownership = true
 		case 'p':
 			p.Permissions = true
+		case 'i':
+			p.SetImmutabilityPolicy = true
 		default:
 			return BlobPermissions{}, fmt.Errorf("invalid permission: '%v'", r)
 		}

@@ -34,10 +34,10 @@ var timeFormats = []string{"2006-01-02T15:04:05.0000000Z", TimeFormat, "2006-01-
 type Protocol string
 
 const (
-	// ProtocolHTTPS can be specified for a SAS protocol
+	// ProtocolHTTPS can be specified for a SAS protocol.
 	ProtocolHTTPS Protocol = "https"
 
-	// ProtocolHTTPSandHTTP can be specified for a SAS protocol
+	// ProtocolHTTPSandHTTP can be specified for a SAS protocol.
 	ProtocolHTTPSandHTTP Protocol = "https,http"
 )
 
@@ -148,137 +148,137 @@ type QueryParameters struct {
 	seTimeFormat string
 }
 
-// AuthorizedObjectID returns authorizedObjectID
+// AuthorizedObjectID returns authorizedObjectID.
 func (p *QueryParameters) AuthorizedObjectID() string {
 	return p.authorizedObjectID
 }
 
-// UnauthorizedObjectID returns unauthorizedObjectID
+// UnauthorizedObjectID returns unauthorizedObjectID.
 func (p *QueryParameters) UnauthorizedObjectID() string {
 	return p.unauthorizedObjectID
 }
 
-// SignedCorrelationID returns signedCorrelationID
+// SignedCorrelationID returns signedCorrelationID.
 func (p *QueryParameters) SignedCorrelationID() string {
 	return p.correlationID
 }
 
-// SignedOID returns signedOID
+// SignedOID returns signedOID.
 func (p *QueryParameters) SignedOID() string {
 	return p.signedOID
 }
 
-// SignedTID returns signedTID
+// SignedTID returns signedTID.
 func (p *QueryParameters) SignedTID() string {
 	return p.signedTID
 }
 
-// SignedStart returns signedStart
+// SignedStart returns signedStart.
 func (p *QueryParameters) SignedStart() time.Time {
 	return p.signedStart
 }
 
-// SignedExpiry returns signedExpiry
+// SignedExpiry returns signedExpiry.
 func (p *QueryParameters) SignedExpiry() time.Time {
 	return p.signedExpiry
 }
 
-// SignedService returns signedService
+// SignedService returns signedService.
 func (p *QueryParameters) SignedService() string {
 	return p.signedService
 }
 
-// SignedVersion returns signedVersion
+// SignedVersion returns signedVersion.
 func (p *QueryParameters) SignedVersion() string {
 	return p.signedVersion
 }
 
-// SnapshotTime returns snapshotTime
+// SnapshotTime returns snapshotTime.
 func (p *QueryParameters) SnapshotTime() time.Time {
 	return p.snapshotTime
 }
 
-// Version returns version
+// Version returns version.
 func (p *QueryParameters) Version() string {
 	return p.version
 }
 
-// Services returns services
+// Services returns services.
 func (p *QueryParameters) Services() string {
 	return p.services
 }
 
-// ResourceTypes returns resourceTypes
+// ResourceTypes returns resourceTypes.
 func (p *QueryParameters) ResourceTypes() string {
 	return p.resourceTypes
 }
 
-// Protocol returns protocol
+// Protocol returns protocol.
 func (p *QueryParameters) Protocol() Protocol {
 	return p.protocol
 }
 
-// StartTime returns startTime
+// StartTime returns startTime.
 func (p *QueryParameters) StartTime() time.Time {
 	return p.startTime
 }
 
-// ExpiryTime returns expiryTime
+// ExpiryTime returns expiryTime.
 func (p *QueryParameters) ExpiryTime() time.Time {
 	return p.expiryTime
 }
 
-// IPRange returns ipRange
+// IPRange returns ipRange.
 func (p *QueryParameters) IPRange() IPRange {
 	return p.ipRange
 }
 
-// Identifier returns identifier
+// Identifier returns identifier.
 func (p *QueryParameters) Identifier() string {
 	return p.identifier
 }
 
-// Resource returns resource
+// Resource returns resource.
 func (p *QueryParameters) Resource() string {
 	return p.resource
 }
 
-// Permissions returns permissions
+// Permissions returns permissions.
 func (p *QueryParameters) Permissions() string {
 	return p.permissions
 }
 
-// Signature returns signature
+// Signature returns signature.
 func (p *QueryParameters) Signature() string {
 	return p.signature
 }
 
-// CacheControl returns cacheControl
+// CacheControl returns cacheControl.
 func (p *QueryParameters) CacheControl() string {
 	return p.cacheControl
 }
 
-// ContentDisposition returns contentDisposition
+// ContentDisposition returns contentDisposition.
 func (p *QueryParameters) ContentDisposition() string {
 	return p.contentDisposition
 }
 
-// ContentEncoding returns contentEncoding
+// ContentEncoding returns contentEncoding.
 func (p *QueryParameters) ContentEncoding() string {
 	return p.contentEncoding
 }
 
-// ContentLanguage returns contentLanguage
+// ContentLanguage returns contentLanguage.
 func (p *QueryParameters) ContentLanguage() string {
 	return p.contentLanguage
 }
 
-// ContentType returns sontentType
+// ContentType returns contentType.
 func (p *QueryParameters) ContentType() string {
 	return p.contentType
 }
 
-// SignedDirectoryDepth returns signedDirectoryDepth
+// SignedDirectoryDepth returns signedDirectoryDepth.
 func (p *QueryParameters) SignedDirectoryDepth() string {
 	return p.signedDirectoryDepth
 }

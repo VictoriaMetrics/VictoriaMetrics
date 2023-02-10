@@ -150,14 +150,18 @@ func (pb *Client) Create(ctx context.Context, size int64, o *CreateOptions) (Cre
 // This method panics if the stream is not at position 0.
 // Note that the http client closes the body stream after the request is sent to the service.
 // For more information, see https://docs.microsoft.com/rest/api/storageservices/put-page.
-func (pb *Client) UploadPages(ctx context.Context, body io.ReadSeekCloser, options *UploadPagesOptions) (UploadPagesResponse, error) {
+func (pb *Client) UploadPages(ctx context.Context, body io.ReadSeekCloser, contentRange blob.HTTPRange, options *UploadPagesOptions) (UploadPagesResponse, error) {
 	count, err := shared.ValidateSeekableStreamAt0AndGetCount(body)
 
 	if err != nil {
 		return UploadPagesResponse{}, err
 	}
 
-	uploadPagesOptions, leaseAccessConditions, cpkInfo, cpkScopeInfo, sequenceNumberAccessConditions, modifiedAccessConditions := options.format()
+	uploadPagesOptions := &generated.PageBlobClientUploadPagesOptions{
+		Range: exported.FormatHTTPRange(contentRange),
+	}
+
+	leaseAccessConditions, cpkInfo, cpkScopeInfo, sequenceNumberAccessConditions, modifiedAccessConditions := options.format()
 
 	if options != nil && options.TransactionalValidation != nil {
 		body, err = options.TransactionalValidation.Apply(body, uploadPagesOptions)
@@ -345,7 +349,7 @@ func (pb *Client) SetLegalHold(ctx context.Context, legalHold bool, options *blo
 
 // SetTier operation sets the tier on a blob. The operation is allowed on a page
 // blob in a premium storage account and on a block blob in a blob storage account (locally
-// redundant storage only). A premium page blob's tier determines the allowed size, IOPS, and
+// redundant storage only). A premium page blob's tier determines the allowed size, IOPs, and
 // bandwidth of the blob. A block blob's tier determines Hot/Cool/Archive storage type. This operation
 // does not update the blob's ETag.
 // For detailed information about block blob level tier-ing see https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blob-storage-tiers.
@@ -367,7 +371,7 @@ func (pb *Client) SetHTTPHeaders(ctx context.Context, HTTPHeaders blob.HTTPHeade
 
 // SetMetadata changes a blob's metadata.
 // https://docs.microsoft.com/rest/api/storageservices/set-blob-metadata.
-func (pb *Client) SetMetadata(ctx context.Context, metadata map[string]string, o *blob.SetMetadataOptions) (blob.SetMetadataResponse, error) {
+func (pb *Client) SetMetadata(ctx context.Context, metadata map[string]*string, o *blob.SetMetadataOptions) (blob.SetMetadataResponse, error) {
 	return pb.BlobClient().SetMetadata(ctx, metadata, o)
 }
 

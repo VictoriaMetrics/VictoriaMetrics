@@ -32,7 +32,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   const dispatch = useTimeDispatch();
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(true);
+  const [visible, setVisible] = useState(false);
   const [yaxis, setYaxis] = useState<YaxisState>({
     limits: {
       enable: false,
@@ -73,7 +73,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
     return () => {
       if (containerRef.current) observer.unobserve(containerRef.current);
     };
-  }, []);
+  }, [containerRef]);
 
   if (!validExpr) return (
     <Alert variant="error">

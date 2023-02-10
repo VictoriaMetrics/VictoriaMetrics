@@ -5,6 +5,10 @@
   gap: $padding-global;
   align-items: flex-start;
 
+  @media (max-width: 768px) {
+    padding: $padding-medium 0;
+  }
+
   &-tabs.vm-block {
     padding: $padding-global;
   }

@@ -72,6 +72,15 @@ func (m *Metric) AddLabel(key, value string) {
 	m.Labels = append(m.Labels, Label{Name: key, Value: value})
 }
 
+// DelLabel deletes the given label from the label set
+func (m *Metric) DelLabel(key string) {
+	for i, l := range m.Labels {
+		if l.Name == key {
+			m.Labels = append(m.Labels[:i], m.Labels[i+1:]...)
+		}
+	}
+}
+
 // Label returns the given label value.
 // If label is missing empty string will be returned
 func (m *Metric) Label(key string) string {

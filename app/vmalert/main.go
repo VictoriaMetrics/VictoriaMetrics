@@ -28,13 +28,19 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the file with alert rules.
-Supports patterns. Flag can be specified multiple times.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files with alerting and/or recording rules.
+Supports hierarchical patterns and regexpes.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
- -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-absolute path to all .yaml files in root.
-Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
+ -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
+Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+
+Enterprise version of vmalert supports S3 and GCS paths to rules.
+For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+all files with prefix rule_ in folder dir.
+See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+`)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
 	for rules annotations templating. Flag can be specified multiple times.
@@ -73,7 +79,7 @@ absolute path to all .tpl files in root.`)
 
 	remoteReadLookBack = flag.Duration("remoteRead.lookback", time.Hour, "Lookback defines how far to look into past for alerts timeseries."+
 		" For example, if lookback=1h then range from now() to now()-1h will be scanned.")
-	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup.")
+	remoteReadIgnoreRestoreErrors = flag.Bool("remoteRead.ignoreRestoreErrors", true, "Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases.")
 
 	disableAlertGroupLabel = flag.Bool("disableAlertgroupLabel", false, "Whether to disable adding group's Name as label to generated alerts and time series.")
 
@@ -93,6 +99,10 @@ func main() {
 	buildinfo.Init()
 	logger.Init()
 	pushmetrics.Init()
+
+	if !*remoteReadIgnoreRestoreErrors {
+		logger.Warnf("flag `remoteRead.ignoreRestoreErrors` is deprecated and will be removed in next releases.")
+	}
 
 	err := templates.Load(*ruleTemplatesPath, true)
 	if err != nil {

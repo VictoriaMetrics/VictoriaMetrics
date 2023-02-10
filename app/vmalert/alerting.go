@@ -421,7 +421,9 @@ func (ar *AlertingRule) UpdateWith(r Rule) error {
 	ar.Labels = nr.Labels
 	ar.Annotations = nr.Annotations
 	ar.EvalInterval = nr.EvalInterval
+	ar.Debug = nr.Debug
 	ar.q = nr.q
+	ar.state = nr.state
 	return nil
 }
 
@@ -498,6 +500,7 @@ func (ar *AlertingRule) ToAPI() APIRule {
 		LastSamples:    lastState.samples,
 		MaxUpdates:     ar.state.size(),
 		Updates:        ar.state.getAll(),
+		Debug:          ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
 		ID:      fmt.Sprintf("%d", ar.ID()),
@@ -604,54 +607,59 @@ func alertForToTimeSeries(a *notifier.Alert, timestamp int64) prompbmarshal.Time
 	return newTimeSeries([]float64{float64(a.ActiveAt.Unix())}, []int64{timestamp}, labels)
 }
 
-// Restore restores the state of active alerts basing on previously written time series.
-// Restore restores only ActiveAt field. Field State will be always Pending and supposed
-// to be updated on next Exec, as well as Value field.
-// Only rules with For > 0 will be restored.
-func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, lookback time.Duration, labels map[string]string) error {
-	if q == nil {
-		return fmt.Errorf("querier is nil")
+// Restore restores the value of ActiveAt field for active alerts,
+// based on previously written time series `alertForStateMetricName`.
+// Only rules with For > 0 can be restored.
+func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, ts time.Time, lookback time.Duration) error {
+	if ar.For < 1 {
+		return nil
 	}
 
-	ts := time.Now()
-	qFn := func(query string) ([]datasource.Metric, error) {
-		res, _, err := ar.q.Query(ctx, query, ts)
-		return res, err
+	ar.alertsMu.Lock()
+	defer ar.alertsMu.Unlock()
+
+	if len(ar.alerts) < 1 {
+		return nil
 	}
 
-	// account for external labels in filter
-	var labelsFilter string
-	for k, v := range labels {
-		labelsFilter += fmt.Sprintf(",%s=%q", k, v)
-	}
-
-	expr := fmt.Sprintf("last_over_time(%s{alertname=%q%s}[%ds])",
-		alertForStateMetricName, ar.Name, labelsFilter, int(lookback.Seconds()))
-	qMetrics, _, err := q.Query(ctx, expr, ts)
-	if err != nil {
-		return err
-	}
-
-	for _, m := range qMetrics {
-		ls := &labelSet{
-			origin:    make(map[string]string, len(m.Labels)),
-			processed: make(map[string]string, len(m.Labels)),
+	for _, a := range ar.alerts {
+		if a.Restored || a.State != notifier.StatePending {
+			continue
 		}
-		for _, l := range m.Labels {
-			if l.Name == "__name__" {
-				continue
-			}
-			ls.origin[l.Name] = l.Value
-			ls.processed[l.Name] = l.Value
+
+		var labelsFilter []string
+		for k, v := range a.Labels {
+			labelsFilter = append(labelsFilter, fmt.Sprintf("%s=%q", k, v))
 		}
-		a, err := ar.newAlert(m, ls, time.Unix(int64(m.Values[0]), 0), qFn)
+		sort.Strings(labelsFilter)
+		expr := fmt.Sprintf("last_over_time(%s{%s}[%ds])",
+			alertForStateMetricName, strings.Join(labelsFilter, ","), int(lookback.Seconds()))
+
+		ar.logDebugf(ts, nil, "restoring alert state via query %q", expr)
+
+		qMetrics, _, err := q.Query(ctx, expr, ts)
 		if err != nil {
-			return fmt.Errorf("failed to create alert: %w", err)
+			return err
 		}
-		a.ID = hash(ls.processed)
-		a.State = notifier.StatePending
+
+		if len(qMetrics) < 1 {
+			ar.logDebugf(ts, nil, "no response was received from restore query")
+			continue
+		}
+
+		// only one series expected in response
+		m := qMetrics[0]
+		// __name__ supposed to be alertForStateMetricName
+		m.DelLabel("__name__")
+
+		// we assume that restore query contains all label matchers,
+		// so all received labels will match anyway if their number is equal.
+		if len(m.Labels) != len(a.Labels) {
+			ar.logDebugf(ts, nil, "state restore query returned not expected label-set %v", m.Labels)
+			continue
+		}
+		a.ActiveAt = time.Unix(int64(m.Values[0]), 0)
 		a.Restored = true
-		ar.alerts[a.ID] = a
 		logger.Infof("alert %q (%d) restored to state at %v", a.Name, a.ID, a.ActiveAt)
 	}
 	return nil

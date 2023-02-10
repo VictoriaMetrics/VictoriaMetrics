@@ -158,23 +158,23 @@ func (g *Group) ID() uint64 {
 }
 
 // Restore restores alerts state for group rules
-func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, lookback time.Duration, labels map[string]string) error {
-	labels = mergeLabels(g.Name, "", labels, g.Labels)
+func (g *Group) Restore(ctx context.Context, qb datasource.QuerierBuilder, ts time.Time, lookback time.Duration) error {
 	for _, rule := range g.Rules {
-		rr, ok := rule.(*AlertingRule)
+		ar, ok := rule.(*AlertingRule)
 		if !ok {
 			continue
 		}
-		if rr.For < 1 {
+		if ar.For < 1 {
 			continue
 		}
-		// ignore QueryParams on purpose, because they could contain
-		// query filters. This may affect the restore procedure.
 		q := qb.BuildWithParams(datasource.QuerierParams{
-			DataSourceType: g.Type.String(),
-			Headers:        g.Headers,
+			DataSourceType:     g.Type.String(),
+			EvaluationInterval: g.Interval,
+			QueryParams:        g.Params,
+			Headers:            g.Headers,
+			Debug:              ar.Debug,
 		})
-		if err := rr.Restore(ctx, q, lookback, labels); err != nil {
+		if err := ar.Restore(ctx, q, ts, lookback); err != nil {
 			return fmt.Errorf("error while restoring rule %q: %w", rule, err)
 		}
 	}
@@ -251,33 +251,13 @@ func (g *Group) close() {
 
 var skipRandSleepOnGroupStart bool
 
-func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client) {
+func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
 	e := &executor{
 		rw:                       rw,
 		notifiers:                nts,
 		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
-
-	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
-	if !skipRandSleepOnGroupStart {
-		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
-		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
-		if randSleep < sleepOffset {
-			randSleep += uint64(g.Interval)
-		}
-		randSleep -= sleepOffset
-		sleepTimer := time.NewTimer(time.Duration(randSleep))
-		select {
-		case <-ctx.Done():
-			sleepTimer.Stop()
-			return
-		case <-g.doneCh:
-			sleepTimer.Stop()
-			return
-		case <-sleepTimer.C:
-		}
-	}
 
 	evalTS := time.Now()
 
@@ -309,6 +289,16 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
+
+	// restore the rules state after the first evaluation
+	// so only active alerts can be restored.
+	if rr != nil {
+		err := g.Restore(ctx, rr, evalTS, *remoteReadLookBack)
+		if err != nil {
+			logger.Errorf("error while restoring ruleState for group %q: %s", g.Name, err)
+		}
+	}
+
 	for {
 		select {
 		case <-ctx.Done():

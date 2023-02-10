@@ -99,6 +99,26 @@ groups:
   [ - <rule_group> ]
 ```
 
+### Reading rules from object storage
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
+from object storage:
+
+- `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
+- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
+
+S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
+all files with prefix `rule_` in the folder `dir`.
+
+The following [command-line flags](#flags) can be used for fine-tuning access to S3 and GCS:
+
+- `-s3.credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+- `-s3.configFilePath` - path to file with S3 configs. Configs are loaded from default location if not set.
+- `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
+- `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
+- `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
+
 ### Groups
 
 Each group has the following attributes:
@@ -910,7 +930,7 @@ The shortlist of configuration flags is the following:
   -insert.maxQueueDuration duration
      The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 300)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1023,7 +1043,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.headers string
      Optional HTTP headers to send with each request to the corresponding -remoteRead.url. For example, -remoteRead.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteRead.url. Multiple headers must be delimited by '^^': -remoteRead.headers='header1:value1^^header2:value2'
   -remoteRead.ignoreRestoreErrors
-     Whether to ignore errors from remote storage when restoring alerts state on startup. (default true)
+     Whether to ignore errors from remote storage when restoring alerts state on startup. DEPRECATED - this flag has no effect and will be removed in the next releases. (default true)
   -remoteRead.lookback duration
      Lookback defines how far to look into past for alerts timeseries. For example, if lookback=1h then range from now() to now()-1h will be scanned. (default 1h0m0s)
   -remoteRead.oauth2.clientID string
@@ -1100,8 +1120,8 @@ The shortlist of configuration flags is the following:
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
-  -replay.maxDatapointsPerQuery int
-     Max number of data points expected in one request. The higher the value, the less requests will be made during replay. (default 1000)
+  -replay.maxDatapointsPerQuery /query_range
+     Max number of data points expected in one request. It affects the max time range for every /query_range request during the replay. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
      Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
@@ -1111,13 +1131,19 @@ The shortlist of configuration flags is the following:
   -replay.timeTo string
      The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
-     Path to the file with alert rules.
-     Supports patterns. Flag can be specified multiple times.
+     Path to the files with alerting and/or recording rules.
+     Supports hierarchical patterns and regexpes.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules
-      -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-     absolute path to all .yaml files in root.
+      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+     
+     Enterprise version of vmalert supports S3 and GCS paths to rules.
+     For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+     S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+     all files with prefix rule_ in folder dir.
+     See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+     
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
@@ -1139,6 +1165,18 @@ The shortlist of configuration flags is the following:
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
+  -s3.configFilePath string
+     Path to file with S3 configs. Configs are loaded from default location if not set.
+     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.configProfile string
+     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.credsFilePath string
+     Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.customEndpoint string
+     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.forcePathStyle
+     Prefixing endpoint with bucket name when set false, true by default. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default true)
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string

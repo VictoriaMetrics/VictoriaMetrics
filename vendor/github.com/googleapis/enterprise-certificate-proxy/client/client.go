@@ -1,6 +1,15 @@
 // Copyright 2022 Google LLC.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     https://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package client is a cross-platform client for the signer binary (a.k.a."EnterpriseCertSigner").
 //
@@ -13,6 +22,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -110,6 +120,10 @@ func (k *Key) Sign(_ io.Reader, digest []byte, opts crypto.SignerOpts) (signed [
 	return
 }
 
+// ErrCredUnavailable is a sentinel error that indicates ECP Cred is unavailable,
+// possibly due to missing config or missing binary path.
+var ErrCredUnavailable = errors.New("Cred is unavailable")
+
 // Cred spawns a signer subprocess that listens on stdin/stdout to perform certificate
 // related operations, including signing messages with the private key.
 //
@@ -124,6 +138,9 @@ func Cred(configFilePath string) (*Key, error) {
 	}
 	enterpriseCertSignerPath, err := util.LoadSignerBinaryPath(configFilePath)
 	if err != nil {
+		if errors.Is(err, util.ErrConfigUnavailable) {
+			return nil, ErrCredUnavailable
+		}
 		return nil, err
 	}
 	k := &Key{

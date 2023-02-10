@@ -2,4 +2,18 @@
 
 .vm-tenant-input {
   position: relative;
+
+  &-list {
+    max-height: 300px;
+    overflow: auto;
+    overscroll-behavior: none;
+    border-radius: $border-radius-medium;
+
+    &__search {
+      position: sticky;
+      top: 0;
+      padding: $padding-small;
+      background-color: $color-background-block;
+    }
+  }
 }

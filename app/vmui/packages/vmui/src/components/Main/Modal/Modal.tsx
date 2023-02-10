@@ -4,6 +4,8 @@ import { CloseIcon } from "../Icons";
 import Button from "../Button/Button";
 import { ReactNode, MouseEvent } from "react";
 import "./style.scss";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 interface ModalProps {
   title?: string
@@ -12,6 +14,7 @@ interface ModalProps {
 }
 
 const Modal: FC<ModalProps> = ({ title, children, onClose }) => {
+  const { isMobile } = useDeviceDetect();
 
   const handleKeyUp = (e: KeyboardEvent) => {
     if (e.key === "Escape") onClose();
@@ -22,16 +25,21 @@ const Modal: FC<ModalProps> = ({ title, children, onClose }) => {
   };
 
   useEffect(() => {
+    document.body.style.overflow = "hidden";
     window.addEventListener("keyup", handleKeyUp);
 
     return () => {
+      document.body.style.overflow = "auto";
       window.removeEventListener("keyup", handleKeyUp);
     };
   }, []);
 
   return ReactDOM.createPortal((
     <div
-      className="vm-modal"
+      className={classNames({
+        "vm-modal": true,
+        "vm-modal_mobile": isMobile
+      })}
       onMouseDown={onClose}
     >
       <div className="vm-modal-content">

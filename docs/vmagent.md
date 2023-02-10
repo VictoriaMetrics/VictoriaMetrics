@@ -328,7 +328,7 @@ Extra labels can be added to metrics collected by `vmagent` via the following me
 ## Automatically generated metrics
 
 `vmagent` automatically generates the following metrics per each scrape of every [Prometheus-compatible target](#how-to-collect-metrics-in-prometheus-format)
-and attaches target-specific `instance` and `job` labels to these metrics:
+and attaches `instance`, `job` and other target-specific labels to these metrics:
 
 * `up` - this metric exposes `1` value on successful scrape and `0` value on unsuccessful scrape. This allows monitoring
   failing scrapes with the following [MetricsQL query](https://docs.victoriametrics.com/MetricsQL.html):

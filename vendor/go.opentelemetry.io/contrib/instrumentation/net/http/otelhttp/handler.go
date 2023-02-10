@@ -188,7 +188,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		record:         writeRecordFunc,
 		ctx:            ctx,
 		props:          h.propagators,
-		statusCode:     200, // default status code in case the Handler doesn't write anything
+		statusCode:     http.StatusOK, // default status code in case the Handler doesn't write anything
 	}
 
 	// Wrap w to use our ResponseWriter methods while also exposing
