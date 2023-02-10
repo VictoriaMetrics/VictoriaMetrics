@@ -14,9 +14,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 ## tip
-* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add support of the limit for connections, that can be proxied by vmauth to backends per auth record. If flag `--maxConcurrentRequests` bigger that max_concurrent_requests per auth record than all requests will be limited by
-  `--maxConcurrentRequests` flag value. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3346).
 
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add the ability to limit the number of concurrent requests on a per-user basis via `max_concurrent_requests` option. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3346) and [these docs](https://docs.victoriametrics.com/vmauth.html#auth-config).
 * FEATURE: [vmalert enterprise](https://docs.victoriametrics.com/vmalert.html): add ability to read alerting and recording rules from S3, GCS or S3-compatible object storage. See [these docs](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
 
 ## [v1.87.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.1)
