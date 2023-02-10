@@ -55,26 +55,27 @@ users:
   headers:
   - "X-Scope-OrgID: foobar"
 
-  # The user for querying local single-node VictoriaMetrics.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be proxied to http://localhost:8428 .
+  # are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  #
+  # The given user can send maximum 10 concurrent requests according to the provided max_concurrent_requests.
+  # Excess concurrent requests are rejected with 429 HTTP status code.
+  # See also -maxConcurrentRequests command-line flag for limiting the global number of concurrent requests.
 - username: "local-single-node"
   password: "***"
   url_prefix: "http://localhost:8428"
+  max_concurrent_requests: 10
 
-  # The user for querying local single-node VictoriaMetrics with extra_label team=dev.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://localhost:8428 with extra_label=team=dev query arg.
+  # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
   # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
-- username: "local-single-node"
+- username: "local-single-node2"
   password: "***"
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
-  # The user for querying account 123 in VictoriaMetrics cluster
-  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
+  # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
   # For example, http://vmauth:8427/api/v1/query is proxied to the following urls in a round-robin manner:
   #   - http://vmselect1:8481/select/123/prometheus/api/v1/select
   #   - http://vmselect2:8481/select/123/prometheus/api/v1/select
@@ -84,10 +85,8 @@ users:
   - "http://vmselect1:8481/select/123/prometheus"
   - "http://vmselect2:8481/select/123/prometheus"
 
-  # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
-  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
+  # are load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
   # For example, http://vmauth:8427/api/v1/write is proxied to the following urls in a round-robin manner:
   #   - http://vminsert1:8480/insert/42/prometheus/api/v1/write
   #   - http://vminsert2:8480/insert/42/prometheus/api/v1/write
@@ -285,7 +284,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
   -maxConcurrentRequests int
-     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend (default 1000)
+     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend and max_concurrent_requests option per each user config (default 1000)
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
   -memory.allowedBytes size

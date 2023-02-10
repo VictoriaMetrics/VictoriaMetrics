@@ -33,7 +33,7 @@ var (
 		"See also -maxConcurrentRequests")
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
-		"'429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend")
+		"'429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend and max_concurrent_requests option per each user config")
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
@@ -117,17 +117,19 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	concurrencyLimitOnce.Do(concurrencyLimitInit)
 	select {
 	case concurrencyLimitCh <- struct{}{}:
-	default:
-		concurrentRequestsLimitReachedTotal.Inc()
-		w.Header().Add("Retry-After", "10")
-		err := &httpserver.ErrorWithStatusCode{
-			Err:        fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh)),
-			StatusCode: http.StatusTooManyRequests,
+		if err := ui.beginConcurrencyLimit(); err != nil {
+			handleConcurrencyLimitError(w, r, err)
+			<-concurrencyLimitCh
+			return true
 		}
-		httpserver.Errorf(w, r, "%s", err)
+	default:
+		concurrentRequestsLimitReached.Inc()
+		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
+		handleConcurrencyLimitError(w, r, err)
 		return true
 	}
 	processRequest(w, r, targetURL, headers)
+	ui.endConcurrencyLimit()
 	<-concurrencyLimitCh
 	return true
 }
@@ -269,7 +271,7 @@ func concurrencyLimitInit() {
 	})
 }
 
-var concurrentRequestsLimitReachedTotal = metrics.NewCounter("vmauth_concurrent_requests_limit_reached_total")
+var concurrentRequestsLimitReached = metrics.NewCounter("vmauth_concurrent_requests_limit_reached_total")
 
 func usage() {
 	const s = `
@@ -278,4 +280,13 @@ vmauth authenticates and authorizes incoming requests and proxies them to Victor
 See the docs at https://docs.victoriametrics.com/vmauth.html .
 `
 	flagutil.Usage(s)
+}
+
+func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err error) {
+	w.Header().Add("Retry-After", "10")
+	err = &httpserver.ErrorWithStatusCode{
+		Err:        err,
+		StatusCode: http.StatusTooManyRequests,
+	}
+	httpserver.Errorf(w, r, "%s", err)
 }
