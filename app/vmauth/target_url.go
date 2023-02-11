@@ -7,11 +7,6 @@ import (
 	"strings"
 )
 
-func (up *URLPrefix) mergeURLs(requestURI *url.URL) *url.URL {
-	pu := up.getNextURL()
-	return mergeURLs(pu, requestURI)
-}
-
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
 	targetURL.Path += requestURI.Path
@@ -35,7 +30,22 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, []Header, error) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header, error) {
+	for _, e := range ui.URLMaps {
+		for _, sp := range e.SrcPaths {
+			if sp.match(u.Path) {
+				return e.URLPrefix, e.Headers, nil
+			}
+		}
+	}
+	if ui.URLPrefix != nil {
+		return ui.URLPrefix, ui.Headers, nil
+	}
+	missingRouteRequests.Inc()
+	return nil, nil, fmt.Errorf("missing route for %q", u.String())
+}
+
+func normalizeURL(uOrig *url.URL) *url.URL {
 	u := *uOrig
 	// Prevent from attacks with using `..` in r.URL.Path
 	u.Path = path.Clean(u.Path)
@@ -52,16 +62,5 @@ func createTargetURL(ui *UserInfo, uOrig *url.URL) (*url.URL, []Header, error) {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1554
 		u.Path = ""
 	}
-	for _, e := range ui.URLMaps {
-		for _, sp := range e.SrcPaths {
-			if sp.match(u.Path) {
-				return e.URLPrefix.mergeURLs(&u), e.Headers, nil
-			}
-		}
-	}
-	if ui.URLPrefix != nil {
-		return ui.URLPrefix.mergeURLs(&u), ui.Headers, nil
-	}
-	missingRouteRequests.Inc()
-	return nil, nil, fmt.Errorf("missing route for %q", u.String())
+	return &u
 }
