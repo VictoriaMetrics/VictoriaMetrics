@@ -503,6 +503,13 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 
 See also [duration_over_time](#duration_over_time) and [lag](#lag).
 
+#### mad_over_time
+
+`mad_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+See also [mad](#mad).
+
 #### max_over_time
 
 `max_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the maximum value over raw samples

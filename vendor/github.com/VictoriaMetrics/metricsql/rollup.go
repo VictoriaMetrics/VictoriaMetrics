@@ -42,6 +42,7 @@ var rollupFuncs = map[string]bool{
 	"lag":                     true,
 	"last_over_time":          true,
 	"lifetime":                true,
+	"mad_over_time":           true,
 	"max_over_time":           true,
 	"min_over_time":           true,
 	"mode_over_time":          true,
