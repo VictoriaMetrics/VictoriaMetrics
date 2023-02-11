@@ -64,6 +64,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
 * [VictoriaMetrics static scraper](https://blog.differentpla.net/blog/2022/10/16/victoria-metrics-static-scraper/)
 * [VictoriaMetrics and Open Cosmos boldly takes edge computing to the edge of space](https://www.iot-now.com/2022/07/19/122423-victoriametrics-and-open-cosmos-boldly-takes-edge-computing-to-the-edge-of-space/)
+* [Evaluating Backend Options For Prometheus Metrics](https://www.techetio.com/2022/08/21/evaluating-backend-options-for-prometheus-metrics/)
 
 ## Our articles
 
