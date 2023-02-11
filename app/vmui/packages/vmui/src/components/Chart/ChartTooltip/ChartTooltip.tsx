@@ -177,7 +177,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           style={{ background: color }}
         />
         <div>
-          curr:<b>{valueFormat}{unit}</b>, avg:<b>{calculations.avg}</b><br/>
+          curr:<b>{valueFormat}{unit}</b>, median:<b>{calculations.median}</b><br/>
           min:<b>{calculations.min}</b>, max:<b>{calculations.max}</b>, last:<b>{calculations.last}</b>
         </div>
       </div>
