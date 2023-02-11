@@ -24,7 +24,7 @@ export interface LegendItemType {
     calculations: {
         min: string;
         max: string;
-        avg: string;
+        median: string;
         last: string;
     }
 }
