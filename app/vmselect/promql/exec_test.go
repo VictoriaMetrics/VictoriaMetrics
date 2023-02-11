@@ -3640,6 +3640,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`mad_over_time()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(mad_over_time(rand(0)[200s:5s]), 0.001)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.243, 0.274, 0.256, 0.185, 0.266, 0.256},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`stddev_over_time()`, func(t *testing.T) {
 		t.Parallel()
 		q := `round(stddev_over_time(rand(0)[200s:5s]), 0.001)`

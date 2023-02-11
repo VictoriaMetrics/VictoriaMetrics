@@ -56,6 +56,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"lag":                     newRollupFuncOneArg(rollupLag),
 	"last_over_time":          newRollupFuncOneArg(rollupLast),
 	"lifetime":                newRollupFuncOneArg(rollupLifetime),
+	"mad_over_time":           newRollupFuncOneArg(rollupMAD),
 	"max_over_time":           newRollupFuncOneArg(rollupMax),
 	"min_over_time":           newRollupFuncOneArg(rollupMin),
 	"mode_over_time":          newRollupFuncOneArg(rollupModeOverTime),
@@ -121,6 +122,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"lag":                     rollupLag,
 	"last_over_time":          rollupLast,
 	"lifetime":                rollupLifetime,
+	"mad_over_time":           rollupMAD,
 	"max_over_time":           rollupMax,
 	"min_over_time":           rollupMin,
 	"mode_over_time":          rollupModeOverTime,
@@ -1211,6 +1213,24 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		return qv
 	}
 	return rf, nil
+}
+
+func rollupMAD(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+
+	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
+	values := rfa.values
+	median := quantile(0.5, values)
+	a := getFloat64s()
+	ds := a.A[:0]
+	for _, v := range values {
+		ds = append(ds, math.Abs(v-median))
+	}
+	mad := quantile(0.5, ds)
+	a.A = ds
+	putFloat64s(a)
+	return mad
 }
 
 func rollupHistogram(rfa *rollupFuncArg) float64 {
