@@ -7,15 +7,6 @@ import (
 	"strings"
 )
 
-func (up *URLPrefix) mergeURLs(requestURI *url.URL) *url.URL {
-	pu := up.getNextURL()
-	return mergeURLs(pu, requestURI)
-}
-
-func (up *URLPrefix) getBackendsCount() int {
-	return len(up.urls)
-}
-
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
 	targetURL.Path += requestURI.Path
@@ -39,7 +30,7 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func (ui *UserInfo) getURLPrefix(u *url.URL) (*URLPrefix, []Header, error) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header, error) {
 	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {

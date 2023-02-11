@@ -48,7 +48,8 @@ Some facts about tenants in VictoriaMetrics:
 - Each `accountID` and `projectID` is identified by an arbitrary 32-bit integer in the range `[0 .. 2^32)`.
 If `projectID` is missing, then it is automatically assigned to `0`. It is expected that other information about tenants
 such as auth tokens, tenant names, limits, accounting, etc. is stored in a separate relational database. This database must be managed
-by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or [vmgateway](https://docs.victoriametrics.com/vmgateway.html). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
+by a separate service sitting in front of VictoriaMetrics cluster such as [vmauth](https://docs.victoriametrics.com/vmauth.html)
+or [vmgateway](https://docs.victoriametrics.com/vmgateway.html). [Contact us](mailto:info@victoriametrics.com) if you need assistance with such service.
 
 - Tenants are automatically created when the first data point is written into the given tenant.
 
@@ -168,7 +169,8 @@ It is recommended to run at least two nodes for each service for high availabili
 
 It is preferred to run many small `vmstorage` nodes over a few big `vmstorage` nodes, since this reduces the workload increase on the remaining `vmstorage` nodes when some of `vmstorage` nodes become temporarily unavailable.
 
-An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes. It must contain the following routing configs according to [the url format](#url-format):
+An http load balancer such as [vmauth](https://docs.victoriametrics.com/vmauth.html) or `nginx` must be put in front of `vminsert` and `vmselect` nodes.
+It must contain the following routing configs according to [the url format](#url-format):
 
 - requests starting with `/insert` must be routed to port `8480` on `vminsert` nodes.
 - requests starting with `/select` must be routed to port `8481` on `vmselect` nodes.
@@ -471,7 +473,8 @@ if some of its components are temporarily unavailable.
 
 VictoriaMetrics cluster remains available if the following conditions are met:
 
-- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes.
+- HTTP load balancer must stop routing requests to unavailable `vminsert` and `vmselect` nodes
+  ([vmauth](https://docs.victoriametrics.com/vmauth.html) stops routing requests to unavailable nodes).
 
 - At least a single `vminsert` node must remain available in the cluster for processing data ingestion workload.
   The remaining active `vminsert` nodes must have enough compute capacity (CPU, RAM, network bandwidth)

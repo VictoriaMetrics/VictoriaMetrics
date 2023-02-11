@@ -28,7 +28,36 @@ accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.co
 
 ## Load balancing
 
-Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls. In the latter case `vmauth` balances load among the configured urls in a round-robin manner. This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls.
+In the latter case `vmauth` balances load among the configured urls in least-loaded round-robin manner.
+`vmauth` retries failing `GET` requests across the configured list of urls.
+This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes
+in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+## Concurrency limiting
+
+`vmauth` limits the number of concurrent requests it can proxy according to the following command-line flags:
+
+- `-maxConcurrentRequests` limits the global number of concurrent requests `vmauth` can serve across all the configured users.
+- `-maxConcurrentPerUserRequests` limits the number of concurrent requests `vmauth` can serve per each configured user.
+
+It is also possible to set individual limits on the number of concurrent requests per each user
+with the `max_concurrent_requests` option - see [auth config example](#auth-config).
+
+`vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits.
+
+The following [metrics](#monitoring) related to concurrency limits are exposed by `vmauth`:
+
+- `vmauth_concurrent_requests_capacity` - the global limit on the number of concurrent requests `vmauth` can serve.
+  It is set via `-maxConcurrentRequests` command-line flag.
+- `vmauth_concurrent_requests_current` - the current number of concurrent requests `vmauth` processes.
+- `vmauth_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the global concurrency limit has been reached.
+- `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
+- `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
+- `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for the given `username`.
+
 
 ## Auth config
 
