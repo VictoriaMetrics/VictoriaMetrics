@@ -69,6 +69,10 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	port := sdc.Port
+	if port == 0 {
+		port = 80
+	}
 	cfg := &apiConfig{
 		client: &http.Client{
 			Transport: &http.Transport{
@@ -78,7 +82,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		availability: sdc.Availability,
 		region:       sdc.Region,
 		allTenants:   sdc.AllTenants,
-		port:         sdc.Port,
+		port:         port,
 	}
 	if sdc.TLSConfig != nil {
 		opts := &promauth.Options{
