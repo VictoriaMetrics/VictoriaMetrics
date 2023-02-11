@@ -48,22 +48,25 @@ type UserInfo struct {
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
-	if ui.concurrencyLimitCh == nil {
-		return nil
-	}
 	select {
 	case ui.concurrencyLimitCh <- struct{}{}:
 		return nil
 	default:
 		ui.concurrencyLimitReached.Inc()
-		return fmt.Errorf("cannot handle more than max_concurrent_requests=%d concurrent requests from user %s", ui.MaxConcurrentRequests, ui.name())
+		return fmt.Errorf("cannot handle more than max_concurrent_requests=%d concurrent requests from user %s", ui.getMaxConcurrentRequests(), ui.name())
 	}
 }
 
 func (ui *UserInfo) endConcurrencyLimit() {
-	if ui.concurrencyLimitCh != nil {
-		<-ui.concurrencyLimitCh
+	<-ui.concurrencyLimitCh
+}
+
+func (ui *UserInfo) getMaxConcurrentRequests() int {
+	mcr := ui.MaxConcurrentRequests
+	if mcr > *maxConcurrentPerUserRequests {
+		mcr = *maxConcurrentPerUserRequests
 	}
+	return mcr
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -331,16 +334,15 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if ui.Username != "" {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
-		if ui.MaxConcurrentRequests > 0 {
-			ui.concurrencyLimitCh = make(chan struct{}, ui.MaxConcurrentRequests)
-			ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_concurrent_requests_limit_reached_total{username=%q}`, name))
-			_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_capacity{username=%q}`, name), func() float64 {
-				return float64(cap(ui.concurrencyLimitCh))
-			})
-			_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
-				return float64(len(ui.concurrencyLimitCh))
-			})
-		}
+		mcr := ui.getMaxConcurrentRequests()
+		ui.concurrencyLimitCh = make(chan struct{}, mcr)
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_concurrent_requests_limit_reached_total{username=%q}`, name))
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_capacity{username=%q}`, name), func() float64 {
+			return float64(cap(ui.concurrencyLimitCh))
+		})
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
+			return float64(len(ui.concurrencyLimitCh))
+		})
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui
 	}
