@@ -134,17 +134,21 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headers, err := ui.getURLPrefix(u)
+	up, headers, err := ui.getURLPrefixAndHeaders(u)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
 		return
 	}
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
-		targetURL := up.mergeURLs(u)
-		if tryProcessingRequest(w, r, targetURL, headers) {
+		bu := up.getLeastLoadedBackendURL()
+		targetURL := mergeURLs(bu.url, u)
+		ok := tryProcessingRequest(w, r, targetURL, headers)
+		bu.put()
+		if ok {
 			return
 		}
+		bu.setBroken()
 	}
 	err = &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),

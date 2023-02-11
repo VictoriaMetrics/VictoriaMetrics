@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -53,7 +54,7 @@ func (ui *UserInfo) beginConcurrencyLimit() error {
 		return nil
 	default:
 		ui.concurrencyLimitReached.Inc()
-		return fmt.Errorf("cannot handle more than max_concurrent_requests=%d concurrent requests from user %s", ui.getMaxConcurrentRequests(), ui.name())
+		return fmt.Errorf("cannot handle more than %d concurrent requests from user %s", ui.getMaxConcurrentRequests(), ui.name())
 	}
 }
 
@@ -63,7 +64,7 @@ func (ui *UserInfo) endConcurrencyLimit() {
 
 func (ui *UserInfo) getMaxConcurrentRequests() int {
 	mcr := ui.MaxConcurrentRequests
-	if mcr > *maxConcurrentPerUserRequests {
+	if mcr <= 0 || mcr > *maxConcurrentPerUserRequests {
 		mcr = *maxConcurrentPerUserRequests
 	}
 	return mcr
@@ -111,14 +112,75 @@ type SrcPath struct {
 
 // URLPrefix represents pased `url_prefix`
 type URLPrefix struct {
-	n    uint32
-	urls []*url.URL
+	n   uint32
+	bus []*backendURL
 }
 
-func (up *URLPrefix) getNextURL() *url.URL {
+type backendURL struct {
+	brokenDeadline     uint64
+	concurrentRequests int32
+	url                *url.URL
+}
+
+func (bu *backendURL) isBroken() bool {
+	ct := fasttime.UnixTimestamp()
+	return ct < atomic.LoadUint64(&bu.brokenDeadline)
+}
+
+func (bu *backendURL) setBroken() {
+	deadline := fasttime.UnixTimestamp() + 3
+	atomic.StoreUint64(&bu.brokenDeadline, deadline)
+}
+
+func (bu *backendURL) put() {
+	atomic.AddInt32(&bu.concurrentRequests, -1)
+}
+
+func (up *URLPrefix) getBackendsCount() int {
+	return len(up.bus)
+}
+
+// getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.
+//
+// backendURL.put() must be called on the returned backendURL after the request is complete.
+func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
+	bus := up.bus
+	if len(bus) == 1 {
+		// Fast path - return the only backend url.
+		bu := bus[0]
+		atomic.AddInt32(&bu.concurrentRequests, 1)
+		return bu
+	}
+
+	// Slow path - select other backend urls.
 	n := atomic.AddUint32(&up.n, 1)
-	idx := n % uint32(len(up.urls))
-	return up.urls[idx]
+
+	for i := uint32(0); i < uint32(len(bus)); i++ {
+		idx := (n + i) % uint32(len(bus))
+		bu := bus[idx]
+		if bu.isBroken() {
+			continue
+		}
+		if atomic.CompareAndSwapInt32(&bu.concurrentRequests, 0, 1) {
+			// Fast path - return the backend with zero concurrently executed requests.
+			return bu
+		}
+	}
+
+	// Slow path - return the backend with the minimum number of concurrently executed requests.
+	buMin := bus[n%uint32(len(bus))]
+	minRequests := atomic.LoadInt32(&buMin.concurrentRequests)
+	for _, bu := range bus {
+		if bu.isBroken() {
+			continue
+		}
+		if n := atomic.LoadInt32(&bu.concurrentRequests); n < minRequests {
+			buMin = bu
+			minRequests = n
+		}
+	}
+	atomic.AddInt32(&buMin.concurrentRequests, 1)
+	return buMin
 }
 
 // UnmarshalYAML unmarshals up from yaml.
@@ -147,31 +209,33 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	default:
 		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string or []string", v)
 	}
-	pus := make([]*url.URL, len(urls))
+	bus := make([]*backendURL, len(urls))
 	for i, u := range urls {
 		pu, err := url.Parse(u)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal %q into url: %w", u, err)
 		}
-		pus[i] = pu
+		bus[i] = &backendURL{
+			url: pu,
+		}
 	}
-	up.urls = pus
+	up.bus = bus
 	return nil
 }
 
 // MarshalYAML marshals up to yaml.
 func (up *URLPrefix) MarshalYAML() (interface{}, error) {
 	var b []byte
-	if len(up.urls) == 1 {
-		u := up.urls[0].String()
+	if len(up.bus) == 1 {
+		u := up.bus[0].url.String()
 		b = strconv.AppendQuote(b, u)
 		return string(b), nil
 	}
 	b = append(b, '[')
-	for i, pu := range up.urls {
-		u := pu.String()
+	for i, bu := range up.bus {
+		u := bu.url.String()
 		b = strconv.AppendQuote(b, u)
-		if i+1 < len(up.urls) {
+		if i+1 < len(up.bus) {
 			b = append(b, ',')
 		}
 	}
@@ -383,12 +447,12 @@ func getAuthToken(bearerToken, username, password string) string {
 }
 
 func (up *URLPrefix) sanitize() error {
-	for i, pu := range up.urls {
-		puNew, err := sanitizeURLPrefix(pu)
+	for _, bu := range up.bus {
+		puNew, err := sanitizeURLPrefix(bu.url)
 		if err != nil {
 			return err
 		}
-		up.urls[i] = puNew
+		bu.url = puNew
 	}
 	return nil
 }
