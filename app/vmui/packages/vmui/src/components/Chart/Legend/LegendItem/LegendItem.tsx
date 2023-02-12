@@ -69,7 +69,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
         </span>
       </div>
       <div className="vm-legend-item-values">
-        avg:{calculations.avg}, min:{calculations.min}, max:{calculations.max}, last:{calculations.last}
+        median:{calculations.median}, min:{calculations.min}, max:{calculations.max}, last:{calculations.last}
       </div>
     </div>
   );

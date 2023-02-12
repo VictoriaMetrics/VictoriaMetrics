@@ -4,7 +4,7 @@ import { getNameForMetric, promValueToNumber } from "../metric";
 import { BarSeriesItem, Disp, Fill, LegendItemType, Stroke } from "./types";
 import { HideSeriesArgs } from "./types";
 import { baseContrastColors, getColorFromString } from "../color";
-import { getAvgFromArray, getMaxFromArray, getMinFromArray, getLastFromArray } from "../math";
+import { getMedianFromArray, getMaxFromArray, getMinFromArray, getLastFromArray } from "../math";
 import { formatPrettyNumber } from "./helpers";
 
 export interface SeriesItem extends Series {
@@ -12,7 +12,7 @@ export interface SeriesItem extends Series {
   calculations: {
     min: string,
     max: string,
-    avg: string,
+    median: string,
     last: string
   }
 }
@@ -29,7 +29,7 @@ export const getSeriesItemContext = () => {
     const values = d.values.map(v => promValueToNumber(v[1]));
     const min = getMinFromArray(values);
     const max = getMaxFromArray(values);
-    const avg = getAvgFromArray(values);
+    const median = getMedianFromArray(values);
     const last = getLastFromArray(values);
 
     return {
@@ -46,7 +46,7 @@ export const getSeriesItemContext = () => {
       calculations: {
         min: formatPrettyNumber(min, min, max),
         max: formatPrettyNumber(max, min, max),
-        avg: formatPrettyNumber(avg, min, max),
+        median: formatPrettyNumber(median, min, max),
         last: formatPrettyNumber(last, min, max),
       }
     };
