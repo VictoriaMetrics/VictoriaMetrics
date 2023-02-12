@@ -73,7 +73,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<private_ip>:<port>`, where `<private_ip>` is the machine's private IP and the `<port>` is the `port`
 option specified in the `azure_sd_configs`.
 
@@ -159,7 +159,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<service_or_node_addr>:<service_port>`, where `<service_or_node_addr>` is the service address. If the service address is empty,
 then the node address is used instead. The `<service_port>` is the service port.
 
@@ -204,7 +204,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<public_ip>:<port>`, where `<public_ip>` is a public ipv4 address of the droplet, while `<port>` is the port specified in the `digitalocean_sd_configs`.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -248,7 +248,7 @@ scrape_configs:
     # port: ...
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to the `<addr>:<port>`, where `<addr>` is the discovered DNS address, while `<port>` is either the discovered port for SRV records or the port
 specified in the `dns_sd_config`.
 
@@ -292,7 +292,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<ip_address>:<port>`, where `<ip_address>` is the exposed ip address of the docker container, while the `<port>` is either the exposed port
 of the docker container or the port specified in the `docker_sd_configs` if the docker container has no exposed ports.
 If a container exposes multiple ip addresses, then multiple targets will be discovered - one per each exposed ip address.
@@ -356,7 +356,7 @@ One of the following roles can be configured to discover targets:
 
   The `services` role discovers all Swarm services.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the endpoint's virtual IP, while the `<port>` is the published port of the service.
   If the service has multiple pulbished ports, then multiple targets are generated - one per each port.
   If the service has no published ports, then the `<port>` is set to the `port` value obtained from `dockerswarm_sd_configs`.
@@ -383,7 +383,7 @@ One of the following roles can be configured to discover targets:
 
   The `tasks` role discovers all Swarm tasks.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where the `<ip>` is the node IP, while the `<port>` is the published port of the task.
   If the task has multiple published ports, then multiple targets are generated - one per each port.
   If the task has no published ports, then the `<port>` is set to the `port` value obtained from `dockerswarm_sd_configs`.
@@ -424,7 +424,7 @@ One of the following roles can be configured to discover targets:
 
   The `nodes` role is used to discover Swarm nodes.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the node IP, while the `<port>` is the `port` value obtained from the `dockerswarm_sd_configs`.
 
   Available meta labels for `role: nodes` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -498,7 +498,7 @@ scrape_configs:
     #   values: ["...", "..."]
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<instance_ip>:<port>`, where `<instance_ip>` is the private IP of the instance, while the `<port>` is set to the `port` value
 obtaine from `ec2_sd_configs`.
 
@@ -544,7 +544,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<instance_host>:<instance_port>`, where `<instance_host>` is the discovered instance hostname, while the `<instance_port>`
 is the discovered instance port. If the instance has no port, then port 80 is used.
 
@@ -615,7 +615,7 @@ Files must contain a list of static configs in one of the following formats:
     ...
   ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to one of the `target` value specified in the target files.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -664,7 +664,7 @@ Credentials are discovered by looking in the following places, preferring the fi
 2. a JSON file in the well-known path `$HOME/.config/gcloud/application_default_credentials.json`
 3. fetched from the GCE metadata server
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<iface_ip>:<port>`, where `<iface_ip>` is private IP of the discovered instance, while `<port>` is the `port` value
 specified in the `gce_sd_configs`.
 
@@ -720,7 +720,7 @@ The service at `url` must return JSON response in the following format:
 The `url` is queried periodically with the interval specified in `-promscrape.httpSDCheckInterval` command-line flag.
 Discovery errors are tracked in `promscrape_discovery_http_errors_total` metric.
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to one of the targets returned by the http service.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -787,7 +787,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: node` discovers one target per cluster node.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is to the first existing address of the Kubernetes node object in the address type order
   of `NodeInternalIP`, `NodeExternalIP`, `NodeLegacyHostIP` and `NodeHostName`,
   while `<port>` is the kubelet's port on the given node.
@@ -808,7 +808,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: service` discovers Kubernetes services.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<service_name>.<namespace>:<port>`, where `<service_name>` is the service name, `<namespace>` is the service namespace
   and `<port>` is the service port.
   If the service has multiple ports, then multiple targets are discovered for the service - one per each port.
@@ -835,7 +835,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: pod` discovers all pods and exposes their containers as targets.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is pod IP, while `<port>` is the exposed container port.
   If the pod has multiple container ports, then multiple targets are generated for the pod - one per each exposed container port.
   If the pod has no exposed container ports, then the `__address__` for pod target is set to the pod IP.
@@ -868,7 +868,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: endpoints` discovers targets from listed endpoints of a service.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<addr>:<port>`, where `<addr>` is the endpoint address, while `<port>` is the endpoint port.
   If the endpoint has multiple ports, then a single target per each port is generated.
   If the endpoint is backed by a pod, all additional container ports of the pod, not bound to an endpoint port, are discovered as targets as well.
@@ -897,7 +897,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: endpointslice` discovers targets from existing endpointslices.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<addr>:<port>`, where `<addr>` is the endpoint address, while `<port>` is the endpoint port.
   If the endpoint has multiple ports, then a single target per each port is generated.
   If the endpoint is backed by a pod, all additional container ports of the pod, not bound to an endpoint port, are discovered as targets as well.
@@ -926,7 +926,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: ingress` discovers a target for each path of each ingress.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to the host obtained from ingress spec.
   If the ingress has multiple specs with multiple hosts, then a target per each host is created.
 
@@ -983,7 +983,7 @@ scrape_configs:
     # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<addr>:<port>`, where `<addr>` is the service address, while `<port>` is the service port.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -1083,7 +1083,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: hypervisor` discovers one target per Nova hypervisor node.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<host>:<port>`, where `<host>` is the discovered node IP, while `<port>` is the port specified in the `openstack_sd_configs`.
 
   The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -1099,7 +1099,7 @@ One of the following `role` types can be configured to discover targets:
 
   The `role: instance` discovers one target per network interface of Nova instance.
 
-  Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+  Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<host>:<port>`, where `<host>` is the private IP address of the discovered instance, while `<port>` is the port specified in the `openstack_sd_configs`.
 
   The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -1199,7 +1199,7 @@ scrape_configs:
     replacement: "$1:9100"
 ```
 
-Each discovered target has an [__address__](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to the FQDN of the discovered instance.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
