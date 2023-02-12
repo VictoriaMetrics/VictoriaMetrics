@@ -64,7 +64,7 @@ func (ui *UserInfo) endConcurrencyLimit() {
 
 func (ui *UserInfo) getMaxConcurrentRequests() int {
 	mcr := ui.MaxConcurrentRequests
-	if mcr <= 0 || mcr > *maxConcurrentPerUserRequests {
+	if mcr <= 0 {
 		mcr = *maxConcurrentPerUserRequests
 	}
 	return mcr
