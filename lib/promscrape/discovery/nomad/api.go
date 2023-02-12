@@ -104,7 +104,7 @@ func maxWaitTime() time.Duration {
 	// Nomad adds random delay up to wait/16, so reduce the timeout in order to keep it below BlockingClientReadTimeout.
 	// See https://developer.hashicorp.com/nomad/api-docs#blocking-queries
 	d -= d / 16
-	// The timeout cannot exceed 10 minuntes. See https://developer.hashicorp.com/nomad/api-docs#blocking-queries
+	// The timeout cannot exceed 10 minutes. See https://developer.hashicorp.com/nomad/api-docs#blocking-queries
 
 	if d > 10*time.Minute {
 		d = 10 * time.Minute
@@ -115,7 +115,7 @@ func maxWaitTime() time.Duration {
 	return d
 }
 
-// getBlockingAPIResponse perfoms blocking request to Nomad via client and returns response.
+// getBlockingAPIResponse performs blocking request to Nomad via client and returns response.
 // See https://developer.hashicorp.com/nomad/api-docs#blocking-queries .
 func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {
 	path += "&index=" + strconv.FormatInt(index, 10)

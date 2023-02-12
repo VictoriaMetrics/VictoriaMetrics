@@ -1972,7 +1972,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
-		// Fast path - there are no new (date, metricID) entires in rows.
+		// Fast path - there are no new (date, metricID) entries in rows.
 		return nil
 	}
 

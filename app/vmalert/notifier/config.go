@@ -29,7 +29,7 @@ type Config struct {
 	// ConsulSDConfigs contains list of settings for service discovery via Consul
 	// see https://prometheus.io/docs/prometheus/latest/configuration/configuration/#consul_sd_config
 	ConsulSDConfigs []consul.SDConfig `yaml:"consul_sd_configs,omitempty"`
-	// DNSSDConfigs ontains list of settings for service discovery via DNS.
+	// DNSSDConfigs contains list of settings for service discovery via DNS.
 	// See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#dns_sd_config
 	DNSSDConfigs []dns.SDConfig `yaml:"dns_sd_configs,omitempty"`
 

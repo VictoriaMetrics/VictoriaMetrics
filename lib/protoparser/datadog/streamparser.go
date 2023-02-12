@@ -157,7 +157,7 @@ func putRequest(req *Request) {
 
 var requestPool sync.Pool
 
-// sanitizeName performs DataDog-compatible santizing for metric names
+// sanitizeName performs DataDog-compatible sanitizing for metric names
 //
 // See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
 func sanitizeName(name string) string {

@@ -33,7 +33,7 @@ type FS struct {
 	// Directory in the bucket to write to.
 	Dir string
 
-	// Set for using S3-compatible enpoint such as MinIO etc.
+	// Set for using S3-compatible endpoint such as MinIO etc.
 	CustomEndpoint string
 
 	// Force to use path style for s3, true by default.

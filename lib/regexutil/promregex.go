@@ -65,7 +65,7 @@ func NewPromRegex(expr string) (*PromRegex, error) {
 	return pr, nil
 }
 
-// MatchString retruns true if s matches pr.
+// MatchString returns true if s matches pr.
 //
 // The pr is automatically anchored to the beginning and to the end
 // of the matching string with '^' and '$'.

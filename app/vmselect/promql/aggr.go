@@ -901,7 +901,7 @@ func quantileSorted(phi float64, values []float64) float64 {
 func aggrFuncMAD(tss []*timeseries) []*timeseries {
 	// Calculate medians for each point across tss.
 	medians := getPerPointMedians(tss)
-	// Calculate MAD values multipled by tolerance for each point across tss.
+	// Calculate MAD values multiplied by tolerance for each point across tss.
 	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
 	mads := getPerPointMADs(tss, medians)
 	tss[0].Values = append(tss[0].Values[:0], mads...)
@@ -920,7 +920,7 @@ func aggrFuncOutliersMAD(afa *aggrFuncArg) ([]*timeseries, error) {
 	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		// Calculate medians for each point across tss.
 		medians := getPerPointMedians(tss)
-		// Calculate MAD values multipled by tolerance for each point across tss.
+		// Calculate MAD values multiplied by tolerance for each point across tss.
 		// See https://en.wikipedia.org/wiki/Median_absolute_deviation
 		mads := getPerPointMADs(tss, medians)
 		for n := range mads {
