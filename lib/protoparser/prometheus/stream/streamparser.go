@@ -1,28 +1,26 @@
-package vmimport
+package stream
 
 import (
 	"bufio"
 	"fmt"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import; "+
-	"the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export")
-
-// ParseStream parses /api/v1/import lines from req and calls callback for the parsed rows.
+// Parse parses lines with Prometheus exposition format from r and calls callback for the parsed rows.
 //
-// The callback can be called concurrently multiple times for streamed data from reader.
+// The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) error {
+func Parse(r io.Reader, defaultTimestamp int64, isGzipped bool, callback func(rows []prometheus.Row) error, errLogger func(string)) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -30,7 +28,7 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) e
 	if isGzipped {
 		zr, err := common.GetGzipReader(r)
 		if err != nil {
-			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
+			return fmt.Errorf("cannot read gzipped lines with Prometheus exposition format: %w", err)
 		}
 		defer common.PutGzipReader(zr)
 		r = zr
@@ -39,8 +37,10 @@ func ParseStream(r io.Reader, isGzipped bool, callback func(rows []Row) error) e
 	defer putStreamContext(ctx)
 	for ctx.Read() {
 		uw := getUnmarshalWork()
+		uw.errLogger = errLogger
 		uw.ctx = ctx
 		uw.callback = callback
+		uw.defaultTimestamp = defaultTimestamp
 		uw.reqBuf, ctx.reqBuf = ctx.reqBuf, uw.reqBuf
 		ctx.wg.Add(1)
 		common.ScheduleUnmarshalWork(uw)
@@ -58,22 +58,16 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineLen.IntN())
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read vmimport data: %w", ctx.err)
+			ctx.err = fmt.Errorf("cannot read Prometheus exposition data: %w", ctx.err)
 		}
 		return false
 	}
 	return true
 }
-
-var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="vmimport"}`)
-	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="vmimport"}`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="vmimport"}`)
-)
 
 type streamContext struct {
 	br      *bufio.Reader
@@ -108,6 +102,12 @@ func (ctx *streamContext) reset() {
 	ctx.callbackErr = nil
 }
 
+var (
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="prometheus"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="prometheus"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="prometheus"}`)
+)
+
 func getStreamContext(r io.Reader) *streamContext {
 	select {
 	case ctx := <-streamContextPoolCh:
@@ -138,20 +138,24 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
-	rows     Rows
-	ctx      *streamContext
-	callback func(rows []Row) error
-	reqBuf   []byte
+	rows             prometheus.Rows
+	ctx              *streamContext
+	callback         func(rows []prometheus.Row) error
+	errLogger        func(string)
+	defaultTimestamp int64
+	reqBuf           []byte
 }
 
 func (uw *unmarshalWork) reset() {
 	uw.rows.Reset()
 	uw.ctx = nil
 	uw.callback = nil
+	uw.errLogger = nil
+	uw.defaultTimestamp = 0
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []Row) {
+func (uw *unmarshalWork) runCallback(rows []prometheus.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(rows); err != nil {
 		ctx.callbackErrLock.Lock()
@@ -165,12 +169,26 @@ func (uw *unmarshalWork) runCallback(rows []Row) {
 
 // Unmarshal implements common.UnmarshalWork
 func (uw *unmarshalWork) Unmarshal() {
-	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
-	rows := uw.rows.Rows
-	for i := range rows {
-		row := &rows[i]
-		rowsRead.Add(len(row.Timestamps))
+	if uw.errLogger != nil {
+		uw.rows.UnmarshalWithErrLogger(bytesutil.ToUnsafeString(uw.reqBuf), uw.errLogger)
+	} else {
+		uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
 	}
+	rows := uw.rows.Rows
+	rowsRead.Add(len(rows))
+
+	// Fill missing timestamps with the current timestamp.
+	defaultTimestamp := uw.defaultTimestamp
+	if defaultTimestamp <= 0 {
+		defaultTimestamp = time.Now().UnixNano() / 1e6
+	}
+	for i := range rows {
+		r := &rows[i]
+		if r.Timestamp == 0 {
+			r.Timestamp = defaultTimestamp
+		}
+	}
+
 	uw.runCallback(rows)
 	putUnmarshalWork(uw)
 }

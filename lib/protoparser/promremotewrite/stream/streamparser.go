@@ -1,4 +1,4 @@
-package promremotewrite
+package stream
 
 import (
 	"bufio"
@@ -18,10 +18,10 @@ import (
 
 var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
 
-// ParseStream parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
+// Parse parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
 //
 // callback shouldn't hold tss after returning.
-func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
+func Parse(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -32,7 +32,7 @@ func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) erro
 		return err
 	}
 
-	// Synchronously process the request in order to properly return errors to ParseStream caller,
+	// Synchronously process the request in order to properly return errors to Parse caller,
 	// so it could properly return HTTP 503 status code in response.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
 	bb := bodyBufferPool.Get()

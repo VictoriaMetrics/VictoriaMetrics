@@ -1,4 +1,4 @@
-package opentsdb
+package stream
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -21,12 +22,12 @@ var (
 		"Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data")
 )
 
-// ParseStream parses OpenTSDB lines from r and calls callback for the parsed rows.
+// Parse parses OpenTSDB lines from r and calls callback for the parsed rows.
 //
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, callback func(rows []Row) error) error {
+func Parse(r io.Reader, callback func(rows []opentsdb.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -134,9 +135,9 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
-	rows     Rows
+	rows     opentsdb.Rows
 	ctx      *streamContext
-	callback func(rows []Row) error
+	callback func(rows []opentsdb.Row) error
 	reqBuf   []byte
 }
 
@@ -147,7 +148,7 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []Row) {
+func (uw *unmarshalWork) runCallback(rows []opentsdb.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(rows); err != nil {
 		ctx.callbackErrLock.Lock()
@@ -174,9 +175,13 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	// Convert timestamps from seconds to milliseconds
+	// Convert timestamps in seconds to milliseconds if needed.
+	// See http://opentsdb.net/docs/javadoc/net/opentsdb/core/Const.html#SECOND_MASK
 	for i := range rows {
-		rows[i].Timestamp *= 1e3
+		r := &rows[i]
+		if r.Timestamp&secondMask == 0 {
+			r.Timestamp *= 1e3
+		}
 	}
 
 	// Trim timestamps if required.
@@ -190,6 +195,8 @@ func (uw *unmarshalWork) Unmarshal() {
 	uw.runCallback(rows)
 	putUnmarshalWork(uw)
 }
+
+const secondMask int64 = 0x7FFFFFFF00000000
 
 func getUnmarshalWork() *unmarshalWork {
 	v := unmarshalWorkPool.Get()

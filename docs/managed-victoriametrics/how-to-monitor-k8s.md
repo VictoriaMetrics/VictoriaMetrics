@@ -1,3 +1,12 @@
+---
+sort: 3
+weight: 3
+title: Kubernetes Monitoring with Managed VictoriaMetrics
+menu:
+  docs:
+    parent: "managed"
+    weight: 3
+---
 # Kubernetes Monitoring with Managed VictoriaMetrics
 
 Monitoring kubernetes cluster is necessary to build SLO/SLI, to analyze performance and cost-efficiency of your workloads. 

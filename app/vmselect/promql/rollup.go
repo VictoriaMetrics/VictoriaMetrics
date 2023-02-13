@@ -385,7 +385,7 @@ func getRollupFunc(funcName string) newRollupFunc {
 }
 
 type rollupFuncArg struct {
-	// The value preceeding values if it fits staleness interval.
+	// The value preceding values if it fits staleness interval.
 	prevValue float64
 
 	// The timestamp for prevValue.
@@ -397,7 +397,7 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceeding values without restrictions on staleness interval.
+	// Real value preceding values without restrictions on staleness interval.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -587,7 +587,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	if window <= 0 {
 		window = rc.Step
 		if rc.MayAdjustWindow && window < maxPrevInterval {
-			// Adjust lookbehind window only if it isn't set explicilty, e.g. rate(foo).
+			// Adjust lookbehind window only if it isn't set explicitly, e.g. rate(foo).
 			// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
 			// when the window doesn't cover at least two raw samples (this is what most users expect).
 			//

@@ -4,7 +4,7 @@ func isDedupEnabled() bool {
 	return len(downsamplingPeriods) > 0
 }
 
-// DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in millseconds.
+// DeduplicateSamples removes samples from src* if they are closer to each other than dedupInterval in milliseconds.
 func DeduplicateSamples(srcTimestamps []int64, srcValues []float64, dedupInterval int64) ([]int64, []float64) {
 	if !needsDedup(srcTimestamps, dedupInterval) {
 		// Fast path - nothing to deduplicate

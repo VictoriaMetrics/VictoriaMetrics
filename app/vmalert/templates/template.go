@@ -225,7 +225,7 @@ func templateFuncs() textTpl.FuncMap {
 		"toLower": strings.ToLower,
 
 		// crlfEscape replaces '\n' and '\r' chars with `\\n` and `\\r`.
-		// This funcion is deprectated.
+		// This function is deprecated.
 		//
 		// It is better to use quotesEscape, jsonEscape, queryEscape or pathEscape instead -
 		// these functions properly escape `\n` and `\r` chars according to their purpose.
