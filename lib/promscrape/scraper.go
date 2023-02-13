@@ -162,9 +162,9 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
-                        configUpdateMu.Lock()
+			configUpdateMu.Lock()
 			cfgNew.mustRestart(cfg)
-                        configUpdateMu.Unlock()
+			configUpdateMu.Unlock()
 			cfg = cfgNew
 			data = dataNew
 			marshaledData = cfgNew.marshal()
@@ -181,9 +181,9 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
 			}
-                        configUpdateMu.Lock()
+			configUpdateMu.Lock()
 			cfgNew.mustRestart(cfg)
-                        configUpdateMu.Unlock()
+			configUpdateMu.Unlock()
 			cfg = cfgNew
 			data = dataNew
 			marshaledData = cfgNew.marshal()
@@ -283,11 +283,11 @@ func (scfg *scrapeConfig) run(globalStopCh <-chan struct{}) {
 	cfg := <-scfg.cfgCh
 	var swsPrev []*ScrapeWork
 	updateScrapeWork := func(cfg *Config) {
-                configUpdateMu.Lock()
-                startTime := time.Now()
+		configUpdateMu.Lock()
+		startTime := time.Now()
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
-                configUpdateMu.Unlock()
+		configUpdateMu.Unlock()
 		swsPrev = sws
 		if sg.scrapersStarted.Get() > 0 {
 			// update duration only if at least one scraper has started
