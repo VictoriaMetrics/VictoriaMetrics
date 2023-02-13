@@ -1,4 +1,4 @@
-package influx
+package stream
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -22,12 +23,12 @@ var (
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
 
-// ParseStream parses r with the given args and calls callback for the parsed rows.
+// Parse parses r with the given args and calls callback for the parsed rows.
 //
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []Row) error) error {
+func Parse(r io.Reader, isGzipped bool, precision, db string, callback func(db string, rows []influx.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -162,9 +163,9 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
-	rows         Rows
+	rows         influx.Rows
 	ctx          *streamContext
-	callback     func(db string, rows []Row) error
+	callback     func(db string, rows []influx.Row) error
 	db           string
 	tsMultiplier int64
 	reqBuf       []byte
@@ -179,7 +180,7 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []Row) {
+func (uw *unmarshalWork) runCallback(rows []influx.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(uw.db, rows); err != nil {
 		ctx.callbackErrLock.Lock()

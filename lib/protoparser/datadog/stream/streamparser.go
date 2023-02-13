@@ -31,7 +31,7 @@ var (
 		"https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics")
 )
 
-// ParseStream parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
+// Parse parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
 func Parse(r io.Reader, contentEncoding string, callback func(series []datadog.Series) error) error {
