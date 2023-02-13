@@ -10,6 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -31,7 +32,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return parser.ParseStream(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
+	return stream.Parse(req.Body, defaultTimestamp, isGzipped, func(rows []parser.Row) error {
 		return insertRows(at, rows, extraLabels)
 	}, func(s string) {
 		httpserver.LogError(req, s)
