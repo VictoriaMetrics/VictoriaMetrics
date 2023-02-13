@@ -39,7 +39,7 @@ type client struct {
 	// hc is the default client optimized for common case of scraping targets with moderate number of metrics.
 	hc *fasthttp.HostClient
 
-	// sc (aka `stream client`) is used instead of hc if ScrapeWork.ParseStream is set.
+	// sc (aka `stream client`) is used instead of hc if ScrapeWork.StreamParse is set.
 	// It may be useful for scraping targets with millions of metrics per target.
 	sc *http.Client
 

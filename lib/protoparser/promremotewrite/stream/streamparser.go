@@ -32,7 +32,7 @@ func Parse(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
 		return err
 	}
 
-	// Synchronously process the request in order to properly return errors to ParseStream caller,
+	// Synchronously process the request in order to properly return errors to Parse caller,
 	// so it could properly return HTTP 503 status code in response.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/896
 	bb := bodyBufferPool.Get()

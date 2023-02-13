@@ -13,7 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
-func TestParseStream(t *testing.T) {
+func TestParse(t *testing.T) {
 	common.StartUnmarshalWorkers()
 	defer common.StopUnmarshalWorkers()
 
