@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/promremotewrite/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -27,7 +27,7 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return parser.ParseStream(req.Body, func(tss []prompb.TimeSeries) error {
+	return stream.Parse(req.Body, func(tss []prompb.TimeSeries) error {
 		return insertRows(at, tss, extraLabels)
 	})
 }
