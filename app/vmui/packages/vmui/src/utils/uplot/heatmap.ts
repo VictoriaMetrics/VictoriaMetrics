@@ -1,5 +1,6 @@
 import uPlot from "uplot";
 import { generateGradient } from "../color";
+import { MetricResult } from "../../api/types";
 
 // 16-color gradient from "rgb(246, 226, 219)" to "rgb(127, 39, 4)"
 export const gradMetal16 = generateGradient([246, 226, 219], [127, 39, 4], 16);
@@ -107,4 +108,29 @@ export const heatmapPaths = () => (u: uPlot, seriesIdx: number) => {
     });
     u.ctx.restore();
   });
+};
+
+export const convertPrometheusToVictoriaMetrics = (buckets: MetricResult[]): MetricResult[] => {
+  if (!buckets.every(a => a.metric.le)) return buckets;
+
+  const sortedBuckets = buckets.sort((a,b) => parseFloat(a.metric.le) - parseFloat(b.metric.le));
+  const group = buckets[0]?.group || 1;
+  let prevBucket: MetricResult = { metric: { le: "0" }, values: [], group };
+  const result: MetricResult[] = [];
+
+  for (const bucket of sortedBuckets) {
+    const vmrange = `${prevBucket.metric.le}..${bucket.metric.le}`;
+    const values: [number, string][] = [];
+
+    for (const [timestamp, value] of bucket.values) {
+      const prevVal = prevBucket.values.find(v => v[0] === timestamp)?.[1] || 0;
+      const newVal = (+value) - (+prevVal);
+      values.push([timestamp, `${newVal}`]);
+    }
+
+    result.push({ metric: { vmrange }, values, group });
+    prevBucket = bucket;
+  }
+
+  return result;
 };
