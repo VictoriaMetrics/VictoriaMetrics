@@ -12,7 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/ingestserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/netutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -110,7 +110,7 @@ func (s *VMInsertServer) run() {
 			}()
 
 			logger.Infof("processing vminsert conn from %s", c.RemoteAddr())
-			err = clusternative.ParseStream(bc, func(rows []storage.MetricRow) error {
+			err = stream.Parse(bc, func(rows []storage.MetricRow) error {
 				vminsertMetricsRead.Add(len(rows))
 				return s.storage.AddRows(rows, uint8(*precisionBits))
 			}, s.storage.IsReadOnly)

@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/handshake"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/clusternative/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -26,7 +26,7 @@ func InsertHandler(c net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("cannot perform vminsert handshake with client %q: %w", c.RemoteAddr(), err)
 	}
-	return parser.ParseStream(bc, func(rows []storage.MetricRow) error {
+	return stream.Parse(bc, func(rows []storage.MetricRow) error {
 		return insertRows(rows)
 	}, nil)
 }

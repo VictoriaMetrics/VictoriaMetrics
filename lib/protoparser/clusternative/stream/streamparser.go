@@ -1,4 +1,4 @@
-package clusternative
+package stream
 
 import (
 	"fmt"
@@ -17,14 +17,14 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// ParseStream parses data sent from vminsert to bc and calls callback for parsed rows.
+// Parse parses data sent from vminsert to bc and calls callback for parsed rows.
 // Optional function isReadOnly must return true if the storage cannot accept new data.
 // In this case the data read from bc isn't accepted and the readonly status is sent back bc.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
 // callback shouldn't hold block after returning.
-func ParseStream(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
+func Parse(bc *handshake.BufferedConn, callback func(rows []storage.MetricRow) error, isReadOnly func() bool) error {
 	wcr := writeconcurrencylimiter.GetReader(bc)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
