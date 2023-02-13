@@ -1,4 +1,4 @@
-package graphite
+package stream
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -21,12 +22,12 @@ var (
 		"Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data")
 )
 
-// ParseStream parses Graphite lines from r and calls callback for the parsed rows.
+// Parse parses Graphite lines from r and calls callback for the parsed rows.
 //
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, callback func(rows []Row) error) error {
+func Parse(r io.Reader, callback func(rows []graphite.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -135,9 +136,9 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
-	rows     Rows
+	rows     graphite.Rows
 	ctx      *streamContext
-	callback func(rows []Row) error
+	callback func(rows []graphite.Row) error
 	reqBuf   []byte
 }
 
@@ -148,7 +149,7 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []Row) {
+func (uw *unmarshalWork) runCallback(rows []graphite.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(rows); err != nil {
 		ctx.callbackErrLock.Lock()
