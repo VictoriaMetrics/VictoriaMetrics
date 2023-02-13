@@ -283,7 +283,7 @@ func (scfg *scrapeConfig) run(globalStopCh <-chan struct{}) {
 	cfg := <-scfg.cfgCh
 	var swsPrev []*ScrapeWork
 	updateScrapeWork := func(cfg *Config) {
-		configUpdateMu.Lock()
+                configUpdateMu.Lock()
                 startTime := time.Now()
 		sws := scfg.getScrapeWork(cfg, swsPrev)
 		sg.update(sws)
