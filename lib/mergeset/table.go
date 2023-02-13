@@ -1665,7 +1665,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 			srcPath, dstPath)
 	}
 
-	// Flush pathPrefix directory metadata to the underying storage.
+	// Flush pathPrefix directory metadata to the underlying storage.
 	fs.MustSyncPath(pathPrefix)
 
 	pendingTxnDeletionsWG.Add(1)

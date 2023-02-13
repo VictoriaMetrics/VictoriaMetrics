@@ -82,7 +82,7 @@ type NodeDaemonEndpoints struct {
 	KubeletEndpoint DaemonEndpoint
 }
 
-// getTargetLabels returs labels for the given n.
+// getTargetLabels returns labels for the given n.
 //
 // See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#node
 func (n *Node) getTargetLabels(gw *groupWatcher) []*promutils.Labels {

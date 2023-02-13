@@ -40,7 +40,7 @@ func WriteFileAndSync(path string, data []byte) error {
 	}
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
-		// Do not call MustRemoveAll(path), so the user could inpsect
+		// Do not call MustRemoveAll(path), so the user could inspect
 		// the file contents during investigation of the issue.
 		return fmt.Errorf("cannot write %d bytes to %q: %w", len(data), path, err)
 	}

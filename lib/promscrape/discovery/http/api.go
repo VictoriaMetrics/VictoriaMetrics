@@ -22,7 +22,7 @@ type apiConfig struct {
 	parseErrors *metrics.Counter
 }
 
-// httpGroupTarget respresent prometheus GroupTarget
+// httpGroupTarget represent prometheus GroupTarget
 // https://prometheus.io/docs/prometheus/latest/http_sd/
 type httpGroupTarget struct {
 	Targets []string          `json:"targets"`

@@ -100,7 +100,7 @@ type Search struct {
 
 	ts tableSearch
 
-	// tr contains time range used in the serach.
+	// tr contains time range used in the search.
 	tr TimeRange
 
 	// tfss contains tag filters used in the search.
@@ -165,7 +165,7 @@ func (s *Search) Init(qt *querytracer.Tracer, storage *Storage, tfss []*TagFilte
 	}
 	// It is ok to call Init on non-nil err.
 	// Init must be called before returning because it will fail
-	// on Seach.MustClose otherwise.
+	// on Search.MustClose otherwise.
 	s.ts.Init(storage.tb, tsids, tr)
 	qt.Printf("search for parts with data for %d series", len(tsids))
 	if err != nil {
