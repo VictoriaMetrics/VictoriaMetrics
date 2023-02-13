@@ -1,4 +1,4 @@
-package promremotewrite
+package stream
 
 import (
 	"bufio"
@@ -18,10 +18,10 @@ import (
 
 var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*1024, "The maximum size in bytes of a single Prometheus remote_write API request")
 
-// ParseStream parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
+// Parse parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
 //
 // callback shouldn't hold tss after returning.
-func ParseStream(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
+func Parse(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
