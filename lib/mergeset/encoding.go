@@ -157,7 +157,7 @@ func commonPrefixLen(a, b []byte) int {
 
 // Add adds x to the end of ib.
 //
-// false is returned if x isn't added to ib due to block size contraints.
+// false is returned if x isn't added to ib due to block size constraints.
 func (ib *inmemoryBlock) Add(x []byte) bool {
 	data := ib.data
 	if len(x)+len(data) > maxInmemoryBlockSize {

@@ -41,7 +41,7 @@ type Alert struct {
 	LastSent time.Time
 	// Value stores the value returned from evaluating expression from Expr field
 	Value float64
-	// ID is the unique identifer for the Alert
+	// ID is the unique identifier for the Alert
 	ID uint64
 	// Restored is true if Alert was restored after restart
 	Restored bool

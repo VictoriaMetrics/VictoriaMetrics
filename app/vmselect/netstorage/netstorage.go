@@ -211,7 +211,7 @@ func getTmpResult() *result {
 func putTmpResult(r *result) {
 	currentTime := fasttime.UnixTimestamp()
 	if cap(r.rs.Values) > 1024*1024 && 4*len(r.rs.Values) < cap(r.rs.Values) && currentTime-r.lastResetTime > 10 {
-		// Reset r.rs in order to preseve memory usage after processing big time series with millions of rows.
+		// Reset r.rs in order to preserve memory usage after processing big time series with millions of rows.
 		r.rs = Result{}
 		r.lastResetTime = currentTime
 	}
@@ -1174,7 +1174,7 @@ func deduplicateStrings(a []string) []string {
 
 // TSDBStatus returns tsdb status according to https://prometheus.io/docs/prometheus/latest/querying/api/#tsdb-stats
 //
-// It accepts aribtrary filters on time series in sq.
+// It accepts arbitrary filters on time series in sq.
 func TSDBStatus(qt *querytracer.Tracer, denyPartialResponse bool, sq *storage.SearchQuery, focusLabel string, topN int, deadline searchutils.Deadline) (*storage.TSDBStatus, bool, error) {
 	qt = qt.NewChild("get tsdb stats: %s, focusLabel=%q, topN=%d", sq, focusLabel, topN)
 	defer qt.Done()

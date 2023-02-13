@@ -483,7 +483,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	// 1) execute the exprFirst
 	// 2) get common label filters for series returned at step 1
 	// 3) push down the found common label filters to exprSecond. This filters out unneeded series
-	//    during exprSecond exection instead of spending compute resources on extracting and processing these series
+	//    during exprSecond execution instead of spending compute resources on extracting and processing these series
 	//    before they are dropped later when matching time series according to https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching
 	// 4) execute the exprSecond with possible additional filters found at step 3
 	//
