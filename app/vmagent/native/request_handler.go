@@ -10,7 +10,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -30,12 +30,12 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	isGzip := req.Header.Get("Content-Encoding") == "gzip"
-	return parser.ParseStream(req.Body, isGzip, func(block *parser.Block) error {
+	return stream.Parse(req.Body, isGzip, func(block *stream.Block) error {
 		return insertRows(at, block, extraLabels)
 	})
 }
 
-func insertRows(at *auth.Token, block *parser.Block, extraLabels []prompbmarshal.Label) error {
+func insertRows(at *auth.Token, block *stream.Block, extraLabels []prompbmarshal.Label) error {
 	ctx := common.GetPushCtx()
 	defer common.PutPushCtx(ctx)
 
