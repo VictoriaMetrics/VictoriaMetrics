@@ -1,4 +1,4 @@
-package opentsdbhttp
+package stream
 
 import (
 	"bufio"
@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -24,12 +25,12 @@ var (
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
 
-// ParseStream parses OpenTSDB http lines from req and calls callback for the parsed rows.
+// Parse parses OpenTSDB http lines from req and calls callback for the parsed rows.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(req *http.Request, callback func(rows []Row) error) error {
+func Parse(req *http.Request, callback func(rows []opentsdbhttp.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(req.Body)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(req.Body)
@@ -62,8 +63,8 @@ func ParseStream(req *http.Request, callback func(rows []Row) error) error {
 
 	// Process the request synchronously, since there is no sense in processing a single request asynchronously.
 	// Sync code is easier to read and understand.
-	p := getJSONParser()
-	defer putJSONParser(p)
+	p := opentsdbhttp.GetJSONParser()
+	defer opentsdbhttp.PutJSONParser(p)
 	v, err := p.ParseBytes(ctx.reqBuf.B)
 	if err != nil {
 		unmarshalErrors.Inc()
@@ -155,15 +156,15 @@ func putStreamContext(ctx *streamContext) {
 var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
-func getRows() *Rows {
+func getRows() *opentsdbhttp.Rows {
 	v := rowsPool.Get()
 	if v == nil {
-		return &Rows{}
+		return &opentsdbhttp.Rows{}
 	}
-	return v.(*Rows)
+	return v.(*opentsdbhttp.Rows)
 }
 
-func putRows(rs *Rows) {
+func putRows(rs *opentsdbhttp.Rows) {
 	rs.Reset()
 	rowsPool.Put(rs)
 }
