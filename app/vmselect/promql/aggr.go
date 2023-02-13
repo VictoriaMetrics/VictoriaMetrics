@@ -105,6 +105,16 @@ func removeGroupTags(metricName *storage.MetricName, modifier *metricsql.Modifie
 
 func aggrFuncExt(afe func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries, argOrig []*timeseries,
 	modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) ([]*timeseries, error) {
+	m := aggrPrepareSeries(argOrig, modifier, maxSeries, keepOriginal)
+	rvs := make([]*timeseries, 0, len(m))
+	for _, tss := range m {
+		rv := afe(tss, modifier)
+		rvs = append(rvs, rv...)
+	}
+	return rvs, nil
+}
+
+func aggrPrepareSeries(argOrig []*timeseries, modifier *metricsql.ModifierExpr, maxSeries int, keepOriginal bool) map[string][]*timeseries {
 	// Remove empty time series, e.g. series with all NaN samples,
 	// since such series are ignored by aggregate functions.
 	argOrig = removeEmptySeries(argOrig)
@@ -129,21 +139,7 @@ func aggrFuncExt(afe func(tss []*timeseries, modifier *metricsql.ModifierExpr) [
 		m[k] = tss
 	}
 	bbPool.Put(bb)
-
-	srcTssCount := 0
-	dstTssCount := 0
-	rvs := make([]*timeseries, 0, len(m))
-	for _, tss := range m {
-		rv := afe(tss, modifier)
-		rvs = append(rvs, rv...)
-		srcTssCount += len(tss)
-		dstTssCount += len(rv)
-		if dstTssCount > 2000 && dstTssCount > 16*srcTssCount {
-			// This looks like count_values explosion.
-			return nil, fmt.Errorf(`too many timeseries after aggragation; got %d; want less than %d`, dstTssCount, 16*srcTssCount)
-		}
-	}
-	return rvs, nil
+	return m
 }
 
 func aggrFuncAny(afa *aggrFuncArg) ([]*timeseries, error) {
@@ -560,7 +556,7 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		// Do nothing
 	}
 
-	afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) []*timeseries {
+	afe := func(tss []*timeseries, modififer *metricsql.ModifierExpr) ([]*timeseries, error) {
 		m := make(map[float64]bool)
 		for _, ts := range tss {
 			for _, v := range ts.Values {
@@ -576,8 +572,14 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 		}
 		sort.Float64s(values)
 
+		deadline := afa.ec.Deadline
 		var rvs []*timeseries
-		for _, v := range values {
+		for iter, v := range values {
+			if iter%100 == 0 && deadline.Exceeded() {
+				// calculation can be time-consuming,
+				// so we should check for deadline periodically
+				return nil, fmt.Errorf("timeout exceeded: %s", deadline.String())
+			}
 			var dst timeseries
 			dst.CopyFromShallowTimestamps(tss[0])
 			dst.MetricName.RemoveTag(dstLabel)
@@ -597,9 +599,26 @@ func aggrFuncCountValues(afa *aggrFuncArg) ([]*timeseries, error) {
 			}
 			rvs = append(rvs, &dst)
 		}
-		return rvs
+		return rvs, nil
 	}
-	return aggrFuncExt(afe, args[1], &afa.ae.Modifier, afa.ae.Limit, false)
+
+	srcTssCount := 0
+	dstTssCount := 0
+	m := aggrPrepareSeries(args[1], &afa.ae.Modifier, afa.ae.Limit, false)
+	rvs := make([]*timeseries, 0, len(m))
+	for _, tss := range m {
+		rv, err := afe(tss, modifier)
+		if err != nil {
+			return nil, fmt.Errorf("aggregation error: %w", err)
+		}
+		rvs = append(rvs, rv...)
+		srcTssCount += len(tss)
+		dstTssCount += len(rv)
+		if dstTssCount > 2000 && dstTssCount > 16*srcTssCount {
+			return nil, fmt.Errorf(`too many timeseries after aggregation; got %d; want less than %d`, dstTssCount, 16*srcTssCount)
+		}
+	}
+	return rvs, nil
 }
 
 func newAggrFuncTopK(isReverse bool) aggrFunc {
