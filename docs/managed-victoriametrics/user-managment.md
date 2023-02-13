@@ -1,7 +1,7 @@
 ---
 sort: 4
 weight: 4
-title: User Management in Managed VictoriaMetricsUser Management in Managed VictoriaMetrics
+title: User Management in Managed VictoriaMetrics
 menu:
   docs:
     parent: "managed"
