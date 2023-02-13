@@ -26,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
 	"github.com/VictoriaMetrics/metrics"
@@ -575,7 +576,7 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		if err == nil {
 			bodyString = bytesutil.ToUnsafeString(sbr.body)
 			areIdenticalSeries = sw.areIdenticalSeries(lastScrape, bodyString)
-			err = parser.ParseStream(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
+			err = stream.Parse(&sbr, scrapeTimestamp, false, func(rows []parser.Row) error {
 				mu.Lock()
 				defer mu.Unlock()
 				samplesScraped += len(rows)
@@ -796,7 +797,7 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3675
 		var mu sync.Mutex
 		br := bytes.NewBufferString(bodyString)
-		err := parser.ParseStream(br, timestamp, false, func(rows []parser.Row) error {
+		err := stream.Parse(br, timestamp, false, func(rows []parser.Row) error {
 			mu.Lock()
 			defer mu.Unlock()
 			for i := range rows {
