@@ -1,4 +1,4 @@
-package csvimport
+package stream
 
 import (
 	"bufio"
@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -21,19 +22,19 @@ var (
 		"Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data")
 )
 
-// ParseStream parses csv from req and calls callback for the parsed rows.
+// Parse parses csv from req and calls callback for the parsed rows.
 //
 // The callback can be called concurrently multiple times for streamed data from req.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(req *http.Request, callback func(rows []Row) error) error {
+func Parse(req *http.Request, callback func(rows []csvimport.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(req.Body)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r := io.Reader(wcr)
 
 	q := req.URL.Query()
 	format := q.Get("format")
-	cds, err := ParseColumnDescriptors(format)
+	cds, err := csvimport.ParseColumnDescriptors(format)
 	if err != nil {
 		return fmt.Errorf("cannot parse the provided csv format: %w", err)
 	}
@@ -149,10 +150,10 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
-	rows     Rows
+	rows     csvimport.Rows
 	ctx      *streamContext
-	callback func(rows []Row) error
-	cds      []ColumnDescriptor
+	callback func(rows []csvimport.Row) error
+	cds      []csvimport.ColumnDescriptor
 	reqBuf   []byte
 }
 
@@ -164,7 +165,7 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []Row) {
+func (uw *unmarshalWork) runCallback(rows []csvimport.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(rows); err != nil {
 		ctx.callbackErrLock.Lock()
