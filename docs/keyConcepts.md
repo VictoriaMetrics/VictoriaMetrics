@@ -79,6 +79,30 @@ requests_total{path="/", code="200"} 123 4567890
 - The `4567890` is an optional timestamp for the sample. If it is missing,
   then the current timestamp is used when storing the sample in VictoriaMetrics.
 
+#### Time series resolution
+
+Resolution is the minimum interval between [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+of the [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series). Consider the following example:
+```
+----------------------------------------------------------------------
+|              <time series>                 | <value> | <timestamp> |
+| requests_total{path="/health", code="200"} |    1    |  1676297640 |
+| requests_total{path="/health", code="200"} |    2    |  1676297670 |
+| requests_total{path="/health", code="200"} |    3    |  1676297700 |
+| requests_total{path="/health", code="200"} |    4    |  1676297730 |
+....
+```
+Here we have a time series `requests_total{path="/health", code="200"}` which has a value update each `30s`.
+This means, its resolution is also a `30s`.
+
+> In terms of [pull model](https://docs.victoriametrics.com/keyConcepts.html#pull-model), resolution is equal 
+> to `scrape_interval` and is controlled by the monitoring system (server).
+> For [push model](https://docs.victoriametrics.com/keyConcepts.html#push-model), resolution is an interval between
+> samples timestamps and is controlled by a client (metrics collector).
+
+Try to keep time series resolution consistent, since some [MetricsQL](#metricsql) functions may expect it to be so.
+
+
 ### Types of metrics
 
 Internally, VictoriaMetrics does not have the notion of a metric type. The concept of a metric
