@@ -168,9 +168,13 @@ func (uw *unmarshalWork) Unmarshal() {
 		}
 	}
 
-	// Convert timestamps from seconds to milliseconds
+	// Convert timestamps in seconds to milliseconds if needed.
+	// See http://opentsdb.net/docs/javadoc/net/opentsdb/core/Const.html#SECOND_MASK
 	for i := range rows {
-		rows[i].Timestamp *= 1e3
+		r := &rows[i]
+		if r.Timestamp&secondMask == 0 {
+			r.Timestamp *= 1e3
+		}
 	}
 
 	// Trim timestamps if required.
@@ -184,6 +188,8 @@ func (uw *unmarshalWork) Unmarshal() {
 	uw.runCallback(rows)
 	putUnmarshalWork(uw)
 }
+
+const secondMask int64 = 0x7FFFFFFF00000000
 
 func getUnmarshalWork() *unmarshalWork {
 	v := unmarshalWorkPool.Get()
