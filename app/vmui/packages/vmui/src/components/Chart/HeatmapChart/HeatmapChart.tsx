@@ -273,7 +273,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   useEffect(() => {
     setStickyToolTips([]);
     setTooltipProps(null);
-    if (!uPlotRef.current) return;
+    if (!uPlotRef.current || !layoutSize.width || !layoutSize.height) return;
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
