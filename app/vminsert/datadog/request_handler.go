@@ -9,6 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -29,7 +30,7 @@ func InsertHandlerForHTTP(at *auth.Token, req *http.Request) error {
 		return err
 	}
 	ce := req.Header.Get("Content-Encoding")
-	return parser.ParseStream(req.Body, ce, func(series []parser.Series) error {
+	return stream.Parse(req.Body, ce, func(series []parser.Series) error {
 		return insertRows(at, series, extraLabels)
 	})
 }
