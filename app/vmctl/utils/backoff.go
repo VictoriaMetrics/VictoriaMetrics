@@ -44,14 +44,14 @@ func (r *Retry) Do(ctx context.Context, cb retryableFunc) (uint64, error) {
 			return attempt, nil
 		}
 		if errors.Is(err, ErrBadRequest) {
-			logger.Errorf("got error: %s on attempt: %d", err, attempt)
+			logger.Errorf("got error: %s on attempt: %d \n", err, attempt)
 			return attempt, err // fail fast if not recoverable
 		}
 		attempt++
 		backoff := float64(r.backoffMinDuration) * math.Pow(r.backoffFactor, float64(i))
 		dur := time.Duration(backoff)
-		logger.Errorf("got error: %s on attempt: %d", err, attempt)
-		logger.Infof("next attempt will start after: %s", dur.Round(time.Millisecond))
+		logger.Errorf("got error: %s on attempt: %d \n", err, attempt)
+		logger.Infof("next attempt will start after: %s \n", dur.Round(time.Millisecond))
 		time.Sleep(time.Duration(backoff))
 	}
 	return attempt, fmt.Errorf("retry failed after %d retries", r.backoffRetries)

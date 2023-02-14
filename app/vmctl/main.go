@@ -223,7 +223,7 @@ func main() {
 						},
 						retry: utils.NewRetry(c.Int(backoffRetries), c.Float64(backoffFactor), c.Duration(backoffMinDuration)),
 					}
-					return p.run(ctx)
+					return p.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
 			},
 			{
