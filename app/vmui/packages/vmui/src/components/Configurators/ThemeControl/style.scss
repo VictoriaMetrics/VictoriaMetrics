@@ -7,4 +7,8 @@
     min-width: 300px;
     text-transform: capitalize;
   }
+
+  &_mobile &__toggle {
+    display: flex;
+  }
 }

@@ -14,12 +14,28 @@ $padding-modal: 22px;
   justify-content: center;
   background: rgba($color-black, 0.55);
 
+  &_mobile &-content {
+    min-height: calc($vh * 100);
+    max-height: calc($vh * 100);
+    width: 100vw;
+    border-radius: 0;
+
+    &-body {
+      display: grid;
+      align-items: flex-start;
+      min-height: 100%;
+    }
+  }
+
   &-content {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-items: flex-start;
     padding: $padding-modal;
     background: $color-background-block;
     box-shadow: 0 0 24px rgba($color-black, 0.07);
     border-radius: $border-radius-small;
-    max-height: 90vh;
+    max-height: calc($vh * 90);
     overflow: auto;
 
     &-header {
@@ -44,6 +60,8 @@ $padding-modal: 22px;
         cursor: pointer;
       }
     }
+
+    &-body {}
   }
 }
 

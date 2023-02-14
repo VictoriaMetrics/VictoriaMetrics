@@ -12,6 +12,7 @@ import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../util
 import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import "./style.scss";
+import { promValueToNumber } from "../../../utils/metric";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -27,21 +28,6 @@ export interface GraphViewProps {
   fullWidth?: boolean
   height?: number
 }
-
-const promValueToNumber = (s: string): number => {
-  // See https://prometheus.io/docs/prometheus/latest/querying/api/#expression-query-result-formats
-  switch (s) {
-    case "NaN":
-      return NaN;
-    case "Inf":
-    case "+Inf":
-      return Infinity;
-    case "-Inf":
-      return -Infinity;
-    default:
-      return parseFloat(s);
-  }
-};
 
 const GraphView: FC<GraphViewProps> = ({
   data = [],

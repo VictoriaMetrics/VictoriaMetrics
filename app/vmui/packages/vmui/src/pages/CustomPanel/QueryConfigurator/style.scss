@@ -28,14 +28,27 @@
 
   &-settings {
     display: flex;
-    align-items: flex-end;
+    flex-wrap: wrap;
+    align-items: center;
     justify-content: space-between;
     gap: $padding-medium;
 
+    @media (max-width: 500px) {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: flex-end;
+    }
+
     &__buttons {
+      flex-grow: 1;
       display: grid;
       grid-template-columns: repeat(2, auto);
       gap: $padding-small;
+      justify-content: flex-end;
+
+      @media (max-width: 500px) {
+        grid-template-columns: 1fr;
+      }
     }
   }
 }

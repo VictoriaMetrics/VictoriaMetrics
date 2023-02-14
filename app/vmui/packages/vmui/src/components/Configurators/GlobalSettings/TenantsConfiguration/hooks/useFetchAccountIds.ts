@@ -2,8 +2,10 @@ import { useAppState } from "../../../../../state/common/StateContext";
 import { useEffect, useMemo, useState } from "preact/compat";
 import { ErrorTypes } from "../../../../../types";
 import { getAccountIds } from "../../../../../api/accountId";
+import { getAppModeParams } from "../../../../../utils/app-mode";
 
 export const useFetchAccountIds = () => {
+  const { useTenantID } = getAppModeParams();
   const { serverUrl } = useAppState();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -13,13 +15,14 @@ export const useFetchAccountIds = () => {
   const fetchUrl = useMemo(() => getAccountIds(serverUrl), [serverUrl]);
 
   useEffect(() => {
+    if (!useTenantID) return;
     const fetchData = async () => {
       setIsLoading(true);
       try {
         const response = await fetch(fetchUrl);
         const resp = await response.json();
         const data = (resp.data || []) as string[];
-        setAccountIds(data);
+        setAccountIds(data.sort((a, b) => a.localeCompare(b)));
 
         if (response.ok) {
           setError(undefined);

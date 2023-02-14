@@ -218,11 +218,13 @@ users:
 - username: foo
   password: bar
   url_prefix: http://aaa:343/bbb
+  max_concurrent_requests: 5
 `, map[string]*UserInfo{
 		getAuthToken("", "foo", "bar"): {
-			Username:  "foo",
-			Password:  "bar",
-			URLPrefix: mustParseURL("http://aaa:343/bbb"),
+			Username:              "foo",
+			Password:              "bar",
+			URLPrefix:             mustParseURL("http://aaa:343/bbb"),
+			MaxConcurrentRequests: 5,
 		},
 	})
 

@@ -61,6 +61,49 @@ func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]dataso
 	return cp, req, nil
 }
 
+type fakeQuerierWithRegistry struct {
+	sync.Mutex
+	registry map[string][]datasource.Metric
+}
+
+func (fqr *fakeQuerierWithRegistry) set(key string, metrics ...datasource.Metric) {
+	fqr.Lock()
+	if fqr.registry == nil {
+		fqr.registry = make(map[string][]datasource.Metric)
+	}
+	fqr.registry[key] = metrics
+	fqr.Unlock()
+}
+
+func (fqr *fakeQuerierWithRegistry) reset() {
+	fqr.Lock()
+	fqr.registry = nil
+	fqr.Unlock()
+}
+
+func (fqr *fakeQuerierWithRegistry) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {
+	return fqr
+}
+
+func (fqr *fakeQuerierWithRegistry) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
+	req, _, err := fqr.Query(ctx, q, time.Now())
+	return req, err
+}
+
+func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) ([]datasource.Metric, *http.Request, error) {
+	fqr.Lock()
+	defer fqr.Unlock()
+
+	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
+	metrics, ok := fqr.registry[expr]
+	if !ok {
+		return nil, req, nil
+	}
+	cp := make([]datasource.Metric, len(metrics))
+	copy(cp, metrics)
+	return cp, req, nil
+}
+
 type fakeNotifier struct {
 	sync.Mutex
 	alerts []notifier.Alert

@@ -7,6 +7,7 @@ import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
 import classNames from "classnames";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
+import useResize from "../../../../hooks/useResize";
 
 interface AutoRefreshOption {
   seconds: number
@@ -29,6 +30,7 @@ const delayOptions: AutoRefreshOption[] = [
 ];
 
 export const ExecutionControls: FC = () => {
+  const windowSize = useResize(document.body);
 
   const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
@@ -83,17 +85,20 @@ export const ExecutionControls: FC = () => {
       <div
         className={classNames({
           "vm-execution-controls-buttons": true,
-          "vm-header-button": !appModeEnable
+          "vm-header-button": !appModeEnable,
+          "vm-execution-controls-buttons_short": windowSize.width <= 360
         })}
       >
-        <Tooltip title="Refresh dashboard">
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleUpdate}
-            startIcon={<RefreshIcon/>}
-          />
-        </Tooltip>
+        {windowSize.width > 360 && (
+          <Tooltip title="Refresh dashboard">
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleUpdate}
+              startIcon={<RefreshIcon/>}
+            />
+          </Tooltip>
+        )}
         <Tooltip title="Auto-refresh control">
           <div ref={optionsButtonRef}>
             <Button

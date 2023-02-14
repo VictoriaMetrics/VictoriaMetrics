@@ -8,7 +8,7 @@ export interface HideSeriesArgs {
 }
 
 export interface DragArgs {
-    e: MouseEvent,
+    e: MouseEvent | TouchEvent,
     u: uPlot,
     factor: number,
     setPanning: (enable: boolean) => void,
@@ -21,6 +21,12 @@ export interface LegendItemType {
     color: string;
     checked: boolean;
     freeFormFields: {[key: string]: string};
+    calculations: {
+        min: string;
+        max: string;
+        avg: string;
+        last: string;
+    }
 }
 
 export interface BarSeriesItem {

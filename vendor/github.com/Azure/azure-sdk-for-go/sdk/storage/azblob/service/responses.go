@@ -25,6 +25,9 @@ type GetAccountInfoResponse = generated.ServiceClientGetAccountInfoResponse
 // ListContainersResponse contains the response from method Client.ListContainersSegment.
 type ListContainersResponse = generated.ServiceClientListContainersSegmentResponse
 
+// ListContainersSegmentResponse - An enumeration of containers
+type ListContainersSegmentResponse = generated.ListContainersSegmentResponse
+
 // GetPropertiesResponse contains the response from method Client.GetProperties.
 type GetPropertiesResponse = generated.ServiceClientGetPropertiesResponse
 

@@ -173,7 +173,11 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		Write:  true,
 	}
 
-	t, err := sbc.GetSASURL(ssCopyPermission, time.Now().Add(-10*time.Minute), time.Now().Add(30*time.Minute))
+	startTime := time.Now().Add(-10 * time.Minute)
+	o := &blob.GetSASURLOptions{
+		StartTime: &startTime,
+	}
+	t, err := sbc.GetSASURL(ssCopyPermission, time.Now().Add(30*time.Minute), o)
 	if err != nil {
 		return fmt.Errorf("failed to generate SAS token of src %q: %w", p.Path, err)
 	}

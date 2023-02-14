@@ -1,5 +1,5 @@
 import React, { FC, useState } from "preact/compat";
-import { isMacOs } from "../../../utils/detect-os";
+import { isMacOs } from "../../../utils/detect-device";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";
@@ -69,7 +69,9 @@ const keyList = [
   }
 ];
 
-const ShortcutKeys: FC = () => {
+const title = "Shortcut keys";
+
+const ShortcutKeys: FC<{showTitle?: boolean}> = ({ showTitle }) => {
   const [openList, setOpenList] = useState(false);
   const appModeEnable = getAppModeEnable();
 
@@ -83,7 +85,8 @@ const ShortcutKeys: FC = () => {
 
   return <>
     <Tooltip
-      title="Shortcut keys"
+      open={showTitle === true ? false : undefined}
+      title={title}
       placement="bottom-center"
     >
       <Button
@@ -92,7 +95,9 @@ const ShortcutKeys: FC = () => {
         color="primary"
         startIcon={<KeyboardIcon/>}
         onClick={handleOpen}
-      />
+      >
+        {showTitle && title}
+      </Button>
     </Tooltip>
 
     {openList && (

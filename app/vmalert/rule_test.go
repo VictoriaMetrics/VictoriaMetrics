@@ -14,13 +14,13 @@ func TestRule_stateDisabled(t *testing.T) {
 	}
 
 	state.add(ruleStateEntry{at: time.Now()})
-	if !e.at.IsZero() {
-		t.Fatalf("expected entry to be zero")
-	}
+	state.add(ruleStateEntry{at: time.Now()})
+	state.add(ruleStateEntry{at: time.Now()})
 
-	if len(state.getAll()) != 0 {
+	if len(state.getAll()) != 1 {
+		// state should store at least one update at any circumstances
 		t.Fatalf("expected for state to have %d entries; got %d",
-			0, len(state.getAll()),
+			1, len(state.getAll()),
 		)
 	}
 }

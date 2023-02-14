@@ -65,7 +65,10 @@ const MetricsContent: FC<MetricsProperties> = ({
           />
         </div>
       </div>
-      <div ref={chartContainer}>
+      <div
+        ref={chartContainer}
+        className="vm-metrics-content__table"
+      >
         {activeTab === 0 && (
           <EnhancedTable
             rows={rows}

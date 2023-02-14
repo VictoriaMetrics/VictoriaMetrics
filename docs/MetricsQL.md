@@ -811,7 +811,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 
 ### Transform functions
 
-**Transform functions** calculate transformations over rollup results.
+**Transform functions** calculate transformations over [rollup results](#rollup-functions).
 For example, `abs(delta(temperature[24h]))` calculates the absolute value for every point of every time series
 returned from the rollup `delta(temperature[24h])`.
 
@@ -1423,7 +1423,7 @@ This function is supported by PromQL.
 
 ### Label manipulation functions
 
-**Label manipulation functions** perform manipulations with lables on the selected rollup results.
+**Label manipulation functions** perform manipulations with lables on the selected [rollup results](#rollup-functions).
 
 Additional details:
 
@@ -1588,14 +1588,14 @@ See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc
 
 ### Aggregate functions
 
-**Aggregate functions** calculate aggregates over groups of rollup results.
+**Aggregate functions** calculate aggregates over groups of [rollup results](#rollup-functions).
 
 Additional details:
 
 * By default a single group is used for aggregation. Multiple independent groups can be set up by specifying grouping labels
-  in `by` and `without` modifiers. For example, `count(up) by (job)` would group rollup results by `job` label value
+  in `by` and `without` modifiers. For example, `count(up) by (job)` would group [rollup results](#rollup-functions) by `job` label value
   and calculate the [count](#count) aggregate function independently per each group, while `count(up) without (instance)`
-  would group rollup results by all the labels except `instance` before calculating [count](#count) aggregate function independently per each group.
+  would group [rollup results](#rollup-functions) by all the labels except `instance` before calculating [count](#count) aggregate function independently per each group.
   Multiple labels can be put in `by` and `without` modifiers.
 * If the aggregate function is applied directly to a [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering),
   then the [default_rollup()](#default_rollup) function is automatically applied before calculating the aggregate.

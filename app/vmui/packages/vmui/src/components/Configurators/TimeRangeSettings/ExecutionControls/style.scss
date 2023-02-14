@@ -9,6 +9,10 @@
     border-radius: calc($button-radius + 1px);
     min-width: 107px;
 
+    &_short {
+      min-width: auto;
+    }
+
     &__arrow {
       display: flex;
       align-items: center;
