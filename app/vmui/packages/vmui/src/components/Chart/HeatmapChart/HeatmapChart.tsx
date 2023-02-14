@@ -36,7 +36,7 @@ export interface HeatmapChartProps {
   onChangeLegend: (val: number) => void;
 }
 
-enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
+enum typeChartUpdate {xRange = "xRange", yRange = "yRange"}
 
 const HeatmapChart: FC<HeatmapChartProps> = ({
   data,
@@ -261,9 +261,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       case typeChartUpdate.xRange:
         uPlotInst.scales.x.range = getRangeX;
         break;
-      case typeChartUpdate.data:
-        uPlotInst.setData(data);
-        break;
     }
     if (!isPanning) uPlotInst.redraw();
   };
@@ -329,7 +326,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
     };
   }, [uPlotInst, startTouchDistance]);
 
-  useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 

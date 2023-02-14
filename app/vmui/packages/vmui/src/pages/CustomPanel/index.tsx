@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect, useMemo } from "preact/compat";
+import React, { FC, useState, useEffect } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -20,7 +20,6 @@ import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import TableView from "../../components/Views/TableView/TableView";
 import Button from "../../components/Main/Button/Button";
-import { isHistogramData } from "../../utils/metric";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -34,14 +33,13 @@ const CustomPanel: FC = () => {
   const [hideQuery, setHideQuery] = useState<number[]>([]);
   const [showAllSeries, setShowAllSeries] = useState(false);
 
-  const [isHistogram, setIsHistogram] = useState<undefined | boolean>(undefined);
-  const loadingHistogram = useMemo(() => typeof isHistogram !== "boolean", [isHistogram]);
-
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const { queryOptions } = useFetchQueryOptions();
-  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
+  const {
+    isLoading, liveData, graphData, error, warning, traces, isHistogram
+  } = useFetchQuery({
     visible: true,
     customStep,
     hideQuery,
@@ -88,9 +86,8 @@ const CustomPanel: FC = () => {
   }, [query]);
 
   useEffect(() => {
-    if (!graphData) return;
-    setIsHistogram(isHistogramData(graphData));
-  }, [graphData]);
+    graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
+  }, [isHistogram]);
 
   return (
     <div className="vm-custom-panel">
@@ -139,7 +136,7 @@ const CustomPanel: FC = () => {
             />
           )}
         </div>
-        {graphData && !loadingHistogram && period && (displayType === "chart") && (
+        {graphData && period && (displayType === "chart") && (
           <GraphView
             data={graphData}
             period={period}

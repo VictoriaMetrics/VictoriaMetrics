@@ -1,4 +1,4 @@
-import { MetricBase, MetricResult } from "../api/types";
+import { MetricBase } from "../api/types";
 
 export const getNameForMetric = (result: MetricBase, alias?: string, showQueryNum = true): string => {
   const { __name__, ...freeFormFields } = result.metric;
@@ -29,7 +29,7 @@ export const promValueToNumber = (s: string): number => {
   }
 };
 
-export const isHistogramData = (result: MetricResult[]) => {
+export const isHistogramData = (result: MetricBase[]) => {
   if (result.length < 2) return false;
   const histogramNames = ["le", "vmrange"];
 

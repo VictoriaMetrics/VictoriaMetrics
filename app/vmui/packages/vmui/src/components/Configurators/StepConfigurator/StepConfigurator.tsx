@@ -1,10 +1,10 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { RestartIcon, TimelineIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import { ErrorTypes } from "../../../types";
-import { supportedDurations } from "../../../utils/time";
+import { getStepFromDuration, supportedDurations } from "../../../utils/time";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import usePrevious from "../../../hooks/usePrevious";
@@ -15,12 +15,15 @@ import Popper from "../../Main/Popper/Popper";
 const StepConfigurator: FC = () => {
   const appModeEnable = getAppModeEnable();
 
-  const { customStep: value } = useGraphState();
-  const { period: { step: defaultStep } } = useTimeState();
+  const { customStep: value, isHistogram } = useGraphState();
+  const { period: { step, end, start } } = useTimeState();
   const graphDispatch = useGraphDispatch();
 
-  const { period: duration } = useTimeState();
-  const prevDuration = usePrevious(duration.end - duration.start);
+  const prevDuration = usePrevious(end - start);
+
+  const defaultStep = useMemo(() => {
+    return getStepFromDuration(end - start, isHistogram);
+  }, [step, isHistogram]);
 
   const [openOptions, setOpenOptions] = useState(false);
   const [customStep, setCustomStep] = useState(value || defaultStep);
@@ -91,12 +94,16 @@ const StepConfigurator: FC = () => {
   }, [defaultStep]);
 
   useEffect(() => {
-    const dur = duration.end - duration.start;
+    const dur = end - start;
     if (dur === prevDuration || !prevDuration) return;
     if (defaultStep) {
       handleApply(defaultStep);
     }
-  }, [duration, prevDuration, defaultStep]);
+  }, [end, start, prevDuration, defaultStep]);
+
+  useEffect(() => {
+    if (step === value || step === defaultStep) handleApply(defaultStep);
+  }, [isHistogram]);
 
   return (
     <div
