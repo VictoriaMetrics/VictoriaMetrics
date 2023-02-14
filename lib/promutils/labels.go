@@ -49,7 +49,7 @@ func (x *Labels) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// MarshalJSON returns JSON respresentation for x.
+// MarshalJSON returns JSON representation for x.
 func (x *Labels) MarshalJSON() ([]byte, error) {
 	m := x.ToMap()
 	return json.Marshal(m)
@@ -235,7 +235,7 @@ func (x *Labels) RemoveDuplicates() {
 
 // RemoveMetaLabels removes all the `__meta_` labels from x.
 //
-// See https://www.robustperception.io/life-of-a-label fo details.
+// See https://www.robustperception.io/life-of-a-label for details.
 func (x *Labels) RemoveMetaLabels() {
 	src := x.Labels
 	dst := x.Labels[:0]

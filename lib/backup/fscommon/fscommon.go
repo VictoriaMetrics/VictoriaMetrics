@@ -250,7 +250,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		return false, nil
 	}
 	// Use os.RemoveAll() instead of os.Remove(), since the dir may contain special files such as flock.lock and restore-in-progress,
-	// which must be ingored.
+	// which must be ignored.
 	if err := os.RemoveAll(dir); err != nil {
 		return false, fmt.Errorf("cannot remove %q: %w", dir, err)
 	}

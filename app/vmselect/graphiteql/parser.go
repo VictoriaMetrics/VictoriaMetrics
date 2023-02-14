@@ -164,7 +164,7 @@ func (p *parser) parseString() (*StringExpr, error) {
 	return se, nil
 }
 
-// StringExpr represents string contant.
+// StringExpr represents string constant.
 type StringExpr struct {
 	// S contains unquoted string contents.
 	S string

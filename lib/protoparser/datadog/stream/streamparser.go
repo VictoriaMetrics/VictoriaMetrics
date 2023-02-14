@@ -1,4 +1,4 @@
-package datadog
+package stream
 
 import (
 	"bufio"
@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/datadog"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -30,10 +31,10 @@ var (
 		"https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics")
 )
 
-// ParseStream parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
+// Parse parses DataDog POST request for /api/v1/series from reader and calls callback for the parsed request.
 //
 // callback shouldn't hold series after returning.
-func ParseStream(r io.Reader, contentEncoding string, callback func(series []Series) error) error {
+func Parse(r io.Reader, contentEncoding string, callback func(series []datadog.Series) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -143,21 +144,21 @@ func putPushCtx(ctx *pushCtx) {
 var pushCtxPool sync.Pool
 var pushCtxPoolCh = make(chan *pushCtx, cgroup.AvailableCPUs())
 
-func getRequest() *Request {
+func getRequest() *datadog.Request {
 	v := requestPool.Get()
 	if v == nil {
-		return &Request{}
+		return &datadog.Request{}
 	}
-	return v.(*Request)
+	return v.(*datadog.Request)
 }
 
-func putRequest(req *Request) {
+func putRequest(req *datadog.Request) {
 	requestPool.Put(req)
 }
 
 var requestPool sync.Pool
 
-// sanitizeName performs DataDog-compatible santizing for metric names
+// sanitizeName performs DataDog-compatible sanitizing for metric names
 //
 // See https://docs.datadoghq.com/metrics/custom_metrics/#naming-custom-metrics
 func sanitizeName(name string) string {

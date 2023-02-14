@@ -150,7 +150,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutils.Label
 	return ms
 }
 
-// addLabels adds lables from src to dst if they contain the given `key: value` pair.
+// addLabels adds labels from src to dst if they contain the given `key: value` pair.
 func addLabels(dst *promutils.Labels, src []*promutils.Labels, key, value string) {
 	for _, m := range src {
 		if m.Get(key) != value {
