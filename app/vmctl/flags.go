@@ -429,6 +429,11 @@ var (
 				fmt.Sprintf(" In this mode --%s flag format is: 'http://vmselect:8481/'. --%s flag format is: http://vminsert:8480/. \n", vmNativeSrcAddr, vmNativeDstAddr) +
 				" TenantID will be appended automatically after discovering tenants from src.",
 		},
+		&cli.UintFlag{
+			Name:  vmConcurrency,
+			Usage: "Number of workers concurrently performing import requests to VM",
+			Value: 2,
+		},
 	}
 )
 

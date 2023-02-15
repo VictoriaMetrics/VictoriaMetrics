@@ -171,8 +171,8 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 
 	var wg sync.WaitGroup
 	// @TODO need use concurrent flag
-	wg.Add(10)
-	for i := 0; i < 10; i++ {
+	wg.Add(p.cc)
+	for i := 0; i < p.cc; i++ {
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
