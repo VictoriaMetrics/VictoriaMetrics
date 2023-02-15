@@ -312,7 +312,6 @@ func (p *vmNativeProcessor) do(ctx context.Context, f filter) error {
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dstURL string) error {
-	wait := time.Now()
 
 	exportReader, err := p.exportPipe(ctx, srcURL, f)
 	if err != nil {
@@ -343,7 +342,6 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 	p.s.Lock()
 	p.s.bytes += uint64(written)
 	p.s.requests++
-	p.s.idleDuration += time.Since(wait)
 	p.s.Unlock()
 
 	if err := pw.Close(); err != nil {
