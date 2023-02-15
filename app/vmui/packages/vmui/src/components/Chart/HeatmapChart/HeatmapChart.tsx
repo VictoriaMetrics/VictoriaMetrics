@@ -4,7 +4,7 @@ import uPlot, {
   Options as uPlotOptions,
   Range
 } from "uplot";
-import { defaultOptions, formatPrettyNumber, sizeAxis } from "../../../utils/uplot/helpers";
+import { defaultOptions, sizeAxis } from "../../../utils/uplot/helpers";
 import { dragChart } from "../../../utils/uplot/events";
 import { getAxes } from "../../../utils/uplot/axes";
 import { MetricResult } from "../../../api/types";
@@ -178,7 +178,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
     const fields = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
 
     const [endTime = 0, value = ""] = result.values.find(v => v[0] === second) || [];
-    const valueFormat = formatPrettyNumber(+value, 0, 1);
+    const valueFormat = `${+value}%`;
     const startTime = xArr[xIdx];
     const startDate = dayjs(startTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
     const endDate = dayjs(endTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);

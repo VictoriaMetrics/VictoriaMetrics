@@ -15,7 +15,7 @@ import { useTimeState } from "../../../state/time/TimeStateContext";
 import HeatmapChart from "../../Chart/HeatmapChart/HeatmapChart";
 import "./style.scss";
 import { promValueToNumber } from "../../../utils/metric";
-import { convertPrometheusToVictoriaMetrics } from "../../../utils/uplot/heatmap";
+import { normalizeData } from "../../../utils/uplot/heatmap";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -51,7 +51,7 @@ const GraphView: FC<GraphViewProps> = ({
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
 
-  const data = useMemo(() => convertPrometheusToVictoriaMetrics(dataRaw), [dataRaw]);
+  const data = useMemo(() => normalizeData(dataRaw, isHistogram), [isHistogram, dataRaw]);
   const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
@@ -73,7 +73,7 @@ const GraphView: FC<GraphViewProps> = ({
     setLegendValue(val);
   };
 
-  const prepareDataHistogram = (data: (number | null)[][]) => {
+  const prepareHistogramData = (data: (number | null)[][]) => {
     const values = data.slice(1, data.length);
     const xs: (number | null | undefined)[] = [];
     const counts: (number | null | undefined)[] = [];
@@ -143,7 +143,7 @@ const GraphView: FC<GraphViewProps> = ({
     });
     timeDataSeries.unshift(timeSeries);
     setLimitsYaxis(tempValues);
-    const result = isHistogram ? prepareDataHistogram(timeDataSeries) : timeDataSeries;
+    const result = isHistogram ? prepareHistogramData(timeDataSeries) : timeDataSeries;
     setDataChart(result as uPlotData);
     setSeries(tempSeries);
     setLegend(tempLegend);

@@ -134,3 +134,18 @@ export const convertPrometheusToVictoriaMetrics = (buckets: MetricResult[]): Met
 
   return result;
 };
+
+export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): MetricResult[] => {
+  if (!isHistogram) return buckets;
+  const vmBuckets = convertPrometheusToVictoriaMetrics(buckets);
+  const allValues = vmBuckets.map(b => b.values).flat();
+
+  return vmBuckets.map(bucket => {
+    const values = bucket.values.map((v) => {
+      const totalHits = allValues.filter(av => av[0] === v[0]).reduce((bucketSum, v) => bucketSum + +v[1], 0);
+      return [v[0], `${Math.round((+v[1] / totalHits) * 100)}`];
+    });
+
+    return { ...bucket, values };
+  }) as MetricResult[];
+};
