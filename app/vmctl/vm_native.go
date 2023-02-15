@@ -13,6 +13,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -28,7 +29,8 @@ type vmNativeProcessor struct {
 	interCluster bool
 	retry        *utils.Retry
 
-	s *stats
+	s  *stats
+	cc int
 }
 
 type stats struct {
@@ -109,43 +111,43 @@ const (
 	nativeImportAddr  = "api/v1/import/native"
 	nativeTenantsAddr = "admin/tenants"
 	nativeSeriesAddr  = "api/v1/series"
-
-	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) error {
-	p.ResetStats()
+	if p.cc == 0 {
+		p.cc = 1
+	}
 	series, err := p.getSeries(ctx, p.filter)
 	if err != nil {
 		return fmt.Errorf("cannot get series from source %s database: %s", p.src, err)
 	}
 
-	filterCh := make(chan filter)
-	errCh := make(chan error)
-	// @TODO need to think how to be with time chunks
-	// if p.filter.chunk == "" {
-	// 	return p.runWithFilter(ctx, p.filter)
-	// }
-	//
-	// startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
-	// }
-	//
-	// var endOfRange time.Time
-	// if p.filter.timeEnd != "" {
-	// 	endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
-	// 	if err != nil {
-	// 		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
-	// 	}
-	// } else {
-	// 	endOfRange = time.Now()
-	// }
-	//
-	// ranges, err := stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
-	// if err != nil {
-	// 	return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
-	// }
+	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
+	if err != nil {
+		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
+	}
+
+	var endOfRange time.Time
+	if p.filter.timeEnd != "" {
+		endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
+		if err != nil {
+			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
+		}
+	} else {
+		t := time.Now().In(startOfRange.Location())
+		endOfRange = t
+	}
+
+	var ranges [][]time.Time
+	if p.filter.chunk == "" {
+		ranges = make([][]time.Time, 0)
+		ranges = append(ranges, []time.Time{startOfRange, endOfRange})
+	} else {
+		ranges, err = stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
+		if err != nil {
+			return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
+		}
+	}
 
 	fmt.Printf("Initing import process from %q to %q:\n", p.src.addr, p.dst.addr)
 	var bar *pb.ProgressBar
@@ -162,6 +164,10 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 		log.Println("Import finished!")
 		log.Print(p.Stats())
 	}()
+
+	p.ResetStats()
+	filterCh := make(chan filter)
+	errCh := make(chan error)
 
 	var wg sync.WaitGroup
 	// @TODO need use concurrent flag
@@ -183,14 +189,18 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 
 	// any error breaks the import
 	for _, s := range series {
-		select {
-		case infErr := <-errCh:
-			return fmt.Errorf("native error: %s", infErr)
-		case filterCh <- filter{
-			match:     s.String(),
-			timeStart: p.filter.timeStart,
-			timeEnd:   p.filter.timeEnd,
-		}:
+		for _, times := range ranges {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context canceled")
+			case infErr := <-errCh:
+				return fmt.Errorf("native error: %s", infErr)
+			case filterCh <- filter{
+				match:     s.String(),
+				timeStart: times[0].Format(time.RFC3339),
+				timeEnd:   times[1].Format(time.RFC3339),
+			}:
+			}
 		}
 	}
 
@@ -332,6 +342,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 
 	p.s.Lock()
 	p.s.bytes += uint64(written)
+	p.s.requests++
 	p.s.idleDuration += time.Since(wait)
 	p.s.Unlock()
 

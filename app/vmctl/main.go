@@ -222,6 +222,7 @@ func main() {
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
 						retry: utils.NewRetry(c.Int(backoffRetries), c.Float64(backoffFactor), c.Duration(backoffMinDuration)),
+						cc:    c.Int(vmConcurrency),
 					}
 					return p.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
 				},
