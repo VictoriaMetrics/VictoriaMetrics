@@ -352,6 +352,7 @@ var (
 func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
 	sleepTime := time.Second
 	scrapeRequests.Inc()
+	firstRetry := true
 	for {
 		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
 		// across multiple retries.
@@ -364,16 +365,23 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
 			return err
 		}
-		// Retry request after exponentially increased sleep.
-		maxSleepTime := time.Until(deadline)
-		if sleepTime > maxSleepTime {
-			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+
+		// Special handling for cases when server closes the connection.
+		// This might be caused by connection keep-alive timeout being exceeded.
+		// In such cases additional delay will not give any benefit, so retry immediately.
+		if !firstRetry {
+			firstRetry = false
+			// Retry request after exponentially increased sleep.
+			maxSleepTime := time.Until(deadline)
+			if sleepTime > maxSleepTime {
+				return fmt.Errorf("the server closes all the connection attempts: %w", err)
+			}
+			sleepTime += sleepTime
+			if sleepTime > maxSleepTime {
+				sleepTime = maxSleepTime
+			}
+			time.Sleep(sleepTime)
 		}
-		sleepTime += sleepTime
-		if sleepTime > maxSleepTime {
-			sleepTime = maxSleepTime
-		}
-		time.Sleep(sleepTime)
 		scrapeRetries.Inc()
 	}
 }
