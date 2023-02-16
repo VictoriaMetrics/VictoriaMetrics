@@ -242,13 +242,36 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		if err := json.Unmarshal(data, &tr); err != nil {
 			return "", 0, fmt.Errorf("cannot parse token auth response %q: %w", data, err)
 		}
-		expiresInSeconds, err := strconv.ParseInt(tr.ExpiresIn, 10, 64)
+
+		expiresInSeconds, err := parseTokenExpiry(tr)
 		if err != nil {
-			return "", 0, fmt.Errorf("cannot parse expiresIn param in token auth %q: %w", tr.ExpiresIn, err)
+			return "", 0, err
 		}
 		return tr.AccessToken, time.Second * time.Duration(expiresInSeconds), nil
 	}
 	return refreshToken, nil
+}
+
+// parseTokenExpiry returns token expiry in seconds
+func parseTokenExpiry(tr tokenResponse) (int64, error) {
+	var expiresInSeconds int64
+	var err error
+
+	if tr.ExpiresIn == "" {
+		var expiresOnSeconds int64
+		expiresOnSeconds, err = strconv.ParseInt(tr.ExpiresOn, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse token auth response %q: %w", tr.ExpiresOn, err)
+		}
+		expiresInSeconds = expiresOnSeconds - time.Now().Unix()
+	} else {
+		expiresInSeconds, err = strconv.ParseInt(tr.ExpiresIn, 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("cannot parse token auth response %q: %w", tr.ExpiresIn, err)
+		}
+	}
+
+	return expiresInSeconds, nil
 }
 
 // mustGetAuthToken returns auth token
@@ -277,4 +300,5 @@ func (ac *apiConfig) mustGetAuthToken() string {
 type tokenResponse struct {
 	AccessToken string `json:"access_token"`
 	ExpiresIn   string `json:"expires_in"`
+	ExpiresOn   string `json:"expires_on"`
 }
