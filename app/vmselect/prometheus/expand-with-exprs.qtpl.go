@@ -343,3 +343,99 @@ func withExprsTutorial() string {
 	return qs422016
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:245
 }
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:248
+func StreamExpandWithExprsJSONResponse(qw422016 *qt422016.Writer, q string) {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:249
+	streamexpandWithExprsJSON(qw422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+func WriteExpandWithExprsJSONResponse(qq422016 qtio422016.Writer, q string) {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	StreamExpandWithExprsJSONResponse(qw422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+func ExpandWithExprsJSONResponse(q string) string {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	WriteExpandWithExprsJSONResponse(qb422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	qs422016 := string(qb422016.B)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+	return qs422016
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:250
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:252
+func streamexpandWithExprsJSON(qw422016 *qt422016.Writer, q string) {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:253
+	if len(q) == 0 {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:253
+		qw422016.N().S(`{"status": "error","error": "query string cannot be empty"}`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:258
+		return
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:259
+	}
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:259
+	qw422016.N().S(`{`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:262
+	expr, err := metricsql.Parse(q)
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:263
+	if err != nil {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:263
+		qw422016.N().S(`"status": "error","error": "Cannot parse query:"`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:265
+		qw422016.E().V(err)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:266
+	} else {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:267
+		expr = metricsql.Optimize(expr)
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:267
+		qw422016.N().S(`"status": "success",expr:`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:269
+		qw422016.E().Q(string(expr.AppendString(nil)))
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:270
+	}
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:270
+	qw422016.N().S(`}`)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+func writeexpandWithExprsJSON(qq422016 qtio422016.Writer, q string) {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	streamexpandWithExprsJSON(qw422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	qt422016.ReleaseWriter(qw422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+}
+
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+func expandWithExprsJSON(q string) string {
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	qb422016 := qt422016.AcquireByteBuffer()
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	writeexpandWithExprsJSON(qb422016, q)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	qs422016 := string(qb422016.B)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	qt422016.ReleaseByteBuffer(qb422016)
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+	return qs422016
+//line app/vmselect/prometheus/expand-with-exprs.qtpl:272
+}
