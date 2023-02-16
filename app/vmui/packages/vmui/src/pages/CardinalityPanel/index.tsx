@@ -14,7 +14,7 @@ import "./style.scss";
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
 
-const Index: FC = () => {
+const CardinalityPanel: FC = () => {
   const { topN, match, date, focusLabel } = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
   useSetQueryParams();
@@ -109,4 +109,4 @@ const Index: FC = () => {
   );
 };
 
-export default Index;
+export default CardinalityPanel;
