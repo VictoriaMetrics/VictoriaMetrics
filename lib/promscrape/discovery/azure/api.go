@@ -199,11 +199,15 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		q := endpointURL.Query()
 
 		msiSecret := os.Getenv("MSI_SECRET")
+		identityHeader := os.Getenv("IDENTITY_HEADER")
 		clientIDParam := "client_id"
 		apiVersion := "2018-02-01"
 		if msiSecret != "" {
 			clientIDParam = "clientid"
 			apiVersion = "2017-09-01"
+		}
+		if identityHeader != "" {
+			apiVersion = "2019-08-01"
 		}
 		q.Set("api-version", apiVersion)
 		q.Set(clientIDParam, sdc.ClientID)
@@ -214,6 +218,9 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 		modifyRequest = func(request *http.Request) {
 			if msiSecret != "" {
 				request.Header.Set("secret", msiSecret)
+				if identityHeader != "" {
+					request.Header.Set("X-IDENTITY-HEADER", msiSecret)
+				}
 			} else {
 				request.Header.Set("Metadata", "true")
 			}
