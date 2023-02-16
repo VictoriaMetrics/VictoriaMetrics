@@ -10,14 +10,12 @@ export const useExpandWithExprs = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<ErrorTypes | string>();
 
-
   const fetchData = async (query: string) => {
     const fetchUrl = getExpandWithExprUrl(serverUrl, query);
     setLoading(true);
     try {
       const response = await fetch(fetchUrl);
       const resp = await response.json();
-      console.log(resp);
 
       setData(resp?.expr || "");
       setError(String(resp.error || ""));
