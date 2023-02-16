@@ -266,7 +266,7 @@ WITH (
         {% else %}
         {% code expr = metricsql.Optimize(expr) %}
                 "status": "success",
-                expr: {%q string(expr.AppendString(nil)) %}
+                "expr": {%q= string(expr.AppendString(nil)) %}
         {% endif %}
 }
 {% endfunc %}

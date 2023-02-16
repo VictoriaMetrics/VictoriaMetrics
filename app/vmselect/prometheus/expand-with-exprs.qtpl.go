@@ -404,9 +404,9 @@ func streamexpandWithExprsJSON(qw422016 *qt422016.Writer, q string) {
 		expr = metricsql.Optimize(expr)
 
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:267
-		qw422016.N().S(`"status": "success",expr:`)
+		qw422016.N().S(`"status": "success","expr":`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:269
-		qw422016.E().Q(string(expr.AppendString(nil)))
+		qw422016.N().Q(string(expr.AppendString(nil)))
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:270
 	}
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:270
