@@ -1,4 +1,5 @@
 {% import (
+    "fmt"
 	"github.com/VictoriaMetrics/metricsql"
 ) %}
 
@@ -262,7 +263,7 @@ WITH (
     {% code	expr, err := metricsql.Parse(q) %}
         {% if err != nil %}
                 "status": "error",
-                "error": "Cannot parse query:" {%v err %}
+                "error": {%q= fmt.Sprintf("Cannot parse query: %s", err) %}
         {% else %}
         {% code expr = metricsql.Optimize(expr) %}
                 "status": "success",
