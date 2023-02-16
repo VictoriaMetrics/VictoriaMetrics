@@ -446,6 +446,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/expand-with-exprs":
 		expandWithExprsRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		prometheus.ExpandWithExprs(w, r)
 		return true
 	case "/api/v1/rules", "/rules":

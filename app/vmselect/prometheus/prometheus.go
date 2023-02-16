@@ -65,6 +65,7 @@ func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
 	if json != "" {
+		w.Header().Set("Content-Type", "application/json")
 		WriteExpandWithExprsJSONResponse(bw, query)
 	} else {
 		WriteExpandWithExprsResponse(bw, query)
