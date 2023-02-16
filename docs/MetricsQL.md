@@ -508,7 +508,7 @@ See also [duration_over_time](#duration_over_time) and [lag](#lag).
 `mad_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-See also [mad](#mad).
+See also [mad](#mad) and [range_mad](#range_mad).
 
 #### max_over_time
 
@@ -613,6 +613,7 @@ This function is supported by PromQL.
 
 `rollup(series_selector[d])` is a [rollup function](#rollup-functions), which calculates `min`, `max` and `avg` values for raw samples
 on the given lookbehind window `d` and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 These values are calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 #### rollup_candlestick
@@ -627,6 +628,7 @@ from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.ht
 `rollup_delta(series_selector[d])` is a [rollup function](#rollup-functions), which calculates differences between adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -638,6 +640,7 @@ See also [rollup_increase](#rollup_increase).
 `rollup_deriv(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second derivatives
 for adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second derivatives
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -647,6 +650,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_increase(series_selector[d])` is a [rollup function](#rollup-functions), which calculates increases for adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated increases
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
@@ -656,6 +660,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_rate(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second change rates for adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -665,6 +670,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_scrape_interval(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the interval in seconds between
 adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
@@ -809,11 +815,13 @@ See also [min_over_time](#min_over_time).
 
 #### zscore_over_time
 
-`zscore_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates returns [z-score](https://en.wikipedia.org/wiki/Standard_score)
+`zscore_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns [z-score](https://en.wikipedia.org/wiki/Standard_score)
 for raw samples on the given lookbehind window `d`. It is calculated independently per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [zscore](#zscore) and [range_trim_zscore](#range_trim_zscore).
 
 
 ### Transform functions
@@ -1221,6 +1229,13 @@ See also [rand](#rand) and [rand_exponential](#rand_exponential).
 `range_linear_regression(q)` is a [transform function](#transform-functions), which calculates [simple linear regression](https://en.wikipedia.org/wiki/Simple_linear_regression)
 over the selected time range per each time series returned by `q`. This function is useful for capacity planning and predictions.
 
+#### range_mad
+
+`range_mad(q)` is a [transform function](#transform-functions), which calculates the [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+across points per each time series returned by `q`.
+
+See also [mad](#mad) and [mad_over_time](#mad_over_time).
+
 #### range_max
 
 `range_max(q)` is a [transform function](#transform-functions), which calculates the max value across points per each time series returned by `q`.
@@ -1237,6 +1252,8 @@ over the selected time range per each time series returned by `q`. This function
 
 `range_normalize(q1, ...)` is a [transform function](#transform-functions), which normalizes values for time series returned by `q1, ...` into `[0 ... 1]` range.
 This function is useful for correlating time series with distinct value ranges.
+
+See also [share](#share).
 
 #### range_quantile
 
@@ -1257,10 +1274,31 @@ per each time series returned by `q` on the selected time range.
 
 `range_sum(q)` is a [transform function](#transform-functions), which calculates the sum of points per each time series returned by `q`.
 
+#### range_trim_outliers
+
+`range_trim_outliers(k, q)` is a [transform function](#transform-functions), which drops points located farther than `k*range_mad(q)`
+from the `range_median(q)`. E.g. it is equivalent to the following query: `q ifnot (abs(q - range_median(q)) > k*range_mad(q))`.
+
+See also [range_trim_spikes](#range_trim_spikes) and [range_trim_zscore](#range_trim_zscore).
+
 #### range_trim_spikes
 
 `range_trim_spikes(phi, q)` is a [transform function](#transform-functions), which drops `phi` percent of biggest spikes from time series returned by `q`.
 The `phi` must be in the range `[0..1]`, where `0` means `0%` and `1` means `100%`.
+
+See also [range_trim_outliers](#range_trim_outliers) and [range_trim_zscore](#range_trim_zscore).
+
+#### range_trim_zscore
+
+`range_trim_zscore(z, q)` is a [transform function](#transform-functions), which drops points located farther than `z*range_stddev(q)`
+from the `range_avg(q)`. E.g. it is equivalent to the following query: `q ifnot (abs(q - range_avg(q)) > z*range_avg(q))`.
+
+See also [range_trim_outliers](#range_trim_outliers) and [range_trim_spikes](#range_trim_spikes).
+
+#### range_zscore
+
+`range_zscore(q)` is a [transform function](#transform-functions), which calculates [z-score](https://en.wikipedia.org/wiki/Standard_score)
+for points returned by `q`, e.g. it is equivalent to the following query: `(q - range_avg(q)) / range_stddev(q)`.
 
 #### remove_resets
 
@@ -1555,9 +1593,9 @@ See also [label_lowercase](#label_lowercase).
 #### label_value
 
 `label_value(q, "label")` is [label manipulation function](#label-manipulation-functions), which returns numeric values
-for the given `label` for every time series returned by `q`. 
+for the given `label` for every time series returned by `q`.
 
-For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series 
+For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series
 `foo{bar="1.234"}` with `1.234` value. Function will return no data for non-numeric label values.
 
 #### sort_by_label
@@ -1731,7 +1769,7 @@ See also [limit_offset](#limit_offset).
 `mad(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns the [Median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 
-See also [outliers_mad](#outliers_mad) and [stddev](#stddev).
+See also [range_mad](#range_mad), [mad_over_time](#mad_over_time), [outliers_mad](#outliers_mad) and [stddev](#stddev).
 
 #### max
 
@@ -1787,6 +1825,24 @@ returned by `q` and return them in time series with `{phiLabel="phi*"}` label. `
 The aggregate is calculated individually per each group of points with the same timestamp.
 
 See also [quantile](#quantile).
+
+#### share
+
+`share(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns shares in the range `[0..1]`
+for every non-negative points returned by `q` per each timestamp, so the sum of shares per each `group_labels` equals 1.
+
+This function is useful for normalizing [histogram bucket](https://docs.victoriametrics.com/keyConcepts.html#histogram) shares
+into `[0..1]` range:
+
+```metricsql
+share(
+  sum(
+    rate(http_request_duration_seconds_bucket[5m])
+  ) by (le, vmrange)
+)
+```
+
+See also [range_normalize](#range_normalize).
 
 #### stddev
 
@@ -1871,6 +1927,8 @@ See also [bottomk_min](#bottomk_min).
 `zscore(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns [z-score](https://en.wikipedia.org/wiki/Standard_score) values
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 This function is useful for detecting anomalies in the group of related time series.
+
+See also [zscore_over_time](#zscore_over_time) and [range_trim_zscore](#range_trim_zscore).
 
 ## Subqueries
 
