@@ -17,7 +17,8 @@ type FastStringTransformer struct {
 
 	m sync.Map
 
-	transformFunc func(s string) string
+	transformFunc     func(s string) string
+	expirationSeconds uint64
 }
 
 type fstEntry struct {
@@ -30,8 +31,9 @@ type fstEntry struct {
 // transformFunc must return the same result for the same input.
 func NewFastStringTransformer(transformFunc func(s string) string) *FastStringTransformer {
 	return &FastStringTransformer{
-		lastCleanupTime: fasttime.UnixTimestamp(),
-		transformFunc:   transformFunc,
+		lastCleanupTime:   fasttime.UnixTimestamp(),
+		transformFunc:     transformFunc,
+		expirationSeconds: uint64(fastMatcherCacheExpiration.Seconds()),
 	}
 }
 
@@ -72,7 +74,7 @@ func (fst *FastStringTransformer) Transform(s string) string {
 		m := &fst.m
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fstEntry)
-			if atomic.LoadUint64(&e.lastAccessTime)+5*60 < ct {
+			if atomic.LoadUint64(&e.lastAccessTime)+fst.expirationSeconds < ct {
 				m.Delete(k)
 			}
 			return true

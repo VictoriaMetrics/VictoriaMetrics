@@ -1,11 +1,17 @@
 package bytesutil
 
 import (
+	"flag"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+)
+
+var (
+	fastMatcherCacheExpiration = flag.Duration("fastMatcherCacheExpiration", 5*time.Minute, "How long to cache the results of fast matchers.")
 )
 
 // FastStringMatcher implements fast matcher for strings.
@@ -13,7 +19,8 @@ import (
 // It caches string match results and returns them back on the next calls
 // without calling the matchFunc, which may be expensive.
 type FastStringMatcher struct {
-	lastCleanupTime uint64
+	lastCleanupTime   uint64
+	expirationSeconds uint64
 
 	m sync.Map
 
@@ -30,8 +37,9 @@ type fsmEntry struct {
 // matchFunc must return the same result for the same input.
 func NewFastStringMatcher(matchFunc func(s string) bool) *FastStringMatcher {
 	return &FastStringMatcher{
-		lastCleanupTime: fasttime.UnixTimestamp(),
-		matchFunc:       matchFunc,
+		lastCleanupTime:   fasttime.UnixTimestamp(),
+		matchFunc:         matchFunc,
+		expirationSeconds: uint64(fastMatcherCacheExpiration.Seconds()),
 	}
 }
 
@@ -67,7 +75,7 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 		m := &fsm.m
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fsmEntry)
-			if atomic.LoadUint64(&e.lastAccessTime)+5*60 < ct {
+			if atomic.LoadUint64(&e.lastAccessTime)+fsm.expirationSeconds < ct {
 				m.Delete(k)
 			}
 			return true
