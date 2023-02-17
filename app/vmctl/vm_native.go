@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
@@ -138,15 +137,15 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 		endOfRange = t
 	}
 
-	var ranges [][]time.Time
+	ranges := make([][]time.Time, 0)
 	if p.filter.chunk == "" {
-		ranges = make([][]time.Time, 0)
 		ranges = append(ranges, []time.Time{startOfRange, endOfRange})
 	} else {
-		ranges, err = stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
+		r, err := stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
 		if err != nil {
 			return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 		}
+		ranges = append(ranges, r...)
 	}
 
 	fmt.Printf("Initing import process from %q to %q:\n", p.src.addr, p.dst.addr)
@@ -188,17 +187,21 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 	}
 
 	// any error breaks the import
-	for _, s := range series {
-		for _, times := range ranges {
+	for s := range series {
+		ser := fmt.Sprintf("{%s=%q}", "__name__", s)
+		for rangeIdx, times := range ranges {
+			formattedStartTime := times[0].Format(time.RFC3339)
+			formattedEndTime := times[1].Format(time.RFC3339)
+			log.Printf("Processing range %d/%d: %s - %s for series: %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime, ser)
 			select {
 			case <-ctx.Done():
 				return fmt.Errorf("context canceled")
 			case infErr := <-errCh:
 				return fmt.Errorf("native error: %s", infErr)
 			case filterCh <- filter{
-				match:     s.String(),
-				timeStart: times[0].Format(time.RFC3339),
-				timeEnd:   times[1].Format(time.RFC3339),
+				match:     ser,
+				timeStart: formattedStartTime,
+				timeEnd:   formattedEndTime,
 			}:
 			}
 		}
@@ -217,27 +220,12 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 
 type LabelValues map[string]string
 
-func (lv LabelValues) String() string {
-	var str strings.Builder
-	str.WriteString("{")
-	count := len(lv)
-	for key, value := range lv {
-		count--
-		str.WriteString(fmt.Sprintf("%s=%q", key, value))
-		if count != 0 {
-			str.WriteString(",")
-		}
-	}
-	str.WriteString("}")
-	return str.String()
-}
-
 type Response struct {
 	Status string        `json:"status"`
 	Series []LabelValues `json:"data"`
 }
 
-func (p *vmNativeProcessor) getSeries(ctx context.Context, f filter) ([]LabelValues, error) {
+func (p *vmNativeProcessor) getSeries(ctx context.Context, f filter) (map[string]struct{}, error) {
 	u := fmt.Sprintf("%s/%s", p.src.addr, nativeSeriesAddr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -267,7 +255,15 @@ func (p *vmNativeProcessor) getSeries(ctx context.Context, f filter) ([]LabelVal
 	if err := resp.Body.Close(); err != nil {
 		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
 	}
-	return response.Series, nil
+	names := make(map[string]struct{})
+	for _, series := range response.Series {
+		for labelName, labelValue := range series {
+			if labelName == "__name__" {
+				names[labelValue] = struct{}{}
+			}
+		}
+	}
+	return names, nil
 }
 
 func (p *vmNativeProcessor) do(ctx context.Context, f filter) error {
