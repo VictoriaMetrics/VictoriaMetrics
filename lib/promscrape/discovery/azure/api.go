@@ -207,6 +207,7 @@ func getRefreshTokenFunc(sdc *SDConfig, ac, proxyAC *promauth.Config, env *cloud
 			apiVersion = "2017-09-01"
 		}
 		if identityHeader != "" {
+			clientIDParam = "client_id"
 			apiVersion = "2019-08-01"
 		}
 		q.Set("api-version", apiVersion)
