@@ -6513,6 +6513,17 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`range_trim_outliers()`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_trim_outliers(0.5, time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, nan, 1400, 1600, nan, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_trim_spikes()`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_trim_spikes(0.2, time())`
@@ -7064,6 +7075,17 @@ func TestExecSuccess(t *testing.T) {
 		r := netstorage.Result{
 			MetricName: metricNameExpected,
 			Values:     []float64{1000, 1000, 1000, 1000, 1000, 1000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_mad(time())`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_mad(time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{300, 300, 300, 300, 300, 300},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r}
@@ -8331,8 +8353,10 @@ func TestExecError(t *testing.T) {
 	f(`end(1)`)
 	f(`step(1)`)
 	f(`running_sum(1, 2)`)
+	f(`range_mad()`)
 	f(`range_sum(1, 2)`)
 	f(`range_trim_spikes()`)
+	f(`range_trim_outliers()`)
 	f(`range_first(1,  2)`)
 	f(`range_last(1, 2)`)
 	f(`range_linear_regression(1, 2)`)

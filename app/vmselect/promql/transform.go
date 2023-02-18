@@ -89,6 +89,7 @@ var transformFuncs = map[string]transformFunc{
 	"range_first":                transformRangeFirst,
 	"range_last":                 transformRangeLast,
 	"range_linear_regression":    transformRangeLinearRegression,
+	"range_mad":                  transformRangeMAD,
 	"range_max":                  newTransformFuncRange(runningMax),
 	"range_min":                  newTransformFuncRange(runningMin),
 	"range_normalize":            transformRangeNormalize,
@@ -96,6 +97,7 @@ var transformFuncs = map[string]transformFunc{
 	"range_stddev":               transformRangeStddev,
 	"range_stdvar":               transformRangeStdvar,
 	"range_sum":                  newTransformFuncRange(runningSum),
+	"range_trim_outliers":        transformRangeTrimOutliers,
 	"range_trim_spikes":          transformRangeTrimSpikes,
 	"remove_resets":              transformRemoveResets,
 	"round":                      transformRound,
@@ -1275,6 +1277,34 @@ func transformRangeNormalize(tfa *transformFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
+func transformRangeTrimOutliers(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	ks, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	k := float64(0)
+	if len(ks) > 0 {
+		k = ks[0]
+	}
+	// Trim samples v satisfying the `abs(v - range_median(q)) > k*range_mad(q)`
+	rvs := args[1]
+	for _, ts := range rvs {
+		values := ts.Values
+		dMax := k * mad(values)
+		qMedian := quantile(0.5, values)
+		for i, v := range values {
+			if math.Abs(v-qMedian) > dMax {
+				values[i] = nan
+			}
+		}
+	}
+	return rvs, nil
+}
+
 func transformRangeTrimSpikes(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 2); err != nil {
@@ -1339,6 +1369,22 @@ func transformRangeLinearRegression(tfa *transformFuncArg) ([]*timeseries, error
 		v, k := linearRegression(values, timestamps, interceptTimestamp)
 		for i, t := range timestamps {
 			values[i] = v + k*float64(t-interceptTimestamp)/1e3
+		}
+	}
+	return rvs, nil
+}
+
+func transformRangeMAD(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		v := mad(values)
+		for i := range values {
+			values[i] = v
 		}
 	}
 	return rvs, nil

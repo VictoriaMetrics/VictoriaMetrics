@@ -508,7 +508,7 @@ See also [duration_over_time](#duration_over_time) and [lag](#lag).
 `mad_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 over raw samples on the given lookbehind window `d` per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-See also [mad](#mad).
+See also [mad](#mad) and [range_mad](#range_mad).
 
 #### max_over_time
 
@@ -1221,6 +1221,13 @@ See also [rand](#rand) and [rand_exponential](#rand_exponential).
 `range_linear_regression(q)` is a [transform function](#transform-functions), which calculates [simple linear regression](https://en.wikipedia.org/wiki/Simple_linear_regression)
 over the selected time range per each time series returned by `q`. This function is useful for capacity planning and predictions.
 
+#### range_mad
+
+`range_mad(q)` is a [transform function](#transform-functions), which calculates the [median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
+across points per each time series returned by `q`.
+
+See also [mad](#mad) and [mad_over_time](#mad_over_time).
+
 #### range_max
 
 `range_max(q)` is a [transform function](#transform-functions), which calculates the max value across points per each time series returned by `q`.
@@ -1257,10 +1264,21 @@ per each time series returned by `q` on the selected time range.
 
 `range_sum(q)` is a [transform function](#transform-functions), which calculates the sum of points per each time series returned by `q`.
 
+#### range_trim_outliers
+
+`range_trim_outliers(k, q)` is a [transform function](#transform-functions), which drops points located farther than `k*range_mad(q)`
+from the `range_median(q)`. E.g., it is equivalent to the following query: `q ifnot (abs(q - range_median(q)) > k*range_mad(q))`.
+
+The `phi` must be in the range `[0..1]`, where `0` means `0%` and `1` means `100%`.
+
+See also [range_trim_outliers](#range_trim_outliers).
+
 #### range_trim_spikes
 
 `range_trim_spikes(phi, q)` is a [transform function](#transform-functions), which drops `phi` percent of biggest spikes from time series returned by `q`.
 The `phi` must be in the range `[0..1]`, where `0` means `0%` and `1` means `100%`.
+
+See also [range_trim_outliers](#range_trim_outliers).
 
 #### remove_resets
 
@@ -1731,7 +1749,7 @@ See also [limit_offset](#limit_offset).
 `mad(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns the [Median absolute deviation](https://en.wikipedia.org/wiki/Median_absolute_deviation)
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 
-See also [outliers_mad](#outliers_mad) and [stddev](#stddev).
+See also [range_mad](#range_mad), [mad_over_time](#mad_over_time), [outliers_mad](#outliers_mad) and [stddev](#stddev).
 
 #### max
 
