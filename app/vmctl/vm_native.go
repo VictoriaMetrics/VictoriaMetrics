@@ -116,10 +116,12 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 	if p.cc == 0 {
 		p.cc = 1
 	}
+	fmt.Printf("Init series discovery process on time range %s - %s \n", p.filter.timeStart, p.filter.timeEnd)
 	series, err := p.getSeries(ctx, p.filter)
 	if err != nil {
 		return fmt.Errorf("cannot get series from source %s database: %s", p.src, err)
 	}
+	fmt.Printf("Discovered %d series \n", len(series))
 
 	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
 	if err != nil {
@@ -167,9 +169,10 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 	p.ResetStats()
 	filterCh := make(chan filter)
 	errCh := make(chan error)
+	// @TODO we should set this limit via flag equal to minimal of the vmselect or vmstorage -search.maxConcurrentRequests
+	limit := make(chan struct{}, 2)
 
 	var wg sync.WaitGroup
-	// @TODO need use concurrent flag
 	wg.Add(p.cc)
 	for i := 0; i < p.cc; i++ {
 		go func() {
@@ -179,6 +182,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
+				<-limit
 				if bar != nil {
 					bar.Increment()
 				}
@@ -189,26 +193,29 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 	// any error breaks the import
 	for s := range series {
 		ser := fmt.Sprintf("{%s=%q}", "__name__", s)
-		for rangeIdx, times := range ranges {
+		for _, times := range ranges {
 			formattedStartTime := times[0].Format(time.RFC3339)
 			formattedEndTime := times[1].Format(time.RFC3339)
-			log.Printf("Processing range %d/%d: %s - %s for series: %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime, ser)
+			// fmt.Printf("Processing range %d/%d: %s - %s for series: %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime, ser)
 			select {
 			case <-ctx.Done():
 				return fmt.Errorf("context canceled")
 			case infErr := <-errCh:
+				<-limit
 				return fmt.Errorf("native error: %s", infErr)
-			case filterCh <- filter{
-				match:     ser,
-				timeStart: formattedStartTime,
-				timeEnd:   formattedEndTime,
-			}:
+			case limit <- struct{}{}:
+				filterCh <- filter{
+					match:     ser,
+					timeStart: formattedStartTime,
+					timeEnd:   formattedEndTime,
+				}
 			}
 		}
 	}
 
 	close(filterCh)
 	wg.Wait()
+	close(limit)
 	close(errCh)
 
 	for err := range errCh {
