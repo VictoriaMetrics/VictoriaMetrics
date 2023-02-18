@@ -32,7 +32,7 @@ require (
 	github.com/valyala/gozstd v1.17.0
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.6.0
+	golang.org/x/net v0.7.0
 	golang.org/x/oauth2 v0.5.0
 	golang.org/x/sys v0.5.0
 	google.golang.org/api v0.109.0
