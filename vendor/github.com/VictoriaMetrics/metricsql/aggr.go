@@ -29,6 +29,7 @@ var aggrFuncs = map[string]bool{
 	"outliersk":      true,
 	"quantile":       true,
 	"quantiles":      true,
+	"share":          true,
 	"stddev":         true,
 	"stdvar":         true,
 	"sum":            true,
