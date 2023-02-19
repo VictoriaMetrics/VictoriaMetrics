@@ -99,6 +99,8 @@ var transformFuncs = map[string]transformFunc{
 	"range_sum":                  newTransformFuncRange(runningSum),
 	"range_trim_outliers":        transformRangeTrimOutliers,
 	"range_trim_spikes":          transformRangeTrimSpikes,
+	"range_trim_zscore":          transformRangeTrimZscore,
+	"range_zscore":               transformRangeZscore,
 	"remove_resets":              transformRemoveResets,
 	"round":                      transformRound,
 	"running_avg":                newTransformFuncRunning(runningAvg),
@@ -1277,6 +1279,64 @@ func transformRangeNormalize(tfa *transformFuncArg) ([]*timeseries, error) {
 	return rvs, nil
 }
 
+func transformRangeTrimZscore(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 2); err != nil {
+		return nil, err
+	}
+	zs, err := getScalar(args[0], 0)
+	if err != nil {
+		return nil, err
+	}
+	z := float64(0)
+	if len(zs) > 0 {
+		z = math.Abs(zs[0])
+	}
+	// Trim samples with z-score above z.
+	rvs := args[1]
+	for _, ts := range rvs {
+		values := ts.Values
+		qStddev := stddev(values)
+		avg := mean(values)
+		for i, v := range values {
+			zCurr := math.Abs(v-avg) / qStddev
+			if zCurr > z {
+				values[i] = nan
+			}
+		}
+	}
+	return rvs, nil
+}
+
+func transformRangeZscore(tfa *transformFuncArg) ([]*timeseries, error) {
+	args := tfa.args
+	if err := expectTransformArgsNum(args, 1); err != nil {
+		return nil, err
+	}
+	rvs := args[0]
+	for _, ts := range rvs {
+		values := ts.Values
+		qStddev := stddev(values)
+		avg := mean(values)
+		for i, v := range values {
+			values[i] = (v - avg) / qStddev
+		}
+	}
+	return rvs, nil
+}
+
+func mean(values []float64) float64 {
+	var sum float64
+	var n int
+	for _, v := range values {
+		if !math.IsNaN(v) {
+			sum += v
+			n++
+		}
+	}
+	return sum / float64(n)
+}
+
 func transformRangeTrimOutliers(tfa *transformFuncArg) ([]*timeseries, error) {
 	args := tfa.args
 	if err := expectTransformArgsNum(args, 2); err != nil {
@@ -1290,7 +1350,7 @@ func transformRangeTrimOutliers(tfa *transformFuncArg) ([]*timeseries, error) {
 	if len(ks) > 0 {
 		k = ks[0]
 	}
-	// Trim samples v satisfying the `abs(v - range_median(q)) > k*range_mad(q)`
+	// Trim samples satisfying the `abs(v - range_median(q)) > k*range_mad(q)`
 	rvs := args[1]
 	for _, ts := range rvs {
 		values := ts.Values

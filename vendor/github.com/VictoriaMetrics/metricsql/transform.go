@@ -84,6 +84,8 @@ var transformFuncs = map[string]bool{
 	"range_sum":                  true,
 	"range_trim_outliers":        true,
 	"range_trim_spikes":          true,
+	"range_trim_zscore":          true,
+	"range_zscore":               true,
 	"remove_resets":              true,
 	"round":                      true,
 	"running_avg":                true,
