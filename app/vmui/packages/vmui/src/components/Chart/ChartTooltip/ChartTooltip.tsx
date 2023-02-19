@@ -62,11 +62,16 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const showQueryNum = groups.size > 1;
   const group = metrics[seriesIdx-1]?.group || 0;
 
-  const metric = metrics[seriesIdx-1]?.metric || {};
 
-  const fields = useMemo(() => {
+  const fullMetricName = useMemo(() => {
+    const metric = metrics[seriesIdx-1]?.metric || {};
     const labelNames = Object.keys(metric).filter(x => x != "__name__");
-    return labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
+    const labels = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
+    let metricName = metric["__name__"] || "";
+    if (labels.length > 0) {
+      metricName += "{" + labels.join(",") + "}";
+    }
+    return metricName;
   }, [metrics, seriesIdx]);
 
   const handleClose = () => {
@@ -177,19 +182,12 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
           style={{ background: color }}
         />
         <div>
-          curr:<b>{valueFormat}{unit}</b>, median:<b>{calculations.median}</b><br/>
-          min:<b>{calculations.min}</b>, max:<b>{calculations.max}</b>, last:<b>{calculations.last}</b>
+          <b>{valueFormat}{unit}</b><br/>
+          median:<b>{calculations.median}</b>, min:<b>{calculations.min}</b>, max:<b>{calculations.max}</b>
         </div>
       </div>
       <div className="vm-chart-tooltip-info">
-        {metric["__name__"]}
-        &#123;
-        {fields.map((f, i) => (
-          <span key="{i}">
-            {f}{i +1 < fields.length && ","}
-          </span>
-        ))}
-        &#125;
+        {fullMetricName}
       </div>
     </div>
   ), targetPortal);
