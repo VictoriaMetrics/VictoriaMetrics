@@ -809,11 +809,13 @@ See also [min_over_time](#min_over_time).
 
 #### zscore_over_time
 
-`zscore_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which calculates returns [z-score](https://en.wikipedia.org/wiki/Standard_score)
+`zscore_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns [z-score](https://en.wikipedia.org/wiki/Standard_score)
 for raw samples on the given lookbehind window `d`. It is calculated independently per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
+
+See also [zscore](#zscore) and [range_trim_zscore](#range_trim_zscore).
 
 
 ### Transform functions
@@ -1267,18 +1269,28 @@ per each time series returned by `q` on the selected time range.
 #### range_trim_outliers
 
 `range_trim_outliers(k, q)` is a [transform function](#transform-functions), which drops points located farther than `k*range_mad(q)`
-from the `range_median(q)`. E.g., it is equivalent to the following query: `q ifnot (abs(q - range_median(q)) > k*range_mad(q))`.
+from the `range_median(q)`. E.g. it is equivalent to the following query: `q ifnot (abs(q - range_median(q)) > k*range_mad(q))`.
 
-The `phi` must be in the range `[0..1]`, where `0` means `0%` and `1` means `100%`.
-
-See also [range_trim_outliers](#range_trim_outliers).
+See also [range_trim_spikes](#range_trim_spikes) and [range_trim_zscore](#range_trim_zscore).
 
 #### range_trim_spikes
 
 `range_trim_spikes(phi, q)` is a [transform function](#transform-functions), which drops `phi` percent of biggest spikes from time series returned by `q`.
 The `phi` must be in the range `[0..1]`, where `0` means `0%` and `1` means `100%`.
 
-See also [range_trim_outliers](#range_trim_outliers).
+See also [range_trim_outliers](#range_trim_outliers) and [range_trim_zscore](#range_trim_zscore).
+
+#### range_trim_zscore
+
+`range_trim_zscore(z, q)` is a [transform function](#transform-functions), which drops points located farther than `z*range_stddev(q)`
+from the `range_avg(q)`. E.g. it is equivalent to the following query: `q ifnot (abs(q - range_avg(q)) > z*range_avg(q))`.
+
+See also [range_trim_outliers](#range_trim_outliers) and [range_trim_spikes](#range_trim_spikes).
+
+#### range_zscore
+
+`range_zscore(q)` is a [transform function](#transform-functions), which calculates [z-score](https://en.wikipedia.org/wiki/Standard_score)
+for points returned by `q`, e.g. it is equivalent to the following query: `(q - range_avg(q)) / range_stddev(q)`.
 
 #### remove_resets
 
@@ -1889,6 +1901,8 @@ See also [bottomk_min](#bottomk_min).
 `zscore(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns [z-score](https://en.wikipedia.org/wiki/Standard_score) values
 per each `group_labels` for all the time series returned by `q`. The aggregate is calculated individually per each group of points with the same timestamp.
 This function is useful for detecting anomalies in the group of related time series.
+
+See also [zscore_over_time](#zscore_over_time) and [range_trim_zscore](#range_trim_zscore).
 
 ## Subqueries
 

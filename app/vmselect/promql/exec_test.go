@@ -6525,6 +6525,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`range_trim_zscore()`, func(t *testing.T) {
+		t.Parallel()
+		q := `range_trim_zscore(0.9, time())`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1200, 1400, 1600, 1800, nan},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`range_zscore()`, func(t *testing.T) {
+		t.Parallel()
+		q := `round(range_zscore(time()), 0.1)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{-1.5, -0.9, -0.3, 0.3, 0.9, 1.5},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`range_quantile(0.5)`, func(t *testing.T) {
 		t.Parallel()
 		q := `range_quantile(0.5, time())`
@@ -8341,8 +8363,10 @@ func TestExecError(t *testing.T) {
 	f(`running_sum(1, 2)`)
 	f(`range_mad()`)
 	f(`range_sum(1, 2)`)
-	f(`range_trim_spikes()`)
 	f(`range_trim_outliers()`)
+	f(`range_trim_spikes()`)
+	f(`range_trim_zscore()`)
+	f(`range_zscore()`)
 	f(`range_first(1,  2)`)
 	f(`range_last(1, 2)`)
 	f(`range_linear_regression(1, 2)`)

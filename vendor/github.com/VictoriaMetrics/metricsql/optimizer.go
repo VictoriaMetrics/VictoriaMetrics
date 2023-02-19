@@ -393,7 +393,7 @@ func getTransformArgIdxForOptimization(funcName string, args []Expr) int {
 	case "limit_offset":
 		return 2
 	case "buckets_limit", "histogram_quantile", "histogram_share", "range_quantile",
-		"range_trim_outliers", "range_trim_spikes":
+		"range_trim_outliers", "range_trim_spikes", "range_trim_zscore":
 		return 1
 	case "histogram_quantiles":
 		return len(args) - 1
