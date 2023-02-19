@@ -22,7 +22,7 @@ const (
 // UnmarshalTypedError provides unmarshaling errors API response errors
 // for both typed and untyped errors.
 type UnmarshalTypedError struct {
-	exceptions map[string]func(protocol.ResponseMetadata) error
+	exceptions      map[string]func(protocol.ResponseMetadata) error
 	queryExceptions map[string]func(protocol.ResponseMetadata, string) error
 }
 
@@ -30,11 +30,13 @@ type UnmarshalTypedError struct {
 // set of exception names to the error unmarshalers
 func NewUnmarshalTypedError(exceptions map[string]func(protocol.ResponseMetadata) error) *UnmarshalTypedError {
 	return &UnmarshalTypedError{
-		exceptions: exceptions,
+		exceptions:      exceptions,
 		queryExceptions: map[string]func(protocol.ResponseMetadata, string) error{},
 	}
 }
 
+// NewUnmarshalTypedErrorWithOptions works similar to NewUnmarshalTypedError applying options to the UnmarshalTypedError
+// before returning it
 func NewUnmarshalTypedErrorWithOptions(exceptions map[string]func(protocol.ResponseMetadata) error, optFns ...func(*UnmarshalTypedError)) *UnmarshalTypedError {
 	unmarshaledError := NewUnmarshalTypedError(exceptions)
 	for _, fn := range optFns {
@@ -43,6 +45,11 @@ func NewUnmarshalTypedErrorWithOptions(exceptions map[string]func(protocol.Respo
 	return unmarshaledError
 }
 
+// WithQueryCompatibility is a helper function to construct a functional option for use with NewUnmarshalTypedErrorWithOptions.
+// The queryExceptions given act as an override for unmarshalling errors when query compatible error codes are found.
+// See also [awsQueryCompatible trait]
+//
+// [awsQueryCompatible trait]: https://smithy.io/2.0/aws/protocols/aws-query-protocol.html#aws-protocols-awsquerycompatible-trait
 func WithQueryCompatibility(queryExceptions map[string]func(protocol.ResponseMetadata, string) error) func(*UnmarshalTypedError) {
 	return func(typedError *UnmarshalTypedError) {
 		typedError.queryExceptions = queryExceptions

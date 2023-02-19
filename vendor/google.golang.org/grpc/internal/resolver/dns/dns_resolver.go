@@ -32,7 +32,7 @@ import (
 	"sync"
 	"time"
 
-	grpclbstate "google.golang.org/grpc/balancer/grpclb/grpclbstate"
+	grpclbstate "google.golang.org/grpc/balancer/grpclb/state"
 	"google.golang.org/grpc/grpclog"
 	"google.golang.org/grpc/internal/backoff"
 	"google.golang.org/grpc/internal/envconfig"
@@ -116,7 +116,7 @@ type dnsBuilder struct{}
 
 // Build creates and starts a DNS resolver that watches the name resolution of the target.
 func (b *dnsBuilder) Build(target resolver.Target, cc resolver.ClientConn, opts resolver.BuildOptions) (resolver.Resolver, error) {
-	host, port, err := parseTarget(target.Endpoint, defaultPort)
+	host, port, err := parseTarget(target.Endpoint(), defaultPort)
 	if err != nil {
 		return nil, err
 	}
