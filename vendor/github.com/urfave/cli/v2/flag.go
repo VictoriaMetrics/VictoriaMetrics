@@ -4,7 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"regexp"
 	"runtime"
@@ -15,7 +15,7 @@ import (
 
 const defaultPlaceholder = "value"
 
-var (
+const (
 	defaultSliceFlagSeparator = ","
 	disableSliceFlagSeparator = false
 )
@@ -34,18 +34,20 @@ var BashCompletionFlag Flag = &BoolFlag{
 
 // VersionFlag prints the version for the application
 var VersionFlag Flag = &BoolFlag{
-	Name:    "version",
-	Aliases: []string{"v"},
-	Usage:   "print the version",
+	Name:               "version",
+	Aliases:            []string{"v"},
+	Usage:              "print the version",
+	DisableDefaultText: true,
 }
 
 // HelpFlag prints the help for all commands and subcommands.
 // Set to nil to disable the flag.  The subcommand
 // will still be added unless HideHelp or HideHelpCommand is set to true.
 var HelpFlag Flag = &BoolFlag{
-	Name:    "help",
-	Aliases: []string{"h"},
-	Usage:   "show help",
+	Name:               "help",
+	Aliases:            []string{"h"},
+	Usage:              "show help",
+	DisableDefaultText: true,
 }
 
 // FlagStringer converts a flag definition to a string. This is used by help
@@ -165,15 +167,18 @@ type Countable interface {
 	Count() int
 }
 
-func flagSet(name string, flags []Flag) (*flag.FlagSet, error) {
+func flagSet(name string, flags []Flag, spec separatorSpec) (*flag.FlagSet, error) {
 	set := flag.NewFlagSet(name, flag.ContinueOnError)
 
 	for _, f := range flags {
+		if c, ok := f.(customizedSeparator); ok {
+			c.WithSeparatorSpec(spec)
+		}
 		if err := f.Apply(set); err != nil {
 			return nil, err
 		}
 	}
-	set.SetOutput(ioutil.Discard)
+	set.SetOutput(io.Discard)
 	return set, nil
 }
 
@@ -337,8 +342,13 @@ func stringifyFlag(f Flag) string {
 
 	defaultValueString := ""
 
-	if s := df.GetDefaultText(); s != "" {
-		defaultValueString = fmt.Sprintf(formatDefault("%s"), s)
+	// set default text for all flags except bool flags
+	// for bool flags display default text if DisableDefaultText is not
+	// set
+	if bf, ok := f.(*BoolFlag); !ok || !bf.DisableDefaultText {
+		if s := df.GetDefaultText(); s != "" {
+			defaultValueString = fmt.Sprintf(formatDefault("%s"), s)
+		}
 	}
 
 	usageWithDefault := strings.TrimSpace(usage + defaultValueString)
@@ -374,7 +384,7 @@ func flagFromEnvOrFile(envVars []string, filePath string) (value string, fromWhe
 	}
 	for _, fileVar := range strings.Split(filePath, ",") {
 		if fileVar != "" {
-			if data, err := ioutil.ReadFile(fileVar); err == nil {
+			if data, err := os.ReadFile(fileVar); err == nil {
 				return string(data), fmt.Sprintf("file %q", filePath), true
 			}
 		}
@@ -382,10 +392,28 @@ func flagFromEnvOrFile(envVars []string, filePath string) (value string, fromWhe
 	return "", "", false
 }
 
-func flagSplitMultiValues(val string) []string {
-	if disableSliceFlagSeparator {
+type customizedSeparator interface {
+	WithSeparatorSpec(separatorSpec)
+}
+
+type separatorSpec struct {
+	sep        string
+	disabled   bool
+	customized bool
+}
+
+func (s separatorSpec) flagSplitMultiValues(val string) []string {
+	var (
+		disabled bool   = s.disabled
+		sep      string = s.sep
+	)
+	if !s.customized {
+		disabled = disableSliceFlagSeparator
+		sep = defaultSliceFlagSeparator
+	}
+	if disabled {
 		return []string{val}
 	}
 
-	return strings.Split(val, defaultSliceFlagSeparator)
+	return strings.Split(val, sep)
 }

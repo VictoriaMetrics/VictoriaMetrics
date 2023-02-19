@@ -32,7 +32,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/balancer"
-	"google.golang.org/grpc/balancer/grpclb/grpclbstate"
+	grpclbstate "google.golang.org/grpc/balancer/grpclb/state"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
@@ -136,8 +136,8 @@ func (b *lbBuilder) Build(cc balancer.ClientConn, opt balancer.BuildOptions) bal
 
 	lb := &lbBalancer{
 		cc:              newLBCacheClientConn(cc),
-		dialTarget:      opt.Target.Endpoint,
-		target:          opt.Target.Endpoint,
+		dialTarget:      opt.Target.Endpoint(),
+		target:          opt.Target.Endpoint(),
 		opt:             opt,
 		fallbackTimeout: b.fallbackTimeout,
 		doneCh:          make(chan struct{}),
