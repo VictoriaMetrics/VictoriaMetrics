@@ -1247,6 +1247,8 @@ See also [mad](#mad) and [mad_over_time](#mad_over_time).
 `range_normalize(q1, ...)` is a [transform function](#transform-functions), which normalizes values for time series returned by `q1, ...` into `[0 ... 1]` range.
 This function is useful for correlating time series with distinct value ranges.
 
+See also [share](#share).
+
 #### range_quantile
 
 `range_quantile(phi, q)` is a [transform function](#transform-functions), which returns `phi`-quantile across points per each time series returned by `q`.
@@ -1817,6 +1819,24 @@ returned by `q` and return them in time series with `{phiLabel="phi*"}` label. `
 The aggregate is calculated individually per each group of points with the same timestamp.
 
 See also [quantile](#quantile).
+
+#### share
+
+`share(q) by (group_labels)` is [aggregate function](#aggregate-functions), which returns shares in the range `[0..1]`
+for every non-negative points returned by `q` per each timestamp, so the sum of shares per each `group_labels` equals 1.
+
+This function is useful for normalizing [histogram bucket](https://docs.victoriametrics.com/keyConcepts.html#histogram) shares
+into `[0..1]` range:
+
+```metricsql
+share(
+  sum(
+    rate(http_request_duration_seconds_bucket[5m])
+  ) by (le, vmrange)
+)
+```
+
+See also [range_normalize](#range_normalize).
 
 #### stddev
 
