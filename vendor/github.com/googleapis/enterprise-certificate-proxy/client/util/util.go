@@ -17,7 +17,7 @@ package util
 import (
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/user"
 	"path/filepath"
@@ -50,7 +50,7 @@ func LoadSignerBinaryPath(configFilePath string) (path string, err error) {
 		return "", err
 	}
 
-	byteValue, err := ioutil.ReadAll(jsonFile)
+	byteValue, err := io.ReadAll(jsonFile)
 	if err != nil {
 		return "", err
 	}
