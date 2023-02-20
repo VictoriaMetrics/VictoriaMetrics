@@ -2818,3 +2818,7 @@ func (pnc *perNodeCounter) GetTotal() uint64 {
 	}
 	return total
 }
+
+func GetReplicationFactor() Int{
+	return *replicationFactor
+}

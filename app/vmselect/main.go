@@ -124,6 +124,11 @@ func main() {
 		if err != nil {
 			logger.Fatalf("cannot initialize vmselectapi server: %s", err)
 		}
+
+		if len(*storageNodes) < netstorage.GetReplicationFactor() {
+			logger.Warnf("number of replicationFactor should less than number of storageNode.")			
+		}
+
 		vmselectapiServer = s
 		logger.Infof("started vmselectapi server at %q", *clusternativeListenAddr)
 	}
