@@ -18,6 +18,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add the ability to limit the number of concurrent requests on a per-user basis via `max_concurrent_requests` option. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3346) and [these docs](https://docs.victoriametrics.com/vmauth.html#auth-config).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): automatically retry failing GET requests on all the configured backends.
 * FEATURE: [vmalert enterprise](https://docs.victoriametrics.com/vmalert.html): add ability to read alerting and recording rules from S3, GCS or S3-compatible object storage. See [these docs](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add retry policy with backoff for different migration protocols. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3600). 
 
 ## [v1.87.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.1)
 

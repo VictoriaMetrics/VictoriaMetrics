@@ -1015,6 +1015,26 @@ The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
 Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent.html)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
 
+### Retry backoff policy
+
+`vmctl` allows to make retries of requests for different migration processes. Retry backoff policy implements exponential
+backoff algorithm for better flow control. The idea behind exponential backoff is to use progressively longer waits between
+retries for consecutive error responses.
+`vmctl` provides the following flags for retry backoff policy configuration:
+- `--backoff-retries` - how many retries we need to check if callback was successful.
+- `--backoff-factor` - configure the length of delay after each failed attempt.
+- `--backoff-min-duration` - configure minimum (initial) repeat interval.
+
+Retry backoff policy by default enabled on:
+- import process when migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
+- import process when migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
+- import process when migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
+- import process when migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
+- import process when migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
+- import process when migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
+- export and import processes when migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
+- import process when migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
+
 ## How to build
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmctl` is located in `vmutils-*` archives there.

@@ -10,11 +10,8 @@ import (
 )
 
 const (
-	globalSilent       = "s"
-	globalVerbose      = "verbose"
-	backoffRetries     = "backoff-retries"
-	backoffFactor      = "backoff-factor"
-	backoffMinDuration = "backoff-min-duration"
+	globalSilent  = "s"
+	globalVerbose = "verbose"
 )
 
 var (
@@ -30,6 +27,12 @@ var (
 			Usage: "Whether to enable verbosity in logs output.",
 		},
 	}
+)
+
+const (
+	backoffRetries     = "backoff-retries"
+	backoffFactor      = "backoff-factor"
+	backoffMinDuration = "backoff-min-duration"
 )
 
 var (
