@@ -28,8 +28,9 @@ type vmNativeProcessor struct {
 	interCluster bool
 	retry        *utils.Retry
 
-	s  *stats
-	cc int
+	s             *stats
+	cc            int
+	requestsLimit int
 }
 
 type stats struct {
@@ -47,10 +48,6 @@ func (s *stats) String() string {
 
 	totalImportDuration := time.Since(s.startTime)
 	totalImportDurationS := totalImportDuration.Seconds()
-	// var samplesPerS float64
-	// if s.samples > 0 && totalImportDurationS > 0 {
-	// 	samplesPerS = float64(s.samples) / totalImportDurationS
-	// }
 	bytesPerS := byteCountSI(0)
 	if s.bytes > 0 && totalImportDurationS > 0 {
 		bytesPerS = byteCountSI(int64(float64(s.bytes) / totalImportDurationS))
@@ -117,7 +114,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 		p.cc = 1
 	}
 	fmt.Printf("Init series discovery process on time range %s - %s \n", p.filter.timeStart, p.filter.timeEnd)
-	series, err := p.getSeries(ctx, p.filter)
+	series, err := p.explore(ctx, p.filter)
 	if err != nil {
 		return fmt.Errorf("cannot get series from source %s database: %s", p.src, err)
 	}
@@ -150,7 +147,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 		ranges = append(ranges, r...)
 	}
 
-	fmt.Printf("Initing import process from %q to %q:\n", p.src.addr, p.dst.addr)
+	fmt.Printf("Initing import process from %q to %q on time period %s - %s \n", p.src.addr, p.dst.addr, startOfRange, endOfRange)
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
@@ -167,10 +164,10 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 	}()
 
 	p.ResetStats()
+
 	filterCh := make(chan filter)
 	errCh := make(chan error)
-	// @TODO we should set this limit via flag equal to minimal of the vmselect or vmstorage -search.maxConcurrentRequests
-	limit := make(chan struct{}, 2)
+	requestLimitC := make(chan struct{}, p.requestsLimit)
 
 	var wg sync.WaitGroup
 	wg.Add(p.cc)
@@ -182,7 +179,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 					errCh <- fmt.Errorf("request failed for: %s", err)
 					return
 				}
-				<-limit
+				<-requestLimitC
 				if bar != nil {
 					bar.Increment()
 				}
@@ -192,22 +189,18 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 
 	// any error breaks the import
 	for s := range series {
-		ser := fmt.Sprintf("{%s=%q}", "__name__", s)
 		for _, times := range ranges {
-			formattedStartTime := times[0].Format(time.RFC3339)
-			formattedEndTime := times[1].Format(time.RFC3339)
-			// fmt.Printf("Processing range %d/%d: %s - %s for series: %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime, ser)
 			select {
 			case <-ctx.Done():
 				return fmt.Errorf("context canceled")
 			case infErr := <-errCh:
-				<-limit
+				<-requestLimitC
 				return fmt.Errorf("native error: %s", infErr)
-			case limit <- struct{}{}:
+			case requestLimitC <- struct{}{}:
 				filterCh <- filter{
-					match:     ser,
-					timeStart: formattedStartTime,
-					timeEnd:   formattedEndTime,
+					match:     s,
+					timeStart: times[0].Format(time.RFC3339),
+					timeEnd:   times[1].Format(time.RFC3339),
 				}
 			}
 		}
@@ -215,7 +208,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool, verbose bool) 
 
 	close(filterCh)
 	wg.Wait()
-	close(limit)
+	close(requestLimitC)
 	close(errCh)
 
 	for err := range errCh {
@@ -232,7 +225,7 @@ type Response struct {
 	Series []LabelValues `json:"data"`
 }
 
-func (p *vmNativeProcessor) getSeries(ctx context.Context, f filter) (map[string]struct{}, error) {
+func (p *vmNativeProcessor) explore(ctx context.Context, f filter) (map[string]struct{}, error) {
 	u := fmt.Sprintf("%s/%s", p.src.addr, nativeSeriesAddr)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
@@ -266,7 +259,8 @@ func (p *vmNativeProcessor) getSeries(ctx context.Context, f filter) (map[string
 	for _, series := range response.Series {
 		for labelName, labelValue := range series {
 			if labelName == "__name__" {
-				names[labelValue] = struct{}{}
+				name := fmt.Sprintf("{__name__=%q}", labelValue)
+				names[name] = struct{}{}
 			}
 		}
 	}
@@ -286,6 +280,9 @@ func (p *vmNativeProcessor) do(ctx context.Context, f filter) error {
 
 		retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
 		attempts, err := p.retry.Do(ctx, retryableFunc)
+		p.s.Lock()
+		p.s.retries = attempts
+		p.s.Unlock()
 		if err != nil {
 			return fmt.Errorf("failed to migrate data from %s to %s: %s , after attempts: %d", srcURL, dstURL, err, attempts)
 		}
@@ -306,6 +303,9 @@ func (p *vmNativeProcessor) do(ctx context.Context, f filter) error {
 		log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
 		cb := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
 		attempts, err := p.retry.Do(ctx, cb)
+		p.s.Lock()
+		p.s.retries = attempts
+		p.s.Unlock()
 		if err != nil {
 			return fmt.Errorf("failed to migrate data for tenant %q: %s, after attempts: %d", tenant, err, attempts)
 		}

@@ -221,8 +221,9 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
-						retry: utils.NewRetry(c.Int(backoffRetries), c.Float64(backoffFactor), c.Duration(backoffMinDuration)),
-						cc:    c.Int(vmConcurrency),
+						retry:         utils.NewRetry(c.Int(backoffRetries), c.Float64(backoffFactor), c.Duration(backoffMinDuration)),
+						cc:            c.Int(vmConcurrency),
+						requestsLimit: c.Int(vmNativeRequestsLimit),
 					}
 					return p.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
 				},

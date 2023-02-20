@@ -347,6 +347,7 @@ const (
 	vmNativeFilterTimeStart = "vm-native-filter-time-start"
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
+	vmNativeRequestsLimit   = "vm-native-requests-limit"
 
 	vmNativeSrcAddr     = "vm-native-src-addr"
 	vmNativeSrcUser     = "vm-native-src-user"
@@ -432,6 +433,13 @@ var (
 		&cli.UintFlag{
 			Name:  vmConcurrency,
 			Usage: "Number of workers concurrently performing import requests to VM",
+			Value: 2,
+		},
+		&cli.UintFlag{
+			Name: vmNativeRequestsLimit,
+			Usage: "Defines the number of concurrent export requests from the source database. It should be the minimum\n" +
+				" value of the two -search.maxConcurrentRequests values specified on the vmstorage and vmselect\n" +
+				" if you use cluster version, or on vmsingle if you use single version.",
 			Value: 2,
 		},
 	}
