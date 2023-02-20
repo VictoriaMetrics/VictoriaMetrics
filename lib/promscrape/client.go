@@ -366,7 +366,7 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 			return err
 		}
 
-		// the first retry happens without delay (i=0) intentionally,
+		// the first retry happens without delay (attempt=0) intentionally,
 		// as a special case for handling broken or stale connections.
 		backoffTime := sleepTime * time.Duration(attempt)
 
