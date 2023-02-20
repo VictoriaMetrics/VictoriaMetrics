@@ -30,6 +30,32 @@ var (
 )
 
 const (
+	backoffRetries     = "backoff-retries"
+	backoffFactor      = "backoff-factor"
+	backoffMinDuration = "backoff-min-duration"
+)
+
+var (
+	retryFlags = []cli.Flag{
+		&cli.IntFlag{
+			Name:  backoffRetries,
+			Usage: "How many retries we need to check if callback was successful.",
+			Value: 5,
+		},
+		&cli.Float64Flag{
+			Name:  backoffFactor,
+			Usage: "Configure the length of delay after each failed attempt.",
+			Value: 1.7,
+		},
+		&cli.DurationFlag{
+			Name:  backoffMinDuration,
+			Usage: "Configure minimum (initial) repeat interval.",
+			Value: time.Second,
+		},
+	}
+)
+
+const (
 	vmAddr               = "vm-addr"
 	vmUser               = "vm-user"
 	vmPassword           = "vm-password"
@@ -324,6 +350,7 @@ const (
 	vmNativeFilterTimeStart = "vm-native-filter-time-start"
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
+	vmNativeRequestsLimit   = "vm-native-requests-limit"
 
 	vmNativeSrcAddr     = "vm-native-src-addr"
 	vmNativeSrcUser     = "vm-native-src-user"
@@ -405,6 +432,18 @@ var (
 			Usage: "Enables cluster-to-cluster migration mode with automatic tenants data migration.\n" +
 				fmt.Sprintf(" In this mode --%s flag format is: 'http://vmselect:8481/'. --%s flag format is: http://vminsert:8480/. \n", vmNativeSrcAddr, vmNativeDstAddr) +
 				" TenantID will be appended automatically after discovering tenants from src.",
+		},
+		&cli.UintFlag{
+			Name:  vmConcurrency,
+			Usage: "Number of workers concurrently performing import requests to VM",
+			Value: 2,
+		},
+		&cli.UintFlag{
+			Name: vmNativeRequestsLimit,
+			Usage: "Defines the number of concurrent export requests from the source database. It should be set to \n" +
+				" value of the -search.maxConcurrentRequests value specified on the vmselect\n" +
+				" if you use cluster version, or on vmsingle if you use single version.",
+			Value: 2,
 		},
 	}
 )

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -42,7 +43,7 @@ func main() {
 			{
 				Name:  "opentsdb",
 				Usage: "Migrate time series from OpenTSDB",
-				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
+				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags, retryFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
 
@@ -77,7 +78,7 @@ func main() {
 			{
 				Name:  "influx",
 				Usage: "Migrate time series from InfluxDB",
-				Flags: mergeFlags(globalFlags, influxFlags, vmFlags),
+				Flags: mergeFlags(globalFlags, influxFlags, vmFlags, retryFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
 
@@ -118,7 +119,7 @@ func main() {
 			{
 				Name:  "remote-read",
 				Usage: "Migrate time series via Prometheus remote-read protocol",
-				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
+				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags, retryFlags),
 				Action: func(c *cli.Context) error {
 					rr, err := remoteread.NewClient(remoteread.Config{
 						Addr:               c.String(remoteReadSrcAddr),
@@ -158,7 +159,7 @@ func main() {
 			{
 				Name:  "prometheus",
 				Usage: "Migrate time series from Prometheus",
-				Flags: mergeFlags(globalFlags, promFlags, vmFlags),
+				Flags: mergeFlags(globalFlags, promFlags, vmFlags, retryFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
@@ -192,7 +193,7 @@ func main() {
 			{
 				Name:  "vm-native",
 				Usage: "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags: vmNativeFlags,
+				Flags: mergeFlags(vmNativeFlags, retryFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
 
@@ -220,6 +221,9 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
+						retry:         utils.NewRetry(c.Int(backoffRetries), c.Float64(backoffFactor), c.Duration(backoffMinDuration)),
+						cc:            c.Int(vmConcurrency),
+						requestsLimit: c.Int(vmNativeRequestsLimit),
 					}
 					return p.run(ctx)
 				},
@@ -292,5 +296,8 @@ func initConfigVM(c *cli.Context) vm.Config {
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
+		BackoffRetries:     c.Int(backoffRetries),
+		BackoffFactor:      c.Float64(backoffFactor),
+		BackoffMinDuration: c.Duration(backoffMinDuration),
 	}
 }
