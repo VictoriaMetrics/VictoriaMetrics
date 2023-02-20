@@ -440,8 +440,8 @@ var (
 		},
 		&cli.UintFlag{
 			Name: vmNativeRequestsLimit,
-			Usage: "Defines the number of concurrent export requests from the source database. It should be the minimum\n" +
-				" value of the two -search.maxConcurrentRequests values specified on the vmstorage and vmselect\n" +
+			Usage: "Defines the number of concurrent export requests from the source database. It should be set to \n" +
+				" value of the -search.maxConcurrentRequests value specified on the vmselect\n" +
 				" if you use cluster version, or on vmsingle if you use single version.",
 			Value: 2,
 		},

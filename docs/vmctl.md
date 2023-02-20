@@ -758,7 +758,9 @@ Importing tips:
 
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
 Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
-proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format),
+or you can increase `-search.maxSeries` and `-search.maxUniqueTimeseries`, and `-search.maxQueryDuration` following this part
+of the [documentation](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#resource-usage-limits).
 2. Migrating all the metrics from one VM to another may collide with existing application metrics
 (prefixed with `vm_`) at destination and lead to confusion when using
 [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
@@ -769,7 +771,10 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
 5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 and specify `accountID` param.
-6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
+6. When migrating large volumes of data by native protocol it might be useful to use `--vm-native-step-interval` flag to
+split single process into smaller steps.
+7. When migrating large volumes of data by native protocol it might be useful to use `--vm-native-requests-limit` flag to
+define concurrent export requests to `src`.
 
 #### Using time-based chunking of migration
 
