@@ -788,7 +788,18 @@ func (tb *Table) notifyBackgroundMergers() bool {
 	}
 }
 
-var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
+var flushConcurrencyLimit = func() int {
+	n := cgroup.AvailableCPUs()
+	if n < 2 {
+		// Allow at least 2 concurrent flushers on systems with a single CPU core
+		// in order to guarantee that in-memory data flushes and background merges can be continued
+		// when a single flusher is busy with the long merge.
+		n = 2
+	}
+	return n
+}()
+
+var flushConcurrencyCh = make(chan struct{}, flushConcurrencyLimit)
 
 func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 	if len(pws) < maxParts {
@@ -1654,7 +1665,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 			srcPath, dstPath)
 	}
 
-	// Flush pathPrefix directory metadata to the underying storage.
+	// Flush pathPrefix directory metadata to the underlying storage.
 	fs.MustSyncPath(pathPrefix)
 
 	pendingTxnDeletionsWG.Add(1)

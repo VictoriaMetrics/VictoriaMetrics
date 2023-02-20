@@ -57,7 +57,7 @@ const finalPartsToMerge = 3
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
 var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 1) / 2
 
-// The interval for flushing bufferred rows into parts, so they become visible to search.
+// The interval for flushing buffered rows into parts, so they become visible to search.
 const pendingRowsFlushInterval = time.Second
 
 // The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
@@ -615,7 +615,19 @@ func (pt *partition) notifyBackgroundMergers() bool {
 	}
 }
 
-var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
+var flushConcurrencyLimit = func() int {
+	n := cgroup.AvailableCPUs()
+	if n < 3 {
+		// Allow at least 3 concurrent flushers on systems with a single CPU core
+		// in order to guarantee that in-memory data flushes and background merges can be continued
+		// when a single flusher is busy with the long merge of big parts,
+		// while another flusher is busy with the long merge of small parts.
+		n = 3
+	}
+	return n
+}()
+
+var flushConcurrencyCh = make(chan struct{}, flushConcurrencyLimit)
 
 func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 	if len(pws) < maxParts {
@@ -1007,7 +1019,7 @@ func hasActiveMerges(pws []*partWrapper) bool {
 	return false
 }
 
-var mergeWorkersLimitCh = make(chan struct{}, getDefaultMergeConcurrency(16))
+var mergeWorkersLimitCh = make(chan struct{}, adjustMergeWorkersLimit(getDefaultMergeConcurrency(16)))
 
 var bigMergeWorkersLimitCh = make(chan struct{}, getDefaultMergeConcurrency(4))
 
@@ -1038,7 +1050,18 @@ func SetMergeWorkersCount(n int) {
 		// Do nothing
 		return
 	}
+	n = adjustMergeWorkersLimit(n)
 	mergeWorkersLimitCh = make(chan struct{}, n)
+}
+
+func adjustMergeWorkersLimit(n int) int {
+	if n < 2 {
+		// Allow at least 2 merge workers on systems with a single CPU core
+		// in order to guarantee that background merges can be continued
+		// when a single worker is busy with the long merge of big parts.
+		return 2
+	}
+	return n
 }
 
 func (pt *partition) startMergeWorkers() {
@@ -2121,7 +2144,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		}
 	}
 
-	// Flush pathPrefix* directory metadata to the underying storage,
+	// Flush pathPrefix* directory metadata to the underlying storage,
 	// so the moved files become visible there.
 	fs.MustSyncPath(pathPrefix1)
 	fs.MustSyncPath(pathPrefix2)

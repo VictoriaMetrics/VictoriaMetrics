@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// rawRow reperesents raw timeseries row.
+// rawRow represents raw timeseries row.
 type rawRow struct {
 	// TSID is time series id.
 	TSID TSID

@@ -35,6 +35,19 @@ export const getAvgFromArray = (a: number[]) => {
   return mean;
 };
 
+export const getMedianFromArray = (a: number[]) => {
+  let len = a.length;
+  const aCopy = [];
+  while (len--) {
+    const v = a[len];
+    if (Number.isFinite(v)) {
+      aCopy.push(v);
+    }
+  }
+  aCopy.sort();
+  return aCopy[aCopy.length>>1];
+};
+
 export const getLastFromArray = (a: number[]) => {
   let len = a.length;
   while (len--) {

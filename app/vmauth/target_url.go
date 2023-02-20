@@ -7,15 +7,6 @@ import (
 	"strings"
 )
 
-func (up *URLPrefix) mergeURLs(requestURI *url.URL) *url.URL {
-	pu := up.getNextURL()
-	return mergeURLs(pu, requestURI)
-}
-
-func (up *URLPrefix) getBackendsCount() int {
-	return len(up.urls)
-}
-
 func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	targetURL := *uiURL
 	targetURL.Path += requestURI.Path
@@ -39,7 +30,7 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func (ui *UserInfo) getURLPrefix(u *url.URL) (*URLPrefix, []Header, error) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header, error) {
 	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
@@ -59,7 +50,7 @@ func normalizeURL(uOrig *url.URL) *url.URL {
 	// Prevent from attacks with using `..` in r.URL.Path
 	u.Path = path.Clean(u.Path)
 	if !strings.HasSuffix(u.Path, "/") && strings.HasSuffix(uOrig.Path, "/") {
-		// The path.Clean() removes traling slash.
+		// The path.Clean() removes trailing slash.
 		// Return it back if needed.
 		// This should fix https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1752
 		u.Path += "/"

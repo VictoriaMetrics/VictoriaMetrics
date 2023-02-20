@@ -79,7 +79,7 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.prevTimestampsBlockOffset = 0
 }
 
-// InitFromInmemoryPart initialzes bsw from inmemory part.
+// InitFromInmemoryPart initializes bsw from inmemory part.
 func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
 	bsw.reset()
 

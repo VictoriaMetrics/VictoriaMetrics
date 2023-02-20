@@ -77,7 +77,7 @@ with listed targets for scraping.
 
 ## vmalert
 
-vmalert evaluates alerting rules [alerts.yml(https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
+vmalert evaluates alerting rules [alerts.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)
 to track VictoriaMetrics health state. It is connected with AlertManager for firing alerts,
 and with VictoriaMetrics for executing queries and storing alert's state.
 
@@ -86,7 +86,7 @@ and with VictoriaMetrics for executing queries and storing alert's state.
 ## alertmanager
 
 AlertManager accepts notifications from `vmalert` and fires alerts.
-All notifications are blackholed according to `alertmanager.yml` config.
+All notifications are blackholed according to [alertmanager.yml](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alertmanager.yml) config.
 
 [Web interface link](http://localhost:9093/).
 

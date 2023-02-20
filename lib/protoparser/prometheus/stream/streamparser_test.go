@@ -1,4 +1,4 @@
-package prometheus
+package stream
 
 import (
 	"bytes"
@@ -10,20 +10,21 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
 )
 
-func TestParseStream(t *testing.T) {
+func TestParse(t *testing.T) {
 	common.StartUnmarshalWorkers()
 	defer common.StopUnmarshalWorkers()
 
 	const defaultTimestamp = 123
-	f := func(s string, rowsExpected []Row) {
+	f := func(s string, rowsExpected []prometheus.Row) {
 		t.Helper()
 		bb := bytes.NewBufferString(s)
-		var result []Row
+		var result []prometheus.Row
 		var lock sync.Mutex
 		doneCh := make(chan struct{})
-		err := ParseStream(bb, defaultTimestamp, false, func(rows []Row) error {
+		err := Parse(bb, defaultTimestamp, false, func(rows []prometheus.Row) error {
 			lock.Lock()
 			result = appendRowCopies(result, rows)
 			if len(result) == len(rowsExpected) {
@@ -56,7 +57,7 @@ func TestParseStream(t *testing.T) {
 		}
 		result = nil
 		doneCh = make(chan struct{})
-		err = ParseStream(bb, defaultTimestamp, true, func(rows []Row) error {
+		err = Parse(bb, defaultTimestamp, true, func(rows []prometheus.Row) error {
 			lock.Lock()
 			result = appendRowCopies(result, rows)
 			if len(result) == len(rowsExpected) {
@@ -79,12 +80,12 @@ func TestParseStream(t *testing.T) {
 		}
 	}
 
-	f("foo 123 456", []Row{{
+	f("foo 123 456", []prometheus.Row{{
 		Metric:    "foo",
 		Value:     123,
 		Timestamp: 456000,
 	}})
-	f(`foo{bar="baz"} 1 2`+"\n"+`aaa{} 3 4`, []Row{
+	f(`foo{bar="baz"} 1 2`+"\n"+`aaa{} 3 4`, []prometheus.Row{
 		{
 			Metric:    "aaa",
 			Value:     3,
@@ -92,7 +93,7 @@ func TestParseStream(t *testing.T) {
 		},
 		{
 			Metric: "foo",
-			Tags: []Tag{{
+			Tags: []prometheus.Tag{{
 				Key:   "bar",
 				Value: "baz",
 			}},
@@ -100,29 +101,29 @@ func TestParseStream(t *testing.T) {
 			Timestamp: 2000,
 		},
 	})
-	f("foo 23", []Row{{
+	f("foo 23", []prometheus.Row{{
 		Metric:    "foo",
 		Value:     23,
 		Timestamp: defaultTimestamp,
 	}})
 }
 
-func sortRows(rows []Row) {
+func sortRows(rows []prometheus.Row) {
 	sort.Slice(rows, func(i, j int) bool {
 		a, b := rows[i], rows[j]
 		return a.Metric < b.Metric
 	})
 }
 
-func appendRowCopies(dst, src []Row) []Row {
+func appendRowCopies(dst, src []prometheus.Row) []prometheus.Row {
 	for _, r := range src {
-		// Make a copy of r, since r may contain garbage after returning from the callback to ParseStream.
-		var rCopy Row
+		// Make a copy of r, since r may contain garbage after returning from the callback to Parse.
+		var rCopy prometheus.Row
 		rCopy.Metric = copyString(r.Metric)
 		rCopy.Value = r.Value
 		rCopy.Timestamp = r.Timestamp
 		for _, tag := range r.Tags {
-			rCopy.Tags = append(rCopy.Tags, Tag{
+			rCopy.Tags = append(rCopy.Tags, prometheus.Tag{
 				Key:   copyString(tag.Key),
 				Value: copyString(tag.Value),
 			})

@@ -199,7 +199,7 @@ type aggregator struct {
 
 	// suffix contains a suffix, which should be added to aggregate metric names
 	//
-	// It contains the interval, lables in (by, without), plus output name.
+	// It contains the interval, labels in (by, without), plus output name.
 	// For example, foo_bar metric name is transformed to foo_bar:1m_by_job
 	// for `interval: 1m`, `by: [job]`
 	suffix string

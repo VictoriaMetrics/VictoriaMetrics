@@ -1,4 +1,4 @@
-package native
+package stream
 
 import (
 	"bufio"
@@ -14,12 +14,12 @@ import (
 	"github.com/VictoriaMetrics/metrics"
 )
 
-// ParseStream parses /api/v1/import/native lines from req and calls callback for parsed blocks.
+// Parse parses /api/v1/import/native lines from req and calls callback for parsed blocks.
 //
 // The callback can be called concurrently multiple times for streamed data from r.
 //
 // callback shouldn't hold block after returning.
-func ParseStream(r io.Reader, isGzip bool, callback func(block *Block) error) error {
+func Parse(r io.Reader, isGzip bool, callback func(block *Block) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr

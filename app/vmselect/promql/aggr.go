@@ -40,6 +40,7 @@ var aggrFuncs = map[string]aggrFunc{
 	"outliersk":      aggrFuncOutliersK,
 	"quantile":       aggrFuncQuantile,
 	"quantiles":      aggrFuncQuantiles,
+	"share":          aggrFuncShare,
 	"stddev":         newAggrFunc(aggrFuncStddev),
 	"stdvar":         newAggrFunc(aggrFuncStdvar),
 	"sum":            newAggrFunc(aggrFuncSum),
@@ -455,6 +456,37 @@ func aggrFuncMode(tss []*timeseries) []*timeseries {
 	return tss[:1]
 }
 
+func aggrFuncShare(afa *aggrFuncArg) ([]*timeseries, error) {
+	tss, err := getAggrTimeseries(afa.args)
+	if err != nil {
+		return nil, err
+	}
+	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
+		for i := range tss[0].Values {
+			// Calculate sum for non-negative points at position i.
+			var sum float64
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) || v < 0 {
+					continue
+				}
+				sum += v
+			}
+			// Divide every non-negative value at poisition i by sum in order to get its' share.
+			for _, ts := range tss {
+				v := ts.Values[i]
+				if math.IsNaN(v) || v < 0 {
+					ts.Values[i] = nan
+				} else {
+					ts.Values[i] = v / sum
+				}
+			}
+		}
+		return tss
+	}
+	return aggrFuncExt(afe, tss, &afa.ae.Modifier, afa.ae.Limit, true)
+}
+
 func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
 	tss, err := getAggrTimeseries(afa.args)
 	if err != nil {
@@ -490,10 +522,6 @@ func aggrFuncZScore(afa *aggrFuncArg) ([]*timeseries, error) {
 				}
 				ts.Values[i] = (v - avg) / stddev
 			}
-		}
-		// Remove MetricGroup from all the tss.
-		for _, ts := range tss {
-			ts.MetricName.ResetMetricGroup()
 		}
 		return tss
 	}
@@ -901,7 +929,7 @@ func quantileSorted(phi float64, values []float64) float64 {
 func aggrFuncMAD(tss []*timeseries) []*timeseries {
 	// Calculate medians for each point across tss.
 	medians := getPerPointMedians(tss)
-	// Calculate MAD values multipled by tolerance for each point across tss.
+	// Calculate MAD values multiplied by tolerance for each point across tss.
 	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
 	mads := getPerPointMADs(tss, medians)
 	tss[0].Values = append(tss[0].Values[:0], mads...)
@@ -920,7 +948,7 @@ func aggrFuncOutliersMAD(afa *aggrFuncArg) ([]*timeseries, error) {
 	afe := func(tss []*timeseries, modifier *metricsql.ModifierExpr) []*timeseries {
 		// Calculate medians for each point across tss.
 		medians := getPerPointMedians(tss)
-		// Calculate MAD values multipled by tolerance for each point across tss.
+		// Calculate MAD values multiplied by tolerance for each point across tss.
 		// See https://en.wikipedia.org/wiki/Median_absolute_deviation
 		mads := getPerPointMADs(tss, medians)
 		for n := range mads {

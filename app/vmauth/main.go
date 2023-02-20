@@ -33,7 +33,10 @@ var (
 		"See also -maxConcurrentRequests")
 	responseTimeout       = flag.Duration("responseTimeout", 5*time.Minute, "The timeout for receiving a response from backend")
 	maxConcurrentRequests = flag.Int("maxConcurrentRequests", 1000, "The maximum number of concurrent requests vmauth can process. Other requests are rejected with "+
-		"'429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend and max_concurrent_requests option per each user config")
+		"'429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options")
+	maxConcurrentPerUserRequests = flag.Int("maxConcurrentPerUserRequests", 300, "The maximum number of concurrent requests vmauth can process per each configured user. "+
+		"Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option "+
+		"in per-user config")
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
@@ -131,17 +134,21 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headers, err := ui.getURLPrefix(u)
+	up, headers, err := ui.getURLPrefixAndHeaders(u)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
 		return
 	}
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
-		targetURL := up.mergeURLs(u)
-		if tryProcessingRequest(w, r, targetURL, headers) {
+		bu := up.getLeastLoadedBackendURL()
+		targetURL := mergeURLs(bu.url, u)
+		ok := tryProcessingRequest(w, r, targetURL, headers)
+		bu.put()
+		if ok {
 			return
 		}
+		bu.setBroken()
 	}
 	err = &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),

@@ -21,7 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
 )
 
 func main() {
@@ -251,7 +251,7 @@ func main() {
 						return cli.Exit(fmt.Errorf("cannot open exported block at path=%q err=%w", blockPath, err), 1)
 					}
 					var blocksCount uint64
-					if err := parser.ParseStream(f, isBlockGzipped, func(block *parser.Block) error {
+					if err := stream.Parse(f, isBlockGzipped, func(block *stream.Block) error {
 						atomic.AddUint64(&blocksCount, 1)
 						return nil
 					}); err != nil {

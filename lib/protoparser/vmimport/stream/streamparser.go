@@ -1,39 +1,43 @@
-package graphite
+package stream
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
 
-var (
-	trimTimestamp = flag.Duration("graphiteTrimTimestamp", time.Second, "Trim timestamps for Graphite data to this duration. "+
-		"Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data")
-)
+var maxLineLen = flagutil.NewBytes("import.maxLineLen", 100*1024*1024, "The maximum length in bytes of a single line accepted by /api/v1/import; "+
+	"the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export")
 
-// ParseStream parses Graphite lines from r and calls callback for the parsed rows.
+// Parse parses /api/v1/import lines from req and calls callback for the parsed rows.
 //
-// The callback can be called concurrently multiple times for streamed data from r.
+// The callback can be called concurrently multiple times for streamed data from reader.
 //
 // callback shouldn't hold rows after returning.
-func ParseStream(r io.Reader, callback func(rows []Row) error) error {
+func Parse(r io.Reader, isGzipped bool, callback func(rows []vmimport.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
 
+	if isGzipped {
+		zr, err := common.GetGzipReader(r)
+		if err != nil {
+			return fmt.Errorf("cannot read gzipped vmimport data: %w", err)
+		}
+		defer common.PutGzipReader(zr)
+		r = zr
+	}
 	ctx := getStreamContext(r)
 	defer putStreamContext(ctx)
-
 	for ctx.Read() {
 		uw := getUnmarshalWork()
 		uw.ctx = ctx
@@ -55,16 +59,22 @@ func (ctx *streamContext) Read() bool {
 	if ctx.err != nil || ctx.hasCallbackError() {
 		return false
 	}
-	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlock(ctx.br, ctx.reqBuf, ctx.tailBuf)
+	ctx.reqBuf, ctx.tailBuf, ctx.err = common.ReadLinesBlockExt(ctx.br, ctx.reqBuf, ctx.tailBuf, maxLineLen.IntN())
 	if ctx.err != nil {
 		if ctx.err != io.EOF {
 			readErrors.Inc()
-			ctx.err = fmt.Errorf("cannot read graphite plaintext protocol data: %w", ctx.err)
+			ctx.err = fmt.Errorf("cannot read vmimport data: %w", ctx.err)
 		}
 		return false
 	}
 	return true
 }
+
+var (
+	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="vmimport"}`)
+	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="vmimport"}`)
+	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="vmimport"}`)
+)
 
 type streamContext struct {
 	br      *bufio.Reader
@@ -99,12 +109,6 @@ func (ctx *streamContext) reset() {
 	ctx.callbackErr = nil
 }
 
-var (
-	readCalls  = metrics.NewCounter(`vm_protoparser_read_calls_total{type="graphite"}`)
-	readErrors = metrics.NewCounter(`vm_protoparser_read_errors_total{type="graphite"}`)
-	rowsRead   = metrics.NewCounter(`vm_protoparser_rows_read_total{type="graphite"}`)
-)
-
 func getStreamContext(r io.Reader) *streamContext {
 	select {
 	case ctx := <-streamContextPoolCh:
@@ -135,9 +139,9 @@ var streamContextPool sync.Pool
 var streamContextPoolCh = make(chan *streamContext, cgroup.AvailableCPUs())
 
 type unmarshalWork struct {
-	rows     Rows
+	rows     vmimport.Rows
 	ctx      *streamContext
-	callback func(rows []Row) error
+	callback func(rows []vmimport.Row) error
 	reqBuf   []byte
 }
 
@@ -148,7 +152,7 @@ func (uw *unmarshalWork) reset() {
 	uw.reqBuf = uw.reqBuf[:0]
 }
 
-func (uw *unmarshalWork) runCallback(rows []Row) {
+func (uw *unmarshalWork) runCallback(rows []vmimport.Row) {
 	ctx := uw.ctx
 	if err := uw.callback(rows); err != nil {
 		ctx.callbackErrLock.Lock()
@@ -164,30 +168,10 @@ func (uw *unmarshalWork) runCallback(rows []Row) {
 func (uw *unmarshalWork) Unmarshal() {
 	uw.rows.Unmarshal(bytesutil.ToUnsafeString(uw.reqBuf))
 	rows := uw.rows.Rows
-	rowsRead.Add(len(rows))
-
-	// Fill missing timestamps with the current timestamp rounded to seconds.
-	currentTimestamp := int64(fasttime.UnixTimestamp())
 	for i := range rows {
-		r := &rows[i]
-		if r.Timestamp == 0 || r.Timestamp == -1 {
-			r.Timestamp = currentTimestamp
-		}
+		row := &rows[i]
+		rowsRead.Add(len(row.Timestamps))
 	}
-
-	// Convert timestamps from seconds to milliseconds.
-	for i := range rows {
-		rows[i].Timestamp *= 1e3
-	}
-
-	// Trim timestamps if required.
-	if tsTrim := trimTimestamp.Milliseconds(); tsTrim > 1000 {
-		for i := range rows {
-			row := &rows[i]
-			row.Timestamp -= row.Timestamp % tsTrim
-		}
-	}
-
 	uw.runCallback(rows)
 	putUnmarshalWork(uw)
 }

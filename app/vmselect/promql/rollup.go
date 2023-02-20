@@ -56,6 +56,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"lag":                     newRollupFuncOneArg(rollupLag),
 	"last_over_time":          newRollupFuncOneArg(rollupLast),
 	"lifetime":                newRollupFuncOneArg(rollupLifetime),
+	"mad_over_time":           newRollupFuncOneArg(rollupMAD),
 	"max_over_time":           newRollupFuncOneArg(rollupMax),
 	"min_over_time":           newRollupFuncOneArg(rollupMin),
 	"mode_over_time":          newRollupFuncOneArg(rollupModeOverTime),
@@ -121,6 +122,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"lag":                     rollupLag,
 	"last_over_time":          rollupLast,
 	"lifetime":                rollupLifetime,
+	"mad_over_time":           rollupMAD,
 	"max_over_time":           rollupMax,
 	"min_over_time":           rollupMin,
 	"mode_over_time":          rollupModeOverTime,
@@ -383,7 +385,7 @@ func getRollupFunc(funcName string) newRollupFunc {
 }
 
 type rollupFuncArg struct {
-	// The value preceeding values if it fits staleness interval.
+	// The value preceding values if it fits staleness interval.
 	prevValue float64
 
 	// The timestamp for prevValue.
@@ -395,7 +397,7 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceeding values without restrictions on staleness interval.
+	// Real value preceding values without restrictions on staleness interval.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -585,7 +587,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	if window <= 0 {
 		window = rc.Step
 		if rc.MayAdjustWindow && window < maxPrevInterval {
-			// Adjust lookbehind window only if it isn't set explicilty, e.g. rate(foo).
+			// Adjust lookbehind window only if it isn't set explicitly, e.g. rate(foo).
 			// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
 			// when the window doesn't cover at least two raw samples (this is what most users expect).
 			//
@@ -1211,6 +1213,27 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		return qv
 	}
 	return rf, nil
+}
+
+func rollupMAD(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+
+	return mad(rfa.values)
+}
+
+func mad(values []float64) float64 {
+	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
+	median := quantile(0.5, values)
+	a := getFloat64s()
+	ds := a.A[:0]
+	for _, v := range values {
+		ds = append(ds, math.Abs(v-median))
+	}
+	v := quantile(0.5, ds)
+	a.A = ds
+	putFloat64s(a)
+	return v
 }
 
 func rollupHistogram(rfa *rollupFuncArg) float64 {
