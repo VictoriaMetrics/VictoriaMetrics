@@ -2,8 +2,10 @@ import React, { FC } from "preact/compat";
 import dayjs from "dayjs";
 import "./style.scss";
 import { IssueIcon, LogoIcon, WikiIcon } from "../../Main/Icons";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 const Footer: FC = () => {
+  const { isMobile } = useDeviceDetect();
   const copyrightYears = `2019-${dayjs().format("YYYY")}`;
 
   return <footer className="vm-footer">
@@ -23,7 +25,7 @@ const Footer: FC = () => {
       rel="help noreferrer"
     >
       <WikiIcon/>
-      Documentation
+      {isMobile ? "Docs" : "Documentation"}
     </a>
     <a
       className="vm-link vm-footer__link"
@@ -32,7 +34,7 @@ const Footer: FC = () => {
       rel="noreferrer"
     >
       <IssueIcon/>
-      Create an issue
+      {isMobile ? "New issue" : "Create an issue"}
     </a>
     <div className="vm-footer__copyright">
       &copy; {copyrightYears} VictoriaMetrics

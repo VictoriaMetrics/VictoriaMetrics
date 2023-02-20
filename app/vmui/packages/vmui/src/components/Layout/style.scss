@@ -12,7 +12,7 @@
     background-color: $color-background-body;
 
     @media (max-width: 768px) {
-      padding: 0;
+      padding: $padding-small 0 0;
     }
 
     &_app {

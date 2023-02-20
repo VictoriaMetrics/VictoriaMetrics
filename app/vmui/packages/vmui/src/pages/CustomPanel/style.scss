@@ -7,11 +7,20 @@
   gap: $padding-medium;
   height: 100%;
 
+  @media (max-width: 500px) {
+    gap: $padding-small;
+  }
+
   &__warning {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
     justify-content: space-between;
+    gap: $padding-small;
+
+    &_mobile {
+      grid-template-columns: 1fr;
+    }
   }
 
   &__trace {
@@ -30,6 +39,11 @@
       padding: 0 $padding-medium;
       border-bottom: $border-divider;
       z-index: 1;
+
+      @media (max-width: 500px) {
+        margin: 0 0 $padding-small;
+        padding: 0 $padding-global;
+      }
     }
   }
 }

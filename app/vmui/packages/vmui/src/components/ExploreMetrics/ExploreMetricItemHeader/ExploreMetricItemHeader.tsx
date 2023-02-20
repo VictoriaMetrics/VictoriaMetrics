@@ -65,15 +65,17 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
       </div>
       <div className="vm-explore-metrics-item-header__name">{name}</div>
       {!isBucket && (
-        <Tooltip title="calculates the average per-second speed of metric's change">
-          <Switch
-            label={<span>enable <code>rate()</code></span>}
-            value={rateEnabled}
-            onChange={onChangeRate}
-          />
-        </Tooltip>
+        <div className="vm-explore-metrics-item-header__rate">
+          <Tooltip title="calculates the average per-second speed of metric's change">
+            <Switch
+              label={<span>enable <code>rate()</code></span>}
+              value={rateEnabled}
+              onChange={onChangeRate}
+            />
+          </Tooltip>
+        </div>
       )}
-      <div className="vm-explore-metrics-item-header__layout">
+      <div className="vm-explore-metrics-item-header__close">
         <Tooltip title="close graph">
           <Button
             startIcon={<CloseIcon/>}

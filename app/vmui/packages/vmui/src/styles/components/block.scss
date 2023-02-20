@@ -6,6 +6,11 @@
   border-radius: $border-radius-medium;
   box-shadow: $box-shadow;
 
+  @media (max-width: 500px) {
+    padding: $padding-global;
+    border-radius: 0;
+  }
+
   &_empty-padding {
     padding: 0;
   }

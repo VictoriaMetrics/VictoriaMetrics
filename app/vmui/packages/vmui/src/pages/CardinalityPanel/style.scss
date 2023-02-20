@@ -4,4 +4,8 @@
   display: grid;
   align-items: flex-start;
   gap: $padding-medium;
+
+  @media (max-width: 500px) {
+    gap: $padding-small;
+  }
 }

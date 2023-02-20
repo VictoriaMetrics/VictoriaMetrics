@@ -4,7 +4,7 @@ import TimeDurationSelector from "../TimeDurationSelector/TimeDurationSelector";
 import dayjs from "dayjs";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import { useTimeDispatch, useTimeState } from "../../../../state/time/TimeStateContext";
-import { AlarmIcon, CalendarIcon, ClockIcon } from "../../../Main/Icons";
+import { AlarmIcon, ArrowDownIcon, CalendarIcon, ClockIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import Popper from "../../../Main/Popper/Popper";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
@@ -15,8 +15,10 @@ import "./style.scss";
 import useClickOutside from "../../../../hooks/useClickOutside";
 import classNames from "classnames";
 import { useAppState } from "../../../../state/common/StateContext";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 export const TimeSelector: FC = () => {
+  const { isMobile } = useDeviceDetect();
   const { isDarkTheme } = useAppState();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const documentSize = useResize(document.body);
@@ -112,6 +114,7 @@ export const TimeSelector: FC = () => {
   }, [timezone]);
 
   useClickOutside(wrapperRef, (e) => {
+    if (isMobile) return;
     const target = e.target as HTMLElement;
     const isFromButton = fromRef?.current && fromRef.current.contains(target);
     const isUntilButton = untilRef?.current && untilRef.current.contains(target);
@@ -123,17 +126,31 @@ export const TimeSelector: FC = () => {
 
   return <>
     <div ref={buttonRef}>
-      <Tooltip title={displayFullDate ? "Time range controls" : dateTitle}>
-        <Button
-          className={appModeEnable ? "" : "vm-header-button"}
-          variant="contained"
-          color="primary"
-          startIcon={<ClockIcon/>}
+      {isMobile ? (
+        <div
+          className="vm-mobile-option"
           onClick={toggleOpenOptions}
         >
-          {displayFullDate && <span>{dateTitle}</span>}
-        </Button>
-      </Tooltip>
+          <span className="vm-mobile-option__icon"><ClockIcon/></span>
+          <div className="vm-mobile-option-text">
+            <span className="vm-mobile-option-text__label">Time range</span>
+            <span className="vm-mobile-option-text__value">{dateTitle}</span>
+          </div>
+          <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
+        </div>
+      ) : (
+        <Tooltip title={displayFullDate ? "Time range controls" : dateTitle}>
+          <Button
+            className={appModeEnable ? "" : "vm-header-button"}
+            variant="contained"
+            color="primary"
+            startIcon={<ClockIcon/>}
+            onClick={toggleOpenOptions}
+          >
+            {displayFullDate && <span>{dateTitle}</span>}
+          </Button>
+        </Tooltip>
+      )}
     </div>
     <Popper
       open={openOptions}
@@ -141,9 +158,13 @@ export const TimeSelector: FC = () => {
       placement="bottom-right"
       onClose={handleCloseOptions}
       clickOutside={false}
+      title={isMobile ? "Time range controls" : ""}
     >
       <div
-        className="vm-time-selector"
+        className={classNames({
+          "vm-time-selector": true,
+          "vm-time-selector_mobile": isMobile
+        })}
         ref={wrapperRef}
       >
         <div className="vm-time-selector-left">
@@ -161,6 +182,7 @@ export const TimeSelector: FC = () => {
               <span>{formFormat}</span>
               <CalendarIcon/>
               <DatePicker
+                label={"Date From"}
                 ref={fromPickerRef}
                 date={from || ""}
                 onChange={handleFromChange}
@@ -176,6 +198,7 @@ export const TimeSelector: FC = () => {
               <span>{untilFormat}</span>
               <CalendarIcon/>
               <DatePicker
+                label={"Date To"}
                 ref={untilPickerRef}
                 date={until || ""}
                 onChange={handleUntilChange}

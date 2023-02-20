@@ -2,6 +2,7 @@ import React, { FC } from "preact/compat";
 import { relativeTimeOptions } from "../../../../utils/time";
 import "./style.scss";
 import classNames from "classnames";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 interface TimeDurationSelector {
   setDuration: ({ duration, until, id }: {duration: string, until: Date, id: string}) => void;
@@ -9,13 +10,19 @@ interface TimeDurationSelector {
 }
 
 const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDuration }) => {
+  const { isMobile } = useDeviceDetect();
 
   const createHandlerClick = (value: { duration: string, until: Date, id: string }) => () => {
     setDuration(value);
   };
 
   return (
-    <div className="vm-time-duration">
+    <div
+      className={classNames({
+        "vm-time-duration": true,
+        "vm-time-duration_mobile": isMobile,
+      })}
+    >
       {relativeTimeOptions.map(({ id, duration, until, title }) => (
         <div
           className={classNames({

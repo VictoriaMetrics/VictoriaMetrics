@@ -26,6 +26,16 @@
     padding: $padding-global;
     font-size: $font-size;
 
+    &_mobile {
+      padding: 0 $padding-global $padding-small;
+      max-width: 100%;
+      max-height: calc(($vh * 100) - 70px);
+    }
+
+    &_mobile &-info {
+      font-size: $font-size;
+    }
+
     &-info {
       font-size: $font-size-small;
       line-height: 1.6;

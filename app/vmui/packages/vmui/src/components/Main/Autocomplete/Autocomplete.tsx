@@ -1,9 +1,9 @@
 import React, { FC, Ref, useEffect, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
-import useClickOutside from "../../../hooks/useClickOutside";
 import Popper from "../Popper/Popper";
 import "./style.scss";
 import { DoneIcon } from "../Icons";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface AutocompleteProps {
   value: string
@@ -15,7 +15,9 @@ interface AutocompleteProps {
   fullWidth?: boolean
   noOptionsText?: string
   selected?: string[]
-  onSelect: (val: string) => void,
+  label?: string
+  disabledFullScreen?: boolean
+  onSelect: (val: string) => void
   onOpenAutocomplete?: (val: boolean) => void
 }
 
@@ -29,9 +31,12 @@ const Autocomplete: FC<AutocompleteProps> = ({
   fullWidth,
   selected,
   noOptionsText,
+  label,
+  disabledFullScreen,
   onSelect,
   onOpenAutocomplete
 }) => {
+  const { isMobile } = useDeviceDetect();
   const wrapperEl = useRef<HTMLDivElement>(null);
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
@@ -118,8 +123,6 @@ const Autocomplete: FC<AutocompleteProps> = ({
     onOpenAutocomplete && onOpenAutocomplete(openAutocomplete);
   }, [openAutocomplete]);
 
-  useClickOutside(wrapperEl, handleCloseAutocomplete, anchor);
-
   return (
     <Popper
       open={openAutocomplete}
@@ -127,9 +130,14 @@ const Autocomplete: FC<AutocompleteProps> = ({
       placement="bottom-left"
       onClose={handleCloseAutocomplete}
       fullWidth={fullWidth}
+      title={isMobile ? label : undefined}
+      disabledFullScreen={disabledFullScreen}
     >
       <div
-        className="vm-autocomplete"
+        className={classNames({
+          "vm-autocomplete": true,
+          "vm-autocomplete_mobile": isMobile && !disabledFullScreen,
+        })}
         ref={wrapperEl}
       >
         {displayNoOptionsText && <div className="vm-autocomplete__no-options">{noOptionsText}</div>}

@@ -5,6 +5,10 @@
   max-width: 100%;
   overflow: auto;
 
+  @media (max-width: 500px) {
+    margin: 0;
+  }
+
   table {
     margin-top: 0;
   }

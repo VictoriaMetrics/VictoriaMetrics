@@ -1,8 +1,9 @@
 @use "src/styles/variables" as *;
 
 .vm-explore-metrics-item-header {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  //flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
   padding: $padding-global;
@@ -17,9 +18,19 @@
   &__name {
     flex-grow: 1;
     font-weight: bold;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    overflow: hidden;
+    line-height: 130%;
+
+    @media (max-width: 500px) {
+      grid-row: 1;
+      grid-column: 1/3;
+    }
   }
 
   &-order {
+    grid-column: 1;
     display: grid;
     grid-template-columns: auto 20px auto;
     align-items: center;
@@ -31,7 +42,17 @@
     }
   }
 
-  &__layout {
+  &__rate {
+    grid-column: 3;
+
+    @media (max-width: 500px) {
+      grid-column: 3/5;
+    }
+  }
+
+  &__close {
+    grid-row: 1;
+    grid-column: 4;
     display: grid;
     align-items: center;
   }

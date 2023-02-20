@@ -7,6 +7,10 @@
     background-color: transparent;
     transition: background-color 200ms ease;
 
+    @media (max-width: 500px) {
+      padding: $padding-global $padding-global;
+    }
+
     &:hover,
     &_active {
       background-color: $color-hover-black;

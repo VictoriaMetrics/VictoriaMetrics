@@ -11,6 +11,7 @@ $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
   align-items: center;
   justify-content: flex-start;
   cursor: pointer;
+  user-select: none;
 
   &_disabled {
     opacity: 0.6;

@@ -45,6 +45,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           placeholder="Please select job"
           onChange={onChangeJob}
           autofocus={!job}
+          searchable
         />
       </div>
       <div className="vm-explore-metrics-header__instance">
@@ -56,6 +57,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           onChange={onChangeInstance}
           noOptionsText={noInstanceText}
           clearable
+          searchable
         />
       </div>
       <div className="vm-explore-metrics-header__size">
@@ -68,12 +70,14 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
       </div>
       <div className="vm-explore-metrics-header-metrics">
         <Select
+          label={"Metrics"}
           value={selectedMetrics}
           list={names}
           placeholder="Search metric name"
           onChange={onToggleMetric}
           noOptionsText={noMetricsText}
           clearable
+          searchable
         />
       </div>
     </div>

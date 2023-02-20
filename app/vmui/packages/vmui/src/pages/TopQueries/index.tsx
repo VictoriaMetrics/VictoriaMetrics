@@ -14,10 +14,14 @@ import TextField from "../../components/Main/TextField/TextField";
 import Alert from "../../components/Main/Alert/Alert";
 import Tooltip from "../../components/Main/Tooltip/Tooltip";
 import "./style.scss";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
 const Index: FC = () => {
+  const { isMobile } = useDeviceDetect();
+
   const { data, error, loading } = useFetchTopQueries();
   const { topN, maxLifetime } = useTopQueriesState();
   const topQueriesDispatch = useTopQueriesDispatch();
@@ -93,7 +97,12 @@ const Index: FC = () => {
             />
           </div>
         </div>
-        <div className="vm-top-queries-controls-bottom">
+        <div
+          className={classNames({
+            "vm-top-queries-controls-bottom": true,
+            "vm-top-queries-controls-bottom_mobile": isMobile,
+          })}
+        >
           <div className="vm-top-queries-controls-bottom__info">
             VictoriaMetrics tracks the last&nbsp;
             <Tooltip title="search.queryStats.lastQueriesCount">

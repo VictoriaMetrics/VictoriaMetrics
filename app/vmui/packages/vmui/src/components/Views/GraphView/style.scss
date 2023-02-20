@@ -9,5 +9,9 @@
     @media (max-width: 768px) {
       width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
     }
+
+    @media (max-width: 500px) {
+      width: calc(100vw - var(--scrollbar-width));
+    }
   }
 }

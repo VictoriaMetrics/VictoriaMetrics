@@ -9,6 +9,8 @@ import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 export interface CardinalityConfiguratorProps {
   onSetHistory: (step: number) => void;
@@ -43,6 +45,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
 }) => {
   const { autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
+  const { isMobile } = useDeviceDetect();
 
   const { queryOptions } = useFetchQueryOptions();
 
@@ -112,7 +115,12 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
         onChange={onChangeAutocomplete}
       />
     </div>
-    <div className="vm-cardinality-configurator-bottom">
+    <div
+      className={classNames({
+        "vm-cardinality-configurator-bottom": true,
+        "vm-cardinality-configurator-bottom_mobile": isMobile,
+      })}
+    >
       <div className="vm-cardinality-configurator-bottom__info">
         Analyzed <b>{totalSeries}</b> series with <b>{totalLabelValuePairs}</b> &quot;label=value&quot; pairs
         at <b>{date}</b>{match && <span> for series selector <b>{match}</b></span>}.
@@ -141,6 +149,7 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
       <Button
         startIcon={<PlayIcon/>}
         onClick={onRunQuery}
+        fullWidth
       >
         Execute Query
       </Button>

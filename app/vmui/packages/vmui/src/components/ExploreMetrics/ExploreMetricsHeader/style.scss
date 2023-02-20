@@ -6,17 +6,21 @@
   align-items: center;
   justify-content: flex-start;
   gap: $padding-global calc($padding-small + 10px);
+  max-width: 100vw;
 
   &__job {
     flex-grow: 1;
+    min-width: 150px;
   }
 
   &__instance {
     flex-grow: 2;
+    min-width: 150px;
   }
 
   &__size {
     flex-grow: 1;
+    min-width: 150px;
   }
 
   &-metrics {

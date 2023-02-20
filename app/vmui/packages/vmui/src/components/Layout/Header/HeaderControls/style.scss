@@ -1,0 +1,27 @@
+@use "src/styles/variables" as *;
+
+.vm-header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $padding-small;
+  flex-grow: 1;
+
+  &_mobile {
+    display: grid;
+    grid-template-columns: 1fr;
+    padding: 0;
+
+    .vm-header-button {
+      border: none;
+    }
+  }
+
+  &-modal {
+    transform: scale(0);
+
+    &_open {
+      transform: scale(1);
+    }
+  }
+}
