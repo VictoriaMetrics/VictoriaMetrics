@@ -87,7 +87,12 @@ const CustomPanel: FC = () => {
   }, [query]);
 
   return (
-    <div className="vm-custom-panel">
+    <div
+      className={classNames({
+        "vm-custom-panel": true,
+        "vm-custom-panel_mobile": isMobile,
+      })}
+    >
       <QueryConfigurator
         error={error}
         queryOptions={queryOptions}
@@ -123,8 +128,9 @@ const CustomPanel: FC = () => {
       <div
         className={classNames({
           "vm-custom-panel-body": true,
-          "vm-block_empty-padding": isMobile,
-          "vm-block": true
+          "vm-custom-panel-body_mobile": isMobile,
+          "vm-block": true,
+          "vm-block_mobile": isMobile,
         })}
       >
         <div className="vm-custom-panel-body-header">

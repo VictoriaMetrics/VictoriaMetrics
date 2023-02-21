@@ -18,7 +18,7 @@
     justify-content: space-between;
     gap: $padding-global;
 
-    @media (max-width: 500px) {
+    &_mobile {
       gap: $padding-small;
     }
 

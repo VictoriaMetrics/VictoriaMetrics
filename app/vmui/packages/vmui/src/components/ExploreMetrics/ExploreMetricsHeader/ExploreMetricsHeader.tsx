@@ -2,6 +2,8 @@ import React, { FC, useMemo } from "preact/compat";
 import Select from "../../Main/Select/Select";
 import "./style.scss";
 import { GRAPH_SIZES } from "../../../constants/graph";
+import classNames from "classnames";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface ExploreMetricsHeaderProps {
   jobs: string[]
@@ -34,9 +36,17 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
 }) => {
   const noInstanceText = useMemo(() => job ? "" : "No instances. Please select job", [job]);
   const noMetricsText = useMemo(() => job ? "" : "No metric names. Please select job", [job]);
+  const { isMobile } = useDeviceDetect();
 
   return (
-    <div className="vm-explore-metrics-header vm-block">
+    <div
+      className={classNames({
+        "vm-explore-metrics-header": true,
+        "vm-explore-metrics-header_mobile": isMobile,
+        "vm-block": true,
+        "vm-block_mobile": isMobile,
+      })}
+    >
       <div className="vm-explore-metrics-header__job">
         <Select
           value={job}

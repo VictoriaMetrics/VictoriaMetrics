@@ -71,10 +71,21 @@ const Index: FC = () => {
   }, [data]);
 
   return (
-    <div className="vm-top-queries">
+    <div
+      className={classNames({
+        "vm-top-queries": true,
+        "vm-top-queries_mobile": isMobile,
+      })}
+    >
       {loading && <Spinner containerStyles={{ height: "500px" }}/>}
 
-      <div className="vm-top-queries-controls vm-block">
+      <div
+        className={classNames({
+          "vm-top-queries-controls": true,
+          "vm-block": true,
+          "vm-block_mobile": isMobile,
+        })}
+      >
         <div className="vm-top-queries-controls-fields">
           <div className="vm-top-queries-controls-fields__item">
             <TextField

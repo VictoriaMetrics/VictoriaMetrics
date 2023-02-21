@@ -85,11 +85,6 @@
     }
   }
 
-  &_mobile &-body {
-    grid-template-columns: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
-    grid-template-rows: repeat(6, calc((100vw - ($padding-global * 2) - (5 * 2px))/7));
-  }
-
   &-body {
     display: grid;
     grid-template-columns: repeat(7, 32px);
@@ -97,6 +92,11 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
+
+    @media (max-width: 500px) {
+      grid-template-columns: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
+      grid-template-rows: repeat(6, calc((100vw - ($padding-global * 2) - (5 * 2px))/7));
+    }
 
     &-cell {
       display: flex;

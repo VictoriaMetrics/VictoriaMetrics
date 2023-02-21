@@ -7,7 +7,7 @@
   gap: $padding-medium;
   height: 100%;
 
-  @media (max-width: 500px) {
+  &_mobile {
     gap: $padding-small;
   }
 
@@ -39,11 +39,11 @@
       padding: 0 $padding-medium;
       border-bottom: $border-divider;
       z-index: 1;
+    }
 
-      @media (max-width: 500px) {
-        margin: 0 0 $padding-small;
-        padding: 0 $padding-global;
-      }
+    &_mobile &-header {
+      margin: -$padding-global 0-$padding-global $padding-global;
+      padding: 0 $padding-global;
     }
   }
 }

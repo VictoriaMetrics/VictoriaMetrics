@@ -60,6 +60,13 @@ const Popper: FC<PopperProps> = ({
 
   useEffect(() => {
     if (!isOpen && onClose) onClose();
+    if (isOpen && isMobile && !disabledFullScreen) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = "auto";
+    };
   }, [isOpen]);
 
   useEffect(() => {

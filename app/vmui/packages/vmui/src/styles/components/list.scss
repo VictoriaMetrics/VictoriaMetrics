@@ -7,7 +7,7 @@
     background-color: transparent;
     transition: background-color 200ms ease;
 
-    @media (max-width: 500px) {
+    &_mobile {
       padding: $padding-global $padding-global;
     }
 

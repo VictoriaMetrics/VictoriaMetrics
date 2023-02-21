@@ -13,7 +13,7 @@
     font-size: $font-size;
     font-weight: bold;
 
-    @media (max-width: 500px) {
+    &_mobile {
       overflow: hidden;
       text-overflow: ellipsis;
       display: -webkit-box;
@@ -29,5 +29,4 @@
     justify-content: flex-start;
     font-size: $font-size-small;
   }
-
 }

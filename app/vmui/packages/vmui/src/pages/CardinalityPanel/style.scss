@@ -5,7 +5,7 @@
   align-items: flex-start;
   gap: $padding-medium;
 
-  @media (max-width: 500px) {
+  &_mobile {
     gap: $padding-small;
   }
 }

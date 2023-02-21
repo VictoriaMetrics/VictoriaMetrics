@@ -27,6 +27,7 @@ const TimeDurationSelector: FC<TimeDurationSelector> = ({ relativeTime, setDurat
         <div
           className={classNames({
             "vm-list-item": true,
+            "vm-list-item_mobile": isMobile,
             "vm-list-item_active": id === relativeTime
           })}
           key={id}

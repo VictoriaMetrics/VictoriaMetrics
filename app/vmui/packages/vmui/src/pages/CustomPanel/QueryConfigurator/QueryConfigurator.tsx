@@ -113,7 +113,13 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
     onHideQuery(hideQuery);
   }, [hideQuery]);
 
-  return <div className="vm-query-configurator vm-block">
+  return <div
+    className={classNames({
+      "vm-query-configurator": true,
+      "vm-block": true,
+      "vm-block_mobile": isMobile
+    })}
+  >
     <div className="vm-query-configurator-list">
       {stateQuery.map((q, i) => (
         <div

@@ -145,6 +145,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
           <div
             className={classNames({
               "vm-list-item": true,
+              "vm-list-item_mobile": isMobile,
               "vm-list-item_active": i === focusOption,
               "vm-list-item_multiselect": selected,
               "vm-list-item_multiselect_selected": selected?.includes(option)

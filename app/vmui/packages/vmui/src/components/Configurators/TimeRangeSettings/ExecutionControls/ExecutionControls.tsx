@@ -154,6 +154,7 @@ export const ExecutionControls: FC = () => {
           <div
             className={classNames({
               "vm-list-item": true,
+              "vm-list-item_mobile": isMobile,
               "vm-list-item_active": d.seconds === selectedDelay.seconds
             })}
             key={d.seconds}

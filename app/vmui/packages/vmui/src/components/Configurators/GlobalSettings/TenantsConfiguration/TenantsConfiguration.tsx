@@ -143,6 +143,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
             <div
               className={classNames({
                 "vm-list-item": true,
+                "vm-list-item_mobile": isMobile,
                 "vm-list-item_active": id === tenantIdState
               })}
               key={id}

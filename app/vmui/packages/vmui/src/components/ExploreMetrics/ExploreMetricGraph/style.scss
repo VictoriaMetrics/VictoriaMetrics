@@ -3,7 +3,7 @@
 .vm-explore-metrics-graph {
   padding: 0 $padding-global $padding-global;
 
-  @media (max-width: 500px) {
+  &_mobile {
     padding: 0 0 $padding-global;
   }
 

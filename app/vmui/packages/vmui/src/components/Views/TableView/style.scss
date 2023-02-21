@@ -5,8 +5,8 @@
   max-width: 100%;
   overflow: auto;
 
-  @media (max-width: 500px) {
-    margin: 0;
+  &_mobile {
+    margin-top: -$padding-global;
   }
 
   table {

@@ -26,7 +26,7 @@
     &__nav {
       padding: $padding-medium $padding-medium $padding-medium 0;
 
-      @media (max-width: 500px) {
+      &_mobile {
         padding: $padding-small $padding-small $padding-small 0;
       }
     }

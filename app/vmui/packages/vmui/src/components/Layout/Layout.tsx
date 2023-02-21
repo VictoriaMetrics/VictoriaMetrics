@@ -7,9 +7,11 @@ import classNames from "classnames";
 import Footer from "./Footer/Footer";
 import { routerOptions } from "../../router";
 import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 const Layout: FC = () => {
   const appModeEnable = getAppModeEnable();
+  const { isMobile } = useDeviceDetect();
   useFetchDashboards();
 
   const { pathname } = useLocation();
@@ -24,6 +26,7 @@ const Layout: FC = () => {
     <div
       className={classNames({
         "vm-container-body": true,
+        "vm-container-body_mobile": isMobile,
         "vm-container-body_app": appModeEnable
       })}
     >

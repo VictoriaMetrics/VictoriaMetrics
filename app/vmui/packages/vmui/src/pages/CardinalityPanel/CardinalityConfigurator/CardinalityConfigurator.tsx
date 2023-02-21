@@ -63,7 +63,13 @@ const CardinalityConfigurator: FC<CardinalityConfiguratorProps> = ({
     onSetHistory(1);
   };
 
-  return <div className="vm-cardinality-configurator vm-block">
+  return <div
+    className={classNames({
+      "vm-cardinality-configurator": true,
+      "vm-block": true,
+      "vm-block_mobile": isMobile,
+    })}
+  >
     <div className="vm-cardinality-configurator-controls">
       <div className="vm-cardinality-configurator-controls__query">
         <QueryEditor

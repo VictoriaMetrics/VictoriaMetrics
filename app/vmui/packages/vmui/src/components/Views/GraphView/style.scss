@@ -10,7 +10,7 @@
       width: calc(100vw - ($padding-medium * 2) - var(--scrollbar-width));
     }
 
-    @media (max-width: 500px) {
+    &_mobile {
       width: calc(100vw - var(--scrollbar-width));
     }
   }
