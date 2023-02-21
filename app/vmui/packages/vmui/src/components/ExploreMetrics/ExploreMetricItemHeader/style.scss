@@ -9,6 +9,11 @@
   border-bottom: $border-divider;
   gap: $padding-global;
 
+  &_mobile {
+    grid-template-columns: 1fr auto;
+    padding: $padding-small $padding-global;
+  }
+
   &__index {
     color: $color-text-secondary;
     font-size: $font-size-small;
@@ -21,11 +26,6 @@
     text-overflow: ellipsis;
     overflow: hidden;
     line-height: 130%;
-
-    @media (max-width: 500px) {
-      grid-row: 1;
-      grid-column: 1/3;
-    }
   }
 
   &-order {
@@ -43,10 +43,6 @@
 
   &__rate {
     grid-column: 3;
-
-    @media (max-width: 500px) {
-      grid-column: 3/5;
-    }
   }
 
   &__close {
@@ -61,5 +57,36 @@
     font-size: 85%;
     background-color: $color-hover-black;
     border-radius: 6px;
+  }
+
+  &-modal {
+    display: grid;
+    align-items: flex-start;
+    gap: $padding-medium;
+
+    &-order {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: $padding-medium;
+
+      p {
+        display: flex;
+        align-items: center;
+      }
+
+      &__index {
+        margin-left: 4px;
+      }
+    }
+
+    &__rate {
+      display: grid;
+      gap: $padding-small;
+
+      p {
+        color: $color-text-secondary;
+      }
+    }
   }
 }

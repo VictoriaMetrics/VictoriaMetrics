@@ -40,6 +40,7 @@ const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYax
       value={yaxis.limits.enable}
       onChange={toggleEnableLimits}
       label="Fix the limits for y-axis"
+      fullWidth={isMobile}
     />
     <div className="vm-axes-limits-list">
       {axes.map(axis => (

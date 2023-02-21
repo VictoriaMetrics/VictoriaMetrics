@@ -1,13 +1,16 @@
-import React, { FC } from "preact/compat";
+import React, { FC, useState } from "preact/compat";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Button from "../../Main/Button/Button";
-import { ArrowDownIcon, CloseIcon } from "../../Main/Icons";
+import { ArrowDownIcon, CloseIcon, MinusIcon, MoreIcon, PlusIcon } from "../../Main/Icons";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Modal from "../../Main/Modal/Modal";
 
 interface ExploreMetricItemControlsProps {
   name: string
   index: number
+  length: number
   isBucket: boolean
   rateEnabled: boolean
   size: string
@@ -19,12 +22,15 @@ interface ExploreMetricItemControlsProps {
 const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
   name,
   index,
+  length,
   isBucket,
   rateEnabled,
   onChangeRate,
   onRemoveItem,
   onChangeOrder,
 }) => {
+  const { isMobile } = useDeviceDetect();
+  const [openOptions, setOpenOptions] = useState(false);
 
   const handleClickRemove = () => {
     onRemoveItem(name);
@@ -37,6 +43,76 @@ const ExploreMetricItemHeader: FC<ExploreMetricItemControlsProps> = ({
   const handleOrderUp = () => {
     onChangeOrder(name, index, index - 1);
   };
+
+  const handleOpenOptions = () => {
+    setOpenOptions(true);
+  };
+
+  const handleCloseOptions = () => {
+    setOpenOptions(false);
+  };
+
+  if (isMobile) {
+    return (
+      <div className="vm-explore-metrics-item-header vm-explore-metrics-item-header_mobile">
+        <div className="vm-explore-metrics-item-header__name">{name}</div>
+        <Button
+          variant="text"
+          size="small"
+          startIcon={<MoreIcon/>}
+          onClick={handleOpenOptions}
+        />
+        {openOptions && (
+          <Modal
+            title={name}
+            onClose={handleCloseOptions}
+          >
+            <div className="vm-explore-metrics-item-header-modal">
+              <div className="vm-explore-metrics-item-header-modal-order">
+                <Button
+                  startIcon={<MinusIcon/>}
+                  variant="outlined"
+                  onClick={handleOrderUp}
+                  disabled={index === 0}
+                />
+                <p>position:
+                  <span className="vm-explore-metrics-item-header-modal-order__index">#{index + 1}</span>
+                </p>
+                <Button
+                  endIcon={<PlusIcon/>}
+                  variant="outlined"
+                  onClick={handleOrderDown}
+                  disabled={index === length - 1}
+                />
+              </div>
+              {!isBucket && (
+                <div className="vm-explore-metrics-item-header-modal__rate">
+                  <Switch
+                    label={<span>enable <code>rate()</code></span>}
+                    value={rateEnabled}
+                    onChange={onChangeRate}
+                    fullWidth
+                  />
+                  <p>
+                    calculates the average per-second speed of metrics change
+                  </p>
+                </div>
+              )}
+              <Button
+                startIcon={<CloseIcon/>}
+                color="error"
+                variant="outlined"
+                onClick={handleClickRemove}
+                fullWidth
+              >
+                  Remove graph
+              </Button>
+            </div>
+          </Modal>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="vm-explore-metrics-item-header">

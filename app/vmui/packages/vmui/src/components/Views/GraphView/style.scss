@@ -11,7 +11,7 @@
     }
 
     &_mobile {
-      width: calc(100vw - var(--scrollbar-width));
+      width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
     }
   }
 }

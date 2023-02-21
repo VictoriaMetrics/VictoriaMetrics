@@ -124,7 +124,7 @@ const Select: FC<SelectProps> = ({
         ref={autocompleteAnchorEl}
       >
         <div className="vm-select-input-content">
-          {selectedValues && selectedValues.map(item => (
+          {!isMobile && selectedValues && selectedValues.map(item => (
             <div
               className="vm-select-input-content__selected"
               key={item}
@@ -135,15 +135,22 @@ const Select: FC<SelectProps> = ({
               </div>
             </div>
           ))}
-          <input
-            value={textFieldValue}
-            type="text"
-            placeholder={placeholder}
-            onInput={handleChange}
-            onFocus={handleFocus}
-            ref={inputRef}
-            readOnly={isMobile || !searchable}
-          />
+          {isMobile && !!selectedValues?.length && (
+            <span className="vm-select-input-content__counter">
+              selected {selectedValues.length}
+            </span>
+          )}
+          {!isMobile || (isMobile && (!selectedValues || !selectedValues?.length)) && (
+            <input
+              value={textFieldValue}
+              type="text"
+              placeholder={placeholder}
+              onInput={handleChange}
+              onFocus={handleFocus}
+              ref={inputRef}
+              readOnly={isMobile || !searchable}
+            />
+          )}
         </div>
         {label && <span className="vm-text-field__label">{label}</span>}
         {clearable && value && (

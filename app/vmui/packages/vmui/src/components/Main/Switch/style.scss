@@ -13,6 +13,15 @@ $switch-border-radius: $switch-handle-size + ($switch-padding * 2);
   cursor: pointer;
   user-select: none;
 
+  &_full-width {
+    justify-content: space-between;
+    flex-direction: row-reverse;
+  }
+
+  &_full-width &__label {
+    margin-left: 0;
+  }
+
   &_disabled {
     opacity: 0.6;
     cursor: default;

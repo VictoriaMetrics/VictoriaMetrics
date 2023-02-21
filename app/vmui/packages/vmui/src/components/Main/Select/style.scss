@@ -21,6 +21,15 @@
       width: 100%;
       max-width: calc(100% - ($padding-global + 61px));
 
+      &_mobile {
+        flex-wrap: nowrap;
+      }
+
+      &__counter {
+        font-size: $font-size;
+        line-height: $font-size;
+      }
+
       &__selected {
         display: inline-flex;
         align-items: center;
@@ -33,7 +42,7 @@
         max-width: 100%;
 
         span {
-          max-width: 100%;
+          width: 100%;
           overflow: hidden;
           text-overflow: ellipsis;
         }

@@ -39,16 +39,19 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
         label={"Autocomplete"}
         value={autocomplete}
         onChange={onChangeAutocomplete}
+        fullWidth={isMobile}
       />
       <Switch
         label={"Disable cache"}
         value={nocache}
         onChange={onChangeCache}
+        fullWidth={isMobile}
       />
       <Switch
         label={"Trace query"}
         value={isTracingEnabled}
         onChange={onChangeQueryTracing}
+        fullWidth={isMobile}
       />
     </div>
   );
