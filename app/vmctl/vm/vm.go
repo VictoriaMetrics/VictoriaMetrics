@@ -223,7 +223,7 @@ func (im *Importer) startWorker(ctx context.Context, bar *pb.ProgressBar, batchS
 				Batch: batch,
 			}
 			retryableFunc := func() error { return im.Import(batch) }
-			_, err := im.backoff.Retry(context.Background(), retryableFunc)
+			_, err := im.backoff.Retry(ctx, retryableFunc)
 			if err != nil {
 				exitErr.Err = err
 			}
