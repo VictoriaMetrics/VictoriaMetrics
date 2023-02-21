@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding/zstd"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
@@ -21,7 +22,7 @@ var maxInsertRequestSize = flagutil.NewBytes("maxInsertRequestSize", 32*1024*102
 // Parse parses Prometheus remote_write message from reader and calls callback for the parsed timeseries.
 //
 // callback shouldn't hold tss after returning.
-func Parse(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
+func Parse(r io.Reader, isVMRemoteWrite bool, callback func(tss []prompb.TimeSeries) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
@@ -38,9 +39,16 @@ func Parse(r io.Reader, callback func(tss []prompb.TimeSeries) error) error {
 	bb := bodyBufferPool.Get()
 	defer bodyBufferPool.Put(bb)
 	var err error
-	bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
-	if err != nil {
-		return fmt.Errorf("cannot decompress request with length %d: %w", len(ctx.reqBuf.B), err)
+	if isVMRemoteWrite {
+		bb.B, err = zstd.Decompress(bb.B[:0], ctx.reqBuf.B)
+		if err != nil {
+			return fmt.Errorf("cannot decompress zstd-encoded request with length %d: %w", len(ctx.reqBuf.B), err)
+		}
+	} else {
+		bb.B, err = snappy.Decode(bb.B[:cap(bb.B)], ctx.reqBuf.B)
+		if err != nil {
+			return fmt.Errorf("cannot decompress snappy-encoded request with length %d: %w", len(ctx.reqBuf.B), err)
+		}
 	}
 	if int64(len(bb.B)) > maxInsertRequestSize.N {
 		return fmt.Errorf("too big unpacked request; mustn't exceed `-maxInsertRequestSize=%d` bytes; got %d bytes", maxInsertRequestSize.N, len(bb.B))
