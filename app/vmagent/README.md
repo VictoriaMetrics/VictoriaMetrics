@@ -25,7 +25,9 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 * Can add, remove and modify labels (aka tags) via Prometheus relabeling. Can filter data before sending it to remote storage. See [these docs](#relabeling) for details.
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
 * Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation.html).
-* Can replicate collected metrics simultaneously to multiple remote storage systems - see [these docs](#replication-and-high-availability).
+* Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems - see [these docs](#replication-and-high-availability).
+* Can save egress network bandwidth usage costs by up to 10x when [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol)
+  is used for sending the data to VictoriaMetrics.
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL`.
@@ -45,22 +47,21 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 
 Please download `vmutils-*` archive from [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) (
 `vmagent` is also available in [docker images](https://hub.docker.com/r/victoriametrics/vmagent/tags)),
-unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets:
+unpack it and pass the following flags to the `vmagent` binary in order to start scraping Prometheus-compatible targets
+and sending the data to the Prometheus-compatible remote storage:
 
-* `-promscrape.config` with the path to Prometheus config file (usually located at `/etc/prometheus/prometheus.yml`).
+* `-promscrape.config` with the path to [Prometheus config file](https://docs.victoriametrics.com/sd_configs.html) (usually located at `/etc/prometheus/prometheus.yml`).
   The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file,
   so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
-* `-remoteWrite.url` with the remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified
-  multiple times to replicate data concurrently to an arbitrary number of remote storage systems. See [various use cases](#use-cases).
+* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified
+  multiple times to replicate data concurrently to multiple remote storage systems. See [various use cases](#use-cases).
 
 Example command line:
 
 ```console
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
-
-Example of scrape configuration for `-promscrape.config` argument you can find [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/prometheus.yml)
 
 See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-prometheus-format) for more details.
 
@@ -74,6 +75,8 @@ and sending it to the provided `-remoteWrite.url`:
 ```console
 /path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
 ```
+
+`vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is enabled](#victoriametrics-remote-write-protocol).
 
 See [troubleshooting docs](#troubleshooting) if you encounter common issues with `vmagent`.
 
@@ -120,7 +123,8 @@ data to the remote storage. It re-tries sending the data to remote storage until
 The maximum on-disk size for the buffered metrics can be limited with `-remoteWrite.maxDiskUsagePerURL`.
 
 `vmagent` works on various architectures from the IoT world - 32-bit arm, 64-bit arm, ppc64, 386, amd64.
-See [the corresponding Makefile rules](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmagent/Makefile) for details.
+
+The `vmagent` can save network bandwidth usage costs by using [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol).
 
 ### Drop-in replacement for Prometheus
 
@@ -174,6 +178,33 @@ writes are always performed in Promethes remote_write protocol. Therefore for th
 the `-remoteWrite.url` command-line flag should be configured as `<schema>://<vminsert-host>:8480/insert/<accountID>/prometheus/api/v1/write`
 according to [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format).
 There is also support for multitenant writes. See [these docs](#multitenancy).
+
+## VictoriaMetrics remote write protocol
+
+By default `vmagent` uses Prometheus remote_write protocol for sending the data to the configured `-remoteWrite.url`.
+This allows sending data to [any Prometheus-compatible remote storage](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
+
+The Prometheus remote_write protocol may require big amounts of network bandwidth under high load.
+This may result in high network egress costs when the configured remote storage is located in remote datacenter or availability zone.
+This also may result in the increased disk IO at `vmagent` when it writes to disk the pending data, which must be sent to remote storage.
+In this case the `vmagent` can be instructed to use VictoriaMetrics remote write protocol.
+This allows reducing egress network bandwidth costs by up to 10x while reducing disk read/write IO at `vmagent` side under high load.
+The `-remoteWrite.useVMProto=true` command-line flag instructs `vmagent` to send the data to the corresponding `-remoteWrite.url`
+via VictoriaMetrics remote write protocol.
+
+While all the [recently released](https://docs.victoriametrics.com/CHANGELOG.html) VictoriaMetrics components support
+the VictoriaMetrics remote write protocol, third-party systems and old versions of VictoriaMetrics components may miss the support of this protocol.
+
+The `-remoteWrite.useVMProto` command-line flag can be set independently per each configured `-remoteWrite.url`.
+For example, the following command instructs `vmagent` to send the data to `https://victoriametrics/api/v1/write` via VictoriaMetrics remote write protocol,
+while sending the data to `https://prom-compatible-storage/write` via Prometheus remote write protocol:
+
+```
+./vmagent -remoteWrite.url=https://victoriametrics/api/v1/write \
+  -remoteWrite.useVMProto=true \
+  -remoteWrite.url=https://prom-compatible-storage/write \
+  -remoteWrite.useVMProto=false
+```
 
 ## Multitenancy
 
@@ -1212,7 +1243,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -insert.maxQueueDuration duration
      The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 300)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
   -kafka.consumer.topic array
      Kafka topic names for data consumption. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1505,11 +1536,14 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.tmpDataPath string
      Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
   -remoteWrite.url array
-     Remote storage URL to write data to. It must support Prometheus remote_write API. It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.multitenantURL
+     Remote storage URL to write data to. It must support Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . It is recommended setting -remoteWrite.useVMProto command-line option when VictoriaMetrics is used as a remote storage in order to save network bandwidth. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
      Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.useVMProto array
+     Whether to use VictoriaMetrics protocol for sending the data to the given -remoteWrite.url in order to reduce network bandwidth usage and disk read/write IO under high load. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
+     Supports array of values separated by comma or specified via multiple flags.
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls
