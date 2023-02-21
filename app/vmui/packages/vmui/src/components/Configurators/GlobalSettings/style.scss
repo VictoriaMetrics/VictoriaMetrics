@@ -21,13 +21,6 @@
 
   &__input {
     width: 100%;
-
-    &_server {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 0 $padding-small;
-      align-items: center;
-    }
   }
 
   &__title {

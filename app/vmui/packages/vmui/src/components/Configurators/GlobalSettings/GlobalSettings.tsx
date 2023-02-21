@@ -86,7 +86,7 @@ const GlobalSettings: FC = () => {
           })}
         >
           {!appModeEnable && (
-            <div className="vm-server-configurator__input vm-server-configurator__input_server">
+            <div className="vm-server-configurator__input">
               <ServerConfigurator
                 serverUrl={serverUrl}
                 onChange={setServerUrl}
