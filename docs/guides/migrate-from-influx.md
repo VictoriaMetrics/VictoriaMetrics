@@ -267,7 +267,7 @@ consider [backfilling tips](https://docs.victoriametrics.com/Single-server-Victo
 * How do I get raw data points with MetricsQL?
     * _For getting raw data points specify the interval at which you want them in square brackets and send
       as [instant query](https://docs.victoriametrics.com/keyConcepts.html#instant-query). For
-      example, `GET api/v1/query?query="my_metric[5m]"&time=<time>` will return raw samples for `my_metric` in interval
+      example, `GET api/v1/query?query=my_metric[5m]&time=<time>` will return raw samples for `my_metric` in interval
       from `<time>` to `<time>-5m`._
 * Can you have multiple aggregators in a MetricsQL query, e.g. `SELECT MAX(field), MIN(field) ...`?
     * _Yes, try the following query `( alias(max(field), "max"), alias(min(field), "min") )`._
