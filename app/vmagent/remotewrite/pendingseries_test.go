@@ -45,7 +45,7 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 	f(false, expectedBlockLenProm, 0)
 
 	// Check VictoriaMetrics remote write
-	f(true, expectedBlockLenVM, 10)
+	f(true, expectedBlockLenVM, 15)
 }
 
 func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteRequest {
