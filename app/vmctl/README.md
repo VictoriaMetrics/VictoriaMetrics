@@ -754,9 +754,7 @@ Importing tips:
 
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
 Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
-proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format),
-or you can increase `-search.maxSeries` and `-search.maxUniqueTimeseries`, and `-search.maxQueryDuration` following this part
-of the [documentation](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#resource-usage-limits).
+proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
 2. Migrating all the metrics from one VM to another may collide with existing application metrics
 (prefixed with `vm_`) at destination and lead to confusion when using
 [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
@@ -767,10 +765,7 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
 5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 and specify `accountID` param.
-6. When migrating large volumes of data by native protocol it might be useful to use `--vm-native-step-interval` flag to
-split single process into smaller steps.
-7. When migrating large volumes of data by native protocol it might be useful to use `--vm-native-requests-limit` flag to
-define concurrent export requests to `src`.
+6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
 
 #### Using time-based chunking of migration
 
@@ -1015,26 +1010,6 @@ The rate limit may be set in bytes-per-second via `--vm-rate-limit` flag.
 
 Please note, you can also use [vmagent](https://docs.victoriametrics.com/vmagent.html)
 as a proxy between `vmctl` and destination with `-remoteWrite.rateLimit` flag enabled.
-
-### Retry backoff policy
-
-`vmctl` allows to make retries of requests for different migration protocols. Retry backoff policy implements exponential
-backoff algorithm for better flow control. The idea behind exponential backoff is to use progressively longer waits between
-retries for consecutive error responses.
-`vmctl` provides the following flags for retry backoff policy configuration:
-- `--backoff-retries` - how many retries we need to check if callback was successful.
-- `--backoff-factor` - configure the length of delay after each failed attempt.
-- `--backoff-min-duration` - configure minimum (initial) repeat interval.
-
-Retry backoff policy by default enabled on:
-- import process when migrate data from [Prometheus](#migrating-data-from-prometheus) to VictoriaMetrics using snapshot API
-- import process when migrate data from [Thanos](#migrating-data-from-thanos) to VictoriaMetrics
-- import process when migrate data from [Cortex](#migrating-data-from-cortex) to VictoriaMetrics
-- import process when migrate data from [Mimir](#migrating-data-from-mimir) to VictoriaMetrics
-- import process when migrate data from [InfluxDB](#migrating-data-from-influxdb-1x) to VictoriaMetrics
-- import process when migrate data from [OpenTSDB](#migrating-data-from-opentsdb) to VictoriaMetrics
-- export and import processes when migrate data between [VictoriaMetrics](#migrating-data-from-victoriametrics) single or cluster version.
-- import process when migrate data by [Prometheus remote read protocol](#migrating-data-by-remote-read-protocol) to VictoriaMetrics
 
 ## How to build
 
