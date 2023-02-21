@@ -26,7 +26,7 @@ additionally to [discovering Prometheus-compatible targets and scraping metrics 
 * Can accept data via all the ingestion protocols supported by VictoriaMetrics - see [these docs](#how-to-push-data-to-vmagent).
 * Can aggregate incoming samples by time and by labels before sending them to remote storage - see [these docs](https://docs.victoriametrics.com/stream-aggregation.html).
 * Can replicate collected metrics simultaneously to multiple Prometheus-compatible remote storage systems - see [these docs](#replication-and-high-availability).
-* Can save egress network bandwidth usage costs by up to 10x when [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol)
+* Can save egress network bandwidth usage costs when [VictoriaMetrics remote write protocol](#victoriametrics-remote-write-protocol)
   is used for sending the data to VictoriaMetrics.
 * Works smoothly in environments with unstable connections to remote storage. If the remote storage is unavailable, the collected metrics
   are buffered at `-remoteWrite.tmpDataPath`. The buffered metrics are sent to remote storage as soon as the connection
@@ -188,7 +188,7 @@ The Prometheus remote_write protocol may require big amounts of network bandwidt
 This may result in high network egress costs when the configured remote storage is located in remote datacenter or availability zone.
 This also may result in the increased disk IO at `vmagent` when it writes to disk the pending data, which must be sent to remote storage.
 In this case the `vmagent` can be instructed to use VictoriaMetrics remote write protocol.
-This allows reducing egress network bandwidth costs by up to 10x while reducing disk read/write IO at `vmagent` side under high load.
+This allows reducing egress network bandwidth costs while reducing disk read/write IO at `vmagent` side under high load.
 The `-remoteWrite.useVMProto=true` command-line flag instructs `vmagent` to send the data to the corresponding `-remoteWrite.url`
 via VictoriaMetrics remote write protocol.
 
