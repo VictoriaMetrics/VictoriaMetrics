@@ -7,14 +7,13 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"sync"
 	"time"
+
+	"github.com/cheggaaa/pb/v3"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
-	"github.com/cheggaaa/pb/v3"
 )
 
 type vmNativeProcessor struct {
@@ -24,10 +23,6 @@ type vmNativeProcessor struct {
 	dst          *vmNativeClient
 	src          *vmNativeClient
 	interCluster bool
-	retry        *utils.Retry
-
-	cc            int
-	requestsLimit int
 }
 
 type vmNativeClient struct {
@@ -59,61 +54,13 @@ const (
 	nativeExportAddr  = "api/v1/export/native"
 	nativeImportAddr  = "api/v1/import/native"
 	nativeTenantsAddr = "admin/tenants"
-	nativeSeriesAddr  = "api/v1/series"
 
 	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context) error {
-	if p.cc == 0 {
-		p.cc = 1
-	}
-
-	fmt.Printf("Init series discovery process on time range %s - %s \n", p.filter.timeStart, p.filter.timeEnd)
-	series, err := p.explore(ctx, p.filter)
-	if err != nil {
-		return fmt.Errorf("cannot get series from source %s database: %s", p.src.addr, err)
-	}
-	fmt.Printf("Discovered %d series \n", len(series))
-
-	pool := pb.NewPool()
-	if err := pool.Start(); err != nil {
-		log.Printf("error start process bars pool: %s", err)
-		return err
-	}
-	bar := pb.ProgressBarTemplate(nativeBarTpl).New(0)
-	pool.Add(bar)
-	defer func() {
-		bar.Finish()
-		if err := pool.Stop(); err != nil {
-			fmt.Printf("failed to stop barpool: %+v\n", err)
-		}
-	}()
-
-	requestLimitC := make(chan struct{}, p.requestsLimit)
-	var wg sync.WaitGroup
-
 	if p.filter.chunk == "" {
-		for s := range series {
-			wg.Add(p.cc)
-			f := filter{match: s, timeStart: p.filter.timeStart, timeEnd: p.filter.timeEnd}
-			for i := 0; i < p.cc; i++ {
-				requestLimitC <- struct{}{}
-				go func() {
-					defer func() {
-						wg.Done()
-						<-requestLimitC
-					}()
-					fmt.Printf("Initing export pipe from %q with filters: %s \n", p.src.addr, f)
-					retryableFunc := func() error { return p.runWithFilter(ctx, bar, f) }
-					attempts, err := p.retry.Do(ctx, retryableFunc)
-					if err != nil {
-						log.Fatalf("processing failed: %s - %s after %d attempts \n with error: %s", p.filter.timeStart, p.filter.timeEnd, attempts, err)
-						return
-					}
-				}()
-			}
-		}
+		return p.runWithFilter(ctx, p.filter)
 	}
 
 	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
@@ -137,40 +84,25 @@ func (p *vmNativeProcessor) run(ctx context.Context) error {
 	}
 
 	for rangeIdx, r := range ranges {
-		for s := range series {
-			formattedStartTime := r[0].Format(time.RFC3339)
-			formattedEndTime := r[1].Format(time.RFC3339)
-			log.Printf("Processing range %d/%d: %s - %s for series: %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime, s)
+		formattedStartTime := r[0].Format(time.RFC3339)
+		formattedEndTime := r[1].Format(time.RFC3339)
+		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
+		f := filter{
+			match:     p.filter.match,
+			timeStart: formattedStartTime,
+			timeEnd:   formattedEndTime,
+		}
+		err := p.runWithFilter(ctx, f)
 
-			f := filter{match: s, timeStart: formattedStartTime, timeEnd: formattedEndTime}
-			fmt.Printf("Initing export pipe from %q with filters: %s \n", p.src.addr, f)
-			wg.Add(p.cc)
-			for i := 0; i < p.cc; i++ {
-				requestLimitC <- struct{}{}
-				go func(f filter, i int) {
-					defer func() {
-						wg.Done()
-						<-requestLimitC
-						fmt.Printf("Import finished for: %s \n", f.String())
-					}()
-					retryableFunc := func() error { return p.runWithFilter(ctx, bar, f) }
-					attempts, err := p.retry.Do(ctx, retryableFunc)
-					if err != nil {
-						log.Fatalf("processing failed for range %d/%d: %s - %s after %d attempts \n with error: %s", rangeIdx+1, len(ranges), f.timeStart, f.timeEnd, attempts, err)
-						return
-					}
-				}(f, i)
-			}
+		if err != nil {
+			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
+			return err
 		}
 	}
-
-	wg.Wait()
-	close(requestLimitC)
-
 	return nil
 }
 
-func (p *vmNativeProcessor) runWithFilter(ctx context.Context, bar *pb.ProgressBar, f filter) error {
+func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
 	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
 
 	if err != nil {
@@ -181,7 +113,7 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, bar *pb.ProgressB
 		srcURL := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
 		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
 
-		return p.runSingle(ctx, bar, f, srcURL, dstURL)
+		return p.runSingle(ctx, f, srcURL, dstURL)
 	}
 
 	tenants, err := p.getSourceTenants(ctx, f)
@@ -195,7 +127,7 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, bar *pb.ProgressB
 		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.addr, tenant, nativeExportAddr)
 		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.addr, tenant, nativeImportAddr)
 
-		if err := p.runSingle(ctx, bar, f, srcURL, dstURL); err != nil {
+		if err := p.runSingle(ctx, f, srcURL, dstURL); err != nil {
 			return fmt.Errorf("failed to migrate data for tenant %q: %s", tenant, err)
 		}
 	}
@@ -203,7 +135,8 @@ func (p *vmNativeProcessor) runWithFilter(ctx context.Context, bar *pb.ProgressB
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, bar *pb.ProgressBar, f filter, srcURL, dstURL string) error {
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dstURL string) error {
+	log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
 
 	exportReader, err := p.exportPipe(ctx, srcURL, f)
 	if err != nil {
@@ -216,21 +149,32 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, bar *pb.ProgressBar, 
 		defer func() { close(sync) }()
 		req, err := http.NewRequestWithContext(ctx, "POST", dstURL, pr)
 		if err != nil {
-			log.Printf("cannot create import request to %q: %s", p.dst.addr, err)
-			return
+			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
 		}
 		importResp, err := p.dst.do(req, http.StatusNoContent)
 		if err != nil {
-			log.Printf("import request failed: %s", err)
-			return
+			log.Fatalf("import request failed: %s", err)
 		}
 		if err := importResp.Body.Close(); err != nil {
-			log.Printf("cannot close import response body: %s", err)
-			return
+			log.Fatalf("cannot close import response body: %s", err)
 		}
 	}()
 
+	fmt.Printf("Initing import process to %q:\n", dstURL)
+	pool := pb.NewPool()
+	bar := pb.ProgressBarTemplate(nativeBarTpl).New(0)
+	pool.Add(bar)
 	barReader := bar.NewProxyReader(exportReader)
+	if err := pool.Start(); err != nil {
+		log.Printf("error start process bars pool: %s", err)
+		return err
+	}
+	defer func() {
+		bar.Finish()
+		if err := pool.Stop(); err != nil {
+			fmt.Printf("failed to stop barpool: %+v\n", err)
+		}
+	}()
 
 	w := io.Writer(pw)
 	if p.rateLimit > 0 {
@@ -248,6 +192,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, bar *pb.ProgressBar, 
 	}
 	<-sync
 
+	log.Println("Import finished!")
 	return nil
 }
 
@@ -328,53 +273,4 @@ func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error
 		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
 	}
 	return resp, err
-}
-
-type LabelValues map[string]string
-
-type Response struct {
-	Status string        `json:"status"`
-	Series []LabelValues `json:"data"`
-}
-
-func (p *vmNativeProcessor) explore(ctx context.Context, f filter) (map[string]struct{}, error) {
-	u := fmt.Sprintf("%s/%s", p.src.addr, nativeSeriesAddr)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", u, err)
-	}
-
-	params := req.URL.Query()
-	if f.timeStart != "" {
-		params.Set("start", f.timeStart)
-	}
-	if f.timeEnd != "" {
-		params.Set("end", f.timeEnd)
-	}
-	params.Set("match[]", f.match)
-	req.URL.RawQuery = params.Encode()
-
-	resp, err := p.src.do(req, http.StatusOK)
-	if err != nil {
-		return nil, fmt.Errorf("tenants request failed: %s", err)
-	}
-
-	var response Response
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("cannot decode tenants response: %s", err)
-	}
-
-	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
-	}
-	names := make(map[string]struct{})
-	for _, series := range response.Series {
-		for labelName, labelValue := range series {
-			if labelName == "__name__" {
-				name := fmt.Sprintf("{__name__=%q}", labelValue)
-				names[name] = struct{}{}
-			}
-		}
-	}
-	return names, nil
 }

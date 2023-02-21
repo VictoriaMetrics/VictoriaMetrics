@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -43,7 +42,7 @@ func main() {
 			{
 				Name:  "opentsdb",
 				Usage: "Migrate time series from OpenTSDB",
-				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags, retryFlags),
+				Flags: mergeFlags(globalFlags, otsdbFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("OpenTSDB import mode")
 
@@ -66,7 +65,7 @@ func main() {
 					// disable progress bars since openTSDB implementation
 					// does not use progress bar pool
 					vmCfg.DisableProgressBar = true
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -78,7 +77,7 @@ func main() {
 			{
 				Name:  "influx",
 				Usage: "Migrate time series from InfluxDB",
-				Flags: mergeFlags(globalFlags, influxFlags, vmFlags, retryFlags),
+				Flags: mergeFlags(globalFlags, influxFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("InfluxDB import mode")
 
@@ -101,7 +100,7 @@ func main() {
 					}
 
 					vmCfg := initConfigVM(c)
-					importer, err = vm.NewImporter(vmCfg)
+					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -119,7 +118,7 @@ func main() {
 			{
 				Name:  "remote-read",
 				Usage: "Migrate time series via Prometheus remote-read protocol",
-				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags, retryFlags),
+				Flags: mergeFlags(globalFlags, remoteReadFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					rr, err := remoteread.NewClient(remoteread.Config{
 						Addr:               c.String(remoteReadSrcAddr),
@@ -138,7 +137,7 @@ func main() {
 
 					vmCfg := initConfigVM(c)
 
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -159,12 +158,12 @@ func main() {
 			{
 				Name:  "prometheus",
 				Usage: "Migrate time series from Prometheus",
-				Flags: mergeFlags(globalFlags, promFlags, vmFlags, retryFlags),
+				Flags: mergeFlags(globalFlags, promFlags, vmFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("Prometheus import mode")
 
 					vmCfg := initConfigVM(c)
-					importer, err = vm.NewImporter(vmCfg)
+					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -193,7 +192,7 @@ func main() {
 			{
 				Name:  "vm-native",
 				Usage: "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags: mergeFlags(vmNativeFlags, retryFlags),
+				Flags: mergeFlags(vmNativeFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
 
@@ -221,9 +220,6 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
-						retry:         utils.NewRetry(c.Int(backoffRetries), c.Float64(backoffFactor), c.Duration(backoffMinDuration)),
-						cc:            c.Int(vmConcurrency),
-						requestsLimit: c.Int(vmNativeRequestsLimit),
 					}
 					return p.run(ctx)
 				},
@@ -296,8 +292,5 @@ func initConfigVM(c *cli.Context) vm.Config {
 		ExtraLabels:        c.StringSlice(vmExtraLabel),
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
-		BackoffRetries:     c.Int(backoffRetries),
-		BackoffFactor:      c.Float64(backoffFactor),
-		BackoffMinDuration: c.Duration(backoffMinDuration),
 	}
 }

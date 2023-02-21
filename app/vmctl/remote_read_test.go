@@ -30,7 +30,7 @@ func TestRemoteRead(t *testing.T) {
 		{
 			name:             "step minute on minute time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*"},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true, BackoffRetries: 5, BackoffFactor: 1.7, BackoffMinDuration: time.Millisecond * 5},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
 			start:            "2022-11-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -61,7 +61,7 @@ func TestRemoteRead(t *testing.T) {
 		{
 			name:             "step month on month time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*"},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true, BackoffRetries: 5, BackoffFactor: 1.7, BackoffMinDuration: time.Millisecond * 5},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -110,6 +110,7 @@ func TestRemoteRead(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			remoteReadServer := remote_read_integration.NewRemoteReadServer(t)
 			defer remoteReadServer.Close()
 			remoteWriteServer := remote_read_integration.NewRemoteWriteServer(t)
@@ -139,7 +140,7 @@ func TestRemoteRead(t *testing.T) {
 
 			tt.vmCfg.Addr = remoteWriteServer.URL()
 
-			importer, err := vm.NewImporter(tt.vmCfg)
+			importer, err := vm.NewImporter(ctx, tt.vmCfg)
 			if err != nil {
 				t.Fatalf("failed to create VM importer: %s", err)
 			}
@@ -156,7 +157,6 @@ func TestRemoteRead(t *testing.T) {
 				cc: 1,
 			}
 
-			ctx := context.Background()
 			err = rmp.run(ctx, true, false)
 			if err != nil {
 				t.Fatalf("failed to run remote read processor: %s", err)
@@ -183,7 +183,7 @@ func TestSteamRemoteRead(t *testing.T) {
 		{
 			name:             "step minute on minute time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*", UseStream: true},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true, BackoffRetries: 5, BackoffFactor: 1.7, BackoffMinDuration: time.Millisecond * 5},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
 			start:            "2022-11-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -214,7 +214,7 @@ func TestSteamRemoteRead(t *testing.T) {
 		{
 			name:             "step month on month time range",
 			remoteReadConfig: remoteread.Config{Addr: "", LabelName: "__name__", LabelValue: ".*", UseStream: true},
-			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true, BackoffRetries: 5, BackoffFactor: 1.7, BackoffMinDuration: time.Millisecond * 5},
+			vmCfg:            vm.Config{Addr: "", Concurrency: 1, DisableProgressBar: true},
 			start:            "2022-09-26T11:23:05+02:00",
 			end:              "2022-11-26T11:24:05+02:00",
 			numOfSamples:     2,
@@ -263,6 +263,7 @@ func TestSteamRemoteRead(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
 			remoteReadServer := remote_read_integration.NewRemoteReadStreamServer(t)
 			defer remoteReadServer.Close()
 			remoteWriteServer := remote_read_integration.NewRemoteWriteServer(t)
@@ -292,7 +293,7 @@ func TestSteamRemoteRead(t *testing.T) {
 
 			tt.vmCfg.Addr = remoteWriteServer.URL()
 
-			importer, err := vm.NewImporter(tt.vmCfg)
+			importer, err := vm.NewImporter(ctx, tt.vmCfg)
 			if err != nil {
 				t.Fatalf("failed to create VM importer: %s", err)
 			}
@@ -309,7 +310,6 @@ func TestSteamRemoteRead(t *testing.T) {
 				cc: 1,
 			}
 
-			ctx := context.Background()
 			err = rmp.run(ctx, true, false)
 			if err != nil {
 				t.Fatalf("failed to run remote read processor: %s", err)

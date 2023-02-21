@@ -1,4 +1,4 @@
-package utils
+package backoff
 
 import (
 	"context"
@@ -37,7 +37,7 @@ func TestRetry_Do(t *testing.T) {
 			},
 			ctx:     context.Background(),
 			want:    0,
-			wantErr: true,
+			wantErr: false,
 		},
 		{
 			name:               "only one retry test",
@@ -82,12 +82,8 @@ func TestRetry_Do(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Retry{
-				backoffRetries:     tt.backoffRetries,
-				backoffFactor:      tt.backoffFactor,
-				backoffMinDuration: tt.backoffMinDuration,
-			}
-			got, err := r.Do(tt.ctx, tt.retryableFunc)
+			r := New()
+			got, err := r.Retry(tt.ctx, tt.retryableFunc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Retry() error = %v, wantErr %v", err, tt.wantErr)
 				return

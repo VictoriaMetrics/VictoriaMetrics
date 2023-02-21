@@ -30,32 +30,6 @@ var (
 )
 
 const (
-	backoffRetries     = "backoff-retries"
-	backoffFactor      = "backoff-factor"
-	backoffMinDuration = "backoff-min-duration"
-)
-
-var (
-	retryFlags = []cli.Flag{
-		&cli.IntFlag{
-			Name:  backoffRetries,
-			Usage: "How many retries we need to check if callback was successful.",
-			Value: 5,
-		},
-		&cli.Float64Flag{
-			Name:  backoffFactor,
-			Usage: "Configure the length of delay after each failed attempt.",
-			Value: 1.7,
-		},
-		&cli.DurationFlag{
-			Name:  backoffMinDuration,
-			Usage: "Configure minimum (initial) repeat interval.",
-			Value: time.Second,
-		},
-	}
-)
-
-const (
 	vmAddr               = "vm-addr"
 	vmUser               = "vm-user"
 	vmPassword           = "vm-password"

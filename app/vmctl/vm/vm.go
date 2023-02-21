@@ -12,9 +12,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
 	"github.com/cheggaaa/pb/v3"
 )
@@ -55,13 +55,6 @@ type Config struct {
 	RateLimit int64
 	// Whether to disable progress bar per VM worker
 	DisableProgressBar bool
-
-	// BackoffRetries defines how many retries we need to check if callback was successful.
-	BackoffRetries int
-	// BackoffFactor configure the length of delay after each failed attempt.
-	BackoffFactor float64
-	// BackoffMinDuration configure minimum (initial) repeat interval
-	BackoffMinDuration time.Duration
 }
 
 // Importer performs insertion of timeseries
@@ -83,8 +76,8 @@ type Importer struct {
 	wg   sync.WaitGroup
 	once sync.Once
 
-	s     *stats
-	retry *utils.Retry
+	s       *stats
+	backoff *backoff.Backoff
 }
 
 // ResetStats resets im stats.
@@ -116,7 +109,7 @@ func AddExtraLabelsToImportPath(path string, extraLabels []string) (string, erro
 }
 
 // NewImporter creates new Importer for the given cfg.
-func NewImporter(cfg Config) (*Importer, error) {
+func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	if cfg.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency can't be lower than 1")
 	}
@@ -145,7 +138,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
-		retry:      utils.NewRetry(cfg.BackoffRetries, cfg.BackoffFactor, cfg.BackoffMinDuration),
+		backoff:    backoff.New(),
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -164,7 +157,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		}
 		go func(bar *pb.ProgressBar) {
 			defer im.wg.Done()
-			im.startWorker(bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
+			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
 		}(bar)
 	}
 	im.ResetStats()
@@ -215,7 +208,7 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
+func (im *Importer) startWorker(ctx context.Context, bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -230,7 +223,7 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 				Batch: batch,
 			}
 			retryableFunc := func() error { return im.Import(batch) }
-			_, err := im.retry.Do(context.Background(), retryableFunc)
+			_, err := im.backoff.Retry(context.Background(), retryableFunc)
 			if err != nil {
 				exitErr.Err = err
 			}
@@ -261,7 +254,7 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 			im.s.idleDuration += time.Since(waitForBatch)
 			im.s.Unlock()
 
-			if err := im.flush(batch); err != nil {
+			if err := im.flush(ctx, batch); err != nil {
 				im.errors <- &ImportError{
 					Batch: batch,
 					Err:   err,
@@ -276,9 +269,9 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 	}
 }
 
-func (im *Importer) flush(b []*TimeSeries) error {
+func (im *Importer) flush(ctx context.Context, b []*TimeSeries) error {
 	retryableFunc := func() error { return im.Import(b) }
-	attempts, err := im.retry.Do(context.Background(), retryableFunc)
+	attempts, err := im.backoff.Retry(ctx, retryableFunc)
 	if err != nil {
 		return fmt.Errorf("import failed with %d retries: %s", attempts, err)
 	}
