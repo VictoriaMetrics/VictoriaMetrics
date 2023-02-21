@@ -293,7 +293,7 @@ func (im *Importer) flush(b []*TimeSeries) error {
 // Ping sends a ping to im.addr.
 func (im *Importer) Ping() error {
 	url := fmt.Sprintf("%s/health", im.addr)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("cannot create request to %q: %s", im.addr, err)
 	}
@@ -317,7 +317,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	}
 
 	pr, pw := io.Pipe()
-	req, err := http.NewRequest("POST", im.importPath, pr)
+	req, err := http.NewRequest(http.MethodPost, im.importPath, pr)
 	if err != nil {
 		return fmt.Errorf("cannot create request to %q: %s", im.addr, err)
 	}
