@@ -63,8 +63,8 @@ github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/service
 # github.com/VictoriaMetrics/fastcache v1.12.0
 ## explicit; go 1.13
 github.com/VictoriaMetrics/fastcache
-# github.com/VictoriaMetrics/fasthttp v1.1.0
-## explicit; go 1.13
+# github.com/VictoriaMetrics/fasthttp v1.2.0
+## explicit; go 1.19
 github.com/VictoriaMetrics/fasthttp
 github.com/VictoriaMetrics/fasthttp/fasthttputil
 github.com/VictoriaMetrics/fasthttp/stackless
