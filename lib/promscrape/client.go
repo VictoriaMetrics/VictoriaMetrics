@@ -263,10 +263,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		dst = resp.SwapBody(dst)
 	}
 
-	ctx, cancel := context.WithDeadline(c.ctx, deadline)
-	defer cancel()
-
-	err := doRequestWithPossibleRetry(ctx, c.hc, req, resp)
+	err := doRequestWithPossibleRetry(c.ctx, c.hc, req, resp, deadline)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {
@@ -286,7 +283,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			break
 		}
 		req.URI().UpdateBytes(location)
-		err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
+		err = doRequestWithPossibleRetry(c.ctx, c.hc, req, resp, deadline)
 		statusCode = resp.StatusCode()
 		redirectsCount++
 	}
@@ -353,24 +350,20 @@ var (
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
-func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
+func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
 	sleepTime := time.Second
 	scrapeRequests.Inc()
-	deadline, hasDeadline := ctx.Deadline()
+	reqCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	for {
-		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
-		// across multiple retries.
-		err := hc.DoCtx(ctx, req, resp)
+		// Use DoCtx instead of Do in order to support context cancellation
+		err := hc.DoCtx(reqCtx, req, resp)
 		if err == nil {
 			statusCode := resp.StatusCode()
 			if statusCode != fasthttp.StatusTooManyRequests {
 				return nil
 			}
 		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return err
-		}
-
-		if !hasDeadline {
 			return err
 		}
 
