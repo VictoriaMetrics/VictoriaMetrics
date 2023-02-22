@@ -15,6 +15,7 @@ where you can chat with VictoriaMetrics users to get additional references, revi
   - [Brandwatch](#brandwatch)
   - [CERN](#cern)
   - [COLOPL](#colopl)
+  - [Dig Security](#dig-security)
   - [Fly.io](#flyio)
   - [German Research Center for Artificial Intelligence](#german-research-center-for-artificial-intelligence)
   - [Grammarly](#grammarly)
@@ -230,6 +231,49 @@ after evaulating the following remote storage solutions for Prometheus:
 
 See [slides](https://speakerdeck.com/inletorder/monitoring-platform-with-victoria-metrics) and [video](https://www.youtube.com/watch?v=hUpHIluxw80)
 from `Large-scale, super-load system monitoring platform built with VictoriaMetrics` talk at [Prometheus Meetup Tokyo #3](https://prometheus.connpass.com/event/157721/).
+
+## Dig Security
+
+[Dig Security](https://www.dig.security) is a cloud data security startup with 50+ employees that provides real-time visibility, control, and protection of data assets.
+
+### How we came across VictoriaMetrics
+
+We started with a Prometheus server on EKS. That worked until it didn't. We then spent time scaling it, maintaining it, throwing more $ at it, until we stumbled across VictoriaMetrics.
+
+### What VictoriaMetrics means for us
+
+* Easy to use and maintain
+* Cost effective
+* The ability to handle billions of time series events at any point of time
+* Multiple K8s clusters to monitor
+* Consistent monitoring infra for each cluster across multiple Regions and clouds
+* Secure communication and data storage
+* Easy Retention
+
+### Some of our initial challenges prior to moving to VictoriaMetrics
+
+* Reducing cost by not using a managed solution of one of the clouds
+* Support HA and recover fast
+* No downtimes
+* Having our main prometheus using too much Ram and restarts.
+
+### Some of the reasons we chose VictoriaMetrics
+
+* The API is compatible with Prometheus and all standard PromQL queries work well out of the box
+* Handles storage well
+* Available to use in Grafana easily
+* Single and small executable
+* Easy and fast backups
+* Better benchmarks than all the competitors
+* Open Source and maintained with good community
+
+### Some of the benefits we experienced since working with VictoriaMetrics
+
+* We saved around &#x24;5K USD per month
+* It’s seamless and doesn’t cause any override complications on the Infrastructure team
+* It doesn’t use lots of storage
+* It can serve us in the future in even bigger scales
+* It has support with a great community.
 
 ## Fly.io
 
