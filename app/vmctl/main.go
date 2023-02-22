@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/urfave/cli/v2"
 
@@ -220,8 +221,11 @@ func main() {
 							password:    c.String(vmNativeDstPassword),
 							extraLabels: c.StringSlice(vmExtraLabel),
 						},
+						backoff:       backoff.New(),
+						cc:            c.Int(vmConcurrency),
+						requestsLimit: c.Int(vmNativeRequestsLimit),
 					}
-					return p.run(ctx)
+					return p.run(ctx, c.Bool(globalSilent))
 				},
 			},
 			{
