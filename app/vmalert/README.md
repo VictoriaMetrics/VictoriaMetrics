@@ -28,7 +28,8 @@ Use this feature for the following cases:
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight and without extra dependencies.
-* Supports [reusable templates](#reusable-templates) for annotations.
+* Supports [reusable templates](#reusable-templates) for annotations;
+* Load of recording and alerting rules from local filesystem, GCS and S3.
 
 ## Limitations
 
@@ -98,26 +99,6 @@ Every `rule` belongs to a `group` and every configuration file may contain arbit
 groups:
   [ - <rule_group> ]
 ```
-
-### Reading rules from object storage
-
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
-from object storage:
-
-- `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
-- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
-
-S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
-all files with prefix `rule_` in the folder `dir`.
-
-The following [command-line flags](#flags) can be used for fine-tuning access to S3 and GCS:
-
-- `-s3.credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
-- `-s3.configFilePath` - path to file with S3 configs. Configs are loaded from default location if not set.
-- `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
-- `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
-- `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
-
 
 ### Groups
 
@@ -424,6 +405,25 @@ The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` 
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
+### Reading rules from object storage
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
+from object storage:
+
+- `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
+- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
+
+S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
+all files with prefix `rule_` in the folder `dir`.
+
+The following [command-line flags](#flags) can be used for fine-tuning access to S3 and GCS:
+
+- `-s3.credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+- `-s3.configFilePath` - path to file with S3 configs. Configs are loaded from default location if not set.
+- `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
+- `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
+- `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
 ### Topology examples
 
 The following sections are showing how `vmalert` may be used and configured
@@ -620,6 +620,8 @@ vmalert supports alerting and recording rules backfilling (aka `replay`). In rep
 can read the same rules configuration as normal, evaluate them on the given time range and backfill
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
+
+See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
 
 ### How it works
 
@@ -1161,7 +1163,7 @@ The shortlist of configuration flags is the following:
   -rule.configCheckInterval duration
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
-     Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array

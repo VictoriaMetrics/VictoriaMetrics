@@ -1019,8 +1019,10 @@ func getRoundDigits(r *http.Request) int {
 
 func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 	d := latencyOffset.Milliseconds()
-	if d <= 1000 {
-		d = 1000
+	if d < 0 {
+		// Zero latency offset may be useful for some use cases.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2061#issuecomment-1299109836
+		d = 0
 	}
 	return searchutils.GetDuration(r, "latency_offset", d)
 }
