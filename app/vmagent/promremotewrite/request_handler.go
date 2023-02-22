@@ -27,7 +27,8 @@ func InsertHandler(at *auth.Token, req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return stream.Parse(req.Body, func(tss []prompb.TimeSeries) error {
+	isVMRemoteWrite := req.Header.Get("Content-Encoding") == "zstd"
+	return stream.Parse(req.Body, isVMRemoteWrite, func(tss []prompb.TimeSeries) error {
 		return insertRows(at, tss, extraLabels)
 	})
 }

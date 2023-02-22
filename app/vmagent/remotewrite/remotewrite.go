@@ -28,12 +28,17 @@ import (
 )
 
 var (
-	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support Prometheus remote_write API. "+
-		"It is recommended using VictoriaMetrics as remote storage. Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
-		"Pass multiple -remoteWrite.url flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.multitenantURL")
+	remoteWriteURLs = flagutil.NewArrayString("remoteWrite.url", "Remote storage URL to write data to. It must support Prometheus remote_write protocol. "+
+		"Example url: http://<victoriametrics-host>:8428/api/v1/write . "+
+		"It is recommended setting -remoteWrite.useVMProto command-line option when VictoriaMetrics is used as a remote storage in order to save network bandwidth. "+
+		"See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol . "+
+		"Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL")
 	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
 		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
+	useVMProto = flagutil.NewArrayBool("remoteWrite.useVMProto", "Whether to use VictoriaMetrics protocol for sending the data to the given -remoteWrite.url "+
+		"in order to reduce network bandwidth usage and disk read/write IO under high load. "+
+		"See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
@@ -475,10 +480,11 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_inmemory_blocks{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetInmemoryQueueLen())
 	})
+	isVMRemoteWrite := useVMProto.GetOptionalArg(argIdx)
 	var c *client
 	switch remoteWriteURL.Scheme {
 	case "http", "https":
-		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
+		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues, isVMRemoteWrite)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}
@@ -495,7 +501,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	}
 	pss := make([]*pendingSeries, pssLen)
 	for i := range pss {
-		pss[i] = newPendingSeries(fq.MustWriteBlock, sf, rd)
+		pss[i] = newPendingSeries(fq.MustWriteBlock, isVMRemoteWrite, sf, rd)
 	}
 
 	rwctx := &remoteWriteCtx{

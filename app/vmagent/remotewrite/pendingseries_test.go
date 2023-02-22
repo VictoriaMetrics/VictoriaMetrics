@@ -5,37 +5,44 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/golang/snappy"
 )
 
 func TestPushWriteRequest(t *testing.T) {
-	for _, rowsCount := range []int{1, 10, 100, 1e3, 1e4} {
+	rowsCounts := []int{1, 10, 100, 1e3, 1e4}
+	expectedBlockLensProm := []int{216, 1848, 16424, 169882, 1757876}
+	expectedBlockLensVM := []int{138, 492, 3927, 34995, 288476}
+	for i, rowsCount := range rowsCounts {
+		expectedBlockLenProm := expectedBlockLensProm[i]
+		expectedBlockLenVM := expectedBlockLensVM[i]
 		t.Run(fmt.Sprintf("%d", rowsCount), func(t *testing.T) {
-			testPushWriteRequest(t, rowsCount)
+			testPushWriteRequest(t, rowsCount, expectedBlockLenProm, expectedBlockLenVM)
 		})
 	}
 }
 
-func testPushWriteRequest(t *testing.T, rowsCount int) {
-	wr := newTestWriteRequest(rowsCount, 10)
-	pushBlockLen := 0
-	pushBlock := func(block []byte) {
-		if pushBlockLen > 0 {
-			panic(fmt.Errorf("BUG: pushBlock called multiple times; pushBlockLen=%d at first call, len(block)=%d at second call", pushBlockLen, len(block)))
+func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expectedBlockLenVM int) {
+	f := func(isVMRemoteWrite bool, expectedBlockLen int) {
+		t.Helper()
+		wr := newTestWriteRequest(rowsCount, 20)
+		pushBlockLen := 0
+		pushBlock := func(block []byte) {
+			if pushBlockLen > 0 {
+				panic(fmt.Errorf("BUG: pushBlock called multiple times; pushBlockLen=%d at first call, len(block)=%d at second call", pushBlockLen, len(block)))
+			}
+			pushBlockLen = len(block)
 		}
-		pushBlockLen = len(block)
+		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
+		if pushBlockLen != expectedBlockLen {
+			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes",
+				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen)
+		}
 	}
-	pushWriteRequest(wr, pushBlock)
-	b := prompbmarshal.MarshalWriteRequest(nil, wr)
-	zb := snappy.Encode(nil, b)
-	maxPushBlockLen := len(zb)
-	minPushBlockLen := maxPushBlockLen / 2
-	if pushBlockLen < minPushBlockLen {
-		t.Fatalf("unexpected block len after pushWriteRequest; got %d bytes; must be at least %d bytes", pushBlockLen, minPushBlockLen)
-	}
-	if pushBlockLen > maxPushBlockLen {
-		t.Fatalf("unexpected block len after pushWriteRequest; got %d bytes; must be smaller or equal to %d bytes", pushBlockLen, maxPushBlockLen)
-	}
+
+	// Check Prometheus remote write
+	f(false, expectedBlockLenProm)
+
+	// Check VictoriaMetrics remote write
+	f(true, expectedBlockLenVM)
 }
 
 func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteRequest {
