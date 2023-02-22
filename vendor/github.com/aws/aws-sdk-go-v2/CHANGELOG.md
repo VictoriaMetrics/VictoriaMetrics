@@ -1,3 +1,1091 @@
+# Release (2023-02-20)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2`: v1.17.5
+  * **Bug Fix**: fix int overflow bug on 32 bit architecture
+* `github.com/aws/aws-sdk-go-v2/service/auditmanager`: [v1.24.0](service/auditmanager/CHANGELOG.md#v1240-2023-02-20)
+  * **Feature**: This release introduces a ServiceQuotaExceededException to the UpdateAssessmentFrameworkShare API operation.
+* `github.com/aws/aws-sdk-go-v2/service/connect`: [v1.47.0](service/connect/CHANGELOG.md#v1470-2023-02-20)
+  * **Feature**: Reasons for failed diff has been approved by SDK Reviewer
+
+# Release (2023-02-17)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/apprunner`: [v1.17.0](service/apprunner/CHANGELOG.md#v1170-2023-02-17)
+  * **Feature**: This release supports removing MaxSize limit for AutoScalingConfiguration.
+* `github.com/aws/aws-sdk-go-v2/service/glue`: [v1.43.0](service/glue/CHANGELOG.md#v1430-2023-02-17)
+  * **Feature**: Release of Delta Lake Data Lake Format for Glue Studio Service
+
+# Release (2023-02-16)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/emr`: [v1.23.0](service/emr/CHANGELOG.md#v1230-2023-02-16)
+  * **Feature**: This release provides customers the ability to define a timeout period for procuring capacity during a resize operation for Instance Fleet clusters. Customers can specify this timeout using the ResizeSpecifications parameter supported by RunJobFlow, ModifyInstanceFleet and AddInstanceFleet APIs.
+* `github.com/aws/aws-sdk-go-v2/service/grafana`: [v1.12.0](service/grafana/CHANGELOG.md#v1120-2023-02-16)
+  * **Feature**: With this release Amazon Managed Grafana now supports inbound Network Access Control that helps you to restrict user access to your Grafana workspaces
+* `github.com/aws/aws-sdk-go-v2/service/ivs`: [v1.20.3](service/ivs/CHANGELOG.md#v1203-2023-02-16)
+  * **Documentation**: Doc-only update. Updated text description in DeleteChannel, Stream, and StreamSummary.
+* `github.com/aws/aws-sdk-go-v2/service/wafv2`: [v1.25.1](service/wafv2/CHANGELOG.md#v1251-2023-02-16)
+  * **Documentation**: Added a notice for account takeover prevention (ATP). The interface incorrectly lets you to configure ATP response inspection in regional web ACLs in Region US East (N. Virginia), without returning an error. ATP response inspection is only available in web ACLs that protect CloudFront distributions.
+
+# Release (2023-02-15)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/accessanalyzer`: [v1.19.3](service/accessanalyzer/CHANGELOG.md#v1193-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/account`: [v1.9.1](service/account/CHANGELOG.md#v191-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/acm`: [v1.17.3](service/acm/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/acmpca`: [v1.21.2](service/acmpca/CHANGELOG.md#v1212-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/alexaforbusiness`: [v1.15.2](service/alexaforbusiness/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/amp`: [v1.16.2](service/amp/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/amplify`: [v1.13.2](service/amplify/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/amplifybackend`: [v1.14.2](service/amplifybackend/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/amplifyuibuilder`: [v1.9.2](service/amplifyuibuilder/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/apigateway`: [v1.16.3](service/apigateway/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/apigatewaymanagementapi`: [v1.11.2](service/apigatewaymanagementapi/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/apigatewayv2`: [v1.13.3](service/apigatewayv2/CHANGELOG.md#v1133-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appconfig`: [v1.17.1](service/appconfig/CHANGELOG.md#v1171-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appconfigdata`: [v1.6.1](service/appconfigdata/CHANGELOG.md#v161-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appflow`: [v1.24.2](service/appflow/CHANGELOG.md#v1242-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appintegrations`: [v1.14.2](service/appintegrations/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/applicationautoscaling`: [v1.17.3](service/applicationautoscaling/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/applicationcostprofiler`: [v1.10.2](service/applicationcostprofiler/CHANGELOG.md#v1102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/applicationdiscoveryservice`: [v1.15.2](service/applicationdiscoveryservice/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/applicationinsights`: [v1.17.3](service/applicationinsights/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appmesh`: [v1.17.2](service/appmesh/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/apprunner`: [v1.16.2](service/apprunner/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appstream`: [v1.20.2](service/appstream/CHANGELOG.md#v1202-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/appsync`: [v1.19.2](service/appsync/CHANGELOG.md#v1192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/arczonalshift`: [v1.1.3](service/arczonalshift/CHANGELOG.md#v113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/athena`: [v1.22.2](service/athena/CHANGELOG.md#v1222-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/auditmanager`: [v1.23.2](service/auditmanager/CHANGELOG.md#v1232-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/autoscalingplans`: [v1.13.2](service/autoscalingplans/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/backup`: [v1.20.1](service/backup/CHANGELOG.md#v1201-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/backupgateway`: [v1.9.2](service/backupgateway/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/backupstorage`: [v1.1.2](service/backupstorage/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/batch`: [v1.21.3](service/batch/CHANGELOG.md#v1213-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/billingconductor`: [v1.5.2](service/billingconductor/CHANGELOG.md#v152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/braket`: [v1.17.2](service/braket/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/budgets`: [v1.14.2](service/budgets/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/chime`: [v1.22.2](service/chime/CHANGELOG.md#v1222-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/chimesdkidentity`: [v1.10.2](service/chimesdkidentity/CHANGELOG.md#v1102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/chimesdkmediapipelines`: [v1.2.2](service/chimesdkmediapipelines/CHANGELOG.md#v122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/chimesdkmeetings`: [v1.14.3](service/chimesdkmeetings/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/chimesdkmessaging`: [v1.12.2](service/chimesdkmessaging/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/chimesdkvoice`: [v1.1.2](service/chimesdkvoice/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cleanrooms`: [v1.0.2](service/cleanrooms/CHANGELOG.md#v102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloud9`: [v1.17.2](service/cloud9/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudcontrol`: [v1.11.3](service/cloudcontrol/CHANGELOG.md#v1113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/clouddirectory`: [v1.13.2](service/clouddirectory/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudhsm`: [v1.13.2](service/cloudhsm/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudhsmv2`: [v1.14.2](service/cloudhsmv2/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudsearchdomain`: [v1.12.2](service/cloudsearchdomain/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudtrail`: [v1.24.0](service/cloudtrail/CHANGELOG.md#v1240-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Feature**: This release adds an InsufficientEncryptionPolicyException type to the StartImport endpoint
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudtraildata`: [v1.0.2](service/cloudtraildata/CHANGELOG.md#v102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudwatchevents`: [v1.15.3](service/cloudwatchevents/CHANGELOG.md#v1153-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs`: [v1.20.3](service/cloudwatchlogs/CHANGELOG.md#v1203-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codeartifact`: [v1.16.2](service/codeartifact/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codebuild`: [v1.20.3](service/codebuild/CHANGELOG.md#v1203-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codecatalyst`: [v1.1.2](service/codecatalyst/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codecommit`: [v1.14.2](service/codecommit/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codedeploy`: [v1.16.3](service/codedeploy/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codeguruprofiler`: [v1.13.2](service/codeguruprofiler/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codegurureviewer`: [v1.17.2](service/codegurureviewer/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codepipeline`: [v1.14.2](service/codepipeline/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codestar`: [v1.13.2](service/codestar/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codestarconnections`: [v1.14.2](service/codestarconnections/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/codestarnotifications`: [v1.14.2](service/codestarnotifications/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cognitoidentity`: [v1.15.2](service/cognitoidentity/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cognitoidentityprovider`: [v1.22.2](service/cognitoidentityprovider/CHANGELOG.md#v1222-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/cognitosync`: [v1.12.2](service/cognitosync/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/comprehend`: [v1.21.2](service/comprehend/CHANGELOG.md#v1212-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/comprehendmedical`: [v1.15.2](service/comprehendmedical/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/computeoptimizer`: [v1.21.1](service/computeoptimizer/CHANGELOG.md#v1211-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/configservice`: [v1.29.3](service/configservice/CHANGELOG.md#v1293-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/connect`: [v1.46.1](service/connect/CHANGELOG.md#v1461-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/connectcampaigns`: [v1.2.3](service/connectcampaigns/CHANGELOG.md#v123-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/connectcases`: [v1.2.3](service/connectcases/CHANGELOG.md#v123-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/connectcontactlens`: [v1.13.2](service/connectcontactlens/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/connectparticipant`: [v1.15.2](service/connectparticipant/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/controltower`: [v1.1.2](service/controltower/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/costandusagereportservice`: [v1.15.2](service/costandusagereportservice/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/costexplorer`: [v1.25.2](service/costexplorer/CHANGELOG.md#v1252-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/customerprofiles`: [v1.23.1](service/customerprofiles/CHANGELOG.md#v1231-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/databasemigrationservice`: [v1.23.3](service/databasemigrationservice/CHANGELOG.md#v1233-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/databrew`: [v1.21.3](service/databrew/CHANGELOG.md#v1213-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/dataexchange`: [v1.18.2](service/dataexchange/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/datapipeline`: [v1.14.2](service/datapipeline/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/datasync`: [v1.22.1](service/datasync/CHANGELOG.md#v1221-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/dax`: [v1.12.2](service/dax/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/detective`: [v1.18.2](service/detective/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/devicefarm`: [v1.15.2](service/devicefarm/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/devopsguru`: [v1.22.2](service/devopsguru/CHANGELOG.md#v1222-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/directconnect`: [v1.18.3](service/directconnect/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/directoryservice`: [v1.16.3](service/directoryservice/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/dlm`: [v1.14.4](service/dlm/CHANGELOG.md#v1144-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/docdbelastic`: [v1.1.2](service/docdbelastic/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/drs`: [v1.10.2](service/drs/CHANGELOG.md#v1102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/dynamodb`: [v1.18.3](service/dynamodb/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/dynamodbstreams`: [v1.14.3](service/dynamodbstreams/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ebs`: [v1.16.4](service/ebs/CHANGELOG.md#v1164-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ec2instanceconnect`: [v1.15.2](service/ec2instanceconnect/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ecr`: [v1.18.3](service/ecr/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ecrpublic`: [v1.15.2](service/ecrpublic/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ecs`: [v1.23.3](service/ecs/CHANGELOG.md#v1233-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/efs`: [v1.19.4](service/efs/CHANGELOG.md#v1194-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+  * **Documentation**: Documentation update for EFS to support IAM best practices.
+* `github.com/aws/aws-sdk-go-v2/service/eks`: [v1.27.3](service/eks/CHANGELOG.md#v1273-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/elasticinference`: [v1.12.2](service/elasticinference/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/elasticsearchservice`: [v1.18.3](service/elasticsearchservice/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/elastictranscoder`: [v1.14.2](service/elastictranscoder/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/emr`: [v1.22.3](service/emr/CHANGELOG.md#v1223-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/emrcontainers`: [v1.17.1](service/emrcontainers/CHANGELOG.md#v1171-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/emrserverless`: [v1.5.2](service/emrserverless/CHANGELOG.md#v152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/eventbridge`: [v1.18.3](service/eventbridge/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/evidently`: [v1.10.2](service/evidently/CHANGELOG.md#v1102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/finspace`: [v1.9.2](service/finspace/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/finspacedata`: [v1.14.2](service/finspacedata/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/firehose`: [v1.16.3](service/firehose/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/fis`: [v1.14.2](service/fis/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/fms`: [v1.22.3](service/fms/CHANGELOG.md#v1223-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/forecast`: [v1.25.2](service/forecast/CHANGELOG.md#v1252-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/forecastquery`: [v1.13.2](service/forecastquery/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/frauddetector`: [v1.23.0](service/frauddetector/CHANGELOG.md#v1230-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Feature**: This release introduces Lists feature which allows customers to reference a set of values in Fraud Detector's rules. With Lists, customers can dynamically manage these attributes in real time. Lists can be created/deleted and its contents can be modified using the Fraud Detector API.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/fsx`: [v1.28.3](service/fsx/CHANGELOG.md#v1283-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/gamelift`: [v1.17.2](service/gamelift/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/gamesparks`: [v1.2.2](service/gamesparks/CHANGELOG.md#v122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/glacier`: [v1.14.3](service/glacier/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/globalaccelerator`: [v1.16.2](service/globalaccelerator/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/glue`: [v1.42.0](service/glue/CHANGELOG.md#v1420-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Feature**: Fix DirectJDBCSource not showing up in CLI code gen
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/grafana`: [v1.11.2](service/grafana/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/greengrass`: [v1.15.3](service/greengrass/CHANGELOG.md#v1153-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/greengrassv2`: [v1.21.3](service/greengrassv2/CHANGELOG.md#v1213-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/groundstation`: [v1.17.2](service/groundstation/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/guardduty`: [v1.17.3](service/guardduty/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/health`: [v1.16.2](service/health/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/healthlake`: [v1.15.2](service/healthlake/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/honeycode`: [v1.13.2](service/honeycode/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/identitystore`: [v1.16.2](service/identitystore/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/imagebuilder`: [v1.22.2](service/imagebuilder/CHANGELOG.md#v1222-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/inspector`: [v1.13.2](service/inspector/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/inspector2`: [v1.11.3](service/inspector2/CHANGELOG.md#v1113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iot`: [v1.34.2](service/iot/CHANGELOG.md#v1342-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iot1clickdevicesservice`: [v1.11.2](service/iot1clickdevicesservice/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iot1clickprojects`: [v1.12.2](service/iot1clickprojects/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotanalytics`: [v1.14.2](service/iotanalytics/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotdataplane`: [v1.14.2](service/iotdataplane/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotdeviceadvisor`: [v1.17.2](service/iotdeviceadvisor/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotevents`: [v1.15.2](service/iotevents/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ioteventsdata`: [v1.13.2](service/ioteventsdata/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotfleethub`: [v1.13.2](service/iotfleethub/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotfleetwise`: [v1.3.2](service/iotfleetwise/CHANGELOG.md#v132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotjobsdataplane`: [v1.12.2](service/iotjobsdataplane/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotroborunner`: [v1.1.2](service/iotroborunner/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotsecuretunneling`: [v1.15.2](service/iotsecuretunneling/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotsitewise`: [v1.27.2](service/iotsitewise/CHANGELOG.md#v1272-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotthingsgraph`: [v1.14.2](service/iotthingsgraph/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iottwinmaker`: [v1.10.2](service/iottwinmaker/CHANGELOG.md#v1102-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/iotwireless`: [v1.24.2](service/iotwireless/CHANGELOG.md#v1242-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ivs`: [v1.20.2](service/ivs/CHANGELOG.md#v1202-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ivschat`: [v1.3.2](service/ivschat/CHANGELOG.md#v132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kafka`: [v1.19.2](service/kafka/CHANGELOG.md#v1192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kafkaconnect`: [v1.9.2](service/kafkaconnect/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kendra`: [v1.38.3](service/kendra/CHANGELOG.md#v1383-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kendraranking`: [v1.0.4](service/kendraranking/CHANGELOG.md#v104-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/keyspaces`: [v1.1.2](service/keyspaces/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesis`: [v1.17.4](service/kinesis/CHANGELOG.md#v1174-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisanalytics`: [v1.14.2](service/kinesisanalytics/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisanalyticsv2`: [v1.16.2](service/kinesisanalyticsv2/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisvideo`: [v1.15.3](service/kinesisvideo/CHANGELOG.md#v1153-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisvideoarchivedmedia`: [v1.14.3](service/kinesisvideoarchivedmedia/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisvideomedia`: [v1.11.3](service/kinesisvideomedia/CHANGELOG.md#v1113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisvideosignaling`: [v1.11.3](service/kinesisvideosignaling/CHANGELOG.md#v1113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kinesisvideowebrtcstorage`: [v1.2.3](service/kinesisvideowebrtcstorage/CHANGELOG.md#v123-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/kms`: [v1.20.3](service/kms/CHANGELOG.md#v1203-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lakeformation`: [v1.19.2](service/lakeformation/CHANGELOG.md#v1192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lambda`: [v1.29.2](service/lambda/CHANGELOG.md#v1292-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lexmodelbuildingservice`: [v1.17.2](service/lexmodelbuildingservice/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lexmodelsv2`: [v1.28.1](service/lexmodelsv2/CHANGELOG.md#v1281-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lexruntimeservice`: [v1.13.2](service/lexruntimeservice/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lexruntimev2`: [v1.17.1](service/lexruntimev2/CHANGELOG.md#v1171-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/licensemanager`: [v1.17.2](service/licensemanager/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/licensemanagerlinuxsubscriptions`: [v1.1.2](service/licensemanagerlinuxsubscriptions/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/licensemanagerusersubscriptions`: [v1.2.2](service/licensemanagerusersubscriptions/CHANGELOG.md#v122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lightsail`: [v1.25.3](service/lightsail/CHANGELOG.md#v1253-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/location`: [v1.21.2](service/location/CHANGELOG.md#v1212-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lookoutequipment`: [v1.17.2](service/lookoutequipment/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lookoutmetrics`: [v1.19.2](service/lookoutmetrics/CHANGELOG.md#v1192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/lookoutvision`: [v1.15.2](service/lookoutvision/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/m2`: [v1.4.2](service/m2/CHANGELOG.md#v142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/machinelearning`: [v1.15.2](service/machinelearning/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/macie`: [v1.15.2](service/macie/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/macie2`: [v1.26.2](service/macie2/CHANGELOG.md#v1262-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/managedblockchain`: [v1.14.2](service/managedblockchain/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/marketplacecatalog`: [v1.15.2](service/marketplacecatalog/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/marketplacecommerceanalytics`: [v1.12.2](service/marketplacecommerceanalytics/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/marketplaceentitlementservice`: [v1.12.2](service/marketplaceentitlementservice/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/marketplacemetering`: [v1.14.3](service/marketplacemetering/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediaconnect`: [v1.18.2](service/mediaconnect/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediaconvert`: [v1.31.1](service/mediaconvert/CHANGELOG.md#v1311-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/medialive`: [v1.29.2](service/medialive/CHANGELOG.md#v1292-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediapackage`: [v1.20.2](service/mediapackage/CHANGELOG.md#v1202-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediapackagevod`: [v1.21.2](service/mediapackagevod/CHANGELOG.md#v1212-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediastore`: [v1.13.2](service/mediastore/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediastoredata`: [v1.13.2](service/mediastoredata/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mediatailor`: [v1.22.2](service/mediatailor/CHANGELOG.md#v1222-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/memorydb`: [v1.12.2](service/memorydb/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mgn`: [v1.17.2](service/mgn/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/migrationhub`: [v1.13.2](service/migrationhub/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/migrationhubconfig`: [v1.13.2](service/migrationhubconfig/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/migrationhuborchestrator`: [v1.1.2](service/migrationhuborchestrator/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/migrationhubrefactorspaces`: [v1.9.1](service/migrationhubrefactorspaces/CHANGELOG.md#v191-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/migrationhubstrategy`: [v1.7.2](service/migrationhubstrategy/CHANGELOG.md#v172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mobile`: [v1.12.2](service/mobile/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mq`: [v1.14.2](service/mq/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mturk`: [v1.14.2](service/mturk/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/mwaa`: [v1.14.2](service/mwaa/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/networkfirewall`: [v1.24.2](service/networkfirewall/CHANGELOG.md#v1242-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/networkmanager`: [v1.17.2](service/networkmanager/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/nimble`: [v1.16.2](service/nimble/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/oam`: [v1.1.3](service/oam/CHANGELOG.md#v113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/omics`: [v1.1.2](service/omics/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/opensearch`: [v1.14.2](service/opensearch/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/opensearchserverless`: [v1.1.3](service/opensearchserverless/CHANGELOG.md#v113-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/opsworks`: [v1.14.2](service/opsworks/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/opsworkscm`: [v1.15.2](service/opsworkscm/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/organizations`: [v1.18.2](service/organizations/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/outposts`: [v1.27.2](service/outposts/CHANGELOG.md#v1272-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/panorama`: [v1.11.2](service/panorama/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/personalize`: [v1.23.2](service/personalize/CHANGELOG.md#v1232-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/personalizeevents`: [v1.13.2](service/personalizeevents/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/personalizeruntime`: [v1.13.2](service/personalizeruntime/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pi`: [v1.16.3](service/pi/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pinpoint`: [v1.18.2](service/pinpoint/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pinpointemail`: [v1.12.2](service/pinpointemail/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pinpointsmsvoice`: [v1.11.2](service/pinpointsmsvoice/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pinpointsmsvoicev2`: [v1.1.2](service/pinpointsmsvoicev2/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pipes`: [v1.1.2](service/pipes/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/polly`: [v1.25.1](service/polly/CHANGELOG.md#v1251-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/pricing`: [v1.18.2](service/pricing/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/privatenetworks`: [v1.2.0](service/privatenetworks/CHANGELOG.md#v120-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Feature**: This release introduces a new StartNetworkResourceUpdate API, which enables return/replacement of hardware from a NetworkSite.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/proton`: [v1.20.1](service/proton/CHANGELOG.md#v1201-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/qldb`: [v1.15.2](service/qldb/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/qldbsession`: [v1.14.2](service/qldbsession/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/quicksight`: [v1.31.2](service/quicksight/CHANGELOG.md#v1312-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ram`: [v1.17.3](service/ram/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/rbin`: [v1.8.3](service/rbin/CHANGELOG.md#v183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/rds`: [v1.40.3](service/rds/CHANGELOG.md#v1403-2023-02-15)
+  * **Documentation**: Database Activity Stream support for RDS for SQL Server.
+* `github.com/aws/aws-sdk-go-v2/service/rdsdata`: [v1.13.2](service/rdsdata/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/redshiftdata`: [v1.18.2](service/redshiftdata/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/redshiftserverless`: [v1.4.3](service/redshiftserverless/CHANGELOG.md#v143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/rekognition`: [v1.23.2](service/rekognition/CHANGELOG.md#v1232-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/resiliencehub`: [v1.8.2](service/resiliencehub/CHANGELOG.md#v182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/resourceexplorer2`: [v1.2.3](service/resourceexplorer2/CHANGELOG.md#v123-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/resourcegroups`: [v1.14.3](service/resourcegroups/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi`: [v1.14.3](service/resourcegroupstaggingapi/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/robomaker`: [v1.18.2](service/robomaker/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/rolesanywhere`: [v1.1.2](service/rolesanywhere/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/route53domains`: [v1.14.2](service/route53domains/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/route53recoverycluster`: [v1.11.2](service/route53recoverycluster/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/route53recoverycontrolconfig`: [v1.11.2](service/route53recoverycontrolconfig/CHANGELOG.md#v1112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/route53recoveryreadiness`: [v1.9.2](service/route53recoveryreadiness/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/route53resolver`: [v1.16.3](service/route53resolver/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/rum`: [v1.9.2](service/rum/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/s3outposts`: [v1.14.2](service/s3outposts/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemaker`: [v1.68.1](service/sagemaker/CHANGELOG.md#v1681-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakera2iruntime`: [v1.15.2](service/sagemakera2iruntime/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakeredge`: [v1.13.2](service/sagemakeredge/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakerfeaturestoreruntime`: [v1.13.2](service/sagemakerfeaturestoreruntime/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakergeospatial`: [v1.1.2](service/sagemakergeospatial/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakermetrics`: [v1.0.5](service/sagemakermetrics/CHANGELOG.md#v105-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sagemakerruntime`: [v1.18.3](service/sagemakerruntime/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/savingsplans`: [v1.12.2](service/savingsplans/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/scheduler`: [v1.1.2](service/scheduler/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/schemas`: [v1.15.2](service/schemas/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/secretsmanager`: [v1.18.4](service/secretsmanager/CHANGELOG.md#v1184-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/securityhub`: [v1.28.2](service/securityhub/CHANGELOG.md#v1282-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/securitylake`: [v1.2.2](service/securitylake/CHANGELOG.md#v122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/serverlessapplicationrepository`: [v1.12.2](service/serverlessapplicationrepository/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/servicecatalog`: [v1.16.2](service/servicecatalog/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/servicecatalogappregistry`: [v1.16.3](service/servicecatalogappregistry/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/servicediscovery`: [v1.19.2](service/servicediscovery/CHANGELOG.md#v1192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/servicequotas`: [v1.14.3](service/servicequotas/CHANGELOG.md#v1143-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sesv2`: [v1.16.2](service/sesv2/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sfn`: [v1.17.3](service/sfn/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/shield`: [v1.18.2](service/shield/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/signer`: [v1.14.2](service/signer/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/simspaceweaver`: [v1.1.2](service/simspaceweaver/CHANGELOG.md#v112-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sms`: [v1.13.2](service/sms/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/snowball`: [v1.18.1](service/snowball/CHANGELOG.md#v1181-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/snowdevicemanagement`: [v1.9.2](service/snowdevicemanagement/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ssm`: [v1.35.3](service/ssm/CHANGELOG.md#v1353-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ssmcontacts`: [v1.14.2](service/ssmcontacts/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ssmincidents`: [v1.20.2](service/ssmincidents/CHANGELOG.md#v1202-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ssmsap`: [v1.2.2](service/ssmsap/CHANGELOG.md#v122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/sso`: [v1.12.2](service/sso/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ssoadmin`: [v1.16.2](service/ssoadmin/CHANGELOG.md#v1162-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/ssooidc`: [v1.14.2](service/ssooidc/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/storagegateway`: [v1.18.3](service/storagegateway/CHANGELOG.md#v1183-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/support`: [v1.14.2](service/support/CHANGELOG.md#v1142-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/supportapp`: [v1.2.2](service/supportapp/CHANGELOG.md#v122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/swf`: [v1.14.4](service/swf/CHANGELOG.md#v1144-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/synthetics`: [v1.17.3](service/synthetics/CHANGELOG.md#v1173-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/textract`: [v1.20.2](service/textract/CHANGELOG.md#v1202-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/timestreamquery`: [v1.15.2](service/timestreamquery/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/timestreamwrite`: [v1.15.2](service/timestreamwrite/CHANGELOG.md#v1152-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/transcribe`: [v1.25.2](service/transcribe/CHANGELOG.md#v1252-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/transcribestreaming`: [v1.9.2](service/transcribestreaming/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/transfer`: [v1.28.3](service/transfer/CHANGELOG.md#v1283-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/translate`: [v1.17.2](service/translate/CHANGELOG.md#v1172-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/voiceid`: [v1.12.2](service/voiceid/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/waf`: [v1.12.2](service/waf/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/wafregional`: [v1.13.3](service/wafregional/CHANGELOG.md#v1133-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/wafv2`: [v1.25.0](service/wafv2/CHANGELOG.md#v1250-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Feature**: For protected CloudFront distributions, you can now use the AWS WAF Fraud Control account takeover prevention (ATP) managed rule group to block new login attempts from clients that have recently submitted too many failed login attempts.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/wellarchitected`: [v1.18.2](service/wellarchitected/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/wisdom`: [v1.12.2](service/wisdom/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/workdocs`: [v1.13.3](service/workdocs/CHANGELOG.md#v1133-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/worklink`: [v1.13.2](service/worklink/CHANGELOG.md#v1132-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/workmail`: [v1.18.2](service/workmail/CHANGELOG.md#v1182-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/workmailmessageflow`: [v1.12.2](service/workmailmessageflow/CHANGELOG.md#v1122-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/workspaces`: [v1.28.3](service/workspaces/CHANGELOG.md#v1283-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/workspacesweb`: [v1.9.2](service/workspacesweb/CHANGELOG.md#v192-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+* `github.com/aws/aws-sdk-go-v2/service/xray`: [v1.16.3](service/xray/CHANGELOG.md#v1163-2023-02-15)
+  * **Announcement**: When receiving an error response in restJson-based services, an incorrect error type may have been returned based on the content of the response. This has been fixed via PR #2012 tracked in issue #1910.
+  * **Bug Fix**: Correct error type parsing for restJson services.
+
+# Release (2023-02-14)
+
+## General Highlights
+* **Dependency Update**: Updated to the latest SDK module versions
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/appconfig`: [v1.17.0](service/appconfig/CHANGELOG.md#v1170-2023-02-14)
+  * **Feature**: AWS AppConfig now offers the option to set a version label on hosted configuration versions. Version labels allow you to identify specific hosted configuration versions based on an alternate versioning scheme that you define.
+* `github.com/aws/aws-sdk-go-v2/service/datasync`: [v1.22.0](service/datasync/CHANGELOG.md#v1220-2023-02-14)
+  * **Feature**: With this launch, we are giving customers the ability to use older SMB protocol versions, enabling them to use DataSync to copy data to and from their legacy storage arrays.
+* `github.com/aws/aws-sdk-go-v2/service/ec2`: [v1.86.0](service/ec2/CHANGELOG.md#v1860-2023-02-14)
+  * **Feature**: With this release customers can turn host maintenance on or off when allocating or modifying a supported dedicated host. Host maintenance is turned on by default for supported hosts.
+
+# Release (2023-02-13)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/account`: [v1.9.0](service/account/CHANGELOG.md#v190-2023-02-13)
+  * **Feature**: This release of the Account Management API enables customers to view and manage whether AWS Opt-In Regions are enabled or disabled for their Account. For more information, see https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-regions.html
+* `github.com/aws/aws-sdk-go-v2/service/appconfigdata`: [v1.6.0](service/appconfigdata/CHANGELOG.md#v160-2023-02-13)
+  * **Feature**: AWS AppConfig now offers the option to set a version label on hosted configuration versions. If a labeled hosted configuration version is deployed, its version label is available in the GetLatestConfiguration response.
+* `github.com/aws/aws-sdk-go-v2/service/snowball`: [v1.18.0](service/snowball/CHANGELOG.md#v1180-2023-02-13)
+  * **Feature**: Adds support for EKS Anywhere on Snowball. AWS Snow Family customers can now install EKS Anywhere service on Snowball Edge Compute Optimized devices.
+
+# Release (2023-02-10)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/autoscaling`: [v1.27.0](service/autoscaling/CHANGELOG.md#v1270-2023-02-10)
+  * **Feature**: You can now either terminate/replace, ignore, or wait for EC2 Auto Scaling instances on standby or protected from scale in. Also, you can also roll back changes from a failed instance refresh.
+* `github.com/aws/aws-sdk-go-v2/service/connect`: [v1.46.0](service/connect/CHANGELOG.md#v1460-2023-02-10)
+  * **Feature**: This update provides the Wisdom session ARN for contacts enabled for Wisdom in the chat channel.
+* `github.com/aws/aws-sdk-go-v2/service/ec2`: [v1.85.0](service/ec2/CHANGELOG.md#v1850-2023-02-10)
+  * **Feature**: Adds support for waiters that automatically poll for an imported snapshot until it reaches the completed state.
+* `github.com/aws/aws-sdk-go-v2/service/polly`: [v1.25.0](service/polly/CHANGELOG.md#v1250-2023-02-10)
+  * **Feature**: Amazon Polly adds two new neural Japanese voices - Kazuha, Tomoko
+* `github.com/aws/aws-sdk-go-v2/service/sagemaker`: [v1.68.0](service/sagemaker/CHANGELOG.md#v1680-2023-02-10)
+  * **Feature**: Amazon SageMaker Autopilot adds support for selecting algorithms in CreateAutoMLJob API.
+* `github.com/aws/aws-sdk-go-v2/service/sns`: [v1.20.2](service/sns/CHANGELOG.md#v1202-2023-02-10)
+  * **Documentation**: This release adds support for SNS X-Ray active tracing as well as other updates.
+
+# Release (2023-02-09)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/chimesdkmeetings`: [v1.14.2](service/chimesdkmeetings/CHANGELOG.md#v1142-2023-02-09)
+  * **Documentation**: Documentation updates for Chime Meetings SDK
+* `github.com/aws/aws-sdk-go-v2/service/emrcontainers`: [v1.17.0](service/emrcontainers/CHANGELOG.md#v1170-2023-02-09)
+  * **Feature**: EMR on EKS allows configuring retry policies for job runs through the StartJobRun API. Using retry policies, a job cause a driver pod to be restarted automatically if it fails or is deleted. The job's status can be seen in the DescribeJobRun and ListJobRun APIs and monitored using CloudWatch events.
+* `github.com/aws/aws-sdk-go-v2/service/lexmodelsv2`: [v1.28.0](service/lexmodelsv2/CHANGELOG.md#v1280-2023-02-09)
+  * **Feature**: AWS Lex now supports Network of Bots.
+* `github.com/aws/aws-sdk-go-v2/service/lexruntimev2`: [v1.17.0](service/lexruntimev2/CHANGELOG.md#v1170-2023-02-09)
+  * **Feature**: AWS Lex now supports Network of Bots.
+* `github.com/aws/aws-sdk-go-v2/service/lightsail`: [v1.25.2](service/lightsail/CHANGELOG.md#v1252-2023-02-09)
+  * **Documentation**: Documentation updates for Lightsail
+* `github.com/aws/aws-sdk-go-v2/service/migrationhubrefactorspaces`: [v1.9.0](service/migrationhubrefactorspaces/CHANGELOG.md#v190-2023-02-09)
+  * **Feature**: This release adds support for creating environments with a network fabric type of NONE
+* `github.com/aws/aws-sdk-go-v2/service/workdocs`: [v1.13.2](service/workdocs/CHANGELOG.md#v1132-2023-02-09)
+  * **Documentation**: Doc only update for the WorkDocs APIs.
+* `github.com/aws/aws-sdk-go-v2/service/workspaces`: [v1.28.2](service/workspaces/CHANGELOG.md#v1282-2023-02-09)
+  * **Documentation**: Removed Windows Server 2016 BYOL and made changes based on IAM campaign.
+
+# Release (2023-02-08)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/backup`: [v1.20.0](service/backup/CHANGELOG.md#v1200-2023-02-08)
+  * **Feature**: This release added one attribute (resource name) in the output model of our 9 existing APIs in AWS backup so that customers will see the resource name at the output. No input required from Customers.
+* `github.com/aws/aws-sdk-go-v2/service/cloudfront`: [v1.25.0](service/cloudfront/CHANGELOG.md#v1250-2023-02-08)
+  * **Feature**: CloudFront Origin Access Control extends support to AWS Elemental MediaStore origins.
+* `github.com/aws/aws-sdk-go-v2/service/glue`: [v1.41.0](service/glue/CHANGELOG.md#v1410-2023-02-08)
+  * **Feature**: DirectJDBCSource + Glue 4.0 streaming options
+
+# Release (2023-02-07)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/transfer`: [v1.28.2](service/transfer/CHANGELOG.md#v1282-2023-02-07)
+  * **Documentation**: Updated the documentation for the ImportCertificate API call, and added examples.
+
+# Release (2023-02-06)
+
+## Module Highlights
+* `github.com/aws/aws-sdk-go-v2/service/computeoptimizer`: [v1.21.0](service/computeoptimizer/CHANGELOG.md#v1210-2023-02-06)
+  * **Feature**: AWS Compute optimizer can now infer if Kafka is running on an instance.
+* `github.com/aws/aws-sdk-go-v2/service/customerprofiles`: [v1.23.0](service/customerprofiles/CHANGELOG.md#v1230-2023-02-06)
+  * **Feature**: This release deprecates the PartyType and Gender enum data types from the Profile model and replaces them with new PartyTypeString and GenderString attributes, which accept any string of length up to 255.
+* `github.com/aws/aws-sdk-go-v2/service/frauddetector`: [v1.22.0](service/frauddetector/CHANGELOG.md#v1220-2023-02-06)
+  * **Feature**: My AWS Service (Amazon Fraud Detector) - This release introduces Cold Start Model Training which optimizes training for small datasets and adds intelligent methods for treating unlabeled data. You can now train Online Fraud Insights or Transaction Fraud Insights models with minimal historical-data.
+* `github.com/aws/aws-sdk-go-v2/service/mediaconvert`: [v1.31.0](service/mediaconvert/CHANGELOG.md#v1310-2023-02-06)
+  * **Feature**: The AWS Elemental MediaConvert SDK has added improved scene change detection capabilities and a bandwidth reduction filter, along with video quality enhancements, to the AVC encoder.
+* `github.com/aws/aws-sdk-go-v2/service/outposts`: [v1.27.0](service/outposts/CHANGELOG.md#v1270-2023-02-06)
+  * **Feature**: Adds OrderType to Order structure. Adds PreviousOrderId and PreviousLineItemId to LineItem structure. Adds new line item status REPLACED. Increases maximum length of pagination token.
+
 # Release (2023-02-03)
 
 ## General Highlights
