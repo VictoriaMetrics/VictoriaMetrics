@@ -1373,6 +1373,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Interval for checking for changes in http endpoint service discovery. This works only if http_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#http_sd_configs for details (default 1m0s)
   -promscrape.kubernetes.apiServerTimeout duration
      How frequently to reload the full state from Kubernetes API server (default 30m0s)
+  -promscrape.kumaSDCheckInterval duration
+     Interval for checking for changes in Kuma Service Mesh API service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kuma_sd_configs for details (default 1m0s)
+  -promscrape.kuma.waitTime duration
+     Wait time used by Kuma service discovery. Default value is used if not set
   -promscrape.kubernetesSDCheckInterval duration
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
