@@ -1,6 +1,5 @@
 import React, { FC, useMemo } from "preact/compat";
 import { ExecutionControls } from "../../Configurators/TimeRangeSettings/ExecutionControls/ExecutionControls";
-import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
 import { TimeSelector } from "../../Configurators/TimeRangeSettings/TimeSelector/TimeSelector";
 import GlobalSettings from "../../Configurators/GlobalSettings/GlobalSettings";
 import { useLocation, useNavigate } from "react-router-dom";
@@ -43,15 +42,14 @@ const Header: FC = () => {
   }, [primaryColor]);
 
   const navigate = useNavigate();
-  const { search, pathname } = useLocation();
+  const { pathname } = useLocation();
 
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
 
   const onClickLogo = () => {
-    navigate({ pathname: router.home, search: search });
-    setQueryStringWithoutPageReload({});
+    navigate({ pathname: router.home });
     window.location.reload();
   };
 
