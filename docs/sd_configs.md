@@ -20,6 +20,7 @@ sort: 24
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
 * `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
+* `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
@@ -943,6 +944,42 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_ingress_class_name`: Class name from ingress spec, if present.
   * `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
   * `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
+
+## kuma_sd_configs
+
+Kuma service discovery config allows to fetch targets from the specified control plane `server` of [Kuma Service Mesh](https://kuma.io).
+
+It discovers "monitoring assignments" based on Kuma Dataplane Proxies, 
+via the [MADS (Monitoring Assignment Discovery Service)](https://kuma.io/docs/2.1.x/policies/traffic-metrics/#traffic-metrics) 
+[xDS RESP API](http://envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: kuma
+  kuma_sd_configs:
+    # server must contain the URL of Kuma Control Plane's MADS xDS server.
+  - server: "http://localhost:5676"
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+The `server` is queried periodically with the interval specified in `-promscrape.kumaSDCheckInterval` command-line flag.
+Discovery errors are tracked in `promscrape_discovery_kuma_errors_total` metric.
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+to one of the targets returned by the http service.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_server`: the URL of Kuma Control Plane's MADS xDS server from which the target was extracted
+* `__meta_kuma_mesh`: the name of the mesh
+* `__meta_kuma_service`: the name of the service associated with the proxy 
+* `__meta_kuma_dataplane`: the name of the proxy
+* `__meta_kuma_label_<label_name>`: each label of target given from Kuma Control Plane
+* `__metrics_path__`: the path by which the service metrics are scraped
 
 ## nomad_sd_configs
 

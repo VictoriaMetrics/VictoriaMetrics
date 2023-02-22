@@ -42,6 +42,9 @@ const (
 	DefaultClientReadTimeout = time.Minute
 )
 
+type RequestCallback func(request *http.Request)
+type ResponseCallback func(response *http.Response)
+
 func concurrencyLimitChInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrency)
 }
@@ -165,7 +168,7 @@ func (c *Client) Context() context.Context {
 }
 
 // GetAPIResponseWithReqParams returns response for given absolute path with optional callback for request.
-func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest func(request *http.Request)) ([]byte, error) {
+func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest RequestCallback) ([]byte, error) {
 	return c.getAPIResponse(path, modifyRequest)
 }
 
@@ -175,7 +178,7 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 }
 
 // GetAPIResponse returns response for the given absolute path with optional callback for request.
-func (c *Client) getAPIResponse(path string, modifyRequest func(request *http.Request)) ([]byte, error) {
+func (c *Client) getAPIResponse(path string, modifyRequest RequestCallback) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -194,17 +197,22 @@ func (c *Client) getAPIResponse(path string, modifyRequest func(request *http.Re
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
-func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) GetBlockingAPIResponse(path string, inspectResponse ResponseCallback) ([]byte, error) {
 	return c.getAPIResponseWithParamsAndClientCtx(c.clientCtx, c.blockingClient, path, nil, inspectResponse)
 }
 
 // GetBlockingAPIResponseCtx returns response for given absolute path with blocking client and optional callback for api response,
-func (c *Client) GetBlockingAPIResponseCtx(ctx context.Context, path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) GetBlockingAPIResponseCtx(ctx context.Context, path string, inspectResponse ResponseCallback) ([]byte, error) {
 	return c.getAPIResponseWithParamsAndClientCtx(ctx, c.blockingClient, path, nil, inspectResponse)
 }
 
+// GetBlockingAPIResponseWithParamsCtx returns response for given absolute path with blocking client and optional callback for api response,
+func (c *Client) GetBlockingAPIResponseWithParamsCtx(ctx context.Context, path string, modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
+	return c.getAPIResponseWithParamsAndClientCtx(ctx, c.blockingClient, path, modifyRequest, inspectResponse)
+}
+
 // getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for request and for response.
-func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, client *HTTPClient, path string, modifyRequest func(req *http.Request), inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, client *HTTPClient, path string, modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
 	requestURL := c.apiServer + path
 	u, err := url.Parse(requestURL)
 	if err != nil {
