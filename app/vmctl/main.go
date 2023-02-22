@@ -65,7 +65,7 @@ func main() {
 					// disable progress bars since openTSDB implementation
 					// does not use progress bar pool
 					vmCfg.DisableProgressBar = true
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -100,7 +100,7 @@ func main() {
 					}
 
 					vmCfg := initConfigVM(c)
-					importer, err = vm.NewImporter(vmCfg)
+					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -137,7 +137,7 @@ func main() {
 
 					vmCfg := initConfigVM(c)
 
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err := vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
@@ -163,7 +163,7 @@ func main() {
 					fmt.Println("Prometheus import mode")
 
 					vmCfg := initConfigVM(c)
-					importer, err = vm.NewImporter(vmCfg)
+					importer, err = vm.NewImporter(ctx, vmCfg)
 					if err != nil {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
