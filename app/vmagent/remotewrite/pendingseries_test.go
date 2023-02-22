@@ -33,16 +33,6 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 			pushBlockLen = len(block)
 		}
 		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
-
-		if pushBlockLen == expectedBlockLen {
-			return
-		}
-
-		if tolerancePrc == 0 {
-			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes",
-				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen)
-		}
-
 		if math.Abs(float64(pushBlockLen-expectedBlockLen)/float64(expectedBlockLen)*100) > tolerancePrc {
 			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes +- %.0f%%",
 				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen, tolerancePrc)
