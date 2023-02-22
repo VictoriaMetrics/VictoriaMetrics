@@ -266,7 +266,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
 	defer cancel()
 
-	err := doRequestWithPossibleRetry(c.hc, req, resp, ctx)
+	err := doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {
@@ -286,7 +286,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			break
 		}
 		req.URI().UpdateBytes(location)
-		err = doRequestWithPossibleRetry(c.hc, req, resp, ctx)
+		err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 		statusCode = resp.StatusCode()
 		redirectsCount++
 	}
@@ -353,7 +353,7 @@ var (
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
-func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, ctx context.Context) error {
+func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
 	sleepTime := time.Second
 	scrapeRequests.Inc()
 	deadline, hasDeadline := ctx.Deadline()
