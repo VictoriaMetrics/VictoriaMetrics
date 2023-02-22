@@ -41,25 +41,20 @@ func New() *Backoff {
 func (b *Backoff) Retry(ctx context.Context, cb retryableFunc) (uint64, error) {
 	var attempt uint64
 	for i := 0; i < b.retries; i++ {
-		select {
-		case <-ctx.Done():
-			return attempt, nil
-		default:
-		}
+		// @TODO we should use context to cancel retries
 		err := cb()
 		if err == nil {
 			return attempt, nil
 		}
 		if errors.Is(err, ErrBadRequest) {
-			logger.Errorf("got error: %s on attempt: %d \n", err, attempt)
+			logger.Errorf("unrecoverable error: %s", err)
 			return attempt, err // fail fast if not recoverable
 		}
 		attempt++
 		backoff := float64(b.minDuration) * math.Pow(b.factor, float64(i))
 		dur := time.Duration(backoff)
-		logger.Errorf("got error: %s on attempt: %d \n", err, attempt)
-		logger.Infof("next attempt will start after: %s \n", dur.Round(time.Millisecond))
+		logger.Errorf("got error: %s on attempt: %d; will retry in %v", err, attempt, dur)
 		time.Sleep(time.Duration(backoff))
 	}
-	return attempt, fmt.Errorf("retry failed after %d retries", b.retries)
+	return attempt, fmt.Errorf("execution failed after %d retry attempts", b.retries)
 }
