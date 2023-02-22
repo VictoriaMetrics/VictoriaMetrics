@@ -270,6 +270,9 @@ The shortlist of configuration flags include the following:
   -auth.jwksEndpoints array
      JWKS endpoints to fetch keys for JWT tokens signature verification
      Supports an array of values separated by comma or specified via multiple flags.
+  -auth.oidcDiscoveryEndpoints array
+     OpenID Connect discovery endpoints to fetch keys for JWT tokens signature verification
+     Supports an array of values separated by comma or specified via multiple flags.
   -auth.publicKeyFiles array
      Path file with public key to verify JWT token signature
      Supports an array of values separated by comma or specified via multiple flags.
