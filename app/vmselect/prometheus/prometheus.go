@@ -61,10 +61,10 @@ const defaultStep = 5 * 60 * 1000
 // ExpandWithExprs handles the request to /expand-with-exprs
 func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
-	json := r.FormValue("json")
+	isJSON := r.Header.Get("Content-Type") == "application/json"
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	if json != "" {
+	if isJSON {
 		w.Header().Set("Content-Type", "application/json")
 		WriteExpandWithExprsJSONResponse(bw, query)
 	} else {
