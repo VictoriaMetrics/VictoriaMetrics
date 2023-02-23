@@ -225,7 +225,7 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 	deadline := time.Now().Add(client.ReadTimeout)
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
 	}
