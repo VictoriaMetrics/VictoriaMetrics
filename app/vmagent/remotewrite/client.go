@@ -309,7 +309,7 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	}
 
 again:
-	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
+	req, err := http.NewRequest(http.MethodPost, c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}

@@ -64,7 +64,7 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
 
-	req, err := http.NewRequest("POST", am.addr, b)
+	req, err := http.NewRequest(http.MethodPost, am.addr, b)
 	if err != nil {
 		return err
 	}
