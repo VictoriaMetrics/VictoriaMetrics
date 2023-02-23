@@ -262,13 +262,13 @@ func parseTokenExpiry(tr tokenResponse) (int64, error) {
 		var expiresOnSeconds int64
 		expiresOnSeconds, err = strconv.ParseInt(tr.ExpiresOn, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("cannot parse token auth response %q: %w", tr.ExpiresOn, err)
+			return 0, fmt.Errorf("cannot parse expiresOn=%q in auth token response: %w", tr.ExpiresOn, err)
 		}
 		expiresInSeconds = expiresOnSeconds - time.Now().Unix()
 	} else {
 		expiresInSeconds, err = strconv.ParseInt(tr.ExpiresIn, 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("cannot parse token auth response %q: %w", tr.ExpiresIn, err)
+			return 0, fmt.Errorf("cannot parse expiresIn=%q auth token response: %w", tr.ExpiresIn, err)
 		}
 	}
 
