@@ -58,10 +58,6 @@ const HeaderControls: FC<HeaderControlsProp> = (props) => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
 
-  const headerSetupKeys = useMemo(() => {
-    return Object.keys(headerSetup).filter(n => accountIds.length ? n : n !== "tenant");
-  }, [headerSetup]);
-
   const handleToggleList = () => {
     setOpenList(prev => !prev);
   };
@@ -69,8 +65,6 @@ const HeaderControls: FC<HeaderControlsProp> = (props) => {
   const handleCloseList = () => {
     setOpenList(false);
   };
-
-  if (!headerSetupKeys.length) return null;
 
   if (props.isMobile) {
     return (
