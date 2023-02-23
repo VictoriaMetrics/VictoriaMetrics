@@ -222,7 +222,7 @@ the following approaches for automatic discovery of `vmstorage` nodes:
   The list of discovered `vmstorage` nodes is automatically updated when the file contents changes.
   The update frequency can be controlled with `-storageNode.discoveryInterval` command-line flag.
 
-- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+src:some-name` value to `-storageNode` command-line flag.
+- [dns+srv](https://en.wikipedia.org/wiki/SRV_record) - pass `dns+srv:some-name` value to `-storageNode` command-line flag.
   In this case the provided `dns+srv` names are resolved into tcp addresses of `vmstorage` nodes.
   The list of discovered `vmstorage` nodes is automatically updated at `vminsert` and `vmselect`
   when it changes behind the corresponding `dns+srv` names.
