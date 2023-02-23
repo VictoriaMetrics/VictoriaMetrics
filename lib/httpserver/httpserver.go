@@ -674,7 +674,7 @@ func WriteAPIHelp(w io.Writer, pathList [][2]string) {
 // GetRequestURI returns requestURI for r.
 func GetRequestURI(r *http.Request) string {
 	requestURI := r.RequestURI
-	if r.Method != "POST" {
+	if r.Method != http.MethodPost {
 		return requestURI
 	}
 	_ = r.ParseForm()

@@ -188,7 +188,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	defer requestDuration.UpdateDuration(startTime)
 
 	if r.URL.Path == "/" {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			return false
 		}
 		fmt.Fprintf(w, "vminsert - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")

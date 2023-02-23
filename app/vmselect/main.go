@@ -177,7 +177,7 @@ var (
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	if r.URL.Path == "/" {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			return false
 		}
 		fmt.Fprintf(w, `vmselect - a component of VictoriaMetrics cluster<br/>
@@ -298,7 +298,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		httpRequestsDuration.Get(at).Add(int(time.Since(startTime).Milliseconds()))
 	}()
 	if p.Suffix == "" {
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			return false
 		}
 		w.Header().Add("Content-Type", "text/html; charset=utf-8")

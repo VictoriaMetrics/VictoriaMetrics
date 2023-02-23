@@ -151,7 +151,7 @@ func (cfg *apiConfig) updateTargetsLabels(ctx context.Context) error {
 		logger.Panicf("BUG: cannot marshal Kuma discovery request: %s", err)
 	}
 	updateRequestFunc := func(req *http.Request) {
-		req.Method = "POST"
+		req.Method = http.MethodPost
 		req.Body = io.NopCloser(bytes.NewReader(requestBody))
 		req.Header.Set("Accept", "application/json")
 		req.Header.Set("Content-Type", "application/json")
