@@ -1553,6 +1553,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		return nil, false, fmt.Errorf("cannot finalize temporary blocks files: %w", err)
 	}
 	qt.Printf("fetch unique series=%d, blocks=%d, samples=%d, bytes=%d", len(addrsByMetricName), blocksRead.GetTotal(), samples.GetTotal(), bytesTotal)
+	qt.AddStats(querytracer.BlocksFetched, float64(blocksRead.GetTotal()))
+	qt.AddStats(querytracer.UniqueSeriesFetched, float64(len(addrsByMetricName)))
+	qt.AddStats(querytracer.SamplesFetched, float64(samples.GetTotal()))
+	qt.AddStats(querytracer.BytesFetched, float64(bytesTotal))
 
 	var rss Results
 	rss.tr = tr
