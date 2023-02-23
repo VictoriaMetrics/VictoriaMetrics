@@ -6132,7 +6132,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `interpolate(time() < 1300)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1200, 1200, 1200, 1200},
+			Values:     []float64{1000, 1200, nan, nan, nan, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1}
@@ -6143,7 +6143,18 @@ func TestExecSuccess(t *testing.T) {
 		q := `interpolate(time() > 1500)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1600, 1600, 1600, 1600, 1800, 2000},
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`interpolate(tail_head_and_middle)`, func(t *testing.T) {
+		t.Parallel()
+		q := `interpolate(time() > 1100 and time() < 1300 default time() > 1700 and time() < 1900)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1200, 1400, 1600, 1800, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1}
