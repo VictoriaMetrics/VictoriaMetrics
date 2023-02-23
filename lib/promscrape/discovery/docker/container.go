@@ -81,6 +81,7 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 					m.Add("__meta_docker_port_public_ip", p.IP)
 				}
 				addCommonLabels(m, c, networkLabels[n.NetworkID])
+				// Remove possible duplicate labels, which can appear after addCommonLabels() call
 				m.RemoveDuplicates()
 				ms = append(ms, m)
 				added = true
@@ -95,6 +96,7 @@ func addContainersLabels(containers []container, networkLabels map[string]*promu
 				m.Add("__address__", addr)
 				m.Add("__meta_docker_network_ip", n.IPAddress)
 				addCommonLabels(m, c, networkLabels[n.NetworkID])
+				// Remove possible duplicate labels, which can appear after addCommonLabels() call
 				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}

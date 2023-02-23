@@ -1,6 +1,5 @@
 import React, { FC, useMemo } from "preact/compat";
-import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import router from "../../../router";
 import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
 import { LogoFullIcon } from "../../Main/Icons";
@@ -38,11 +37,9 @@ const Header: FC = () => {
   }, [primaryColor]);
 
   const navigate = useNavigate();
-  const { search } = useLocation();
 
   const onClickLogo = () => {
-    navigate({ pathname: router.home, search: search });
-    setQueryStringWithoutPageReload({});
+    navigate({ pathname: router.home });
     window.location.reload();
   };
 

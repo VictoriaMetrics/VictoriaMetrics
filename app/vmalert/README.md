@@ -621,6 +621,8 @@ can read the same rules configuration as normal, evaluate them on the given time
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
 
+See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
+
 ### How it works
 
 In `replay` mode vmalert works as a cli-tool and exits immediately after work is done.
