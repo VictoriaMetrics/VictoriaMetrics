@@ -16,7 +16,7 @@ chown -R victoriametrics:victoriametrics /var/lib/victoria-metrics-data
 
 ################################################
 ## Download VictoriaMetrics
-wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/${VM_VERSION}/victoria-metrics-linux-amd64-${VM_VERSION}.tar.gz -O /tmp/victoria-metrics.tar.gz
+wget https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v${VM_VERSION}/victoria-metrics-linux-amd64-v${VM_VERSION}.tar.gz -O /tmp/victoria-metrics.tar.gz
 tar xvf /tmp/victoria-metrics.tar.gz -C /usr/bin
 chmod +x /usr/bin/victoria-metrics-prod
 chown root:root /usr/bin/victoria-metrics-prod
