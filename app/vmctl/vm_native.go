@@ -148,7 +148,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		ranges = append(ranges, r...)
 	}
 
-	fmt.Printf("Initing import process from %q to %q on time period %s - %s \n", p.src.addr, p.dst.addr, startOfRange, endOfRange)
+	fmt.Printf("Initing import process from %q to %q with filter %s \n", p.src.addr, p.dst.addr, p.filter.String())
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing series"), len(series))

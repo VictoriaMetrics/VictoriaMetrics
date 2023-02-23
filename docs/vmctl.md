@@ -751,7 +751,9 @@ processed and can't show the progress bar. It will show the current processing s
 VictoriaMetrics Native import mode
 Init series discovery process on time range 2023-02-01T00:00:00Z -  
 Discovered 283 series 
-Initing import process from "http://127.0.0.1:8481/select/0/prometheus" to "http://localhost:8428" on time period 2023-02-01 00:00:00 +0000 UTC - 2023-02-23 10:12:07.410927 +0000 UTC 
+Initing import process from "http://127.0.0.1:8481/select/0/prometheus" to "http://localhost:8428" with filter 
+        filter: match[]={job=~".*benchmark-vm-cluster"}
+        start: 2023-02-01T00:00:00Z   
 Processing series: 9 / 283 [██████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒] 3.18%
 Processing series: 39 / 283 [███████████████████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒] 13.78%
 2023-02-23T10:18:25.867Z        error   app/vmctl/backoff/backoff.go:56 got error: failed to init export pipe: export request failed: unexpected error when performing request: Get "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native?end=2023-02-23T10%3A12%3A07Z&match%5B%5D=%7B__name__%3D%22go_memstats_next_gc_bytes%22%7D&start=2023-02-01T00%3A00%3A00Z": EOF on attempt: 1; will ret
