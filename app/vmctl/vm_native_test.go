@@ -110,7 +110,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 
 			tt.closer(cancelFn)
 
-			if err := p.run(ctx); (err != nil) != tt.wantErr {
+			if err := p.run(ctx, true); (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

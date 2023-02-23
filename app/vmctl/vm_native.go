@@ -107,6 +107,7 @@ const (
 	nativeImportAddr  = "api/v1/import/native"
 	nativeTenantsAddr = "admin/tenants"
 	nativeSeriesAddr  = "api/v1/series"
+	nativeBarTpl      = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
@@ -120,7 +121,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	fmt.Printf("Init series discovery process on time range %s - %s \n", p.filter.timeStart, p.filter.timeEnd)
 	series, err := p.explore(ctx, p.filter)
 	if err != nil {
-		return fmt.Errorf("cannot get series from source %s database: %s", p.src, err)
+		return fmt.Errorf("cannot get series from source %s database: %s", p.src.addr, err)
 	}
 	fmt.Printf("Discovered %d series \n", len(series))
 
@@ -129,32 +130,28 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
 	}
 
-	var endOfRange time.Time
+	endOfRange := time.Now().In(startOfRange.Location())
 	if p.filter.timeEnd != "" {
 		endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
 		if err != nil {
 			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
 		}
-	} else {
-		t := time.Now().In(startOfRange.Location())
-		endOfRange = t
 	}
 
-	ranges := make([][]time.Time, 0)
-	if p.filter.chunk == "" {
-		ranges = append(ranges, []time.Time{startOfRange, endOfRange})
-	} else {
+	ranges := [][]time.Time{{startOfRange, endOfRange}}
+	if p.filter.chunk != "" {
 		r, err := stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
 		if err != nil {
 			return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
 		}
+		ranges = ranges[:0]
 		ranges = append(ranges, r...)
 	}
 
 	fmt.Printf("Initing import process from %q to %q on time period %s - %s \n", p.src.addr, p.dst.addr, startOfRange, endOfRange)
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing series"), len(series))
+		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing series"), len(series))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
@@ -238,7 +235,7 @@ func (p *vmNativeProcessor) do(ctx context.Context, f filter) error {
 		p.s.retries = attempts
 		p.s.Unlock()
 		if err != nil {
-			return fmt.Errorf("failed to migrate data from %s to %s: %s , after attempts: %d", srcURL, dstURL, err, attempts)
+			return fmt.Errorf("failed to migrate %s from %s to %s: %s, after attempts: %d", f.String(), srcURL, dstURL, err, attempts)
 		}
 		return nil
 	}
@@ -261,7 +258,7 @@ func (p *vmNativeProcessor) do(ctx context.Context, f filter) error {
 		p.s.retries = attempts
 		p.s.Unlock()
 		if err != nil {
-			return fmt.Errorf("failed to migrate data for tenant %q: %s, after attempts: %d", tenant, err, attempts)
+			return fmt.Errorf("failed to migrate %s for tenant %q: %s, after attempts: %d", f.String(), tenant, err, attempts)
 		}
 	}
 
