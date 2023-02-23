@@ -137,6 +137,7 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 				if svc != nil {
 					svc.appendCommonLabels(m)
 				}
+				// Remove possible duplicate labels, which can appear after appendCommonLabels() call
 				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
@@ -155,6 +156,7 @@ func appendEndpointLabelsForAddresses(ms []*promutils.Labels, gw *groupWatcher, 
 			}
 		}
 		m := getEndpointLabelsForAddressAndPort(gw, podPortsSeen, eps, ea, epp, p, svc, ready)
+		// Remove possible duplicate labels, which can appear inside getEndpointLabelsForAddressAndPort()
 		m.RemoveDuplicates()
 		ms = append(ms, m)
 	}
