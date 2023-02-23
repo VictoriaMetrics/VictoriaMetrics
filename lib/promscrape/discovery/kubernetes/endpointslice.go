@@ -56,6 +56,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutils.Labels 
 		for _, epp := range eps.Ports {
 			for _, addr := range ess.Addresses {
 				m := getEndpointSliceLabelsForAddressAndPort(gw, podPortsSeen, addr, eps, ess, epp, p, svc)
+				// Remove possible duplicate labels, which can appear after getEndpointSliceLabelsForAddressAndPort() call
 				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}
@@ -86,6 +87,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutils.Labels 
 				if svc != nil {
 					svc.appendCommonLabels(m)
 				}
+				// Remove possible duplicate labels, which can appear after appendCommonLabels() calls
 				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}

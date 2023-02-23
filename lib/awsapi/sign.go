@@ -23,7 +23,7 @@ func newSignedGetRequest(apiURL, service, region string, creds *credentials) (*h
 }
 
 func newSignedGetRequestWithTime(apiURL, service, region string, creds *credentials, t time.Time) (*http.Request, error) {
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create http request with given apiURL: %s, err: %w", apiURL, err)
 	}

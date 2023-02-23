@@ -4,46 +4,40 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-	"path"
+	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var configMap = discoveryutils.NewConfigMap()
 
 type apiConfig struct {
-	client *discoveryutils.Client
-	path   string
+	client  *discoveryutils.Client
+	apiPath string
 
-	cancel        context.CancelFunc
-	wg            sync.WaitGroup
-	mu            sync.Mutex // protects targets
-	targets       []kumaTarget
+	// labels contains the latest discovered labels.
+	labels atomic.Value
+
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
+
 	latestVersion string
 	latestNonce   string
 
 	fetchErrors *metrics.Counter
 	parseErrors *metrics.Counter
 }
-
-const (
-	discoveryNode      = "victoria-metrics"
-	xdsApiVersion      = "v3"
-	xdsRequestType     = "discovery"
-	xdsResourceType    = "monitoringassignments"
-	xdsResourceTypeUrl = "type.googleapis.com/kuma.observability.v1.MonitoringAssignment"
-)
-
-var waitTime = flag.Duration("promscrape.kuma.waitTime", 0, "Wait time used by Kuma service discovery. Default value is used if not set")
 
 func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	v, err := configMap.Get(sdc, func() (interface{}, error) { return newAPIConfig(sdc, baseDir) })
@@ -54,16 +48,14 @@ func getAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 }
 
 func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
+	apiServer, apiPath, err := getAPIServerPath(sdc.Server)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse server %q: %w", sdc.Server, err)
+	}
 	ac, err := sdc.HTTPClientConfig.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config: %w", err)
 	}
-	parsedURL, err := url.Parse(sdc.Server)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse kuma_sd server URL: %w", err)
-	}
-	apiServer := fmt.Sprintf("%s://%s", parsedURL.Scheme, parsedURL.Host)
-
 	proxyAC, err := sdc.ProxyClientConfig.NewConfig(baseDir)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
@@ -73,135 +65,205 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
 
-	apiPath := path.Join(
-		parsedURL.RequestURI(),
-		xdsApiVersion,
-		xdsRequestType+":"+xdsResourceType,
-	)
-
 	cfg := &apiConfig{
-		client:      client,
-		path:        apiPath,
+		client:  client,
+		apiPath: apiPath,
+
 		fetchErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_kuma_errors_total{type="fetch",url=%q}`, sdc.Server)),
 		parseErrors: metrics.GetOrCreateCounter(fmt.Sprintf(`promscrape_discovery_kuma_errors_total{type="parse",url=%q}`, sdc.Server)),
 	}
 
-	// initialize targets synchronously and start updating them in background
-	cfg.startWatcher()
+	ctx, cancel := context.WithCancel(context.Background())
+	cfg.cancel = cancel
+
+	// Initialize targets synchronously and then start updating them in background.
+	// The synchronous targets' update is needed for returning non-empty list of targets
+	// just after the initialization.
+	if err := cfg.updateTargetsLabels(ctx); err != nil {
+		return nil, fmt.Errorf("cannot discover Kuma targets: %w", err)
+	}
+	cfg.wg.Add(1)
+	go func() {
+		defer cfg.wg.Done()
+		cfg.runTargetsWatcher(ctx)
+	}()
 
 	return cfg, nil
 }
 
-func (cfg *apiConfig) startWatcher() func() {
-	ctx, cancel := context.WithCancel(context.Background())
-	cfg.cancel = cancel
-
-	// blocking initial targets update
-	if err := cfg.updateTargets(ctx); err != nil {
-		logger.Errorf("there were errors when discovering kuma targets, so preserving the previous targets. error: %v", err)
+func getAPIServerPath(serverURL string) (string, string, error) {
+	if serverURL == "" {
+		return "", "", fmt.Errorf("missing servier url")
 	}
-
-	// start updating targets with a long polling in background
-	cfg.wg.Add(1)
-	go func() {
-		ticker := time.NewTicker(*SDCheckInterval)
-		defer cfg.wg.Done()
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-				// we are constantly waiting for targets updates in long polling requests
-				err := cfg.updateTargets(ctx)
-				if err != nil {
-					logger.Errorf("there were errors when discovering kuma targets, so preserving the previous targets. error: %v", err)
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return cancel
+	if !strings.Contains(serverURL, "://") {
+		serverURL = "http://" + serverURL
+	}
+	psu, err := url.Parse(serverURL)
+	if err != nil {
+		return "", "", fmt.Errorf("cannot parse server url=%q: %w", serverURL, err)
+	}
+	apiServer := fmt.Sprintf("%s://%s", psu.Scheme, psu.Host)
+	apiPath := psu.Path
+	if !strings.HasSuffix(apiPath, "/") {
+		apiPath += "/"
+	}
+	apiPath += "v3/discovery:monitoringassignments"
+	if psu.RawQuery != "" {
+		apiPath += "?" + psu.RawQuery
+	}
+	return apiServer, apiPath, nil
 }
 
-func (cfg *apiConfig) stopWatcher() {
+func (cfg *apiConfig) runTargetsWatcher(ctx context.Context) {
+	ticker := time.NewTicker(*SDCheckInterval)
+	defer ticker.Stop()
+
+	doneCh := ctx.Done()
+	for {
+		select {
+		case <-ticker.C:
+			if err := cfg.updateTargetsLabels(ctx); err != nil {
+				logger.Errorf("there was an error when discovering Kuma targets, so preserving the previous targets; error: %s", err)
+			}
+		case <-doneCh:
+			return
+		}
+	}
+}
+
+func (cfg *apiConfig) mustStop() {
+	cfg.client.Stop()
 	cfg.cancel()
 	cfg.wg.Wait()
 }
 
-func (cfg *apiConfig) getTargets() ([]kumaTarget, error) {
-	cfg.mu.Lock()
-	defer cfg.mu.Unlock()
-	return cfg.targets, nil
-}
-
-func (cfg *apiConfig) updateTargets(ctx context.Context) error {
-	requestBody, err := json.Marshal(discoveryRequest{
-		VersionInfo:   cfg.latestVersion,
-		Node:          discoveryRequestNode{Id: discoveryNode},
-		TypeUrl:       xdsResourceTypeUrl,
+func (cfg *apiConfig) updateTargetsLabels(ctx context.Context) error {
+	dReq := &discoveryRequest{
+		VersionInfo: cfg.latestVersion,
+		Node: discoveryRequestNode{
+			ID: "vmagent",
+		},
+		TypeURL:       "type.googleapis.com/kuma.observability.v1.MonitoringAssignment",
 		ResponseNonce: cfg.latestNonce,
-	})
+	}
+	requestBody, err := json.Marshal(dReq)
 	if err != nil {
-		return fmt.Errorf("cannot marshal request body for kuma_sd api: %w", err)
+		logger.Panicf("BUG: cannot marshal Kuma discovery request: %s", err)
 	}
-
-	var statusCode int
-	data, err := cfg.client.GetBlockingAPIResponseWithParamsCtx(
-		ctx,
-		cfg.path,
-		func(request *http.Request) {
-			request.Method = http.MethodPost
-			request.Body = io.NopCloser(bytes.NewReader(requestBody))
-
-			// set max duration for long polling request
-			query := request.URL.Query()
-			query.Add("fetch-timeout", cfg.getWaitTime().String())
-			request.URL.RawQuery = query.Encode()
-
-			request.Header.Set("Accept", "application/json")
-			request.Header.Set("Content-Type", "application/json")
-		},
-		func(response *http.Response) {
-			statusCode = response.StatusCode
-		},
-	)
-
-	if statusCode == http.StatusNotModified {
-		return nil
+	updateRequestFunc := func(req *http.Request) {
+		req.Method = http.MethodPost
+		req.Body = io.NopCloser(bytes.NewReader(requestBody))
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("Content-Type", "application/json")
 	}
+	notModified := false
+	inspectResponseFunc := func(resp *http.Response) {
+		if resp.StatusCode == http.StatusNotModified {
+			// Override status code, so GetBlockingAPIResponseWithParamsCtx() returns nil error.
+			resp.StatusCode = http.StatusOK
+			notModified = true
+		}
+	}
+	data, err := cfg.client.GetBlockingAPIResponseWithParamsCtx(ctx, cfg.apiPath, updateRequestFunc, inspectResponseFunc)
 	if err != nil {
 		cfg.fetchErrors.Inc()
-		return fmt.Errorf("cannot read kuma_sd api response: %w", err)
+		return fmt.Errorf("error when reading Kuma discovery response: %w", err)
+	}
+	if notModified {
+		// The targets weren't modified, so nothing to update.
+		return nil
 	}
 
-	response, err := parseDiscoveryResponse(data)
+	// Parse response
+	labels, versionInfo, nonce, err := parseTargetsLabels(data)
 	if err != nil {
 		cfg.parseErrors.Inc()
-		return fmt.Errorf("cannot parse kuma_sd api response: %w", err)
+		return fmt.Errorf("cannot parse Kuma discovery response received from %q: %w", cfg.client.APIServer(), err)
 	}
-
-	cfg.mu.Lock()
-	defer cfg.mu.Unlock()
-	cfg.targets = parseKumaTargets(response)
-	cfg.latestVersion = response.VersionInfo
-	cfg.latestNonce = response.Nonce
+	cfg.labels.Store(&labels)
+	cfg.latestVersion = versionInfo
+	cfg.latestNonce = nonce
 
 	return nil
 }
 
-func (cfg *apiConfig) getWaitTime() time.Duration {
-	d := discoveryutils.BlockingClientReadTimeout
-	// Reduce wait time to avoid timeouts (request execution time should be less than the read timeout)
-	d -= d / 8
-	if *waitTime > time.Second && *waitTime < d {
-		d = *waitTime
+func parseTargetsLabels(data []byte) ([]*promutils.Labels, string, string, error) {
+	var dResp discoveryResponse
+	if err := json.Unmarshal(data, &dResp); err != nil {
+		return nil, "", "", err
 	}
-	return d
+	return dResp.getTargetsLabels(), dResp.VersionInfo, dResp.Nonce, nil
 }
 
-func (cfg *apiConfig) mustStop() {
-	cfg.stopWatcher()
-	cfg.client.Stop()
+func (dr *discoveryResponse) getTargetsLabels() []*promutils.Labels {
+	var ms []*promutils.Labels
+	for _, r := range dr.Resources {
+		for _, t := range r.Targets {
+			m := promutils.NewLabels(8 + len(r.Labels) + len(t.Labels))
+
+			m.Add("instance", t.Name)
+			m.Add("__address__", t.Address)
+			m.Add("__scheme__", t.Scheme)
+			m.Add("__metrics_path__", t.MetricsPath)
+			m.Add("__meta_kuma_dataplane", t.Name)
+			m.Add("__meta_kuma_mesh", r.Mesh)
+			m.Add("__meta_kuma_service", r.Service)
+
+			addLabels(m, r.Labels)
+			addLabels(m, t.Labels)
+			// Remove possible duplicate labels after addLabels() calls above
+			m.RemoveDuplicates()
+
+			ms = append(ms, m)
+		}
+	}
+	return ms
+}
+
+func addLabels(dst *promutils.Labels, src map[string]string) {
+	bb := bbPool.Get()
+	b := bb.B
+	for k, v := range src {
+		b = append(b[:0], "__meta_kuma_label_"...)
+		b = append(b, discoveryutils.SanitizeLabelName(k)...)
+		labelName := bytesutil.InternBytes(b)
+		dst.Add(labelName, v)
+	}
+	bb.B = b
+	bbPool.Put(bb)
+}
+
+var bbPool bytesutil.ByteBufferPool
+
+// discoveryRequest represent xDS-requests for Kuma Service Mesh
+// https://www.envoyproxy.io/docs/envoy/latest/api-v3/service/discovery/v3/discovery.proto#envoy-v3-api-msg-service-discovery-v3-discoveryrequest
+type discoveryRequest struct {
+	VersionInfo   string               `json:"version_info"`
+	Node          discoveryRequestNode `json:"node"`
+	ResourceNames []string             `json:"resource_names"`
+	TypeURL       string               `json:"type_url"`
+	ResponseNonce string               `json:"response_nonce"`
+}
+
+type discoveryRequestNode struct {
+	ID string `json:"id"`
+}
+
+// discoveryResponse represent xDS-requests for Kuma Service Mesh
+// https://www.envoyproxy.io/docs/envoy/latest/api-v3/service/discovery/v3/discovery.proto#envoy-v3-api-msg-service-discovery-v3-discoveryresponse
+type discoveryResponse struct {
+	VersionInfo string `json:"version_info"`
+	Resources   []struct {
+		Mesh    string `json:"mesh"`
+		Service string `json:"service"`
+		Targets []struct {
+			Name        string            `json:"name"`
+			Scheme      string            `json:"scheme"`
+			Address     string            `json:"address"`
+			MetricsPath string            `json:"metrics_path"`
+			Labels      map[string]string `json:"labels"`
+		} `json:"targets"`
+		Labels map[string]string `json:"labels"`
+	} `json:"resources"`
+	Nonce string `json:"nonce"`
 }

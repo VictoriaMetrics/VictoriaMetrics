@@ -185,7 +185,7 @@ func newClient(sw *ScrapeWork, ctx context.Context) *client {
 func (c *client) GetStreamReader() (*streamReader, error) {
 	deadline := time.Now().Add(c.sc.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
-	req, err := http.NewRequestWithContext(ctx, "GET", c.scrapeURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
