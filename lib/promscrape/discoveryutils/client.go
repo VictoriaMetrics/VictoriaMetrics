@@ -170,18 +170,23 @@ func (c *Client) Context() context.Context {
 	return c.clientCtx
 }
 
+// GetAPIResponseWithParamsCtx returns response for given absolute path with blocking client and optional callback for api response,
+func (c *Client) GetAPIResponseWithParamsCtx(ctx context.Context, path string, modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
+	return c.getAPIResponseWithConcurrencyLimit(ctx, c.client, path, modifyRequest, inspectResponse)
+}
+
 // GetAPIResponseWithReqParams returns response for given absolute path with optional callback for request.
 func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest RequestCallback) ([]byte, error) {
-	return c.getAPIResponse(path, modifyRequest)
+	return c.getAPIResponseWithConcurrencyLimit(c.clientCtx, c.client, path, modifyRequest, nil)
 }
 
 // GetAPIResponse returns response for the given absolute path.
 func (c *Client) GetAPIResponse(path string) ([]byte, error) {
-	return c.getAPIResponse(path, nil)
+	return c.getAPIResponseWithConcurrencyLimit(c.clientCtx, c.client, path, nil, nil)
 }
 
-// GetAPIResponse returns response for the given absolute path with optional callback for request.
-func (c *Client) getAPIResponse(path string, modifyRequest RequestCallback) ([]byte, error) {
+func (c *Client) getAPIResponseWithConcurrencyLimit(ctx context.Context, client *HTTPClient, path string,
+	modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -192,11 +197,13 @@ func (c *Client) getAPIResponse(path string, modifyRequest RequestCallback) ([]b
 		timerpool.Put(t)
 		return nil, fmt.Errorf("too many outstanding requests to %q; try increasing -promscrape.discovery.concurrentWaitTime=%s or -promscrape.discovery.concurrency=%d",
 			c.apiServer, *maxWaitTime, *maxConcurrency)
+	case <-ctx.Done():
+		timerpool.Put(t)
+		return nil, ctx.Err()
 	}
-	defer func() {
-		<-concurrencyLimitCh
-	}()
-	return c.getAPIResponseWithParamsAndClientCtx(c.clientCtx, c.client, path, modifyRequest, nil)
+	data, err := c.getAPIResponseWithParamsAndClientCtx(ctx, client, path, modifyRequest, inspectResponse)
+	<-concurrencyLimitCh
+	return data, err
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
@@ -207,11 +214,6 @@ func (c *Client) GetBlockingAPIResponse(path string, inspectResponse ResponseCal
 // GetBlockingAPIResponseCtx returns response for given absolute path with blocking client and optional callback for api response,
 func (c *Client) GetBlockingAPIResponseCtx(ctx context.Context, path string, inspectResponse ResponseCallback) ([]byte, error) {
 	return c.getAPIResponseWithParamsAndClientCtx(ctx, c.blockingClient, path, nil, inspectResponse)
-}
-
-// GetBlockingAPIResponseWithParamsCtx returns response for given absolute path with blocking client and optional callback for api response,
-func (c *Client) GetBlockingAPIResponseWithParamsCtx(ctx context.Context, path string, modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
-	return c.getAPIResponseWithParamsAndClientCtx(ctx, c.blockingClient, path, modifyRequest, inspectResponse)
 }
 
 // getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for request and for response.
