@@ -974,12 +974,10 @@ to one of the targets returned by the http service.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
-* `__meta_server`: the URL of Kuma Control Plane's MADS xDS server from which the target was extracted
 * `__meta_kuma_mesh`: the name of the mesh
-* `__meta_kuma_service`: the name of the service associated with the proxy 
 * `__meta_kuma_dataplane`: the name of the proxy
+* `__meta_kuma_service`: the name of the service associated with the proxy
 * `__meta_kuma_label_<label_name>`: each label of target given from Kuma Control Plane
-* `__metrics_path__`: the path by which the service metrics are scraped
 
 ## nomad_sd_configs
 

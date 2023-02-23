@@ -1,80 +1,61 @@
 package kuma
 
 import (
-	"reflect"
 	"testing"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
-func Test_buildAPIPath(t *testing.T) {
-	type args struct {
-		server string
+func TestGetAPIServerPathSuccess(t *testing.T) {
+	f := func(server, expectedAPIServer, expectedAPIPath string) {
+		t.Helper()
+		apiServer, apiPath, err := getAPIServerPath(server)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if apiServer != expectedAPIServer {
+			t.Fatalf("unexpected API server; got %q; want %q", apiServer, expectedAPIServer)
+		}
+		if apiPath != expectedAPIPath {
+			t.Fatalf("unexpected API path; got %q; want %q", apiPath, expectedAPIPath)
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			name: "get api path ok",
-			args: args{server: "http://localhost:5676"},
-			want: "/v3/discovery:monitoringassignments",
-		},
-		{
-			name:    "get api path incorrect server URL",
-			args:    args{server: ":"},
-			wantErr: true,
-		},
-		{
-			name:    "get api path incorrect server URL err",
-			args:    args{server: "api"},
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			sdConf := &SDConfig{
-				Server:            tt.args.server,
-				HTTPClientConfig:  promauth.HTTPClientConfig{},
-				ProxyClientConfig: promauth.ProxyClientConfig{},
-			}
-			apiConf, err := getAPIConfig(sdConf, ".")
-
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("buildAPIPath() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				return
-			}
-
-			if apiConf.path != tt.want {
-				t.Errorf("buildAPIPath() got = %v, want = %v", apiConf.path, tt.want)
-			}
-
-			sdConf.MustStop()
-		})
-	}
-
+	// url without path
+	f("http://localhost:5676", "http://localhost:5676", "/v3/discovery:monitoringassignments")
+	// url with path
+	f("http://localhost:5676/", "http://localhost:5676", "/v3/discovery:monitoringassignments")
+	f("https://foo.bar:1234/a/b", "https://foo.bar:1234", "/a/b/v3/discovery:monitoringassignments")
+	// url with query args
+	f("https://foo.bar:1234/a/b?c=d&arg2=value2", "https://foo.bar:1234", "/a/b/v3/discovery:monitoringassignments?c=d&arg2=value2")
+	// missing scheme
+	f("foo.bar", "http://foo.bar", "/v3/discovery:monitoringassignments")
+	f("foo.bar:1234/a/b", "http://foo.bar:1234", "/a/b/v3/discovery:monitoringassignments")
+	f("foo.bar:1234/a/b?c=d&arg2=value2", "http://foo.bar:1234", "/a/b/v3/discovery:monitoringassignments?c=d&arg2=value2")
 }
 
-func Test_parseAPIResponse(t *testing.T) {
-	type args struct {
-		data []byte
+func TestGetAPIConfigFailure(t *testing.T) {
+	f := func(server string) {
+		t.Helper()
+		sdc := &SDConfig{
+			Server: server,
+		}
+		cfg, err := getAPIConfig(sdc, ".")
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		if cfg != nil {
+			t.Fatalf("expecting nil cfg; got %v", cfg)
+		}
 	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []kumaTarget
-		wantErr bool
-	}{
+	// empty server url
+	f("")
+	// invalid server url
+	f(":")
+}
 
-		{
-			name: "parse ok",
-			args: args{
-				data: []byte(`{
+func TestParseTargetsLabels(t *testing.T) {
+	data := `{
     "version_info":"5dc9a5dd-2091-4426-a886-dfdc24fc99d7",
     "resources":[
        {
@@ -100,77 +81,55 @@ func Test_parseAPIResponse(t *testing.T) {
           "targets":[
              {
                 "name":"app",
-                "scheme":"http",
+                "scheme":"https",
                 "address":"127.0.0.1:5671",
-                "metrics_path":"/metrics",
+                "metrics_path":"/metrics/abc",
                 "labels":{ "kuma_io_protocol":"http" }
              }
           ]
        }
     ],
-    "type_url":"type.googleapis.com/kuma.observability.v1.MonitoringAssignment"
- }`),
-			},
-			want: []kumaTarget{
-				{
-					Mesh:        "default",
-					Service:     "redis",
-					DataPlane:   "redis",
-					Instance:    "redis",
-					Scheme:      "http",
-					Address:     "127.0.0.1:5670",
-					MetricsPath: "/metrics",
-					Labels:      map[string]string{"kuma_io_protocol": "tcp", "test": "test1"},
-				},
-				{
-					Mesh:        "default",
-					Service:     "app",
-					DataPlane:   "app",
-					Instance:    "app",
-					Scheme:      "http",
-					Address:     "127.0.0.1:5671",
-					MetricsPath: "/metrics",
-					Labels:      map[string]string{"kuma_io_protocol": "http", "test": "test2"},
-				},
-			},
-		},
-		{
-			name:    "parse err",
-			args:    args{data: []byte(`[]`)},
-			wantErr: true,
-		},
-		{
-			name: "api version err",
-			args: args{
-				data: []byte(`{
-    "resources":[
-       {
-          "@type":"type.googleapis.com/kuma.observability.v2.MonitoringAssignment",
-          "mesh":"default",
-          "service":"redis",
-          "targets":[]
-       }
-    ],
-    "type_url":"type.googleapis.com/kuma.observability.v2.MonitoringAssignment"
- }`),
-			},
-			wantErr: true,
-		},
+    "type_url":"type.googleapis.com/kuma.observability.v1.MonitoringAssignment",
+    "nonce": "foobar"
+ }`
+	labelss, versionInfo, nonce, err := parseTargetsLabels([]byte(data))
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resp, err := parseDiscoveryResponse(tt.args.data)
-			if tt.wantErr {
-				if err == nil {
-					t.Errorf("parseDiscoveryResponse() error = %v, wantErr %v", err, tt.wantErr)
-				}
-				return
-			}
 
-			got := parseKumaTargets(resp)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("parseDiscoveryResponse() got = %v, want %v", got, tt.want)
-			}
-		})
+	expectedLabelss := []*promutils.Labels{
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                        "127.0.0.1:5670",
+			"__meta_kuma_dataplane":              "redis",
+			"__meta_kuma_label_kuma_io_protocol": "tcp",
+			"__meta_kuma_label_test":             "test1",
+			"__meta_kuma_mesh":                   "default",
+			"__meta_kuma_service":                "redis",
+			"__metrics_path__":                   "/metrics",
+			"__scheme__":                         "http",
+			"instance":                           "redis",
+		}),
+		promutils.NewLabelsFromMap(map[string]string{
+			"__address__":                        "127.0.0.1:5671",
+			"__meta_kuma_dataplane":              "app",
+			"__meta_kuma_label_kuma_io_protocol": "http",
+			"__meta_kuma_label_test":             "test2",
+			"__meta_kuma_mesh":                   "default",
+			"__meta_kuma_service":                "app",
+			"__metrics_path__":                   "/metrics/abc",
+			"__scheme__":                         "https",
+			"instance":                           "app",
+		}),
+	}
+	discoveryutils.TestEqualLabelss(t, labelss, expectedLabelss)
+
+	expectedVersionInfo := "5dc9a5dd-2091-4426-a886-dfdc24fc99d7"
+	if versionInfo != expectedVersionInfo {
+		t.Fatalf("unexpected versionInfo; got %q; want %q", versionInfo, expectedVersionInfo)
+	}
+
+	expectedNonce := "foobar"
+	if nonce != expectedNonce {
+		t.Fatalf("unexpected nonce; got %q; want %q", nonce, expectedNonce)
 	}
 }

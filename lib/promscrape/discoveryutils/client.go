@@ -42,8 +42,11 @@ const (
 	DefaultClientReadTimeout = time.Minute
 )
 
-type RequestCallback func(request *http.Request)
-type ResponseCallback func(response *http.Response)
+// RequestCallback is called on the request before sending the request to the server.
+type RequestCallback func(req *http.Request)
+
+// ResponseCallback is called on the response before validating and returning the response to the caller.
+type ResponseCallback func(resp *http.Response)
 
 func concurrencyLimitChInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrency)
