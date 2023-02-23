@@ -301,7 +301,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 
 	// Obtain session token
 	sessionTokenURL := "http://169.254.169.254/latest/api/token"
-	req, err := http.NewRequest("PUT", sessionTokenURL, nil)
+	req, err := http.NewRequest(http.MethodPut, sessionTokenURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %w", sessionTokenURL, err)
 	}
@@ -317,7 +317,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 
 	// Use session token in the request.
 	apiURL := "http://169.254.169.254/latest/" + apiPath
-	req, err = http.NewRequest("GET", apiURL, nil)
+	req, err = http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %w", apiURL, err)
 	}
@@ -336,7 +336,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 func (cfg *Config) getRoleWebIdentityCredentials(token string) (*credentials, error) {
 	data, err := cfg.getSTSAPIResponse("AssumeRoleWithWebIdentity", func(apiURL string) (*http.Request, error) {
 		apiURL += fmt.Sprintf("&WebIdentityToken=%s", url.QueryEscape(token))
-		return http.NewRequest("GET", apiURL, nil)
+		return http.NewRequest(http.MethodGet, apiURL, nil)
 	})
 	if err != nil {
 		return nil, err

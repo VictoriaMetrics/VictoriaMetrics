@@ -115,7 +115,7 @@ func TestNewConfig(t *testing.T) {
 				return
 			}
 			if got != nil {
-				req, err := http.NewRequest("GET", "http://foo", nil)
+				req, err := http.NewRequest(http.MethodGet, "http://foo", nil)
 				if err != nil {
 					t.Fatalf("unexpected error in http.NewRequest: %s", err)
 				}
@@ -183,7 +183,7 @@ func TestConfigHeaders(t *testing.T) {
 		if err != nil {
 			t.Fatalf("cannot create config: %s", err)
 		}
-		req, err := http.NewRequest("GET", "http://foo", nil)
+		req, err := http.NewRequest(http.MethodGet, "http://foo", nil)
 		if err != nil {
 			t.Fatalf("unexpected error in http.NewRequest: %s", err)
 		}

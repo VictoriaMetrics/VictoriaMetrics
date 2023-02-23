@@ -411,7 +411,7 @@ func (gw *groupWatcher) doRequest(requestURL string) (*http.Response, error) {
 		// Update discovery URL for old Kubernetes API, which supports only v1beta1 path.
 		requestURL = strings.Replace(requestURL, "/apis/discovery.k8s.io/v1/", "/apis/discovery.k8s.io/v1beta1/", 1)
 	}
-	req, err := http.NewRequest("GET", requestURL, nil)
+	req, err := http.NewRequest(http.MethodGet, requestURL, nil)
 	if err != nil {
 		logger.Fatalf("cannot create a request for %q: %s", requestURL, err)
 	}
