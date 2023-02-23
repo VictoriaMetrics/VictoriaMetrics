@@ -151,7 +151,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	fmt.Printf("Initing import process from %q to %q with filter %s \n", p.src.addr, p.dst.addr, p.filter.String())
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing series"), len(series))
+		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing series (series * time ranges)"), len(series)*len(ranges))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
