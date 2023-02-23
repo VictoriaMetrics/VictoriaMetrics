@@ -4,9 +4,9 @@ import { useCustomPanelState } from "../../../state/customPanel/CustomPanelState
 import { useAppState } from "../../../state/common/StateContext";
 import { useQueryState } from "../../../state/query/QueryStateContext";
 import { displayTypeTabs } from "../DisplayTypeSwitch";
-import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
 import { compactObject } from "../../../utils/object";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
+import { useSearchParams } from "react-router-dom";
 
 export const useSetQueryParams = () => {
   const { tenantId } = useAppState();
@@ -14,6 +14,7 @@ export const useSetQueryParams = () => {
   const { query } = useQueryState();
   const { duration, relativeTime, period: { date, step } } = useTimeState();
   const { customStep } = useGraphState();
+  const [, setSearchParams] = useSearchParams();
 
   const setSearchParamsFromState = () => {
     const params: Record<string, unknown> = {};
@@ -29,7 +30,7 @@ export const useSetQueryParams = () => {
       if ((step !== customStep) && customStep) params[`${group}.step_input`] = customStep;
     });
 
-    setQueryStringWithoutPageReload(compactObject(params));
+    setSearchParams(compactObject(params) as Record<string, string>);
   };
 
   useEffect(setSearchParamsFromState, [tenantId, displayType, query, duration, relativeTime, date, step, customStep]);
