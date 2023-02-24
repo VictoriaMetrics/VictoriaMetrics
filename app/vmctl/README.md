@@ -738,40 +738,36 @@ and processing is done by "destination" (`dst`). Because of that, `vmctl` doesn'
 processed and can't show the progress bar. It will show the current processing speed and total number of processed bytes:
 
 ```
-./vmctl-race vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus/ \
+./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus/ \
   --vm-native-dst-addr=http://localhost:8428 \
-  --vm-native-filter-match='{job=~".*benchmark-vm-cluster"}' \
-  --vm-native-filter-time-start='2023-02-01T00:00:00Z' \
-  --vm-native-step-interval=month \
-  --vm-concurrency=5
+  --vm-native-filter-match='{job="vmsingle-benchmark"}' \
+  --vm-native-filter-time-start='2023-02-20T00:00:00Z' \
+  --vm-native-step-interval=month
 VictoriaMetrics Native import mode
-Init series discovery process on time range 2023-02-01T00:00:00Z -  
-Discovered 283 series 
-Initing import process from "http://127.0.0.1:8481/select/0/prometheus" to "http://localhost:8428" with filter 
-        filter: match[]={job=~".*benchmark-vm-cluster"}
-        start: 2023-02-01T00:00:00Z  
-Processing series: 9 / 283 [██████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒] 3.18%
-Processing series: 39 / 283 [███████████████████████▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒] 13.78%
-2023-02-23T10:18:25.867Z        error   app/vmctl/backoff/backoff.go:56 got error: failed to init export pipe: export request failed: unexpected error when performing request: Get "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native?end=2023-02-23T10%3A12%3A07Z&match%5B%5D=%7B__name__%3D%22go_memstats_next_gc_bytes%22%7D&start=2023-02-01T00%3A00%3A00Z": EOF on attempt: 1; will ret
-Processing series: 283 / 283 [██████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
-2023/02/23 12:40:46 Import finished!
-2023/02/23 12:40:46 VictoriaMetrics importer stats:
-  idle duration: 0s;
-  time spent while importing: 28m39.418745083s;
-  total bytes: 19.7 GB;
-  bytes/s: 11.4 MB;
-  import requests: 283;
+2023/02/24 16:40:47 Init series discovery process on time range 2023-02-20 00:00:00 +0000 UTC - 2023-02-24 14:40:47.450361 +0000 UTC 
+Found 262 timeseries to import. 
+. Selected time range "2023-02-20 00:00:00 +0000 UTC" - "2023-02-24 14:40:47.450361 +0000 UTC" will be split into 1 ranges according to "month" step. 
+. Need process parts of work: 262 
+. Continue? [Y/n] y
+2023/02/24 16:41:07 Initing import process from "http://127.0.0.1:8481/select/0/prometheus" to "http://localhost:8428" with filter 
+        filter: match[]={job="vmsingle-benchmark"}
+        start: 2023-02-20T00:00:00Z 
+Processing part of work: 262 / 262 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/24 16:48:52 Import finished!
+2023/02/24 16:48:52 VictoriaMetrics importer stats:
+  time spent while importing: 7m44.523619708s;
+  total bytes: 5.2 GB;
+  bytes/s: 11.2 MB;
+  import requests: 262;
   import requests retries: 0;
-2023/02/23 12:40:46 Total time: 28m56.701393458s
+2023/02/24 16:48:52 Total time: 8m4.63732s
 ```
 
 Importing tips:
 
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
 Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
-proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format),
-or you can increase `-search.maxSeries` and `-search.maxUniqueTimeseries`, and `-search.maxQueryDuration` following this part
-of the [documentation](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#resource-usage-limits).
+proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
 2. Migrating all the metrics from one VM to another may collide with existing application metrics
 (prefixed with `vm_`) at destination and lead to confusion when using
 [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
@@ -786,10 +782,6 @@ and specify `accountID` param.
 7. `vmctl` supports `--vm-concurrency` which controls the number of concurrent workers that process the input from source query results.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
 to allocated CPU resources of your VictoriMetrics installation.
-8. When migrating large volumes of data by native protocol it might be useful to use `--vm-native-requests-limit` flag 
-to define the number of concurrent export requests from the source database. It should be set to value of the
-`-search.maxConcurrentRequests` value specified on the vmselect if you use cluster version, or on vmsingle if you use 
-single version.
 
 #### Using time-based chunking of migration
 
