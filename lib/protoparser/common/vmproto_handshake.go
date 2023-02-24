@@ -35,7 +35,7 @@ func HandleVMProtoClientHandshake(remoteWriteURL *url.URL) bool {
 func HandleVMProtoServerHandshake(w http.ResponseWriter, r *http.Request) bool {
 	q := r.URL.Query()
 	if q.Get("get_vm_proto_version") != "" {
-		io.WriteString(w, "1")
+		_, _ = io.WriteString(w, "1")
 		return true
 	}
 	return false
