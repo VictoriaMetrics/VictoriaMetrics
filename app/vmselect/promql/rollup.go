@@ -69,7 +69,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"rate_over_sum":           newRollupFuncOneArg(rollupRateOverSum),
 	"resets":                  newRollupFuncOneArg(rollupResets),
 	"rollup":                  newRollupFuncOneOrTwoArgs(rollupFake),
-	"rollup_candlestick":      newRollupFuncOneArg(rollupFake),
+	"rollup_candlestick":      newRollupFuncOneOrTwoArgs(rollupFake),
 	"rollup_delta":            newRollupFuncOneOrTwoArgs(rollupFake),
 	"rollup_deriv":            newRollupFuncOneOrTwoArgs(rollupFake),
 	"rollup_increase":         newRollupFuncOneOrTwoArgs(rollupFake), // + rollupFuncsRemoveCounterResets
@@ -291,20 +291,18 @@ func getRollupTag(expr metricsql.Expr) (string, error) {
 		return "", nil
 	}
 	if len(fe.Args) != 2 {
-		return "", fmt.Errorf("unexpected number of args for rollup function %q; got %d; want %d", fe.Name, len(fe.Args), 2)
+		return "", fmt.Errorf("unexpected number of args; got %d; want %d", len(fe.Args), 2)
 	}
 	arg := fe.Args[1]
 
 	se, ok := arg.(*metricsql.StringExpr)
 	if !ok {
-		return "", fmt.Errorf("unexpected rollup tag value %q", arg.AppendString(nil))
+		return "", fmt.Errorf("unexpected rollup tag type: %s; expecting string", arg.AppendString(nil))
 	}
-	switch se.S {
-	case "min", "max", "avg":
-		return se.S, nil
-	default:
-		return "", fmt.Errorf("unexpected rollup tag %q; wanted min, max or avg", se.S)
+	if se.S == "" {
+		return "", fmt.Errorf("rollup tag cannot be empty")
 	}
+	return se.S, nil
 }
 
 func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
@@ -337,7 +335,11 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		}
 	}
 
-	appendRollupConfigs := func(dst []*rollupConfig, tag string) []*rollupConfig {
+	appendRollupConfigs := func(dst []*rollupConfig, expr metricsql.Expr) ([]*rollupConfig, error) {
+		tag, err := getRollupTag(expr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
+		}
 		switch tag {
 		case "min":
 			dst = append(dst, newRollupConfig(rollupMin, ""))
@@ -345,53 +347,57 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 			dst = append(dst, newRollupConfig(rollupMax, ""))
 		case "avg":
 			dst = append(dst, newRollupConfig(rollupAvg, ""))
-		default:
+		case "":
 			dst = append(dst, newRollupConfig(rollupMin, "min"))
 			dst = append(dst, newRollupConfig(rollupMax, "max"))
 			dst = append(dst, newRollupConfig(rollupAvg, "avg"))
+		default:
+			return nil, fmt.Errorf("unexpected second arg for %s: %q; want `min`, `max` or `avg`", expr.AppendString(nil), tag)
 		}
-		return dst
+		return dst, nil
 	}
 	var rcs []*rollupConfig
+	var err error
 	switch funcName {
 	case "rollup":
-		tag, err := getRollupTag(expr)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
-		}
-		rcs = appendRollupConfigs(rcs, tag)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "rollup_rate", "rollup_deriv":
-		tag, err := getRollupTag(expr)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
-		}
 		preFuncPrev := preFunc
 		preFunc = func(values []float64, timestamps []int64) {
 			preFuncPrev(values, timestamps)
 			derivValues(values, timestamps)
 		}
-		rcs = appendRollupConfigs(rcs, tag)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "rollup_increase", "rollup_delta":
-		tag, err := getRollupTag(expr)
-		if err != nil {
-			return nil, nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
-		}
 		preFuncPrev := preFunc
 		preFunc = func(values []float64, timestamps []int64) {
 			preFuncPrev(values, timestamps)
 			deltaValues(values)
 		}
-		rcs = appendRollupConfigs(rcs, tag)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "rollup_candlestick":
-		rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
-		rcs = append(rcs, newRollupConfig(rollupClose, "close"))
-		rcs = append(rcs, newRollupConfig(rollupLow, "low"))
-		rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
-	case "rollup_scrape_interval":
 		tag, err := getRollupTag(expr)
 		if err != nil {
 			return nil, nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
 		}
+		switch tag {
+		case "open":
+			rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
+		case "close":
+			rcs = append(rcs, newRollupConfig(rollupClose, "close"))
+		case "low":
+			rcs = append(rcs, newRollupConfig(rollupLow, "low"))
+		case "high":
+			rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
+		case "":
+			rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
+			rcs = append(rcs, newRollupConfig(rollupClose, "close"))
+			rcs = append(rcs, newRollupConfig(rollupLow, "low"))
+			rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
+		default:
+			return nil, nil, fmt.Errorf("unexpected second arg for %s: %q; want `min`, `max` or `avg`", expr.AppendString(nil), tag)
+		}
+	case "rollup_scrape_interval":
 		preFuncPrev := preFunc
 		preFunc = func(values []float64, timestamps []int64) {
 			preFuncPrev(values, timestamps)
@@ -408,7 +414,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 				values[0] = values[1]
 			}
 		}
-		rcs = appendRollupConfigs(rcs, tag)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "aggr_over_time":
 		aggrFuncNames, err := getRollupAggrFuncNames(expr)
 		if err != nil {
@@ -426,6 +432,9 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 		}
 	default:
 		rcs = append(rcs, newRollupConfig(rf, ""))
+	}
+	if err != nil {
+		return nil, nil, err
 	}
 	return preFunc, rcs, nil
 }

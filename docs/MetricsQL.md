@@ -613,8 +613,9 @@ This function is supported by PromQL.
 
 `rollup(series_selector[d])` is a [rollup function](#rollup-functions), which calculates `min`, `max` and `avg` values for raw samples
 on the given lookbehind window `d` and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 These values are calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 #### rollup_candlestick
 
@@ -623,13 +624,16 @@ over raw samples on the given lookbehind window `d` and returns them in time ser
 The calculations are performed individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
 
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 #### rollup_delta
 
 `rollup_delta(series_selector[d])` is a [rollup function](#rollup-functions), which calculates differences between adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -640,8 +644,9 @@ See also [rollup_increase](#rollup_increase).
 `rollup_deriv(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second derivatives
 for adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second derivatives
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -650,8 +655,9 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_increase(series_selector[d])` is a [rollup function](#rollup-functions), which calculates increases for adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated increases
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
@@ -665,6 +671,7 @@ See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-c
 when to use `rollup_rate()`.
 
 Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
 
@@ -675,8 +682,9 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_scrape_interval(series_selector[d])` is a [rollup function](#rollup-functions), which calculates the interval in seconds between
 adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
 
