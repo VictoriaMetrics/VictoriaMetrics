@@ -64,16 +64,16 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]Labe
 
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
-		return nil, fmt.Errorf("tenants request failed: %s", err)
+		return nil, fmt.Errorf("series request failed: %s", err)
 	}
 
 	var response Response
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("cannot decode tenants response: %s", err)
+		return nil, fmt.Errorf("cannot decode series response: %s", err)
 	}
 
 	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
+		return nil, fmt.Errorf("cannot close series response body: %s", err)
 	}
 	return response.Series, nil
 }

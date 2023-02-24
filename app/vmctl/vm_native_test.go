@@ -28,10 +28,10 @@ const (
 func Test_vmNativeProcessor_run(t *testing.T) {
 	t.Skip()
 	type fields struct {
-		filter    native.filter
+		filter    native.Filter
 		rateLimit int64
-		dst       *native.vmNativeClient
-		src       *native.vmNativeClient
+		dst       *native.Client
+		src       *native.Client
 	}
 	tests := []struct {
 		name    string
@@ -42,16 +42,16 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		{
 			name: "simulate syscall.SIGINT",
 			fields: fields{
-				filter: native.filter{
-					match:     matchFilter,
-					timeStart: timeStartFilter,
+				filter: native.Filter{
+					Match:     matchFilter,
+					TimeStart: timeStartFilter,
 				},
 				rateLimit: 0,
-				dst: &native.vmNativeClient{
-					addr: dstAddr,
+				dst: &native.Client{
+					Addr: dstAddr,
 				},
-				src: &native.vmNativeClient{
-					addr: srcAddr,
+				src: &native.Client{
+					Addr: srcAddr,
 				},
 			},
 			closer: func(cancelFunc context.CancelFunc) {
@@ -63,16 +63,16 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		{
 			name: "simulate correct work",
 			fields: fields{
-				filter: native.filter{
-					match:     matchFilter,
-					timeStart: timeStartFilter,
+				filter: native.Filter{
+					Match:     matchFilter,
+					TimeStart: timeStartFilter,
 				},
 				rateLimit: 0,
-				dst: &native.vmNativeClient{
-					addr: dstAddr,
+				dst: &native.Client{
+					Addr: dstAddr,
 				},
-				src: &native.vmNativeClient{
-					addr: srcAddr,
+				src: &native.Client{
+					Addr: srcAddr,
 				},
 			},
 			closer:  func(cancelFunc context.CancelFunc) {},
@@ -81,18 +81,18 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		{
 			name: "simulate correct work with chunking",
 			fields: fields{
-				filter: native.filter{
-					match:     matchFilter,
-					timeStart: timeStartFilter,
-					timeEnd:   timeEndFilter,
-					chunk:     stepper.StepMonth,
+				filter: native.Filter{
+					Match:     matchFilter,
+					TimeStart: timeStartFilter,
+					TimeEnd:   timeEndFilter,
+					Chunk:     stepper.StepMonth,
 				},
 				rateLimit: 0,
-				dst: &native.vmNativeClient{
-					addr: dstAddr,
+				dst: &native.Client{
+					Addr: dstAddr,
 				},
-				src: &native.vmNativeClient{
-					addr: srcAddr,
+				src: &native.Client{
+					Addr: srcAddr,
 				},
 			},
 			closer:  func(cancelFunc context.CancelFunc) {},
@@ -102,7 +102,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
-			p := &native.vmNativeProcessor{
+			p := &vmNativeProcessor{
 				filter:    tt.fields.filter,
 				rateLimit: tt.fields.rateLimit,
 				dst:       tt.fields.dst,

@@ -67,12 +67,12 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		}
 	}
 
-	fmt.Printf("Init series discovery process on time range %s - %s \n", startOfRange, endOfRange)
+	log.Printf("Init series discovery process on time range %s - %s \n", startOfRange, endOfRange)
 	series, err := p.explore(ctx, p.filter)
 	if err != nil {
 		return fmt.Errorf("cannot get series from source %s database: %s", p.src.Addr, err)
 	}
-	fmt.Printf("Discovered %d series \n", len(series))
+	log.Printf("Discovered %d series \n", len(series))
 
 	ranges := [][]time.Time{{startOfRange, endOfRange}}
 	if p.filter.Chunk != "" {
@@ -84,7 +84,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		ranges = append(ranges, r...)
 	}
 
-	fmt.Printf("Initing import process from %q to %q with filter %s \n", p.src.Addr, p.dst.Addr, p.filter.String())
+	log.Printf("Initing import process from %q to %q with filter %s \n", p.src.Addr, p.dst.Addr, p.filter.String())
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing series (series * time ranges)"), len(series)*len(ranges))
@@ -247,7 +247,7 @@ func (p *vmNativeProcessor) explore(ctx context.Context, f native.Filter) ([]nat
 		return nil, fmt.Errorf("failed to get source tenants: %s", err)
 	}
 
-	log.Printf("Discovered tenants: %v", tenants)
+	log.Printf("Discovered series per tenants: %v", tenants)
 	var series []native.LabelValues
 	for _, tenant := range tenants {
 		seriesPerTenant, err := p.src.Explore(ctx, f, tenant)
