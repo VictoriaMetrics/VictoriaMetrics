@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -263,7 +264,10 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		dst = resp.SwapBody(dst)
 	}
 
-	err := doRequestWithPossibleRetry(c.ctx, c.hc, req, resp, deadline)
+	ctx, cancel := context.WithDeadline(c.ctx, deadline)
+	defer cancel()
+
+	err := doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {
@@ -283,7 +287,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			break
 		}
 		req.URI().UpdateBytes(location)
-		err = doRequestWithPossibleRetry(c.ctx, c.hc, req, resp, deadline)
+		err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 		statusCode = resp.StatusCode()
 		redirectsCount++
 	}
@@ -350,16 +354,14 @@ var (
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
-func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
 	scrapeRequests.Inc()
-	reqCtx, cancel := context.WithDeadline(ctx, deadline)
-	defer cancel()
 
 	var reqErr error
 	// Return true if the request execution is completed and retry is not required
 	attempt := func() bool {
 		// Use DoCtx instead of Do in order to support context cancellation
-		reqErr = hc.DoCtx(reqCtx, req, resp)
+		reqErr = hc.DoCtx(ctx, req, resp)
 		if reqErr == nil {
 			statusCode := resp.StatusCode()
 			if statusCode != fasthttp.StatusTooManyRequests {
@@ -368,7 +370,6 @@ func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, re
 		} else if reqErr != fasthttp.ErrConnectionClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
 			return true
 		}
-
 		return false
 	}
 
@@ -376,23 +377,22 @@ func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, re
 		return reqErr
 	}
 
+	// The first attempt was unsuccessful. Use exponential backoff for further attempts.
+	// Perform the second attempt immediately after the first attempt - this should help
+	// in cases when the remote side closes the keep-alive connection before the first attempt.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3293
 	sleepTime := time.Second
-	maxSleepTime := time.Until(deadline)
+	// It is expected that the deadline is already set to ctx, so the loop below
+	// should eventually finish if all the attempt() calls are unsuccessful.
 	for {
 		scrapeRetries.Inc()
 		if attempt() {
 			return reqErr
 		}
-
-		// Retry request after exponentially increased sleep.
-		if sleepTime > maxSleepTime {
-			return fmt.Errorf("the server closes all the connection attempts: %w", reqErr)
-		}
 		sleepTime += sleepTime
-		if sleepTime > maxSleepTime {
-			sleepTime = maxSleepTime
+		if !discoveryutils.SleepCtx(ctx, sleepTime) {
+			return reqErr
 		}
-		time.Sleep(sleepTime)
 	}
 }
 
