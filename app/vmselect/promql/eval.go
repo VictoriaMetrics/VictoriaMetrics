@@ -373,7 +373,9 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 		args: args,
 		ec:   ec,
 	}
+	qtChild := qt.NewChild("eval %s", ae.Name)
 	rv, err := af(afa)
+	qtChild.Done()
 	if err != nil {
 		return nil, fmt.Errorf(`cannot evaluate %q: %w`, ae.AppendString(nil), err)
 	}
