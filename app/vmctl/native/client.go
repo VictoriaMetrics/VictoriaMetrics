@@ -26,14 +26,12 @@ type Client struct {
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
 
-func (lv LabelValues) String() string {
-	for labelName, labelValue := range lv {
-		if labelName == nameLabel {
-			return fmt.Sprintf("{%s=%q}", nameLabel, labelValue)
-		}
-	}
-	return ""
-}
+// MetricName name of metric which stored in label __name__
+type MetricName string
+
+// MetricNames represents only metric names which are stored
+// in label __name__ per each series
+type MetricNames map[MetricName]struct{}
 
 // Response represents response from api/v1/series
 type Response struct {
@@ -42,7 +40,7 @@ type Response struct {
 }
 
 // Explore finds series by provided filter from api/v1/series
-func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]LabelValues, error) {
+func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) (MetricNames, error) {
 	url := fmt.Sprintf("%s/%s", c.Addr, nativeSeriesAddr)
 	if tenantID != "" {
 		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeSeriesAddr)
@@ -75,7 +73,15 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]Labe
 	if err := resp.Body.Close(); err != nil {
 		return nil, fmt.Errorf("cannot close series response body: %s", err)
 	}
-	return response.Series, nil
+	names := make(MetricNames)
+	for _, series := range response.Series {
+		for labelName, labelValue := range series {
+			if labelName == nameLabel {
+				names[MetricName(labelValue)] = struct{}{}
+			}
+		}
+	}
+	return names, nil
 }
 
 // ImportPipe uses pipe reader in request to process data

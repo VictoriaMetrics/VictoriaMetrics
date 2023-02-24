@@ -14,7 +14,6 @@ type Stats struct {
 	Bytes        uint64
 	Requests     uint64
 	Retries      uint64
-	idleDuration time.Duration
 }
 
 func (s *Stats) String() string {
@@ -29,13 +28,12 @@ func (s *Stats) String() string {
 	}
 
 	return fmt.Sprintf("VictoriaMetrics importer stats:\n"+
-		"  idle duration: %v;\n"+
 		"  time spent while importing: %v;\n"+
 		"  total bytes: %s;\n"+
 		"  bytes/s: %s;\n"+
 		"  import requests: %d;\n"+
 		"  import requests retries: %d;",
-		s.idleDuration, totalImportDuration,
+		totalImportDuration,
 		byteCountSI(int64(s.Bytes)), bytesPerS,
 		s.Requests, s.Retries)
 }

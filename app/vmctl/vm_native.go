@@ -72,7 +72,6 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	if err != nil {
 		return fmt.Errorf("cannot get series from source %s database: %s", p.src.Addr, err)
 	}
-	log.Printf("Discovered %d series \n", len(series))
 
 	ranges := [][]time.Time{{startOfRange, endOfRange}}
 	if p.filter.Chunk != "" {
@@ -84,10 +83,15 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		ranges = append(ranges, r...)
 	}
 
+	question := fmt.Sprintf("Found %d timeseries to import. Generated %d time ranges. Need process parts of work: %d Continue?", len(series), len(ranges), len(series)*len(ranges))
+	if !silent && !prompt(question) {
+		return nil
+	}
+
 	log.Printf("Initing import process from %q to %q with filter %s \n", p.src.Addr, p.dst.Addr, p.filter.String())
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing series (series * time ranges)"), len(series)*len(ranges))
+		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing part of work"), len(series)*len(ranges))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
@@ -116,7 +120,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	}
 
 	// any error breaks the import
-	for _, s := range series {
+	for s := range series {
 		for _, times := range ranges {
 			select {
 			case <-ctx.Done():
@@ -124,7 +128,7 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 			case infErr := <-errCh:
 				return fmt.Errorf("native error: %s", infErr)
 			case filterCh <- native.Filter{
-				Match:     s.String(),
+				Match:     fmt.Sprintf("{%s=%q}", nameLabel, s),
 				TimeStart: times[0].Format(time.RFC3339),
 				TimeEnd:   times[1].Format(time.RFC3339),
 			}:
@@ -237,7 +241,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	return nil
 }
 
-func (p *vmNativeProcessor) explore(ctx context.Context, f native.Filter) ([]native.LabelValues, error) {
+func (p *vmNativeProcessor) explore(ctx context.Context, f native.Filter) (native.MetricNames, error) {
 	if !p.interCluster {
 		return p.src.Explore(ctx, f, "")
 	}
@@ -248,13 +252,17 @@ func (p *vmNativeProcessor) explore(ctx context.Context, f native.Filter) ([]nat
 	}
 
 	log.Printf("Discovered series per tenants: %v", tenants)
-	var series []native.LabelValues
+	metricNames := make(native.MetricNames)
 	for _, tenant := range tenants {
-		seriesPerTenant, err := p.src.Explore(ctx, f, tenant)
+		metricNamesPerTenant, err := p.src.Explore(ctx, f, tenant)
 		if err != nil {
 			return nil, err
 		}
-		series = append(series, seriesPerTenant...)
+		for metricName := range metricNamesPerTenant {
+			if _, ok := metricNames[metricName]; !ok {
+				metricNames[metricName] = struct{}{}
+			}
+		}
 	}
-	return series, nil
+	return metricNames, nil
 }
