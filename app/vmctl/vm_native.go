@@ -83,7 +83,10 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		ranges = append(ranges, r...)
 	}
 
-	question := fmt.Sprintf("Found %d timeseries to import. Generated %d time ranges. Need process parts of work: %d Continue?", len(series), len(ranges), len(series)*len(ranges))
+	foundSeriesMsg := fmt.Sprintf("Found %d timeseries to import. \n", len(series))
+	rangesMsg := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. \n", startOfRange, endOfRange, len(ranges), p.filter.Chunk)
+	processingPartsMsg := fmt.Sprintf("Need process parts of work: %d \n", len(series)*len(ranges))
+	question := fmt.Sprintf("%s. %s. %s. Continue?", foundSeriesMsg, rangesMsg, processingPartsMsg)
 	if !silent && !prompt(question) {
 		return nil
 	}
