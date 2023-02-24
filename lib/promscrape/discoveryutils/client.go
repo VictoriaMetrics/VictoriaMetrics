@@ -42,6 +42,12 @@ const (
 	DefaultClientReadTimeout = time.Minute
 )
 
+// RequestCallback is called on the request before sending the request to the server.
+type RequestCallback func(req *http.Request)
+
+// ResponseCallback is called on the response before validating and returning the response to the caller.
+type ResponseCallback func(resp *http.Response)
+
 func concurrencyLimitChInit() {
 	concurrencyLimitCh = make(chan struct{}, *maxConcurrency)
 }
@@ -164,18 +170,23 @@ func (c *Client) Context() context.Context {
 	return c.clientCtx
 }
 
+// GetAPIResponseWithParamsCtx returns response for given absolute path with blocking client and optional callback for api response,
+func (c *Client) GetAPIResponseWithParamsCtx(ctx context.Context, path string, modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
+	return c.getAPIResponseWithConcurrencyLimit(ctx, c.client, path, modifyRequest, inspectResponse)
+}
+
 // GetAPIResponseWithReqParams returns response for given absolute path with optional callback for request.
-func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest func(request *http.Request)) ([]byte, error) {
-	return c.getAPIResponse(path, modifyRequest)
+func (c *Client) GetAPIResponseWithReqParams(path string, modifyRequest RequestCallback) ([]byte, error) {
+	return c.getAPIResponseWithConcurrencyLimit(c.clientCtx, c.client, path, modifyRequest, nil)
 }
 
 // GetAPIResponse returns response for the given absolute path.
 func (c *Client) GetAPIResponse(path string) ([]byte, error) {
-	return c.getAPIResponse(path, nil)
+	return c.getAPIResponseWithConcurrencyLimit(c.clientCtx, c.client, path, nil, nil)
 }
 
-// GetAPIResponse returns response for the given absolute path with optional callback for request.
-func (c *Client) getAPIResponse(path string, modifyRequest func(request *http.Request)) ([]byte, error) {
+func (c *Client) getAPIResponseWithConcurrencyLimit(ctx context.Context, client *HTTPClient, path string,
+	modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -186,25 +197,27 @@ func (c *Client) getAPIResponse(path string, modifyRequest func(request *http.Re
 		timerpool.Put(t)
 		return nil, fmt.Errorf("too many outstanding requests to %q; try increasing -promscrape.discovery.concurrentWaitTime=%s or -promscrape.discovery.concurrency=%d",
 			c.apiServer, *maxWaitTime, *maxConcurrency)
+	case <-ctx.Done():
+		timerpool.Put(t)
+		return nil, ctx.Err()
 	}
-	defer func() {
-		<-concurrencyLimitCh
-	}()
-	return c.getAPIResponseWithParamsAndClientCtx(c.clientCtx, c.client, path, modifyRequest, nil)
+	data, err := c.getAPIResponseWithParamsAndClientCtx(ctx, client, path, modifyRequest, inspectResponse)
+	<-concurrencyLimitCh
+	return data, err
 }
 
 // GetBlockingAPIResponse returns response for given absolute path with blocking client and optional callback for api response,
-func (c *Client) GetBlockingAPIResponse(path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) GetBlockingAPIResponse(path string, inspectResponse ResponseCallback) ([]byte, error) {
 	return c.getAPIResponseWithParamsAndClientCtx(c.clientCtx, c.blockingClient, path, nil, inspectResponse)
 }
 
 // GetBlockingAPIResponseCtx returns response for given absolute path with blocking client and optional callback for api response,
-func (c *Client) GetBlockingAPIResponseCtx(ctx context.Context, path string, inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) GetBlockingAPIResponseCtx(ctx context.Context, path string, inspectResponse ResponseCallback) ([]byte, error) {
 	return c.getAPIResponseWithParamsAndClientCtx(ctx, c.blockingClient, path, nil, inspectResponse)
 }
 
 // getAPIResponseWithParamsAndClient returns response for the given absolute path with optional callback for request and for response.
-func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, client *HTTPClient, path string, modifyRequest func(req *http.Request), inspectResponse func(resp *http.Response)) ([]byte, error) {
+func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, client *HTTPClient, path string, modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
 	requestURL := c.apiServer + path
 	u, err := url.Parse(requestURL)
 	if err != nil {
@@ -214,7 +227,7 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 	deadline := time.Now().Add(client.ReadTimeout)
 	ctx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, "GET", u.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request for %q: %w", requestURL, err)
 	}
@@ -225,7 +238,7 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 		modifyRequest(req)
 	}
 
-	resp, err := doRequestWithPossibleRetry(client, req, deadline)
+	resp, err := doRequestWithPossibleRetry(client, req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
@@ -256,31 +269,48 @@ func (c *Client) Stop() {
 	c.clientCancel()
 }
 
-func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request, deadline time.Time) (*http.Response, error) {
-	sleepTime := time.Second
+func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
 	discoveryRequests.Inc()
 
-	for {
-		resp, err := hc.client.Do(req)
-		if err == nil {
+	var (
+		reqErr error
+		resp   *http.Response
+	)
+	// Return true if the request execution is completed and retry is not required
+	attempt := func() bool {
+		resp, reqErr = hc.client.Do(req)
+		if reqErr == nil {
 			statusCode := resp.StatusCode
 			if statusCode != http.StatusTooManyRequests {
-				return resp, nil
+				return true
 			}
-		} else if err != net.ErrClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return nil, err
+		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+			return true
 		}
-		// Retry request after exponentially increased sleep.
-		maxSleepTime := time.Until(deadline)
-		if sleepTime > maxSleepTime {
-			return nil, fmt.Errorf("the server closes all the connection attempts: %w", err)
+		return false
+	}
+
+	if attempt() {
+		return resp, reqErr
+	}
+
+	// The first attempt was unsuccessful. Use exponential backoff for further attempts.
+	// Perform the second attempt immediately after the first attempt - this should help
+	// in cases when the remote side closes the keep-alive connection before the first attempt.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3293
+	sleepTime := time.Second
+	// It is expected that the deadline is already set to req.Context(), so the loop below
+	// should eventually finish if all the attempt() calls are unsuccessful.
+	ctx := req.Context()
+	for {
+		discoveryRetries.Inc()
+		if attempt() {
+			return resp, reqErr
 		}
 		sleepTime += sleepTime
-		if sleepTime > maxSleepTime {
-			sleepTime = maxSleepTime
+		if !SleepCtx(ctx, sleepTime) {
+			return resp, reqErr
 		}
-		time.Sleep(sleepTime)
-		discoveryRetries.Inc()
 	}
 }
 
@@ -288,3 +318,17 @@ var (
 	discoveryRequests = metrics.NewCounter(`vm_promscrape_discovery_requests_total`)
 	discoveryRetries  = metrics.NewCounter(`vm_promscrape_discovery_retries_total`)
 )
+
+// SleepCtx sleeps for sleepDuration.
+//
+// It immediately returns false on ctx cancel or deadline, without waiting for sleepDuration.
+func SleepCtx(ctx context.Context, sleepDuration time.Duration) bool {
+	t := timerpool.Get(sleepDuration)
+	defer timerpool.Put(t)
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
+	}
+}

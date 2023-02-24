@@ -475,7 +475,7 @@ It is expected that the `series_selector` returns time series of [counter type](
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [rate](#rate).
+This function is supported by PromQL. See also [rate](#rate) and [rollup_rate](#rollup_rate).
 
 #### lag
 
@@ -588,7 +588,7 @@ It is expected that the `series_selector` returns time series of [counter type](
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [irate](#irate).
+This function is supported by PromQL. See also [irate](#irate) and [rollup_rate](#rollup_rate).
 
 #### rate_over_sum
 
@@ -660,8 +660,13 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_rate(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second change rates for adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+
+See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832) in order to undertand better
+when to use `rollup_rate()`.
+
 Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 

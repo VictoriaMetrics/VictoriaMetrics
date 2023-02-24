@@ -5,10 +5,19 @@
   align-items: center;
   justify-content: flex-start;
   flex-wrap: wrap;
-  gap: 24px;
+  gap: $padding-global;
 
   &__input {
     flex-basis: 160px;
     margin-bottom: -6px;
+  }
+
+  &_mobile {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+    padding: 0 $padding-global;
+    gap: $padding-medium;
+    width: 100%;
   }
 }

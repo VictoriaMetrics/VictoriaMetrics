@@ -12,6 +12,7 @@ import "./style.scss";
 import Alert from "../../../components/Main/Alert/Alert";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface PredefinedPanelsProps extends PanelSettings {
   filename: string;
@@ -26,7 +27,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
   filename,
   alias
 }) => {
-
+  const { isMobile } = useDeviceDetect();
   const { period } = useTimeState();
   const { customStep } = useGraphState();
   const dispatch = useTimeDispatch();
@@ -138,6 +139,7 @@ const PredefinedPanel: FC<PredefinedPanelsProps> = ({
         setYaxisLimits={setYaxisLimits}
         setPeriod={setPeriod}
         fullWidth={false}
+        height={isMobile ? window.innerHeight * 0.5 : 500}
       />
       }
     </div>

@@ -759,6 +759,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		GetRequestURI: func() string {
+			return httpserver.GetRequestURI(r)
+		},
 	}
 	result, err := promql.Exec(qt, &ec, query, true)
 	if err != nil {
@@ -860,6 +863,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		GetRequestURI: func() string {
+			return httpserver.GetRequestURI(r)
+		},
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {
@@ -1013,8 +1019,10 @@ func getRoundDigits(r *http.Request) int {
 
 func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 	d := latencyOffset.Milliseconds()
-	if d <= 1000 {
-		d = 1000
+	if d < 0 {
+		// Zero latency offset may be useful for some use cases.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2061#issuecomment-1299109836
+		d = 0
 	}
 	return searchutils.GetDuration(r, "latency_offset", d)
 }

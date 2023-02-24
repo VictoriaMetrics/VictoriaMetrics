@@ -446,7 +446,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 
 ## Useful tips for target relabeling
 
-* Target relabelig can be debugged by clicking the `debug` link for the needed target on the `http://vmagent:8429/target`
+* Target relabeling can be debugged by clicking the `debug` link for the needed target on the `http://vmagent:8429/target`
   or on the `http://vmagent:8429/service-discovery` pages. See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug).
 * Every discovered target contains a set of meta-labels, which start with `__meta_` prefix.
   The specific sets of labels per each supported service discovery option are listed

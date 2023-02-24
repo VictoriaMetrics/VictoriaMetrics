@@ -4,12 +4,17 @@ import useResize from "./useResize";
 
 export default function useDeviceDetect() {
   const windowSize = useResize(document.body);
-  const [isMobile, setMobile] = useState(false);
 
-  useEffect(() => {
+  const getIsMobile = () => {
     const mobileAgent = isMobileAgent();
     const smallWidth = window.innerWidth < 500;
-    setMobile(mobileAgent || smallWidth);
+    return mobileAgent || smallWidth;
+  };
+
+  const [isMobile, setMobile] = useState(getIsMobile());
+
+  useEffect(() => {
+    setMobile(getIsMobile());
   }, [windowSize]);
 
   return { isMobile };

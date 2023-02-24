@@ -9,6 +9,8 @@ import Tabs from "../../../components/Main/Tabs/Tabs";
 import { useMemo } from "preact/compat";
 import { ChartIcon, TableIcon } from "../../../components/Main/Icons";
 import "./style.scss";
+import classNames from "classnames";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface MetricsProperties {
   rows: Data[];
@@ -35,6 +37,8 @@ const MetricsContent: FC<MetricsProperties> = ({
   sectionTitle,
   tableHeaderCells,
 }) => {
+  const { isMobile } = useDeviceDetect();
+
   const tableCells = (row: Data) => (
     <TableCells
       row={row}
@@ -54,9 +58,21 @@ const MetricsContent: FC<MetricsProperties> = ({
   };
 
   return (
-    <div className="vm-metrics-content vm-block">
+    <div
+      className={classNames({
+        "vm-metrics-content": true,
+        "vm-metrics-content_mobile": isMobile,
+        "vm-block": true,
+        "vm-block_mobile": isMobile,
+      })}
+    >
       <div className="vm-metrics-content-header vm-section-header">
-        <h5 className="vm-section-header__title">{sectionTitle}</h5>
+        <h5
+          className={classNames({
+            "vm-section-header__title": true,
+            "vm-section-header__title_mobile": isMobile,
+          })}
+        >{sectionTitle}</h5>
         <div className="vm-section-header__tabs">
           <Tabs
             activeItem={String(activeTab)}
@@ -67,7 +83,10 @@ const MetricsContent: FC<MetricsProperties> = ({
       </div>
       <div
         ref={chartContainer}
-        className="vm-metrics-content__table"
+        className={classNames({
+          "vm-metrics-content__table": true,
+          "vm-metrics-content__table_mobile": isMobile
+        })}
       >
         {activeTab === 0 && (
           <EnhancedTable

@@ -6,9 +6,11 @@ import classNames from "classnames";
 import "./style.scss";
 import { useDashboardsState } from "../../state/dashboards/DashboardsStateContext";
 import Spinner from "../../components/Main/Spinner/Spinner";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 const DashboardsLayout: FC = () => {
   useSetQueryParams();
+  const { isMobile } = useDeviceDetect();
   const { dashboardsSettings, dashboardsLoading, dashboardsError } = useDashboardsState();
   const [dashboard, setDashboard] = useState(0);
 
@@ -35,7 +37,13 @@ const DashboardsLayout: FC = () => {
     {dashboardsError && <Alert variant="error">{dashboardsError}</Alert>}
     {!dashboardsSettings.length && <Alert variant="info">Dashboards not found</Alert>}
     {dashboards.length > 1 && (
-      <div className="vm-predefined-panels-tabs vm-block">
+      <div
+        className={classNames({
+          "vm-predefined-panels-tabs": true,
+          "vm-block": true,
+          "vm-block_mobile": isMobile,
+        })}
+      >
         {dashboards.map(tab => (
           <div
             key={tab.value}

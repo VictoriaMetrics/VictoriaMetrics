@@ -1,7 +1,5 @@
 RELEASE_NAME := vm-vultr-server
 VM_VERSION ?= $(shell git describe --abbrev=0 --tags)
-PACKER_LOG := 1
-PACKER_LOG_PATH := packer.log
 
 .PHONY: $(MAKECMDGOALS)
 
