@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 )
 
@@ -27,10 +28,10 @@ const (
 func Test_vmNativeProcessor_run(t *testing.T) {
 	t.Skip()
 	type fields struct {
-		filter    filter
+		filter    native.filter
 		rateLimit int64
-		dst       *vmNativeClient
-		src       *vmNativeClient
+		dst       *native.vmNativeClient
+		src       *native.vmNativeClient
 	}
 	tests := []struct {
 		name    string
@@ -41,15 +42,15 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		{
 			name: "simulate syscall.SIGINT",
 			fields: fields{
-				filter: filter{
+				filter: native.filter{
 					match:     matchFilter,
 					timeStart: timeStartFilter,
 				},
 				rateLimit: 0,
-				dst: &vmNativeClient{
+				dst: &native.vmNativeClient{
 					addr: dstAddr,
 				},
-				src: &vmNativeClient{
+				src: &native.vmNativeClient{
 					addr: srcAddr,
 				},
 			},
@@ -62,15 +63,15 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		{
 			name: "simulate correct work",
 			fields: fields{
-				filter: filter{
+				filter: native.filter{
 					match:     matchFilter,
 					timeStart: timeStartFilter,
 				},
 				rateLimit: 0,
-				dst: &vmNativeClient{
+				dst: &native.vmNativeClient{
 					addr: dstAddr,
 				},
-				src: &vmNativeClient{
+				src: &native.vmNativeClient{
 					addr: srcAddr,
 				},
 			},
@@ -80,17 +81,17 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		{
 			name: "simulate correct work with chunking",
 			fields: fields{
-				filter: filter{
+				filter: native.filter{
 					match:     matchFilter,
 					timeStart: timeStartFilter,
 					timeEnd:   timeEndFilter,
 					chunk:     stepper.StepMonth,
 				},
 				rateLimit: 0,
-				dst: &vmNativeClient{
+				dst: &native.vmNativeClient{
 					addr: dstAddr,
 				},
-				src: &vmNativeClient{
+				src: &native.vmNativeClient{
 					addr: srcAddr,
 				},
 			},
@@ -101,7 +102,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ctx, cancelFn := context.WithCancel(context.Background())
-			p := &vmNativeProcessor{
+			p := &native.vmNativeProcessor{
 				filter:    tt.fields.filter,
 				rateLimit: tt.fields.rateLimit,
 				dst:       tt.fields.dst,

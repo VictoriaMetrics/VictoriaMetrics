@@ -345,8 +345,9 @@ var (
 			Value: `{__name__!=""}`,
 		},
 		&cli.StringFlag{
-			Name:  vmNativeFilterTimeStart,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Name:     vmNativeFilterTimeStart,
+			Usage:    "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
@@ -410,13 +411,6 @@ var (
 		&cli.UintFlag{
 			Name:  vmConcurrency,
 			Usage: "Number of workers concurrently performing import requests to VM",
-			Value: 2,
-		},
-		&cli.UintFlag{
-			Name: vmNativeRequestsLimit,
-			Usage: "Defines the number of concurrent export requests from the source database. It should be set to \n" +
-				" value of the -search.maxConcurrentRequests value specified on the vmselect\n" +
-				" if you use cluster version, or on vmsingle if you use single version.",
 			Value: 2,
 		},
 	}
