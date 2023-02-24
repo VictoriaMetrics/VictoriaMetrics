@@ -253,6 +253,9 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	switch path {
 	case "/prometheus/api/v1/write", "/api/v1/write":
+		if common.HandleVMProtoServerHandshake(w, r) {
+			return true
+		}
 		prometheusWriteRequests.Inc()
 		if err := promremotewrite.InsertHandler(nil, r); err != nil {
 			prometheusWriteErrors.Inc()

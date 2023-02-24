@@ -123,6 +123,10 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		}
 		tr.Proxy = http.ProxyURL(pu)
 	}
+	hc := &http.Client{
+		Transport: tr,
+		Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, time.Minute),
+	}
 	c := &client{
 		sanitizedURL:    sanitizedURL,
 		remoteWriteURL:  remoteWriteURL,
@@ -130,11 +134,8 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		authCfg:         authCfg,
 		awsCfg:          awsCfg,
 		fq:              fq,
-		hc: &http.Client{
-			Transport: tr,
-			Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, time.Minute),
-		},
-		stopCh: make(chan struct{}),
+		hc:              hc,
+		stopCh:          make(chan struct{}),
 	}
 	c.sendBlock = c.sendBlockHTTP
 	return c
