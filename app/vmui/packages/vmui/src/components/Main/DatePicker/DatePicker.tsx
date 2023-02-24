@@ -3,12 +3,14 @@ import Calendar from "../../Main/DatePicker/Calendar/Calendar";
 import dayjs, { Dayjs } from "dayjs";
 import Popper from "../../Main/Popper/Popper";
 import { DATE_TIME_FORMAT } from "../../../constants/date";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface DatePickerProps {
   date: string | Date | Dayjs,
   targetRef: Ref<HTMLElement>
   format?: string
   timepicker?: boolean
+  label?: string
   onChange: (val: string) => void
 }
 
@@ -18,9 +20,11 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   format = DATE_TIME_FORMAT,
   timepicker,
   onChange,
+  label
 }, ref) => {
   const [openCalendar, setOpenCalendar] = useState(false);
   const dateDayjs = useMemo(() => date ? dayjs.tz(date) : dayjs().tz(), [date]);
+  const { isMobile } = useDeviceDetect();
 
   const toggleOpenCalendar = () => {
     setOpenCalendar(prev => !prev);
@@ -61,6 +65,7 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
       buttonRef={targetRef}
       placement="bottom-right"
       onClose={handleCloseCalendar}
+      title={isMobile ? label : undefined}
     >
       <div ref={ref}>
         <Calendar

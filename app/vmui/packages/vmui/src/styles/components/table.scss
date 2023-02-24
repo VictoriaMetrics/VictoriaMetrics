@@ -16,6 +16,8 @@
     }
 
     &_header {
+      position: relative;
+      z-index: 2;
     }
 
     &_selected {

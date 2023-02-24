@@ -38,5 +38,9 @@
   &-body {
     padding: $padding-small $padding-small*2;
     min-height: 500px;
+
+    @media (max-width: 500px) {
+      padding: 0;
+    }
   }
 }

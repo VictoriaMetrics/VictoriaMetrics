@@ -2,6 +2,7 @@ import React, { FC, KeyboardEvent, useEffect, useRef, HTMLInputTypeAttribute, Re
 import classNames from "classnames";
 import { useMemo } from "preact/compat";
 import { useAppState } from "../../../state/common/StateContext";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import "./style.scss";
 
 interface TextFieldProps {
@@ -15,6 +16,7 @@ interface TextFieldProps {
   disabled?: boolean
   autofocus?: boolean
   helperText?: string
+  inputmode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"
   onChange?: (value: string) => void
   onEnter?: () => void
   onKeyDown?: (e: KeyboardEvent) => void
@@ -33,6 +35,7 @@ const TextField: FC<TextFieldProps> = ({
   disabled = false,
   autofocus = false,
   helperText,
+  inputmode = "text",
   onChange,
   onEnter,
   onKeyDown,
@@ -40,6 +43,7 @@ const TextField: FC<TextFieldProps> = ({
   onBlur
 }) => {
   const { isDarkTheme } = useAppState();
+  const { isMobile } = useDeviceDetect();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -67,7 +71,7 @@ const TextField: FC<TextFieldProps> = ({
   };
 
   useEffect(() => {
-    if (!autofocus) return;
+    if (!autofocus || isMobile) return;
     fieldRef?.current?.focus && fieldRef.current.focus();
   }, [fieldRef, autofocus]);
 
@@ -97,7 +101,9 @@ const TextField: FC<TextFieldProps> = ({
           ref={textareaRef}
           value={value}
           rows={1}
+          inputMode={inputmode}
           placeholder={placeholder}
+          autoCapitalize={"none"}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
@@ -112,6 +118,8 @@ const TextField: FC<TextFieldProps> = ({
           value={value}
           type={type}
           placeholder={placeholder}
+          inputMode={inputmode}
+          autoCapitalize={"none"}
           onInput={handleChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}

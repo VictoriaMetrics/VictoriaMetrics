@@ -20,6 +20,7 @@ body {
   font: inherit;
   cursor: inherit;
   touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
 }
 
 code {
@@ -51,6 +52,36 @@ input[type=number]::-webkit-outer-spin-button {
   left: $padding-global;
   bottom: $padding-global;
   z-index: 999;
+
+  &-content {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+
+    &__close {
+      width: 24px;
+      height: 24px;
+      padding: 4px;
+      color: inherit;
+      opacity: 0.8;
+    }
+  }
+
+  &_mobile {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    animation: vm-slide-snackbar 150ms cubic-bezier(0.280, 0.840, 0.420, 1.1);
+
+    @keyframes vm-slide-snackbar {
+      0% {
+        transform: translateY(100%);
+      }
+        100% {
+            transform: translateY(0);
+        }
+    }
+  }
 }
 
 svg {

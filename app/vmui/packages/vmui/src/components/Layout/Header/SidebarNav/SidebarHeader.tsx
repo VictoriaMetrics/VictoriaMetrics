@@ -1,8 +1,6 @@
 import React, { FC, useEffect, useRef, useState } from "preact/compat";
-import GlobalSettings from "../../../Configurators/GlobalSettings/GlobalSettings";
 import { useLocation } from "react-router-dom";
 import ShortcutKeys from "../../../Main/ShortcutKeys/ShortcutKeys";
-import { LogoFullIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import HeaderNav from "../HeaderNav/HeaderNav";
 import useClickOutside from "../../../../hooks/useClickOutside";
@@ -13,13 +11,11 @@ import "./style.scss";
 interface SidebarHeaderProps {
   background: string
   color: string
-  onClickLogo: () => void
 }
 
 const SidebarHeader: FC<SidebarHeaderProps> = ({
   background,
   color,
-  onClickLogo,
 }) => {
   const { pathname } = useLocation();
   const { isMobile } = useDeviceDetect();
@@ -48,11 +44,9 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         "vm-header-sidebar-button": true,
         "vm-header-sidebar-button_open": openMenu
       })}
+      onClick={handleToggleMenu}
     >
-      <MenuBurger
-        open={openMenu}
-        onClick={handleToggleMenu}
-      />
+      <MenuBurger open={openMenu}/>
     </div>
     <div
       className={classNames({
@@ -60,13 +54,6 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         "vm-header-sidebar-menu_open": openMenu
       })}
     >
-      <div
-        className="vm-header-sidebar-menu__logo"
-        onClick={onClickLogo}
-        style={{ color }}
-      >
-        <LogoFullIcon/>
-      </div>
       <div>
         <HeaderNav
           color={color}
@@ -75,7 +62,6 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
         />
       </div>
       <div className="vm-header-sidebar-menu-settings">
-        <GlobalSettings showTitle={true}/>
         {!isMobile && <ShortcutKeys showTitle={true}/>}
       </div>
     </div>

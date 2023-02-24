@@ -13,6 +13,7 @@ import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface QueryConfiguratorProps {
   error?: ErrorTypes | string;
@@ -21,6 +22,7 @@ export interface QueryConfiguratorProps {
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, onHideQuery }) => {
+  const { isMobile } = useDeviceDetect();
 
   const { query, queryHistory, autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
@@ -111,13 +113,20 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
     onHideQuery(hideQuery);
   }, [hideQuery]);
 
-  return <div className="vm-query-configurator vm-block">
+  return <div
+    className={classNames({
+      "vm-query-configurator": true,
+      "vm-block": true,
+      "vm-block_mobile": isMobile
+    })}
+  >
     <div className="vm-query-configurator-list">
       {stateQuery.map((q, i) => (
         <div
           className={classNames({
             "vm-query-configurator-list-row": true,
-            "vm-query-configurator-list-row_disabled": hideQuery.includes(i)
+            "vm-query-configurator-list-row_disabled": hideQuery.includes(i),
+            "vm-query-configurator-list-row_mobile": isMobile
           })}
           key={i}
         >
@@ -175,7 +184,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
           onClick={onRunQuery}
           startIcon={<PlayIcon/>}
         >
-          Execute Query
+          {isMobile ? "Execute" : "Execute Query"}
         </Button>
       </div>
     </div>

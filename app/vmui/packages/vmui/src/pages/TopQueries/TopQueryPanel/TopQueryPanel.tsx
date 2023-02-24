@@ -5,6 +5,8 @@ import { CodeIcon, TableIcon } from "../../../components/Main/Icons";
 import Tabs from "../../../components/Main/Tabs/Tabs";
 import TopQueryTable from "../TopQueryTable/TopQueryTable";
 import "./style.scss";
+import classNames from "classnames";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface TopQueryPanelProps {
   rows: TopQuery[],
@@ -19,7 +21,7 @@ const tabs = ["table", "JSON"].map((t, i) => ({
 }));
 
 const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOrderBy }) => {
-
+  const { isMobile } = useDeviceDetect();
   const [activeTab, setActiveTab] = useState(0);
 
   const handleChangeTab = (val: string) => {
@@ -27,10 +29,26 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
   };
 
   return (
-    <div className="vm-top-queries-panel vm-block">
-
-      <div className="vm-top-queries-panel-header vm-section-header">
-        <h5 className="vm-section-header__title">{title}</h5>
+    <div
+      className={classNames({
+        "vm-top-queries-panel": true,
+        "vm-block": true,
+        "vm-block_mobile": isMobile,
+      })}
+    >
+      <div
+        className={classNames({
+          "vm-top-queries-panel-header": true,
+          "vm-section-header": true,
+          "vm-top-queries-panel-header_mobile": isMobile,
+        })}
+      >
+        <h5
+          className={classNames({
+            "vm-section-header__title": true,
+            "vm-section-header__title_mobile": isMobile,
+          })}
+        >{title}</h5>
         <div className="vm-section-header__tabs">
           <Tabs
             activeItem={String(activeTab)}
@@ -40,7 +58,12 @@ const TopQueryPanel: FC<TopQueryPanelProps> = ({ rows, title, columns, defaultOr
         </div>
       </div>
 
-      <div className="vm-top-queries-panel__table">
+      <div
+        className={classNames({
+          "vm-top-queries-panel__table": true,
+          "vm-top-queries-panel__table_mobile": isMobile,
+        })}
+      >
         {activeTab === 0 && (
           <TopQueryTable
             rows={rows}
