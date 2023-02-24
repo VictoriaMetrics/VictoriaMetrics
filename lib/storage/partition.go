@@ -2022,7 +2022,7 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 			// Skip non-directories.
 			continue
 		}
-		if fn == "tmp" || fn == "txn" {
+		if fn == "tmp" || fn == "txn" || fs.IsScheduledForRemoval(fn) {
 			// Skip special dirs.
 			continue
 		}
