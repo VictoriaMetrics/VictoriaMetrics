@@ -8,6 +8,8 @@ import Alert from "../Main/Alert/Alert";
 import Tooltip from "../Main/Tooltip/Tooltip";
 import Modal from "../Main/Modal/Modal";
 import JsonForm from "../../pages/TracePage/JsonForm/JsonForm";
+import classNames from "classnames";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 interface TraceViewProps {
   traces: Trace[];
@@ -16,6 +18,7 @@ interface TraceViewProps {
 }
 
 const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDeleteClick }) => {
+  const { isMobile } = useDeviceDetect();
   const [openTrace, setOpenTrace] = useState<Trace | null>(null);
 
   const handleCloseJson = () => {
@@ -77,7 +80,12 @@ const TracingsView: FC<TraceViewProps> = ({ traces, jsonEditor = false, onDelete
                 />
               </Tooltip>
             </div>
-            <nav className="vm-tracings-view-trace__nav">
+            <nav
+              className={classNames({
+                "vm-tracings-view-trace__nav": true,
+                "vm-tracings-view-trace__nav_mobile": isMobile
+              })}
+            >
               <NestedNav
                 trace={trace}
                 totalMsec={trace.duration}

@@ -112,6 +112,7 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [How to monitor Go applications with VictoriaMetrics](https://victoriametrics.medium.com/how-to-monitor-go-applications-with-victoriametrics-c04703110870)
 * [Prometheus storage: tech terms for humans](https://valyala.medium.com/prometheus-storage-technical-terms-for-humans-4ab4de6c3d48)
 * [Cardinality explorer](https://victoriametrics.com/blog/cardinality-explorer/)
+* [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/)
 
 ### Other articles
 

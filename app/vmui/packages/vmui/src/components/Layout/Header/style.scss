@@ -21,6 +21,12 @@
     padding: $padding-small;
   }
 
+  &_mobile {
+    display: grid;
+    grid-template-columns: 33px 1fr 33px;
+    justify-content: space-between;
+  }
+
   &_dark {
     .vm-header-button,
     button:before,
@@ -50,18 +56,16 @@
       max-width: 65px;
       min-width: 65px;
     }
+
+    &_mobile {
+      max-width: 65px;
+      min-width: 65px;
+      margin: 0 auto;
+    }
   }
 
   &-nav {
     font-size: $font-size-small;
     font-weight: bold;
-  }
-
-  &__settings {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: $padding-small;
-    flex-grow: 1;
   }
 }

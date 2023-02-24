@@ -8,6 +8,8 @@ import Spinner from "../../Main/Spinner/Spinner";
 import Alert from "../../Main/Alert/Alert";
 import Button from "../../Main/Button/Button";
 import "./style.scss";
+import classNames from "classnames";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -26,6 +28,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   isBucket,
   height
 }) => {
+  const { isMobile } = useDeviceDetect();
   const { customStep, yaxis } = useGraphState();
   const { period } = useTimeState();
 
@@ -92,7 +95,12 @@ with (q = ${queryBase}) (
   };
 
   return (
-    <div className="vm-explore-metrics-graph">
+    <div
+      className={classNames({
+        "vm-explore-metrics-graph": true,
+        "vm-explore-metrics-graph_mobile": isMobile
+      })}
+    >
       {isLoading && <Spinner />}
       {error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">

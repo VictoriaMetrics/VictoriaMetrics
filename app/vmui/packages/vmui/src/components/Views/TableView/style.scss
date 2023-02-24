@@ -5,6 +5,10 @@
   max-width: 100%;
   overflow: auto;
 
+  &_mobile {
+    margin-top: -$padding-global;
+  }
+
   table {
     margin-top: 0;
   }

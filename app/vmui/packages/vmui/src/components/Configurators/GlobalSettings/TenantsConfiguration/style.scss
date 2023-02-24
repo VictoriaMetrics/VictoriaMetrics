@@ -9,10 +9,18 @@
     overscroll-behavior: none;
     border-radius: $border-radius-medium;
 
+    &_mobile {
+      max-height: calc(($vh * 100) - 70px);
+    }
+
+    &_mobile &__search {
+      padding: 0 $padding-global $padding-small;
+    }
+
     &__search {
       position: sticky;
       top: 0;
-      padding: $padding-small;
+      padding: $padding-small $padding-global;
       background-color: $color-background-block;
     }
   }

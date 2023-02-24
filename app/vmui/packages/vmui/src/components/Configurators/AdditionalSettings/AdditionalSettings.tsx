@@ -1,11 +1,15 @@
-import React, { FC } from "preact/compat";
+import React, { FC, useRef, useState } from "preact/compat";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";
 import Switch from "../../Main/Switch/Switch";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Popper from "../../Main/Popper/Popper";
+import { TuneIcon } from "../../Main/Icons";
+import Button from "../../Main/Button/Button";
+import classNames from "classnames";
 
-const AdditionalSettings: FC = () => {
-
+const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
   const { autocomplete } = useQueryState();
   const queryDispatch = useQueryDispatch();
 
@@ -24,23 +28,72 @@ const AdditionalSettings: FC = () => {
     queryDispatch({ type: "TOGGLE_AUTOCOMPLETE" });
   };
 
-  return <div className="vm-additional-settings">
-    <Switch
-      label={"Autocomplete"}
-      value={autocomplete}
-      onChange={onChangeAutocomplete}
-    />
-    <Switch
-      label={"Disable cache"}
-      value={nocache}
-      onChange={onChangeCache}
-    />
-    <Switch
-      label={"Trace query"}
-      value={isTracingEnabled}
-      onChange={onChangeQueryTracing}
-    />
-  </div>;
+  return (
+    <div
+      className={classNames({
+        "vm-additional-settings": true,
+        "vm-additional-settings_mobile": isMobile
+      })}
+    >
+      <Switch
+        label={"Autocomplete"}
+        value={autocomplete}
+        onChange={onChangeAutocomplete}
+        fullWidth={isMobile}
+      />
+      <Switch
+        label={"Disable cache"}
+        value={nocache}
+        onChange={onChangeCache}
+        fullWidth={isMobile}
+      />
+      <Switch
+        label={"Trace query"}
+        value={isTracingEnabled}
+        onChange={onChangeQueryTracing}
+        fullWidth={isMobile}
+      />
+    </div>
+  );
+};
+
+const AdditionalSettings: FC = () => {
+  const { isMobile } = useDeviceDetect();
+  const [openList, setOpenList] = useState(false);
+  const targetRef = useRef<HTMLDivElement>(null);
+
+  const handleToggleList = () => {
+    setOpenList(prev => !prev);
+  };
+
+  const handleCloseList = () => {
+    setOpenList(false);
+  };
+
+  if (isMobile) {
+    return (
+      <>
+        <div ref={targetRef}>
+          <Button
+            variant="outlined"
+            startIcon={<TuneIcon/>}
+            onClick={handleToggleList}
+          />
+        </div>
+        <Popper
+          open={openList}
+          buttonRef={targetRef}
+          placement="bottom-left"
+          onClose={handleCloseList}
+          title={"Query settings"}
+        >
+          <AdditionalSettingsControls isMobile={isMobile}/>
+        </Popper>
+      </>
+    );
+  }
+
+  return <AdditionalSettingsControls/>;
 };
 
 export default AdditionalSettings;

@@ -8,6 +8,7 @@ import dayjs from "dayjs";
 import TextField from "../../../Main/TextField/TextField";
 import { Timezone } from "../../../../types";
 import "./style.scss";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 interface TimezonesProps {
   timezoneState: string
@@ -15,7 +16,7 @@ interface TimezonesProps {
 }
 
 const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
-
+  const { isMobile } = useDeviceDetect();
   const timezones = getTimezoneList();
 
   const [openList, setOpenList] = useState(false);
@@ -92,8 +93,14 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
         placement="bottom-left"
         onClose={handleCloseList}
         fullWidth
+        title={isMobile ? "Time zone" : undefined}
       >
-        <div className="vm-timezones-list">
+        <div
+          className={classNames({
+            "vm-timezones-list": true,
+            "vm-timezones-list_mobile": isMobile,
+          })}
+        >
           <div className="vm-timezones-list-header">
             <div className="vm-timezones-list-header__search">
               <TextField

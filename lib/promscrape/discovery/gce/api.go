@@ -144,7 +144,7 @@ func getCurrentProject() (string, error) {
 func getGCEMetadata(path string) ([]byte, error) {
 	// See https://cloud.google.com/compute/docs/storing-retrieving-metadata#default
 	metadataURL := "http://metadata.google.internal/computeMetadata/v1/" + path
-	req, err := http.NewRequest("GET", metadataURL, nil)
+	req, err := http.NewRequest(http.MethodGet, metadataURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create http request for %q: %w", metadataURL, err)
 	}

@@ -157,7 +157,7 @@ func (c *Client) do(req *http.Request) (*http.Response, error) {
 // Ping checks the health of the read source
 func (c *Client) Ping() error {
 	url := c.addr + healthPath
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("cannot create request to %q: %s", url, err)
 	}
@@ -174,7 +174,7 @@ func (c *Client) Ping() error {
 func (c *Client) fetch(ctx context.Context, data []byte, streamCb StreamCallback) error {
 	r := bytes.NewReader(data)
 	url := c.addr + remoteReadPath
-	req, err := http.NewRequest("POST", url, r)
+	req, err := http.NewRequest(http.MethodPost, url, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}

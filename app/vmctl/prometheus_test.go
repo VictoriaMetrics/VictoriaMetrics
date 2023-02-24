@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -58,7 +59,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 					return client
 				},
 				im: func(vmCfg vm.Config) *vm.Importer {
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err := vm.NewImporter(context.Background(), vmCfg)
 					if err != nil {
 						t.Fatalf("error init importer: %s", err)
 					}
@@ -95,7 +96,7 @@ func Test_prometheusProcessor_run(t *testing.T) {
 					return client
 				},
 				im: func(vmCfg vm.Config) *vm.Importer {
-					importer, err := vm.NewImporter(vmCfg)
+					importer, err := vm.NewImporter(context.Background(), vmCfg)
 					if err != nil {
 						t.Fatalf("error init importer: %s", err)
 					}

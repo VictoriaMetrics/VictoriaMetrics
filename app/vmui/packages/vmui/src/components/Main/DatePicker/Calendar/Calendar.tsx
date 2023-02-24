@@ -8,6 +8,8 @@ import { DATE_TIME_FORMAT } from "../../../../constants/date";
 import "./style.scss";
 import { CalendarIcon, ClockIcon } from "../../Icons";
 import Tabs from "../../Tabs/Tabs";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 interface DatePickerProps {
   date: Date | Dayjs
@@ -33,6 +35,7 @@ const Calendar: FC<DatePickerProps> = ({
   const [viewDate, setViewDate] = useState(dayjs.tz(date));
   const [selectDate, setSelectDate] = useState(dayjs.tz(date));
   const [tab, setTab] = useState(tabs[0].value);
+  const { isMobile } = useDeviceDetect();
 
   const toggleDisplayYears = () => {
     setDisplayYears(prev => !prev);
@@ -67,7 +70,12 @@ const Calendar: FC<DatePickerProps> = ({
   }, [selectDate]);
 
   return (
-    <div className="vm-calendar">
+    <div
+      className={classNames({
+        "vm-calendar": true,
+        "vm-calendar_mobile": isMobile,
+      })}
+    >
       {tab === "date" && (
         <CalendarHeader
           viewDate={viewDate}
