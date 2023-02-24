@@ -351,33 +351,48 @@ var (
 )
 
 func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
-	sleepTime := time.Second
 	scrapeRequests.Inc()
 	reqCtx, cancel := context.WithDeadline(ctx, deadline)
 	defer cancel()
-	for {
+
+	var reqErr error
+	// Return true if the request execution is completed and retry is not required
+	attempt := func() bool {
 		// Use DoCtx instead of Do in order to support context cancellation
-		err := hc.DoCtx(reqCtx, req, resp)
-		if err == nil {
+		reqErr = hc.DoCtx(reqCtx, req, resp)
+		if reqErr == nil {
 			statusCode := resp.StatusCode()
 			if statusCode != fasthttp.StatusTooManyRequests {
-				return nil
+				return true
 			}
-		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return err
+		} else if reqErr != fasthttp.ErrConnectionClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+			return true
+		}
+
+		return false
+	}
+
+	if attempt() {
+		return reqErr
+	}
+
+	sleepTime := time.Second
+	maxSleepTime := time.Until(deadline)
+	for {
+		scrapeRetries.Inc()
+		if attempt() {
+			return reqErr
 		}
 
 		// Retry request after exponentially increased sleep.
-		maxSleepTime := time.Until(deadline)
 		if sleepTime > maxSleepTime {
-			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+			return fmt.Errorf("the server closes all the connection attempts: %w", reqErr)
 		}
 		sleepTime += sleepTime
 		if sleepTime > maxSleepTime {
 			sleepTime = maxSleepTime
 		}
 		time.Sleep(sleepTime)
-		scrapeRetries.Inc()
 	}
 }
 
