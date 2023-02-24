@@ -16,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
+	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -257,30 +258,48 @@ func (c *Client) Stop() {
 }
 
 func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request, deadline time.Time) (*http.Response, error) {
-	sleepTime := time.Second
 	discoveryRequests.Inc()
 
-	for {
-		resp, err := hc.client.Do(req)
-		if err == nil {
+	var (
+		reqErr error
+		resp   *http.Response
+	)
+	// Return true if the request execution is completed and retry is not required
+	attempt := func() bool {
+		// Use DoCtx instead of Do in order to support context cancellation
+		resp, reqErr = hc.client.Do(req)
+		if reqErr == nil {
 			statusCode := resp.StatusCode
-			if statusCode != http.StatusTooManyRequests {
-				return resp, nil
+			if statusCode != fasthttp.StatusTooManyRequests {
+				return true
 			}
-		} else if err != net.ErrClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return nil, err
+		} else if reqErr != fasthttp.ErrConnectionClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+			return true
 		}
-		// Retry request after exponentially increased sleep.
-		maxSleepTime := time.Until(deadline)
+
+		return false
+	}
+
+	if attempt() {
+		return resp, reqErr
+	}
+
+	sleepTime := time.Second
+	maxSleepTime := time.Until(deadline)
+	for {
+		discoveryRetries.Inc()
+		if attempt() {
+			return resp, reqErr
+		}
+
 		if sleepTime > maxSleepTime {
-			return nil, fmt.Errorf("the server closes all the connection attempts: %w", err)
+			return nil, fmt.Errorf("the server closes all the connection attempts: %w", reqErr)
 		}
 		sleepTime += sleepTime
 		if sleepTime > maxSleepTime {
 			sleepTime = maxSleepTime
 		}
 		time.Sleep(sleepTime)
-		discoveryRetries.Inc()
 	}
 }
 
