@@ -185,30 +185,25 @@ There is also support for multitenant writes. See [these docs](#multitenancy).
 
 ## VictoriaMetrics remote write protocol
 
-By default `vmagent` uses Prometheus remote_write protocol for sending the data to the configured `-remoteWrite.url`.
-This allows sending data to [any Prometheus-compatible remote storage](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
+`vmagent` supports sending data to the configured `-remoteWrite.url` either via Prometheus remote write protocol
+or via VictoriaMetrics remote write protocol.
 
-The Prometheus remote_write protocol may require big amounts of network bandwidth under high load.
-This may result in high network egress costs when the configured remote storage is located in remote datacenter or availability zone.
-This also may result in the increased disk IO at `vmagent` when it writes to disk the pending data, which must be sent to remote storage.
-In this case the `vmagent` can be instructed to use VictoriaMetrics remote write protocol.
-This allows reducing egress network bandwidth costs while reducing disk read/write IO at `vmagent` side under high load.
-The `-remoteWrite.useVMProto=true` command-line flag instructs `vmagent` to send the data to the corresponding `-remoteWrite.url`
-via VictoriaMetrics remote write protocol.
+VictoriaMetrics remote write protocol provides the following benefits comparing to Prometheus remote write protocol:
 
-While all the [recently released](https://docs.victoriametrics.com/CHANGELOG.html) VictoriaMetrics components support
-the VictoriaMetrics remote write protocol, third-party systems and old versions of VictoriaMetrics components may miss the support of this protocol.
+- Reduced network bandwidth usage by 2x-5x. This allows saving network bandwidth usage costs when `vmagent` and
+  the configured remote storage systems are located in different datacenters, availability zones or regions.
 
-The `-remoteWrite.useVMProto` command-line flag can be set independently per each configured `-remoteWrite.url`.
-For example, the following command instructs `vmagent` to send the data to `https://victoriametrics/api/v1/write` via VictoriaMetrics remote write protocol,
-while sending the data to `https://prom-compatible-storage/write` via Prometheus remote write protocol:
+- Reduced disk read/write IO and disk space usage at `vmagent` when the remote storage is temporarily unavailable.
+  In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
+  This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
 
-```
-./vmagent -remoteWrite.url=https://victoriametrics/api/v1/write \
-  -remoteWrite.useVMProto=true \
-  -remoteWrite.url=https://prom-compatible-storage/write \
-  -remoteWrite.useVMProto=false
-```
+`vmagent` automatically uses VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
+[single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+or `vminsert` at [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+`vmagent` automatically switches to Prometheus remote write protocol when it sends data to old versions of VictoriaMetrics components
+or to other Prometheus-compatible remote storage systems. It is possible to force switch to Prometheus remote write protocol
+by specifying `-remoteWrite.forcePromProto` command-line flag for the corresponding `-remoteWrite.url`.
 
 ## Multitenancy
 
@@ -1457,6 +1452,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
+  -remoteWrite.forcePromProto array
+     Whether to force Prometheus remote write protocol for sending data to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
+     Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.headers array
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1542,14 +1540,11 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.tmpDataPath string
      Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
   -remoteWrite.url array
-     Remote storage URL to write data to. It must support Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . It is recommended setting -remoteWrite.useVMProto command-line option when VictoriaMetrics is used as a remote storage in order to save network bandwidth. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL
+     Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
      Supports an array of values separated by comma or specified via multiple flags.
-  -remoteWrite.useVMProto array
-     Whether to use VictoriaMetrics protocol for sending the data to the given -remoteWrite.url in order to reduce network bandwidth usage and disk read/write IO under high load. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
-     Supports array of values separated by comma or specified via multiple flags.
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls
