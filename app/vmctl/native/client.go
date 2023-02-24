@@ -26,6 +26,15 @@ type Client struct {
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
 
+func (lv LabelValues) String() string {
+	for labelName, labelValue := range lv {
+		if labelName == nameLabel {
+			return fmt.Sprintf("{%s=%q}", nameLabel, labelValue)
+		}
+	}
+	return ""
+}
+
 // Response represents response from api/v1/series
 type Response struct {
 	Status string        `json:"status"`
@@ -33,8 +42,11 @@ type Response struct {
 }
 
 // Explore finds series by provided filter from api/v1/series
-func (c *Client) Explore(ctx context.Context, f Filter) (map[string]struct{}, error) {
+func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]LabelValues, error) {
 	url := fmt.Sprintf("%s/%s", c.Addr, nativeSeriesAddr)
+	if tenantID != "" {
+		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeSeriesAddr)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %s", url, err)
@@ -63,16 +75,7 @@ func (c *Client) Explore(ctx context.Context, f Filter) (map[string]struct{}, er
 	if err := resp.Body.Close(); err != nil {
 		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
 	}
-	names := make(map[string]struct{})
-	for _, series := range response.Series {
-		for labelName, labelValue := range series {
-			if labelName == nameLabel {
-				name := fmt.Sprintf("{%s=%q}", nameLabel, labelValue)
-				names[name] = struct{}{}
-			}
-		}
-	}
-	return names, nil
+	return response.Series, nil
 }
 
 // ImportPipe uses pipe reader in request to process data
