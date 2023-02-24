@@ -12,6 +12,7 @@ import { getNameForMetric } from "../../../utils/metric";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import "./style.scss";
 import useResize from "../../../hooks/useResize";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -20,6 +21,7 @@ export interface GraphViewProps {
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
   const { showInfoMessage } = useSnack();
+  const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
   const windowSize = useResize(document.body);
@@ -108,7 +110,12 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
   if (!rows.length) return <Alert variant="warning">No data to show</Alert>;
 
   return (
-    <div className="vm-table-view">
+    <div
+      className={classNames({
+        "vm-table-view": true,
+        "vm-table-view_mobile": isMobile,
+      })}
+    >
       <table
         className="vm-table"
         ref={tableRef}

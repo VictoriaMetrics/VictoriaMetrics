@@ -93,6 +93,7 @@ $button-radius: 6px;
   /* variant CONTAINED */
   &_contained_primary {
     color: $color-primary-text;
+    background-color: $color-primary;
 
     &:before {
       background-color: $color-primary;

@@ -4,4 +4,8 @@
   max-height: 200px;
   overflow: auto;
   font-size: $font-size;
+
+  &_mobile {
+    max-height: 100%
+  }
 }

@@ -51,6 +51,14 @@
     border-radius: $border-radius-medium;
     overflow: auto;
 
+    &_mobile {
+      max-height: calc(($vh * 100) - 70px);
+    }
+
+    &_mobile &-header__search {
+      padding: 0 $padding-global 0;
+    }
+
     &-header {
       position: sticky;
       top: 0;

@@ -2,12 +2,12 @@ import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Button from "../../../Main/Button/Button";
-import { ArrowDownIcon, RefreshIcon } from "../../../Main/Icons";
+import { ArrowDownIcon, RefreshIcon, RestartIcon } from "../../../Main/Icons";
 import Popper from "../../../Main/Popper/Popper";
 import "./style.scss";
 import classNames from "classnames";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
-import useResize from "../../../../hooks/useResize";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 interface AutoRefreshOption {
   seconds: number
@@ -30,7 +30,7 @@ const delayOptions: AutoRefreshOption[] = [
 ];
 
 export const ExecutionControls: FC = () => {
-  const windowSize = useResize(document.body);
+  const { isMobile } = useDeviceDetect();
 
   const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
@@ -85,11 +85,11 @@ export const ExecutionControls: FC = () => {
       <div
         className={classNames({
           "vm-execution-controls-buttons": true,
+          "vm-execution-controls-buttons_mobile": isMobile,
           "vm-header-button": !appModeEnable,
-          "vm-execution-controls-buttons_short": windowSize.width <= 360
         })}
       >
-        {windowSize.width > 360 && (
+        {!isMobile && (
           <Tooltip title="Refresh dashboard">
             <Button
               variant="contained"
@@ -99,28 +99,42 @@ export const ExecutionControls: FC = () => {
             />
           </Tooltip>
         )}
-        <Tooltip title="Auto-refresh control">
-          <div ref={optionsButtonRef}>
-            <Button
-              variant="contained"
-              color="primary"
-              fullWidth
-              endIcon={(
-                <div
-                  className={classNames({
-                    "vm-execution-controls-buttons__arrow": true,
-                    "vm-execution-controls-buttons__arrow_open": openOptions,
-                  })}
-                >
-                  <ArrowDownIcon/>
-                </div>
-              )}
-              onClick={toggleOpenOptions}
-            >
-              {selectedDelay.title}
-            </Button>
+        {isMobile ? (
+          <div
+            className="vm-mobile-option"
+            onClick={toggleOpenOptions}
+          >
+            <span className="vm-mobile-option__icon"><RestartIcon/></span>
+            <div className="vm-mobile-option-text">
+              <span className="vm-mobile-option-text__label">Auto-refresh</span>
+              <span className="vm-mobile-option-text__value">{selectedDelay.title}</span>
+            </div>
+            <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
           </div>
-        </Tooltip>
+        ) : (
+          <Tooltip title="Auto-refresh control">
+            <div ref={optionsButtonRef}>
+              <Button
+                variant="contained"
+                color="primary"
+                fullWidth
+                endIcon={(
+                  <div
+                    className={classNames({
+                      "vm-execution-controls-buttons__arrow": true,
+                      "vm-execution-controls-buttons__arrow_open": openOptions,
+                    })}
+                  >
+                    <ArrowDownIcon/>
+                  </div>
+                )}
+                onClick={toggleOpenOptions}
+              >
+                {selectedDelay.title}
+              </Button>
+            </div>
+          </Tooltip>
+        )}
       </div>
     </div>
     <Popper
@@ -128,12 +142,19 @@ export const ExecutionControls: FC = () => {
       placement="bottom-right"
       onClose={handleCloseOptions}
       buttonRef={optionsButtonRef}
+      title={isMobile ? "Auto-refresh duration" : undefined}
     >
-      <div className="vm-execution-controls-list">
+      <div
+        className={classNames({
+          "vm-execution-controls-list": true,
+          "vm-execution-controls-list_mobile": isMobile,
+        })}
+      >
         {delayOptions.map(d => (
           <div
             className={classNames({
               "vm-list-item": true,
+              "vm-list-item_mobile": isMobile,
               "vm-list-item_active": d.seconds === selectedDelay.seconds
             })}
             key={d.seconds}
