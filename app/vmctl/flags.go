@@ -324,7 +324,6 @@ const (
 	vmNativeFilterTimeStart = "vm-native-filter-time-start"
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
-	vmNativeRequestsLimit   = "vm-native-requests-limit"
 
 	vmNativeSrcAddr     = "vm-native-src-addr"
 	vmNativeSrcUser     = "vm-native-src-user"
