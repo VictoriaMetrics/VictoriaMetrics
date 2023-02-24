@@ -4,6 +4,14 @@
   display: grid;
   min-width: 250px;
 
+  &_mobile &-list {
+    gap: $padding-global;
+
+    &:first-child {
+      padding-top: 0;
+    }
+  }
+
   &-list {
     display: grid;
     gap: $padding-small;
@@ -11,6 +19,10 @@
     max-height: 350px;
     overflow: auto;
     border-bottom: $border-divider;
+
+    &_first {
+      padding-top: 0;
+    }
 
     &-header {
       display: grid;

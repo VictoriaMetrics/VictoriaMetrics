@@ -200,7 +200,7 @@ func TestAdjustLastPoints(t *testing.T) {
 func TestGetLatencyOffsetMillisecondsSuccess(t *testing.T) {
 	f := func(url string, expectedOffset int64) {
 		t.Helper()
-		r, err := http.NewRequest("GET", url, nil)
+		r, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
 		}
@@ -219,7 +219,7 @@ func TestGetLatencyOffsetMillisecondsSuccess(t *testing.T) {
 func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 	f := func(url string) {
 		t.Helper()
-		r, err := http.NewRequest("GET", url, nil)
+		r, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
 			t.Fatalf("unexpected error in NewRequest(%q): %s", url, err)
 		}

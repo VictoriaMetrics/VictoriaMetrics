@@ -7,6 +7,7 @@ import { darkPalette, lightPalette } from "../../../constants/palette";
 import { Theme } from "../../../types";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import useSystemTheme from "../../../hooks/useSystemTheme";
+import useResize from "../../../hooks/useResize";
 
 interface ThemeProviderProps {
   onLoaded: (val: boolean) => void
@@ -28,6 +29,7 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
   const { theme } = useAppState();
   const isDarkTheme = useSystemTheme();
   const dispatch = useAppDispatch();
+  const windowSize = useResize(document.body);
 
   const [palette, setPalette] = useState({
     [Theme.dark]: darkPalette,
@@ -93,6 +95,7 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
     setTheme();
   }, [palette]);
 
+  useEffect(setScrollbarSize, [windowSize]);
   useEffect(updatePalette, [theme, isDarkTheme]);
 
   useEffect(() => {

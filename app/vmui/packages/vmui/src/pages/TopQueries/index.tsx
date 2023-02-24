@@ -14,10 +14,13 @@ import TextField from "../../components/Main/TextField/TextField";
 import Alert from "../../components/Main/Alert/Alert";
 import Tooltip from "../../components/Main/Tooltip/Tooltip";
 import "./style.scss";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
 const TopQueries: FC = () => {
+  const { isMobile } = useDeviceDetect();
   const { data, error, loading } = useFetchTopQueries();
   const { topN, maxLifetime } = useTopQueriesState();
   const topQueriesDispatch = useTopQueriesDispatch();
@@ -67,10 +70,21 @@ const TopQueries: FC = () => {
   }, [data]);
 
   return (
-    <div className="vm-top-queries">
+    <div
+      className={classNames({
+        "vm-top-queries": true,
+        "vm-top-queries_mobile": isMobile,
+      })}
+    >
       {loading && <Spinner containerStyles={{ height: "500px" }}/>}
 
-      <div className="vm-top-queries-controls vm-block">
+      <div
+        className={classNames({
+          "vm-top-queries-controls": true,
+          "vm-block": true,
+          "vm-block_mobile": isMobile,
+        })}
+      >
         <div className="vm-top-queries-controls-fields">
           <div className="vm-top-queries-controls-fields__item">
             <TextField
@@ -93,7 +107,12 @@ const TopQueries: FC = () => {
             />
           </div>
         </div>
-        <div className="vm-top-queries-controls-bottom">
+        <div
+          className={classNames({
+            "vm-top-queries-controls-bottom": true,
+            "vm-top-queries-controls-bottom_mobile": isMobile,
+          })}
+        >
           <div className="vm-top-queries-controls-bottom__info">
             VictoriaMetrics tracks the last&nbsp;
             <Tooltip title="search.queryStats.lastQueriesCount">

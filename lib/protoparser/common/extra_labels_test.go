@@ -14,7 +14,7 @@ func TestGetExtraLabelsSuccess(t *testing.T) {
 	f := func(requestURI, expectedLabels string) {
 		t.Helper()
 		fullURL := "http://fobar" + requestURI
-		req, err := http.NewRequest("GET", fullURL, nil)
+		req, err := http.NewRequest(http.MethodGet, fullURL, nil)
 		if err != nil {
 			t.Fatalf("cannot parse %q: %s", fullURL, err)
 		}

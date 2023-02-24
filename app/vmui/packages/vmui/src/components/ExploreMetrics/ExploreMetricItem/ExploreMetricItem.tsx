@@ -10,6 +10,7 @@ interface ExploreMetricItemProps {
   job: string
   instance: string
   index: number
+  length: number
   size: GraphSize
   onRemoveItem: (name: string) => void
   onChangeOrder: (name: string, oldIndex: number, newIndex: number) => void
@@ -20,6 +21,7 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
   job,
   instance,
   index,
+  length,
   size,
   onRemoveItem,
   onChangeOrder,
@@ -42,6 +44,7 @@ const ExploreMetricItem: FC<ExploreMetricItemProps> = ({
       <ExploreMetricItemHeader
         name={name}
         index={index}
+        length={length}
         isBucket={isBucket}
         rateEnabled={rateEnabled}
         size={size.id}

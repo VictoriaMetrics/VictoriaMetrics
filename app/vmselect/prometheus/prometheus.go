@@ -766,6 +766,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWr
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		GetRequestURI: func() string {
+			return httpserver.GetRequestURI(r)
+		},
 	}
 	result, err := promql.Exec(qt, &ec, query, true)
 	if err != nil {
@@ -867,6 +870,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, w http.Respo
 		LookbackDelta:       lookbackDelta,
 		RoundDigits:         getRoundDigits(r),
 		EnforcedTagFilterss: etfs,
+		GetRequestURI: func() string {
+			return httpserver.GetRequestURI(r)
+		},
 	}
 	result, err := promql.Exec(qt, &ec, query, false)
 	if err != nil {

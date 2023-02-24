@@ -174,7 +174,7 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 }
 
 func (s *VMStorage) newRequestPOST() (*http.Request, error) {
-	req, err := http.NewRequest("POST", s.datasourceURL, nil)
+	req, err := http.NewRequest(http.MethodPost, s.datasourceURL, nil)
 	if err != nil {
 		return nil, err
 	}

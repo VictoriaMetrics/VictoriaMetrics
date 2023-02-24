@@ -2,6 +2,8 @@ import React, { FC, useMemo } from "preact/compat";
 import Select from "../../Main/Select/Select";
 import "./style.scss";
 import { GRAPH_SIZES } from "../../../constants/graph";
+import classNames from "classnames";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface ExploreMetricsHeaderProps {
   jobs: string[]
@@ -34,9 +36,17 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
 }) => {
   const noInstanceText = useMemo(() => job ? "" : "No instances. Please select job", [job]);
   const noMetricsText = useMemo(() => job ? "" : "No metric names. Please select job", [job]);
+  const { isMobile } = useDeviceDetect();
 
   return (
-    <div className="vm-explore-metrics-header vm-block">
+    <div
+      className={classNames({
+        "vm-explore-metrics-header": true,
+        "vm-explore-metrics-header_mobile": isMobile,
+        "vm-block": true,
+        "vm-block_mobile": isMobile,
+      })}
+    >
       <div className="vm-explore-metrics-header__job">
         <Select
           value={job}
@@ -45,6 +55,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           placeholder="Please select job"
           onChange={onChangeJob}
           autofocus={!job}
+          searchable
         />
       </div>
       <div className="vm-explore-metrics-header__instance">
@@ -56,6 +67,7 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           onChange={onChangeInstance}
           noOptionsText={noInstanceText}
           clearable
+          searchable
         />
       </div>
       <div className="vm-explore-metrics-header__size">
@@ -68,12 +80,14 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
       </div>
       <div className="vm-explore-metrics-header-metrics">
         <Select
+          label={"Metrics"}
           value={selectedMetrics}
           list={names}
           placeholder="Search metric name"
           onChange={onToggleMetric}
           noOptionsText={noMetricsText}
           clearable
+          searchable
         />
       </div>
     </div>

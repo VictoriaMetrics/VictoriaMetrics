@@ -15,7 +15,7 @@ func TestGetDurationSuccess(t *testing.T) {
 	f := func(s string, dExpected int64) {
 		t.Helper()
 		urlStr := fmt.Sprintf("http://foo.bar/baz?s=%s", url.QueryEscape(s))
-		r, err := http.NewRequest("GET", urlStr, nil)
+		r, err := http.NewRequest(http.MethodGet, urlStr, nil)
 		if err != nil {
 			t.Fatalf("unexpected error in NewRequest: %s", err)
 		}
@@ -54,7 +54,7 @@ func TestGetDurationError(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		urlStr := fmt.Sprintf("http://foo.bar/baz?s=%s", url.QueryEscape(s))
-		r, err := http.NewRequest("GET", urlStr, nil)
+		r, err := http.NewRequest(http.MethodGet, urlStr, nil)
 		if err != nil {
 			t.Fatalf("unexpected error in NewRequest: %s", err)
 		}
@@ -78,7 +78,7 @@ func TestGetTimeSuccess(t *testing.T) {
 	f := func(s string, timestampExpected int64) {
 		t.Helper()
 		urlStr := fmt.Sprintf("http://foo.bar/baz?s=%s", url.QueryEscape(s))
-		r, err := http.NewRequest("GET", urlStr, nil)
+		r, err := http.NewRequest(http.MethodGet, urlStr, nil)
 		if err != nil {
 			t.Fatalf("unexpected error in NewRequest: %s", err)
 		}
@@ -127,7 +127,7 @@ func TestGetTimeError(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
 		urlStr := fmt.Sprintf("http://foo.bar/baz?s=%s", url.QueryEscape(s))
-		r, err := http.NewRequest("GET", urlStr, nil)
+		r, err := http.NewRequest(http.MethodGet, urlStr, nil)
 		if err != nil {
 			t.Fatalf("unexpected error in NewRequest: %s", err)
 		}
