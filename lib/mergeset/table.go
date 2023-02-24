@@ -1835,5 +1835,5 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 func isSpecialDir(name string) bool {
 	// Snapshots and cache dirs aren't used anymore.
 	// Keep them here for backwards compatibility.
-	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache"
+	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache" || fs.IsScheduledForRemoval(name)
 }
