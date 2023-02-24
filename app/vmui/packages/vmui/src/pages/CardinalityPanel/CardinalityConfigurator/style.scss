@@ -38,6 +38,10 @@
       gap: $padding-global;
     }
 
+    &_mobile &__docs {
+      justify-content: space-between;
+    }
+
     &__info {
       flex-grow: 1;
       font-size: $font-size;
@@ -49,6 +53,15 @@
 
     button {
       margin: 0 0 0 auto;
+    }
+
+    &_mobile {
+      display: grid;
+      grid-template-columns: 1fr;
+
+      button {
+        margin: 0;
+      }
     }
   }
 }

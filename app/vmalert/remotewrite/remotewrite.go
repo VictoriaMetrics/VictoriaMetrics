@@ -225,7 +225,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 
 func (c *Client) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
-	req, err := http.NewRequest("POST", c.addr, r)
+	req, err := http.NewRequest(http.MethodPost, c.addr, r)
 	if err != nil {
 		return fmt.Errorf("failed to create new HTTP request: %w", err)
 	}

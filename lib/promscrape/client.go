@@ -185,7 +185,7 @@ func newClient(sw *ScrapeWork, ctx context.Context) *client {
 func (c *client) GetStreamReader() (*streamReader, error) {
 	deadline := time.Now().Add(c.sc.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
-	req, err := http.NewRequestWithContext(ctx, "GET", c.scrapeURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
@@ -262,7 +262,8 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 		// This should reduce memory uage when scraping big targets.
 		dst = resp.SwapBody(dst)
 	}
-	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
+
+	err := doRequestWithPossibleRetry(c.ctx, c.hc, req, resp, deadline)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {
@@ -282,7 +283,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			break
 		}
 		req.URI().UpdateBytes(location)
-		err = doRequestWithPossibleRetry(c.hc, req, resp, deadline)
+		err = doRequestWithPossibleRetry(c.ctx, c.hc, req, resp, deadline)
 		statusCode = resp.StatusCode()
 		redirectsCount++
 	}
@@ -349,14 +350,15 @@ var (
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
-func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
+func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
 	sleepTime := time.Second
 	scrapeRequests.Inc()
 	attempt := 0
+	reqCtx, cancel := context.WithDeadline(ctx, deadline)
+	defer cancel()
 	for {
-		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
-		// across multiple retries.
-		err := hc.DoDeadline(req, resp, deadline)
+		// Use DoCtx instead of Do in order to support context cancellation
+		err := hc.DoCtx(reqCtx, req, resp)
 		if err == nil {
 			statusCode := resp.StatusCode()
 			if statusCode != fasthttp.StatusTooManyRequests {
@@ -369,7 +371,6 @@ func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, 
 		// the first retry happens without delay (attempt=0) intentionally,
 		// as a special case for handling broken or stale connections.
 		backoffTime := sleepTime * time.Duration(attempt)
-
 		// Retry request after exponentially increased sleep.
 		maxSleepTime := time.Until(deadline)
 		if backoffTime > maxSleepTime {

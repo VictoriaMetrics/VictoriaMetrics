@@ -9,6 +9,10 @@
   background-color: $color-background-block;
   border-radius: $border-radius-medium;
 
+  &_mobile {
+    padding: 0 $padding-global;
+  }
+
   &__tabs {
     margin: 0 0-$padding-global 0-$padding-global;
     border-top: $border-divider;
@@ -61,6 +65,8 @@
 
       &__prev,
       &__next {
+        margin: -8px;
+        padding: 8px;
         cursor: pointer;
         transition: opacity 200ms ease-in-out;
 
@@ -86,6 +92,11 @@
     align-items: center;
     justify-content: center;
     gap: 2px;
+
+    @media (max-width: 500px) {
+      grid-template-columns: repeat(7, calc((100vw - ($padding-global * 2) - (6 * 2px))/7));
+      grid-template-rows: repeat(6, calc((100vw - ($padding-global * 2) - (5 * 2px))/7));
+    }
 
     &-cell {
       display: flex;

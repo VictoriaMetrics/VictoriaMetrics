@@ -1219,18 +1219,21 @@ func rollupMAD(rfa *rollupFuncArg) float64 {
 	// There is no need in handling NaNs here, since they must be cleaned up
 	// before calling rollup funcs.
 
+	return mad(rfa.values)
+}
+
+func mad(values []float64) float64 {
 	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
-	values := rfa.values
 	median := quantile(0.5, values)
 	a := getFloat64s()
 	ds := a.A[:0]
 	for _, v := range values {
 		ds = append(ds, math.Abs(v-median))
 	}
-	mad := quantile(0.5, ds)
+	v := quantile(0.5, ds)
 	a.A = ds
 	putFloat64s(a)
-	return mad
+	return v
 }
 
 func rollupHistogram(rfa *rollupFuncArg) float64 {

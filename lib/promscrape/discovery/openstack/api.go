@@ -190,7 +190,7 @@ func getAPIResponse(apiURL string, cfg *apiConfig) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	req, err := http.NewRequest("GET", apiURL, nil)
+	req, err := http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create new request for openstack api url %s: %w", apiURL, err)
 	}

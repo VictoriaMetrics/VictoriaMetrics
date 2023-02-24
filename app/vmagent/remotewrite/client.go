@@ -67,10 +67,11 @@ var (
 )
 
 type client struct {
-	sanitizedURL   string
-	remoteWriteURL string
-	fq             *persistentqueue.FastQueue
-	hc             *http.Client
+	sanitizedURL    string
+	remoteWriteURL  string
+	isVMRemoteWrite bool
+	fq              *persistentqueue.FastQueue
+	hc              *http.Client
 
 	sendBlock func(block []byte) bool
 	authCfg   *promauth.Config
@@ -92,7 +93,7 @@ type client struct {
 	stopCh chan struct{}
 }
 
-func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int) *client {
+func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persistentqueue.FastQueue, concurrency int, isVMRemoteWrite bool) *client {
 	authCfg, err := getAuthConfig(argIdx)
 	if err != nil {
 		logger.Panicf("FATAL: cannot initialize auth config for remoteWrite.url=%q: %s", remoteWriteURL, err)
@@ -122,17 +123,19 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 		}
 		tr.Proxy = http.ProxyURL(pu)
 	}
+	hc := &http.Client{
+		Transport: tr,
+		Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, time.Minute),
+	}
 	c := &client{
-		sanitizedURL:   sanitizedURL,
-		remoteWriteURL: remoteWriteURL,
-		authCfg:        authCfg,
-		awsCfg:         awsCfg,
-		fq:             fq,
-		hc: &http.Client{
-			Transport: tr,
-			Timeout:   sendTimeout.GetOptionalArgOrDefault(argIdx, time.Minute),
-		},
-		stopCh: make(chan struct{}),
+		sanitizedURL:    sanitizedURL,
+		remoteWriteURL:  remoteWriteURL,
+		isVMRemoteWrite: isVMRemoteWrite,
+		authCfg:         authCfg,
+		awsCfg:          awsCfg,
+		fq:              fq,
+		hc:              hc,
+		stopCh:          make(chan struct{}),
 	}
 	c.sendBlock = c.sendBlockHTTP
 	return c
@@ -291,7 +294,9 @@ func (c *client) runWorker() {
 	}
 }
 
-// sendBlockHTTP returns false only if c.stopCh is closed.
+// sendBlockHTTP sends the given block to c.remoteWriteURL.
+//
+// The function returns false only if c.stopCh is closed.
 // Otherwise it tries sending the block to remote storage indefinitely.
 func (c *client) sendBlockHTTP(block []byte) bool {
 	c.rl.register(len(block), c.stopCh)
@@ -305,7 +310,7 @@ func (c *client) sendBlockHTTP(block []byte) bool {
 	}
 
 again:
-	req, err := http.NewRequest("POST", c.remoteWriteURL, bytes.NewBuffer(block))
+	req, err := http.NewRequest(http.MethodPost, c.remoteWriteURL, bytes.NewBuffer(block))
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", c.sanitizedURL, err)
 	}
@@ -313,8 +318,13 @@ again:
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
-	h.Set("Content-Encoding", "snappy")
-	h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	if c.isVMRemoteWrite {
+		h.Set("Content-Encoding", "zstd")
+		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
+	} else {
+		h.Set("Content-Encoding", "snappy")
+		h.Set("X-Prometheus-Remote-Write-Version", "0.1.0")
+	}
 	if c.awsCfg != nil {
 		if err := c.awsCfg.SignRequest(req, sigv4Hash); err != nil {
 			// there is no need in retry, request will be rejected by client.Do and retried by code below

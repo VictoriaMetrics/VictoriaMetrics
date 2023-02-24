@@ -7,9 +7,10 @@ export interface ServerConfiguratorProps {
   serverUrl: string
   onChange: (url: string) => void
   onEnter: () => void
+  onBlur: () => void
 }
 
-const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange , onEnter }) => {
+const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange , onEnter, onBlur }) => {
 
   const [error, setError] = useState("");
 
@@ -29,6 +30,8 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange ,
       error={error}
       onChange={onChangeServer}
       onEnter={onEnter}
+      onBlur={onBlur}
+      inputmode="url"
     />
   );
 };
