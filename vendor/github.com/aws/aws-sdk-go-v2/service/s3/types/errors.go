@@ -27,7 +27,7 @@ func (e *BucketAlreadyExists) ErrorMessage() string {
 	return *e.Message
 }
 func (e *BucketAlreadyExists) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "BucketAlreadyExists"
 	}
 	return *e.ErrorCodeOverride
@@ -57,7 +57,7 @@ func (e *BucketAlreadyOwnedByYou) ErrorMessage() string {
 	return *e.Message
 }
 func (e *BucketAlreadyOwnedByYou) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "BucketAlreadyOwnedByYou"
 	}
 	return *e.ErrorCodeOverride
@@ -86,7 +86,7 @@ func (e *InvalidObjectState) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidObjectState) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidObjectState"
 	}
 	return *e.ErrorCodeOverride
@@ -112,7 +112,7 @@ func (e *NoSuchBucket) ErrorMessage() string {
 	return *e.Message
 }
 func (e *NoSuchBucket) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "NoSuchBucket"
 	}
 	return *e.ErrorCodeOverride
@@ -138,7 +138,7 @@ func (e *NoSuchKey) ErrorMessage() string {
 	return *e.Message
 }
 func (e *NoSuchKey) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "NoSuchKey"
 	}
 	return *e.ErrorCodeOverride
@@ -164,7 +164,7 @@ func (e *NoSuchUpload) ErrorMessage() string {
 	return *e.Message
 }
 func (e *NoSuchUpload) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "NoSuchUpload"
 	}
 	return *e.ErrorCodeOverride
@@ -190,7 +190,7 @@ func (e *NotFound) ErrorMessage() string {
 	return *e.Message
 }
 func (e *NotFound) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "NotFound"
 	}
 	return *e.ErrorCodeOverride
@@ -216,7 +216,7 @@ func (e *ObjectAlreadyInActiveTierError) ErrorMessage() string {
 	return *e.Message
 }
 func (e *ObjectAlreadyInActiveTierError) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "ObjectAlreadyInActiveTierError"
 	}
 	return *e.ErrorCodeOverride
@@ -243,7 +243,7 @@ func (e *ObjectNotInActiveTierError) ErrorMessage() string {
 	return *e.Message
 }
 func (e *ObjectNotInActiveTierError) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "ObjectNotInActiveTierError"
 	}
 	return *e.ErrorCodeOverride
