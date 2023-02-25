@@ -1158,6 +1158,8 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery (default 30000000)
   -search.maxSeries int
      The maximum number of time series, which can be returned from /api/v1/series. This option allows limiting memory usage (default 30000)
+  -search.maxSeriesPerAggrFunc int
+     The maximum number of time series an aggregate MetricsQL function can generate (default 1000000)
   -search.maxStalenessInterval duration
      The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
