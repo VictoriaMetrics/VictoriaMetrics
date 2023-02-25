@@ -14,11 +14,7 @@ export const useExpandWithExprs = () => {
     const fetchUrl = getExpandWithExprUrl(serverUrl, query);
     setLoading(true);
     try {
-      const response = await fetch(fetchUrl, {
-        headers: {
-          "Content-Type": "application/json"
-        },
-      });
+      const response = await fetch(fetchUrl);
 
       const resp = await response.json();
 
