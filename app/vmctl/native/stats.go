@@ -10,10 +10,10 @@ import (
 // when processing data
 type Stats struct {
 	sync.Mutex
-	StartTime    time.Time
-	Bytes        uint64
-	Requests     uint64
-	Retries      uint64
+	StartTime time.Time
+	Bytes     uint64
+	Requests  uint64
+	Retries   uint64
 }
 
 func (s *Stats) String() string {
