@@ -425,7 +425,7 @@ func (tb *table) retentionWatcher() {
 			continue
 		}
 
-		// There are paritions to drop. Drop them.
+		// There are partitions to drop. Drop them.
 
 		// Remove table references from partitions, so they will be eventually
 		// closed and dropped after all the pending searches are done.

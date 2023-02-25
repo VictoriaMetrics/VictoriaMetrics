@@ -5,6 +5,7 @@ import { FormEvent, MouseEvent } from "react";
 import Autocomplete from "../Autocomplete/Autocomplete";
 import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface SelectProps {
   value: string | string[]
@@ -13,6 +14,7 @@ interface SelectProps {
   placeholder?: string
   noOptionsText?: string
   clearable?: boolean
+  searchable?: boolean
   autofocus?: boolean
   onChange: (value: string) => void
 }
@@ -24,10 +26,12 @@ const Select: FC<SelectProps> = ({
   placeholder,
   noOptionsText,
   clearable = false,
+  searchable = false,
   autofocus,
   onChange
 }) => {
   const { isDarkTheme } = useAppState();
+  const { isMobile } = useDeviceDetect();
 
   const [search, setSearch] = useState("");
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
@@ -95,7 +99,7 @@ const Select: FC<SelectProps> = ({
   }, [openList, inputRef]);
 
   useEffect(() => {
-    if (!autofocus || !inputRef.current) return;
+    if (!autofocus || !inputRef.current || isMobile) return;
     inputRef.current.focus();
   }, [autofocus, inputRef]);
 
@@ -120,25 +124,33 @@ const Select: FC<SelectProps> = ({
         ref={autocompleteAnchorEl}
       >
         <div className="vm-select-input-content">
-          {selectedValues && selectedValues.map(item => (
+          {!isMobile && selectedValues && selectedValues.map(item => (
             <div
               className="vm-select-input-content__selected"
               key={item}
             >
-              {item}
+              <span>{item}</span>
               <div onClick={createHandleClick(item)}>
                 <CloseIcon/>
               </div>
             </div>
           ))}
-          <input
-            value={textFieldValue}
-            type="text"
-            placeholder={placeholder}
-            onInput={handleChange}
-            onFocus={handleFocus}
-            ref={inputRef}
-          />
+          {isMobile && !!selectedValues?.length && (
+            <span className="vm-select-input-content__counter">
+              selected {selectedValues.length}
+            </span>
+          )}
+          {!isMobile || (isMobile && (!selectedValues || !selectedValues?.length)) && (
+            <input
+              value={textFieldValue}
+              type="text"
+              placeholder={placeholder}
+              onInput={handleChange}
+              onFocus={handleFocus}
+              ref={inputRef}
+              readOnly={isMobile || !searchable}
+            />
+          )}
         </div>
         {label && <span className="vm-text-field__label">{label}</span>}
         {clearable && value && (
@@ -159,6 +171,7 @@ const Select: FC<SelectProps> = ({
         </div>
       </div>
       <Autocomplete
+        label={label}
         value={autocompleteValue}
         options={list}
         anchor={autocompleteAnchorEl}

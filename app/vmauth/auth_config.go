@@ -110,7 +110,7 @@ type SrcPath struct {
 	re        *regexp.Regexp
 }
 
-// URLPrefix represents pased `url_prefix`
+// URLPrefix represents passed `url_prefix`
 type URLPrefix struct {
 	n   uint32
 	bus []*backendURL

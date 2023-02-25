@@ -21,7 +21,7 @@ func Push(wr *prompbmarshal.WriteRequest) {
 
 	tss := wr.Timeseries
 	for len(tss) > 0 {
-		// Process big tss in smaller blocks in order to reduce maxmimum memory usage
+		// Process big tss in smaller blocks in order to reduce maximum memory usage
 		samplesCount := 0
 		i := 0
 		for i < len(tss) {

@@ -8,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	parserCommon "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/csvimport/stream"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -22,7 +23,7 @@ func InsertHandler(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	return parser.ParseStream(req, func(rows []parser.Row) error {
+	return stream.Parse(req, func(rows []parser.Row) error {
 		return insertRows(rows, extraLabels)
 	})
 }

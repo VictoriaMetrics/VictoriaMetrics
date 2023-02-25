@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { compactObject } from "../../../utils/object";
 import { useTimeState } from "../../../state/time/TimeStateContext";
-import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
+import { useSearchParams } from "react-router-dom";
 
 export const useSetQueryParams = () => {
   const { duration, relativeTime, period: { date } } = useTimeState();
   const { customStep } = useGraphState();
+  const [, setSearchParams] = useSearchParams();
 
   const setSearchParamsFromState = () => {
     const params = compactObject({
@@ -16,7 +17,7 @@ export const useSetQueryParams = () => {
       ["g0.relative_time"]: relativeTime
     });
 
-    setQueryStringWithoutPageReload(params);
+    setSearchParams(params);
   };
 
   useEffect(setSearchParamsFromState, [duration, relativeTime, date, customStep]);

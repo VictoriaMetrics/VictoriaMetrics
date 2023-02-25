@@ -32,7 +32,8 @@ Use this feature for the following cases:
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight and without extra dependencies.
-* Supports [reusable templates](#reusable-templates) for annotations.
+* Supports [reusable templates](#reusable-templates) for annotations;
+* Load of recording and alerting rules from local filesystem, GCS and S3.
 
 ## Limitations
 
@@ -102,26 +103,6 @@ Every `rule` belongs to a `group` and every configuration file may contain arbit
 groups:
   [ - <rule_group> ]
 ```
-
-### Reading rules from object storage
-
-[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
-from object storage:
-
-- `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
-- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
-
-S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
-all files with prefix `rule_` in the folder `dir`.
-
-The following [command-line flags](#flags) can be used for fine-tuning access to S3 and GCS:
-
-- `-s3.credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
-- `-s3.configFilePath` - path to file with S3 configs. Configs are loaded from default location if not set.
-- `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
-- `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
-- `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
-
 
 ### Groups
 
@@ -428,6 +409,25 @@ The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` 
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
+### Reading rules from object storage
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
+from object storage:
+
+- `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
+- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
+
+S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
+all files with prefix `rule_` in the folder `dir`.
+
+The following [command-line flags](#flags) can be used for fine-tuning access to S3 and GCS:
+
+- `-s3.credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+- `-s3.configFilePath` - path to file with S3 configs. Configs are loaded from default location if not set.
+- `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
+- `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
+- `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
 ### Topology examples
 
 The following sections are showing how `vmalert` may be used and configured
@@ -625,6 +625,8 @@ can read the same rules configuration as normal, evaluate them on the given time
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
 
+See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
+
 ### How it works
 
 In `replay` mode vmalert works as a cli-tool and exits immediately after work is done.
@@ -729,31 +731,42 @@ a review to the dashboard.
 
 ## Troubleshooting
 
-vmalert executes configured rules within certain intervals. It is expected that at the moment when rule is executed,
-the data is already present in configured `-datasource.url`:
+### Data delay
+
+Data delay is one of the most common issues with rules execution.
+vmalert executes configured rules within certain intervals at specifics timestamps. 
+It expects that the data is already present in configured `-datasource.url` at the moment of time when rule is executed:
 
 <img alt="vmalert expected evaluation" src="vmalert_ts_normal.gif">
 
 Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
-may get empty response from datasource and produce empty recording rules or reset alerts state:
+may get empty response from the datasource and produce empty recording rules or reset alerts state:
 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
-By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
-This behavior is controlled by `-search.latencyOffset` command-line flag and the `latency_offset` query ag at `vmselect`.
-Usually, this results into a 30s shift for recording rules results.
-Note that too small value passed to `-search.latencyOffset` or to `latency_offest` query arg may lead to incomplete query results.
+Try the following recommendations to reduce the chance of hitting the data delay issue:
 
-Try the following recommendations in such cases:
-
-* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics
-are delivered to the datasource;
+* Always configure group's `evaluationInterval` to be bigger or at least equal to 
+[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
+* Ensure that `[duration]` value is at least twice bigger than 
+[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
+if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`. 
+If you use VictoriaMetrics as datasource, `[duration]` can be omitted and VictoriaMetrics will adjust it automatically.
 * If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
-command-line flag to add a time shift for evaluations;
-* If time intervals between datapoints in datasource are irregular or `>=5min` - try changing vmalert's
-`-datasource.queryStep` command-line flag to specify how far search query can lookback for the recent datapoint. 
-The recommendation is to have the step at least two times bigger than `scrape_interval`, since
-there are no guarantees that scrape will not fail.
+command-line flag to add a time shift for evaluations. Or extend `[duration]` to tolerate the delay.
+For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
+* If [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution)
+in datasource is inconsistent or `>=5min` - try changing vmalert's `-datasource.queryStep` command-line flag to specify 
+how far search query can lookback for the recent datapoint. The recommendation is to have the step 
+at least two times bigger than the resolution.
+
+> Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
+
+By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s
+(see `-search.latencyOffset` command-line flag at vmselect). Such delay is needed to eliminate risk of incomplete
+data on the moment of querying, since metrics collectors won't be able to deliver the data in time.
+
+### Alerts state
 
 Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
 alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
@@ -775,6 +788,8 @@ Rows in the section represent ordered rule evaluations and their results. The co
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
 moment when rule was evaluated.
+
+### Debug mode
 
 vmalert allows configuring more detailed logging for specific alerting rule. Just set `debug: true` in rule's configuration
 and vmalert will start printing additional log messages:
@@ -1152,7 +1167,7 @@ The shortlist of configuration flags is the following:
   -rule.configCheckInterval duration
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
-     Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array

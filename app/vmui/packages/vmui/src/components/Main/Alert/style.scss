@@ -15,6 +15,11 @@
   color: $color-text;
   line-height: 20px;
 
+  &_mobile {
+    align-items: flex-start;
+    border-radius: 0;
+  }
+
   &:after {
     position: absolute;
     content: '';
@@ -25,6 +30,10 @@
     border-radius: $border-radius-medium;
     z-index: 1;
     opacity: 0.1;
+  }
+
+  &_mobile:after {
+    border-radius: 0;
   }
 
   &__icon,
@@ -48,8 +57,8 @@
     color: $color-success;
 
     &:after {
-     background-color: $color-success;
-   }
+      background-color: $color-success;
+    }
   }
 
   &_error {

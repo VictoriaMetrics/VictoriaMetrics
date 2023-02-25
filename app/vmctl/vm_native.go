@@ -147,7 +147,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 	sync := make(chan struct{})
 	go func() {
 		defer func() { close(sync) }()
-		req, err := http.NewRequestWithContext(ctx, "POST", dstURL, pr)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, dstURL, pr)
 		if err != nil {
 			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
 		}
@@ -198,7 +198,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 
 func (p *vmNativeProcessor) getSourceTenants(ctx context.Context, f filter) ([]string, error) {
 	u := fmt.Sprintf("%s/%s", p.src.addr, nativeTenantsAddr)
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %s", u, err)
 	}
@@ -232,7 +232,7 @@ func (p *vmNativeProcessor) getSourceTenants(ctx context.Context, f filter) ([]s
 }
 
 func (p *vmNativeProcessor) exportPipe(ctx context.Context, url string, f filter) (io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %s", p.src.addr, err)
 	}

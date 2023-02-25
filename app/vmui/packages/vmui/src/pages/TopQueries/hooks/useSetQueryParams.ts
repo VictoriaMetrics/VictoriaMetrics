@@ -1,10 +1,11 @@
 import { useTopQueriesState } from "../../../state/topQueries/TopQueriesStateContext";
 import { useEffect } from "react";
 import { compactObject } from "../../../utils/object";
-import { setQueryStringWithoutPageReload } from "../../../utils/query-string";
+import { useSearchParams } from "react-router-dom";
 
 export const useSetQueryParams = () => {
   const { topN, maxLifetime } = useTopQueriesState();
+  const [, setSearchParams] = useSearchParams();
 
   const setSearchParamsFromState = () => {
     const params = compactObject({
@@ -12,7 +13,7 @@ export const useSetQueryParams = () => {
       maxLifetime: maxLifetime,
     });
 
-    setQueryStringWithoutPageReload(params);
+    setSearchParams(params);
   };
 
   useEffect(setSearchParamsFromState, [topN, maxLifetime]);

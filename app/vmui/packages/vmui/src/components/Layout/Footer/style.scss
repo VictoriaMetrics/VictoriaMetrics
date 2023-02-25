@@ -11,6 +11,11 @@
   color: $color-text-secondary;
   background: $color-background-body;
 
+  @media (max-width: 768px) {
+    padding: $padding-global;
+    gap: $padding-global;
+  }
+
   &__link,
   &__website {
     display: grid;
@@ -25,7 +30,6 @@
 
     @media (max-width: 768px) {
       margin-right: 0;
-      width: 100%;
     }
   }
 
@@ -39,6 +43,7 @@
 
     @media (max-width: 768px) {
       width: 100%;
+      font-size: $font-size-small;
       text-align: center;
     }
   }

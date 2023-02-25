@@ -76,7 +76,7 @@ func appendGraphiteMatchTemplateParts(dst []string, s string) []string {
 // Match matches s against gmt.
 //
 // On success it adds matched captures to dst and returns it with true.
-// Of failre it returns false.
+// On failure it returns false.
 func (gmt *graphiteMatchTemplate) Match(dst []string, s string) ([]string, bool) {
 	dst = append(dst, s)
 	parts := gmt.parts

@@ -40,7 +40,7 @@ func WriteFileAndSync(path string, data []byte) error {
 	}
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
-		// Do not call MustRemoveAll(path), so the user could inpsect
+		// Do not call MustRemoveAll(path), so the user could inspect
 		// the file contents during investigation of the issue.
 		return fmt.Errorf("cannot write %d bytes to %q: %w", len(data), path, err)
 	}
@@ -262,7 +262,7 @@ func MustRemoveTemporaryDirs(dir string) {
 			continue
 		}
 		dirName := fi.Name()
-		if strings.Contains(dirName, ".must-remove.") {
+		if IsScheduledForRemoval(dirName) {
 			fullPath := dir + "/" + dirName
 			MustRemoveAll(fullPath)
 		}
@@ -466,4 +466,8 @@ func isHTTPURL(targetURL string) bool {
 	parsed, err := url.Parse(targetURL)
 	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 
+}
+
+func IsScheduledForRemoval(name string) bool {
+	return strings.Contains(name, ".must-remove.")
 }

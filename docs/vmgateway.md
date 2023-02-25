@@ -210,6 +210,22 @@ mwIDAQAB
 ```
 This command will result in 3 keys loaded: 2 keys from files and 1 from command line.
 
+### Using JWKS endpoint for JWT signature verification
+
+`vmgateway` supports using JWKS endpoint for JWT signature verification.
+
+In order to enable JWKS endpoint for JWT signature verification, you need to specify JWKS endpoint URL by using `auth.jwksEndpoints` flag.
+When `auth.jwksEndpoints` is specified `vmageteway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
+
+Example usage for tokens issues by Azure Active Directory:
+```console
+/bin/vmgateway -eula \
+  -enable.auth \
+  -write.url=http://localhost:8480 \
+  -read.url=http://localhost:8481 \
+  -auth.jwksEndpoints=https://login.microsoftonline.com/common/discovery/v2.0/keys
+```
+
 ## Configuration
 
 The shortlist of configuration flags include the following:
@@ -217,6 +233,9 @@ The shortlist of configuration flags include the following:
 ```console
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
+  -auth.jwksEndpoints array
+     JWKS endpoints to fetch keys for JWT tokens signature verification
+     Supports an array of values separated by comma or specified via multiple flags.
   -auth.publicKeyFiles array
      Path file with public key to verify JWT token signature
      Supports an array of values separated by comma or specified via multiple flags.

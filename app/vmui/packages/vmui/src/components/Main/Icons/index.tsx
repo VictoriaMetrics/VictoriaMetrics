@@ -125,17 +125,6 @@ export const ArrowDropDownIcon = () => (
   </svg>
 );
 
-export const PlusCircleFillIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path
-      d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"
-    ></path>
-  </svg>
-);
-
 export const ClockIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -178,15 +167,6 @@ export const KeyboardIcon = () => (
     <path
       d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2zm3 3h-2v-2h2v2zm0-3h-2V8h2v2z"
     ></path>
-  </svg>
-);
-
-export const RemoveCircleIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11H7v-2h10v2z"></path>
   </svg>
 );
 
@@ -257,6 +237,15 @@ export const PlusIcon = () => (
   </svg>
 );
 
+export const MinusIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path d="M19 13H5v-2h14v2z"></path>
+  </svg>
+);
+
 export const DoneIcon = () => (
   <svg
     viewBox="0 0 24 24"
@@ -307,30 +296,6 @@ export const DragIcon = () => (
     fill="currentColor"
   >
     <path d="M20 9H4v2h16V9zM4 15h16v-2H4v2z"></path>
-  </svg>
-);
-
-export const SearchIcon = () => (
-  <svg
-    viewBox="0 0 24 24"
-    fill="currentColor"
-  >
-    <path
-      d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
-    ></path>
-  </svg>
-);
-
-export const ResizeIcon = () => (
-  <svg
-    className="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium MuiBox-root css-1om0hkc"
-    focusable="false"
-    aria-hidden="true"
-    viewBox="0 0 24 24"
-    data-testid="OpenInFullIcon"
-    fill="currentColor"
-  >
-    <path d="M21 11V3h-8l3.29 3.29-10 10L3 13v8h8l-3.29-3.29 10-10z"></path>
   </svg>
 );
 
@@ -401,13 +366,24 @@ export const StorageIcon = () => (
   </svg>
 );
 
-export const MenuIcon = () => (
+export const MoreIcon = () => (
   <svg
     viewBox="0 0 24 24"
     fill="currentColor"
   >
     <path
-      d="M4 18h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1zm0-5h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1zM3 7c0 .55.45 1 1 1h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1z"
+      d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
+    ></path>
+  </svg>
+);
+
+export const TuneIcon = () => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="currentColor"
+  >
+    <path
+      d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"
     ></path>
   </svg>
 );

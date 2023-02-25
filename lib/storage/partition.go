@@ -57,7 +57,7 @@ const finalPartsToMerge = 3
 // Higher number of shards reduces CPU contention and increases the max bandwidth on multi-core systems.
 var rawRowsShardsPerPartition = (cgroup.AvailableCPUs() + 1) / 2
 
-// The interval for flushing bufferred rows into parts, so they become visible to search.
+// The interval for flushing buffered rows into parts, so they become visible to search.
 const pendingRowsFlushInterval = time.Second
 
 // The interval for guaranteed flush of recently ingested data from memory to on-disk parts,
@@ -2022,7 +2022,7 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 			// Skip non-directories.
 			continue
 		}
-		if fn == "tmp" || fn == "txn" {
+		if fn == "tmp" || fn == "txn" || fs.IsScheduledForRemoval(fn) {
 			// Skip special dirs.
 			continue
 		}
@@ -2144,7 +2144,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, txnPath str
 		}
 	}
 
-	// Flush pathPrefix* directory metadata to the underying storage,
+	// Flush pathPrefix* directory metadata to the underlying storage,
 	// so the moved files become visible there.
 	fs.MustSyncPath(pathPrefix1)
 	fs.MustSyncPath(pathPrefix2)

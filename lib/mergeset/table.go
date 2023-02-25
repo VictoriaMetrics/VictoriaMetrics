@@ -1665,7 +1665,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 			srcPath, dstPath)
 	}
 
-	// Flush pathPrefix directory metadata to the underying storage.
+	// Flush pathPrefix directory metadata to the underlying storage.
 	fs.MustSyncPath(pathPrefix)
 
 	pendingTxnDeletionsWG.Add(1)
@@ -1835,5 +1835,5 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 func isSpecialDir(name string) bool {
 	// Snapshots and cache dirs aren't used anymore.
 	// Keep them here for backwards compatibility.
-	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache"
+	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache" || fs.IsScheduledForRemoval(name)
 }
