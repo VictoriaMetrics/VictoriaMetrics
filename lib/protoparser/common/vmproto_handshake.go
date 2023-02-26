@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// HandleVMProtoClientHashake returns true if the server at remoteWriteURL supports VictoriaMetrics remote write protocol.
+// HandleVMProtoClientHandshake returns true if the server at remoteWriteURL supports VictoriaMetrics remote write protocol.
 func HandleVMProtoClientHandshake(remoteWriteURL string, doRequest func(handshakeURL string) (*http.Response, error)) bool {
 	u := remoteWriteURL
 	if strings.Contains(u, "?") {
