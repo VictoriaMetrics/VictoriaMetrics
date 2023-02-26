@@ -83,7 +83,7 @@ victoria-metrics-linux-ppc64le:
 	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
 victoria-metrics-linux-s390x:
-        APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
+	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
 
 victoria-metrics-linux-386:
 	APP_NAME=victoria-metrics CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
