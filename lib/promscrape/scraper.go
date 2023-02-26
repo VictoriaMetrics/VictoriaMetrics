@@ -442,7 +442,7 @@ func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *
 		cancel:    cancel,
 		stoppedCh: make(chan struct{}),
 	}
-	c := newClient(sw, ctx)
+	c := newClient(ctx, sw)
 	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData

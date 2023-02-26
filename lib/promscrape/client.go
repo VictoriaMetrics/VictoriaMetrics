@@ -79,7 +79,7 @@ func concatTwoStrings(x, y string) string {
 	return s
 }
 
-func newClient(sw *ScrapeWork, ctx context.Context) *client {
+func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
 	hostPort := string(u.Host())

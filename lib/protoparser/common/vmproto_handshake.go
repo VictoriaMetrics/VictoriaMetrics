@@ -3,16 +3,20 @@ package common
 import (
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
+	"strings"
 )
 
-func HandleVMProtoClientHandshake(remoteWriteURL *url.URL) bool {
-	u := *remoteWriteURL
-	q := u.Query()
-	q.Set("get_vm_proto_version", "1")
-	u.RawQuery = q.Encode()
-	resp, err := http.Get(u.String())
+// HandleVMProtoClientHandshake returns true if the server at remoteWriteURL supports VictoriaMetrics remote write protocol.
+func HandleVMProtoClientHandshake(remoteWriteURL string, doRequest func(handshakeURL string) (*http.Response, error)) bool {
+	u := remoteWriteURL
+	if strings.Contains(u, "?") {
+		u += "&"
+	} else {
+		u += "?"
+	}
+	u += "get_vm_proto_version=1"
+	resp, err := doRequest(u)
 	if err != nil {
 		return false
 	}
