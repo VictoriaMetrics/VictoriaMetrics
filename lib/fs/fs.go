@@ -468,6 +468,7 @@ func isHTTPURL(targetURL string) bool {
 
 }
 
-func IsScheduledForRemoval(name string) bool {
-	return strings.Contains(name, ".must-remove.")
+// IsScheduledForRemoval returns true if the filename contains .must-remove. substring
+func IsScheduledForRemoval(filename string) bool {
+	return strings.Contains(filename, ".must-remove.")
 }
