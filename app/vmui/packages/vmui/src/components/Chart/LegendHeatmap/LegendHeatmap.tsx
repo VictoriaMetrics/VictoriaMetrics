@@ -1,6 +1,5 @@
 import React, { FC, useEffect, useState } from "preact/compat";
 import { gradMetal16 } from "../../../utils/uplot/heatmap";
-import { formatPrettyNumber } from "../../../utils/uplot/helpers";
 import "./style.scss";
 
 interface LegendHeatmapProps {
@@ -18,9 +17,9 @@ const LegendHeatmap: FC<LegendHeatmapProps> = ({ min, max, value }) => {
 
   useEffect(() => {
     setPercent(value ? (value - min) / (max - min) * 100 : 0);
-    setValueFormat(value ? formatPrettyNumber(value, min, max) : "");
-    setMinFormat(formatPrettyNumber(min, min, max));
-    setMaxFormat(formatPrettyNumber(max, min, max));
+    setValueFormat(value ? `${value}%` : "");
+    setMinFormat(`${min}%`);
+    setMaxFormat(`${max}%`);
   }, [value, min, max]);
 
   return (
