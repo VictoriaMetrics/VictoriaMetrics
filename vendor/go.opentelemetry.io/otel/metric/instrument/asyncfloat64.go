@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/unit"
 )
 
 // Float64Observable describes a set of instruments used asynchronously to
@@ -82,7 +81,7 @@ type Float64Callback func(context.Context, Float64Observer) error
 // observe float64 values.
 type Float64ObserverConfig struct {
 	description string
-	unit        unit.Unit
+	unit        string
 	callbacks   []Float64Callback
 }
 
@@ -102,7 +101,7 @@ func (c Float64ObserverConfig) Description() string {
 }
 
 // Unit returns the Config unit.
-func (c Float64ObserverConfig) Unit() unit.Unit {
+func (c Float64ObserverConfig) Unit() string {
 	return c.unit
 }
 
