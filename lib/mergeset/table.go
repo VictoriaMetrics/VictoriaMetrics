@@ -1503,7 +1503,10 @@ func mustCloseParts(pws []*partWrapper) {
 //
 // Snapshot is created using linux hard links, so it is usually created
 // very quickly.
-func (tb *Table) CreateSnapshotAt(dstDir string) error {
+//
+// If deadline is reached before snapshot is created error is returned.
+// If any error occurs during snapshot created data is not removed.
+func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 	logger.Infof("creating Table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -1543,7 +1546,14 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	if err != nil {
 		return fmt.Errorf("cannot read directory: %w", err)
 	}
-	for _, fi := range fis {
+
+	for i, fi := range fis {
+		if deadline > 0 && i%5 == 0 {
+			if fasttime.UnixTimestamp() > deadline {
+				return fmt.Errorf("cannot create snapshot for %q in time: timeout exceeded", tb.path)
+			}
+		}
+
 		fn := fi.Name()
 		if !fs.IsDirOrSymlink(fi) {
 			// Skip non-directories.
