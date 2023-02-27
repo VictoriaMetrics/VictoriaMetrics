@@ -16,6 +16,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use the provided `-remoteWrite.*` auth options when determining whether the remote storage supports [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol). Previously the auth options were ignored. This was preventing from automatic switch to VictoriaMetrics remote write protocol.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): set `vm_promscrape_config_last_reload_successful` to 1 when there is no scrape config provided via `-promscrape.config` command-line flag. Previously `vm_promscrape_config_last_reload_successful` was set to 0 in this case, which was confusing and could trigger false-positive alert.
 
 ## [v1.88.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.0)
 

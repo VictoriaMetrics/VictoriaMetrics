@@ -99,7 +99,8 @@ func WriteConfigData(w io.Writer) {
 
 func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
 	if configFile == "" {
-		// Nothing to scrape.
+		// Nothing to scrape, set configSuccess to 1 in order to avoid false-positive alerts about failed config reloads.
+		configSuccess.Set(1)
 		return
 	}
 
