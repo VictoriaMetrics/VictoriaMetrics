@@ -15,7 +15,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/golang/protobuf/proto"
 )
 
 var (
@@ -243,7 +242,7 @@ func (wr *writeContext) unpackFrom(r io.Reader, isJSON bool) error {
 		return err
 	}
 	parseFunc := func(buf []byte, m *pb.ExportMetricsServiceRequest) error {
-		return proto.Unmarshal(buf, m)
+		return m.UnmarshalVT(buf)
 	}
 	if isJSON {
 		parseFunc = pb.UnmarshalJSONExportMetricsServiceRequest
@@ -265,7 +264,7 @@ func (wr *writeContext) reset() {
 	}
 	wr.baseLabels = wr.baseLabels[:0]
 	wr.bb.Reset()
-	wr.req.Reset()
+	wr.req = pb.ExportMetricsServiceRequest{}
 }
 
 var wrPool sync.Pool
@@ -280,6 +279,7 @@ func getWriteContext() *writeContext {
 
 func putWriteContext(wr *writeContext) {
 	wr.reset()
+	wr.req.Reset()
 	wrPool.Put(wr)
 }
 

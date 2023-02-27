@@ -67,3 +67,31 @@ func float64AsString(f float64) string {
 	}
 	return string(b)
 }
+
+func (m *ExportMetricsServiceRequest) Reset() {
+	m.unknownFields = m.unknownFields[:0]
+	for i := range m.ResourceMetrics {
+		m.ResourceMetrics[i].Reset()
+	}
+	m.ResourceMetrics = m.ResourceMetrics[:0]
+}
+
+func (m *ResourceMetrics) Reset() {
+	m.unknownFields = m.unknownFields[:0]
+	m.Resource = nil
+	for i := range m.ScopeMetrics {
+		m.ScopeMetrics[i].Reset()
+	}
+	m.ScopeMetrics = m.ScopeMetrics[:0]
+	m.SchemaUrl = ""
+}
+
+func (m *ScopeMetrics) Reset() {
+	m.unknownFields = nil
+	m.Scope = nil
+	for i := range m.Metrics {
+		m.Metrics[i] = nil
+	}
+	m.Metrics = m.Metrics[:0]
+	m.SchemaUrl = ""
+}

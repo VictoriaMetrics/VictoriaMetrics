@@ -7,10 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
-	"github.com/golang/protobuf/jsonpb"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/opentelemetry/pb"
 )
 
 func TestParseStream(t *testing.T) {
@@ -25,14 +23,11 @@ func TestParseStream(t *testing.T) {
 			pbRequest := pb.ExportMetricsServiceRequest{
 				ResourceMetrics: []*pb.ResourceMetrics{generateOTLPSamples(samples...)},
 			}
-			m := jsonpb.Marshaler{
-				EnumsAsInts: true,
-			}
-			data, err := m.MarshalToString(&pbRequest)
+			data, err := pbRequest.MarshalVT()
 			if err != nil {
 				t.Fatalf("cannot marshal data: %s", err)
 			}
-			err = ParseStream(bytes.NewBuffer([]byte(data)), true, false, func(tss []prompb.TimeSeries) error {
+			err = ParseStream(bytes.NewBuffer(data), false, false, func(tss []prompb.TimeSeries) error {
 				if len(tss) != len(expectedTss) {
 					t.Fatalf("not expected tss count, got: %d, want: %d", len(tss), len(expectedTss))
 				}
