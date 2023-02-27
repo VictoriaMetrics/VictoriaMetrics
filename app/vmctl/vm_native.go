@@ -67,10 +67,15 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		}
 	}
 
-	log.Printf("Init series discovery process on time range %s - %s \n", startOfRange, endOfRange)
-	series, err := p.explore(ctx, p.filter)
-	if err != nil {
-		return fmt.Errorf("cannot get series from source %s database: %s", p.src.Addr, err)
+	tenants := []string{""}
+	if p.interCluster {
+		sourceTenants, err := p.src.GetSourceTenants(ctx, p.filter)
+		if err != nil {
+			return fmt.Errorf("failed to get tenants: %s", err)
+
+		}
+		tenants = tenants[:0]
+		tenants = append(tenants, sourceTenants...)
 	}
 
 	ranges := [][]time.Time{{startOfRange, endOfRange}}
@@ -83,70 +88,20 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		ranges = append(ranges, r...)
 	}
 
-	foundSeriesMsg := fmt.Sprintf("Found %d timeseries to import. \n", len(series))
-	rangesMsg := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. \n", startOfRange, endOfRange, len(ranges), p.filter.Chunk)
-	processingPartsMsg := fmt.Sprintf("Need process parts of work: %d \n", len(series)*len(ranges))
-	question := fmt.Sprintf("%s. %s. %s. Continue?", foundSeriesMsg, rangesMsg, processingPartsMsg)
-	if !silent && !prompt(question) {
-		return nil
-	}
+	p.ResetStats()
 
-	log.Printf("Initing import process from %q to %q with filter %s \n", p.src.Addr, p.dst.Addr, p.filter.String())
-	var bar *pb.ProgressBar
 	if !silent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, "Processing part of work"), len(series)*len(ranges))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
 	}
 
-	p.ResetStats()
-
-	filterCh := make(chan native.Filter)
-	errCh := make(chan error)
-
-	var wg sync.WaitGroup
-	wg.Add(p.cc)
-	for i := 0; i < p.cc; i++ {
-		go func() {
-			defer wg.Done()
-			for f := range filterCh {
-				if err := p.do(ctx, f); err != nil {
-					errCh <- fmt.Errorf("request failed for: %s", err)
-					return
-				}
-				if bar != nil {
-					bar.Increment()
-				}
-			}
-		}()
-	}
-
-	// any error breaks the import
-	for s := range series {
-		for _, times := range ranges {
-			select {
-			case <-ctx.Done():
-				return fmt.Errorf("context canceled")
-			case infErr := <-errCh:
-				return fmt.Errorf("native error: %s", infErr)
-			case filterCh <- native.Filter{
-				Match:     fmt.Sprintf("{%s=%q}", nameLabel, s),
-				TimeStart: times[0].Format(time.RFC3339),
-				TimeEnd:   times[1].Format(time.RFC3339),
-			}:
-			}
+	for _, tenantID := range tenants {
+		err := p.runBackfilling(ctx, tenantID, ranges, silent)
+		if err != nil {
+			return fmt.Errorf("error run migration process: %s", err)
 		}
 	}
-
-	close(filterCh)
-	wg.Wait()
-	close(errCh)
-
-	for err := range errCh {
-		return fmt.Errorf("import process failed: %s", err)
-	}
-
 	if !silent {
 		barpool.Stop()
 	}
@@ -156,48 +111,15 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter) error {
-	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.ExtraLabels)
+func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
 
+	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+	attempts, err := p.backoff.Retry(ctx, retryableFunc)
+	p.s.Lock()
+	p.s.Retries += attempts
+	p.s.Unlock()
 	if err != nil {
-		return fmt.Errorf("failed to add labels to import path: %s", err)
-	}
-
-	if !p.interCluster {
-		srcURL := fmt.Sprintf("%s/%s", p.src.Addr, nativeExportAddr)
-		dstURL := fmt.Sprintf("%s/%s", p.dst.Addr, nativeImportAddr)
-
-		retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
-		attempts, err := p.backoff.Retry(ctx, retryableFunc)
-		p.s.Lock()
-		p.s.Retries += attempts
-		p.s.Unlock()
-		if err != nil {
-			return fmt.Errorf("failed to migrate %s from %s to %s: %s, after attempts: %d", f.String(), srcURL, dstURL, err, attempts)
-		}
-		return nil
-	}
-
-	tenants, err := p.src.GetSourceTenants(ctx, f)
-	if err != nil {
-		return fmt.Errorf("failed to get source tenants: %s", err)
-	}
-
-	log.Printf("Discovered tenants: %v", tenants)
-	for _, tenant := range tenants {
-		// src and dst expected formats: http://vminsert:8480/ and http://vmselect:8481/
-		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.Addr, tenant, nativeExportAddr)
-		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.Addr, tenant, nativeImportAddr)
-
-		log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
-		retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
-		attempts, err := p.backoff.Retry(ctx, retryableFunc)
-		p.s.Lock()
-		p.s.Retries += attempts
-		p.s.Unlock()
-		if err != nil {
-			return fmt.Errorf("failed to migrate %s for tenant %q: %s, after attempts: %d", f.String(), tenant, err, attempts)
-		}
+		return fmt.Errorf("failed to migrate %s from %s to %s: %s, after attempts: %d", f.String(), srcURL, dstURL, err, attempts)
 	}
 
 	return nil
@@ -244,28 +166,91 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	return nil
 }
 
-func (p *vmNativeProcessor) explore(ctx context.Context, f native.Filter) (native.MetricNames, error) {
-	if !p.interCluster {
-		return p.src.Explore(ctx, f, "")
-	}
+func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
 
-	tenants, err := p.src.GetSourceTenants(ctx, f)
+	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.ExtraLabels)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get source tenants: %s", err)
+		return fmt.Errorf("failed to add labels to import path: %s", err)
 	}
 
-	log.Printf("Discovered series per tenants: %v", tenants)
-	metricNames := make(native.MetricNames)
-	for _, tenant := range tenants {
-		metricNamesPerTenant, err := p.src.Explore(ctx, f, tenant)
-		if err != nil {
-			return nil, err
-		}
-		for metricName := range metricNamesPerTenant {
-			if _, ok := metricNames[metricName]; !ok {
-				metricNames[metricName] = struct{}{}
+	srcURL := fmt.Sprintf("%s/%s", p.src.Addr, nativeExportAddr)
+	dstURL := fmt.Sprintf("%s/%s", p.dst.Addr, nativeImportAddr)
+	if p.interCluster {
+		srcURL = fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.Addr, tenantID, nativeExportAddr)
+		dstURL = fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.Addr, tenantID, nativeImportAddr)
+	}
+
+	barPrefix := "Processing part of work:"
+	initMessage := "Initing import process from %q to %q with filter %s \n"
+	initParams := []interface{}{srcURL, dstURL, p.filter.String()}
+	if p.interCluster {
+		barPrefix = fmt.Sprintf("Processing part of work for tenant %s:", tenantID)
+		initMessage = "Initing import process from %q to %q with filter %s for tenant %s \n"
+		initParams = []interface{}{srcURL, dstURL, p.filter.String(), tenantID}
+	}
+
+	log.Printf(initMessage, initParams...)
+
+	series, err := p.src.Explore(ctx, p.filter, tenantID)
+	if err != nil {
+		return fmt.Errorf("cannot get series from source %s database: %s", p.src.Addr, err)
+	}
+
+	foundSeriesMsg := fmt.Sprintf("Found %d timeseries to import. \n", len(series))
+	rangesMsg := fmt.Sprintf("Selected time range will be split into %d ranges according to %q step. \n", len(ranges), p.filter.Chunk)
+	processingPartsMsg := fmt.Sprintf("Need process parts of work: %d \n", len(series)*len(ranges))
+	log.Printf("%s. %s. %s.", foundSeriesMsg, rangesMsg, processingPartsMsg)
+
+	var bar *pb.ProgressBar
+	if !silent {
+		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, barPrefix), len(series)*len(ranges))
+	}
+
+	filterCh := make(chan native.Filter)
+	errCh := make(chan error)
+
+	var wg sync.WaitGroup
+	for i := 0; i < p.cc; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range filterCh {
+				if err := p.do(ctx, f, srcURL, dstURL); err != nil {
+					errCh <- fmt.Errorf("request failed for: %s", err)
+					return
+				}
+				if bar != nil {
+					bar.Increment()
+				}
+			}
+		}()
+	}
+
+	// any error breaks the import
+	for s := range series {
+		for _, times := range ranges {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context canceled")
+			case infErr := <-errCh:
+				return fmt.Errorf("native error: %s", infErr)
+			case filterCh <- native.Filter{
+				Match:     fmt.Sprintf("{%s=%q}", nameLabel, s),
+				TimeStart: times[0].Format(time.RFC3339),
+				TimeEnd:   times[1].Format(time.RFC3339),
+			}:
 			}
 		}
 	}
-	return metricNames, nil
+
+	close(filterCh)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		return fmt.Errorf("import process failed: %s", err)
+	}
+
+	return nil
 }
