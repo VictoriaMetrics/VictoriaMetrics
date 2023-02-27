@@ -142,7 +142,9 @@ func openTable(path string, s *Storage) (*table, error) {
 }
 
 // CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
+// If deadline is reached before snapshot is created error is returned.
+// If any error occurs during snapshot created data is not removed.
+func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, string, error) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -158,7 +160,13 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
 	}
 
-	for _, ptw := range ptws {
+	for i, ptw := range ptws {
+		if deadline > 0 && i%5 == 0 {
+			if fasttime.UnixTimestamp() > deadline {
+				return "", "", fmt.Errorf("cannot create snapshot for %q in %q in time: timeout exceeded", tb.path, snapshotName)
+			}
+		}
+
 		smallPath := dstSmallDir + "/" + ptw.pt.name
 		bigPath := dstBigDir + "/" + ptw.pt.name
 		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
