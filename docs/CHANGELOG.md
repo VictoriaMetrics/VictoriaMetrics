@@ -19,6 +19,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: add `vm_http_requests_total` and `vm_http_request_errors_total` for `snapshot/*` paths at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) `vmstorage` and [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use the provided `-remoteWrite.*` auth options when determining whether the remote storage supports [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol). Previously the auth options were ignored. This was preventing from automatic switch to VictoriaMetrics remote write protocol.
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): skip measurements with no fields when migrating data from influxdb. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3837).
 * BUGFIX: delete failed snapshot contents from disk when creating snapshot fails. Previously failed snapshot contents could remain on disk in incomplete state. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3858)
 
 ## [v1.88.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.0)
