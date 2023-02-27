@@ -14,7 +14,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
 ## tip
-* 
+
 * FEATURE: add `-snapshotTimeout` flag to allow configuring timeout for snapshot process at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) `vmstorage` and [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html). Using this flag can be useful to prevent snapshot running indefinitely in case of resource starvation. This flag should be used for systems with limited resources to ensure [backups](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#backups) will be working correctly. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
 
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use the provided `-remoteWrite.*` auth options when determining whether the remote storage supports [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol). Previously the auth options were ignored. This was preventing from automatic switch to VictoriaMetrics remote write protocol.
