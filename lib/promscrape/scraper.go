@@ -99,10 +99,11 @@ func WriteConfigData(w io.Writer) {
 
 func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarshal.WriteRequest), globalStopCh <-chan struct{}) {
 	if configFile == "" {
-		// Nothing to scrape, set configSuccess to 1 in order to avoid false-positive alerts about failed config reloads.
-		configSuccess.Set(1)
+		// Nothing to scrape.
 		return
 	}
+
+	metrics.RegisterSet(configMetricsSet)
 
 	// Register SIGHUP handler for config reload before loadConfig.
 	// This guarantees that the config will be re-read if the signal arrives just after loadConfig.
@@ -201,10 +202,11 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 }
 
 var (
-	configReloads      = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
-	configReloadErrors = metrics.NewCounter(`vm_promscrape_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_promscrape_config_last_reload_successful`)
-	configTimestamp    = metrics.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
+	configMetricsSet   = metrics.NewSet()
+	configReloads      = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_total`)
+	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
+	configSuccess      = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_successful`)
+	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
 )
 
 type scrapeConfigs struct {
