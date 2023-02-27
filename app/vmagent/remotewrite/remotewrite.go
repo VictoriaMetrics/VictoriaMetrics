@@ -21,7 +21,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -35,8 +34,6 @@ var (
 	remoteWriteMultitenantURLs = flagutil.NewArrayString("remoteWrite.multitenantURL", "Base path for multitenant remote storage URL to write data to. "+
 		"See https://docs.victoriametrics.com/vmagent.html#multitenancy for details. Example url: http://<vminsert>:8480 . "+
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
-	forcePromProto = flagutil.NewArrayBool("remoteWrite.forcePromProto", "Whether to force Prometheus remote write protocol for sending data "+
-		"to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
@@ -479,21 +476,10 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 		return float64(fq.GetInmemoryQueueLen())
 	})
 
-	// Auto-detect whether the remote storage supports VictoriaMetrics remote write protocol.
-	isVMRemoteWrite := false
-	usePromProto := forcePromProto.GetOptionalArg(argIdx)
-	if !usePromProto {
-		isVMRemoteWrite = common.HandleVMProtoClientHandshake(remoteWriteURL)
-		if !isVMRemoteWrite {
-			logger.Infof("the remote storage at %q doesn't support VictoriaMetrics remote write protocol. Switching to Prometheus remote write protocol. "+
-				"See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol", sanitizedURL)
-		}
-	}
-
 	var c *client
 	switch remoteWriteURL.Scheme {
 	case "http", "https":
-		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues, isVMRemoteWrite)
+		c = newHTTPClient(argIdx, remoteWriteURL.String(), sanitizedURL, fq, *queues)
 	default:
 		logger.Fatalf("unsupported scheme: %s for remoteWriteURL: %s, want `http`, `https`", remoteWriteURL.Scheme, sanitizedURL)
 	}
@@ -510,7 +496,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	}
 	pss := make([]*pendingSeries, pssLen)
 	for i := range pss {
-		pss[i] = newPendingSeries(fq.MustWriteBlock, isVMRemoteWrite, sf, rd)
+		pss[i] = newPendingSeries(fq.MustWriteBlock, c.useVMProto, sf, rd)
 	}
 
 	rwctx := &remoteWriteCtx{

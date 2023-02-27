@@ -197,9 +197,11 @@ VictoriaMetrics remote write protocol provides the following benefits comparing 
   In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
   This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
 
-`vmagent` automatically uses VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
+`vmagent` automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
 [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 or `vminsert` at [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
+command-line flag for the corresponding `-remoteWrite.url`.
 
 `vmagent` automatically switches to Prometheus remote write protocol when it sends data to old versions of VictoriaMetrics components
 or to other Prometheus-compatible remote storage systems. It is possible to force switch to Prometheus remote write protocol
@@ -1454,6 +1456,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
   -remoteWrite.forcePromProto array
      Whether to force Prometheus remote write protocol for sending data to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
+     Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.forceVMProto array
+     Whether to force VictoriaMetrics remote write protocol for sending data to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.headers array
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'

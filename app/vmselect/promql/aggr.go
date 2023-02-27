@@ -783,7 +783,7 @@ func fillNaNsAtIdx(idx int, k float64, tss []*timeseries) {
 	}
 }
 
-func getIntK(k float64, kMax int) int {
+func getIntK(k float64, max int) int {
 	if math.IsNaN(k) {
 		return 0
 	}
@@ -791,8 +791,8 @@ func getIntK(k float64, kMax int) int {
 	if kn < 0 {
 		return 0
 	}
-	if kn > kMax {
-		return kMax
+	if kn > max {
+		return max
 	}
 	return kn
 }
