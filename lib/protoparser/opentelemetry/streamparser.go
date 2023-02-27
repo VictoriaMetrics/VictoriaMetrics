@@ -8,6 +8,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -207,6 +208,10 @@ func tssFromHistogramPoint(metricName string, point *pb.HistogramDataPoint, base
 func newPromPBTs(metricName string, t int64, value float64, isStale bool, extraLabels ...prompb.Label) prompb.TimeSeries {
 	if isStale {
 		value = decimal.StaleNaN
+	}
+	if t <= 0 {
+		// Set the current timestamp if t isn't set.
+		t = int64(fasttime.UnixTimestamp()) * 1000
 	}
 	ts := prompb.TimeSeries{
 		Labels: []prompb.Label{

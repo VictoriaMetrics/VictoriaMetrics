@@ -1095,6 +1095,7 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * DataDog `submit metrics` API. See [these docs](#how-to-send-data-from-datadog-agent) for details.
 * InfluxDB line protocol. See [these docs](#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf) for details.
 * Graphite plaintext protocol. See [these docs](#how-to-send-data-from-graphite-compatible-agents-such-as-statsd) for details.
+* OpenTelemetry http API. See [these docs](#sending-data-via-opentelemetry) for details.
 * OpenTSDB telnet put protocol. See [these docs](#sending-data-via-telnet-put-protocol) for details.
 * OpenTSDB http `/api/put` protocol. See [these docs](#sending-opentsdb-data-via-http-apiput-requests) for details.
 * `/api/v1/import` for importing data obtained from [/api/v1/export](#how-to-export-data-in-json-line-format).
@@ -1274,13 +1275,62 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 ## Sending data via OpenTelemetry
 
  VictoriaMetrics supports data ingestion via [OpenTelemetry metrics protocol](https://github.com/open-telemetry/opentelemetry-specification/blob/ffddc289462dfe0c2041e3ca42a7b1df805706de/specification/metrics/data-model.md)
-with `protobuf` and `json` encoding via `/opentemetry/api/v1/push` path. For example, the following command ingests a single `json`-encoded metric with the name ``:
+with `protobuf` and `json` encoding via `/opentemetry/api/v1/push` path. For example, the following command stores `temperature{job="vm",label1="value1"} 15`
+[metric](https://docs.victoriametrics.com/keyConcepts.html#what-is-a-metric) to VictoriaMetrics:
 
 ```bash
-curl -X POST -H 'Content-Type: application/json' http://localhost:8428/opentelemetry/api/v1/push -g -d '{"resourceMetrics":[{"resource":{"attributes":[{"key":"job", "value":{"stringValue":"vm"}}]}, "scopeMetrics":[{"metrics":[{"name":"my-gauge", "gauge":{"dataPoints":[{"attributes":[{"key":"label1", "value":{"stringValue":"value1"}}], "asInt":"15"}]}}]}]}]}'
+echo '{
+  "resourceMetrics": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "job",
+            "value": {
+              "stringValue": "vm"
+            }
+          }
+        ]
+      },
+      "scopeMetrics": [
+        {
+          "metrics": [
+            {
+              "name": "temperature",
+              "gauge": {
+                "dataPoints": [
+                  {
+                    "attributes": [
+                      {
+                        "key": "label1",
+                        "value": {
+                          "stringValue": "value1"
+                        }
+                      }
+                    ],
+                    "asInt": "15"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/opentelemetry/api/v1/push
 ```
 
-By default VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/api/v1/push`. Set `Content-Type: application/json` request header when sending `json`-encoded data.
+The saved data can be verified by querying it via [/api/v1/export](https://docs.victoriametrics.com/#how-to-export-data-in-json-line-format):
+
+```bash
+curl http://localhost:8428/api/v1/export -d 'match[]=temperature'
+{"metric":{"__name__":"temperature","job":"vm","label1":"value1"},"values":[15],"timestamps":[1673390534000]}
+```
+
+By default VictoriaMetrics expects `protobuf`-encoded requests at `/opentelemetry/api/v1/push`. Set `Content-Type: application/json`
+request header when sending `json`-encoded data.
 
 Set HTTP request header `Content-Encoding: gzip` when sending gzip-compressed data to `/opentelemetry/api/v1/push`.
 
