@@ -86,6 +86,7 @@ VictoriaMetrics has the following prominent features:
   * [Arbitrary CSV data](#how-to-import-csv-data).
   * [Native binary format](#how-to-import-data-in-native-format).
   * [DataDog agent or DogStatsD](#how-to-send-data-from-datadog-agent).
+  * [OpenTelemetry format](#sending-data-via-opentelemetry-http).
 * It supports powerful [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html), which can be used as a [statsd](https://github.com/statsd/statsd) alternative.
 * It supports metrics [relabeling](#relabeling).
 * It can deal with [high cardinality issues](https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality) and
@@ -1273,6 +1274,16 @@ VictoriaMetrics accepts arbitrary number of lines in a single request to `/api/v
 Note that it could be required to flush response cache after importing historical data. See [these docs](#backfilling) for detail.
 
 VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-scrape-prometheus-exporters-such-as-node-exporter).
+
+## Sending data via opentelemetry http
+
+ VictoriaMetrics supports data ingestion via [opentelemetry protocol](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/datamodel.md#opentelemetry-protocol-data-model) with `protobuf` and `json` encoding
+ via `/opentemetry/api/v1/push` path. For example, following command ingests a single gauge metric:
+```bash
+curl -XPOST -H 'Content-Type: application/json' localhost:8428/opentelemetry/api/v1/push -g -d '{"resourceMetrics":[{"resource":{"attributes":[{"key":"job", "value":{"stringValue":"vm"}}]}, "scopeMetrics":[{"metrics":[{"name":"my-gauge", "gauge":{"dataPoints":[{"attributes":[{"key":"label1", "value":{"stringValue":"value1"}}], "timeUnixNano":"15000000000", "asInt":"15"}]}}]}]}]}'
+```
+ By default, VictoriaMetrics expects `protobuf`-encoded requests. For sending `json`-encoded requests set HTTP header `Content-Type: application/json`.
+ VictoriaMetrics accepts data with gzip compression, set HTTP header `Content-Encoding: gzip` for compressed data.
 
 ## Relabeling
 

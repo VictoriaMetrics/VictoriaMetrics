@@ -1272,13 +1272,13 @@ VictoriaMetrics also may scrape Prometheus targets - see [these docs](#how-to-sc
 
 ## Sending data via opentelemetry http
 
- VictoriaMetrics supports data ingestion with [opentelemetry protocol](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/datamodel.md#opentelemetry-protocol-data-model) with `protobuf` and `json` encoding
- via `/opentemetry/api/v1/push` path. For example, following command ingest single gauge metric:
+ VictoriaMetrics supports data ingestion via [opentelemetry protocol](https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/metrics/datamodel.md#opentelemetry-protocol-data-model) with `protobuf` and `json` encoding
+ via `/opentemetry/api/v1/push` path. For example, following command ingests a single gauge metric:
 ```bash
 curl -XPOST -H 'Content-Type: application/json' localhost:8428/opentelemetry/api/v1/push -g -d '{"resourceMetrics":[{"resource":{"attributes":[{"key":"job", "value":{"stringValue":"vm"}}]}, "scopeMetrics":[{"metrics":[{"name":"my-gauge", "gauge":{"dataPoints":[{"attributes":[{"key":"label1", "value":{"stringValue":"value1"}}], "timeUnixNano":"15000000000", "asInt":"15"}]}}]}]}]}'
 ```
- By default, VictoriaMetrics decodes response with `protobuf` decoder, pass http header `Content-Type: application/json` for json encoded request.
- VictoriaMetrics accepts data with gzip compression, pass http header `Content-Encoding: gzip` for compressed data.
+ By default, VictoriaMetrics expects `protobuf`-encoded requests. For sending `json`-encoded requests set HTTP header `Content-Type: application/json`.
+ VictoriaMetrics accepts data with gzip compression, set HTTP header `Content-Encoding: gzip` for compressed data.
 
 ## Relabeling
 
