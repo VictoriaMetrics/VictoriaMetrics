@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): skip series with no data when a retention policy autogen can have no data in the measurement and and don't stop migration process. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3837).
+
 ## [v1.88.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.0)
 
 Released at 2023-02-24
