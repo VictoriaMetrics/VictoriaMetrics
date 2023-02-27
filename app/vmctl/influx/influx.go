@@ -162,7 +162,7 @@ func (c *Client) Explore() ([]*Series, error) {
 	for _, s := range series {
 		fields, ok := mFields[s.Measurement]
 		if !ok {
-			log.Printf("can't find field keys for measurement %q", s.Measurement)
+			log.Printf("skip field keys for measurement %q", s.Measurement)
 			continue
 		}
 		for _, field := range fields {
