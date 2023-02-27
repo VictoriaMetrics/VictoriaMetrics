@@ -15,10 +15,15 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+## [v1.88.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.1)
+
+Released at 2023-02-27
+
 * FEATURE: add `-snapshotCreateTimeout` flag to allow configuring timeout for [snapshot process](https://docs.victoriametrics.com/#how-to-work-with-snapshots). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
 * FEATURE: expose `vm_http_requests_total` and `vm_http_request_errors_total` metrics for `snapshot/*` [paths](https://docs.victoriametrics.com/#how-to-work-with-snapshots) at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) `vmstorage` and [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
 * FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): add the ability to discover keys for JWT verification via [OpenID discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html). See [these docs](https://docs.victoriametrics.com/vmgateway.html#using-openid-discovery-endpoint-for-jwt-signature-verification).
-* FEATURE: add `-internStringDisableCache` command-line flag for disabling the cache for [interned strings](https://en.wikipedia.org/wiki/String_interning). This flag may be useful in some cases for reducing memory usage at the cost of higher CPU usage.
+* FEATURE: add `-internStringDisableCache` command-line flag for disabling the cache for [interned strings](https://en.wikipedia.org/wiki/String_interning). This flag may be useful in [some cases](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3863) for reducing memory usage at the cost of higher CPU usage.
 * FEATURE: add `-internStringCacheExpireDuration` command-line flag for controlling the lifetime of cached [interned strings](https://en.wikipedia.org/wiki/String_interning).
 
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): fix panic when executing the query `aggr_func(rollup*(some_value))`. The panic has been introduced in [v1.88.0](https://docs.victoriametrics.com/CHANGELOG.html#v1880).
