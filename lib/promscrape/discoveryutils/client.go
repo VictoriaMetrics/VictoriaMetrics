@@ -238,7 +238,7 @@ func (c *Client) getAPIResponseWithParamsAndClientCtx(ctx context.Context, clien
 		modifyRequest(req)
 	}
 
-	resp, err := doRequestWithPossibleRetry(client, req, deadline)
+	resp, err := doRequestWithPossibleRetry(client, req)
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch %q: %w", requestURL, err)
 	}
@@ -269,31 +269,48 @@ func (c *Client) Stop() {
 	c.clientCancel()
 }
 
-func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request, deadline time.Time) (*http.Response, error) {
-	sleepTime := time.Second
+func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Response, error) {
 	discoveryRequests.Inc()
 
-	for {
-		resp, err := hc.client.Do(req)
-		if err == nil {
+	var (
+		reqErr error
+		resp   *http.Response
+	)
+	// Return true if the request execution is completed and retry is not required
+	attempt := func() bool {
+		resp, reqErr = hc.client.Do(req)
+		if reqErr == nil {
 			statusCode := resp.StatusCode
 			if statusCode != http.StatusTooManyRequests {
-				return resp, nil
+				return true
 			}
-		} else if err != net.ErrClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return nil, err
+		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+			return true
 		}
-		// Retry request after exponentially increased sleep.
-		maxSleepTime := time.Until(deadline)
-		if sleepTime > maxSleepTime {
-			return nil, fmt.Errorf("the server closes all the connection attempts: %w", err)
+		return false
+	}
+
+	if attempt() {
+		return resp, reqErr
+	}
+
+	// The first attempt was unsuccessful. Use exponential backoff for further attempts.
+	// Perform the second attempt immediately after the first attempt - this should help
+	// in cases when the remote side closes the keep-alive connection before the first attempt.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3293
+	sleepTime := time.Second
+	// It is expected that the deadline is already set to req.Context(), so the loop below
+	// should eventually finish if all the attempt() calls are unsuccessful.
+	ctx := req.Context()
+	for {
+		discoveryRetries.Inc()
+		if attempt() {
+			return resp, reqErr
 		}
 		sleepTime += sleepTime
-		if sleepTime > maxSleepTime {
-			sleepTime = maxSleepTime
+		if !SleepCtx(ctx, sleepTime) {
+			return resp, reqErr
 		}
-		time.Sleep(sleepTime)
-		discoveryRetries.Inc()
 	}
 }
 
@@ -301,3 +318,17 @@ var (
 	discoveryRequests = metrics.NewCounter(`vm_promscrape_discovery_requests_total`)
 	discoveryRetries  = metrics.NewCounter(`vm_promscrape_discovery_retries_total`)
 )
+
+// SleepCtx sleeps for sleepDuration.
+//
+// It immediately returns false on ctx cancel or deadline, without waiting for sleepDuration.
+func SleepCtx(ctx context.Context, sleepDuration time.Duration) bool {
+	t := timerpool.Get(sleepDuration)
+	defer timerpool.Put(t)
+	select {
+	case <-ctx.Done():
+		return false
+	case <-t.C:
+		return true
+	}
+}

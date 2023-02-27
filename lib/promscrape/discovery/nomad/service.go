@@ -22,6 +22,8 @@ func getServiceLabels(cfg *apiConfig) []*promutils.Labels {
 	return ms
 }
 
+// ServiceList is a list of Nomad services.
+// See https://developer.hashicorp.com/nomad/api-docs/services#list-services
 type ServiceList struct {
 	Namespace string `json:"Namespace"`
 	Services  []struct {
