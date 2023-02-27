@@ -8,11 +8,17 @@ interface SwitchProps {
   color?: "primary" | "secondary" | "error"
   disabled?: boolean
   label?: string | ReactNode
+  fullWidth?: boolean
   onChange: (value: boolean) => void
 }
 
 const Switch: FC<SwitchProps> = ({
-  value = false, disabled = false, label, color = "secondary", onChange
+  value = false,
+  disabled = false,
+  label,
+  color = "secondary",
+  fullWidth,
+  onChange
 }) => {
   const toggleSwitch = () => {
     if (disabled) return;
@@ -21,6 +27,7 @@ const Switch: FC<SwitchProps> = ({
 
   const switchClasses = classNames({
     "vm-switch": true,
+    "vm-switch_full-width": fullWidth,
     "vm-switch_disabled": disabled,
     "vm-switch_active": value,
     [`vm-switch_${color}_active`]: value,

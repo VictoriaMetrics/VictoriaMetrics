@@ -6,17 +6,26 @@
   align-items: center;
   justify-content: flex-start;
   gap: $padding-global calc($padding-small + 10px);
+  max-width: calc(100vw - var(--scrollbar-width));
+
+  &_mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
 
   &__job {
     flex-grow: 1;
+    min-width: 150px;
   }
 
   &__instance {
     flex-grow: 2;
+    min-width: 150px;
   }
 
   &__size {
     flex-grow: 1;
+    min-width: 150px;
   }
 
   &-metrics {
@@ -35,5 +44,4 @@
       opacity: 0.7
     }
   }
-
 }

@@ -13,6 +13,7 @@ import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
 import "./style.scss";
 import { promValueToNumber } from "../../../utils/metric";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -43,6 +44,7 @@ const GraphView: FC<GraphViewProps> = ({
   fullWidth = true,
   height
 }) => {
+  const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
   const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
@@ -132,7 +134,8 @@ const GraphView: FC<GraphViewProps> = ({
     <div
       className={classNames({
         "vm-graph-view": true,
-        "vm-graph-view_full-width": fullWidth
+        "vm-graph-view_full-width": fullWidth,
+        "vm-graph-view_full-width_mobile": fullWidth && isMobile
       })}
       ref={containerRef}
     >

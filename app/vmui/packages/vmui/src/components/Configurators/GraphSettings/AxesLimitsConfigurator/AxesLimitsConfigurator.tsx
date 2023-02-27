@@ -4,6 +4,8 @@ import { AxisRange, YaxisState } from "../../../../state/graph/reducer";
 import "./style.scss";
 import TextField from "../../../Main/TextField/TextField";
 import Switch from "../../../Main/Switch/Switch";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 interface AxesLimitsConfiguratorProps {
   yaxis: YaxisState,
@@ -12,6 +14,7 @@ interface AxesLimitsConfiguratorProps {
 }
 
 const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYaxisLimits, toggleEnableLimits }) => {
+  const { isMobile } = useDeviceDetect();
 
   const axes = useMemo(() => Object.keys(yaxis.limits.range), [yaxis.limits.range]);
 
@@ -27,11 +30,17 @@ const AxesLimitsConfigurator: FC<AxesLimitsConfiguratorProps> = ({ yaxis, setYax
     debouncedOnChangeLimit(val, axis, index);
   };
 
-  return <div className="vm-axes-limits">
+  return <div
+    className={classNames({
+      "vm-axes-limits": true,
+      "vm-axes-limits_mobile": isMobile
+    })}
+  >
     <Switch
       value={yaxis.limits.enable}
       onChange={toggleEnableLimits}
       label="Fix the limits for y-axis"
+      fullWidth={isMobile}
     />
     <div className="vm-axes-limits-list">
       {axes.map(axis => (

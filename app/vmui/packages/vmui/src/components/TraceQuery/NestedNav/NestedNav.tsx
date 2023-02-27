@@ -5,6 +5,7 @@ import { ArrowDownIcon } from "../../Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 interface RecursiveProps {
   trace: Trace;
@@ -17,6 +18,7 @@ interface OpenLevels {
 
 const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
   const { isDarkTheme } = useAppState();
+  const { isMobile } = useDeviceDetect();
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
 
   const handleListClick = (level: number) => () => {
@@ -32,6 +34,7 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
       className={classNames({
         "vm-nested-nav": true,
         "vm-nested-nav_dark": isDarkTheme,
+        "vm-nested-nav_mobile": isMobile,
       })}
     >
       <div

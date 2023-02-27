@@ -19,6 +19,16 @@
       flex-wrap: wrap;
       gap: $padding-small;
       width: 100%;
+      max-width: calc(100% - ($padding-global + 61px));
+
+      &_mobile {
+        flex-wrap: nowrap;
+      }
+
+      &__counter {
+        font-size: $font-size;
+        line-height: $font-size;
+      }
 
       &__selected {
         display: inline-flex;
@@ -29,6 +39,13 @@
         border-radius: $border-radius-small;
         font-size: $font-size;
         line-height: $font-size;
+        max-width: 100%;
+
+        span {
+          width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
 
         svg {
           width: 20px;
@@ -93,6 +110,22 @@
       &:hover {
         opacity: 0.7;
       }
+    }
+  }
+
+  &-options {
+    display: grid;
+    gap: $padding-small;
+    max-width: 300px;
+    max-height: 208px;
+    overflow: auto;
+    padding: $padding-global;
+    font-size: $font-size;
+
+    &_mobile {
+      padding: 0 $padding-global $padding-small;
+      max-width: 100%;
+      max-height: calc(($vh * 100) - 70px);
     }
   }
 }

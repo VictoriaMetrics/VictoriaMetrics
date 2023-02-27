@@ -96,6 +96,7 @@ const ExploreMetrics: FC = () => {
             job={job}
             instance={instance}
             index={i}
+            length={metrics.length}
             size={size}
             onRemoveItem={handleToggleMetric}
             onChangeOrder={handleChangeOrder}

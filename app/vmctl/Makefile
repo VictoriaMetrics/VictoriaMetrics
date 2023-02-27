@@ -78,6 +78,9 @@ vmctl-linux-arm64:
 vmctl-linux-ppc64le:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
+vmctl-linux-s390x:
+	APP_NAME=vmctl CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
+
 vmctl-linux-386:
 	APP_NAME=vmctl CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 

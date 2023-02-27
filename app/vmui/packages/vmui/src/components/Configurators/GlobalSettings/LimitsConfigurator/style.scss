@@ -18,6 +18,10 @@
     justify-content: space-between;
     gap: $padding-global;
 
+    &_mobile {
+      gap: $padding-small;
+    }
+
     div {
       flex-grow: 1;
     }

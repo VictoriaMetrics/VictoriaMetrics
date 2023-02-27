@@ -25,6 +25,10 @@
 
     &__nav {
       padding: $padding-medium $padding-medium $padding-medium 0;
+
+      &_mobile {
+        padding: $padding-small $padding-small $padding-small 0;
+      }
     }
   }
 }

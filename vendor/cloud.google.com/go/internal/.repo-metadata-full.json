@@ -719,6 +719,15 @@
     "release_level": "beta",
     "library_type": "GAPIC_AUTO"
   },
+  "cloud.google.com/go/discoveryengine/apiv1beta": {
+    "distribution_name": "cloud.google.com/go/discoveryengine/apiv1beta",
+    "description": "Discovery Engine API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/discoveryengine/latest/apiv1beta",
+    "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
   "cloud.google.com/go/dlp/apiv2": {
     "distribution_name": "cloud.google.com/go/dlp/apiv2",
     "description": "Cloud Data Loss Prevention (DLP) API",
@@ -1086,6 +1095,15 @@
     "client_library_type": "generated",
     "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/maps/latest/addressvalidation/apiv1",
     "release_level": "beta",
+    "library_type": "GAPIC_AUTO"
+  },
+  "cloud.google.com/go/maps/mapsplatformdatasets/apiv1alpha": {
+    "distribution_name": "cloud.google.com/go/maps/mapsplatformdatasets/apiv1alpha",
+    "description": "Maps Platform Datasets API",
+    "language": "Go",
+    "client_library_type": "generated",
+    "docs_url": "https://cloud.google.com/go/docs/reference/cloud.google.com/go/maps/latest/mapsplatformdatasets/apiv1alpha",
+    "release_level": "alpha",
     "library_type": "GAPIC_AUTO"
   },
   "cloud.google.com/go/maps/routing/apiv2": {
