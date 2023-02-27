@@ -1990,6 +1990,9 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 	return nil
 }
 
+// createSnapshot creates a snapshot from srcDir to dstDir.
+//
+// The caller is responsible for deleting dstDir if createSnapshot() returns error.
 func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
 		return fmt.Errorf("cannot create snapshot dir %q: %w", dstDir, err)

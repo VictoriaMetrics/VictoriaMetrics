@@ -37,6 +37,10 @@ func NewFastStringMatcher(matchFunc func(s string) bool) *FastStringMatcher {
 
 // Match applies matchFunc to s and returns the result.
 func (fsm *FastStringMatcher) Match(s string) bool {
+	if isSkipCache(s) {
+		return fsm.matchFunc(s)
+	}
+
 	ct := fasttime.UnixTimestamp()
 	v, ok := fsm.m.Load(s)
 	if ok {
@@ -65,9 +69,10 @@ func (fsm *FastStringMatcher) Match(s string) bool {
 	if needCleanup(&fsm.lastCleanupTime, ct) {
 		// Perform a global cleanup for fsm.m by removing items, which weren't accessed during the last 5 minutes.
 		m := &fsm.m
+		deadline := ct - uint64(cacheExpireDuration.Seconds())
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fsmEntry)
-			if atomic.LoadUint64(&e.lastAccessTime)+5*60 < ct {
+			if atomic.LoadUint64(&e.lastAccessTime) < deadline {
 				m.Delete(k)
 			}
 			return true

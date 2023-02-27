@@ -15,7 +15,17 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: add `-snapshotCreateTimeout` flag to allow configuring timeout for [snapshot process](https://docs.victoriametrics.com/#how-to-work-with-snapshots). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
+* FEATURE: expose `vm_http_requests_total` and `vm_http_request_errors_total` metrics for `snapshot/*` [paths](https://docs.victoriametrics.com/#how-to-work-with-snapshots) at [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) `vmstorage` and [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
+* FEATURE: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): add the ability to discover keys for JWT verification via [OpenID discovery endpoint](https://openid.net/specs/openid-connect-discovery-1_0.html). See [these docs](https://docs.victoriametrics.com/vmgateway.html#using-openid-discovery-endpoint-for-jwt-signature-verification).
+* FEATURE: add `-internStringDisableCache` command-line flag for disabling the cache for [interned strings](https://en.wikipedia.org/wiki/String_interning). This flag may be useful in some cases for reducing memory usage at the cost of higher CPU usage.
+* FEATURE: add `-internStringCacheExpireDuration` command-line flag for controlling the lifetime of cached [interned strings](https://en.wikipedia.org/wiki/String_interning).
+
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): fix panic when executing the query `aggr_func(rollup*(some_value))`. The panic has been introduced in [v1.88.0](https://docs.victoriametrics.com/CHANGELOG.html#v1880).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): use the provided `-remoteWrite.*` auth options when determining whether the remote storage supports [VictoriaMetrics remote write protocol](https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol). Previously the auth options were ignored. This was preventing from automatic switch to VictoriaMetrics remote write protocol.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): do not register `vm_promscrape_config_*` metrics if `-promscrape.config` flag is not used. Previously those metrics were registered and never updated, which was confusing and could trigger false-positive alerts.
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): skip measurements with no fields when migrating data from influxdb. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3837).
+* BUGFIX: delete failed snapshot contents from disk on failed attempt to [create snapshot](https://docs.victoriametrics.com/#how-to-work-with-snapshots). Previously failed snapshot contents could remain on disk in incomplete state. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3858)
 
 ## [v1.88.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.0)
 
@@ -42,7 +52,6 @@ Released at 2023-02-24
 * FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add `range_trim_zscore(z, q)` function for dropping outliers located farther than `z*range_stddev(q)` from `range_avg(q)`. This should help removing outliers during query time at [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3759).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): show `median` instead of `avg` in graph tooltip and line legend, since `median` is more tolerant against spikes. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3706).
 * FEATURE: add `-search.maxSeriesPerAggrFunc` command-line flag, which can be used for limiting the number of time series [MetricsQL aggregate functions](https://docs.victoriametrics.com/MetricsQL.html#aggregate-functions) can return in a single query. This flag can be useful for preventing OOMs when [count_values](https://docs.victoriametrics.com/MetricsQL.html#count_values) function is improperly used.
-
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): small UX improvements for mobile view. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3707) and [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3848).
 * FEATURE: add `-search.logQueryMemoryUsage` command-line flag for logging queries, which need more memory than specified by this command-line flag. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3553). Thanks to @michal-kralik for the idea and the intial implementation.
 * FEATURE: allow setting zero value for `-search.latencyOffset` command-line flag. This may be needed in [some cases](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2061#issuecomment-1299109836). Previously the minimum supported value for `-search.latencyOffset` command-line flag was `1s`.
