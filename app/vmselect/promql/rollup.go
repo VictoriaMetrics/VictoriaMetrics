@@ -282,10 +282,23 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	return aggrFuncNames, nil
 }
 
+// getRollupTag returns the possible second arg from the expr.
+//
+// The expr can have the following forms:
+// - rollup_func(q, tag)
+// - aggr_func(rollup_func(q, tag)) - this form is used during incremental aggregate calculations
 func getRollupTag(expr metricsql.Expr) (string, error) {
+	af, ok := expr.(*metricsql.AggrFuncExpr)
+	if ok {
+		// extract rollup_func() from aggr_func(rollup_func(q, tag))
+		if len(af.Args) != 1 {
+			logger.Panicf("BUG: unexpected number of args to %s; got %d; want 1", af.AppendString(nil), len(af.Args))
+		}
+		expr = af.Args[0]
+	}
 	fe, ok := expr.(*metricsql.FuncExpr)
 	if !ok {
-		logger.Panicf("BUG: unexpected expression; want metricsql.FuncExpr; got %T; value: %s", expr, expr.AppendString(nil))
+		logger.Panicf("BUG: unexpected expression; want *metricsql.FuncExpr; got %T; value: %s", expr, expr.AppendString(nil))
 	}
 	if len(fe.Args) < 2 {
 		return "", nil
