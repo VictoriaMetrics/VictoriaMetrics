@@ -37,6 +37,16 @@ func NewFastStringTransformer(transformFunc func(s string) string) *FastStringTr
 
 // Transform applies transformFunc to s and returns the result.
 func (fst *FastStringTransformer) Transform(s string) string {
+	if isSkipCache(s) {
+		sTransformed := fst.transformFunc(s)
+		if sTransformed == s {
+			// Clone a string in order to protect from cases when s contains unsafe string.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3227
+			sTransformed = strings.Clone(sTransformed)
+		}
+		return sTransformed
+	}
+
 	ct := fasttime.UnixTimestamp()
 	v, ok := fst.m.Load(s)
 	if ok {
@@ -70,9 +80,10 @@ func (fst *FastStringTransformer) Transform(s string) string {
 	if needCleanup(&fst.lastCleanupTime, ct) {
 		// Perform a global cleanup for fst.m by removing items, which weren't accessed during the last 5 minutes.
 		m := &fst.m
+		deadline := ct - uint64(cacheExpireDuration.Seconds())
 		m.Range(func(k, v interface{}) bool {
 			e := v.(*fstEntry)
-			if atomic.LoadUint64(&e.lastAccessTime)+5*60 < ct {
+			if atomic.LoadUint64(&e.lastAccessTime) < deadline {
 				m.Delete(k)
 			}
 			return true
