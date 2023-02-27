@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/unit"
 )
 
 // Float64Counter is an instrument that records increasing float64 values.
@@ -57,7 +56,7 @@ type Float64Histogram interface {
 // observe float64 values.
 type Float64Config struct {
 	description string
-	unit        unit.Unit
+	unit        string
 }
 
 // Float64Config contains options for Synchronous instruments that record
@@ -76,7 +75,7 @@ func (c Float64Config) Description() string {
 }
 
 // Unit returns the Config unit.
-func (c Float64Config) Unit() unit.Unit {
+func (c Float64Config) Unit() string {
 	return c.unit
 }
 

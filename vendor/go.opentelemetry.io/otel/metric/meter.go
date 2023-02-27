@@ -26,12 +26,12 @@ import (
 //
 // Warning: methods may be added to this interface in minor releases.
 type MeterProvider interface {
-	// Meter creates an instance of a `Meter` interface. The instrumentationName
-	// must be the name of the library providing instrumentation. This name may
-	// be the same as the instrumented code only if that code provides built-in
-	// instrumentation. If the instrumentationName is empty, then a
-	// implementation defined default name will be used instead.
-	Meter(instrumentationName string, opts ...MeterOption) Meter
+	// Meter creates an instance of a `Meter` interface. The name must be the
+	// name of the library providing instrumentation. This name may be the same
+	// as the instrumented code only if that code provides built-in
+	// instrumentation. If the name is empty, then a implementation defined
+	// default name will be used instead.
+	Meter(name string, opts ...MeterOption) Meter
 }
 
 // Meter provides access to instrument instances for recording metrics.

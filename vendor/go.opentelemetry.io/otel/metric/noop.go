@@ -106,18 +106,6 @@ var (
 	_ instrument.Float64ObservableGauge         = nonrecordingAsyncFloat64Instrument{}
 )
 
-func (n nonrecordingAsyncFloat64Instrument) Counter(string, ...instrument.Float64ObserverOption) (instrument.Float64ObservableCounter, error) {
-	return n, nil
-}
-
-func (n nonrecordingAsyncFloat64Instrument) UpDownCounter(string, ...instrument.Float64ObserverOption) (instrument.Float64ObservableUpDownCounter, error) {
-	return n, nil
-}
-
-func (n nonrecordingAsyncFloat64Instrument) Gauge(string, ...instrument.Float64ObserverOption) (instrument.Float64ObservableGauge, error) {
-	return n, nil
-}
-
 type nonrecordingAsyncInt64Instrument struct {
 	instrument.Int64Observable
 }
@@ -127,18 +115,6 @@ var (
 	_ instrument.Int64ObservableUpDownCounter = nonrecordingAsyncInt64Instrument{}
 	_ instrument.Int64ObservableGauge         = nonrecordingAsyncInt64Instrument{}
 )
-
-func (n nonrecordingAsyncInt64Instrument) Counter(string, ...instrument.Int64ObserverOption) (instrument.Int64ObservableCounter, error) {
-	return n, nil
-}
-
-func (n nonrecordingAsyncInt64Instrument) UpDownCounter(string, ...instrument.Int64ObserverOption) (instrument.Int64ObservableUpDownCounter, error) {
-	return n, nil
-}
-
-func (n nonrecordingAsyncInt64Instrument) Gauge(string, ...instrument.Int64ObserverOption) (instrument.Int64ObservableGauge, error) {
-	return n, nil
-}
 
 type nonrecordingSyncFloat64Instrument struct {
 	instrument.Synchronous
@@ -150,25 +126,8 @@ var (
 	_ instrument.Float64Histogram     = nonrecordingSyncFloat64Instrument{}
 )
 
-func (n nonrecordingSyncFloat64Instrument) Counter(string, ...instrument.Float64Option) (instrument.Float64Counter, error) {
-	return n, nil
-}
-
-func (n nonrecordingSyncFloat64Instrument) UpDownCounter(string, ...instrument.Float64Option) (instrument.Float64UpDownCounter, error) {
-	return n, nil
-}
-
-func (n nonrecordingSyncFloat64Instrument) Histogram(string, ...instrument.Float64Option) (instrument.Float64Histogram, error) {
-	return n, nil
-}
-
-func (nonrecordingSyncFloat64Instrument) Add(context.Context, float64, ...attribute.KeyValue) {
-
-}
-
-func (nonrecordingSyncFloat64Instrument) Record(context.Context, float64, ...attribute.KeyValue) {
-
-}
+func (nonrecordingSyncFloat64Instrument) Add(context.Context, float64, ...attribute.KeyValue)    {}
+func (nonrecordingSyncFloat64Instrument) Record(context.Context, float64, ...attribute.KeyValue) {}
 
 type nonrecordingSyncInt64Instrument struct {
 	instrument.Synchronous
@@ -180,19 +139,5 @@ var (
 	_ instrument.Int64Histogram     = nonrecordingSyncInt64Instrument{}
 )
 
-func (n nonrecordingSyncInt64Instrument) Counter(string, ...instrument.Int64Option) (instrument.Int64Counter, error) {
-	return n, nil
-}
-
-func (n nonrecordingSyncInt64Instrument) UpDownCounter(string, ...instrument.Int64Option) (instrument.Int64UpDownCounter, error) {
-	return n, nil
-}
-
-func (n nonrecordingSyncInt64Instrument) Histogram(string, ...instrument.Int64Option) (instrument.Int64Histogram, error) {
-	return n, nil
-}
-
-func (nonrecordingSyncInt64Instrument) Add(context.Context, int64, ...attribute.KeyValue) {
-}
-func (nonrecordingSyncInt64Instrument) Record(context.Context, int64, ...attribute.KeyValue) {
-}
+func (nonrecordingSyncInt64Instrument) Add(context.Context, int64, ...attribute.KeyValue)    {}
+func (nonrecordingSyncInt64Instrument) Record(context.Context, int64, ...attribute.KeyValue) {}
