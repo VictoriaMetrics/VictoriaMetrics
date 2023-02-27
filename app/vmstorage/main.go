@@ -299,6 +299,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
 			jsonResponseError(w, err)
+			snapshotsFailedTotal.Inc()
 			return true
 		}
 		if prometheusCompatibleResponse {
@@ -306,6 +307,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		} else {
 			fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
 		}
+		snapshotsCreatedTotal.Inc()
 		return true
 	case "/list":
 		w.Header().Set("Content-Type", "application/json")
@@ -406,7 +408,11 @@ var (
 	staleSnapshotsRemoverWG sync.WaitGroup
 )
 
-var activeForceMerges = metrics.NewCounter("vm_active_force_merges")
+var (
+	activeForceMerges     = metrics.NewCounter("vm_active_force_merges")
+	snapshotsFailedTotal  = metrics.NewCounter("vm_snapshots_failed_total")
+	snapshotsCreatedTotal = metrics.NewCounter("vm_snapshots_created_total")
+)
 
 func registerStorageMetrics(strg *storage.Storage) {
 	mCache := &storage.Metrics{}
