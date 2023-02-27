@@ -16,6 +16,7 @@ import HeatmapChart from "../../Chart/HeatmapChart/HeatmapChart";
 import "./style.scss";
 import { promValueToNumber } from "../../../utils/metric";
 import { normalizeData } from "../../../utils/uplot/heatmap";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -48,6 +49,7 @@ const GraphView: FC<GraphViewProps> = ({
   height,
   isHistogram
 }) => {
+  const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
 
@@ -167,7 +169,8 @@ const GraphView: FC<GraphViewProps> = ({
     <div
       className={classNames({
         "vm-graph-view": true,
-        "vm-graph-view_full-width": fullWidth
+        "vm-graph-view_full-width": fullWidth,
+        "vm-graph-view_full-width_mobile": fullWidth && isMobile
       })}
       ref={containerRef}
     >

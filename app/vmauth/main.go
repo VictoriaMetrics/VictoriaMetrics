@@ -169,7 +169,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	if err != nil {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
-		if r.Method == "POST" || r.Method == "PUT" {
+		if r.Method == http.MethodPost || r.Method == http.MethodPut {
 			// It is impossible to retry POST and PUT requests,
 			// since we already proxied the request body to the backend.
 			err = &httpserver.ErrorWithStatusCode{

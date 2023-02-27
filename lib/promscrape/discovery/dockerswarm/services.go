@@ -123,6 +123,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutils.
 				m.Add("__meta_dockerswarm_service_endpoint_port_publish_mode", ep.PublishMode)
 				m.AddFrom(commonLabels)
 				m.AddFrom(networksLabels[vip.NetworkID])
+				// Remove possible duplicate labels, which can appear after AddFrom() calls
 				m.RemoveDuplicates()
 				added = true
 				ms = append(ms, m)
@@ -132,6 +133,7 @@ func addServicesLabels(services []service, networksLabels map[string]*promutils.
 				m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), port))
 				m.AddFrom(commonLabels)
 				m.AddFrom(networksLabels[vip.NetworkID])
+				// Remove possible duplicate labels, which can appear after AddFrom() calls
 				m.RemoveDuplicates()
 				ms = append(ms, m)
 			}

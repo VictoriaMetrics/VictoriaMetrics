@@ -1,5 +1,8 @@
 import React, { createContext, FC, useContext, useEffect, useState } from "preact/compat";
 import Alert from "../components/Main/Alert/Alert";
+import useDeviceDetect from "../hooks/useDeviceDetect";
+import classNames from "classnames";
+import { CloseIcon } from "../components/Main/Icons";
 
 export interface SnackModel {
   message?: string;
@@ -26,6 +29,8 @@ export const SnackbarContext = createContext<SnackbarContextType>({
 export const useSnack = (): SnackbarContextType => useContext(SnackbarContext);
 
 export const SnackbarProvider: FC = ({ children }) => {
+  const { isMobile } = useDeviceDetect();
+
   const [snack, setSnack] = useState<SnackModel>({});
   const [open, setOpen] = useState(false);
 
@@ -44,17 +49,28 @@ export const SnackbarProvider: FC = ({ children }) => {
     return () => clearTimeout(timeout);
   }, [infoMessage]);
 
-  const handleClose = (e: unknown, reason: string): void => {
-    if (reason !== "clickaway") {
-      setInfoMessage(undefined);
-      setOpen(false);
-    }
+  const handleClose = () => {
+    setInfoMessage(undefined);
+    setOpen(false);
   };
 
   return <SnackbarContext.Provider value={{ showInfoMessage: setInfoMessage }}>
-    {open && <div className="vm-snackbar">
+    {open && <div
+      className={classNames({
+        "vm-snackbar": true,
+        "vm-snackbar_mobile": isMobile,
+      })}
+    >
       <Alert variant={snack.variant}>
-        {snack.message}
+        <div className="vm-snackbar-content">
+          <span>{snack.message}</span>
+          <div
+            className="vm-snackbar-content__close"
+            onClick={handleClose}
+          >
+            <CloseIcon/>
+          </div>
+        </div>
       </Alert>
     </div>}
     {children}

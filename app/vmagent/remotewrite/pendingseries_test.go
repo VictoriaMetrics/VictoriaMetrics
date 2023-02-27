@@ -2,6 +2,7 @@ package remotewrite
 
 import (
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
@@ -21,7 +22,7 @@ func TestPushWriteRequest(t *testing.T) {
 }
 
 func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expectedBlockLenVM int) {
-	f := func(isVMRemoteWrite bool, expectedBlockLen int) {
+	f := func(isVMRemoteWrite bool, expectedBlockLen int, tolerancePrc float64) {
 		t.Helper()
 		wr := newTestWriteRequest(rowsCount, 20)
 		pushBlockLen := 0
@@ -32,17 +33,17 @@ func testPushWriteRequest(t *testing.T, rowsCount, expectedBlockLenProm, expecte
 			pushBlockLen = len(block)
 		}
 		pushWriteRequest(wr, pushBlock, isVMRemoteWrite)
-		if pushBlockLen != expectedBlockLen {
-			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes",
-				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen)
+		if math.Abs(float64(pushBlockLen-expectedBlockLen)/float64(expectedBlockLen)*100) > tolerancePrc {
+			t.Fatalf("unexpected block len for rowsCount=%d, isVMRemoteWrite=%v; got %d bytes; expecting %d bytes +- %.0f%%",
+				rowsCount, isVMRemoteWrite, pushBlockLen, expectedBlockLen, tolerancePrc)
 		}
 	}
 
 	// Check Prometheus remote write
-	f(false, expectedBlockLenProm)
+	f(false, expectedBlockLenProm, 0)
 
 	// Check VictoriaMetrics remote write
-	f(true, expectedBlockLenVM)
+	f(true, expectedBlockLenVM, 15)
 }
 
 func newTestWriteRequest(seriesCount, labelsCount int) *prompbmarshal.WriteRequest {

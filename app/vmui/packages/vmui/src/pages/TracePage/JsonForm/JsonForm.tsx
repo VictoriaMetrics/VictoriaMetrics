@@ -80,6 +80,7 @@ const JsonForm: FC<JsonFormProps> = ({
       className={classNames({
         "vm-json-form": true,
         "vm-json-form_one-field": !displayTitle,
+        "vm-json-form_one-field_mobile": !displayTitle && isMobile,
         "vm-json-form_mobile": isMobile
       })}
     >

@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
-import { RestartIcon, TimelineIcon } from "../../Main/Icons";
+import { ArrowDownIcon, RestartIcon, TimelineIcon } from "../../Main/Icons";
 import TextField from "../../Main/TextField/TextField";
 import Button from "../../Main/Button/Button";
 import Tooltip from "../../Main/Tooltip/Tooltip";
@@ -11,9 +11,12 @@ import usePrevious from "../../../hooks/usePrevious";
 import "./style.scss";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Popper from "../../Main/Popper/Popper";
+import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import classNames from "classnames";
 
 const StepConfigurator: FC = () => {
   const appModeEnable = getAppModeEnable();
+  const { isMobile } = useDeviceDetect();
 
   const { customStep: value, isHistogram } = useGraphState();
   const { period: { step, end, start } } = useTimeState();
@@ -110,29 +113,49 @@ const StepConfigurator: FC = () => {
       className="vm-step-control"
       ref={buttonRef}
     >
-      <Tooltip title="Query resolution step width">
-        <Button
-          className={appModeEnable ? "" : "vm-header-button"}
-          variant="contained"
-          color="primary"
-          startIcon={<TimelineIcon/>}
+      {isMobile ? (
+        <div
+          className="vm-mobile-option"
           onClick={toggleOpenOptions}
         >
-          <p>
-            STEP
-            <p className="vm-step-control__value">
-              {customStep}
+          <span className="vm-mobile-option__icon"><TimelineIcon/></span>
+          <div className="vm-mobile-option-text">
+            <span className="vm-mobile-option-text__label">Step</span>
+            <span className="vm-mobile-option-text__value">{customStep}</span>
+          </div>
+          <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
+        </div>
+      ) : (
+        <Tooltip title="Query resolution step width">
+          <Button
+            className={appModeEnable ? "" : "vm-header-button"}
+            variant="contained"
+            color="primary"
+            startIcon={<TimelineIcon/>}
+            onClick={toggleOpenOptions}
+          >
+            <p>
+              STEP
+              <p className="vm-step-control__value">
+                {customStep}
+              </p>
             </p>
-          </p>
-        </Button>
-      </Tooltip>
+          </Button>
+        </Tooltip>
+      )}
       <Popper
         open={openOptions}
         placement="bottom-right"
         onClose={handleCloseOptions}
         buttonRef={buttonRef}
+        title={isMobile ? "Query resolution step width" : undefined}
       >
-        <div className="vm-step-control-popper">
+        <div
+          className={classNames({
+            "vm-step-control-popper": true,
+            "vm-step-control-popper_mobile": isMobile,
+          })}
+        >
           <TextField
             autofocus
             label="Step value"

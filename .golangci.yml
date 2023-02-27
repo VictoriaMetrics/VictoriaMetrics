@@ -1,14 +1,18 @@
 run:
   timeout: 2m
 
-enable:
+linters:
+  enable:
   - revive
 
 issues:
   exclude-rules:
-    - linters:
-      - staticcheck
-      text: "SA(4003|1019|5011):"
+  - linters:
+    - staticcheck
+    text: "SA(4003|1019|5011):"
+  include:
+  - EXC0012
+  - EXC0014
 
 linters-settings:
   errcheck:

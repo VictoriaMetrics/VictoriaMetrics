@@ -78,9 +78,11 @@ const QueryEditor: FC<QueryEditorProps> = ({
       onKeyDown={handleKeyDown}
       onChange={onChange}
       disabled={disabled}
+      inputmode={"search"}
     />
     {autocomplete && (
       <Autocomplete
+        disabledFullScreen
         value={value}
         options={options}
         anchor={autocompleteAnchorEl}

@@ -1169,7 +1169,8 @@ func transformInterpolate(tfa *transformFuncArg) ([]*timeseries, error) {
 	}
 	rvs := args[0]
 	for _, ts := range rvs {
-		values := ts.Values
+		values := skipLeadingNaNs(ts.Values)
+		values = skipTrailingNaNs(values)
 		if len(values) == 0 {
 			continue
 		}

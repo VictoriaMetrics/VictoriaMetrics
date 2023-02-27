@@ -6212,7 +6212,7 @@ func TestExecSuccess(t *testing.T) {
 		q := `interpolate(time() < 1300)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1000, 1200, 1200, 1200, 1200, 1200},
+			Values:     []float64{1000, 1200, nan, nan, nan, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1}
@@ -6223,7 +6223,18 @@ func TestExecSuccess(t *testing.T) {
 		q := `interpolate(time() > 1500)`
 		r1 := netstorage.Result{
 			MetricName: metricNameExpected,
-			Values:     []float64{1600, 1600, 1600, 1600, 1800, 2000},
+			Values:     []float64{nan, nan, nan, 1600, 1800, 2000},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r1}
+		f(q, resultExpected)
+	})
+	t.Run(`interpolate(tail_head_and_middle)`, func(t *testing.T) {
+		t.Parallel()
+		q := `interpolate(time() > 1100 and time() < 1300 default time() > 1700 and time() < 1900)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{nan, 1200, 1400, 1600, 1800, nan},
 			Timestamps: timestampsExpected,
 		}
 		resultExpected := []netstorage.Result{r1}
@@ -7511,6 +7522,22 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2, r3, r4}
 		f(q, resultExpected)
 	})
+	t.Run(`rollup_candlestick(high)`, func(t *testing.T) {
+		t.Parallel()
+		q := `rollup_candlestick(alias(round(rand(0),0.01),"foobar")[:10s], "high")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{0.9, 0.94, 0.97, 0.93, 0.98, 0.92},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("foobar")
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("high"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`rollup_increase()`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(rollup_increase(time()))`
@@ -7542,6 +7569,61 @@ func TestExecSuccess(t *testing.T) {
 			Value: []byte("avg"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`rollup_rate()`, func(t *testing.T) {
+		t.Parallel()
+		q := `rollup_rate((2000-time())[600s])`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5, 4, 3, 2, 1, 0},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("avg"),
+		}}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6, 5, 4, 3, 2, 1},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("max"),
+		}}
+		r3 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{4, 3, 2, 1, 0, -1},
+			Timestamps: timestampsExpected,
+		}
+		r3.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("rollup"),
+			Value: []byte("min"),
+		}}
+		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`rollup_rate(q, "max")`, func(t *testing.T) {
+		t.Parallel()
+		q := `rollup_rate((2000-time())[600s], "max")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{6, 5, 4, 3, 2, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`rollup_rate(q, "avg")`, func(t *testing.T) {
+		t.Parallel()
+		q := `rollup_rate((2000-time())[600s], "avg")`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{5, 4, 3, 2, 1, 0},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`rollup_scrape_interval()`, func(t *testing.T) {
@@ -7641,6 +7723,17 @@ func TestExecSuccess(t *testing.T) {
 			Value: []byte("avg"),
 		}}
 		resultExpected := []netstorage.Result{r1, r2, r3}
+		f(q, resultExpected)
+	})
+	t.Run(`rollup_deriv(q, "max")`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort(rollup_deriv(time()[100s:50s], "max"))`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1, 1, 1, 1, 1, 1},
+			Timestamps: timestampsExpected,
+		}
+		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
 	t.Run(`{}`, func(t *testing.T) {
@@ -8524,6 +8617,8 @@ func TestExecError(t *testing.T) {
 	f(`changes_prometheus()`)
 	f(`delta()`)
 	f(`delta_prometheus()`)
+	f(`rollup_candlestick()`)
+	f(`rollup()`)
 
 	// Invalid argument type
 	f(`median_over_time({}, 2)`)
@@ -8610,6 +8705,12 @@ func TestExecError(t *testing.T) {
 	f(`ru()`)
 	f(`ru(1)`)
 	f(`ru(1,3,3)`)
+
+	// Invalid rollup tags
+	f(`rollup_rate(time()[5m], "")`)
+	f(`rollup_rate(time()[5m], "foo")`)
+	f(`rollup_rate(time()[5m], "foo", "bar")`)
+	f(`rollup_candlestick(time(), "foo")`)
 }
 
 func testResultsEqual(t *testing.T, result, resultExpected []netstorage.Result) {

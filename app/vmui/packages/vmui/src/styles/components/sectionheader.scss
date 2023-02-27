@@ -12,6 +12,15 @@
   &__title {
     font-size: $font-size;
     font-weight: bold;
+
+    &_mobile {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -webkit-box;
+      -webkit-line-clamp: 2; /* number of lines to show */
+      line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
   }
 
   &__tabs {
@@ -20,5 +29,4 @@
     justify-content: flex-start;
     font-size: $font-size-small;
   }
-
 }

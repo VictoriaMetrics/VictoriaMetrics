@@ -3,6 +3,11 @@
 .vm-autocomplete {
   max-height: 300px;
   overflow: auto;
+  overscroll-behavior: none;
+
+  &_mobile {
+    max-height: calc(($vh * 100) - 70px);
+  }
 
   &__no-options {
     padding: $padding-global;
