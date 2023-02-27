@@ -16,6 +16,9 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## v1.79.x long-time support release (LTS)
 
 
+* BUGFIX: prevent from high CPU usage on the first UTC hour of the data. The issue has been introduced in [v1.79.5](https://docs.victoriametrics.com/CHANGELOG.html#v1795) when fixing [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3309).
+
+
 ## [v1.79.9](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.9)
 
 Released at 2023-02-24
