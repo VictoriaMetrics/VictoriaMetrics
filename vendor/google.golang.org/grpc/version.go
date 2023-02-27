@@ -19,4 +19,8 @@
 package grpc
 
 // Version is the current grpc version.
+<<<<<<< HEAD
 const Version = "1.53.0"
+=======
+const Version = "1.51.0"
+>>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)

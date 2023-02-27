@@ -75,9 +75,13 @@ var registeredCompressor = make(map[string]Compressor)
 // registered with the same name, the one registered last will take effect.
 func RegisterCompressor(c Compressor) {
 	registeredCompressor[c.Name()] = c
+<<<<<<< HEAD
 	if !grpcutil.IsCompressorNameRegistered(c.Name()) {
 		grpcutil.RegisteredCompressorNames = append(grpcutil.RegisteredCompressorNames, c.Name())
 	}
+=======
+	grpcutil.RegisteredCompressorNames = append(grpcutil.RegisteredCompressorNames, c.Name())
+>>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 }
 
 // GetCompressor returns Compressor for the given compressor name.

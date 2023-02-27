@@ -1,0 +1,21 @@
+{
+  "name": "ingest all types",
+  "query": ["/api/v1/export?match={__name__=~'(my-gauge|my-histogram|my-sum|my-summary).*'}"],
+  "result_metrics": [
+    {"metric":{"__name__":"my-gauge","job":"vm","label1":"value1"},"values":[15], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-sum","job":"vm","label5":"value5"},"values":[15.5], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-summary","job":"vm","label6":"value6","quantile": "0.1"},"values":[7.5], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-summary","job":"vm","label6":"value6","quantile": "1"},"values":[15], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-summary","job":"vm","label6":"value6","quantile": "0.5"},"values":[10], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-summary_count","job":"vm","label6":"value6"},"values":[5], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-summary_sum","job":"vm","label6":"value6"},"values":[32.5], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_sum","job":"vm","label2":"value2"},"values":[30], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_count","job":"vm","label2":"value2"},"values":[15], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_bucket","job":"vm","label2":"value2","le": "0.1"},"values":[0], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_bucket","job":"vm","label2":"value2","le": "0.5"},"values":[5], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_bucket","job":"vm","label2":"value2","le": "1"},"values":[15], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_bucket","job":"vm","label2":"value2","le": "5"},"values":[15], "timestamps": ["{TIME_MS}"]},
+    {"metric":{"__name__":"my-histogram_bucket","job":"vm","label2":"value2","le": "+Inf"},"values":[15], "timestamps": ["{TIME_MS}"]}
+  ],
+  "data": ["{\"resourceMetrics\":[{\"resource\":{\"attributes\":[{\"key\":\"job\",\"value\":{\"stringValue\":\"vm\"}}]},\"scopeMetrics\":[{\"metrics\":[{\"name\":\"my-gauge\",\"gauge\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"label1\",\"value\":{\"stringValue\":\"value1\"}}],\"timeUnixNano\":\"{TIME_NS}\",\"asInt\":\"15\"}]}},{\"name\":\"my-histogram\",\"histogram\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"label2\",\"value\":{\"stringValue\":\"value2\"}}],\"timeUnixNano\":\"{TIME_NS}\",\"count\":\"15\",\"sum\":30,\"bucketCounts\":[\"0\",\"5\",\"10\",\"0\",\"0\"],\"explicitBounds\":[0.1,0.5,1,5]}],\"aggregationTemporality\":\"AGGREGATION_TEMPORALITY_CUMULATIVE\"}},{\"name\":\"my-sum\",\"sum\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"label5\",\"value\":{\"stringValue\":\"value5\"}}],\"timeUnixNano\":\"{TIME_NS}\",\"asDouble\":15.5}],\"aggregationTemporality\":\"AGGREGATION_TEMPORALITY_CUMULATIVE\"}},{\"name\":\"my-summary\",\"summary\":{\"dataPoints\":[{\"attributes\":[{\"key\":\"label6\",\"value\":{\"stringValue\":\"value6\"}}],\"timeUnixNano\":\"{TIME_NS}\",\"count\":\"5\",\"sum\":32.5,\"quantileValues\":[{\"quantile\":0.1,\"value\":7.5},{\"quantile\":0.5,\"value\":10},{\"quantile\":1,\"value\":15}]}]}}]}]}]}"]
+}

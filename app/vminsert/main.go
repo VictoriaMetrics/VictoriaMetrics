@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentelemetryhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
@@ -244,6 +245,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		datadogMetadataRequests.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
+		return true
+	case "/opentelemetry/api/v1/push":
+		if err := opentelemetryhttp.InsertHandler(r); err != nil {
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
 		return true
 	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()
