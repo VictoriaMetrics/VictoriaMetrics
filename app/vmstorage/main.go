@@ -23,12 +23,12 @@ import (
 )
 
 var (
-	retentionPeriod   = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter")
-	snapshotAuthKey   = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
-	forceMergeAuthKey = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
-	forceFlushAuthKey = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
-	snapshotsMaxAge   = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
-	snapshotTimeout   = flagutil.NewDuration("snapshotTimeout", "0", "Defines timeout value for process of creating new snapshot if it is set to non-zero duration. If set, make sure that timeout is lower than backup period.")
+	retentionPeriod       = flagutil.NewDuration("retentionPeriod", "1", "Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter")
+	snapshotAuthKey       = flag.String("snapshotAuthKey", "", "authKey, which must be passed in query string to /snapshot* pages")
+	forceMergeAuthKey     = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
+	forceFlushAuthKey     = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
+	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
+	snapshotCreateTimeout = flagutil.NewDuration("snapshotCreateTimeout", "0", "Defines timeout value for process of creating new snapshot if it is set to non-zero duration. If set, make sure that timeout is lower than backup period.")
 
 	precisionBits = flag.Int("precisionBits", 64, "The number of precision bits to store per each value. Lower precision bits improves data compression at the cost of precision loss")
 
@@ -290,16 +290,17 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 	switch path {
 	case "/create":
+		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		deadline := uint64(0)
-		if snapshotTimeout.Msecs > 0 {
-			deadline = fasttime.UnixTimestamp() + uint64(snapshotTimeout.Msecs/1e3)
+		if snapshotCreateTimeout.Msecs > 0 {
+			deadline = fasttime.UnixTimestamp() + uint64(snapshotCreateTimeout.Msecs/1e3)
 		}
 		snapshotPath, err := Storage.CreateSnapshot(deadline)
 		if err != nil {
 			err = fmt.Errorf("cannot create snapshot: %w", err)
 			jsonResponseError(w, err)
-			snapshotsFailedTotal.Inc()
+			snapshotsCreateErrorsTotal.Inc()
 			return true
 		}
 		if prometheusCompatibleResponse {
@@ -307,14 +308,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		} else {
 			fmt.Fprintf(w, `{"status":"ok","snapshot":%q}`, snapshotPath)
 		}
-		snapshotsCreatedTotal.Inc()
 		return true
 	case "/list":
+		snapshotsListTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
+			snapshotsListErrorsTotal.Inc()
 			return true
 		}
 		fmt.Fprintf(w, `{"status":"ok","snapshots":[`)
@@ -327,6 +329,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `]}`)
 		return true
 	case "/delete":
+		snapshotsDeleteTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshotName := r.FormValue("snapshot")
 
@@ -334,6 +337,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
+			snapshotsDeleteErrorsTotal.Inc()
 			return true
 		}
 		for _, snName := range snapshots {
@@ -341,6 +345,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 				if err := Storage.DeleteSnapshot(snName); err != nil {
 					err = fmt.Errorf("cannot delete snapshot %q: %w", snName, err)
 					jsonResponseError(w, err)
+					snapshotsDeleteErrorsTotal.Inc()
 					return true
 				}
 				fmt.Fprintf(w, `{"status":"ok"}`)
@@ -352,17 +357,20 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		jsonResponseError(w, err)
 		return true
 	case "/delete_all":
+		snapshotsDeleteAllTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		snapshots, err := Storage.ListSnapshots()
 		if err != nil {
 			err = fmt.Errorf("cannot list snapshots: %w", err)
 			jsonResponseError(w, err)
+			snapshotsDeleteAllErrorsTotal.Inc()
 			return true
 		}
 		for _, snapshotName := range snapshots {
 			if err := Storage.DeleteSnapshot(snapshotName); err != nil {
 				err = fmt.Errorf("cannot delete snapshot %q: %w", snapshotName, err)
 				jsonResponseError(w, err)
+				snapshotsDeleteAllErrorsTotal.Inc()
 				return true
 			}
 		}
@@ -409,9 +417,18 @@ var (
 )
 
 var (
-	activeForceMerges     = metrics.NewCounter("vm_active_force_merges")
-	snapshotsFailedTotal  = metrics.NewCounter("vm_snapshots_failed_total")
-	snapshotsCreatedTotal = metrics.NewCounter("vm_snapshots_created_total")
+	activeForceMerges          = metrics.NewCounter("vm_active_force_merges")
+	snapshotsCreateTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
+	snapshotsCreateErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/create"}`)
+
+	snapshotsListTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/list"}`)
+	snapshotsListErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/list"}`)
+
+	snapshotsDeleteTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/delete"}`)
+	snapshotsDeleteErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete"}`)
+
+	snapshotsDeleteAllTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/delete_all"}`)
+	snapshotsDeleteAllErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/delete_all"}`)
 )
 
 func registerStorageMetrics(strg *storage.Storage) {
