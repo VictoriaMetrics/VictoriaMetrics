@@ -483,10 +483,9 @@ Processing ranges: 8798 / 8798 [████████████████
 2022/10/19 16:45:37 Total time: 1m19.406283424s
 ```
 
-Importing tips:
-
-1. Migrating big volumes of data may result in reaching the timeout by remote read client.
-Please verify that `--remote-read-http-timeout` were set with correct timeout. By default, that value set to 5 minute.
+Migrating big volumes of data may result in remote read client reaching the timeout.
+Consider increasing the value of `--remote-read-http-timeout` (default `5m`) command-line flag when seeing
+timeouts or `context canceled` errors.
 
 ### Filtering
 

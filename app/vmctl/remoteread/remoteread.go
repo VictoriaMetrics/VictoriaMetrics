@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	defaultReadTimeout = 300 * time.Second
+	defaultReadTimeout = 5 * time.Minute
 	remoteReadPath     = "/api/v1/read"
 	healthPath         = "/-/healthy"
 )
