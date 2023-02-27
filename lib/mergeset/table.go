@@ -1505,7 +1505,8 @@ func mustCloseParts(pws []*partWrapper) {
 // very quickly.
 //
 // If deadline is reached before snapshot is created error is returned.
-// If any error occurs during snapshot created data is not removed.
+//
+// The caller is responsible for data removal at dstDir on unsuccessful snapshot creation.
 func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 	logger.Infof("creating Table snapshot of %q...", tb.path)
 	startTime := time.Now()
@@ -1547,11 +1548,9 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 		return fmt.Errorf("cannot read directory: %w", err)
 	}
 
-	for i, fi := range fis {
-		if deadline > 0 && i%5 == 0 {
-			if fasttime.UnixTimestamp() > deadline {
-				return fmt.Errorf("cannot create snapshot for %q in time: timeout exceeded", tb.path)
-			}
+	for _, fi := range fis {
+		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
+			return fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
 
 		fn := fi.Name()

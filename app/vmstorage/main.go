@@ -37,7 +37,7 @@ var (
 	forceMergeAuthKey     = flag.String("forceMergeAuthKey", "", "authKey, which must be passed in query string to /internal/force_merge pages")
 	forceFlushAuthKey     = flag.String("forceFlushAuthKey", "", "authKey, which must be passed in query string to /internal/force_flush pages")
 	snapshotsMaxAge       = flagutil.NewDuration("snapshotsMaxAge", "0", "Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted")
-	snapshotCreateTimeout = flagutil.NewDuration("snapshotCreateTimeout", "0", "Defines timeout value for process of creating new snapshot if it is set to non-zero duration. If set, make sure that timeout is lower than backup period.")
+	snapshotCreateTimeout = flag.Duration("snapshotCreateTimeout", 0, "The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period")
 
 	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
 		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
@@ -213,8 +213,8 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 		snapshotsCreateTotal.Inc()
 		w.Header().Set("Content-Type", "application/json")
 		deadline := uint64(0)
-		if snapshotCreateTimeout.Msecs > 0 {
-			deadline = fasttime.UnixTimestamp() + uint64(snapshotCreateTimeout.Msecs/1e3)
+		if *snapshotCreateTimeout > 0 {
+			deadline = fasttime.UnixTimestamp() + uint64(snapshotCreateTimeout.Seconds())
 		}
 		snapshotPath, err := strg.CreateSnapshot(deadline)
 		if err != nil {
@@ -269,7 +269,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request, strg *storage.Storag
 			}
 		}
 
-		err = fmt.Errorf("cannot find snapshot %q: %w", snapshotName, err)
+		err = fmt.Errorf("cannot find snapshot %q", snapshotName)
 		jsonResponseError(w, err)
 		return true
 	case "/delete_all":
@@ -333,7 +333,8 @@ var (
 )
 
 var (
-	activeForceMerges          = metrics.NewCounter("vm_active_force_merges")
+	activeForceMerges = metrics.NewCounter("vm_active_force_merges")
+
 	snapshotsCreateTotal       = metrics.NewCounter(`vm_http_requests_total{path="/snapshot/create"}`)
 	snapshotsCreateErrorsTotal = metrics.NewCounter(`vm_http_request_errors_total{path="/snapshot/create"}`)
 

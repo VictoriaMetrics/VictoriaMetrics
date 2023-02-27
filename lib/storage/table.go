@@ -157,19 +157,22 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	}
 	dstBigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstBigDir); err != nil {
+		fs.MustRemoveAll(dstSmallDir)
 		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
 	}
 
-	for i, ptw := range ptws {
-		if deadline > 0 && i%5 == 0 {
-			if fasttime.UnixTimestamp() > deadline {
-				return "", "", fmt.Errorf("cannot create snapshot for %q in %q in time: timeout exceeded", tb.path, snapshotName)
-			}
+	for _, ptw := range ptws {
+		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
+			fs.MustRemoveAll(dstSmallDir)
+			fs.MustRemoveAll(dstBigDir)
+			return "", "", fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
 
 		smallPath := dstSmallDir + "/" + ptw.pt.name
 		bigPath := dstBigDir + "/" + ptw.pt.name
 		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
+			fs.MustRemoveAll(dstSmallDir)
+			fs.MustRemoveAll(dstBigDir)
 			return "", "", fmt.Errorf("cannot create snapshot for partition %q in %q: %w", ptw.pt.name, tb.path, err)
 		}
 	}

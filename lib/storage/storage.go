@@ -328,65 +328,71 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	s.snapshotLock.Lock()
 	defer s.snapshotLock.Unlock()
 
+	var dirsToRemoveOnError []string
+	defer func() {
+		for _, dir := range dirsToRemoveOnError {
+			fs.MustRemoveAll(dir)
+		}
+	}()
+
 	snapshotName := snapshot.NewName()
 	srcDir := s.path
 	dstDir := fmt.Sprintf("%s/snapshots/%s", srcDir, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
 	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
+
+	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
+	if err != nil {
+		return "", fmt.Errorf("cannot create table snapshot: %w", err)
+	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
+
 	dstDataDir := dstDir + "/data"
 	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
 	}
-
-	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
-	if err != nil {
-		fs.MustRemoveAll(dstDir)
-		return "", fmt.Errorf("cannot create table snapshot: %w", err)
-	}
 	dstSmallDir := dstDataDir + "/small"
 	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
-		fs.MustRemoveAll(dstDir)
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", smallDir, dstSmallDir, err)
 	}
 	dstBigDir := dstDataDir + "/big"
 	if err := fs.SymlinkRelative(bigDir, dstBigDir); err != nil {
-		fs.MustRemoveAll(dstDir)
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", bigDir, dstBigDir, err)
 	}
 	fs.MustSyncPath(dstDataDir)
+
+	srcMetadataDir := srcDir + "/metadata"
+	dstMetadataDir := dstDir + "/metadata"
+	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
+		return "", fmt.Errorf("cannot copy metadata: %w", err)
+	}
 
 	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
 	idb := s.idb()
 	currSnapshot := idbSnapshot + "/" + idb.name
 	if err := idb.tb.CreateSnapshotAt(currSnapshot, deadline); err != nil {
-		fs.MustRemoveAll(dstDir)
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
+
 	ok := idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := idbSnapshot + "/" + extDB.name
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot, deadline)
 	})
 	if ok && err != nil {
-		fs.MustRemoveAll(dstDir)
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
 	dstIdbDir := dstDir + "/indexdb"
 	if err := fs.SymlinkRelative(idbSnapshot, dstIdbDir); err != nil {
-		fs.MustRemoveAll(dstDir)
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
-	}
-
-	srcMetadataDir := srcDir + "/metadata"
-	dstMetadataDir := dstDir + "/metadata"
-	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
-		fs.MustRemoveAll(dstDir)
-		return "", fmt.Errorf("cannot copy metadata: %w", err)
 	}
 
 	fs.MustSyncPath(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
+	dirsToRemoveOnError = nil
 	return snapshotName, nil
 }
 

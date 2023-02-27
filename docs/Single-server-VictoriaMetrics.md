@@ -2485,9 +2485,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of CPU cores to use for small merges. Default value is used if set to 0
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
-  -snapshotCreateTimeout value
-     Defines timeout value for process of creating new snapshot if it is set to non-zero duration. If set, make sure that timeout is lower than backup period.
-     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
+  -snapshotCreateTimeout duration
+     The timeout for creating new snapshot. If set, make sure that timeout is lower than backup period
   -snapshotsMaxAge value
      Automatically delete snapshots older than -snapshotsMaxAge if it is set to non-zero duration. Make sure that backup process has enough time to finish the backup before the corresponding snapshot is automatically deleted
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 0)
