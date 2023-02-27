@@ -1237,17 +1237,11 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 	addr.ServerName = ac.cc.getServerName(addr)
 	hctx, hcancel := context.WithCancel(ac.ctx)
 
-<<<<<<< HEAD
 	onClose := func(r transport.GoAwayReason) {
 		ac.mu.Lock()
 		defer ac.mu.Unlock()
 		// adjust params based on GoAwayReason
 		ac.adjustParams(r)
-=======
-	onClose := grpcsync.OnceFunc(func() {
-		ac.mu.Lock()
-		defer ac.mu.Unlock()
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 		if ac.state == connectivity.Shutdown {
 			// Already shut down.  tearDown() already cleared the transport and
 			// canceled hctx via ac.ctx, and we expected this connection to be
@@ -1268,26 +1262,13 @@ func (ac *addrConn) createTransport(addr resolver.Address, copts transport.Conne
 		// Always go idle and wait for the LB policy to initiate a new
 		// connection attempt.
 		ac.updateConnectivityState(connectivity.Idle, nil)
-<<<<<<< HEAD
-=======
-	})
-	onGoAway := func(r transport.GoAwayReason) {
-		ac.mu.Lock()
-		ac.adjustParams(r)
-		ac.mu.Unlock()
-		onClose()
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 	}
 
 	connectCtx, cancel := context.WithDeadline(ac.ctx, connectDeadline)
 	defer cancel()
 	copts.ChannelzParentID = ac.channelzID
 
-<<<<<<< HEAD
 	newTr, err := transport.NewClientTransport(connectCtx, ac.cc.ctx, addr, copts, onClose)
-=======
-	newTr, err := transport.NewClientTransport(connectCtx, ac.cc.ctx, addr, copts, onGoAway, onClose)
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 	if err != nil {
 		if logger.V(2) {
 			logger.Infof("Creating new client transport to %q: %v", addr, err)

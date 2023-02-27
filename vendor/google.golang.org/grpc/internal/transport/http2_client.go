@@ -196,11 +196,7 @@ func isTemporary(err error) bool {
 // newHTTP2Client constructs a connected ClientTransport to addr based on HTTP2
 // and starts to receive messages on it. Non-nil error returns if construction
 // fails.
-<<<<<<< HEAD
 func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts ConnectOptions, onClose func(GoAwayReason)) (_ *http2Client, err error) {
-=======
-func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts ConnectOptions, onGoAway func(GoAwayReason), onClose func()) (_ *http2Client, err error) {
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 	scheme := "http"
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
@@ -245,16 +241,11 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 	go func(conn net.Conn) {
 		defer ctxMonitorDone.Fire() // Signal this goroutine has exited.
 		<-newClientCtx.Done()       // Block until connectCtx expires or the defer above executes.
-<<<<<<< HEAD
 		if err := connectCtx.Err(); err != nil {
 			// connectCtx expired before exiting the function.  Hard close the connection.
 			if logger.V(logLevel) {
 				logger.Infof("newClientTransport: aborting due to connectCtx: %v", err)
 			}
-=======
-		if connectCtx.Err() != nil {
-			// connectCtx expired before exiting the function.  Hard close the connection.
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 			conn.Close()
 		}
 	}(conn)
@@ -329,10 +320,7 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		cancel:                cancel,
 		userAgent:             opts.UserAgent,
 		registeredCompressors: grpcutil.RegisteredCompressors(),
-<<<<<<< HEAD
 		address:               addr,
-=======
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 		conn:                  conn,
 		remoteAddr:            conn.RemoteAddr(),
 		localAddr:             conn.LocalAddr(),
@@ -354,10 +342,6 @@ func newHTTP2Client(connectCtx, ctx context.Context, addr resolver.Address, opts
 		streamQuota:           defaultMaxStreamsClient,
 		streamsQuotaAvailable: make(chan struct{}, 1),
 		czData:                new(channelzData),
-<<<<<<< HEAD
-=======
-		onGoAway:              onGoAway,
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 		keepaliveEnabled:      keepaliveEnabled,
 		bufferPool:            newBufferPool(),
 		onClose:               onClose,
@@ -975,7 +959,6 @@ func (t *http2Client) Close(err error) {
 		t.mu.Unlock()
 		return
 	}
-<<<<<<< HEAD
 	if logger.V(logLevel) {
 		logger.Infof("transport: closing: %v", err)
 	}
@@ -984,11 +967,6 @@ func (t *http2Client) Close(err error) {
 	if t.state != draining {
 		t.onClose(GoAwayInvalid)
 	}
-=======
-	// Call t.onClose ASAP to prevent the client from attempting to create new
-	// streams.
-	t.onClose()
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 	t.state = closing
 	streams := t.activeStreams
 	t.activeStreams = nil

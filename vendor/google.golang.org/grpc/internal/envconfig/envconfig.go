@@ -25,7 +25,6 @@ import (
 	"strings"
 )
 
-<<<<<<< HEAD
 var (
 	// TXTErrIgnore is set if TXT errors should be ignored ("GRPC_GO_IGNORE_TXT_ERRORS" is not "false").
 	TXTErrIgnore = boolFromEnv("GRPC_GO_IGNORE_TXT_ERRORS", true)
@@ -37,20 +36,6 @@ var (
 	// "GRPC_RING_HASH_CAP".  This does not override the default bounds
 	// checking which NACKs configs specifying ring sizes > 8*1024*1024 (~8M).
 	RingHashCap = uint64FromEnv("GRPC_RING_HASH_CAP", 4096, 1, 8*1024*1024)
-=======
-const (
-	prefix                  = "GRPC_GO_"
-	txtErrIgnoreStr         = prefix + "IGNORE_TXT_ERRORS"
-	advertiseCompressorsStr = prefix + "ADVERTISE_COMPRESSORS"
-)
-
-var (
-	// TXTErrIgnore is set if TXT errors should be ignored ("GRPC_GO_IGNORE_TXT_ERRORS" is not "false").
-	TXTErrIgnore = !strings.EqualFold(os.Getenv(txtErrIgnoreStr), "false")
-	// AdvertiseCompressors is set if registered compressor should be advertised
-	// ("GRPC_GO_ADVERTISE_COMPRESSORS" is not "false").
-	AdvertiseCompressors = !strings.EqualFold(os.Getenv(advertiseCompressorsStr), "false")
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 )
 
 func boolFromEnv(envVar string, def bool) bool {

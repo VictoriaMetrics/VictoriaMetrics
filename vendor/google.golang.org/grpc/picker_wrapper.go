@@ -141,11 +141,7 @@ func (pw *pickerWrapper) pick(ctx context.Context, failfast bool, info balancer.
 				if istatus.IsRestrictedControlPlaneCode(st) {
 					err = status.Errorf(codes.Internal, "received picker error with illegal status: %v", err)
 				}
-<<<<<<< HEAD
 				return nil, balancer.PickResult{}, dropError{error: err}
-=======
-				return nil, nil, dropError{error: err}
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 			}
 			// For all other errors, wait for ready RPCs should block and other
 			// RPCs should fail with unavailable.

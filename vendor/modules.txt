@@ -611,11 +611,7 @@ google.golang.org/appengine/internal/socket
 google.golang.org/appengine/internal/urlfetch
 google.golang.org/appengine/socket
 google.golang.org/appengine/urlfetch
-<<<<<<< HEAD
 # google.golang.org/genproto v0.0.0-20230223222841-637eb2293923
-=======
-# google.golang.org/genproto v0.0.0-20221118155620-16455021b5e6
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 ## explicit; go 1.19
 google.golang.org/genproto/googleapis/api
 google.golang.org/genproto/googleapis/api/annotations
@@ -625,12 +621,7 @@ google.golang.org/genproto/googleapis/rpc/errdetails
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/googleapis/type/date
 google.golang.org/genproto/googleapis/type/expr
-<<<<<<< HEAD
 # google.golang.org/grpc v1.53.0
-=======
-google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.51.0
->>>>>>> db514d987 (lib/protoparser: adds opentelemetry parser)
 ## explicit; go 1.17
 google.golang.org/grpc
 google.golang.org/grpc/attributes
