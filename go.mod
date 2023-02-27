@@ -20,6 +20,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/cheggaaa/pb/v3 v3.1.0
 	github.com/gogo/protobuf v1.3.2
+	github.com/golang/protobuf v1.5.2
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.7.0
 	github.com/influxdata/influxdb v1.11.0
