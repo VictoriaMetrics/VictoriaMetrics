@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
@@ -25,7 +24,7 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s            *native.Stats
+	s            *stats
 	rateLimit    int64
 	interCluster bool
 	cc           int
@@ -33,8 +32,8 @@ type vmNativeProcessor struct {
 
 // ResetStats resets im stats.
 func (p *vmNativeProcessor) ResetStats() {
-	p.s = &native.Stats{
-		StartTime: time.Now(),
+	p.s = &stats{
+		startTime: time.Now(),
 	}
 }
 
@@ -69,11 +68,13 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 
 	tenants := []string{""}
 	if p.interCluster {
+		log.Printf("Init search for cluster tenants")
 		sourceTenants, err := p.src.GetSourceTenants(ctx, p.filter)
 		if err != nil {
 			return fmt.Errorf("failed to get tenants: %s", err)
 
 		}
+		log.Printf("Discovered %s tenants", sourceTenants)
 		tenants = tenants[:0]
 		tenants = append(tenants, sourceTenants...)
 	}
@@ -90,21 +91,14 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 
 	p.ResetStats()
 
-	if !silent {
-		if err := barpool.Start(); err != nil {
-			return err
-		}
-	}
-
 	for _, tenantID := range tenants {
 		err := p.runBackfilling(ctx, tenantID, ranges, silent)
 		if err != nil {
-			return fmt.Errorf("error run migration process: %s", err)
+			log.Printf("error run migration process on tenant %s: %s", tenantID, err)
+			continue
 		}
 	}
-	if !silent {
-		barpool.Stop()
-	}
+
 	log.Println("Import finished!")
 	log.Print(p.Stats())
 
@@ -116,7 +110,7 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
 	attempts, err := p.backoff.Retry(ctx, retryableFunc)
 	p.s.Lock()
-	p.s.Retries += attempts
+	p.s.retries += attempts
 	p.s.Unlock()
 	if err != nil {
 		return fmt.Errorf("failed to migrate %s from %s to %s: %s, after attempts: %d", f.String(), srcURL, dstURL, err, attempts)
@@ -154,8 +148,8 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 	}
 
 	p.s.Lock()
-	p.s.Bytes += uint64(written)
-	p.s.Requests++
+	p.s.bytes += uint64(written)
+	p.s.requests++
 	p.s.Unlock()
 
 	if err := pw.Close(); err != nil {
@@ -185,26 +179,33 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	initMessage := "Initing import process from %q to %q with filter %s \n"
 	initParams := []interface{}{srcURL, dstURL, p.filter.String()}
 	if p.interCluster {
-		barPrefix = fmt.Sprintf("Processing part of work for tenant %s:", tenantID)
+		barPrefix = fmt.Sprintf("Processing part of work for tenant %s", tenantID)
 		initMessage = "Initing import process from %q to %q with filter %s for tenant %s \n"
 		initParams = []interface{}{srcURL, dstURL, p.filter.String(), tenantID}
 	}
 
 	log.Printf(initMessage, initParams...)
 
+	log.Printf("Init explore series")
 	series, err := p.src.Explore(ctx, p.filter, tenantID)
 	if err != nil {
 		return fmt.Errorf("cannot get series from source %s database: %s", p.src.Addr, err)
 	}
 
+	if len(series) == 0 {
+		return fmt.Errorf("series not found")
+	}
+
 	foundSeriesMsg := fmt.Sprintf("Found %d timeseries to import. \n", len(series))
 	rangesMsg := fmt.Sprintf("Selected time range will be split into %d ranges according to %q step. \n", len(ranges), p.filter.Chunk)
-	processingPartsMsg := fmt.Sprintf("Need process parts of work: %d \n", len(series)*len(ranges))
+	processingPartsMsg := fmt.Sprintf("Export requests to make: %d \n", len(series)*len(ranges))
 	log.Printf("%s. %s. %s.", foundSeriesMsg, rangesMsg, processingPartsMsg)
 
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = barpool.AddWithTemplate(fmt.Sprintf(nativeBarTpl, barPrefix), len(series)*len(ranges))
+		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeBarTpl, barPrefix)).New(len(series) * len(ranges))
+		bar.Start()
+		defer bar.Finish()
 	}
 
 	filterCh := make(chan native.Filter)
@@ -253,4 +254,50 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	}
 
 	return nil
+}
+
+// stats represents client statistic
+// when processing data
+type stats struct {
+	sync.Mutex
+	startTime time.Time
+	bytes     uint64
+	requests  uint64
+	retries   uint64
+}
+
+func (s *stats) String() string {
+	s.Lock()
+	defer s.Unlock()
+
+	totalImportDuration := time.Since(s.startTime)
+	totalImportDurationS := totalImportDuration.Seconds()
+	bytesPerS := byteCountSI(0)
+	if s.bytes > 0 && totalImportDurationS > 0 {
+		bytesPerS = byteCountSI(int64(float64(s.bytes) / totalImportDurationS))
+	}
+
+	return fmt.Sprintf("VictoriaMetrics importer stats:\n"+
+		"  time spent while importing: %v;\n"+
+		"  total bytes: %s;\n"+
+		"  bytes/s: %s;\n"+
+		"  requests: %d;\n"+
+		"  requests retries: %d;",
+		totalImportDuration,
+		byteCountSI(int64(s.bytes)), bytesPerS,
+		s.requests, s.retries)
+}
+
+func byteCountSI(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
 }

@@ -742,29 +742,29 @@ and processing is done by "destination" (`dst`). Because of that, `vmctl` doesn'
 processed and can't show the progress bar. It will show the current processing speed and total number of processed bytes:
 
 ```
-./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus/ \
+./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus/ \  
   --vm-native-dst-addr=http://localhost:8428 \
   --vm-native-filter-match='{job="vmsingle-benchmark"}' \
   --vm-native-filter-time-start='2023-02-20T00:00:00Z' \
   --vm-native-step-interval=month
 VictoriaMetrics Native import mode
-2023/02/24 16:40:47 Init series discovery process on time range 2023-02-20 00:00:00 +0000 UTC - 2023-02-24 14:40:47.450361 +0000 UTC 
-Found 262 timeseries to import. 
-. Selected time range "2023-02-20 00:00:00 +0000 UTC" - "2023-02-24 14:40:47.450361 +0000 UTC" will be split into 1 ranges according to "month" step. 
-. Need process parts of work: 262 
-. Continue? [Y/n] y
-2023/02/24 16:41:07 Initing import process from "http://127.0.0.1:8481/select/0/prometheus" to "http://localhost:8428" with filter 
+2023/02/28 11:00:42 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
         filter: match[]={job="vmsingle-benchmark"}
         start: 2023-02-20T00:00:00Z 
-Processing part of work: 262 / 262 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
-2023/02/24 16:48:52 Import finished!
-2023/02/24 16:48:52 VictoriaMetrics importer stats:
-  time spent while importing: 7m44.523619708s;
-  total bytes: 5.2 GB;
-  bytes/s: 11.2 MB;
-  import requests: 262;
-  import requests retries: 0;
-2023/02/24 16:48:52 Total time: 8m4.63732s
+2023/02/28 11:00:42 Init explore series
+2023/02/28 11:00:43 Found 262 timeseries to import. 
+. Selected time range will be split into 1 ranges according to "month" step. 
+. Export requests to make: 262 
+.
+Processing part of work:: 262 / 262 [███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/28 11:10:27 Import finished!
+2023/02/28 11:10:27 VictoriaMetrics importer stats:
+  time spent while importing: 9m45.273987875s;
+  total bytes: 7.2 GB;
+  bytes/s: 12.3 MB;
+  requests: 262;
+  requests retries: 0;
+2023/02/28 11:10:27 Total time: 9m45.274559667s
 ```
 
 Importing tips:
@@ -862,70 +862,73 @@ Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.8
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 
 ```console
-./bin/vmctl vm-native --vm-intercluster=true --vm-native-src-addr=http://localhost:8481/ --vm-native-dst-addr=http://172.17.0.3:8480/
+  ./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/ \
+  --vm-native-dst-addr=http://127.0.0.1:8480/ \
+  --vm-native-filter-match='{__name__="vm_app_uptime_seconds"}' \
+  --vm-native-filter-time-start='2023-02-01T00:00:00Z' \
+  --vm-native-step-interval=day \  
+--vm-intercluster
 VictoriaMetrics Native import mode
-2022/12/05 21:20:06 Discovered tenants: [123:1 12812919:1 1289198:1 1289:1283 12:1 1:0 1:1 1:1231231 1:1271727 1:12819 1:281 812891298:1]
-2022/12/05 21:20:06 Initing export pipe from "http://localhost:8481/select/123:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/123:1/prometheus/api/v1/import/native":
-Total: 61.13 MiB ↖ Speed: 2.05 MiB p/s 
-Total: 61.13 MiB ↗ Speed: 2.30 MiB p/s 
-2022/12/05 21:20:33 Initing export pipe from "http://localhost:8481/select/12812919:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/12812919:1/prometheus/api/v1/import/native":
-Total: 43.14 MiB ↘ Speed: 1.86 MiB p/s  
-Total: 43.14 MiB ↙ Speed: 2.36 MiB p/s 
-2022/12/05 21:20:51 Initing export pipe from "http://localhost:8481/select/1289198:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1289198:1/prometheus/api/v1/import/native":
-Total: 16.64 MiB ↗ Speed: 2.66 MiB p/s 
-Total: 16.64 MiB ↘ Speed: 2.19 MiB p/s 
-2022/12/05 21:20:59 Initing export pipe from "http://localhost:8481/select/1289:1283/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1289:1283/prometheus/api/v1/import/native":
-Total: 43.33 MiB ↙ Speed: 1.94 MiB p/s 
-Total: 43.33 MiB ↖ Speed: 2.35 MiB p/s 
-2022/12/05 21:21:18 Initing export pipe from "http://localhost:8481/select/12:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/12:1/prometheus/api/v1/import/native":
-Total: 63.78 MiB ↙ Speed: 1.96 MiB p/s 
-Total: 63.78 MiB ↖ Speed: 2.28 MiB p/s 
-2022/12/05 21:21:46 Initing export pipe from "http://localhost:8481/select/1:0/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:0/prometheus/api/v1/import/native":
-2022/12/05 21:21:46 Import finished!
-Total: 330 B ↗ Speed: 3.53 MiB p/s 
-2022/12/05 21:21:46 Initing export pipe from "http://localhost:8481/select/1:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1/prometheus/api/v1/import/native":
-Total: 63.81 MiB ↙ Speed: 1.96 MiB p/s 
-Total: 63.81 MiB ↖ Speed: 2.28 MiB p/s 
-2022/12/05 21:22:14 Initing export pipe from "http://localhost:8481/select/1:1231231/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1231231/prometheus/api/v1/import/native":
-Total: 63.84 MiB ↙ Speed: 1.93 MiB p/s 
-Total: 63.84 MiB ↖ Speed: 2.29 MiB p/s 
-2022/12/05 21:22:42 Initing export pipe from "http://localhost:8481/select/1:1271727/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1271727/prometheus/api/v1/import/native":
-Total: 54.37 MiB ↘ Speed: 1.90 MiB p/s 
-Total: 54.37 MiB ↙ Speed: 2.37 MiB p/s 
-2022/12/05 21:23:05 Initing export pipe from "http://localhost:8481/select/1:12819/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:12819/prometheus/api/v1/import/native":
-Total: 17.01 MiB ↙ Speed: 1.75 MiB p/s 
-Total: 17.01 MiB ↖ Speed: 2.15 MiB p/s 
-2022/12/05 21:23:13 Initing export pipe from "http://localhost:8481/select/1:281/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:281/prometheus/api/v1/import/native":
-Total: 63.89 MiB ↘ Speed: 1.90 MiB p/s 
-Total: 63.89 MiB ↙ Speed: 2.29 MiB p/s 
-2022/12/05 21:23:42 Initing export pipe from "http://localhost:8481/select/812891298:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/812891298:1/prometheus/api/v1/import/native":
-Total: 63.84 MiB ↖ Speed: 1.99 MiB p/s 
-Total: 63.84 MiB ↗ Speed: 2.26 MiB p/s 
-2022/12/05 21:24:10 Total time: 4m4.1466565s
+2023/02/28 10:41:42 Init search for cluster tenants
+2023/02/28 10:41:42 Discovered [0:0 1:0 2:0 3:0 4:0] tenants
+2023/02/28 10:41:42 Initing import process from "http://127.0.0.1:8481/select/0:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/0:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 0:0 
+2023/02/28 10:41:42 Init explore series
+2023/02/28 10:41:42 Found 1 timeseries to import. 
+. Selected time range will be split into 28 ranges according to "day" step. 
+. Export requests to make: 28 
+.
+Processing part of work for tenant 0:0: 28 / 28 [███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/28 10:41:45 Initing import process from "http://127.0.0.1:8481/select/1:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/1:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 1:0 
+2023/02/28 10:41:45 Init explore series
+2023/02/28 10:41:45 Found 1 timeseries to import. 
+. Selected time range will be split into 28 ranges according to "day" step. 
+. Export requests to make: 28 
+.
+Processing part of work for tenant 1:0: 28 / 28 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/28 10:41:56 Initing import process from "http://127.0.0.1:8481/select/2:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/2:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 2:0 
+2023/02/28 10:41:56 Init explore series
+2023/02/28 10:41:56 Found 1 timeseries to import. 
+. Selected time range will be split into 28 ranges according to "day" step. 
+. Export requests to make: 28 
+.
+Processing part of work for tenant 2:0: 28 / 28 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/28 10:42:05 Initing import process from "http://127.0.0.1:8481/select/3:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/3:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 3:0 
+2023/02/28 10:42:05 Init explore series
+2023/02/28 10:42:05 error run migration process on tenant 3:0: series not found
+2023/02/28 10:42:05 Initing import process from "http://127.0.0.1:8481/select/3:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/3:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 3:0 
+2023/02/28 10:42:05 Init explore series
+2023/02/28 10:42:07 Found 1 timeseries to import. 
+. Selected time range will be split into 28 ranges according to "day" step. 
+. Export requests to make: 28 
+.
+Processing part of work for tenant 3:0: 28 / 28 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/28 10:42:46 Initing import process from "http://127.0.0.1:8481/select/4:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/4:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 4:0 
+2023/02/28 10:42:46 Init explore series
+2023/02/28 10:42:46 Found 1 timeseries to import. 
+. Selected time range will be split into 28 ranges according to "day" step. 
+. Export requests to make: 28 
+.
+Processing part of work for tenant 4:0: 28 / 28 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/02/28 10:42:49 Import finished!
+2023/02/28 10:42:49 VictoriaMetrics importer stats:
+  time spent while importing: 1m6.714210417s;
+  total bytes: 39.7 MB;
+  bytes/s: 594.4 kB;
+  requests: 140;
+  requests retries: 0;
+2023/02/28 10:42:49 Total time: 1m7.147971417s
 ```
 
 ## Verifying exported blocks from VictoriaMetrics
