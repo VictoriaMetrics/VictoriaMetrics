@@ -485,7 +485,7 @@ var (
 		},
 		&cli.DurationFlag{
 			Name:  remoteReadHTTPTimeout,
-			Usage: "Timeout defines timeout for HTTP write request to remote storage",
+			Usage: "Timeout defines timeout for HTTP requests made by remote read client",
 		},
 		&cli.StringFlag{
 			Name:  remoteReadHeaders,
