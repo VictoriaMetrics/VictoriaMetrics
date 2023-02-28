@@ -18,7 +18,7 @@ VmAnomaly periodically queries user-specified metrics, computes an **anomaly sco
 
 
 ## What is VmAlert?
-VMalert is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url` compatible with Prometheus HTTP API.
+VmAlert is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url` compatible with Prometheus HTTP API.
 
 Alerting rules allow you to define alert conditions based on Prometheus expression language expressions and to send notifications about firing alerts to an external service. Whenever the alert expression results in one or more vector elements at a given point in time, the alert counts as active for these elements' label sets.
 
@@ -46,7 +46,7 @@ _____________________________
 
 ## Data to analyze
 Let's talk about data used for anomaly detection in this tutorial. 
-We are going to collect our own CPU usage data with node-exporter into the VictoriaMertics database.
+We are going to collect our own CPU usage data with node-exporter into the VictoriaMetrics database.
 
 On a Node exporters' metrics page, part of the output looks like this:
 ```
@@ -81,7 +81,7 @@ node_cpu_seconds_total{cpu="3",mode="idle"} 93554.49
 Here, `node_cpu_seconds_total` metric tells us how many seconds each CPU spent doing each type of work: _user_, _system_, _iowait_, _idle_, _irq&softirq_, _guest_, or _steal_.
 These modes are mutually exclusive. A high _iowait_ means that you are disk or network bound, high user or system means that you are CPU bound.
 
-We'll send this node_exporter data into VictoriaMetrics later in this tutorial. But lets just note that `node_cpu_seconds_total` metric is a growing counter, so to calculate the per-second values we will use the rate function: `rate(node_cpu_seconds_total)`.
+We'll send this node_exporter data into VictoriaMetrics later in this tutorial. But let's just note that `node_cpu_seconds_total` metric is a growing counter, so to calculate the per-second values we will use the rate function: `rate(node_cpu_seconds_total)`.
 Here is how this query may look like in Grafana:
 ![node_cpu_rate_graph](guide-vmanomaly-node-cpu-rate-graph.png "node_cpu_rate_graph")
 
@@ -95,12 +95,15 @@ Here is an example of the config file `vmanomaly_config.yml`.
 ```
 scheduler:
   class: "scheduler.periodic.PeriodicScheduler"
-  infer_every: "30s"
-  fit_window: "2d"
+
+  infer_every: "1m"
+  
+  fit_every: "2h"
+  fit_window: "14d"
 
 model:
   class: "model.prophet.ProphetModel"
-  interval_width: 0.8
+  interval_width: 0.98
 
 reader:
   class: "reader.vm.VmReader"
@@ -128,11 +131,14 @@ Let's look into parameters in each section:
 
 * `scheduler` 
     As we need to set an alert for it, we will use periodic "scheduler.periodic.PeriodicScheduler".
+
+    * `infer_every` - how often trained models will make inferences on new data. Basically, how often to generate new datapoints for anomaly_score.
+  
+    * `fit_every` - how often to retrain the models. The higher the frequency -- the fresher the model, but the more CPU it consumes. If omitted, the models will be retrained on each infer_every cycle. 
+
+    * `fit_window` - what data interval to use for model training. Longer intervals capture longer historical behavior and detect seasonalities better, but is slower to adapt to permanent changes to metrics behavior. Recommended value is at least two full seasons.
     
-    * `fit_window` -  time frame of metric previously gathered, that you want to use for model training. 
-    
-    Here it is the previous 2 days of data to put into the model training. You can choose other time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days). Examples: 30s, 4m, 2h, 1d.
-    * `infer_every`- how often trained models will make inferences on new data. 
+    Here is the previous 14 days of data to put into the model training. You can choose other time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days). Examples: 30s, 4m, 2h, 1d.
     
     You can look at this as how often a model will write its conclusions on newly added data. Here in example we are asking every 30 seconds: based on the previous data, do these new datapoints look abnormal? You can choose other time granularity ('s' - seconds, 'm' - minutes, 'h' - hours, 'd' - days). Examples: 30s, 4m, 2h, 1d.
 
@@ -169,7 +175,7 @@ Here is an example of how output metric will be written into VictoriaMetrics:
 
 ____________________________________________
 
-## VmAlert congiguration
+## VmAlert configuration
 Here we provide an example of the config for VmAlert `vmalert_config.yml`.
 ```
 groups:
@@ -200,7 +206,7 @@ Here are all services we are going to run:
 * VmAnomaly - VictoriaMetrics Anomaly Detection service.
 
 ### Grafana setup
-To anable VictoriaMetrics datasource as the default in Grafana we need to create a file `datasource.yml`
+To enable VictoriaMetrics datasource as the default in Grafana we need to create a file `datasource.yml`
 ```
 apiVersion: 1
 
@@ -212,8 +218,8 @@ datasources:
       isDefault: true
 
 ```
-### Prometheus cofig
-Lets create `prometheus.yml` file for `vmagent` configuration.
+### Prometheus config
+Let's create `prometheus.yml` file for `vmagent` configuration.
 ```
 global:
   scrape_interval: 10s
@@ -354,7 +360,7 @@ networks:
 Before running our docker-compose make sure that your directory contains all required files:
 ![All files](guide-vmanomaly-files.png "all files")
 
-This docker-compose file will pull docker images,  set up each service and run them all together with the comand:
+This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 ```
 docker-compose up -d
 ```
@@ -363,7 +369,7 @@ _________________________________________________________________
 ## Model Results
 To look at model results we need to go to grafana on the `localhost:3000`. Data
 VmAnomaly need some time to generate more data to visualize.
-Les't investigate model output visualization in Grafana.
+Let's investigate model output visualization in Grafana.
 In the Grafana Explore tab enter queries:
 * `anomaly_score` 
 * `yhat`
@@ -379,7 +385,7 @@ Query: `anomaly_score`
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
-As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not sufficient datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 days of data required.
+As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 days of data required.
 ### Actual value from input query with predicted `yhat` metric. 
 Query: `yhat`
 ![Yhat](guide-vmanomaly-yhat.png "yhat")
@@ -400,4 +406,4 @@ According to the rule configured for VmAlert we will see Alert when anomaly scor
 ![alerts](guide-vmanomaly-alerts-firing.png "alerts firing")
 
 ## Conclusion
-Now we know how to setup Victoria Metric Anomaly Detection tool and use it together with vmalert. We also discovered core VmAnomaly generated metrics and behaviour.
+Now we know how to set up Victoria Metric Anomaly Detection tool and use it together with vmalert. We also discovered core VmAnomaly generated metrics and behaviour.
