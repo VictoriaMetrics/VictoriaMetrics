@@ -300,14 +300,6 @@ func mergeResult(dst, update *Result) {
 	firstUpdateTs := update.Timestamps[0]
 	lastUpdateTs := update.Timestamps[len(update.Timestamps)-1]
 
-	// edge case, update single data point
-	if len(update.Timestamps) == 1 {
-		pos := position(dst.Timestamps, firstUpdateTs)
-		if dst.Timestamps[pos] == firstUpdateTs {
-			dst.Values[pos] = update.Values[0]
-		}
-		return
-	}
 	// check lower bound
 	if firstUpdateTs < firstDstTs {
 		// fast path
@@ -338,8 +330,13 @@ func mergeResult(dst, update *Result) {
 	}
 
 	// check upper bound
+	// fast path, memory allocation possible
 	if lastUpdateTs > lastDstTs {
-		// fast path, memory allocation possible
+		// no need to check bounds
+		if firstUpdateTs > firstDstTs {
+			dst.Timestamps = append(dst.Timestamps, update.Timestamps...)
+			dst.Values = append(dst.Values, update.Values...)
+		}
 		pos := position(dst.Timestamps, firstUpdateTs)
 		dst.Timestamps = append(dst.Timestamps[:pos], update.Timestamps...)
 		dst.Values = append(dst.Values[:pos], update.Values...)
@@ -384,6 +381,7 @@ func mergeResult(dst, update *Result) {
 
 // position searches element position at given src with binary search
 // copied and modified from sort.SearchInts
+// returns safe slice index
 func position(src []int64, value int64) int {
 	// fast path
 	if len(src) < 1 || src[0] > value {
@@ -403,6 +401,9 @@ func position(src []int64, value int64) int {
 		}
 	}
 	// i == j, f(i-1) == false, and f(j) (= f(i)) == true  =>  answer is i.
+	if len(src) == int(i) {
+		i--
+	}
 	return int(i)
 }
 
@@ -1266,11 +1267,15 @@ func SeriesCount(qt *querytracer.Tracer, accountID, projectID uint32, denyPartia
 }
 
 type tmpBlocksFileWrapper struct {
-	tbfs []*tmpBlocksFile
-	ms   []map[string][]tmpBlockAddr
+	tbfs                []*tmpBlocksFile
+	ms                  []map[string][]tmpBlockAddr
+	orderedMetricNamess [][]string
+	// mu protects series updates
+	// it shouldn't cause cpu contention
+	// usually series updates are small
+	mu sync.Mutex
 	// updates grouped by metric name and generation ID
 	seriesUpdatesByMetricName map[string]map[int64][]tmpBlockAddr
-	orderedMetricNamess       [][]string
 }
 
 func newTmpBlocksFileWrapper() *tmpBlocksFileWrapper {
@@ -1302,6 +1307,8 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	metricName := mb.MetricName
 	// process data blocks with metric updates
 	if mb.GenerationID > 0 {
+		tbfw.mu.Lock()
+		defer tbfw.mu.Unlock()
 		ups := tbfw.seriesUpdatesByMetricName[string(metricName)]
 		if ups == nil {
 			// fast path

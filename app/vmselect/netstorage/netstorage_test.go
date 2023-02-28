@@ -199,6 +199,10 @@ func TestMergeResult(t *testing.T) {
 		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
 		&Result{Timestamps: []int64{0, 1, 2}, Values: []float64{10.0, 15.0, 30.0}},
 		&Result{Timestamps: []int64{0, 1, 2, 3}, Values: []float64{10.0, 15.0, 30.0, 7.0}})
+	f("update single point",
+		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
+		&Result{Timestamps: []int64{15}, Values: []float64{35.0}},
+		&Result{Timestamps: []int64{1, 2, 3, 15}, Values: []float64{5.0, 6.0, 7.0, 35.0}})
 	f("extend",
 		&Result{Timestamps: []int64{1, 2, 3}, Values: []float64{5.0, 6.0, 7.0}},
 		&Result{Timestamps: []int64{6, 7, 8}, Values: []float64{10.0, 15.0, 30.0}},
@@ -393,4 +397,19 @@ func TestPackedTimeseries_Unpack(t *testing.T) {
 			Values:     []float64{1, 11, 12, 21, 22, 6},
 			Timestamps: []int64{10, 15, 30, 45, 55, 65},
 		})
+}
+
+func TestPosition(t *testing.T) {
+	f := func(src []int64, value, wantPosition int64) {
+		gotPos := position(src, value)
+		if wantPosition != int64(gotPos) {
+			t.Fatalf("incorrect position: \ngot:\n%d\nwant: \n%d", gotPos, wantPosition)
+		}
+		_ = src[int64(gotPos)]
+	}
+	f([]int64{1, 2, 3, 4}, 5, 3)
+	f([]int64{1, 2, 3, 4}, 0, 0)
+	f([]int64{1, 2, 3, 4}, 1, 0)
+	f([]int64{1, 2, 3, 4}, 4, 3)
+	f([]int64{1, 2, 3, 4}, 3, 2)
 }
