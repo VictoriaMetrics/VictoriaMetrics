@@ -1,4 +1,4 @@
-# File contains default list of alerts for мьфдуке service.
+# File contains default list of alerts for vmalert service.
 # The alerts below are just recommendations and may require some updates
 # and threshold calibration according to every specific setup.
 groups:
