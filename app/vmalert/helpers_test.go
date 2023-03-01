@@ -104,6 +104,24 @@ func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time
 	return cp, req, nil
 }
 
+type fakeQuerierWithDelay struct {
+	fakeQuerier
+	delay time.Duration
+}
+
+func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) ([]datasource.Metric, *http.Request, error) {
+	timer := time.NewTimer(fqd.delay)
+	select {
+	case <-ctx.Done():
+	case <-timer.C:
+	}
+	return fqd.fakeQuerier.Query(ctx, expr, ts)
+}
+
+func (fqd *fakeQuerierWithDelay) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {
+	return fqd
+}
+
 type fakeNotifier struct {
 	sync.Mutex
 	alerts []notifier.Alert
