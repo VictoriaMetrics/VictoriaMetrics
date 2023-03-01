@@ -474,3 +474,31 @@ func TestFaultyRW(t *testing.T) {
 		t.Fatalf("expected to get an error from faulty RW client, got nil instead")
 	}
 }
+
+func TestCloseWithEvalInterruption(t *testing.T) {
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("failed to parse rules: %s", err)
+	}
+
+	const delay = time.Second * 2
+	fq := &fakeQuerierWithDelay{delay: delay}
+
+	const evalInterval = time.Millisecond
+	g := newGroup(groups[0], fq, evalInterval, nil)
+
+	go g.start(context.Background(), nil, nil, nil)
+
+	time.Sleep(evalInterval * 20)
+
+	go func() {
+		g.close()
+	}()
+
+	deadline := time.Tick(delay / 2)
+	select {
+	case <-deadline:
+		t.Fatalf("deadline for close exceeded")
+	case <-g.finishedCh:
+	}
+}
