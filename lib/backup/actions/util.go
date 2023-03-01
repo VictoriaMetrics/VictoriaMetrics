@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/sjremote"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 var (
@@ -28,6 +29,11 @@ var (
 	storjGrant       = flag.String("storjGrant", "", "Serialized grant access for Storj. It is recommended to set this flag thru env var for security reason.\n"+
 		"See https://docs.storj.io/dcs/concepts/access/access-grants/ and https://docs.victoriametrics.com/#environment-variables")
 )
+
+func init() {
+	// The -storjGrant flag can contains API key and encryption key
+	flagutil.RegisterSecretFlag("storjGrant")
+}
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
 	var err error
