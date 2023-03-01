@@ -12,6 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/gcsremote"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/s3remote"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/sjremote"
 )
 
 var (
@@ -23,6 +24,8 @@ var (
 		"or if both not set, DefaultSharedConfigProfile is used")
 	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set")
 	s3ForcePathStyle = flag.Bool("s3ForcePathStyle", true, "Prefixing endpoint with bucket name when set false, true by default.")
+	storjGrant       = flag.String("storjGrant", "", "Serialized grant access for Storj. It is recommended to set this flag thru env var for security reason.\n"+
+		"See https://docs.storj.io/dcs/concepts/access/access-grants/ and https://docs.victoriametrics.com/#environment-variables")
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -246,6 +249,22 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 		}
 		if err := fs.Init(); err != nil {
 			return nil, fmt.Errorf("cannot initialize connection to s3: %w", err)
+		}
+		return fs, nil
+	case "sj":
+		n := strings.Index(dir, "/")
+		if n < 0 {
+			return nil, fmt.Errorf("missing directory on the sj bucket %q", dir)
+		}
+		bucket := dir[:n]
+		dir = dir[n:]
+		fs := &sjremote.FS{
+			AccessGrant: *storjGrant,
+			Bucket:      bucket,
+			Dir:         dir,
+		}
+		if err := fs.Init(); err != nil {
+			return nil, fmt.Errorf("cannot initialize connection to sj: %w", err)
 		}
 		return fs, nil
 	default:
