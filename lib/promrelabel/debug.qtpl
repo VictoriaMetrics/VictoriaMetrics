@@ -1,11 +1,20 @@
 {% import (
+        "fmt"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 ) %}
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugSteps(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs, format string, err error) %}
+  {% if format == "json" %}
+      {%= RelabelDebugStepsJSON(isTargetRelabel, targetID, dss, metric, relabelConfigs, err) %}
+  {% else %}
+      {%= RelabelDebugStepsHTML(isTargetRelabel, targetID, dss, metric, relabelConfigs, err) %}
+  {% endif %}
+{% endfunc %}
+
+{% func RelabelDebugStepsHTML(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -117,6 +126,36 @@ function submitRelabelDebugForm(e) {
         <b>Resulting labels:</b> <samp>{%= mustFormatLabels(dss[len(dss)-1].Out) %}</samp>
 </div>
 {% endif %}
+{% endfunc %}
+
+{% func RelabelDebugStepsJSON(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+    {
+       {% if err != nil %}
+                "status": "error",
+                "error": {%q= fmt.Sprintf("Error: %s", err) %}
+        {% else %}
+                "status": "success",
+                {% if len(dss) > 0 %}
+                    "originalLabels": {%q= string(mustFormatLabels(dss[0].In)) %},
+                    "resultingLabels": {%q= string(mustFormatLabels(dss[len(dss)-1].Out)) %},
+                {% endif %}
+                "steps": [
+                    {% for i, ds := range dss %}
+                        {% code
+                            inLabels := promutils.MustNewLabelsFromString(ds.In)
+                            outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                            changedLabels := getChangedLabelNames(inLabels, outLabels)
+                        %}
+                        {
+                            "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "red") %},
+                            "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "blue") %},
+                            "rule": {%q= ds.Rule %}
+                        }
+                        {% if i != len(dss)-1 %},{% endif %}
+                    {% endfor %}
+                ]
+        {% endif %}
+    }
 {% endfunc %}
 
 {% func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}, color string) %}

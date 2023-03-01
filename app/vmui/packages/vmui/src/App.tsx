@@ -11,6 +11,7 @@ import ThemeProvider from "./components/Main/ThemeProvider/ThemeProvider";
 import TracePage from "./pages/TracePage";
 import ExploreMetrics from "./pages/ExploreMetrics";
 import PreviewIcons from "./components/Main/Icons/PreviewIcons";
+import Relabel from "./pages/Relabel";
 
 const App: FC = () => {
 
@@ -50,6 +51,10 @@ const App: FC = () => {
                 <Route
                   path={router.dashboards}
                   element={<DashboardsLayout/>}
+                />
+                <Route
+                  path={router.relabel}
+                  element={<Relabel/>}
                 />
                 <Route
                   path={router.icons}
