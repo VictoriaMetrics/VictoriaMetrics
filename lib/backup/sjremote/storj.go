@@ -80,15 +80,12 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	iterator := fs.project.ListObjects(context.Background(), fs.Bucket, &uplink.ListObjectsOptions{
 		Prefix:    fs.Dir,
 		Recursive: true,
+		System:    true,
 	})
-	var (
-		object *uplink.Object
-		p      common.Part
-		parts  []common.Part
-	)
+	var parts []common.Part
 	for iterator.Next() {
 		// Process item
-		object = iterator.Item()
+		object := iterator.Item()
 		if object.IsPrefix {
 			logger.Infof("skipping prefix %q", object.Key)
 			continue
@@ -99,6 +96,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 		if fscommon.IgnorePath(object.Key) {
 			continue
 		}
+		var p common.Part
 		if !p.ParseFromRemotePath(object.Key[len(fs.Dir):]) {
 			logger.Infof("skipping unknown object %q", object.Key)
 			continue
