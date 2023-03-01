@@ -327,7 +327,9 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	if err != nil {
 		logger.Panicf("BUG: unexpected error from http.NewRequest(%q): %s", url, err)
 	}
-	c.authCfg.SetHeaders(req, true)
+	if c.authCfg != nil {
+		c.authCfg.SetHeaders(req, true)
+	}
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
