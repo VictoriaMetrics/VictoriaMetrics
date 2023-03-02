@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
 	"github.com/urfave/cli/v2"
 
@@ -189,7 +191,7 @@ func main() {
 			{
 				Name:  "vm-native",
 				Usage: "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags: vmNativeFlags,
+				Flags: mergeFlags(globalFlags, vmNativeFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
 
@@ -200,25 +202,27 @@ func main() {
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
 						interCluster: c.Bool(vmInterCluster),
-						filter: filter{
-							match:     c.String(vmNativeFilterMatch),
-							timeStart: c.String(vmNativeFilterTimeStart),
-							timeEnd:   c.String(vmNativeFilterTimeEnd),
-							chunk:     c.String(vmNativeStepInterval),
+						filter: native.Filter{
+							Match:     c.String(vmNativeFilterMatch),
+							TimeStart: c.String(vmNativeFilterTimeStart),
+							TimeEnd:   c.String(vmNativeFilterTimeEnd),
+							Chunk:     c.String(vmNativeStepInterval),
 						},
-						src: &vmNativeClient{
-							addr:     strings.Trim(c.String(vmNativeSrcAddr), "/"),
-							user:     c.String(vmNativeSrcUser),
-							password: c.String(vmNativeSrcPassword),
+						src: &native.Client{
+							Addr:     strings.Trim(c.String(vmNativeSrcAddr), "/"),
+							User:     c.String(vmNativeSrcUser),
+							Password: c.String(vmNativeSrcPassword),
 						},
-						dst: &vmNativeClient{
-							addr:        strings.Trim(c.String(vmNativeDstAddr), "/"),
-							user:        c.String(vmNativeDstUser),
-							password:    c.String(vmNativeDstPassword),
-							extraLabels: c.StringSlice(vmExtraLabel),
+						dst: &native.Client{
+							Addr:        strings.Trim(c.String(vmNativeDstAddr), "/"),
+							User:        c.String(vmNativeDstUser),
+							Password:    c.String(vmNativeDstPassword),
+							ExtraLabels: c.StringSlice(vmExtraLabel),
 						},
+						backoff: backoff.New(),
+						cc:      c.Int(vmConcurrency),
 					}
-					return p.run(ctx)
+					return p.run(ctx, c.Bool(globalSilent))
 				},
 			},
 			{

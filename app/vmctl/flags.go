@@ -344,8 +344,9 @@ var (
 			Value: `{__name__!=""}`,
 		},
 		&cli.StringFlag{
-			Name:  vmNativeFilterTimeStart,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Name:     vmNativeFilterTimeStart,
+			Usage:    "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
@@ -405,6 +406,11 @@ var (
 			Usage: "Enables cluster-to-cluster migration mode with automatic tenants data migration.\n" +
 				fmt.Sprintf(" In this mode --%s flag format is: 'http://vmselect:8481/'. --%s flag format is: http://vminsert:8480/. \n", vmNativeSrcAddr, vmNativeDstAddr) +
 				" TenantID will be appended automatically after discovering tenants from src.",
+		},
+		&cli.UintFlag{
+			Name:  vmConcurrency,
+			Usage: "Number of workers concurrently performing import requests to VM",
+			Value: 2,
 		},
 	}
 )

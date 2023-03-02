@@ -737,21 +737,33 @@ or higher.
 
 See `./vmctl vm-native --help` for details and full list of flags.
 
-In this mode `vmctl` acts as a proxy between two VM instances, where time series filtering is done by "source" (`src`)
-and processing is done by "destination" (`dst`). Because of that, `vmctl` doesn't actually know how much data will be
-processed and can't show the progress bar. It will show the current processing speed and total number of processed bytes:
+Migration in `vm-native` mode takes two steps:
+1. Explore the list of the metrics to migrate via `/api/v1/series` API;
+2. Migrate explored metrics one-by-one.
 
 ```
-./vmctl vm-native --vm-native-src-addr=http://localhost:8528  \
-  --vm-native-dst-addr=http://localhost:8428 \
-  --vm-native-filter-match='{job="vmagent"}' \
-  --vm-native-filter-time-start='2020-01-01T20:07:00Z'
+./vmctl vm-native \
+    --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ 
+    --vm-native-dst-addr=http://localhost:8428 \
+    --vm-native-filter-time-start='2022-11-20T00:00:00Z' \
+    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'    
 VictoriaMetrics Native import mode
-Initing export pipe from "http://localhost:8528" with filters:
-        filter: match[]={job="vmagent"}
-Initing import process to "http://localhost:8428":
-Total: 336.75 KiB ↖ Speed: 454.46 KiB p/s
-2020/10/13 17:04:59 Total time: 952.143376ms
+
+2023/03/02 09:22:02 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
+        filter: match[]={__name__=~"vm_cache_.*"}
+        start: 2022-11-20T00:00:00Z
+2023/03/02 09:22:02 Exploring metrics...
+Found 9 metrics to import. Continue? [Y/n] 
+2023/03/02 09:22:04 Requests to make: 9
+Requests to make: 9 / 9 [███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/03/02 09:22:06 Import finished!
+2023/03/02 09:22:06 VictoriaMetrics importer stats:
+  time spent while importing: 3.632638875s;
+  total bytes: 7.8 MB;
+  bytes/s: 2.1 MB;
+  requests: 9;
+  requests retries: 0;
+2023/03/02 09:22:06 Total time: 3.633127625s
 ```
 
 Importing tips:
@@ -759,6 +771,7 @@ Importing tips:
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
 Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
 proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or update `-search.maxSeries` command-line flag on vmselect/vmsingle;
 2. Migrating all the metrics from one VM to another may collide with existing application metrics
 (prefixed with `vm_`) at destination and lead to confusion when using
 [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
@@ -770,71 +783,57 @@ Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/
 5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
 and specify `accountID` param.
 6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
+7. `vmctl` supports `--vm-concurrency` which controls the number of concurrent workers that process the input from source query results.
+Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
+to allocated CPU resources of your VictoriaMetrics installation.
+
+In this mode `vmctl` acts as a proxy between two VM instances, where time series filtering is done by "source" (`src`)
+and processing is done by "destination" (`dst`). So no extra memory or CPU resources required on `vmctl` side. Only
+`src` and `dst` resource matter.
 
 #### Using time-based chunking of migration
 
-It is possible split migration process into set of smaller batches based on time. This is especially useful when migrating large volumes of data as this adds indication of progress and ability to restore process from certain point in case of failure.
+It is possible split migration process into set of smaller batches based on time. This is especially useful when 
+migrating large volumes of data as this adds indication of progress and ability to restore process from certain point 
+in case of failure.
 
 To use this you need to specify `--vm-native-step-interval` flag. Supported values are: `month`, `day`, `hour`.
-Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for export process.
+Note that in order to use this it is required `--vm-native-filter-time-start` to be set to calculate time ranges for 
+export process.
 
 Every range is being processed independently, which means that:
 - after range processing is finished all data within range is migrated
-- if process fails on one of stages it is guaranteed that data of prior stages is already written, so it is possible to restart process starting from failed range
+- if process fails on one of stages it is guaranteed that data of prior stages is already written,
+so it is possible to restart process starting from failed range.
 
-It is recommended using the `month` step when migrating the data over multiple months, since the migration with `day` and `hour` steps may take longer time to complete
-because of additional overhead.
+It is recommended using the `month` step when migrating the data over multiple months, 
+since the migration with `day` and `hour` steps may take longer time to complete because of additional overhead.
 
 Usage example:
 ```console
-./vmctl vm-native 
-    --vm-native-filter-time-start 2022-06-17T00:07:00Z \
-    --vm-native-filter-time-end 2022-10-03T00:07:00Z \
-    --vm-native-src-addr http://localhost:8428 \
-    --vm-native-dst-addr http://localhost:8528 \
-    --vm-native-step-interval=month
+./vmctl vm-native \
+    --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ 
+    --vm-native-dst-addr=http://localhost:8428 \
+    --vm-native-filter-time-start='2022-11-20T00:00:00Z' \
+    --vm-native-step-interval=month \
+    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'    
 VictoriaMetrics Native import mode
-2022/08/30 19:48:24 Processing range 1/5: 2022-06-17T00:07:00Z - 2022-06-30T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-06-17T00:07:00Z
-        end: 2022-06-30T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 28.89 KiB p/s 
-2022/08/30 19:48:24 Processing range 2/5: 2022-07-01T00:00:00Z - 2022-07-31T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-07-01T00:00:00Z
-        end: 2022-07-31T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 164.35 KiB p/s 
-2022/08/30 19:48:24 Processing range 3/5: 2022-08-01T00:00:00Z - 2022-08-31T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-08-01T00:00:00Z
-        end: 2022-08-31T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 191.42 KiB p/s 
-2022/08/30 19:48:24 Processing range 4/5: 2022-09-01T00:00:00Z - 2022-09-30T23:59:59Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-09-01T00:00:00Z
-        end: 2022-09-30T23:59:59Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 141.04 KiB p/s 
-2022/08/30 19:48:24 Processing range 5/5: 2022-10-01T00:00:00Z - 2022-10-03T00:07:00Z 
-2022/08/30 19:48:24 Initing export pipe from "http://localhost:8428" with filters: 
-        filter: match[]={__name__!=""}
-        start: 2022-10-01T00:00:00Z
-        end: 2022-10-03T00:07:00Z
-Initing import process to "http://localhost:8428":
-2022/08/30 19:48:24 Import finished!
-Total: 16 B ↗ Speed: 186.32 KiB p/s 
-2022/08/30 19:48:24 Total time: 12.680582ms
+
+2023/03/02 09:18:05 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
+        filter: match[]={__name__=~"vm_cache_.*"}
+        start: 2022-11-20T00:00:00Z
+2023/03/02 09:18:05 Exploring metrics...
+Found 9 metrics to import. Continue? [Y/n] 
+2023/03/02 09:18:07 Selected time range will be split into 5 ranges according to "month" step. Requests to make: 45.
+Requests to make: 45 / 45 [█████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+2023/03/02 09:18:12 Import finished!
+2023/03/02 09:18:12 VictoriaMetrics importer stats:
+  time spent while importing: 7.111870667s;
+  total bytes: 7.7 MB;
+  bytes/s: 1.1 MB;
+  requests: 45;
+  requests retries: 0;
+2023/03/02 09:18:12 Total time: 7.112405875s
 ```
 
 #### Cluster-to-cluster migration mode
@@ -846,70 +845,41 @@ Cluster-to-cluster uses `/admin/tenants` endpoint (available starting from [v1.8
 To use this mode you need to set `--vm-intercluster` flag to `true`, `--vm-native-src-addr` flag to 'http://vmselect:8481/' and `--vm-native-dst-addr` value to http://vminsert:8480/:
 
 ```console
-./bin/vmctl vm-native --vm-intercluster=true --vm-native-src-addr=http://localhost:8481/ --vm-native-dst-addr=http://172.17.0.3:8480/
+  ./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/ \
+  --vm-native-dst-addr=http://127.0.0.1:8480/ \
+  --vm-native-filter-match='{__name__="vm_app_uptime_seconds"}' \
+  --vm-native-filter-time-start='2023-02-01T00:00:00Z' \
+  --vm-native-step-interval=day \  
+--vm-intercluster
 VictoriaMetrics Native import mode
-2022/12/05 21:20:06 Discovered tenants: [123:1 12812919:1 1289198:1 1289:1283 12:1 1:0 1:1 1:1231231 1:1271727 1:12819 1:281 812891298:1]
-2022/12/05 21:20:06 Initing export pipe from "http://localhost:8481/select/123:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/123:1/prometheus/api/v1/import/native":
-Total: 61.13 MiB ↖ Speed: 2.05 MiB p/s 
-Total: 61.13 MiB ↗ Speed: 2.30 MiB p/s 
-2022/12/05 21:20:33 Initing export pipe from "http://localhost:8481/select/12812919:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/12812919:1/prometheus/api/v1/import/native":
-Total: 43.14 MiB ↘ Speed: 1.86 MiB p/s  
-Total: 43.14 MiB ↙ Speed: 2.36 MiB p/s 
-2022/12/05 21:20:51 Initing export pipe from "http://localhost:8481/select/1289198:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1289198:1/prometheus/api/v1/import/native":
-Total: 16.64 MiB ↗ Speed: 2.66 MiB p/s 
-Total: 16.64 MiB ↘ Speed: 2.19 MiB p/s 
-2022/12/05 21:20:59 Initing export pipe from "http://localhost:8481/select/1289:1283/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1289:1283/prometheus/api/v1/import/native":
-Total: 43.33 MiB ↙ Speed: 1.94 MiB p/s 
-Total: 43.33 MiB ↖ Speed: 2.35 MiB p/s 
-2022/12/05 21:21:18 Initing export pipe from "http://localhost:8481/select/12:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/12:1/prometheus/api/v1/import/native":
-Total: 63.78 MiB ↙ Speed: 1.96 MiB p/s 
-Total: 63.78 MiB ↖ Speed: 2.28 MiB p/s 
-2022/12/05 21:21:46 Initing export pipe from "http://localhost:8481/select/1:0/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:0/prometheus/api/v1/import/native":
-2022/12/05 21:21:46 Import finished!
-Total: 330 B ↗ Speed: 3.53 MiB p/s 
-2022/12/05 21:21:46 Initing export pipe from "http://localhost:8481/select/1:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1/prometheus/api/v1/import/native":
-Total: 63.81 MiB ↙ Speed: 1.96 MiB p/s 
-Total: 63.81 MiB ↖ Speed: 2.28 MiB p/s 
-2022/12/05 21:22:14 Initing export pipe from "http://localhost:8481/select/1:1231231/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1231231/prometheus/api/v1/import/native":
-Total: 63.84 MiB ↙ Speed: 1.93 MiB p/s 
-Total: 63.84 MiB ↖ Speed: 2.29 MiB p/s 
-2022/12/05 21:22:42 Initing export pipe from "http://localhost:8481/select/1:1271727/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:1271727/prometheus/api/v1/import/native":
-Total: 54.37 MiB ↘ Speed: 1.90 MiB p/s 
-Total: 54.37 MiB ↙ Speed: 2.37 MiB p/s 
-2022/12/05 21:23:05 Initing export pipe from "http://localhost:8481/select/1:12819/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:12819/prometheus/api/v1/import/native":
-Total: 17.01 MiB ↙ Speed: 1.75 MiB p/s 
-Total: 17.01 MiB ↖ Speed: 2.15 MiB p/s 
-2022/12/05 21:23:13 Initing export pipe from "http://localhost:8481/select/1:281/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/1:281/prometheus/api/v1/import/native":
-Total: 63.89 MiB ↘ Speed: 1.90 MiB p/s 
-Total: 63.89 MiB ↙ Speed: 2.29 MiB p/s 
-2022/12/05 21:23:42 Initing export pipe from "http://localhost:8481/select/812891298:1/prometheus/api/v1/export/native" with filters: 
-        filter: match[]={__name__!=""}
-Initing import process to "http://172.17.0.3:8480/insert/812891298:1/prometheus/api/v1/import/native":
-Total: 63.84 MiB ↖ Speed: 1.99 MiB p/s 
-Total: 63.84 MiB ↗ Speed: 2.26 MiB p/s 
-2022/12/05 21:24:10 Total time: 4m4.1466565s
+2023/02/28 10:41:42 Discovering tenants...
+2023/02/28 10:41:42 The following tenants were discovered: [0:0 1:0 2:0 3:0 4:0]
+2023/02/28 10:41:42 Initing import process from "http://127.0.0.1:8481/select/0:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/0:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 0:0 
+2023/02/28 10:41:42 Exploring metrics...
+2023/02/28 10:41:42 Found 1 metrics to import 
+2023/02/28 10:41:42 Selected time range will be split into 28 ranges according to "day" step. 
+Requests to make for tenant 0:0: 28 / 28 [███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+
+2023/02/28 10:41:45 Initing import process from "http://127.0.0.1:8481/select/1:0/prometheus/api/v1/export/native" to "http://127.0.0.1:8480/insert/1:0/prometheus/api/v1/import/native" with filter 
+        filter: match[]={__name__="vm_app_uptime_seconds"}
+        start: 2023-02-01T00:00:00Z for tenant 1:0 
+2023/02/28 10:41:45 Exploring metrics...
+2023/02/28 10:41:45 Found 1 metrics to import 
+2023/02/28 10:41:45 Selected time range will be split into 28 ranges according to "day" step. Requests to make: 28 
+Requests to make for tenant 1:0: 28 / 28 [████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+
+...
+
+2023/02/28 10:42:49 Import finished!
+2023/02/28 10:42:49 VictoriaMetrics importer stats:
+  time spent while importing: 1m6.714210417s;
+  total bytes: 39.7 MB;
+  bytes/s: 594.4 kB;
+  requests: 140;
+  requests retries: 0;
+2023/02/28 10:42:49 Total time: 1m7.147971417s
 ```
 
 ## Verifying exported blocks from VictoriaMetrics
@@ -976,6 +946,7 @@ a sign of network issues or VM being overloaded. See the logs during import for 
 By default `vmctl` waits confirmation from user before starting the import. If this is unwanted
 behavior and no user interaction required - pass `-s` flag to enable "silence" mode:
 
+See below the example of `vm-native` migration process:
 ```
     -s Whether to run in silent mode. If set to true no confirmation prompts will appear. (default: false)
 ```

@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): `vmctl` `vm-native` mode now splits the migration process on per-metric basis. This allows to migrate metrics one-by-one according to the specified filter. This change allows to retry export/import requests for a specific metric and provides a better understanding of the migration progress. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3600).
 
 * BUGFIX: prevent from possible panic during [background merge process](https://docs.victoriametrics.com/#storage). It may occur in rare case and was introduced at [v1.85.0](https://docs.victoriametrics.com/CHANGELOG.html#v1850) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3337).
 
