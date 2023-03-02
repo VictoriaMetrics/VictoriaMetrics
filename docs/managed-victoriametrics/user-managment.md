@@ -1,11 +1,11 @@
 ---
-sort: 4
-weight: 4
+sort: 5
+weight: 5
 title: User Management in Managed VictoriaMetrics
 menu:
   docs:
     parent: "managed"
-    weight: 4
+    weight: 5
 ---
 # User Management in Managed VictoriaMetrics 
 
