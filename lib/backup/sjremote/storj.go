@@ -29,7 +29,7 @@ type FS struct {
 	AccessGrant string
 
 	// Private controllers
-	access  *uplink.Access
+	// access  *uplink.Access
 	project *uplink.Project
 }
 
@@ -48,13 +48,13 @@ func (fs *FS) Init() error {
 	}
 
 	// Parse access grant to obtain satellite address, API key and encryption key
-	var err error
-	if fs.access, err = uplink.ParseAccess(fs.AccessGrant); err != nil {
+	access, err := uplink.ParseAccess(fs.AccessGrant)
+	if err != nil {
 		return fmt.Errorf("could not parse access grant: %w", err)
 
 	}
 	// Open up the Project we will be working on.
-	if fs.project, err = uplink.OpenProject(context.Background(), fs.access); err != nil {
+	if fs.project, err = uplink.OpenProject(context.Background(), access); err != nil {
 		return fmt.Errorf("could not open project: %w", err)
 	}
 
@@ -67,7 +67,6 @@ func (fs *FS) MustStop() {
 		fs.project.Close()
 	}
 	fs.project = nil
-	fs.access = nil
 }
 
 // String returns human-readable description for fs.
