@@ -11,7 +11,7 @@ menu:
 
 This guide explains the different ways in which you can use vmalert in conjunction with Managed VictoriaMetrics
 
-<img src="alerting-vmalert-managed-victoria-metrics-setup.png" width="800">
+<img src="alerting-vmalert-managed-victoria-metrics-setup.png">
 
 ## Preconditions 
 
@@ -53,14 +53,14 @@ For instructions on how to create tokens, please refer to this section of the [d
 
 #### Single-Node
 
-<img src="alerting-vmalert-managed-victoria-metrics-single-1.png" width="800">
-<img src="alerting-vmalert-managed-victoria-metrics-single-2.png" width="800">
+<img src="alerting-vmalert-managed-victoria-metrics-single-1.png">
+<img src="alerting-vmalert-managed-victoria-metrics-single-2.png">
 
 #### Cluster
 
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-1.png" width="800">
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-2.png" width="800">
-<img src="alerting-vmalert-managed-victoria-metrics-cluster-3.png" width="800">
+<img src="alerting-vmalert-managed-victoria-metrics-cluster-1.png">
+<img src="alerting-vmalert-managed-victoria-metrics-cluster-2.png">
+<img src="alerting-vmalert-managed-victoria-metrics-cluster-3.png">
 
 ### vmalert configuration 
 
