@@ -475,7 +475,7 @@ It is expected that the `series_selector` returns time series of [counter type](
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [rate](#rate).
+This function is supported by PromQL. See also [rate](#rate) and [rollup_rate](#rollup_rate).
 
 #### lag
 
@@ -588,7 +588,7 @@ It is expected that the `series_selector` returns time series of [counter type](
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
-This function is supported by PromQL. See also [irate](#irate).
+This function is supported by PromQL. See also [irate](#irate) and [rollup_rate](#rollup_rate).
 
 #### rate_over_sum
 
@@ -615,6 +615,8 @@ This function is supported by PromQL.
 on the given lookbehind window `d` and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 These values are calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 #### rollup_candlestick
 
 `rollup_candlestick(series_selector[d])` is a [rollup function](#rollup-functions), which calculates `open`, `high`, `low` and `close` values (aka OHLC)
@@ -622,12 +624,16 @@ over raw samples on the given lookbehind window `d` and returns them in time ser
 The calculations are performed individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
 
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 #### rollup_delta
 
 `rollup_delta(series_selector[d])` is a [rollup function](#rollup-functions), which calculates differences between adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated differences
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -640,6 +646,8 @@ for adjacent raw samples on the given lookbehind window `d` and returns `min`, `
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
 #### rollup_increase
@@ -649,6 +657,8 @@ on the given lookbehind window `d` and returns `min`, `max` and `avg` values for
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
 #### rollup_rate
@@ -656,7 +666,14 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `rollup_rate(series_selector[d])` is a [rollup function](#rollup-functions), which calculates per-second change rates for adjacent raw samples
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
+
+See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832) in order to undertand better
+when to use `rollup_rate()`.
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -666,6 +683,8 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 adjacent raw samples on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated interval
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
+
+Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
 
@@ -1587,9 +1606,9 @@ See also [label_lowercase](#label_lowercase).
 #### label_value
 
 `label_value(q, "label")` is [label manipulation function](#label-manipulation-functions), which returns numeric values
-for the given `label` for every time series returned by `q`. 
+for the given `label` for every time series returned by `q`.
 
-For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series 
+For example, if `label_value(foo, "bar")` is applied to `foo{bar="1.234"}`, then it will return a time series
 `foo{bar="1.234"}` with `1.234` value. Function will return no data for non-numeric label values.
 
 #### sort_by_label

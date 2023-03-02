@@ -5,6 +5,10 @@
   border-radius: $border-radius-small;
   background-color: rgba($color-tropical-blue, 0.4);
 
+  &_mobile {
+    margin-left: $padding-small;
+  }
+
   &_dark {
     background-color: rgba($color-black, 0.1);
   }

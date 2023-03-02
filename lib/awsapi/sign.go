@@ -84,10 +84,10 @@ func signRequestWithTime(req *http.Request, service, region, payloadHash string,
 }
 
 func getSignatureKey(key, datestamp, region, service string) string {
-	kDate := hmacBin("AWS4"+key, datestamp)
-	kRegion := hmacBin(kDate, region)
-	kService := hmacBin(kRegion, service)
-	return hmacBin(kService, "aws4_request")
+	dateKey := hmacBin("AWS4"+key, datestamp)
+	regionKey := hmacBin(dateKey, region)
+	serviceKey := hmacBin(regionKey, service)
+	return hmacBin(serviceKey, "aws4_request")
 }
 
 func hashHex(s string) string {

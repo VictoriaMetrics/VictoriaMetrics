@@ -181,30 +181,29 @@ There is also support for multitenant writes. See [these docs](#multitenancy).
 
 ## VictoriaMetrics remote write protocol
 
-By default `vmagent` uses Prometheus remote_write protocol for sending the data to the configured `-remoteWrite.url`.
-This allows sending data to [any Prometheus-compatible remote storage](https://prometheus.io/docs/operating/integrations/#remote-endpoints-and-storage).
+`vmagent` supports sending data to the configured `-remoteWrite.url` either via Prometheus remote write protocol
+or via VictoriaMetrics remote write protocol.
 
-The Prometheus remote_write protocol may require big amounts of network bandwidth under high load.
-This may result in high network egress costs when the configured remote storage is located in remote datacenter or availability zone.
-This also may result in the increased disk IO at `vmagent` when it writes to disk the pending data, which must be sent to remote storage.
-In this case the `vmagent` can be instructed to use VictoriaMetrics remote write protocol.
-This allows reducing egress network bandwidth costs while reducing disk read/write IO at `vmagent` side under high load.
-The `-remoteWrite.useVMProto=true` command-line flag instructs `vmagent` to send the data to the corresponding `-remoteWrite.url`
-via VictoriaMetrics remote write protocol.
+VictoriaMetrics remote write protocol provides the following benefits comparing to Prometheus remote write protocol:
 
-While all the [recently released](https://docs.victoriametrics.com/CHANGELOG.html) VictoriaMetrics components support
-the VictoriaMetrics remote write protocol, third-party systems and old versions of VictoriaMetrics components may miss the support of this protocol.
+- Reduced network bandwidth usage by 2x-5x. This allows saving network bandwidth usage costs when `vmagent` and
+  the configured remote storage systems are located in different datacenters, availability zones or regions.
 
-The `-remoteWrite.useVMProto` command-line flag can be set independently per each configured `-remoteWrite.url`.
-For example, the following command instructs `vmagent` to send the data to `https://victoriametrics/api/v1/write` via VictoriaMetrics remote write protocol,
-while sending the data to `https://prom-compatible-storage/write` via Prometheus remote write protocol:
+- Reduced disk read/write IO and disk space usage at `vmagent` when the remote storage is temporarily unavailable.
+  In this case `vmagent` buffers the incoming data to disk using the VictoriaMetrics remote write format.
+  This reduces disk read/write IO and disk space usage by 2x-5x comparing to Prometheus remote write format.
 
-```
-./vmagent -remoteWrite.url=https://victoriametrics/api/v1/write \
-  -remoteWrite.useVMProto=true \
-  -remoteWrite.url=https://prom-compatible-storage/write \
-  -remoteWrite.useVMProto=false
-```
+`vmagent` automatically switches to VictoriaMetrics remote write protocol when it sends data to VictoriaMetrics components such as other `vmagent` instances,
+[single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+or `vminsert` at [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+It is possible to force switch to VictoriaMetrics remote write protocol by specifying `-remoteWrite.forceVMProto`
+command-line flag for the corresponding `-remoteWrite.url`.
+It is possible to tune the compression level for VictoriaMetrics remote write protocol with `-remoteWrite.vmProtoCompressLevel` command-line flag.
+Bigger values reduce network usage at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of higher network usage.
+
+`vmagent` automatically switches to Prometheus remote write protocol when it sends data to old versions of VictoriaMetrics components
+or to other Prometheus-compatible remote storage systems. It is possible to force switch to Prometheus remote write protocol
+by specifying `-remoteWrite.forcePromProto` command-line flag for the corresponding `-remoteWrite.url`.
 
 ## Multitenancy
 
@@ -1242,8 +1241,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -insert.maxQueueDuration duration
      The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+  -internStringCacheExpireDuration duration
+     The expire duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -kafka.consumer.topic array
      Kafka topic names for data consumption. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1372,7 +1375,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -promscrape.kubernetesSDCheckInterval duration
      Interval for checking for changes in Kubernetes API server. This works only if kubernetes_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs for details (default 30s)
   -promscrape.kumaSDCheckInterval duration
-     Interval for checking for changes in Kuma Service Mesh API service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kuma_sd_configs for details (default 30s)
+     Interval for checking for changes in kuma service discovery. This works only if kuma_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#kuma_sd_configs for details (default 30s)
   -promscrape.maxDroppedTargets int
      The maximum number of droppedTargets to show at /api/v1/targets page. Increase this value if your setup drops more scrape targets during relabeling and you need investigating labels for all the dropped targets. Note that the increased number of tracked dropped targets may result in increased memory usage (default 1000)
   -promscrape.maxResponseHeadersSize size
@@ -1453,6 +1456,12 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.flushInterval duration
      Interval for flushing the data to remote storage. This option takes effect only when less than 10K data points per second are pushed to -remoteWrite.url (default 1s)
+  -remoteWrite.forcePromProto array
+     Whether to force Prometheus remote write protocol for sending data to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
+     Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.forceVMProto array
+     Whether to force VictoriaMetrics remote write protocol for sending data to the corresponding -remoteWrite.url . See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
+     Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.headers array
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1538,14 +1547,13 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.tmpDataPath string
      Path to directory where temporary data for remote write component is stored. See also -remoteWrite.maxDiskUsagePerURL (default "vmagent-remotewrite-data")
   -remoteWrite.url array
-     Remote storage URL to write data to. It must support Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . It is recommended setting -remoteWrite.useVMProto command-line option when VictoriaMetrics is used as a remote storage in order to save network bandwidth. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL
+     Remote storage URL to write data to. It must support either VictoriaMetrics remote write protocol or Prometheus remote_write protocol. Example url: http://<victoriametrics-host>:8428/api/v1/write . Pass multiple -remoteWrite.url options in order to replicate the collected data to multiple remote storage systems. See also -remoteWrite.multitenantURL
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteWrite.urlRelabelConfig array
      Optional path to relabel configs for the corresponding -remoteWrite.url. See also -remoteWrite.relabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
      Supports an array of values separated by comma or specified via multiple flags.
-  -remoteWrite.useVMProto array
-     Whether to use VictoriaMetrics protocol for sending the data to the given -remoteWrite.url in order to reduce network bandwidth usage and disk read/write IO under high load. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
-     Supports array of values separated by comma or specified via multiple flags.
+  -remoteWrite.vmProtoCompressLevel int
+     The compression level for VictoriaMetrics remote write protocol. Higher values reduce network traffic at the cost of higher CPU usage. Negative values reduce CPU usage at the cost of increased network traffic. See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol
   -sortLabels
      Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. For example, if m{k1="v1",k2="v2"} may be sent as m{k2="v2",k1="v1"}Enabled sorting for labels can slow down ingestion performance a bit
   -tls

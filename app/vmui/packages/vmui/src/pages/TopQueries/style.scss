@@ -5,6 +5,10 @@
   align-items: flex-start;
   gap: $padding-medium;
 
+  &_mobile {
+    gap: $padding-small;
+  }
+
   &-controls {
     display: grid;
     gap: $padding-small;
@@ -27,6 +31,11 @@
       align-items: flex-end;
       justify-content: space-between;
       gap: $padding-medium;
+
+      &_mobile {
+        grid-template-columns: 1fr;
+        gap: $padding-small;
+      }
 
       &__info {
       }

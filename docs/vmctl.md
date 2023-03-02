@@ -487,6 +487,10 @@ Processing ranges: 8798 / 8798 [████████████████
 2022/10/19 16:45:37 Total time: 1m19.406283424s
 ```
 
+Migrating big volumes of data may result in remote read client reaching the timeout.
+Consider increasing the value of `--remote-read-http-timeout` (default `5m`) command-line flag when seeing
+timeouts or `context canceled` errors.
+
 ### Filtering
 
 The filtering consists of two parts: by labels and time.

@@ -87,6 +87,7 @@ func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error 
 	m.wg.Add(1)
 	id := g.ID()
 	go func() {
+		defer m.wg.Done()
 		// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
 		if !skipRandSleepOnGroupStart {
 			randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
@@ -111,8 +112,6 @@ func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error 
 		} else {
 			g.start(ctx, m.notifiers, m.rw, nil)
 		}
-
-		m.wg.Done()
 	}()
 	m.groups[id] = g
 	return nil
@@ -168,6 +167,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 	}
 	for _, ng := range groupsRegistry {
 		if err := m.startGroup(ctx, ng, restore); err != nil {
+			m.groupsMu.Unlock()
 			return err
 		}
 	}
@@ -181,6 +181,7 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				old.updateCh <- new
 				wg.Done()
 			}(item.old, item.new)
+			item.old.interruptEval()
 		}
 		wg.Wait()
 	}

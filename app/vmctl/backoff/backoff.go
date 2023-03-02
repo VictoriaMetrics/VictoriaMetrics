@@ -19,6 +19,7 @@ const (
 // retryableFunc describes call back which will repeat on errors
 type retryableFunc func() error
 
+// ErrBadRequest is an error returned on bad request
 var ErrBadRequest = errors.New("bad request")
 
 // Backoff describes object with backoff policy params

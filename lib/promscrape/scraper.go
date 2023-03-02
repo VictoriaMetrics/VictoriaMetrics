@@ -103,6 +103,8 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 		return
 	}
 
+	metrics.RegisterSet(configMetricsSet)
+
 	// Register SIGHUP handler for config reload before loadConfig.
 	// This guarantees that the config will be re-read if the signal arrives just after loadConfig.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
@@ -200,10 +202,11 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 }
 
 var (
-	configReloads      = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
-	configReloadErrors = metrics.NewCounter(`vm_promscrape_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_promscrape_config_last_reload_successful`)
-	configTimestamp    = metrics.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
+	configMetricsSet   = metrics.NewSet()
+	configReloads      = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_total`)
+	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
+	configSuccess      = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_successful`)
+	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
 )
 
 type scrapeConfigs struct {
@@ -442,7 +445,7 @@ func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *
 		cancel:    cancel,
 		stoppedCh: make(chan struct{}),
 	}
-	c := newClient(sw, ctx)
+	c := newClient(ctx, sw)
 	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData

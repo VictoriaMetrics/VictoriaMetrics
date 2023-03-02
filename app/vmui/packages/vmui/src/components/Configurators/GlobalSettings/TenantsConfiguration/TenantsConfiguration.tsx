@@ -41,7 +41,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   };
 
   const showTenantSelector = useMemo(() => {
-    const id = getTenantIdFromUrl(serverUrl);
+    const id = true; //getTenantIdFromUrl(serverUrl);
     return accountIds.length > 1 && id;
   }, [accountIds, serverUrl]);
 
@@ -81,26 +81,40 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     <div className="vm-tenant-input">
       <Tooltip title="Define Tenant ID if you need request to another storage">
         <div ref={optionsButtonRef}>
-          <Button
-            className={appModeEnable ? "" : "vm-header-button"}
-            variant="contained"
-            color="primary"
-            fullWidth
-            startIcon={<StorageIcon/>}
-            endIcon={!isMobile ? (
-              <div
-                className={classNames({
-                  "vm-execution-controls-buttons__arrow": true,
-                  "vm-execution-controls-buttons__arrow_open": openOptions,
-                })}
-              >
-                <ArrowDownIcon/>
+          {isMobile ? (
+            <div
+              className="vm-mobile-option"
+              onClick={toggleOpenOptions}
+            >
+              <span className="vm-mobile-option__icon"><StorageIcon/></span>
+              <div className="vm-mobile-option-text">
+                <span className="vm-mobile-option-text__label">Tenant ID</span>
+                <span className="vm-mobile-option-text__value">{tenantIdState}</span>
               </div>
-            ) : undefined}
-            onClick={toggleOpenOptions}
-          >
-            {!isMobile && tenantIdState}
-          </Button>
+              <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
+            </div>
+          ) : (
+            <Button
+              className={appModeEnable ? "" : "vm-header-button"}
+              variant="contained"
+              color="primary"
+              fullWidth
+              startIcon={<StorageIcon/>}
+              endIcon={(
+                <div
+                  className={classNames({
+                    "vm-execution-controls-buttons__arrow": true,
+                    "vm-execution-controls-buttons__arrow_open": openOptions,
+                  })}
+                >
+                  <ArrowDownIcon/>
+                </div>
+              )}
+              onClick={toggleOpenOptions}
+            >
+              {tenantIdState}
+            </Button>
+          )}
         </div>
       </Tooltip>
       <Popper
@@ -108,20 +122,28 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
         placement="bottom-right"
         onClose={handleCloseOptions}
         buttonRef={optionsButtonRef}
+        title={isMobile ? "Define Tenant ID" : undefined}
       >
-        <div className="vm-list vm-tenant-input-list">
+        <div
+          className={classNames({
+            "vm-list vm-tenant-input-list": true,
+            "vm-list vm-tenant-input-list_mobile": isMobile,
+          })}
+        >
           <div className="vm-tenant-input-list__search">
             <TextField
               autofocus
               label="Search"
               value={search}
               onChange={setSearch}
+              type="search"
             />
           </div>
           {accountIdsFiltered.map(id => (
             <div
               className={classNames({
                 "vm-list-item": true,
+                "vm-list-item_mobile": isMobile,
                 "vm-list-item_active": id === tenantIdState
               })}
               key={id}

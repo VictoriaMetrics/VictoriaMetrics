@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/unit"
 )
 
 // Int64Counter is an instrument that records increasing int64 values.
@@ -57,7 +56,7 @@ type Int64Histogram interface {
 // values.
 type Int64Config struct {
 	description string
-	unit        unit.Unit
+	unit        string
 }
 
 // NewInt64Config returns a new Int64Config with all opts
@@ -76,7 +75,7 @@ func (c Int64Config) Description() string {
 }
 
 // Unit returns the Config unit.
-func (c Int64Config) Unit() unit.Unit {
+func (c Int64Config) Unit() string {
 	return c.unit
 }
 

@@ -1,0 +1,47 @@
+@use "src/styles/variables" as *;
+
+.vm-mobile-option {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: $padding-small;
+  padding: calc($padding-medium/2) 0;
+  width: 100%;
+  user-select: none;
+
+  &__arrow,
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__icon {
+    width: 22px;
+    height: 22px;
+    color: $color-primary;
+  }
+
+  &__arrow {
+    width: 14px;
+    height: 14px;
+    transform: rotate(-90deg);
+    color: $color-primary;
+  }
+
+  &-text {
+    display: grid;
+    align-items: center;
+    gap: 2px;
+    flex-grow: 1;
+
+    &__label {
+      font-weight: bold;
+    }
+
+    &__value {
+      color: $color-text-secondary;
+      font-size: $font-size-small;
+    }
+  }
+}

@@ -164,7 +164,7 @@ func (cfg *apiConfig) updateTargetsLabels(ctx context.Context) error {
 			notModified = true
 		}
 	}
-	data, err := cfg.client.GetBlockingAPIResponseWithParamsCtx(ctx, cfg.apiPath, updateRequestFunc, inspectResponseFunc)
+	data, err := cfg.client.GetAPIResponseWithParamsCtx(ctx, cfg.apiPath, updateRequestFunc, inspectResponseFunc)
 	if err != nil {
 		cfg.fetchErrors.Inc()
 		return fmt.Errorf("error when reading Kuma discovery response: %w", err)

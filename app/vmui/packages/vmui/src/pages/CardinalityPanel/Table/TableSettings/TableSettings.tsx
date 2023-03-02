@@ -2,7 +2,7 @@ import React, { FC, useEffect, useState, useRef, useMemo } from "preact/compat";
 import { useSortedCategories } from "../../../../hooks/useSortedCategories";
 import { InstantMetricResult } from "../../../../api/types";
 import Button from "../../../../components/Main/Button/Button";
-import { CloseIcon, RestartIcon, SettingsIcon } from "../../../../components/Main/Icons";
+import { RestartIcon, SettingsIcon } from "../../../../components/Main/Icons";
 import Popper from "../../../../components/Main/Popper/Popper";
 import "./style.scss";
 import Checkbox from "../../../../components/Main/Checkbox/Checkbox";
@@ -10,6 +10,8 @@ import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../../state/customPanel/CustomPanelStateContext";
 import Switch from "../../../../components/Main/Switch/Switch";
 import { arrayEquals } from "../../../../utils/array";
+import classNames from "classnames";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 const title = "Table settings";
 
@@ -20,6 +22,7 @@ interface TableSettingsProps {
 }
 
 const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onChange }) => {
+  const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
   const customPanelDispatch = useCustomPanelDispatch();
@@ -79,20 +82,15 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onCh
         onClose={handleClose}
         placement="bottom-right"
         buttonRef={buttonRef}
+        title={title}
       >
-        <div className="vm-table-settings-popper">
-          <div className="vm-popper-header">
-            <h3 className="vm-popper-header__title">
-              {title}
-            </h3>
-            <Button
-              onClick={handleClose}
-              startIcon={<CloseIcon/>}
-              size="small"
-              variant="text"
-            />
-          </div>
-          <div className="vm-table-settings-popper-list">
+        <div
+          className={classNames({
+            "vm-table-settings-popper": true,
+            "vm-table-settings-popper_mobile": isMobile
+          })}
+        >
+          <div className="vm-table-settings-popper-list vm-table-settings-popper-list_first">
             <Switch
               label={"Compact view"}
               value={tableCompact}
