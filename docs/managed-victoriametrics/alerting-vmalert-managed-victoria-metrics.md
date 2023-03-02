@@ -1,7 +1,7 @@
 ---
 sort: 4
 weight: 4
-title: Kubernetes Monitoring with Managed VictoriaMetrics
+title: Alerting with vmalert and Managed VictoriaMetrics
 menu:
   docs:
     parent: "managed"
