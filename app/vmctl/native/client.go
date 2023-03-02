@@ -26,13 +26,6 @@ type Client struct {
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
 
-// MetricName name of metric which stored in label __name__
-type MetricName string
-
-// MetricNames represents only metric names which are stored
-// in label __name__ per each series
-type MetricNames map[MetricName]struct{}
-
 // Response represents response from api/v1/series
 type Response struct {
 	Status string        `json:"status"`
@@ -40,7 +33,7 @@ type Response struct {
 }
 
 // Explore finds series by provided filter from api/v1/series
-func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) (MetricNames, error) {
+func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) (map[string]struct{}, error) {
 	url := fmt.Sprintf("%s/%s", c.Addr, nativeSeriesAddr)
 	if tenantID != "" {
 		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeSeriesAddr)
@@ -73,12 +66,18 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) (Metric
 	if err := resp.Body.Close(); err != nil {
 		return nil, fmt.Errorf("cannot close series response body: %s", err)
 	}
-	names := make(MetricNames)
+	names := make(map[string]struct{})
 	for _, series := range response.Series {
-		for labelName, labelValue := range series {
-			if labelName == nameLabel {
-				names[MetricName(labelValue)] = struct{}{}
+		// TODO: consider tweaking /api/v1/series API to return metric names only
+		// this could make explore response much lighter.
+		for key, value := range series {
+			if key != nameLabel {
+				continue
 			}
+			if _, ok := names[value]; ok {
+				continue
+			}
+			names[value] = struct{}{}
 		}
 	}
 	return names, nil
@@ -121,7 +120,7 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	req.Header.Set("Accept-Encoding", "identity")
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
-		return nil, fmt.Errorf("export request failed: %s", err)
+		return nil, fmt.Errorf("export request failed: %w", err)
 	}
 	return resp.Body, nil
 }
@@ -168,7 +167,7 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("unexpected error when performing request: %s", err)
+		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}
 
 	if resp.StatusCode != expSC {

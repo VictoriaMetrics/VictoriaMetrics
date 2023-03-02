@@ -194,7 +194,7 @@ func main() {
 			{
 				Name:  "vm-native",
 				Usage: "Migrate time series between VictoriaMetrics installations via native binary format",
-				Flags: vmNativeFlags,
+				Flags: mergeFlags(globalFlags, vmNativeFlags),
 				Action: func(c *cli.Context) error {
 					fmt.Println("VictoriaMetrics Native import mode")
 
