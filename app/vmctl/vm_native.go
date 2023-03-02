@@ -2,177 +2,125 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
-	"net/http"
+	"sync"
 	"time"
 
-	"github.com/cheggaaa/pb/v3"
-
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/cheggaaa/pb/v3"
 )
 
 type vmNativeProcessor struct {
-	filter    filter
-	rateLimit int64
+	filter native.Filter
 
-	dst          *vmNativeClient
-	src          *vmNativeClient
+	dst     *native.Client
+	src     *native.Client
+	backoff *backoff.Backoff
+
+	s            *stats
+	rateLimit    int64
 	interCluster bool
-}
-
-type vmNativeClient struct {
-	addr        string
-	user        string
-	password    string
-	extraLabels []string
-}
-
-type filter struct {
-	match     string
-	timeStart string
-	timeEnd   string
-	chunk     string
-}
-
-func (f filter) String() string {
-	s := fmt.Sprintf("\n\tfilter: match[]=%s", f.match)
-	if f.timeStart != "" {
-		s += fmt.Sprintf("\n\tstart: %s", f.timeStart)
-	}
-	if f.timeEnd != "" {
-		s += fmt.Sprintf("\n\tend: %s", f.timeEnd)
-	}
-	return s
+	cc           int
 }
 
 const (
-	nativeExportAddr  = "api/v1/export/native"
-	nativeImportAddr  = "api/v1/import/native"
-	nativeTenantsAddr = "admin/tenants"
-
-	nativeBarTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
+	nativeExportAddr = "api/v1/export/native"
+	nativeImportAddr = "api/v1/import/native"
+	nativeBarTpl     = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
 )
 
-func (p *vmNativeProcessor) run(ctx context.Context) error {
-	if p.filter.chunk == "" {
-		return p.runWithFilter(ctx, p.filter)
+func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
+	if p.cc == 0 {
+		p.cc = 1
+	}
+	p.s = &stats{
+		startTime: time.Now(),
 	}
 
-	startOfRange, err := time.Parse(time.RFC3339, p.filter.timeStart)
+	start, err := time.Parse(time.RFC3339, p.filter.TimeStart)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeStart, p.filter.timeStart, time.RFC3339, err)
+		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %w",
+			vmNativeFilterTimeStart, p.filter.TimeStart, time.RFC3339, err)
 	}
 
-	var endOfRange time.Time
-	if p.filter.timeEnd != "" {
-		endOfRange, err = time.Parse(time.RFC3339, p.filter.timeEnd)
+	end := time.Now().In(start.Location())
+	if p.filter.TimeEnd != "" {
+		end, err = time.Parse(time.RFC3339, p.filter.TimeEnd)
 		if err != nil {
-			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %v", vmNativeFilterTimeEnd, p.filter.timeEnd, time.RFC3339, err)
+			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %w",
+				vmNativeFilterTimeEnd, p.filter.TimeEnd, time.RFC3339, err)
 		}
-	} else {
-		endOfRange = time.Now()
 	}
 
-	ranges, err := stepper.SplitDateRange(startOfRange, endOfRange, p.filter.chunk)
-	if err != nil {
-		return fmt.Errorf("failed to create date ranges for the given time filters: %v", err)
-	}
-
-	for rangeIdx, r := range ranges {
-		formattedStartTime := r[0].Format(time.RFC3339)
-		formattedEndTime := r[1].Format(time.RFC3339)
-		log.Printf("Processing range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
-		f := filter{
-			match:     p.filter.match,
-			timeStart: formattedStartTime,
-			timeEnd:   formattedEndTime,
-		}
-		err := p.runWithFilter(ctx, f)
-
+	ranges := [][]time.Time{{start, end}}
+	if p.filter.Chunk != "" {
+		ranges, err = stepper.SplitDateRange(start, end, p.filter.Chunk)
 		if err != nil {
-			log.Printf("processing failed for range %d/%d: %s - %s \n", rangeIdx+1, len(ranges), formattedStartTime, formattedEndTime)
-			return err
+			return fmt.Errorf("failed to create date ranges for the given time filters: %w", err)
 		}
 	}
+
+	tenants := []string{""}
+	if p.interCluster {
+		log.Printf("Discovering tenants...")
+		tenants, err = p.src.GetSourceTenants(ctx, p.filter)
+		if err != nil {
+			return fmt.Errorf("failed to get tenants: %w", err)
+		}
+		question := fmt.Sprintf("The following tenants were discovered: %s.\n Continue?", tenants)
+		if !silent && !prompt(question) {
+			return nil
+		}
+	}
+
+	for _, tenantID := range tenants {
+		err := p.runBackfilling(ctx, tenantID, ranges, silent)
+		if err != nil {
+			return fmt.Errorf("migration failed: %s", err)
+		}
+	}
+
+	log.Println("Import finished!")
+	log.Print(p.s)
+
 	return nil
 }
 
-func (p *vmNativeProcessor) runWithFilter(ctx context.Context, f filter) error {
-	nativeImportAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.extraLabels)
+func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
 
+	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+	attempts, err := p.backoff.Retry(ctx, retryableFunc)
+	p.s.Lock()
+	p.s.retries += attempts
+	p.s.Unlock()
 	if err != nil {
-		return fmt.Errorf("failed to add labels to import path: %s", err)
-	}
-
-	if !p.interCluster {
-		srcURL := fmt.Sprintf("%s/%s", p.src.addr, nativeExportAddr)
-		dstURL := fmt.Sprintf("%s/%s", p.dst.addr, nativeImportAddr)
-
-		return p.runSingle(ctx, f, srcURL, dstURL)
-	}
-
-	tenants, err := p.getSourceTenants(ctx, f)
-	if err != nil {
-		return fmt.Errorf("failed to get source tenants: %s", err)
-	}
-
-	log.Printf("Discovered tenants: %v", tenants)
-	for _, tenant := range tenants {
-		// src and dst expected formats: http://vminsert:8480/ and http://vmselect:8481/
-		srcURL := fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.addr, tenant, nativeExportAddr)
-		dstURL := fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.addr, tenant, nativeImportAddr)
-
-		if err := p.runSingle(ctx, f, srcURL, dstURL); err != nil {
-			return fmt.Errorf("failed to migrate data for tenant %q: %s", tenant, err)
-		}
+		return fmt.Errorf("failed to migrate from %s to %s (retry attempts: %d): %w\nwith fileter %s", srcURL, dstURL, attempts, err, f)
 	}
 
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dstURL string) error {
-	log.Printf("Initing export pipe from %q with filters: %s\n", srcURL, f)
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
 
-	exportReader, err := p.exportPipe(ctx, srcURL, f)
+	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
-		return fmt.Errorf("failed to init export pipe: %s", err)
+		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
 	pr, pw := io.Pipe()
-	sync := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
-		defer func() { close(sync) }()
-		req, err := http.NewRequestWithContext(ctx, http.MethodPost, dstURL, pr)
-		if err != nil {
-			log.Fatalf("cannot create import request to %q: %s", p.dst.addr, err)
-		}
-		importResp, err := p.dst.do(req, http.StatusNoContent)
-		if err != nil {
-			log.Fatalf("import request failed: %s", err)
-		}
-		if err := importResp.Body.Close(); err != nil {
-			log.Fatalf("cannot close import response body: %s", err)
-		}
-	}()
-
-	fmt.Printf("Initing import process to %q:\n", dstURL)
-	pool := pb.NewPool()
-	bar := pb.ProgressBarTemplate(nativeBarTpl).New(0)
-	pool.Add(bar)
-	barReader := bar.NewProxyReader(exportReader)
-	if err := pool.Start(); err != nil {
-		log.Printf("error start process bars pool: %s", err)
-		return err
-	}
-	defer func() {
-		bar.Finish()
-		if err := pool.Stop(); err != nil {
-			fmt.Printf("failed to stop barpool: %+v\n", err)
+		defer func() { close(done) }()
+		if err := p.dst.ImportPipe(ctx, dstURL, pr); err != nil {
+			logger.Errorf("error initialize import pipe: %s", err)
+			return
 		}
 	}()
 
@@ -182,95 +130,176 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f filter, srcURL, dst
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
 
-	_, err = io.Copy(w, barReader)
+	written, err := io.Copy(w, exportReader)
 	if err != nil {
-		return fmt.Errorf("failed to write into %q: %s", p.dst.addr, err)
+		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
 	}
+
+	p.s.Lock()
+	p.s.bytes += uint64(written)
+	p.s.requests++
+	p.s.Unlock()
 
 	if err := pw.Close(); err != nil {
 		return err
 	}
-	<-sync
+	<-done
 
-	log.Println("Import finished!")
 	return nil
 }
 
-func (p *vmNativeProcessor) getSourceTenants(ctx context.Context, f filter) ([]string, error) {
-	u := fmt.Sprintf("%s/%s", p.src.addr, nativeTenantsAddr)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string, ranges [][]time.Time, silent bool) error {
+	exportAddr := nativeExportAddr
+	srcURL := fmt.Sprintf("%s/%s", p.src.Addr, exportAddr)
+
+	importAddr, err := vm.AddExtraLabelsToImportPath(nativeImportAddr, p.dst.ExtraLabels)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", u, err)
+		return fmt.Errorf("failed to add labels to import path: %s", err)
+	}
+	dstURL := fmt.Sprintf("%s/%s", p.dst.Addr, importAddr)
+
+	if p.interCluster {
+		srcURL = fmt.Sprintf("%s/select/%s/prometheus/%s", p.src.Addr, tenantID, exportAddr)
+		dstURL = fmt.Sprintf("%s/insert/%s/prometheus/%s", p.dst.Addr, tenantID, importAddr)
 	}
 
-	params := req.URL.Query()
-	if f.timeStart != "" {
-		params.Set("start", f.timeStart)
+	barPrefix := "Requests to make"
+	initMessage := "Initing import process from %q to %q with filter %s"
+	initParams := []interface{}{srcURL, dstURL, p.filter.String()}
+	if p.interCluster {
+		barPrefix = fmt.Sprintf("Requests to make for tenant %s", tenantID)
+		initMessage = "Initing import process from %q to %q with filter %s for tenant %s"
+		initParams = []interface{}{srcURL, dstURL, p.filter.String(), tenantID}
 	}
-	if f.timeEnd != "" {
-		params.Set("end", f.timeEnd)
-	}
-	req.URL.RawQuery = params.Encode()
 
-	resp, err := p.src.do(req, http.StatusOK)
+	fmt.Println("") // extra line for better output formatting
+	log.Printf(initMessage, initParams...)
+
+	log.Printf("Exploring metrics...")
+	metrics, err := p.src.Explore(ctx, p.filter, tenantID)
 	if err != nil {
-		return nil, fmt.Errorf("tenants request failed: %s", err)
+		return fmt.Errorf("cannot get metrics from source %s: %w", p.src.Addr, err)
 	}
 
-	var r struct {
-		Tenants []string `json:"data"`
-	}
-	if err := json.NewDecoder(resp.Body).Decode(&r); err != nil {
-		return nil, fmt.Errorf("cannot decode tenants response: %s", err)
+	if len(metrics) == 0 {
+		return fmt.Errorf("no metrics found")
 	}
 
-	if err := resp.Body.Close(); err != nil {
-		return nil, fmt.Errorf("cannot close tenants response body: %s", err)
-	}
-
-	return r.Tenants, nil
-}
-
-func (p *vmNativeProcessor) exportPipe(ctx context.Context, url string, f filter) (io.ReadCloser, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create request to %q: %s", p.src.addr, err)
-	}
-
-	params := req.URL.Query()
-	params.Set("match[]", f.match)
-	if f.timeStart != "" {
-		params.Set("start", f.timeStart)
-	}
-	if f.timeEnd != "" {
-		params.Set("end", f.timeEnd)
-	}
-	req.URL.RawQuery = params.Encode()
-
-	// disable compression since it is meaningless for native format
-	req.Header.Set("Accept-Encoding", "identity")
-	resp, err := p.src.do(req, http.StatusOK)
-	if err != nil {
-		return nil, fmt.Errorf("export request failed: %s", err)
-	}
-	return resp.Body, nil
-}
-
-func (c *vmNativeClient) do(req *http.Request, expSC int) (*http.Response, error) {
-	if c.user != "" {
-		req.SetBasicAuth(c.user, c.password)
-	}
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("unexpected error when performing request: %s", err)
-	}
-
-	if resp.StatusCode != expSC {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read response body for status code %d: %s", resp.StatusCode, err)
+	foundSeriesMsg := fmt.Sprintf("Found %d metrics to import", len(metrics))
+	if !p.interCluster {
+		// do not prompt for intercluster because there could be many tenants,
+		// and we don't want to interrupt the process when moving to the next tenant.
+		question := foundSeriesMsg + ". Continue?"
+		if !silent && !prompt(question) {
+			return nil
 		}
-		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
+	} else {
+		log.Print(foundSeriesMsg)
 	}
-	return resp, err
+
+	processingMsg := fmt.Sprintf("Requests to make: %d", len(metrics)*len(ranges))
+	if len(ranges) > 1 {
+		processingMsg = fmt.Sprintf("Selected time range will be split into %d ranges according to %q step. %s", len(ranges), p.filter.Chunk, processingMsg)
+	}
+	log.Print(processingMsg)
+
+	var bar *pb.ProgressBar
+	if !silent {
+		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeBarTpl, barPrefix)).New(len(metrics) * len(ranges))
+		bar.Start()
+		defer bar.Finish()
+	}
+
+	filterCh := make(chan native.Filter)
+	errCh := make(chan error, p.cc)
+
+	var wg sync.WaitGroup
+	for i := 0; i < p.cc; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for f := range filterCh {
+				if err := p.do(ctx, f, srcURL, dstURL); err != nil {
+					errCh <- err
+					return
+				}
+				if bar != nil {
+					bar.Increment()
+				}
+			}
+		}()
+	}
+
+	// any error breaks the import
+	for s := range metrics {
+		for _, times := range ranges {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("context canceled")
+			case infErr := <-errCh:
+				return fmt.Errorf("native error: %s", infErr)
+			case filterCh <- native.Filter{
+				Match:     fmt.Sprintf("{%s=%q}", nameLabel, s),
+				TimeStart: times[0].Format(time.RFC3339),
+				TimeEnd:   times[1].Format(time.RFC3339),
+			}:
+			}
+		}
+	}
+
+	close(filterCh)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		return fmt.Errorf("import process failed: %s", err)
+	}
+
+	return nil
+}
+
+// stats represents client statistic
+// when processing data
+type stats struct {
+	sync.Mutex
+	startTime time.Time
+	bytes     uint64
+	requests  uint64
+	retries   uint64
+}
+
+func (s *stats) String() string {
+	s.Lock()
+	defer s.Unlock()
+
+	totalImportDuration := time.Since(s.startTime)
+	totalImportDurationS := totalImportDuration.Seconds()
+	bytesPerS := byteCountSI(0)
+	if s.bytes > 0 && totalImportDurationS > 0 {
+		bytesPerS = byteCountSI(int64(float64(s.bytes) / totalImportDurationS))
+	}
+
+	return fmt.Sprintf("VictoriaMetrics importer stats:\n"+
+		"  time spent while importing: %v;\n"+
+		"  total bytes: %s;\n"+
+		"  bytes/s: %s;\n"+
+		"  requests: %d;\n"+
+		"  requests retries: %d;",
+		totalImportDuration,
+		byteCountSI(int64(s.bytes)), bytesPerS,
+		s.requests, s.retries)
+}
+
+func byteCountSI(b int64) string {
+	const unit = 1000
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB",
+		float64(b)/float64(div), "kMGTPE"[exp])
 }
