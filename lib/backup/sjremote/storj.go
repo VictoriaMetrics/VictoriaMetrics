@@ -65,8 +65,8 @@ func (fs *FS) Init() error {
 func (fs *FS) MustStop() {
 	if fs.project != nil {
 		fs.project.Close()
+		fs.project = nil
 	}
-	fs.project = nil
 }
 
 // String returns human-readable description for fs.
