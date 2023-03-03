@@ -199,6 +199,18 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
+					var sourceHeaders []string
+					var destinationHeaders []string
+
+					vmNativeSrcHeadersFlagValue := c.String(vmNativeSrcHeaders)
+					vmNativeDstHeadersFlagValue := c.String(vmNativeDstHeaders)
+					if vmNativeSrcHeadersFlagValue != "" {
+						sourceHeaders = strings.Split(vmNativeSrcHeadersFlagValue, "^^")
+					}
+					if vmNativeDstHeadersFlagValue != "" {
+						destinationHeaders = strings.Split(vmNativeDstHeadersFlagValue, "^^")
+					}
+
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
 						interCluster: c.Bool(vmInterCluster),
@@ -212,14 +224,14 @@ func main() {
 							Addr:     strings.Trim(c.String(vmNativeSrcAddr), "/"),
 							User:     c.String(vmNativeSrcUser),
 							Password: c.String(vmNativeSrcPassword),
-							Headers:  strings.Split(vmNativeSrcHeaders, "^^"),
+							Headers:  sourceHeaders,
 						},
 						dst: &native.Client{
 							Addr:        strings.Trim(c.String(vmNativeDstAddr), "/"),
 							User:        c.String(vmNativeDstUser),
 							Password:    c.String(vmNativeDstPassword),
 							ExtraLabels: c.StringSlice(vmExtraLabel),
-							Headers:     strings.Split(vmNativeDstHeaders, "^^"),
+							Headers:     destinationHeaders,
 						},
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
