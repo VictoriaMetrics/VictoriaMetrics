@@ -23,7 +23,7 @@ type UnmarshalWork interface {
 // StartUnmarshalWorkers starts unmarshal workers.
 func StartUnmarshalWorkers() {
 	if unmarshalWorkCh != nil {
-		logger.Panicf("BUG: it looks like startUnmarshalWorkers() has been alread called without stopUnmarshalWorkers()")
+		logger.Panicf("BUG: it looks like startUnmarshalWorkers() has been already called without stopUnmarshalWorkers()")
 	}
 	gomaxprocs := cgroup.AvailableCPUs()
 	unmarshalWorkCh = make(chan UnmarshalWork, gomaxprocs)
