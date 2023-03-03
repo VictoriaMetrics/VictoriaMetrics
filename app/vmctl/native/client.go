@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 )
 
 const (
@@ -21,6 +22,7 @@ type Client struct {
 	User        string
 	Password    string
 	ExtraLabels []string
+	Headers     []string
 }
 
 // LabelValues represents series from api/v1/series response
@@ -89,6 +91,12 @@ func (c *Client) ImportPipe(ctx context.Context, dstURL string, pr *io.PipeReade
 	if err != nil {
 		return fmt.Errorf("cannot create import request to %q: %s", c.Addr, err)
 	}
+
+	err = parseAndSetHeaders(c, req)
+	if err != nil {
+		return err
+	}
+
 	importResp, err := c.do(req, http.StatusNoContent)
 	if err != nil {
 		return fmt.Errorf("import request failed: %s", err)
@@ -118,6 +126,12 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 
 	// disable compression since it is meaningless for native format
 	req.Header.Set("Accept-Encoding", "identity")
+
+	err = parseAndSetHeaders(c, req)
+	if err != nil {
+		return nil, err
+	}
+
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
 		return nil, fmt.Errorf("export request failed: %w", err)
@@ -141,6 +155,11 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 		params.Set("end", f.TimeEnd)
 	}
 	req.URL.RawQuery = params.Encode()
+
+	err = parseAndSetHeaders(c, req)
+	if err != nil {
+		return nil, err
+	}
 
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
@@ -178,4 +197,38 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
 	}
 	return resp, err
+}
+
+type keyValue struct {
+	key   string
+	value string
+}
+
+func parseHeaders(headers []string) ([]keyValue, error) {
+	if len(headers) == 0 {
+		return nil, nil
+	}
+	kvs := make([]keyValue, len(headers))
+	for i, h := range headers {
+		n := strings.IndexByte(h, ':')
+		if n < 0 {
+			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
+		}
+		kv := &kvs[i]
+		kv.key = strings.TrimSpace(h[:n])
+		kv.value = strings.TrimSpace(h[n+1:])
+	}
+	return kvs, nil
+}
+
+func parseAndSetHeaders(c *Client, req *http.Request) error {
+	parsedHeaders, err := parseHeaders(c.Headers)
+	if err != nil {
+		return err
+	}
+
+	for _, header := range parsedHeaders {
+		req.Header.Set(header.key, header.value)
+	}
+	return nil
 }
