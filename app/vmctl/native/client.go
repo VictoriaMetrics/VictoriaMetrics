@@ -92,7 +92,7 @@ func (c *Client) ImportPipe(ctx context.Context, dstURL string, pr *io.PipeReade
 		return fmt.Errorf("cannot create import request to %q: %s", c.Addr, err)
 	}
 
-	err = parseAndSetHeaders(c, req)
+	err = parseAndSetHeaders(c.Headers, req)
 	if err != nil {
 		return err
 	}
@@ -127,7 +127,7 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	// disable compression since it is meaningless for native format
 	req.Header.Set("Accept-Encoding", "identity")
 
-	err = parseAndSetHeaders(c, req)
+	err = parseAndSetHeaders(c.Headers, req)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 	}
 	req.URL.RawQuery = params.Encode()
 
-	err = parseAndSetHeaders(c, req)
+	err = parseAndSetHeaders(c.Headers, req)
 	if err != nil {
 		return nil, err
 	}
@@ -221,8 +221,8 @@ func parseHeaders(headers []string) ([]keyValue, error) {
 	return kvs, nil
 }
 
-func parseAndSetHeaders(c *Client, req *http.Request) error {
-	parsedHeaders, err := parseHeaders(c.Headers)
+func parseAndSetHeaders(headers []string, req *http.Request) error {
+	parsedHeaders, err := parseHeaders(headers)
 	if err != nil {
 		return err
 	}
