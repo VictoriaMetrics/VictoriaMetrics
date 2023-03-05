@@ -18,11 +18,12 @@ const (
 // Client is an HTTP client for exporting and importing
 // time series via native protocol.
 type Client struct {
-	Addr        string
-	User        string
-	Password    string
-	ExtraLabels []string
-	Headers     string
+	Addr             string
+	User             string
+	Password         string
+	ExtraLabels      []string
+	Headers          string
+	DisableKeepAlive bool
 }
 
 // LabelValues represents series from api/v1/series response
@@ -196,7 +197,8 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if c.User != "" {
 		req.SetBasicAuth(c.User, c.Password)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: c.DisableKeepAlive}}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}
