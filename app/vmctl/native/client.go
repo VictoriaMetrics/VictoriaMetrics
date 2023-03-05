@@ -22,7 +22,7 @@ type Client struct {
 	User        string
 	Password    string
 	ExtraLabels []string
-	Headers     []string
+	Headers     string
 }
 
 // LabelValues represents series from api/v1/series response
@@ -216,12 +216,15 @@ type keyValue struct {
 	value string
 }
 
-func parseHeaders(headers []string) ([]keyValue, error) {
+func parseHeaders(headers string) ([]keyValue, error) {
 	if len(headers) == 0 {
 		return nil, nil
 	}
-	kvs := make([]keyValue, len(headers))
-	for i, h := range headers {
+
+	var headersSplitByDelimiter = strings.Split(headers, "^^")
+
+	kvs := make([]keyValue, len(headersSplitByDelimiter))
+	for i, h := range headersSplitByDelimiter {
 		n := strings.IndexByte(h, ':')
 		if n < 0 {
 			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
