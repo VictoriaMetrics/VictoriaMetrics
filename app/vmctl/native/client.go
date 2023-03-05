@@ -92,9 +92,13 @@ func (c *Client) ImportPipe(ctx context.Context, dstURL string, pr *io.PipeReade
 		return fmt.Errorf("cannot create import request to %q: %s", c.Addr, err)
 	}
 
-	err = parseAndSetHeaders(c.Headers, req)
+	parsedHeaders, err := parseHeaders(c.Headers)
 	if err != nil {
 		return err
+	}
+
+	for _, header := range parsedHeaders {
+		req.Header.Set(header.key, header.value)
 	}
 
 	importResp, err := c.do(req, http.StatusNoContent)
@@ -127,9 +131,13 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	// disable compression since it is meaningless for native format
 	req.Header.Set("Accept-Encoding", "identity")
 
-	err = parseAndSetHeaders(c.Headers, req)
+	parsedHeaders, err := parseHeaders(c.Headers)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, header := range parsedHeaders {
+		req.Header.Set(header.key, header.value)
 	}
 
 	resp, err := c.do(req, http.StatusOK)
@@ -156,9 +164,13 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 	}
 	req.URL.RawQuery = params.Encode()
 
-	err = parseAndSetHeaders(c.Headers, req)
+	parsedHeaders, err := parseHeaders(c.Headers)
 	if err != nil {
 		return nil, err
+	}
+
+	for _, header := range parsedHeaders {
+		req.Header.Set(header.key, header.value)
 	}
 
 	resp, err := c.do(req, http.StatusOK)
@@ -219,16 +231,4 @@ func parseHeaders(headers []string) ([]keyValue, error) {
 		kv.value = strings.TrimSpace(h[n+1:])
 	}
 	return kvs, nil
-}
-
-func parseAndSetHeaders(headers []string, req *http.Request) error {
-	parsedHeaders, err := parseHeaders(headers)
-	if err != nil {
-		return err
-	}
-
-	for _, header := range parsedHeaders {
-		req.Header.Set(header.key, header.value)
-	}
-	return nil
 }
