@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -199,6 +200,26 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
+					var srcExtraLabels []string
+					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
+					srcAuthConfig, err := utils.AuthConfig(
+						utils.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
+						utils.WithBearer(c.String(vmNativeSrcBearerToken)),
+						utils.WithHeaders(c.String(vmNativeSrcHeaders)))
+					if err != nil {
+						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
+					}
+
+					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
+					dstExtraLabels := c.StringSlice(vmExtraLabel)
+					dstAuthConfig, err := utils.AuthConfig(
+						utils.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
+						utils.WithBearer(c.String(vmNativeDstBearerToken)),
+						utils.WithHeaders(c.String(vmNativeDstHeaders)))
+					if err != nil {
+						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
+					}
+
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
 						interCluster: c.Bool(vmInterCluster),
@@ -208,19 +229,8 @@ func main() {
 							TimeEnd:   c.String(vmNativeFilterTimeEnd),
 							Chunk:     c.String(vmNativeStepInterval),
 						},
-						src: &native.Client{
-							Addr:     strings.Trim(c.String(vmNativeSrcAddr), "/"),
-							User:     c.String(vmNativeSrcUser),
-							Password: c.String(vmNativeSrcPassword),
-							Headers:  c.String(vmNativeSrcHeaders),
-						},
-						dst: &native.Client{
-							Addr:        strings.Trim(c.String(vmNativeDstAddr), "/"),
-							User:        c.String(vmNativeDstUser),
-							Password:    c.String(vmNativeDstPassword),
-							ExtraLabels: c.StringSlice(vmExtraLabel),
-							Headers:     c.String(vmNativeDstHeaders),
-						},
+						src:     native.New(srcAddr, srcExtraLabels, srcAuthConfig),
+						dst:     native.New(dstAddr, dstExtraLabels, dstAuthConfig),
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
 					}

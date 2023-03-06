@@ -325,15 +325,19 @@ const (
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
 
-	vmNativeSrcAddr     = "vm-native-src-addr"
-	vmNativeSrcUser     = "vm-native-src-user"
-	vmNativeSrcPassword = "vm-native-src-password"
-	vmNativeSrcHeaders  = "vm-native-src-headers"
+	vmNativeSrcAddr            = "vm-native-src-addr"
+	vmNativeSrcUser            = "vm-native-src-user"
+	vmNativeSrcPassword        = "vm-native-src-password"
+	vmNativeSrcHeaders         = "vm-native-src-headers"
+	vmNativeSrcBearerToken     = "vm-native-src-bearer-toke"
+	vmNativeSrcBearerTokenFile = "vm-native-src-bearer-toke-file"
 
-	vmNativeDstAddr     = "vm-native-dst-addr"
-	vmNativeDstUser     = "vm-native-dst-user"
-	vmNativeDstPassword = "vm-native-dst-password"
-	vmNativeDstHeaders  = "vm-native-dst-headers"
+	vmNativeDstAddr            = "vm-native-dst-addr"
+	vmNativeDstUser            = "vm-native-dst-user"
+	vmNativeDstPassword        = "vm-native-dst-password"
+	vmNativeDstHeaders         = "vm-native-dst-headers"
+	vmNativeDstBearerToken     = "vm-native-dst-bearer-toke"
+	vmNativeDstBearerTokenFile = "vm-native-dst-bearer-toke-file"
 )
 
 var (
@@ -382,6 +386,14 @@ var (
 				"Multiple headers must be delimited by '^^': --vm-native-src-headers='header1:value1^^header2:value2'",
 		},
 		&cli.StringFlag{
+			Name:  vmNativeSrcBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcBearerTokenFile,
+			Usage: "Optional path to bearer token file to use for the corresponding `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
@@ -403,6 +415,14 @@ var (
 			Usage: "Optional HTTP headers to send with each request to the corresponding destination address. \n" +
 				"For example, --vm-native-dst-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. \n" +
 				"Multiple headers must be delimited by '^^': --vm-native-dst-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstBearerTokenFile,
+			Usage: "Optional path to bearer token file to use for the corresponding `--vm-native-dst-addr`",
 		},
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
