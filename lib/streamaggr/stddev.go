@@ -63,7 +63,10 @@ func (as *stddevAggrState) appendSeriesForFlush(ctx *flushCtx) {
 
 		sv := v.(*stddevStateValue)
 		sv.mu.Lock()
-		stddev := math.Sqrt(sv.q / sv.count)
+		stddev := 0.0
+		if sv.count > 1 {
+			stddev = math.Sqrt(sv.q / (sv.count - 1))
+		}
 		// Mark the entry as deleted, so it won't be updated anymore by concurrent pushSample() calls.
 		sv.deleted = true
 		sv.mu.Unlock()
