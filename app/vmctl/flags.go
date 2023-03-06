@@ -328,10 +328,12 @@ const (
 	vmNativeSrcAddr     = "vm-native-src-addr"
 	vmNativeSrcUser     = "vm-native-src-user"
 	vmNativeSrcPassword = "vm-native-src-password"
+	vmNativeSrcHeaders  = "vm-native-src-headers"
 
 	vmNativeDstAddr     = "vm-native-dst-addr"
 	vmNativeDstUser     = "vm-native-dst-user"
 	vmNativeDstPassword = "vm-native-dst-password"
+	vmNativeDstHeaders  = "vm-native-dst-headers"
 )
 
 var (
@@ -374,6 +376,12 @@ var (
 			EnvVars: []string{"VM_NATIVE_SRC_PASSWORD"},
 		},
 		&cli.StringFlag{
+			Name: vmNativeSrcHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding source address. \n" +
+				"For example, --vm-native-src-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding source address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-native-src-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
@@ -389,6 +397,12 @@ var (
 			Name:    vmNativeDstPassword,
 			Usage:   "VictoriaMetrics password for basic auth",
 			EnvVars: []string{"VM_NATIVE_DST_PASSWORD"},
+		},
+		&cli.StringFlag{
+			Name: vmNativeDstHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding destination address. \n" +
+				"For example, --vm-native-dst-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-native-dst-headers='header1:value1^^header2:value2'",
 		},
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
