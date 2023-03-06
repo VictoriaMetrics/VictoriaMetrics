@@ -6,6 +6,7 @@ import Autocomplete from "../Autocomplete/Autocomplete";
 import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import MultipleSelectedValue from "./MultipleSelectedValue/MultipleSelectedValue";
 
 interface SelectProps {
   value: string | string[]
@@ -39,8 +40,9 @@ const Select: FC<SelectProps> = ({
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const isMultiple = useMemo(() => Array.isArray(value), [value]);
-  const selectedValues = useMemo(() => Array.isArray(value) ? value : undefined, [isMultiple, value]);
+  const isMultiple = Array.isArray(value);
+  const selectedValues = Array.isArray(value) ? value : undefined;
+  const hideInput = isMobile && isMultiple && !!selectedValues?.length;
 
   const textFieldValue = useMemo(() => {
     if (openList) return search;
@@ -124,23 +126,13 @@ const Select: FC<SelectProps> = ({
         ref={autocompleteAnchorEl}
       >
         <div className="vm-select-input-content">
-          {!isMobile && selectedValues && selectedValues.map(item => (
-            <div
-              className="vm-select-input-content__selected"
-              key={item}
-            >
-              <span>{item}</span>
-              <div onClick={createHandleClick(item)}>
-                <CloseIcon/>
-              </div>
-            </div>
-          ))}
-          {isMobile && !!selectedValues?.length && (
-            <span className="vm-select-input-content__counter">
-              selected {selectedValues.length}
-            </span>
+          {!!selectedValues?.length && (
+            <MultipleSelectedValue
+              values={selectedValues}
+              onRemoveItem={handleSelected}
+            />
           )}
-          {(!isMobile || (isMobile && !selectedValues?.length)) && (
+          {!hideInput && (
             <input
               value={textFieldValue}
               type="text"
