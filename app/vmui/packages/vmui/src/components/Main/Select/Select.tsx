@@ -140,7 +140,7 @@ const Select: FC<SelectProps> = ({
               selected {selectedValues.length}
             </span>
           )}
-          {(!isMobile || (isMobile && (!selectedValues || !selectedValues?.length))) && (
+          {(!isMobile || (isMobile && !selectedValues?.length)) && (
             <input
               value={textFieldValue}
               type="text"
