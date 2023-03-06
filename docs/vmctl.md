@@ -790,6 +790,8 @@ and specify `accountID` param.
 7. `vmctl` supports `--vm-concurrency` which controls the number of concurrent workers that process the input from source query results.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
 to allocated CPU resources of your VictoriaMetrics installation.
+8. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` which defines headers to send with each request
+to the corresponding source address.
 
 In this mode `vmctl` acts as a proxy between two VM instances, where time series filtering is done by "source" (`src`)
 and processing is done by "destination" (`dst`). So no extra memory or CPU resources required on `vmctl` side. Only
