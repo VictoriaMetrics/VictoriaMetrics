@@ -325,19 +325,17 @@ const (
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
 
-	vmNativeSrcAddr            = "vm-native-src-addr"
-	vmNativeSrcUser            = "vm-native-src-user"
-	vmNativeSrcPassword        = "vm-native-src-password"
-	vmNativeSrcHeaders         = "vm-native-src-headers"
-	vmNativeSrcBearerToken     = "vm-native-src-bearer-toke"
-	vmNativeSrcBearerTokenFile = "vm-native-src-bearer-toke-file"
+	vmNativeSrcAddr        = "vm-native-src-addr"
+	vmNativeSrcUser        = "vm-native-src-user"
+	vmNativeSrcPassword    = "vm-native-src-password"
+	vmNativeSrcHeaders     = "vm-native-src-headers"
+	vmNativeSrcBearerToken = "vm-native-src-bearer-toke"
 
-	vmNativeDstAddr            = "vm-native-dst-addr"
-	vmNativeDstUser            = "vm-native-dst-user"
-	vmNativeDstPassword        = "vm-native-dst-password"
-	vmNativeDstHeaders         = "vm-native-dst-headers"
-	vmNativeDstBearerToken     = "vm-native-dst-bearer-toke"
-	vmNativeDstBearerTokenFile = "vm-native-dst-bearer-toke-file"
+	vmNativeDstAddr        = "vm-native-dst-addr"
+	vmNativeDstUser        = "vm-native-dst-user"
+	vmNativeDstPassword    = "vm-native-dst-password"
+	vmNativeDstHeaders     = "vm-native-dst-headers"
+	vmNativeDstBearerToken = "vm-native-dst-bearer-toke"
 )
 
 var (
@@ -390,10 +388,6 @@ var (
 			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
 		},
 		&cli.StringFlag{
-			Name:  vmNativeSrcBearerTokenFile,
-			Usage: "Optional path to bearer token file to use for the corresponding `--vm-native-src-addr`",
-		},
-		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
@@ -419,10 +413,6 @@ var (
 		&cli.StringFlag{
 			Name:  vmNativeDstBearerToken,
 			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
-		},
-		&cli.StringFlag{
-			Name:  vmNativeDstBearerTokenFile,
-			Usage: "Optional path to bearer token file to use for the corresponding `--vm-native-dst-addr`",
 		},
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
