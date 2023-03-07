@@ -78,7 +78,7 @@ type TCPListener struct {
 	connMetrics
 }
 
-var proxyProtocolReadErrorLogger = logger.WithThrottler("", 5*time.Second)
+var proxyProtocolReadErrorLogger = logger.WithThrottler("proxyProtocolReadError", 5*time.Second)
 
 // Accept accepts connections from the addr passed to NewTCPListener.
 func (ln *TCPListener) Accept() (net.Conn, error) {

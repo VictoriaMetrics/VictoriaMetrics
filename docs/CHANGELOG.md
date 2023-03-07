@@ -21,6 +21,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: prevent from possible panic during [background merge process](https://docs.victoriametrics.com/#storage). It may occur in rare case and was introduced at [v1.85.0](https://docs.victoriametrics.com/CHANGELOG.html#v1850) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3337).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): stop showing `Please enter a valid Query and execute it` error message on the first load of vmui.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): support old format of URL params. This should make compatible copying URL between vmui of versions or using `Run in VMUI` button in datasource plugin.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the selected value for dropdowns on `Explore` page.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html) fixes possible panic with enabled proxy-protocol. It was introduced at [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3335).
 
 ## [v1.88.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.1)
