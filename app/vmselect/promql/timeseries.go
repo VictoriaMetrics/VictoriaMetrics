@@ -2,6 +2,7 @@ package promql
 
 import (
 	"fmt"
+	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -259,6 +260,28 @@ func byteSliceToInt64(b []byte) (a []int64) {
 }
 
 func byteSliceToFloat64(b []byte) (a []float64) {
+	addr := uintptr(unsafe.Pointer(&b[0]))
+	var f float64
+	if mod := int(addr % unsafe.Alignof(f)); mod != 0 {
+		missing := 4 - mod
+		// data is not aligned!
+		fmt.Fprintf(os.Stderr, "-byteSliceToFloat64: %p\n", &b[0])
+		fmt.Fprintln(os.Stderr, "not aligned", missing, len(b))
+		for i := missing; i > 0; i-- {
+			b = append(b, 0)
+			fmt.Fprintln(os.Stderr, "append")
+		}
+		for i := len(b) - 1; i >= missing; i-- {
+			b[i] = b[i-missing]
+			if i == len(b)-1 || i <= missing+1 {
+				fmt.Fprintln(os.Stderr, "move", i-missing, "to", i)
+			}
+		}
+		b = b[missing:]
+		fmt.Fprintln(os.Stderr, "done", len(b))
+	}
+	fmt.Fprintf(os.Stderr, "+byteSliceToFloat64: %p\n", &b[0])
+
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
 	sh.Data = uintptr(unsafe.Pointer(&b[0]))
 	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))

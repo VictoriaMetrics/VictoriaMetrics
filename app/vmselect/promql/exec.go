@@ -4,11 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"math"
+	"os"
+	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
@@ -172,11 +176,37 @@ func metricNameLess(a, b *storage.MetricName) bool {
 	return len(ats) < len(bts)
 }
 
+func goid() int {
+	var buf [64]byte
+	n := runtime.Stack(buf[:], false)
+	idField := strings.Fields(strings.TrimPrefix(string(buf[:n]), "goroutine "))[0]
+	id, err := strconv.Atoi(idField)
+	if err != nil {
+		panic(fmt.Sprintf("cannot get goroutine id: %v", err))
+	}
+	return id
+}
+
 func removeEmptySeries(tss []*timeseries) []*timeseries {
+	id := goid()
 	rvs := tss[:0]
-	for _, ts := range tss {
+	for i, ts := range tss {
 		allNans := true
-		for _, v := range ts.Values {
+		addr := uintptr(unsafe.Pointer(&ts.Values[0]))
+		fmt.Fprintf(os.Stderr, "[%d] i=%d len=%d p=%p al=%d\n", id, i, len(ts.Values), &ts.Values[0], unsafe.Alignof(&ts.Values[0]))
+		// fmt.Fprintf(os.Stderr, "[%d] ts=%p tss=%p\n", id, &ts, &tss)
+		// fmt.Fprintf(os.Stderr, "[%d] mg=%p len=%d\n", id, &ts.MetricName.MetricGroup, len(ts.MetricName.MetricGroup))
+		// fmt.Fprintf(os.Stderr, "[%d] tags=%p len=%d\n", id, &ts.MetricName.Tags, len(ts.MetricName.Tags))
+		if addr%4 != 0 {
+			fmt.Fprintf(os.Stderr, "[%d] addr=%d mod=%d\n", id, addr, addr%4)
+		}
+		for j := range ts.Values {
+			// fmt.Fprintf(os.Stderr, "[%d] i=%d j=%d\n", id, i, j)
+			v := ts.Values[j]
+			if v > 0 || v <= 0 {
+				allNans = false
+				break
+			}
 			if !math.IsNaN(v) {
 				allNans = false
 				break
