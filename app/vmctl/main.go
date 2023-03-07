@@ -213,7 +213,7 @@ func main() {
 							User:                 c.String(vmNativeSrcUser),
 							Password:             c.String(vmNativeSrcPassword),
 							Headers:              c.String(vmNativeSrcHeaders),
-							DisableHttpKeepAlive: c.Bool(vmNativeDisableHttpKeepAlive),
+							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
 						dst: &native.Client{
 							Addr:                 strings.Trim(c.String(vmNativeDstAddr), "/"),
@@ -221,7 +221,7 @@ func main() {
 							Password:             c.String(vmNativeDstPassword),
 							ExtraLabels:          c.StringSlice(vmExtraLabel),
 							Headers:              c.String(vmNativeDstHeaders),
-							DisableHttpKeepAlive: c.Bool(vmNativeDisableHttpKeepAlive),
+							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),

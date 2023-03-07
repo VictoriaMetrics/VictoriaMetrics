@@ -23,7 +23,7 @@ type Client struct {
 	Password             string
 	ExtraLabels          []string
 	Headers              string
-	DisableHttpKeepAlive bool
+	DisableHTTPKeepAlive bool
 }
 
 // LabelValues represents series from api/v1/series response
@@ -197,7 +197,7 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if c.User != "" {
 		req.SetBasicAuth(c.User, c.Password)
 	}
-	var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: c.DisableHttpKeepAlive}}
+	var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: c.DisableHTTPKeepAlive}}
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
