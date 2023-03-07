@@ -320,6 +320,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
+	case "/-/reload":
+		procutil.SelfSIGHUP()
+		w.WriteHeader(http.StatusNoContent)
+		return true
 	default:
 		// This is not our link
 		return false
