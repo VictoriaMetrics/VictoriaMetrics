@@ -76,3 +76,18 @@ func TestValidateMaxPointsPerSeriesSuccess(t *testing.T) {
 	f(1659962171908, 1659966077742, 5000, 800)
 	f(1659962150000, 1659966070000, 10000, 393)
 }
+
+func TestEvalConfig_SeriesFetched(t *testing.T) {
+	ec := &EvalConfig{}
+	ec.addStats(1)
+
+	if ec.SeriesFetched() != 1 {
+		t.Fatalf("expected to get 1; got %d instead", ec.SeriesFetched())
+	}
+
+	ecNew := copyEvalConfig(ec)
+	ecNew.addStats(3)
+	if ec.SeriesFetched() != 4 {
+		t.Fatalf("expected to get 4; got %d instead", ec.SeriesFetched())
+	}
+}
