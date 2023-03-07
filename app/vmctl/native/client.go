@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 )
 
 const (
@@ -19,13 +20,13 @@ const (
 // Client is an HTTP client for exporting and importing
 // time series via native protocol.
 type Client struct {
-	AuthCfg     *utils.Config
+	AuthCfg     *auth.Config
 	Addr        string
 	ExtraLabels []string
 }
 
 // New initialized an HTTP client
-func New(addr string, extraLabels []string, authCfg *utils.Config) *Client {
+func New(addr string, extraLabels []string, authCfg *auth.Config) *Client {
 	return &Client{
 		Addr:        addr,
 		ExtraLabels: extraLabels,
@@ -134,6 +135,11 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	if err != nil {
 		return nil, fmt.Errorf("export request failed: %w", err)
 	}
+	d, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	log.Printf("D => %d", d)
 	return resp.Body, nil
 }
 

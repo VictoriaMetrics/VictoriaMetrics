@@ -329,13 +329,13 @@ const (
 	vmNativeSrcUser        = "vm-native-src-user"
 	vmNativeSrcPassword    = "vm-native-src-password"
 	vmNativeSrcHeaders     = "vm-native-src-headers"
-	vmNativeSrcBearerToken = "vm-native-src-bearer-toke"
+	vmNativeSrcBearerToken = "vm-native-src-bearer-token"
 
 	vmNativeDstAddr        = "vm-native-dst-addr"
 	vmNativeDstUser        = "vm-native-dst-user"
 	vmNativeDstPassword    = "vm-native-dst-password"
 	vmNativeDstHeaders     = "vm-native-dst-headers"
-	vmNativeDstBearerToken = "vm-native-dst-bearer-toke"
+	vmNativeDstBearerToken = "vm-native-dst-bearer-token"
 )
 
 var (

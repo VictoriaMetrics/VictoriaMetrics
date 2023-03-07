@@ -11,10 +11,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -202,20 +202,20 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
-					srcAuthConfig, err := utils.AuthConfig(
-						utils.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
-						utils.WithBearer(c.String(vmNativeSrcBearerToken)),
-						utils.WithHeaders(c.String(vmNativeSrcHeaders)))
+					srcAuthConfig, err := auth.AuthConfig(
+						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
+						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
+						auth.WithHeaders(c.String(vmNativeSrcHeaders)))
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
-					dstAuthConfig, err := utils.AuthConfig(
-						utils.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
-						utils.WithBearer(c.String(vmNativeDstBearerToken)),
-						utils.WithHeaders(c.String(vmNativeDstHeaders)))
+					dstAuthConfig, err := auth.AuthConfig(
+						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
+						auth.WithBearer(c.String(vmNativeDstBearerToken)),
+						auth.WithHeaders(c.String(vmNativeDstHeaders)))
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
