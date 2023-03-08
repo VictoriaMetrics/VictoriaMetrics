@@ -202,7 +202,7 @@ func main() {
 
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
-					srcAuthConfig, err := auth.AuthConfig(
+					srcAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
 						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
 						auth.WithHeaders(c.String(vmNativeSrcHeaders)))
@@ -212,7 +212,7 @@ func main() {
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
-					dstAuthConfig, err := auth.AuthConfig(
+					dstAuthConfig, err := auth.Generate(
 						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
 						auth.WithBearer(c.String(vmNativeDstBearerToken)),
 						auth.WithHeaders(c.String(vmNativeDstHeaders)))

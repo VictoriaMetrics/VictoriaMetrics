@@ -34,11 +34,11 @@ type BasicAuthConfig struct {
 	PasswordFile string
 }
 
-// AuthConfigOptions options which helps build promauth.Config
-type AuthConfigOptions func(config *HTTPClientConfig)
+// ConfigOptions options which helps build Config
+type ConfigOptions func(config *HTTPClientConfig)
 
-// AuthConfig returns Config based on the given params
-func AuthConfig(filterOptions ...AuthConfigOptions) (*Config, error) {
+// Generate returns Config based on the given params
+func Generate(filterOptions ...ConfigOptions) (*Config, error) {
 	authCfg := &HTTPClientConfig{}
 	for _, option := range filterOptions {
 		option(authCfg)
@@ -47,8 +47,8 @@ func AuthConfig(filterOptions ...AuthConfigOptions) (*Config, error) {
 	return authCfg.NewConfig()
 }
 
-// WithBasicAuth returns AuthConfigOptions and initialized promauth.BasicAuthConfig based on given params
-func WithBasicAuth(username, password string) AuthConfigOptions {
+// WithBasicAuth returns AuthConfigOptions and initialized BasicAuthConfig based on given params
+func WithBasicAuth(username, password string) ConfigOptions {
 	return func(config *HTTPClientConfig) {
 		if username != "" || password != "" {
 			config.BasicAuth = &BasicAuthConfig{
@@ -60,7 +60,7 @@ func WithBasicAuth(username, password string) AuthConfigOptions {
 }
 
 // WithBearer returns AuthConfigOptions and set BearerToken or BearerTokenFile based on given params
-func WithBearer(token string) AuthConfigOptions {
+func WithBearer(token string) ConfigOptions {
 	return func(config *HTTPClientConfig) {
 		if token != "" {
 			config.BearerToken = token
@@ -69,7 +69,7 @@ func WithBearer(token string) AuthConfigOptions {
 }
 
 // WithHeaders returns AuthConfigOptions and set Headers based on the given params
-func WithHeaders(headers string) AuthConfigOptions {
+func WithHeaders(headers string) ConfigOptions {
 	return func(config *HTTPClientConfig) {
 		if headers != "" {
 			config.Headers = headers
