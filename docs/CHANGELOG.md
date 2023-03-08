@@ -15,6 +15,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): increase the default value for `--remote-read-http-timeout` command-line option from 30s (30 seconds) to 5m (5 minutes). This reduces the probability of timeout errors when migrating big number of time series. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3879).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): `vmctl` `vm-native` mode now splits the migration process on per-metric basis. This allows to migrate metrics one-by-one according to the specified filter. This change allows to retry export/import requests for a specific metric and provides a better understanding of the migration progress. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3600).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): `vmctl` `vm-native` mode now supports `--vm-native-src-headers` and `--vm-native-dst-headers` which defines headers to send with each request to the corresponding source address. Thanks, @baconmania, for the pull request. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3906).
 
