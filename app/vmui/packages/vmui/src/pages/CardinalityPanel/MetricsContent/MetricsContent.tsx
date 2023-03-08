@@ -6,38 +6,36 @@ import { barOptions } from "../../../components/Chart/BarChart/consts";
 import { Data, HeadCell } from "../Table/types";
 import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
-import { useMemo } from "preact/compat";
-import { ChartIcon, TableIcon } from "../../../components/Main/Icons";
+import { useMemo, useState } from "preact/compat";
+import { ChartIcon, InfoIcon, TableIcon } from "../../../components/Main/Icons";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 interface MetricsProperties {
   rows: Data[];
-  activeTab: number;
-  onChange: (newValue: string, tabId: string) => void;
   onActionClick: (name: string) => void;
   tabs: string[];
   chartContainer: MutableRef<HTMLDivElement> | undefined;
   totalSeries: number,
-  tabId: string;
   sectionTitle: string;
+  tip?: string;
   tableHeaderCells: HeadCell[];
 }
 
 const MetricsContent: FC<MetricsProperties> = ({
   rows,
-  activeTab,
-  onChange,
-  tabs: tabsProps,
+  tabs: tabsProps = [],
   chartContainer,
   totalSeries,
-  tabId,
   onActionClick,
   sectionTitle,
+  tip,
   tableHeaderCells,
 }) => {
   const { isMobile } = useDeviceDetect();
+  const [activeTab, setActiveTab] = useState("table");
 
   const tableCells = (row: Data) => (
     <TableCells
@@ -48,14 +46,10 @@ const MetricsContent: FC<MetricsProperties> = ({
   );
 
   const tabs = useMemo(() => tabsProps.map((t, i) => ({
-    value: String(i),
+    value: t,
     label: t,
     icon: i === 0 ? <TableIcon /> : <ChartIcon />
   })), [tabsProps]);
-
-  const handleChangeTab = (newValue: string) => {
-    onChange(newValue, tabId);
-  };
 
   return (
     <div
@@ -69,15 +63,28 @@ const MetricsContent: FC<MetricsProperties> = ({
       <div className="vm-metrics-content-header vm-section-header">
         <h5
           className={classNames({
+            "vm-metrics-content-header__title": true,
             "vm-section-header__title": true,
             "vm-section-header__title_mobile": isMobile,
           })}
-        >{sectionTitle}</h5>
+        >
+          {tip && (
+            <Tooltip
+              title={<p
+                dangerouslySetInnerHTML={{ __html: tip }}
+                className="vm-metrics-content-header__tip"
+              />}
+            >
+              <div className="vm-metrics-content-header__tip-icon"><InfoIcon/></div>
+            </Tooltip>
+          )}
+          {sectionTitle}
+        </h5>
         <div className="vm-section-header__tabs">
           <Tabs
-            activeItem={String(activeTab)}
+            activeItem={activeTab}
             items={tabs}
-            onChange={handleChangeTab}
+            onChange={setActiveTab}
           />
         </div>
       </div>
@@ -88,7 +95,7 @@ const MetricsContent: FC<MetricsProperties> = ({
           "vm-metrics-content__table_mobile": isMobile
         })}
       >
-        {activeTab === 0 && (
+        {activeTab === "table" && (
           <EnhancedTable
             rows={rows}
             headerCells={tableHeaderCells}
@@ -96,7 +103,7 @@ const MetricsContent: FC<MetricsProperties> = ({
             tableCells={tableCells}
           />
         )}
-        {activeTab === 1 && (
+        {activeTab === "graph" && (
           <BarChart
             data={[
               // eslint-disable-next-line @typescript-eslint/ban-ts-comment

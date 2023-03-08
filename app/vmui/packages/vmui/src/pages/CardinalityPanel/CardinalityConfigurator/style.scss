@@ -19,49 +19,4 @@
       flex-grow: 1;
     }
   }
-
-  &-additional {
-    display: flex;
-    align-items: center;
-    margin-bottom: $padding-small;
-  }
-
-  &-bottom {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: $padding-global;
-
-    &__docs {
-      display: flex;
-      align-items: center;
-      gap: $padding-global;
-    }
-
-    &_mobile &__docs {
-      justify-content: space-between;
-    }
-
-    &__info {
-      flex-grow: 1;
-      font-size: $font-size;
-    }
-
-    a {
-      color: $color-text-secondary;
-    }
-
-    button {
-      margin: 0 0 0 auto;
-    }
-
-    &_mobile {
-      display: grid;
-      grid-template-columns: 1fr;
-
-      button {
-        margin: 0;
-      }
-    }
-  }
 }

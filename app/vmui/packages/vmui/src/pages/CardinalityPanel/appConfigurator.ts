@@ -1,11 +1,10 @@
-import { Containers, DefaultActiveTab, Tabs, TSDBStatus } from "./types";
+import { Containers, Tabs, TSDBStatus } from "./types";
 import { useRef } from "preact/compat";
 import { HeadCell } from "./Table/types";
 
 interface AppState {
   tabs: Tabs;
   containerRefs: Containers<HTMLDivElement>;
-  defaultActiveTab: DefaultActiveTab,
 }
 
 export default class AppConfigurator {
@@ -15,6 +14,7 @@ export default class AppConfigurator {
   constructor() {
     this.tsdbStatus = this.defaultTSDBStatus;
     this.tabsNames = ["table", "graph"];
+    this.getDefaultState = this.getDefaultState.bind(this);
   }
 
   set tsdbStatusData(tsdbStatus: TSDBStatus) {
@@ -29,6 +29,7 @@ export default class AppConfigurator {
     return {
       totalSeries: 0,
       totalLabelValuePairs: 0,
+      totalSeriesByAll: 0,
       seriesCountByMetricName: [],
       seriesCountByLabelName: [],
       seriesCountByFocusLabelValue: [],
@@ -37,22 +38,22 @@ export default class AppConfigurator {
     };
   }
 
-  keys(focusLabel: string | null): string[] {
+  keys(match?: string | null, focusLabel?: string | null): string[] {
+    const isMetric = match && match.includes("__name__");
     let keys: string[] = [];
     if (focusLabel) {
       keys = keys.concat("seriesCountByFocusLabelValue");
+
+    } else if (isMetric) {
+      keys = keys.concat("labelValueCountByLabelName", "seriesCountByLabelValuePair");
+    } else {
+      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName",);
     }
-    keys = keys.concat(
-      "seriesCountByMetricName",
-      "seriesCountByLabelName",
-      "seriesCountByLabelValuePair",
-      "labelValueCountByLabelName",
-    );
     return keys;
   }
 
-  get defaultState(): AppState {
-    return this.keys("job").reduce((acc, cur) => {
+  getDefaultState(match?: string | null, label?: string | null): AppState {
+    return this.keys(match, label).reduce((acc, cur) => {
       return {
         ...acc,
         tabs: {
@@ -63,15 +64,10 @@ export default class AppConfigurator {
           ...acc.containerRefs,
           [cur]: useRef<HTMLDivElement>(null),
         },
-        defaultActiveTab: {
-          ...acc.defaultActiveTab,
-          [cur]: 0,
-        },
       };
     }, {
       tabs: {} as Tabs,
       containerRefs: {} as Containers<HTMLDivElement>,
-      defaultActiveTab: {} as DefaultActiveTab,
     } as AppState);
   }
 
@@ -82,6 +78,39 @@ export default class AppConfigurator {
       seriesCountByFocusLabelValue: `Values for "${str}" label with the highest number of series`,
       seriesCountByLabelValuePair: "Label=value pairs with the highest number of series",
       labelValueCountByLabelName: "Labels with the highest number of unique values",
+    };
+  }
+
+  get sectionsTips(): Record<string, string> {
+    return {
+      seriesCountByMetricName: `
+        <p>
+          This table returns a list of the highest cardinality metrics in the selected data source. 
+          The cardinality of a metric is the number of time series associated with that metric, 
+          where each time series is defined as a unique combination of key-value label pairs.
+        </p>
+        <p>
+          When looking to reduce the number of active series in your data source, 
+          you can start by inspecting individual metrics with high cardinality
+          (i.e. that have lots of active time series associated with them), 
+          since that single metric contributes a large fraction of the series that make up your total series count.
+        </p>`,
+      seriesCountByLabelName: `
+        <p>
+          This table returns a list of the label keys with the highest number of values.
+        </p>
+        <p>
+          Use this table to identify labels that are storing dimensions with high cardinality 
+          (many different label values), such as user IDs, email addresses, or other unbounded sets of values.
+        </p> 
+        <p>
+          We advise being careful in choosing labels such that they have a finite set of values, 
+          since every unique combination of key-value label pairs creates a new time series 
+          and therefore can dramatically increase the number of time series in your system.
+        </p>`,
+      seriesCountByFocusLabelValue: "",
+      labelValueCountByLabelName: "",
+      seriesCountByLabelValuePair: "",
     };
   }
 
@@ -118,7 +147,7 @@ const METRIC_NAMES_HEADERS = [
   },
   {
     id: "action",
-    label: "Action",
+    label: "",
   }
 ] as HeadCell[];
 
@@ -137,7 +166,7 @@ const LABEL_NAMES_HEADERS = [
   },
   {
     id: "action",
-    label: "Action",
+    label: "",
   }
 ] as HeadCell[];
 
@@ -157,7 +186,7 @@ const FOCUS_LABEL_VALUES_HEADERS = [
   {
     disablePadding: false,
     id: "action",
-    label: "Action",
+    label: "",
     numeric: false,
   }
 ] as HeadCell[];
@@ -177,7 +206,7 @@ export const LABEL_VALUE_PAIRS_HEADERS = [
   },
   {
     id: "action",
-    label: "Action",
+    label: "",
   }
 ] as HeadCell[];
 
@@ -192,6 +221,6 @@ export const LABEL_NAMES_WITH_UNIQUE_VALUES_HEADERS = [
   },
   {
     id: "action",
-    label: "Action",
+    label: "",
   }
 ] as HeadCell[];

@@ -23,7 +23,12 @@ const TableCells: FC<CardinalityTableCells> = ({ row, totalSeries, onActionClick
       className="vm-table-cell"
       key={row.name}
     >
-      {row.name}
+      <span
+        className="vm-link vm-link_colored"
+        onClick={handleActionClick}
+      >
+        {row.name}
+      </span>
     </td>
     <td
       className="vm-table-cell"

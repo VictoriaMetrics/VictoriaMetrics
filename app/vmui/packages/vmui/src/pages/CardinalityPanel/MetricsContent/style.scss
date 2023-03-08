@@ -3,6 +3,33 @@
 .vm-metrics-content {
   &-header {
     margin: -$padding-medium 0-$padding-medium 0;
+
+    &__title {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 4px;
+    }
+
+    &__tip {
+      max-width: 300px;
+      white-space: normal;
+      padding: $padding-small;
+      line-height: 130%;
+      font-size: $font-size;
+
+      p {
+        margin-bottom: $padding-small;
+      }
+    }
+
+    &__tip-icon {
+      width: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: $color-primary;
+    }
   }
 
   &_mobile &-header {

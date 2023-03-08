@@ -3,7 +3,6 @@ import { TimeStateProvider } from "../state/time/TimeStateContext";
 import { QueryStateProvider } from "../state/query/QueryStateContext";
 import { CustomPanelStateProvider } from "../state/customPanel/CustomPanelStateContext";
 import { GraphStateProvider } from "../state/graph/GraphStateContext";
-import { CardinalityStateProvider } from "../state/cardinality/CardinalityStateContext";
 import { TopQueriesStateProvider } from "../state/topQueries/TopQueriesStateContext";
 import { SnackbarProvider } from "./Snackbar";
 
@@ -16,7 +15,6 @@ const providers = [
   QueryStateProvider,
   CustomPanelStateProvider,
   GraphStateProvider,
-  CardinalityStateProvider,
   TopQueriesStateProvider,
   SnackbarProvider,
   DashboardsStateProvider

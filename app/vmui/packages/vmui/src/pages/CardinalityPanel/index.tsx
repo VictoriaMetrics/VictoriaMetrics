@@ -1,75 +1,39 @@
-import React, { FC, useState } from "react";
+import React, { FC } from "react";
 import { useFetchQuery } from "./hooks/useCardinalityFetch";
 import { queryUpdater } from "./helpers";
 import { Data } from "./Table/types";
 import CardinalityConfigurator from "./CardinalityConfigurator/CardinalityConfigurator";
 import Spinner from "../../components/Main/Spinner/Spinner";
-import { useCardinalityDispatch, useCardinalityState } from "../../state/cardinality/CardinalityStateContext";
 import MetricsContent from "./MetricsContent/MetricsContent";
-import { DefaultActiveTab, Tabs, TSDBStatus, Containers } from "./types";
-import { useSetQueryParams } from "./hooks/useSetQueryParams";
+import { Tabs, TSDBStatus, Containers } from "./types";
 import Alert from "../../components/Main/Alert/Alert";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import CardinalityInfo from "./CardinalityInfo/CardinalityInfo";
+import { useSearchParams } from "react-router-dom";
 
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
 
 const Index: FC = () => {
   const { isMobile } = useDeviceDetect();
-  const { topN, match, date, focusLabel } = useCardinalityState();
-  const cardinalityDispatch = useCardinalityDispatch();
-  useSetQueryParams();
 
-  const configError = "";
-  const [query, setQuery] = useState(match || "");
-  const [queryHistoryIndex, setQueryHistoryIndex] = useState(0);
-  const [queryHistory, setQueryHistory] = useState<string[]>([]);
-
-  const onRunQuery = () => {
-    setQueryHistory(prev => [...prev, query]);
-    setQueryHistoryIndex(prev => prev + 1);
-    cardinalityDispatch({ type: "SET_MATCH", payload: query });
-    cardinalityDispatch({ type: "RUN_QUERY" });
-  };
-
-  const onSetHistory = (step: number) => {
-    const newIndexHistory = queryHistoryIndex + step;
-    if (newIndexHistory < 0 || newIndexHistory >= queryHistory.length) return;
-    setQueryHistoryIndex(newIndexHistory);
-    setQuery(queryHistory[newIndexHistory]);
-  };
-
-  const onTopNChange = (value: string) => {
-    cardinalityDispatch({ type: "SET_TOP_N", payload: +value });
-  };
-
-  const onFocusLabelChange = (value: string) => {
-    cardinalityDispatch({ type: "SET_FOCUS_LABEL", payload: value });
-  };
+  const [searchParams, setSearchParams] = useSearchParams();
+  const match = searchParams.get("match") || "";
+  const focusLabel = searchParams.get("focusLabel") || "";
 
   const { isLoading, appConfigurator, error } = useFetchQuery();
-  const [stateTabs, setTab] = useState(appConfigurator.defaultState.defaultActiveTab);
-  const { tsdbStatusData, defaultState, tablesHeaders } = appConfigurator;
-  const handleTabChange = (newValue: string, tabId: string) => {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    setTab({ ...stateTabs, [tabId]: +newValue });
-  };
+  const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
+  const defaultState = getDefaultState(match, focusLabel);
 
   const handleFilterClick = (key: string) => (name: string) => {
-    const query = queryUpdater[key](focusLabel, name);
-    setQuery(query);
-    setQueryHistory(prev => [...prev, query]);
-    setQueryHistoryIndex(prev => prev + 1);
-    cardinalityDispatch({ type: "SET_MATCH", payload: query });
-    let newFocusLabel = "";
+    const value = queryUpdater[key](focusLabel, name);
+    searchParams.set("match", value);
     if (key === "labelValueCountByLabelName" || key == "seriesCountByLabelName") {
-      newFocusLabel = name;
+      searchParams.set("focusLabel", name);
     }
-    cardinalityDispatch({ type: "SET_FOCUS_LABEL", payload: newFocusLabel });
-    cardinalityDispatch({ type: "RUN_QUERY" });
+    setSearchParams(searchParams);
   };
 
   return (
@@ -80,36 +44,26 @@ const Index: FC = () => {
       })}
     >
       {isLoading && <Spinner message={spinnerMessage}/>}
-      <CardinalityConfigurator
-        error={configError}
-        query={query}
-        topN={topN}
-        date={date}
-        match={match}
+      <CardinalityConfigurator />
+      <CardinalityInfo
         totalSeries={tsdbStatusData.totalSeries}
+        totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
-        focusLabel={focusLabel}
-        onRunQuery={onRunQuery}
-        onSetQuery={setQuery}
-        onSetHistory={onSetHistory}
-        onTopNChange={onTopNChange}
-        onFocusLabelChange={onFocusLabelChange}
+        seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
       />
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {appConfigurator.keys(focusLabel).map((keyName) => (
+      {appConfigurator.keys(match, focusLabel).map((keyName) => (
         <MetricsContent
           key={keyName}
           sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}
-          activeTab={stateTabs[keyName as keyof DefaultActiveTab]}
+          tip={sectionsTips[keyName]}
           rows={tsdbStatusData[keyName as keyof TSDBStatus] as unknown as Data[]}
-          onChange={handleTabChange}
           onActionClick={handleFilterClick(keyName)}
           tabs={defaultState.tabs[keyName as keyof Tabs]}
           chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
           totalSeries={appConfigurator.totalSeries(keyName)}
-          tabId={keyName}
           tableHeaderCells={tablesHeaders[keyName]}
         />
       ))}
