@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
@@ -135,11 +134,6 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	if err != nil {
 		return nil, fmt.Errorf("export request failed: %w", err)
 	}
-	d, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	log.Printf("D => %d", d)
 	return resp.Body, nil
 }
 

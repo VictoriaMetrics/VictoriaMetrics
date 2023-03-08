@@ -2,22 +2,18 @@ package remote_read_integration
 
 import (
 	"bufio"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 type RemoteWriteServer struct {
-	server  *httptest.Server
-	series  []vm.TimeSeries
-	storage *storage.Storage
+	server *httptest.Server
+	series []vm.TimeSeries
 }
 
 // NewRemoteWriteServer prepares test remote write server
@@ -29,23 +25,6 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	mux.Handle("/health", rws.handlePing())
 	rws.server = httptest.NewServer(mux)
 	return rws
-}
-
-func (rws *RemoteWriteServer) InitStorage(path string) {
-	s, err := storage.OpenStorage(path, 0, 0, 0)
-	if err != nil {
-		log.Fatalf("cannot open storage: %s", err)
-	}
-
-	rws.storage = s
-}
-
-func (rws *RemoteWriteServer) CloseStorage(path string) {
-	rws.storage.MustClose()
-
-	if err := os.RemoveAll(path); err != nil {
-		log.Fatalf("cannot remove %q: %s", path, err)
-	}
 }
 
 // Close closes the server.
