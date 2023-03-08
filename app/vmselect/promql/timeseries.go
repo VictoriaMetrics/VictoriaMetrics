@@ -251,36 +251,37 @@ func int64ToByteSlice(a []int64) (b []byte) {
 }
 
 func byteSliceToInt64(b []byte) (a []int64) {
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
-	sh.Data = uintptr(unsafe.Pointer(&b[0]))
-	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
-	sh.Cap = sh.Len
-	return
-}
-
-func byteSliceToFloat64(b []byte) (a []float64) {
-	addr := uintptr(unsafe.Pointer(&b[0]))
-	var f float64
 	// check if the bytes must be moved, for proper float64 alignment
-	if mod := int(addr % unsafe.Alignof(f)); mod != 0 {
-		missing := 4 - mod
-		// grow the slice
-		for i := missing; i > 0; i-- {
-			b = append(b, 0)
-		}
-		// move all elements
-		for i := len(b) - 1; i >= missing; i-- {
-			b[i] = b[i-missing]
-		}
-		// move the slice pointer
-		b = b[missing:]
+	addr := uintptr(unsafe.Pointer(&b[0]))
+	if mod := int(addr % unsafe.Alignof(&a[0])); mod != 0 {
+		a = make([]int64, len(b)/int(unsafe.Sizeof(a[0])))
+		ab := int64ToByteSlice(a)
+		copy(ab, b)
+		return a
 	}
 
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
 	sh.Data = uintptr(unsafe.Pointer(&b[0]))
 	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
 	sh.Cap = sh.Len
-	return
+	return a
+}
+
+func byteSliceToFloat64(b []byte) (a []float64) {
+	// check if the bytes must be moved, for proper float64 alignment
+	addr := uintptr(unsafe.Pointer(&b[0]))
+	if mod := int(addr % unsafe.Alignof(&a[0])); mod != 0 {
+		a = make([]float64, len(b)/int(unsafe.Sizeof(a[0])))
+		ab := float64ToByteSlice(a)
+		copy(ab, b)
+		return a
+	}
+
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&a))
+	sh.Data = uintptr(unsafe.Pointer(&b[0]))
+	sh.Len = len(b) / int(unsafe.Sizeof(a[0]))
+	sh.Cap = sh.Len
+	return a
 }
 
 // unmarshalMetricNameFast unmarshals mn from src, so mn members
