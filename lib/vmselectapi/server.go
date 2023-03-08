@@ -114,9 +114,10 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		return float64(len(concurrencyLimitCh))
 	})
 	s := &Server{
-		api:    api,
-		limits: limits,
-		ln:     ln,
+		api:                        api,
+		limits:                     limits,
+		disableResponseCompression: disableResponseCompression,
+		ln:                         ln,
 
 		concurrencyLimitCh: concurrencyLimitCh,
 
