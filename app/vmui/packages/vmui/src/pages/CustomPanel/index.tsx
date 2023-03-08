@@ -35,6 +35,7 @@ const CustomPanel: FC = () => {
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
   const [showAllSeries, setShowAllSeries] = useState(false);
+  const [hideError, setHideError] = useState(!query[0]);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -72,6 +73,10 @@ const CustomPanel: FC = () => {
     setHideQuery(queries);
   };
 
+  const handleRunQuery = () => {
+    setHideError(false);
+  };
+
   useEffect(() => {
     if (traces) {
       setTracesState([...tracesState, ...traces]);
@@ -94,9 +99,10 @@ const CustomPanel: FC = () => {
       })}
     >
       <QueryConfigurator
-        error={error}
+        error={!hideError ? error : ""}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}
+        onRunQuery={handleRunQuery}
       />
       {isTracingEnabled && (
         <div className="vm-custom-panel__trace">
@@ -107,7 +113,7 @@ const CustomPanel: FC = () => {
         </div>
       )}
       {isLoading && <Spinner />}
-      {error && <Alert variant="error">{error}</Alert>}
+      {!hideError && error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">
         <div
           className={classNames({
@@ -121,7 +127,7 @@ const CustomPanel: FC = () => {
             variant="outlined"
             onClick={handleShowAll}
           >
-              Show all
+            Show all
           </Button>
         </div>
       </Alert>}

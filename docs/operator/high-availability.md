@@ -20,7 +20,8 @@ To run VMAgent in a highly available manner you have to configure deduplication 
 
 Then increase replicas for VMAgent.
 
-create `VMSingle` with dedup flag
+create `VMSingle` with dedup flag:
+
 ```yaml
 cat <<EOF | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -33,7 +34,9 @@ spec:
     dedup.minScrapeInterval: 60s
 EOF
 ```
-create `VMAgent` with 2 replicas
+
+create `VMAgent` with 2 replicas:
+
 ```yaml
 cat <<EOF | kubectl apply -f -
 apiVersion: operator.victoriametrics.com/v1beta1
@@ -55,10 +58,12 @@ EOF
 ```
 
 ### Sharding
+
 Sharding for `VMAgent` distributes scraping between multiple deployments of `VMAgent`.
 more info https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets
 
 Example usage:
+
 ```yaml
 
 cat <<EOF | kubectl apply -f -
@@ -77,11 +82,26 @@ spec:
   replicaCount: 2
   remoteWrite:
     - url: "http://vmsingle-example-vmsingle-persisted.default.svc:8429/api/v1/write"
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                shard-num: '%SHARD_NUM%'
+            topologyKey: kubernetes.io/hostname
 EOF
 ```
 
 This configuration produces 5 deployments with 2 replicas at each. Each deployment has its own shard num
 and scrapes only 1/5 of all targets.
+
+You can use special placeholder `%SHARD_NUM%` in any field of `VMAgent` specification. 
+and operator will replace it with current shard num of vmagent when creating deployment or statefullset for vmagent.
+
+In the example above, the `%SHARD_NUM%` placeholder is used in the `podAntiAffinity` section, 
+which recommend to scheduler that pods with the same shard num (label `shard-num` in the pod template) 
+are not deployed on the same node. You can use another `topologyKey` for availability zone or region instead of nodes. 
 
 ### StatefulMode
 
@@ -90,6 +110,7 @@ In `StatefulMode` `VMAgent` doesn't lose state of the PersistentQueue (file-base
 Operator creates `StatefulSet` and, with provided `PersistenVolumeClaimTemplate` at `StatefulStorage` configuration param, metrics queue is stored on disk.
 
 Example of configuration:
+
 ```yaml 
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAgent
@@ -117,6 +138,7 @@ Note, if you want to use `VMAlert` with high-available `VMAlertmanager`, which h
 at `VMAlert.spec.notifiers.[url]`. Or you can use service discovery for notifier, examples:
 
 alertmanager:
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -155,6 +177,7 @@ spec:
   configNamespaceSelector: {}
 ```
 vmalert with fqdns:
+
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlert
@@ -170,6 +193,7 @@ spec:
 ```
 
 vmalert with service discovery:
+
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlert
