@@ -98,7 +98,7 @@ func main() {
 		if err := promscrape.CheckConfig(); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
-		logger.Infof("-promscrape.config is ok; exitting with 0 status code")
+		logger.Infof("-promscrape.config is ok; exiting with 0 status code")
 		return
 	}
 	if *dryRun {
@@ -108,7 +108,7 @@ func main() {
 		if err := promscrape.CheckConfig(); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
-		logger.Infof("all the configs are ok; exitting with 0 status code")
+		logger.Infof("all the configs are ok; exiting with 0 status code")
 		return
 	}
 
