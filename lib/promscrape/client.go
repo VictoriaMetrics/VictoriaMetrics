@@ -33,7 +33,7 @@ var (
 		"Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
 	streamParse = flag.Bool("promscrape.streamParse", false, "Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful "+
 		"for reducing memory usage when millions of metrics are exposed per each scrape target. "+
-		"It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
+		"It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
 )
 
 type client struct {
@@ -260,7 +260,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	swapResponseBodies := len(dst) == 0
 	if swapResponseBodies {
 		// An optimization: write response directly to dst.
-		// This should reduce memory uage when scraping big targets.
+		// This should reduce memory usage when scraping big targets.
 		dst = resp.SwapBody(dst)
 	}
 

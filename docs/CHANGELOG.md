@@ -15,6 +15,16 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): increase the default value for `--remote-read-http-timeout` command-line option from 30s (30 seconds) to 5m (5 minutes). This reduces the probability of timeout errors when migrating big number of time series. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3879).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): migrate series one-by-one in [vm-native mode](https://docs.victoriametrics.com/vmctl.html#native-protocol). This allows better tracking the migration progress and resuming the migration process from the last migrated time series. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3859) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3600).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add `--vm-native-src-headers` and `--vm-native-dst-headers` command-line flags, which can be used for setting custom HTTP headers during [vm-native migration mode](https://docs.victoriametrics.com/vmctl.html#native-protocol). Thanks to @baconmania for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3906).
+
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic when [writing data to Kafka](https://docs.victoriametrics.com/vmagent.html#writing-metrics-to-kafka). The panic has been introduced in [v1.88.0](https://docs.victoriametrics.com/CHANGELOG.html#v1880).
+* BUGFIX: prevent from possible `invalid memory address or nil pointer dereference` panic during [background merge](https://docs.victoriametrics.com/#storage). The issue has been introduced at [v1.85.0](https://docs.victoriametrics.com/CHANGELOG.html#v1850). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3897).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): stop showing `Please enter a valid Query and execute it` error message on the first load of vmui.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly process `Run in VMUI` button click in [VictoriaMetrics datasource plugin for Grafana](https://github.com/VictoriaMetrics/grafana-datasource).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the selected value for dropdowns on `Explore` page.
+* BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): fix `cannot serve http` panic when plain HTTP request is sent to `vmauth` configured to accept requests over [proxy protocol](https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt)-encoded request (e.g. when `vmauth` runs with `-httpListenAddr.useProxyProtocol` command-line flag). The issue has been introduced at [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3335).
 
 ## [v1.88.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.1)
 

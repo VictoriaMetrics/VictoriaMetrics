@@ -1164,14 +1164,6 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	if err != nil {
 		return fmt.Errorf("cannot atomically register the created part: %w", err)
 	}
-	tb.swapSrcWithDstParts(pws, pwNew, dstPartType)
-
-	d := time.Since(startTime)
-	if d <= 30*time.Second {
-		return nil
-	}
-
-	// Log stats for long merges.
 	dstItemsCount := uint64(0)
 	dstBlocksCount := uint64(0)
 	dstSize := uint64(0)
@@ -1183,6 +1175,15 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		dstSize = pDst.size
 		dstPartPath = pDst.path
 	}
+
+	tb.swapSrcWithDstParts(pws, pwNew, dstPartType)
+
+	d := time.Since(startTime)
+	if d <= 30*time.Second {
+		return nil
+	}
+
+	// Log stats for long merges.
 	durationSecs := d.Seconds()
 	itemsPerSec := int(float64(srcItemsCount) / durationSecs)
 	logger.Infof("merged (%d parts, %d items, %d blocks, %d bytes) into (1 part, %d items, %d blocks, %d bytes) in %.3f seconds at %d items/sec to %q",
