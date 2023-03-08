@@ -20,7 +20,6 @@ type RemoteWriteServer struct {
 func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	rws := &RemoteWriteServer{series: make([]vm.TimeSeries, 0)}
 	mux := http.NewServeMux()
-
 	mux.Handle("/api/v1/import", rws.getWriteHandler(t))
 	mux.Handle("/health", rws.handlePing())
 	rws.server = httptest.NewServer(mux)
