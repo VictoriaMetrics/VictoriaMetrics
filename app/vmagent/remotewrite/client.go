@@ -147,19 +147,12 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	}
 	c.sendBlock = c.sendBlockHTTP
 
-	return c
-}
-
-func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
-	// custom proto encoding is supported only over http connections
-	isHTTPClient := c.hc != nil
-
 	useVMProto := forceVMProto.GetOptionalArg(argIdx)
 	usePromProto := forcePromProto.GetOptionalArg(argIdx)
 	if useVMProto && usePromProto {
 		logger.Fatalf("-remoteWrite.useVMProto and -remoteWrite.usePromProto cannot be set simultaneously for -remoteWrite.url=%s", sanitizedURL)
 	}
-	if isHTTPClient && !useVMProto && !usePromProto {
+	if !useVMProto && !usePromProto {
 		// Auto-detect whether the remote storage supports VictoriaMetrics remote write protocol.
 		doRequest := func(url string) (*http.Response, error) {
 			return c.doRequest(url, nil)
@@ -170,10 +163,12 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 				"See https://docs.victoriametrics.com/vmagent.html#victoriametrics-remote-write-protocol", sanitizedURL)
 		}
 	}
-	if isHTTPClient {
-		c.useVMProto = useVMProto
-	}
+	c.useVMProto = useVMProto
 
+	return c
+}
+
+func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	if bytesPerSec := rateLimit.GetOptionalArgOrDefault(argIdx, 0); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
 		c.rl.perSecondLimit = int64(bytesPerSec)
