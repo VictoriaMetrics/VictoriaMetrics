@@ -229,8 +229,16 @@ func main() {
 							TimeEnd:   c.String(vmNativeFilterTimeEnd),
 							Chunk:     c.String(vmNativeStepInterval),
 						},
-						src:     native.New(srcAddr, srcExtraLabels, srcAuthConfig),
-						dst:     native.New(dstAddr, dstExtraLabels, dstAuthConfig),
+						src: &native.Client{
+							AuthCfg:     srcAuthConfig,
+							Addr:        srcAddr,
+							ExtraLabels: srcExtraLabels,
+						},
+						dst: &native.Client{
+							AuthCfg:     dstAuthConfig,
+							Addr:        dstAddr,
+							ExtraLabels: dstExtraLabels,
+						},
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
 					}

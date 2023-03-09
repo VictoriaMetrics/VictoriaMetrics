@@ -24,15 +24,6 @@ type Client struct {
 	ExtraLabels []string
 }
 
-// New initialized an HTTP client
-func New(addr string, extraLabels []string, authCfg *auth.Config) *Client {
-	return &Client{
-		Addr:        addr,
-		ExtraLabels: extraLabels,
-		AuthCfg:     authCfg,
-	}
-}
-
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
 
