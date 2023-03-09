@@ -19,9 +19,9 @@ const (
 // Client is an HTTP client for exporting and importing
 // time series via native protocol.
 type Client struct {
-	AuthCfg     *auth.Config
-	Addr        string
-	ExtraLabels []string
+	AuthCfg              *auth.Config
+	Addr                 string
+	ExtraLabels          []string
 	DisableHTTPKeepAlive bool
 }
 
