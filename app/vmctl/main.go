@@ -34,8 +34,6 @@ func main() {
 		importer *vm.Importer
 	)
 
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
-
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
 	app := &cli.App{
@@ -75,8 +73,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
-					silent := c.Bool(globalSilent) || !isTerminal
-					return otsdbProcessor.run(silent, c.Bool(globalVerbose))
+					return otsdbProcessor.run(silent(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -117,8 +114,7 @@ func main() {
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode))
-					silent := c.Bool(globalSilent) || !isTerminal
-					return processor.run(silent, c.Bool(globalVerbose))
+					return processor.run(silent(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -158,8 +154,7 @@ func main() {
 						},
 						cc: c.Int(remoteReadConcurrency),
 					}
-					silent := c.Bool(globalSilent) || !isTerminal
-					return rmp.run(ctx, silent, c.Bool(globalVerbose))
+					return rmp.run(ctx, silent(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -193,8 +188,7 @@ func main() {
 						im: importer,
 						cc: c.Int(promConcurrency),
 					}
-					silent := c.Bool(globalSilent) || !isTerminal
-					return pp.run(silent, c.Bool(globalVerbose))
+					return pp.run(silent(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -252,8 +246,7 @@ func main() {
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
 					}
-					silent := c.Bool(globalSilent) || !isTerminal
-					return p.run(ctx, silent)
+					return p.run(ctx, silent(c))
 				},
 			},
 			{
@@ -325,4 +318,9 @@ func initConfigVM(c *cli.Context) vm.Config {
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
 	}
+}
+
+func silent(c *cli.Context) bool {
+	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	return c.Bool(globalSilent) || !isTerminal
 }
