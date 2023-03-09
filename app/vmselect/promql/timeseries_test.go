@@ -113,6 +113,16 @@ func TestTimeseriesByteSliceToXXX64Alignment(t *testing.T) {
 		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 18
 		0x0,                                            // padding to force mis-alignment
 		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 27
+		0x0,                                            // padding to force mis-alignment
+		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 36
+		0x0,                                            // padding to force mis-alignment
+		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 45
+		0x0,                                            // padding to force mis-alignment
+		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 54
+		0x0,                                            // padding to force mis-alignment
+		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 63
+		0x0,                                            // padding to come back to correct alignment
+		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 72
 	}
 
 	for i := 0; i < len(src); i += 9 {
@@ -126,8 +136,8 @@ func TestTimeseriesByteSliceToXXX64Alignment(t *testing.T) {
 				t.Fatalf("unexpected value; f[0]=%v", f[0])
 			}
 			addr := uintptr(unsafe.Pointer(&f[0]))
-			if addr%4 != 0 {
-				t.Fatalf("mis-aligned; &f[0]=%p; mod=%d", &f[0], addr%4)
+			if addr%unsafe.Alignof(f[0]) != 0 {
+				t.Fatalf("mis-aligned; &f[0]=%p; mod=%d", &f[0], addr%unsafe.Alignof(f[0]))
 			}
 		})
 		t.Run(fmt.Sprintf("int64/%d", i), func(t *testing.T) {
@@ -140,8 +150,8 @@ func TestTimeseriesByteSliceToXXX64Alignment(t *testing.T) {
 				t.Fatalf("unexpected value; f[0]=%v", f[0])
 			}
 			addr := uintptr(unsafe.Pointer(&f[0]))
-			if addr%4 != 0 {
-				t.Fatalf("mis-aligned; &f[0]=%p; mod=%d", &f[0], addr%4)
+			if addr%unsafe.Alignof(f[0]) != 0 {
+				t.Fatalf("mis-aligned; &f[0]=%p; mod=%d", &f[0], addr%unsafe.Alignof(f[0]))
 			}
 		})
 	}
