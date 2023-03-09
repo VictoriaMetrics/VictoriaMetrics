@@ -562,7 +562,7 @@ bar 5
 foo{abc="123"} 8.5
 foo{abc="456",de="fg"} 8
 `, `bar:1m_stdvar 0
-foo:1m_stdvar{abc="123"} 110.25
+foo:1m_stdvar{abc="123"} 5.0625
 foo:1m_stdvar{abc="456",de="fg"} 0
 `)
 
