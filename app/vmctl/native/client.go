@@ -22,6 +22,7 @@ type Client struct {
 	AuthCfg     *auth.Config
 	Addr        string
 	ExtraLabels []string
+	DisableHTTPKeepAlive bool
 }
 
 // LabelValues represents series from api/v1/series response
@@ -168,7 +169,8 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if c.AuthCfg != nil {
 		c.AuthCfg.SetHeaders(req, true)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: c.DisableHTTPKeepAlive}}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}

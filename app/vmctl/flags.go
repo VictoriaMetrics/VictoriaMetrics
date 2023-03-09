@@ -325,6 +325,8 @@ const (
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
 
+	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
+
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
 	vmNativeSrcPassword    = "vm-native-src-password"
@@ -359,6 +361,11 @@ var (
 		&cli.StringFlag{
 			Name:  vmNativeStepInterval,
 			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisableHTTPKeepAlive,
+			Usage: "Disable HTTP persistent connections for requests made to VictoriaMetrics components during export",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,

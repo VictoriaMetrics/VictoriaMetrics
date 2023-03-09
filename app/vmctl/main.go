@@ -233,11 +233,13 @@ func main() {
 							AuthCfg:     srcAuthConfig,
 							Addr:        srcAddr,
 							ExtraLabels: srcExtraLabels,
+							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
 						dst: &native.Client{
 							AuthCfg:     dstAuthConfig,
 							Addr:        dstAddr,
 							ExtraLabels: dstExtraLabels,
+							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
