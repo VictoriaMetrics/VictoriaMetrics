@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.20.1 to Go1.20.2. See [the list of issues addressed in Go1.20.2](https://github.com/golang/go/issues?q=milestone%3AGo1.20.2+label%3ACherryPickApproved).
+
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): increase the default value for `--remote-read-http-timeout` command-line option from 30s (30 seconds) to 5m (5 minutes). This reduces the probability of timeout errors when migrating big number of time series. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3879).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): migrate series one-by-one in [vm-native mode](https://docs.victoriametrics.com/vmctl.html#native-protocol). This allows better tracking the migration progress and resuming the migration process from the last migrated time series. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3859) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3600).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add `--vm-native-src-headers` and `--vm-native-dst-headers` command-line flags, which can be used for setting custom HTTP headers during [vm-native migration mode](https://docs.victoriametrics.com/vmctl.html#native-protocol). Thanks to @baconmania for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3906).
