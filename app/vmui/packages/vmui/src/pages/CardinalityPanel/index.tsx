@@ -10,8 +10,13 @@ import Alert from "../../components/Main/Alert/Alert";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
-import CardinalityInfo from "./CardinalityInfo/CardinalityInfo";
 import { useSearchParams } from "react-router-dom";
+import {
+  TipCardinalityOfLabel,
+  TipCardinalityOfSingle,
+  TipHighNumberOfSeries,
+  TipHighNumberOfValues
+} from "./CardinalityTips";
 
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
@@ -20,6 +25,7 @@ const Index: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const [searchParams, setSearchParams] = useSearchParams();
+  const showTips = searchParams.get("tips") || "";
   const match = searchParams.get("match") || "";
   const focusLabel = searchParams.get("focusLabel") || "";
 
@@ -44,13 +50,21 @@ const Index: FC = () => {
       })}
     >
       {isLoading && <Spinner message={spinnerMessage}/>}
-      <CardinalityConfigurator />
-      <CardinalityInfo
+      <CardinalityConfigurator
         totalSeries={tsdbStatusData.totalSeries}
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
       />
+
+      {showTips && (
+        <div className="vm-cardinality-panel-tips">
+          {!match && !focusLabel && <TipHighNumberOfSeries/>}
+          {match && !focusLabel && <TipCardinalityOfSingle/>}
+          {!match && !focusLabel && <TipHighNumberOfValues/>}
+          {focusLabel && <TipCardinalityOfLabel/>}
+        </div>
+      )}
 
       {error && <Alert variant="error">{error}</Alert>}
 

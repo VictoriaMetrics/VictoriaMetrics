@@ -67,7 +67,7 @@ export const useFetchQuery = (): {
 
   useEffect(() => {
     fetchCardinalityInfo({ topN, match, date, focusLabel });
-  }, [serverUrl, searchParams]);
+  }, [serverUrl, match, focusLabel, topN, date]);
 
   useEffect(() => {
     if (error) {

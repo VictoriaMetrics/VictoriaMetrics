@@ -1,5 +1,5 @@
 import React, { FC, useMemo } from "react";
-import { InfoIcon, PlayIcon } from "../../../components/Main/Icons";
+import { PlayIcon, QuestionIcon, TipIcon, WikiIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
@@ -8,11 +8,13 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import { useEffect, useState } from "preact/compat";
 import { useSearchParams } from "react-router-dom";
+import CardinalityTotals, { CardinalityTotalsProps } from "../CardinalityTotals/CardinalityTotals";
 
-const CardinalityConfigurator: FC = () => {
+const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
   const { isMobile } = useDeviceDetect();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  const showTips = searchParams.get("tips") || "";
   const [match, setMatch] = useState(searchParams.get("match") || "");
   const [focusLabel, setFocusLabel] = useState(searchParams.get("focusLabel") || "");
   const [topN, setTopN] = useState(+(searchParams.get("topN") || 10));
@@ -31,6 +33,13 @@ const CardinalityConfigurator: FC = () => {
     setSearchParams(searchParams);
   };
 
+  const handleToggleTips = () => {
+    const showTips = searchParams.get("tips") || "";
+    if (showTips) searchParams.delete("tips");
+    else searchParams.set("tips", "true");
+    setSearchParams(searchParams);
+  };
+
   useEffect(() => {
     const matchQuery = searchParams.get("match");
     const topNQuery = +(searchParams.get("topN") || 10);
@@ -43,6 +52,7 @@ const CardinalityConfigurator: FC = () => {
   return <div
     className={classNames({
       "vm-cardinality-configurator": true,
+      "vm-cardinality-configurator_mobile": isMobile,
       "vm-block": true,
       "vm-block_mobile": isMobile,
     })}
@@ -54,16 +64,6 @@ const CardinalityConfigurator: FC = () => {
           type="string"
           value={match}
           onChange={setMatch}
-          onEnter={handleRunQuery}
-        />
-      </div>
-      <div className="vm-cardinality-configurator-controls__item">
-        <TextField
-          label="Number of entries per table"
-          type="number"
-          value={topN}
-          error={errorTopN}
-          onChange={handleTopNChange}
           onEnter={handleRunQuery}
         />
       </div>
@@ -83,19 +83,62 @@ const CardinalityConfigurator: FC = () => {
                 </div>
               )}
             >
-              <InfoIcon/>
+              <QuestionIcon/>
             </Tooltip>
           )}
         />
       </div>
+      <div className="vm-cardinality-configurator-controls__item vm-cardinality-configurator-controls__item_limit">
+        <TextField
+          label="Limit entries"
+          type="number"
+          value={topN}
+          error={errorTopN}
+          onChange={handleTopNChange}
+          onEnter={handleRunQuery}
+        />
+      </div>
+    </div>
+    <div className="vm-cardinality-configurator-bottom">
+      <CardinalityTotals {...props}/>
 
-      <Button
-        startIcon={<PlayIcon/>}
-        onClick={handleRunQuery}
-        fullWidth
-      >
-        Execute Query
-      </Button>
+      <div className="vm-cardinality-configurator-bottom-helpful">
+        <a
+          className="vm-link vm-link_with-icon"
+          target="_blank"
+          href="https://docs.victoriametrics.com/#cardinality-explorer"
+          rel="help noreferrer"
+        >
+          <WikiIcon/>
+          Documentation
+        </a>
+        <a
+          className="vm-link vm-link_with-icon"
+          target="_blank"
+          href="https://victoriametrics.com/blog/cardinality-explorer/"
+          rel="help noreferrer"
+        >
+          <QuestionIcon/>
+          Example of using
+        </a>
+      </div>
+
+      <div className="vm-cardinality-configurator-bottom__execute">
+        <Tooltip title={showTips ? "Hide tips" : "Show tips"}>
+          <Button
+            variant="text"
+            color={showTips ? "warning" : "gray"}
+            startIcon={<TipIcon/>}
+            onClick={handleToggleTips}
+          />
+        </Tooltip>
+        <Button
+          startIcon={<PlayIcon/>}
+          onClick={handleRunQuery}
+        >
+          Execute Query
+        </Button>
+      </div>
     </div>
   </div>;
 };

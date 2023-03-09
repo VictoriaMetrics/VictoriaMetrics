@@ -1,6 +1,7 @@
 import { TipIcon } from "../../../components/Main/Icons";
 import React, { FC } from "preact/compat";
 import { ReactNode } from "react";
+import "./style.scss";
 
 const Link: FC<{ href: string, children: ReactNode }> = ({ href, children }) => (
   <a
@@ -12,12 +13,12 @@ const Link: FC<{ href: string, children: ReactNode }> = ({ href, children }) => 
 );
 
 const TipCard: FC<{ title?: string, children: ReactNode }> = ({ title, children }) => (
-  <div className="vm-cardinality-info-card vm-cardinality-info-card_tip">
-    <div className="vm-cardinality-info-card-header">
-      <div className="vm-cardinality-info-card-header__tip-icon"><TipIcon/></div>
-      <h4 className="vm-cardinality-info-card-header__title">{title || "Tips"}</h4>
+  <div className="vm-cardinality-tip">
+    <div className="vm-cardinality-tip-header">
+      <div className="vm-cardinality-tip-header__tip-icon"><TipIcon/></div>
+      <h4 className="vm-cardinality-tip-header__title">{title || "Tips"}</h4>
     </div>
-    <p className="vm-cardinality-info-card__description">
+    <p className="vm-cardinality-tip__description">
       {children}
     </p>
   </div>
@@ -25,7 +26,7 @@ const TipCard: FC<{ title?: string, children: ReactNode }> = ({ title, children 
 
 export const TipDocumentation: FC = () => (
   <TipCard title="Cardinality explorer">
-    <h6>Cardinality explorer - helpful for analyzing VictoriaMetrics TSDB data</h6>
+    <h6>Helpful for analyzing VictoriaMetrics TSDB data</h6>
     <ul>
       <li>
         <Link href="https://docs.victoriametrics.com/#cardinality-explorer">
