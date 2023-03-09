@@ -271,6 +271,26 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
+	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	if !skipRandSleepOnGroupStart {
+		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(g.Interval)
+		}
+		randSleep -= sleepOffset
+		sleepTimer := time.NewTimer(time.Duration(randSleep))
+		select {
+		case <-ctx.Done():
+			sleepTimer.Stop()
+			return
+		case <-g.doneCh:
+			sleepTimer.Stop()
+			return
+		case <-sleepTimer.C:
+		}
+	}
+
 	e := &executor{
 		rw:                       rw,
 		notifiers:                nts,
