@@ -13,6 +13,7 @@ import (
 
 	"golang.org/x/term"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
@@ -207,6 +208,26 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
+					var srcExtraLabels []string
+					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
+					srcAuthConfig, err := auth.Generate(
+						auth.WithBasicAuth(c.String(vmNativeSrcUser), c.String(vmNativeSrcPassword)),
+						auth.WithBearer(c.String(vmNativeSrcBearerToken)),
+						auth.WithHeaders(c.String(vmNativeSrcHeaders)))
+					if err != nil {
+						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
+					}
+
+					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
+					dstExtraLabels := c.StringSlice(vmExtraLabel)
+					dstAuthConfig, err := auth.Generate(
+						auth.WithBasicAuth(c.String(vmNativeDstUser), c.String(vmNativeDstPassword)),
+						auth.WithBearer(c.String(vmNativeDstBearerToken)),
+						auth.WithHeaders(c.String(vmNativeDstHeaders)))
+					if err != nil {
+						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
+					}
+
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
 						interCluster: c.Bool(vmInterCluster),
@@ -217,18 +238,15 @@ func main() {
 							Chunk:     c.String(vmNativeStepInterval),
 						},
 						src: &native.Client{
-							Addr:                 strings.Trim(c.String(vmNativeSrcAddr), "/"),
-							User:                 c.String(vmNativeSrcUser),
-							Password:             c.String(vmNativeSrcPassword),
-							Headers:              c.String(vmNativeSrcHeaders),
+							AuthCfg:              srcAuthConfig,
+							Addr:                 srcAddr,
+							ExtraLabels:          srcExtraLabels,
 							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
 						dst: &native.Client{
-							Addr:                 strings.Trim(c.String(vmNativeDstAddr), "/"),
-							User:                 c.String(vmNativeDstUser),
-							Password:             c.String(vmNativeDstPassword),
-							ExtraLabels:          c.StringSlice(vmExtraLabel),
-							Headers:              c.String(vmNativeDstHeaders),
+							AuthCfg:              dstAuthConfig,
+							Addr:                 dstAddr,
+							ExtraLabels:          dstExtraLabels,
 							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
 						backoff: backoff.New(),
