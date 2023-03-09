@@ -543,12 +543,13 @@ foo:1m_avg{abc="456",de="fg"} 8
 - interval: 1m
   outputs: [stddev]
 `, `
-foo{abc="123"} 4
+foo{abc="123"} 1.5
 bar 5
-foo{abc="123"} 8.5
+foo{abc="123"} 4.5
 foo{abc="456",de="fg"} 8
+foo{abc="123"} 21
 `, `bar:1m_stddev 0
-foo:1m_stddev{abc="123"} 2.25
+foo:1m_stddev{abc="123"} 10.5
 foo:1m_stddev{abc="456",de="fg"} 0
 `)
 
@@ -557,12 +558,13 @@ foo:1m_stddev{abc="456",de="fg"} 0
 - interval: 1m
   outputs: [stdvar]
 `, `
-foo{abc="123"} 4
+foo{abc="123"} 1.5
 bar 5
-foo{abc="123"} 8.5
+foo{abc="123"} 4.5
 foo{abc="456",de="fg"} 8
+foo{abc="123"} 21
 `, `bar:1m_stdvar 0
-foo:1m_stdvar{abc="123"} 5.0625
+foo:1m_stdvar{abc="123"} 110.25
 foo:1m_stdvar{abc="456",de="fg"} 0
 `)
 
