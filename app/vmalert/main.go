@@ -345,7 +345,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := config.ParseSilent(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)

@@ -199,12 +199,32 @@ func (r *Rule) Validate() error {
 // ValidateTplFn must validate the given annotations
 type ValidateTplFn func(annotations map[string]string) error
 
-// Parse parses rule configs from given file patterns
-func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	files, err := readFromFS(pathPatterns)
+// ParseSilent parses rule configs from given file patterns without emitting logs
+func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+	files, err := readFromFS(pathPatterns, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
+	return parse(files, validateTplFn, validateExpressions)
+}
+
+// Parse parses rule configs from given file patterns
+func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+	files, err := readFromFS(pathPatterns, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from the config: %s", err)
+	}
+	groups, err := parse(files, validateTplFn, validateExpressions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
+	}
+	if len(groups) < 1 {
+		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+	}
+	return groups, nil
+}
+
+func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
 	for file, data := range files {
@@ -231,9 +251,12 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
-	if len(groups) < 1 {
-		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
-	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		if groups[i].File != groups[j].File {
+			return groups[i].File < groups[j].File
+		}
+		return groups[i].Name < groups[j].Name
+	})
 	return groups, nil
 }
 

@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
 	"strings"
 	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // FS represent a file system abstract for reading files.
@@ -15,10 +17,13 @@ type FS interface {
 	// String must return human-readable representation of FS.
 	String() string
 
+	// List returns the list of file names which will be read via Read fn
+	List() ([]string, error)
+
 	// Read returns a list of read files in form of a map
 	// where key is a file name and value is a content of read file.
 	// Read must be called only after the successful Init call.
-	Read() (map[string][]byte, error)
+	Read(files []string) (map[string][]byte, error)
 }
 
 var (
@@ -31,9 +36,10 @@ var (
 // readFromFS returns an error if at least one FS failed to init.
 // The function can be called multiple times but each unique path
 // will be inited only once.
+// If silent == true, readFromFS will not emit any logs.
 //
 // It is allowed to mix different FS types in path list.
-func readFromFS(paths []string) (map[string][]byte, error) {
+func readFromFS(paths []string, silent bool) (map[string][]byte, error) {
 	var err error
 	result := make(map[string][]byte)
 	for _, path := range paths {
@@ -54,7 +60,20 @@ func readFromFS(paths []string) (map[string][]byte, error) {
 		}
 		fsRegistryMu.Unlock()
 
-		files, err := fs.Read()
+		list, err := fs.List()
+		if err != nil {
+			return nil, fmt.Errorf("failed to list files from %q", fs)
+		}
+
+		if !silent {
+			logger.Infof("found %d files to read from %q", len(list), fs)
+		}
+
+		if len(list) < 1 {
+			continue
+		}
+
+		files, err := fs.Read(list)
 		if err != nil {
 			return nil, fmt.Errorf("error while reading files from %q: %w", fs, err)
 		}
