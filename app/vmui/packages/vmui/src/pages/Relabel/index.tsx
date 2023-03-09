@@ -3,7 +3,7 @@ import "./style.scss";
 import TextField from "../../components/Main/TextField/TextField";
 import { useState } from "react";
 import Button from "../../components/Main/Button/Button";
-import { PlayIcon, WikiIcon } from "../../components/Main/Icons";
+import { InfoIcon, PlayIcon, WikiIcon } from "../../components/Main/Icons";
 import "./style.scss";
 import { useRelabelDebug } from "./hooks/useRelabelDebug";
 import Spinner from "../../components/Main/Spinner/Spinner";
@@ -93,8 +93,17 @@ const Relabel: FC = () => {
             href="https://docs.victoriametrics.com/relabeling.html"
             rel="help noreferrer"
           >
+            <InfoIcon/>
+            Relabeling cookbook
+          </a>
+          <a
+            className="vm-link vm-link_with-icon"
+            target="_blank"
+            href="https://docs.victoriametrics.com/vmagent.html#relabeling"
+            rel="help noreferrer"
+          >
             <WikiIcon/>
-            Relabeling docs
+            Documentation
           </a>
           <Button
             variant="text"
