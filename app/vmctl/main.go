@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"golang.org/x/term"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
@@ -30,6 +32,8 @@ func main() {
 		err      error
 		importer *vm.Importer
 	)
+
+	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
 
 	ctx, cancelCtx := context.WithCancel(context.Background())
 	start := time.Now()
@@ -70,7 +74,8 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
-					return otsdbProcessor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					silent := c.Bool(globalSilent) || !isTerminal
+					return otsdbProcessor.run(silent, c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -111,7 +116,8 @@ func main() {
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode))
-					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					silent := c.Bool(globalSilent) || !isTerminal
+					return processor.run(silent, c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -151,7 +157,8 @@ func main() {
 						},
 						cc: c.Int(remoteReadConcurrency),
 					}
-					return rmp.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
+					silent := c.Bool(globalSilent) || !isTerminal
+					return rmp.run(ctx, silent, c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -185,7 +192,8 @@ func main() {
 						im: importer,
 						cc: c.Int(promConcurrency),
 					}
-					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					silent := c.Bool(globalSilent) || !isTerminal
+					return pp.run(silent, c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -226,7 +234,8 @@ func main() {
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
 					}
-					return p.run(ctx, c.Bool(globalSilent))
+					silent := c.Bool(globalSilent) || !isTerminal
+					return p.run(ctx, silent)
 				},
 			},
 			{
