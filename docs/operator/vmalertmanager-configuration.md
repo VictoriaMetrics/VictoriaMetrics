@@ -54,6 +54,7 @@ spec:
 
 Also, if there is no secret data at configuration, or you just want to redefine some global variables for `alertmanager`.
 You can define configuration at `spec.configRawYaml` section of `VMAlertmanager` configuration:
+
 ```yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMAlertmanager
@@ -75,6 +76,7 @@ spec:
 If both `configSecret` and `configRawYaml` are defined, only configuration from `configRawYaml` will be used. Values from `configRawYaml` will be ignored.
 
 ## Using VMAlertmanagerConfig
+
 `VMAlertmanagerConfig` allows delegating notification configuration to the kubernetes cluster users.
 The application owner may configure notifications by defining it at `VMAlertmanagerConfig`.
 With the combination of `VMRule` and `VMServiceScrape` it allows delegating configuration observability to application owners, and uses popular `GitOps` practice.
@@ -104,11 +106,47 @@ spec:
           text: ALARM
 ```
 
-#### Special Case
+### Special Case
+
 VMAlertmanagerConfig has enforced namespace matcher.
 Alerts must have a proper namespace label, with the same value as name of namespace for VMAlertmanagerConfig.
 It can be disabled, by setting the following value to the VMAlertmanager: spec.disableNamespaceMatcher: true.
 
-## behavior without provided config
+## Extra configuration files
+
+`VMAlertmanager` specification has the following fields, that can be used to configure without editing raw configuration file:
+
+- `spec.templates` - list of keys in `ConfigMaps`, that contains template files for `alertmanager`, e.g.:
+
+  ```yaml
+  apiVersion: operator.victoriametrics.com/v1beta1
+  kind: VMAlertmanager
+  metadata:
+    name: example-alertmanager
+  spec:
+    replicaCount: 2
+    templates:
+      - Name: alertmanager-templates
+        Key: my-template-1.tmpl
+      - Name: alertmanager-templates
+        Key: my-template-2.tmpl
+  ---
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: alertmanager-templates
+  data:
+      my-template-1.tmpl: |
+          {{ define "hello" -}}
+          hello, Victoria!
+          {{- end }}
+      my-template-2.tmpl: """
+  ```
+
+  These templates will be automatically added to `VMAlertmanager` configuration and will be automatically reloaded on changes in source `ConfigMap`.
+- `spec.configMaps` - list of `ConfigMap` names (in the same namespace) that will be mounted at `VMAlertmanager`
+  workload and will be automatically reloaded on changes in source `ConfigMap`. Mount path is `/etc/vm/configs/<configmap-name>`.
+
+## Behavior without provided config
 
 If no configuration is provided, operator configures stub configuration with blackhole route.
