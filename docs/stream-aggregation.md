@@ -342,39 +342,27 @@ and then sent to the storage.
 If `by` and `without` lists are specified in the [config](#stream-aggregation-config),
 then the [aggregation by labels](#aggregating-by-labels) is performed additionally to aggregation by `interval`.
 
-Below are aggregation outputs that can be put in the `outputs` list at [stream aggregation config](#stream-aggregation-config).
+Below are aggregation functions that can be put in the `outputs` list at [stream aggregation config](#stream-aggregation-config).
 
 ### total
 
-* `total` generates output [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) by summing the input counters.
-  * The `total` handler properly handles input counter resets.
-  * The `total` handler returns garbage when something other than [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) is passed to the input.
+`total` generates output [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) by summing the input counters.
+`total` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type metrics.
 
-The algorithm of `total` output can be represented visually by querying the source and aggregated data on the one graph, 
-for `total` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `total` is equal to the `sum(some_counter)` query.
 
-* `sum(some_counter)` - source data
-* `some_counter:60s_total` - aggregated data
-
-See the example of time series produced by `total` (with push interval `10s`, aggregation interval `1m` and `by: ["instance"]`) below:
+For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
 <img alt="total aggregation" src="stream-aggregation-check-total.png">
-
 
 ### increase
 
 `increase` returns the increase of input [counters](https://docs.victoriametrics.com/keyConcepts.html#counter).
-  * The `increase` handler properly handles the input counter resets.
-  * The `increase` handler returns garbage when something other than [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) is passed to the input.
+`increase` only makes sense for aggregating [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type metrics.
 
-The algorithm of `increase` output can be represented visually by querying the source and aggregated data on the one graph,
-for `increase` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `increase` with aggregation interval of `1m` is equal to the `increase(some_counter[1m])` query.
 
-* `increase(some_counter[1m])` - source data
-* `some_counter:60s_increase` - aggregated data 
-
-There is the example of the graph with source and aggregated data
-(with push interval `10s`, aggregation interval `1m` and `by: ["instance"]` in the stream aggregation config):
+For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
 <img alt="increase aggregation" src="stream-aggregation-check-increase.png">
 
@@ -382,77 +370,50 @@ There is the example of the graph with source and aggregated data
 
 `count_series` counts the number of unique [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series).
 
-The algorithm of `count_series` output can be represented visually by querying the source and aggregated data on the one graph,
-for `count_series` it will be queries of the following kind (with aggregation interval `1m`):
-
-* `count(some_counter)` - source data
-* `some_counter:60s_count_series` - aggregated data
+The results of `count_series` is equal to the `count(some_counter)` query.
 
 ### count_samples
 
 `count_samples` counts the number of input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The algorithm of `count_samples` output can be represented visually by querying the source and aggregated data on the one graph,
-for `count_samples` it will be queries of the following kind (with aggregation interval `1m`):
-
-* `count_over_time(some_counter[1m])` - source data
-* `some_counter:60s_count_samples` - aggregated data
+The results of `count_samples` with aggregation interval of `1m` is equal to the `count_over_time(some_counter[1m])` query.
 
 ### sum_samples
 
 `sum_samples` sums input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The algorithm of `sum_samples` output can be represented visually by querying the source and aggregated data on the one graph,
-for `sum_samples` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `sum_samples` with aggregation interval of `1m` is equal to the `sum_over_time(some_counter[1m])` query.
 
-* `sum_over_time(some_counter[1m])` - source data
-* `some_counter:60s_sum_samples` - aggregated data
+For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-There is the example of the graph with source and aggregated data
-(with push interval `10s`, aggregation interval `1m` and `by: ["instance"]` in the stream aggregation config):
-
-<img alt="total aggregation" src="stream-aggregation-check-sum-samples.png">
+<img alt="sum_samples aggregation" src="stream-aggregation-check-sum-samples.png">
 
 ### last
 
 `last` returns the last input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The algorithm of `last` output can be represented visually by querying the source and aggregated data on the one graph,
-for `last` it will be queries of the following kind (with aggregation interval `1m`):
-
-* `last_over_time(some_counter[1m])` - source data
-* `some_counter:60s_last` - aggregated data
+The results of `last` with aggregation interval of `1m` is equal to the `last_over_time(some_counter[1m])` query.
 
 This aggregation output doesn't make much sense with `by` lists specified in the [config](#stream-aggregation-config). 
-The result of aggregation by labels in this case will be undetermined, because it depends on the order of processing the time series
+The result of aggregation by labels in this case will be undetermined, because it depends on the order of processing the time series.
 
 ### min
 
 `min` returns the minimum input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The algorithm of `min` output can be represented visually by querying the source and aggregated data on the one graph,
-for `min` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `min` with aggregation interval of `1m` is equal to the `min_over_time(some_counter[1m])` query.
 
-* `min_over_time(some_counter[1m])` - source data
-* `some_counter:60s_min` - aggregated data
+For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-There is the example of the graph with source and aggregated data
-(with push interval `10s`, aggregation interval `1m` and `by: ["instance"]` in the stream aggregation config):
-
-<img alt="total aggregation" src="stream-aggregation-check-min.png">
+<img alt="min aggregation" src="stream-aggregation-check-min.png">
 
 ### max
 
 `max` returns the maximum input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The algorithm of `max` output can be represented visually by querying the source and aggregated data on the one graph,
-for `max` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `max` with aggregation interval of `1m` is equal to the `max_over_time(some_counter[1m])` query.
 
-* `max_over_time(some_counter[1m])` - source data
-* `some_counter:60s_max` - aggregated data
-
-There is the example of the graph with source and aggregated data
-(with push interval `10s`, aggregation interval `1m` and `by: ["instance"]` in the stream aggregation config):
+For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
 <img alt="total aggregation" src="stream-aggregation-check-max.png">
 
@@ -460,52 +421,34 @@ There is the example of the graph with source and aggregated data
 
 `avg` returns the average input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The avg of `avg` output can be represented visually by querying the source and aggregated data on the one graph,
-for `avg` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `avg` with aggregation interval of `1m` is equal to the `avg_over_time(some_counter[1m])` query.
 
-* `avg_over_time(some_counter[1m])` - source data
-* `some_counter:60s_avg` - aggregated data
+For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
-There is the example of the graph with source and aggregated data
-(with push interval `10s`, aggregation interval `1m` and `by: ["instance"]` in the stream aggregation config):
-
-<img alt="total aggregation" src="stream-aggregation-check-avg.png">
+<img alt="avg aggregation" src="stream-aggregation-check-avg.png">
 
 ### stddev
 
 `stddev` returns [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The avg of `stddev` output can be represented visually by querying the source and aggregated data on the one graph,
-for `stddev` it will be queries of the following kind (with aggregation interval `1m`):
-
-* `stddev_over_time(some_counter[1m])` - source data
-* `some_counter:60s_stddev` - aggregated data
+The results of `stddev` with aggregation interval of `1m` is equal to the `stddev_over_time(some_counter[1m])` query.
 
 ### stdvar
 
 `stdvar` returns [standard variance](https://en.wikipedia.org/wiki/Variance) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The avg of `stdvar` output can be represented visually by querying the source and aggregated data on the one graph,
-for `stdvar` it will be queries of the following kind (with aggregation interval `1m`):
+The results of `stdvar` with aggregation interval of `1m` is equal to the `stdvar_over_time(some_counter[1m])` query.
 
-* `stdvar_over_time(some_counter[1m])` - source data
-* `some_counter:60s_stdvar` - aggregated data
+For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
-There is the example of the graph with source and aggregated data
-(with push interval `10s`, aggregation interval `1m` in the stream aggregation config):
-
-<img alt="total aggregation" src="stream-aggregation-check-stdvar.png">
+<img alt="stdvar aggregation" src="stream-aggregation-check-stdvar.png">
 
 ### histogram_bucket
 
 `histogram_bucket` returns [VictoriaMetrics histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350)
   for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The avg of `histogram_bucket` output can be represented visually by querying the source and aggregated data on the one graph,
-for `histogram_bucket` it will be queries of the following kind (with aggregation interval `1m`):
-
-* `histogram_quantile(0.99, histogram_over_time(some_histogram_bucket[1m]))` - source data
-* `histogram_quantile(0.99, some_histogram_bucket:60s_histogram_bucket)` - aggregated data
+The results of `histogram_bucket` with aggregation interval of `1m` is equal to the `histogram_over_time(some_histogram_bucket[1m])` query.
 
 ### quantiles
 
@@ -513,11 +456,8 @@ for `histogram_bucket` it will be queries of the following kind (with aggregatio
 over the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples). 
 The `phi` must be in the range `[0..1]`, where `0` means `0th` percentile, while `1` means `100th` percentile.
 
-The avg of `histogram_bucket` output can be represented visually by querying the source and aggregated data on the one graph,
-for `histogram_bucket` it will be queries of the following kind (with aggregation interval `1m`):
-
-* `quantiles_over_time("quantile", 0.5, 0.9, 0.99, some_histogram_bucket[1m])` - source data
-* `some_histogram_bucket:60s_quantiles` - aggregated data
+The results of `quantiles(phi1, ..., phiN)` with aggregation interval of `1m` 
+is equal to the `quantiles_over_time("quantile", phi1, ..., phiN, some_histogram_bucket[1m])` query.
 
 ## Aggregating by labels
 
