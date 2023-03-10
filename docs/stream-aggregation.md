@@ -360,7 +360,6 @@ See the example of time series produced by `total` (with push interval `10s`, ag
 
 <img alt="total aggregation" src="stream-aggregation-check-total.png">
 
-You can see that the `total` output is equal to the sum of the source data every aggregation interval.
 
 ### increase
 
