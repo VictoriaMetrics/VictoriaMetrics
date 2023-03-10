@@ -356,7 +356,7 @@ for `total` it will be queries of the following kind (with aggregation interval 
 * `sum(some_counter)` - source data
 * `some_counter:60s_total` - aggregated data
 
-There is the example of the graph with source and aggregated data 
+See the example of time series produced by `total` (with push interval `10s`, aggregation interval `1m` and `by: ["instance"]`) below:
 
 <img alt="total aggregation" src="stream-aggregation-check-total.png">
 
