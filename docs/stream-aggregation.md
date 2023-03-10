@@ -87,7 +87,7 @@ This query is executed much faster than the original query, because it needs to 
 See [the list of aggregate output](#aggregation-outputs), which can be specified at `output` field.
 See also [aggregating by labels](#aggregating-by-labels).
 
-Field `interval` is recommended to be set to the value that are at least several times higher than your metrics collect interval.
+Field `interval` is recommended to be set to a value at least several times higher than your metrics collect interval.
 
 
 ### Reducing the number of stored samples
