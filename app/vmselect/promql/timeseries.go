@@ -251,7 +251,7 @@ func int64ToByteSlice(a []int64) (b []byte) {
 }
 
 func byteSliceToInt64(b []byte) (a []int64) {
-	// check if the bytes must be moved, for proper float64 alignment
+	// check if the bytes must be moved, for proper int64 alignment
 	addr := uintptr(unsafe.Pointer(&b[0]))
 	if mod := int(addr % unsafe.Alignof(&a[0])); mod != 0 {
 		a = make([]int64, len(b)/int(unsafe.Sizeof(a[0])))
