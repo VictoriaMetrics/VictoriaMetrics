@@ -621,6 +621,10 @@ can read the same rules configuration as normal, evaluate them on the given time
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
 
+Please note, that response caching may lead to unexpected results during and after backfilling process.
+In order to avoid this you need to reset cache contents or disable caching when using backfilling
+as described in [backfilling docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backfilling).
+
 See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
 
 ### How it works
