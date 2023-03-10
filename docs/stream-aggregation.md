@@ -370,19 +370,19 @@ For example, see below time series produced by config with aggregation interval 
 
 `count_series` counts the number of unique [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series).
 
-The results of `count_series` is equal to the `count(some_counter)` query.
+The results of `count_series` is equal to the `count(some_metric)` query.
 
 ### count_samples
 
 `count_samples` counts the number of input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `count_samples` with aggregation interval of `1m` is equal to the `count_over_time(some_counter[1m])` query.
+The results of `count_samples` with aggregation interval of `1m` is equal to the `count_over_time(some_metric[1m])` query.
 
 ### sum_samples
 
 `sum_samples` sums input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `sum_samples` with aggregation interval of `1m` is equal to the `sum_over_time(some_counter[1m])` query.
+The results of `sum_samples` with aggregation interval of `1m` is equal to the `sum_over_time(some_metric[1m])` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
@@ -392,7 +392,7 @@ For example, see below time series produced by config with aggregation interval 
 
 `last` returns the last input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `last` with aggregation interval of `1m` is equal to the `last_over_time(some_counter[1m])` query.
+The results of `last` with aggregation interval of `1m` is equal to the `last_over_time(some_metric[1m])` query.
 
 This aggregation output doesn't make much sense with `by` lists specified in the [config](#stream-aggregation-config). 
 The result of aggregation by labels in this case will be undetermined, because it depends on the order of processing the time series.
@@ -401,7 +401,7 @@ The result of aggregation by labels in this case will be undetermined, because i
 
 `min` returns the minimum input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `min` with aggregation interval of `1m` is equal to the `min_over_time(some_counter[1m])` query.
+The results of `min` with aggregation interval of `1m` is equal to the `min_over_time(some_metric[1m])` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
@@ -411,7 +411,7 @@ For example, see below time series produced by config with aggregation interval 
 
 `max` returns the maximum input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `max` with aggregation interval of `1m` is equal to the `max_over_time(some_counter[1m])` query.
+The results of `max` with aggregation interval of `1m` is equal to the `max_over_time(some_metric[1m])` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
@@ -421,7 +421,7 @@ For example, see below time series produced by config with aggregation interval 
 
 `avg` returns the average input [sample value](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `avg` with aggregation interval of `1m` is equal to the `avg_over_time(some_counter[1m])` query.
+The results of `avg` with aggregation interval of `1m` is equal to the `avg_over_time(some_metric[1m])` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
@@ -431,13 +431,13 @@ For example, see below time series produced by config with aggregation interval 
 
 `stddev` returns [standard deviation](https://en.wikipedia.org/wiki/Standard_deviation) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `stddev` with aggregation interval of `1m` is equal to the `stddev_over_time(some_counter[1m])` query.
+The results of `stddev` with aggregation interval of `1m` is equal to the `stddev_over_time(some_metric[1m])` query.
 
 ### stdvar
 
 `stdvar` returns [standard variance](https://en.wikipedia.org/wiki/Variance) for the input [sample values](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 
-The results of `stdvar` with aggregation interval of `1m` is equal to the `stdvar_over_time(some_counter[1m])` query.
+The results of `stdvar` with aggregation interval of `1m` is equal to the `stdvar_over_time(some_metric[1m])` query.
 
 For example, see below time series produced by config with aggregation interval `1m` and the regular query:
 
