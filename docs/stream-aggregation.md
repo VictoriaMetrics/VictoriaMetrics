@@ -365,7 +365,7 @@ You can see that the `total` output is equal to the sum of the source data every
 
 ### increase
 
-* `increase` returns the increase of input [counters](https://docs.victoriametrics.com/keyConcepts.html#counter).
+`increase` returns the increase of input [counters](https://docs.victoriametrics.com/keyConcepts.html#counter).
   * The `increase` handler properly handles the input counter resets.
   * The `increase` handler returns garbage when something other than [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) is passed to the input.
 
