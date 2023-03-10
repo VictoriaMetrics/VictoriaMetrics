@@ -378,7 +378,7 @@ for `increase` it will be queries of the following kind (with aggregation interv
 There is the example of the graph with source and aggregated data
 (with push interval `10s`, aggregation interval `1m` and `by: ["instance"]` in the stream aggregation config):
 
-<img alt="total aggregation" src="stream-aggregation-check-increase.png">
+<img alt="increase aggregation" src="stream-aggregation-check-increase.png">
 
 ### count_series
 
