@@ -8,9 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 const dontNeedBlockSize = 16 * 1024 * 1024
@@ -314,7 +315,5 @@ func putBufioWriter(bw *bufio.Writer) {
 var bwPool sync.Pool
 
 type streamTracker struct {
-	fd     uintptr
-	offset uint64
-	length uint64
+	fd uintptr
 }
