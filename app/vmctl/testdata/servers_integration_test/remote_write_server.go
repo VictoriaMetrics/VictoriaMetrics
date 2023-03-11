@@ -287,7 +287,7 @@ func GenerateVNSeries(start, end, numOfSeries, numOfSamples int64) []vm.TimeSeri
 		ts[i].Timestamps = t
 		ts[i].Values = v
 	}
-	log.Printf("TIMESERIES => %#v", ts)
+
 	return ts
 }
 
