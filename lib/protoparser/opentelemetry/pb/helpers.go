@@ -68,6 +68,7 @@ func float64AsString(f float64) string {
 	return string(b)
 }
 
+// Reset resets a ExportMetricsServiceRequest so that it is empty
 func (m *ExportMetricsServiceRequest) Reset() {
 	m.unknownFields = m.unknownFields[:0]
 	for i := range m.ResourceMetrics {
@@ -76,6 +77,7 @@ func (m *ExportMetricsServiceRequest) Reset() {
 	m.ResourceMetrics = m.ResourceMetrics[:0]
 }
 
+// Reset resets a ResourceMetrics so that it is empty
 func (m *ResourceMetrics) Reset() {
 	m.unknownFields = m.unknownFields[:0]
 	m.Resource = nil
@@ -86,6 +88,7 @@ func (m *ResourceMetrics) Reset() {
 	m.SchemaUrl = ""
 }
 
+// Reset resets a ScopeMetrics so that it is empty
 func (m *ScopeMetrics) Reset() {
 	m.unknownFields = nil
 	m.Scope = nil

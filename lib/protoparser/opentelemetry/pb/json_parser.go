@@ -738,6 +738,7 @@ func parseInt64(v *fastjson.Value) (int64, error) {
 	}
 }
 
+// UnmarshalJSONExportMetricsServiceRequest parses a JSON buffer and returns an ExportMetricsServiceRequest
 func UnmarshalJSONExportMetricsServiceRequest(buf []byte, m *ExportMetricsServiceRequest) error {
 	v, err := fastjson.ParseBytes(buf)
 	if err != nil {
