@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -23,6 +24,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
+// LabelValues represents series from api/v1/series response
+type LabelValues map[string]string
+
+// Response represents response from api/v1/series
+type Response struct {
+	Status string        `json:"status"`
+	Series []LabelValues `json:"data"`
+}
+
+// RemoteWriteServer represents fake remote write server with database
 type RemoteWriteServer struct {
 	server         *httptest.Server
 	series         []vm.TimeSeries
@@ -44,19 +55,22 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	return rws
 }
 
-// Close closes the server.
+// Close closes the server
 func (rws *RemoteWriteServer) Close() {
 	rws.server.Close()
 }
 
+// Series saves generated series for fake database
 func (rws *RemoteWriteServer) Series(series []vm.TimeSeries) {
 	rws.series = append(rws.series, series...)
 }
 
+// ExpectedSeries saves expected results to check in the handler
 func (rws *RemoteWriteServer) ExpectedSeries(series []vm.TimeSeries) {
 	rws.expectedSeries = append(rws.expectedSeries, series...)
 }
 
+// InitFakeStorage initialize fake storage with data which generated from series
 func (rws *RemoteWriteServer) InitFakeStorage() error {
 	s, err := storage.OpenStorage("TestStorage", 0, 0, 0)
 	if err != nil {
@@ -68,13 +82,6 @@ func (rws *RemoteWriteServer) InitFakeStorage() error {
 
 	var mrs []storage.MetricRow
 	for _, series := range rws.series {
-		mr := storage.MetricRow{}
-		for _, ts := range series.Timestamps {
-			mr.Timestamp = ts
-		}
-		for _, v := range series.Values {
-			mr.Value = v
-		}
 		var labels []prompb.Label
 		for _, lp := range series.LabelPairs {
 			labels = append(labels, prompb.Label{Name: []byte(lp.Name), Value: []byte(lp.Value)})
@@ -82,16 +89,25 @@ func (rws *RemoteWriteServer) InitFakeStorage() error {
 		if series.Name != "" {
 			labels = append(labels, prompb.Label{Name: []byte("__name__"), Value: []byte(series.Name)})
 		}
+		mr := storage.MetricRow{}
 		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
-		mrs = append(mrs, mr)
-		if err := s.AddRows(mrs, 4); err != nil {
-			return fmt.Errorf("unexpected error in RegisterMetricNames: %s", err)
+
+		timestamps := series.Timestamps
+		values := series.Values
+		for i, value := range values {
+			mr.Timestamp = timestamps[i]
+			mr.Value = value
+			mrs = append(mrs, mr)
 		}
+	}
+	if err := s.AddRows(mrs, 4); err != nil {
+		return fmt.Errorf("unexpected error in RegisterMetricNames: %s", err)
 	}
 	s.DebugFlush()
 	return nil
 }
 
+// CloseStorage correctly finish storage work
 func (rws *RemoteWriteServer) CloseStorage() {
 	rws.storage.MustClose()
 	if err := os.RemoveAll("TestStorage"); err != nil {
@@ -99,6 +115,7 @@ func (rws *RemoteWriteServer) CloseStorage() {
 	}
 }
 
+// URL returns server url
 func (rws *RemoteWriteServer) URL() string {
 	return rws.server.URL
 }
@@ -149,15 +166,6 @@ func (rws *RemoteWriteServer) handlePing() http.Handler {
 	})
 }
 
-// LabelValues represents series from api/v1/series response
-type LabelValues map[string]string
-
-// Response represents response from api/v1/series
-type Response struct {
-	Status string        `json:"status"`
-	Series []LabelValues `json:"data"`
-}
-
 func (rws *RemoteWriteServer) seriesHandler(t *testing.T) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var labelValues []LabelValues
@@ -178,8 +186,12 @@ func (rws *RemoteWriteServer) seriesHandler(t *testing.T) http.Handler {
 		}
 		err := json.NewEncoder(w).Encode(resp)
 		if err != nil {
+			log.Printf("error send series: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		w.WriteHeader(http.StatusOK)
 	})
 }
 
@@ -188,23 +200,8 @@ func (rws *RemoteWriteServer) exportNativeHandler(t *testing.T) http.Handler {
 		now := time.Now()
 		err := prometheus.ExportNativeHandler(now, w, r)
 		if err != nil {
-			log.Printf("ERRR => %s", err)
-			return
-		}
-	})
-}
-
-func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		common.StartUnmarshalWorkers()
-		defer common.StopUnmarshalWorkers()
-		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
-			log.Printf("BLOCK => %s", block.MetricName.String())
-			log.Printf("")
-			return nil
-		})
-		if err != nil {
-			log.Printf("GOT ERROR => %s", err)
+			log.Printf("error export series via native protocol: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -212,6 +209,61 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 	})
 }
 
+func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		common.StartUnmarshalWorkers()
+		defer common.StopUnmarshalWorkers()
+
+		var gotTimeSeries []vm.TimeSeries
+
+		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
+			mn := &block.MetricName
+			var timeseries vm.TimeSeries
+			timeseries.Name = string(mn.MetricGroup)
+			timeseries.Timestamps = append(timeseries.Timestamps, block.Timestamps...)
+			timeseries.Values = append(timeseries.Values, block.Values...)
+
+			for i := range mn.Tags {
+				tag := &mn.Tags[i]
+				timeseries.LabelPairs = append(timeseries.LabelPairs, vm.LabelPair{
+					Name:  string(tag.Key),
+					Value: string(tag.Value),
+				})
+			}
+
+			gotTimeSeries = append(gotTimeSeries, timeseries)
+
+			return nil
+		})
+		if err != nil {
+			log.Printf("error parse stream blocks: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// got timeseries should be sorted
+		// because they are processed independently
+		sort.SliceStable(gotTimeSeries, func(i, j int) bool {
+			iv, jv := gotTimeSeries[i], gotTimeSeries[j]
+			switch {
+			case iv.Values[0] != jv.Values[0]:
+				return iv.Values[0] < jv.Values[0]
+			case iv.Timestamps[0] != jv.Timestamps[0]:
+				return iv.Timestamps[0] < jv.Timestamps[0]
+			default:
+				return iv.Name < jv.Name
+			}
+		})
+
+		if !reflect.DeepEqual(gotTimeSeries, rws.expectedSeries) {
+			t.Fatalf("\ntimeseries: %#v; \ntimeseries: %#v", rws.expectedSeries, gotTimeSeries)
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+	})
+}
+
+// GenerateVNSeries generates test timeseries
 func GenerateVNSeries(start, end, numOfSeries, numOfSamples int64) []vm.TimeSeries {
 	var ts []vm.TimeSeries
 	j := 0
@@ -235,7 +287,7 @@ func GenerateVNSeries(start, end, numOfSeries, numOfSamples int64) []vm.TimeSeri
 		ts[i].Timestamps = t
 		ts[i].Values = v
 	}
-
+	log.Printf("TIMESERIES => %#v", ts)
 	return ts
 }
 

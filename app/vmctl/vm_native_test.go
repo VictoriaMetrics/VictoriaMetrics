@@ -12,116 +12,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 )
 
-// If you want to run this test:
-// 1. run two instances of victoriametrics and define -httpListenAddr for both or just for second instance
-// 2. define srcAddr and dstAddr const with your victoriametrics addresses
-// 3. define matchFilter const with your importing data
-// 4. define timeStartFilter
-// 5. run each test one by one
-
-const (
-	matchFilter     = `{job="avalanche"}`
-	timeStartFilter = "2020-01-01T20:07:00Z"
-	timeEndFilter   = "2020-08-01T20:07:00Z"
-	srcAddr         = "http://127.0.0.1:8428"
-	dstAddr         = "http://127.0.0.1:8528"
-)
-
-// This test simulates close process if user abort it
 func Test_vmNativeProcessor_run(t *testing.T) {
-	t.Skip()
-	type fields struct {
-		filter    native.Filter
-		rateLimit int64
-		dst       *native.Client
-		src       *native.Client
-	}
-	tests := []struct {
-		name    string
-		fields  fields
-		closer  func(cancelFunc context.CancelFunc)
-		wantErr bool
-	}{
-		{
-			name: "simulate syscall.SIGINT",
-			fields: fields{
-				filter: native.Filter{
-					Match:     matchFilter,
-					TimeStart: timeStartFilter,
-				},
-				rateLimit: 0,
-				dst: &native.Client{
-					Addr: dstAddr,
-				},
-				src: &native.Client{
-					Addr: srcAddr,
-				},
-			},
-			closer: func(cancelFunc context.CancelFunc) {
-				time.Sleep(time.Second * 5)
-				cancelFunc()
-			},
-			wantErr: true,
-		},
-		{
-			name: "simulate correct work",
-			fields: fields{
-				filter: native.Filter{
-					Match:     matchFilter,
-					TimeStart: timeStartFilter,
-				},
-				rateLimit: 0,
-				dst: &native.Client{
-					Addr: dstAddr,
-				},
-				src: &native.Client{
-					Addr: srcAddr,
-				},
-			},
-			closer:  func(cancelFunc context.CancelFunc) {},
-			wantErr: false,
-		},
-		{
-			name: "simulate correct work with chunking",
-			fields: fields{
-				filter: native.Filter{
-					Match:     matchFilter,
-					TimeStart: timeStartFilter,
-					TimeEnd:   timeEndFilter,
-					Chunk:     stepper.StepMonth,
-				},
-				rateLimit: 0,
-				dst: &native.Client{
-					Addr: dstAddr,
-				},
-				src: &native.Client{
-					Addr: srcAddr,
-				},
-			},
-			closer:  func(cancelFunc context.CancelFunc) {},
-			wantErr: false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx, cancelFn := context.WithCancel(context.Background())
-			p := &vmNativeProcessor{
-				filter:    tt.fields.filter,
-				rateLimit: tt.fields.rateLimit,
-				dst:       tt.fields.dst,
-				src:       tt.fields.src,
-			}
-
-			tt.closer(cancelFn)
-
-			if err := p.run(ctx, true); (err != nil) != tt.wantErr {
-				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
-			}
-		})
-	}
-}
-
-func Test_vmNativeProcessor_run1(t *testing.T) {
 	type fields struct {
 		filter       native.Filter
 		dst          *native.Client
@@ -151,18 +42,14 @@ func Test_vmNativeProcessor_run1(t *testing.T) {
 		wantErr        bool
 	}{
 		{
-			name:         "first test",
+			name:         "step minute on minute time range",
 			start:        "2022-11-25T11:23:05+02:00",
 			end:          "2022-11-27T11:24:05+02:00",
 			numOfSamples: 2,
 			numOfSeries:  3,
 			chunk:        stepper.StepMinute,
 			fields: fields{
-				filter: native.Filter{
-					Match: `{__name__!=""}`,
-				},
-				dst:          nil,
-				src:          nil,
+				filter:       native.Filter{Match: `{__name__=".*"}`},
 				backoff:      backoff.New(),
 				rateLimit:    0,
 				interCluster: false,
@@ -177,20 +64,79 @@ func Test_vmNativeProcessor_run1(t *testing.T) {
 				{
 					Name:       "vm_metric_1",
 					LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
-					Timestamps: []int64{1669454585000, 1669454615000},
+					Timestamps: []int64{1669368185000, 1669454615000},
 					Values:     []float64{0, 0},
 				},
 				{
 					Name:       "vm_metric_1",
 					LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
-					Timestamps: []int64{1669454585000, 1669454615000},
+					Timestamps: []int64{1669368185000, 1669454615000},
 					Values:     []float64{100, 100},
 				},
 				{
 					Name:       "vm_metric_1",
 					LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
-					Timestamps: []int64{1669454585000, 1669454615000},
+					Timestamps: []int64{1669368185000, 1669454615000},
 					Values:     []float64{200, 200},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name:         "step month on month time range",
+			start:        "2022-09-26T11:23:05+02:00",
+			end:          "2022-11-26T11:24:05+02:00",
+			numOfSamples: 2,
+			numOfSeries:  3,
+			chunk:        stepper.StepMonth,
+			fields: fields{
+				filter:       native.Filter{Match: `{__name__=".*"}`},
+				backoff:      backoff.New(),
+				rateLimit:    0,
+				interCluster: false,
+				cc:           1,
+			},
+			args: args{
+				ctx:    context.Background(),
+				silent: true,
+			},
+			vmSeries: remote_read_integration.GenerateVNSeries,
+			expectedSeries: []vm.TimeSeries{
+				{
+					Name:       "vm_metric_1",
+					LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
+					Timestamps: []int64{1664184185000},
+					Values:     []float64{0},
+				},
+				{
+					Name:       "vm_metric_1",
+					LabelPairs: []vm.LabelPair{{Name: "job", Value: "0"}},
+					Timestamps: []int64{1666819415000},
+					Values:     []float64{0},
+				},
+				{
+					Name:       "vm_metric_1",
+					LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
+					Timestamps: []int64{1664184185000},
+					Values:     []float64{100},
+				},
+				{
+					Name:       "vm_metric_1",
+					LabelPairs: []vm.LabelPair{{Name: "job", Value: "1"}},
+					Timestamps: []int64{1666819415000},
+					Values:     []float64{100},
+				},
+				{
+					Name:       "vm_metric_1",
+					LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
+					Timestamps: []int64{1664184185000},
+					Values:     []float64{200},
+				},
+				{
+					Name:       "vm_metric_1",
+					LabelPairs: []vm.LabelPair{{Name: "job", Value: "2"}},
+					Timestamps: []int64{1666819415000},
+					Values:     []float64{200},
 				},
 			},
 			wantErr: false,
