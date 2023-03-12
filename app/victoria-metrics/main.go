@@ -26,7 +26,8 @@ import (
 var (
 	httpListenAddr   = flag.String("httpListenAddr", ":8428", "TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
-		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
+		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
 	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+

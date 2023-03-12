@@ -57,7 +57,8 @@ absolute path to all .tpl files in root.`)
 
 	httpListenAddr   = flag.String("httpListenAddr", ":8880", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
-		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
+		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
@@ -344,7 +345,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := config.ParseSilent(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
