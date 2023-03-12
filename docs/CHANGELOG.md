@@ -33,7 +33,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): properly process `Run in VMUI` button click in [VictoriaMetrics datasource plugin for Grafana](https://github.com/VictoriaMetrics/grafana-datasource).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the selected value for dropdowns on `Explore` page.
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): fix `cannot serve http` panic when plain HTTP request is sent to `vmauth` configured to accept requests over [proxy protocol](https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt)-encoded request (e.g. when `vmauth` runs with `-httpListenAddr.useProxyProtocol` command-line flag). The issue has been introduced at [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) when implementing [this feature](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3335).
-* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): properly parsing RSA public key discovered via JWK endpoint.
+* BUGFIX: [vmgateway](https://docs.victoriametrics.com/vmgateway.html): properly parse RSA public key discovered via JWK endpoint.
 
 ## [v1.88.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.88.1)
 
