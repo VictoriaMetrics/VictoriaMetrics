@@ -884,7 +884,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	qtDone := func() {
 		qt.Donef("query=%s, time=%d: series=%d", query, start, len(result))
 	}
-	WriteQueryResponse(bw, ec.IsPartialResponse, result, qt, qtDone)
+	WriteQueryResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
@@ -992,7 +992,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d, step=%d, query=%q: series=%d", start, end, step, query, len(result))
 	}
-	WriteQueryRangeResponse(bw, ec.IsPartialResponse, result, qt, qtDone)
+	WriteQueryRangeResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}
