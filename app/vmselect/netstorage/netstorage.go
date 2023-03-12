@@ -1365,9 +1365,11 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	if err != nil {
 		return err
 	}
-	metricName := bytesutil.InternBytes(mb.MetricName)
+	// Do not intern mb.MetricName, since it leads to increased memory usage.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+	metricName := mb.MetricName
 	m := tbfw.ms[workerID]
-	addrs := m[metricName]
+	addrs := m[string(metricName)]
 	if addrs == nil {
 		addrs = newBlockAddrs()
 	}
@@ -1376,8 +1378,9 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 		// in both tbfw.orderedMetricNamess and tbfw.ms.
 		orderedMetricNames := tbfw.orderedMetricNamess[workerID]
-		orderedMetricNames = append(orderedMetricNames, metricName)
-		m[metricName] = addrs
+		metricNameStr := string(metricName)
+		orderedMetricNames = append(orderedMetricNames, metricNameStr)
+		m[metricNameStr] = addrs
 		tbfw.orderedMetricNamess[workerID] = orderedMetricNames
 	}
 	return nil
