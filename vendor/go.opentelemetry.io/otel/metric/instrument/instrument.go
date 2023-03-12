@@ -14,8 +14,6 @@
 
 package instrument // import "go.opentelemetry.io/otel/metric/instrument"
 
-import "go.opentelemetry.io/otel/metric/unit"
-
 // Asynchronous instruments are instruments that are updated within a Callback.
 // If an instrument is observed outside of it's callback it should be an error.
 //
@@ -64,27 +62,27 @@ func (o descOpt) applyInt64Observer(c Int64ObserverConfig) Int64ObserverConfig {
 // WithDescription sets the instrument description.
 func WithDescription(desc string) Option { return descOpt(desc) }
 
-type unitOpt unit.Unit
+type unitOpt string
 
 func (o unitOpt) applyFloat64(c Float64Config) Float64Config {
-	c.unit = unit.Unit(o)
+	c.unit = string(o)
 	return c
 }
 
 func (o unitOpt) applyInt64(c Int64Config) Int64Config {
-	c.unit = unit.Unit(o)
+	c.unit = string(o)
 	return c
 }
 
 func (o unitOpt) applyFloat64Observer(c Float64ObserverConfig) Float64ObserverConfig {
-	c.unit = unit.Unit(o)
+	c.unit = string(o)
 	return c
 }
 
 func (o unitOpt) applyInt64Observer(c Int64ObserverConfig) Int64ObserverConfig {
-	c.unit = unit.Unit(o)
+	c.unit = string(o)
 	return c
 }
 
 // WithUnit sets the instrument unit.
-func WithUnit(u unit.Unit) Option { return unitOpt(u) }
+func WithUnit(u string) Option { return unitOpt(u) }

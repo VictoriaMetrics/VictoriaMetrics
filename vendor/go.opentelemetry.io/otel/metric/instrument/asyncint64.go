@@ -18,7 +18,6 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric/unit"
 )
 
 // Int64Observable describes a set of instruments used asynchronously to record
@@ -82,7 +81,7 @@ type Int64Callback func(context.Context, Int64Observer) error
 // observe int64 values.
 type Int64ObserverConfig struct {
 	description string
-	unit        unit.Unit
+	unit        string
 	callbacks   []Int64Callback
 }
 
@@ -102,7 +101,7 @@ func (c Int64ObserverConfig) Description() string {
 }
 
 // Unit returns the Config unit.
-func (c Int64ObserverConfig) Unit() unit.Unit {
+func (c Int64ObserverConfig) Unit() string {
 	return c.unit
 }
 

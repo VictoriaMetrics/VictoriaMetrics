@@ -46,7 +46,6 @@ an request is serialized, and removes the serialized bucket name from request pa
 
 	Middleware layering:
 
-
 	Initialize : HTTP Request -> ARN Lookup -> Input-Validation -> Serialize step
 
 	Serialize : HTTP Request -> Process ARN -> operation serializer -> Update-Endpoint customization -> Remove-Bucket -> next middleware
