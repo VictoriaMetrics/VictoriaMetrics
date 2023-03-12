@@ -129,7 +129,7 @@ type EvalConfig struct {
 	DenyPartialResponse bool
 
 	// IsPartialResponse is set during query execution and can be used by Exec caller after query execution.
-	IsPartialResponse bool
+	IsPartialResponse atomic.Bool
 
 	timestamps     []int64
 	timestampsOnce sync.Once
@@ -150,16 +150,14 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
 	ec.DenyPartialResponse = src.DenyPartialResponse
-	ec.IsPartialResponse = src.IsPartialResponse
+	ec.IsPartialResponse.Store(src.IsPartialResponse.Load())
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
 }
 
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
-	if !ec.IsPartialResponse {
-		ec.IsPartialResponse = isPartialResponse
-	}
+	ec.IsPartialResponse.CompareAndSwap(false, isPartialResponse)
 }
 
 func (ec *EvalConfig) validate() {
@@ -843,7 +841,7 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	if funcName == "absent_over_time" {
 		rvs = aggregateAbsentOverTime(ec, re.Expr, rvs)
 	}
-	ec.updateIsPartialResponse(ecNew.IsPartialResponse)
+	ec.updateIsPartialResponse(ecNew.IsPartialResponse.Load())
 	if offset != 0 && len(rvs) > 0 {
 		// Make a copy of timestamps, since they may be used in other values.
 		srcTimestamps := rvs[0].Timestamps
@@ -903,7 +901,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	if err != nil {
 		return nil, err
 	}
-	ec.updateIsPartialResponse(ecSQ.IsPartialResponse)
+	ec.updateIsPartialResponse(ecSQ.IsPartialResponse.Load())
 	if len(tssSQ) == 0 {
 		return nil, nil
 	}
