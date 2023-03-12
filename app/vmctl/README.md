@@ -792,7 +792,7 @@ to the corresponding source address.
 error `use of closed network connection` when run a longer export.
 10. Migrating data with overlapping time range for destination data can produce duplicates series at destination.
 To avoid duplicates on the destination set `-dedup.minScrapeInterval=1ms` for `vmselect` and `vmstorage`.
-This will instruct `vmselect` and `vmstorage` to ignore duplicates with match timestamps.     
+This will instruct `vmselect` and `vmstorage` to ignore duplicates with match timestamps.
 
 In this mode `vmctl` acts as a proxy between two VM instances, where time series filtering is done by "source" (`src`)
 and processing is done by "destination" (`dst`). So no extra memory or CPU resources required on `vmctl` side. Only
