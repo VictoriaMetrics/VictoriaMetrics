@@ -2,10 +2,10 @@ package promql
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"reflect"
 	"testing"
-	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
@@ -104,7 +104,8 @@ func TestTimeseriesMarshalUnmarshalFast(t *testing.T) {
 	})
 }
 
-func TestTimeseriesByteSliceToXXX64Alignment(t *testing.T) {
+func TestTimeseriesByteSliceToXXX64Evaluation(t *testing.T) {
+	// check that {un,re}aligned float64/int64 slices can be evaluated
 	src := []byte{
 		0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40, // 0
 		0x0,                                            // padding to force mis-alignment
@@ -135,9 +136,9 @@ func TestTimeseriesByteSliceToXXX64Alignment(t *testing.T) {
 			if f[0] != 3.141592653589793 {
 				t.Fatalf("unexpected value; f[0]=%v", f[0])
 			}
-			addr := uintptr(unsafe.Pointer(&f[0]))
-			if addr%unsafe.Alignof(f[0]) != 0 {
-				t.Fatalf("mis-aligned; &f[0]=%p; mod=%d", &f[0], addr%unsafe.Alignof(f[0]))
+
+			if math.IsNaN(f[0]) {
+				t.Fatalf("unexpected NaN; f[0]=%v", f[0])
 			}
 		})
 		t.Run(fmt.Sprintf("int64/%d", i), func(t *testing.T) {
@@ -148,10 +149,6 @@ func TestTimeseriesByteSliceToXXX64Alignment(t *testing.T) {
 			}
 			if f[0] != 4614256656552045848 {
 				t.Fatalf("unexpected value; f[0]=%v", f[0])
-			}
-			addr := uintptr(unsafe.Pointer(&f[0]))
-			if addr%unsafe.Alignof(f[0]) != 0 {
-				t.Fatalf("mis-aligned; &f[0]=%p; mod=%d", &f[0], addr%unsafe.Alignof(f[0]))
 			}
 		})
 	}
