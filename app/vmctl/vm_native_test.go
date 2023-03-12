@@ -146,9 +146,13 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			src := remote_read_integration.NewRemoteWriteServer(t)
 			dst := remote_read_integration.NewRemoteWriteServer(t)
+			if err := src.InitFakeStorage(); err != nil {
+				t.Fatalf("fail when trying to init fake storage: %s", err)
+			}
 			defer func() {
 				src.Close()
 				dst.Close()
+				src.CloseStorage()
 			}()
 
 			start, err := time.Parse(time.RFC3339, tt.start)
@@ -168,11 +172,9 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 
 			src.Series(rws)
 			dst.ExpectedSeries(tt.expectedSeries)
-
-			if err := src.InitFakeStorage(); err != nil {
-				t.Fatalf("fail when trying to init fake storage: %s", err)
+			if err := src.FillStorage(); err != nil {
+				t.Fatalf("error add series to storage: %s", err)
 			}
-			defer src.CloseStorage()
 
 			tt.fields.src = &native.Client{
 				AuthCfg:              nil,

@@ -79,7 +79,11 @@ func (rws *RemoteWriteServer) InitFakeStorage() error {
 
 	vmstorage.Storage = s
 	rws.storage = vmstorage.Storage
+	return nil
+}
 
+// FillStorage process series and adds rows to the storage
+func (rws *RemoteWriteServer) FillStorage() error {
 	var mrs []storage.MetricRow
 	for _, series := range rws.series {
 		var labels []prompb.Label
@@ -100,10 +104,10 @@ func (rws *RemoteWriteServer) InitFakeStorage() error {
 			mrs = append(mrs, mr)
 		}
 	}
-	if err := s.AddRows(mrs, 4); err != nil {
+	if err := rws.storage.AddRows(mrs, 4); err != nil {
 		return fmt.Errorf("unexpected error in RegisterMetricNames: %s", err)
 	}
-	s.DebugFlush()
+	rws.storage.DebugFlush()
 	return nil
 }
 
