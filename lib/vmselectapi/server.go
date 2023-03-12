@@ -85,9 +85,10 @@ func NewServer(addr string, api API, limits Limits, disableResponseCompression b
 		return nil, fmt.Errorf("unable to listen vmselectAddr %s: %w", addr, err)
 	}
 	s := &Server{
-		api:    api,
-		limits: limits,
-		ln:     ln,
+		api:                        api,
+		limits:                     limits,
+		disableResponseCompression: disableResponseCompression,
+		ln:                         ln,
 
 		vmselectConns:      metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conns{addr=%q}`, addr)),
 		vmselectConnErrors: metrics.NewCounter(fmt.Sprintf(`vm_vmselect_conn_errors_total{addr=%q}`, addr)),
