@@ -1245,7 +1245,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, tsids []TSID, dead
 			}
 		}
 	})
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return err
 	}
 	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
