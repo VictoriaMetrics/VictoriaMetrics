@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 )
 
 const (
@@ -18,11 +19,10 @@ const (
 // Client is an HTTP client for exporting and importing
 // time series via native protocol.
 type Client struct {
-	Addr        string
-	User        string
-	Password    string
-	ExtraLabels []string
-	Headers     string
+	AuthCfg              *auth.Config
+	Addr                 string
+	ExtraLabels          []string
+	DisableHTTPKeepAlive bool
 }
 
 // LabelValues represents series from api/v1/series response
@@ -92,15 +92,6 @@ func (c *Client) ImportPipe(ctx context.Context, dstURL string, pr *io.PipeReade
 		return fmt.Errorf("cannot create import request to %q: %s", c.Addr, err)
 	}
 
-	parsedHeaders, err := parseHeaders(c.Headers)
-	if err != nil {
-		return err
-	}
-
-	for _, header := range parsedHeaders {
-		req.Header.Set(header.key, header.value)
-	}
-
 	importResp, err := c.do(req, http.StatusNoContent)
 	if err != nil {
 		return fmt.Errorf("import request failed: %s", err)
@@ -131,15 +122,6 @@ func (c *Client) ExportPipe(ctx context.Context, url string, f Filter) (io.ReadC
 	// disable compression since it is meaningless for native format
 	req.Header.Set("Accept-Encoding", "identity")
 
-	parsedHeaders, err := parseHeaders(c.Headers)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, header := range parsedHeaders {
-		req.Header.Set(header.key, header.value)
-	}
-
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
 		return nil, fmt.Errorf("export request failed: %w", err)
@@ -164,15 +146,6 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 	}
 	req.URL.RawQuery = params.Encode()
 
-	parsedHeaders, err := parseHeaders(c.Headers)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, header := range parsedHeaders {
-		req.Header.Set(header.key, header.value)
-	}
-
 	resp, err := c.do(req, http.StatusOK)
 	if err != nil {
 		return nil, fmt.Errorf("tenants request failed: %s", err)
@@ -193,10 +166,11 @@ func (c *Client) GetSourceTenants(ctx context.Context, f Filter) ([]string, erro
 }
 
 func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
-	if c.User != "" {
-		req.SetBasicAuth(c.User, c.Password)
+	if c.AuthCfg != nil {
+		c.AuthCfg.SetHeaders(req, true)
 	}
-	resp, err := http.DefaultClient.Do(req)
+	var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: c.DisableHTTPKeepAlive}}
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}
@@ -209,29 +183,4 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 		return nil, fmt.Errorf("unexpected response code %d: %s", resp.StatusCode, string(body))
 	}
 	return resp, err
-}
-
-type keyValue struct {
-	key   string
-	value string
-}
-
-func parseHeaders(headers string) ([]keyValue, error) {
-	if len(headers) == 0 {
-		return nil, nil
-	}
-
-	var headersSplitByDelimiter = strings.Split(headers, "^^")
-
-	kvs := make([]keyValue, len(headersSplitByDelimiter))
-	for i, h := range headersSplitByDelimiter {
-		n := strings.IndexByte(h, ':')
-		if n < 0 {
-			return nil, fmt.Errorf(`missing ':' in header %q; expecting "key: value" format`, h)
-		}
-		kv := &kvs[i]
-		kv.key = strings.TrimSpace(h[:n])
-		kv.value = strings.TrimSpace(h[n+1:])
-	}
-	return kvs, nil
 }

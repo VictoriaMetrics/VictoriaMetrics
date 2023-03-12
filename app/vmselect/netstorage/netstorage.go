@@ -1266,8 +1266,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
-		metricName := bytesutil.InternBytes(sr.MetricBlockRef.MetricName)
-		brs := m[metricName]
+		// Do not intern mb.MetricName, since it leads to increased memory usage.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+		metricName := sr.MetricBlockRef.MetricName
+		brs := m[string(metricName)]
 		if brs == nil {
 			brs = &blockRefs{}
 			brs.brs = brs.brsPrealloc[:0]
@@ -1277,8 +1279,9 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			addr:    addr,
 		})
 		if len(brs.brs) == 1 {
-			orderedMetricNames = append(orderedMetricNames, metricName)
-			m[metricName] = brs
+			metricNameStr := string(metricName)
+			orderedMetricNames = append(orderedMetricNames, metricNameStr)
+			m[metricNameStr] = brs
 		}
 	}
 	if err := sr.Error(); err != nil {
