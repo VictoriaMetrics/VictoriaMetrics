@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"reflect"
 	"sort"
 	"strconv"
@@ -16,15 +15,11 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/prometheus"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
-
-const storagePath = "TestStorage"
 
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
@@ -72,55 +67,6 @@ func (rws *RemoteWriteServer) ExpectedSeries(series []vm.TimeSeries) {
 	rws.expectedSeries = append(rws.expectedSeries, series...)
 }
 
-// InitFakeStorage initialize fake storage with data which generated from series
-func (rws *RemoteWriteServer) InitFakeStorage() error {
-	s, err := storage.OpenStorage(storagePath, 0, 0, 0)
-	if err != nil {
-		return fmt.Errorf("cannot open storage: %s", err)
-	}
-
-	vmstorage.Storage = s
-	rws.storage = vmstorage.Storage
-	return nil
-}
-
-// FillStorage process series and adds rows to the storage
-func (rws *RemoteWriteServer) FillStorage() error {
-	var mrs []storage.MetricRow
-	for _, series := range rws.series {
-		var labels []prompb.Label
-		for _, lp := range series.LabelPairs {
-			labels = append(labels, prompb.Label{Name: []byte(lp.Name), Value: []byte(lp.Value)})
-		}
-		if series.Name != "" {
-			labels = append(labels, prompb.Label{Name: []byte("__name__"), Value: []byte(series.Name)})
-		}
-		mr := storage.MetricRow{}
-		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
-
-		timestamps := series.Timestamps
-		values := series.Values
-		for i, value := range values {
-			mr.Timestamp = timestamps[i]
-			mr.Value = value
-			mrs = append(mrs, mr)
-		}
-	}
-	if err := rws.storage.AddRows(mrs, 4); err != nil {
-		return fmt.Errorf("unexpected error in AddRows: %s", err)
-	}
-	rws.storage.DebugFlush()
-	return nil
-}
-
-// CloseStorage correctly finish storage work
-func (rws *RemoteWriteServer) CloseStorage() {
-	rws.storage.MustClose()
-	if err := os.RemoveAll(storagePath); err != nil {
-		log.Fatalf("cannot remove %q: %s", storagePath, err)
-	}
-}
-
 // URL returns server url
 func (rws *RemoteWriteServer) URL() string {
 	return rws.server.URL
@@ -162,6 +108,7 @@ func (rws *RemoteWriteServer) getWriteHandler(t *testing.T) http.Handler {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return
 	})
 }
 
@@ -190,6 +137,7 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 			Status: "success",
 			Series: labelValues,
 		}
+
 		err := json.NewEncoder(w).Encode(resp)
 		if err != nil {
 			log.Printf("error send series: %s", err)
@@ -198,6 +146,7 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 		}
 
 		w.WriteHeader(http.StatusOK)
+		return
 	})
 }
 
@@ -212,6 +161,7 @@ func (rws *RemoteWriteServer) exportNativeHandler() http.Handler {
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return
 	})
 }
 
@@ -223,6 +173,7 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		var gotTimeSeries []vm.TimeSeries
 
 		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
+			log.Printf("BLOCK => %#v", block)
 			mn := &block.MetricName
 			var timeseries vm.TimeSeries
 			timeseries.Name = string(mn.MetricGroup)
@@ -262,10 +213,11 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		})
 
 		if !reflect.DeepEqual(gotTimeSeries, rws.expectedSeries) {
-			t.Fatalf("datasets not equal, expected: %#v; \n got: %#v", rws.expectedSeries, gotTimeSeries)
+			t.Fatalf("datasets not equal, \ngot: %#v;\n got: %#v", rws.expectedSeries, gotTimeSeries)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
+		return
 	})
 }
 

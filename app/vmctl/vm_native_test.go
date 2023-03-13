@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"flag"
+	"fmt"
+	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -10,18 +14,35 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	remote_read_integration "github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/testdata/servers_integration_test"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompb"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
+const storagePath = "TestStorage"
+
 func Test_vmNativeProcessor_run(t *testing.T) {
+
+	processFlags(storagePath)
+	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
+	defer func() {
+		vmstorage.Stop()
+		if err := os.RemoveAll(storagePath); err != nil {
+			log.Fatalf("cannot remove %q: %s", storagePath, err)
+		}
+	}()
+
 	type fields struct {
-		filter       native.Filter
-		dst          *native.Client
-		src          *native.Client
-		backoff      *backoff.Backoff
-		s            *stats
-		rateLimit    int64
-		interCluster bool
-		cc           int
+		filter         native.Filter
+		dst            *native.Client
+		src            *native.Client
+		backoff        *backoff.Backoff
+		s              *stats
+		rateLimit      int64
+		interCluster   bool
+		cc             int
+		srcStoragePath string
 	}
 	type args struct {
 		ctx    context.Context
@@ -49,11 +70,12 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			numOfSeries:  3,
 			chunk:        stepper.StepMinute,
 			fields: fields{
-				filter:       native.Filter{Match: `{__name__=".*"}`},
-				backoff:      backoff.New(),
-				rateLimit:    0,
-				interCluster: false,
-				cc:           1,
+				filter:         native.Filter{Match: `{__name__=".*"}`},
+				backoff:        backoff.New(),
+				rateLimit:      0,
+				interCluster:   false,
+				cc:             1,
+				srcStoragePath: "src_storage_%d",
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -90,11 +112,12 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			numOfSeries:  3,
 			chunk:        stepper.StepMonth,
 			fields: fields{
-				filter:       native.Filter{Match: `{__name__=".*"}`},
-				backoff:      backoff.New(),
-				rateLimit:    0,
-				interCluster: false,
-				cc:           1,
+				filter:         native.Filter{Match: `{__name__=".*"}`},
+				backoff:        backoff.New(),
+				rateLimit:      0,
+				interCluster:   false,
+				cc:             1,
+				srcStoragePath: "src_storage_%d",
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -144,15 +167,13 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			src := remote_read_integration.NewRemoteWriteServer(t)
 			dst := remote_read_integration.NewRemoteWriteServer(t)
-			if err := src.InitFakeStorage(); err != nil {
-				t.Fatalf("fail when trying to init fake storage: %s", err)
-			}
+
 			defer func() {
 				src.Close()
 				dst.Close()
-				src.CloseStorage()
 			}()
 
 			start, err := time.Parse(time.RFC3339, tt.start)
@@ -172,7 +193,8 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 
 			src.Series(rws)
 			dst.ExpectedSeries(tt.expectedSeries)
-			if err := src.FillStorage(); err != nil {
+
+			if err := fillStorage(rws); err != nil {
 				t.Fatalf("error add series to storage: %s", err)
 			}
 
@@ -203,6 +225,66 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			if err := p.run(tt.args.ctx, tt.args.silent); (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
+			deleted, err := deleteSeries(tt.fields.filter.Match)
+			if err != nil {
+				t.Fatalf("error delete series: %s", err)
+			}
+			if int64(deleted) != tt.numOfSeries {
+				t.Fatalf("error delete series: %s", err)
+			}
 		})
 	}
+}
+
+func processFlags(path string) {
+	flag.Parse()
+	for _, fv := range []struct {
+		flag  string
+		value string
+	}{
+		{flag: "storageDataPath", value: path},
+		{flag: "retentionPeriod", value: "100y"},
+	} {
+		// panics if flag doesn't exist
+		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {
+			log.Fatalf("unable to set %q with value %q, err: %v", fv.flag, fv.value, err)
+		}
+	}
+}
+
+func fillStorage(series []vm.TimeSeries) error {
+	var mrs []storage.MetricRow
+	for _, series := range series {
+		var labels []prompb.Label
+		for _, lp := range series.LabelPairs {
+			labels = append(labels, prompb.Label{Name: []byte(lp.Name), Value: []byte(lp.Value)})
+		}
+		if series.Name != "" {
+			labels = append(labels, prompb.Label{Name: []byte("__name__"), Value: []byte(series.Name)})
+		}
+		mr := storage.MetricRow{}
+		mr.MetricNameRaw = storage.MarshalMetricNameRaw(mr.MetricNameRaw[:0], labels)
+
+		timestamps := series.Timestamps
+		values := series.Values
+		for i, value := range values {
+			mr.Timestamp = timestamps[i]
+			mr.Value = value
+			mrs = append(mrs, mr)
+		}
+	}
+
+	if err := vmstorage.AddRows(mrs); err != nil {
+		return fmt.Errorf("unexpected error in AddRows: %s", err)
+	}
+	vmstorage.Storage.DebugFlush()
+	return nil
+}
+
+func deleteSeries(name string) (int, error) {
+	tfs := storage.NewTagFilters()
+	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+		return 0, fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
+	}
+	return vmstorage.Storage.DeleteSeries(nil, []*storage.TagFilters{tfs})
 }
