@@ -24,6 +24,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
+const storagePath = "TestStorage"
+
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
 
@@ -48,8 +50,8 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 
 	mux.Handle("/api/v1/import", rws.getWriteHandler(t))
 	mux.Handle("/health", rws.handlePing())
-	mux.Handle("/api/v1/series", rws.seriesHandler(t))
-	mux.Handle("/api/v1/export/native", rws.exportNativeHandler(t))
+	mux.Handle("/api/v1/series", rws.seriesHandler())
+	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
 	rws.server = httptest.NewServer(mux)
 	return rws
@@ -72,7 +74,7 @@ func (rws *RemoteWriteServer) ExpectedSeries(series []vm.TimeSeries) {
 
 // InitFakeStorage initialize fake storage with data which generated from series
 func (rws *RemoteWriteServer) InitFakeStorage() error {
-	s, err := storage.OpenStorage("TestStorage", 0, 0, 0)
+	s, err := storage.OpenStorage(storagePath, 0, 0, 0)
 	if err != nil {
 		return fmt.Errorf("cannot open storage: %s", err)
 	}
@@ -105,7 +107,7 @@ func (rws *RemoteWriteServer) FillStorage() error {
 		}
 	}
 	if err := rws.storage.AddRows(mrs, 4); err != nil {
-		return fmt.Errorf("unexpected error in RegisterMetricNames: %s", err)
+		return fmt.Errorf("unexpected error in AddRows: %s", err)
 	}
 	rws.storage.DebugFlush()
 	return nil
@@ -114,8 +116,8 @@ func (rws *RemoteWriteServer) FillStorage() error {
 // CloseStorage correctly finish storage work
 func (rws *RemoteWriteServer) CloseStorage() {
 	rws.storage.MustClose()
-	if err := os.RemoveAll("TestStorage"); err != nil {
-		log.Fatalf("cannot remove %q: %s", "TestStorage", err)
+	if err := os.RemoveAll(storagePath); err != nil {
+		log.Fatalf("cannot remove %q: %s", storagePath, err)
 	}
 }
 
@@ -170,7 +172,7 @@ func (rws *RemoteWriteServer) handlePing() http.Handler {
 	})
 }
 
-func (rws *RemoteWriteServer) seriesHandler(t *testing.T) http.Handler {
+func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var labelValues []LabelValues
 		for _, ser := range rws.series {
@@ -199,7 +201,7 @@ func (rws *RemoteWriteServer) seriesHandler(t *testing.T) http.Handler {
 	})
 }
 
-func (rws *RemoteWriteServer) exportNativeHandler(t *testing.T) http.Handler {
+func (rws *RemoteWriteServer) exportNativeHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
 		err := prometheus.ExportNativeHandler(now, w, r)
@@ -260,7 +262,7 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		})
 
 		if !reflect.DeepEqual(gotTimeSeries, rws.expectedSeries) {
-			t.Fatalf("\ntimeseries: %#v; \ntimeseries: %#v", rws.expectedSeries, gotTimeSeries)
+			t.Fatalf("datasets not equal, expected: %#v; \n got: %#v", rws.expectedSeries, gotTimeSeries)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
