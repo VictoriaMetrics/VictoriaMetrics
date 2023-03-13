@@ -34,15 +34,16 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}()
 
 	type fields struct {
-		filter         native.Filter
-		dst            *native.Client
-		src            *native.Client
-		backoff        *backoff.Backoff
-		s              *stats
-		rateLimit      int64
-		interCluster   bool
-		cc             int
-		srcStoragePath string
+		filter       native.Filter
+		dst          *native.Client
+		src          *native.Client
+		backoff      *backoff.Backoff
+		s            *stats
+		rateLimit    int64
+		interCluster bool
+		cc           int
+		matchName    string
+		matchValue   string
 	}
 	type args struct {
 		ctx    context.Context
@@ -70,12 +71,13 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			numOfSeries:  3,
 			chunk:        stepper.StepMinute,
 			fields: fields{
-				filter:         native.Filter{Match: `{__name__=".*"}`},
-				backoff:        backoff.New(),
-				rateLimit:      0,
-				interCluster:   false,
-				cc:             1,
-				srcStoragePath: "src_storage_%d",
+				filter:       native.Filter{},
+				backoff:      backoff.New(),
+				rateLimit:    0,
+				interCluster: false,
+				cc:           1,
+				matchName:    "__name__",
+				matchValue:   ".*",
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -112,12 +114,13 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			numOfSeries:  3,
 			chunk:        stepper.StepMonth,
 			fields: fields{
-				filter:         native.Filter{Match: `{__name__=".*"}`},
-				backoff:        backoff.New(),
-				rateLimit:      0,
-				interCluster:   false,
-				cc:             1,
-				srcStoragePath: "src_storage_%d",
+				filter:       native.Filter{},
+				backoff:      backoff.New(),
+				rateLimit:    0,
+				interCluster: false,
+				cc:           1,
+				matchName:    "__name__",
+				matchValue:   ".*",
 			},
 			args: args{
 				ctx:    context.Background(),
@@ -167,7 +170,6 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
 			src := remote_read_integration.NewRemoteWriteServer(t)
 			dst := remote_read_integration.NewRemoteWriteServer(t)
 
@@ -186,6 +188,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				t.Fatalf("Error parse end time: %s", err)
 			}
 
+			tt.fields.filter.Match = fmt.Sprintf("%s=%q", tt.fields.matchName, tt.fields.matchValue)
 			tt.fields.filter.TimeStart = tt.start
 			tt.fields.filter.TimeEnd = tt.end
 
@@ -225,12 +228,12 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			if err := p.run(tt.args.ctx, tt.args.silent); (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
-			deleted, err := deleteSeries(tt.fields.filter.Match)
+			deleted, err := deleteSeries(tt.fields.matchName, tt.fields.matchValue)
 			if err != nil {
 				t.Fatalf("error delete series: %s", err)
 			}
 			if int64(deleted) != tt.numOfSeries {
-				t.Fatalf("error delete series: %s", err)
+				t.Fatalf("expected deleted series %d; got deleted series %d", tt.numOfSeries, deleted)
 			}
 		})
 	}
@@ -281,10 +284,10 @@ func fillStorage(series []vm.TimeSeries) error {
 	return nil
 }
 
-func deleteSeries(name string) (int, error) {
+func deleteSeries(name, value string) (int, error) {
 	tfs := storage.NewTagFilters()
-	if err := tfs.Add([]byte("__name__"), []byte(".*"), false, true); err != nil {
+	if err := tfs.Add([]byte(name), []byte(value), false, true); err != nil {
 		return 0, fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
-	return vmstorage.Storage.DeleteSeries(nil, []*storage.TagFilters{tfs})
+	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs})
 }

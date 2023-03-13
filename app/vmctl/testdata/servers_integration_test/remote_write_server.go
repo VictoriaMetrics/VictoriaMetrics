@@ -213,7 +213,7 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		})
 
 		if !reflect.DeepEqual(gotTimeSeries, rws.expectedSeries) {
-			t.Fatalf("datasets not equal, \ngot: %#v;\n got: %#v", rws.expectedSeries, gotTimeSeries)
+			t.Fatalf("datasets not equal, expected: %#v;\n got: %#v", rws.expectedSeries, gotTimeSeries)
 		}
 
 		w.WriteHeader(http.StatusNoContent)
