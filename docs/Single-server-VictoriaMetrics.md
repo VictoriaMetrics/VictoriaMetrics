@@ -1903,7 +1903,14 @@ are added to all the metrics before sending them to the remote storage:
 
 ## Cache removal
 
-VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
+VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown
+(e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup.
+Sometimes it is needed to remove such caches on the next startup. This can be done in the following ways:
+
+- By manually removing the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
+- By placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
+  In this case VictoriaMetrics will automatically remove all the caches on the next start.
+  See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
 ## Cache tuning
 
