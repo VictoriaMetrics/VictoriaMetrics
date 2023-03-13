@@ -481,6 +481,9 @@ func MarshalMetricNameRaw(dst []byte, labels []prompb.Label) []byte {
 		}
 		if len(label.Value) > maxLabelValueLen {
 			atomic.AddUint64(&TooLongLabelValues, 1)
+			logger.Warnf("truncated label value as it exceeds configured maximal label value length: max %d, actual %d;"+
+				" truncated label: %s; original labels: %s; either reduce the label value length or increase -maxLabelValueLen=%d;",
+				maxLabelValueLen, len(label.Value), label.Name, labelsToString(labels), maxLabelValueLen)
 			label.Value = label.Value[:maxLabelValueLen]
 		}
 		if len(label.Value) == 0 {
