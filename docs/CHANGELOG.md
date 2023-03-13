@@ -15,6 +15,10 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+## [v1.89.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.1)
+
+Released at 2023-03-12
+
 * BUGFIX: prevent from possible `cannot unmarshal timeseries from rollupResultCache` panic after the upgrade to [v1.89.0](https://docs.victoriametrics.com/CHANGELOG.html#v1890).
 
 ## [v1.89.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.0)
@@ -22,7 +26,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 Released at 2023-03-12
 
 **Update note: this release can crash with `cannot unmarshal timeseries from rollupResultCache` panic after the upgrade from the previous releases.
-This issue can be fixed by removing caches stored on disk according to [these docs](https://docs.victoriametrics.com/#cache-removal).**
+This issue can be fixed by removing caches stored on disk according to [these docs](https://docs.victoriametrics.com/#cache-removal).
+Another option is to upgrade to [v1.89.1](https://docs.victoriametrics.com/CHANGELOG.html#v1891).**
 
 * SECURITY: upgrade Go builder from Go1.20.1 to Go1.20.2. See [the list of issues addressed in Go1.20.2](https://github.com/golang/go/issues?q=milestone%3AGo1.20.2+label%3ACherryPickApproved).
 
