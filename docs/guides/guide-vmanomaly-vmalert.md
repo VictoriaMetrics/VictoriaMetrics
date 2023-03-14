@@ -186,7 +186,7 @@ Here are all services we are going to run:
 
 * VictoriaMetrics - VictoriaMetrics Time Series Database
 * vmagent - is an agent which helps you collect metrics from various sources, relabel and filter the collected metrics and store them in VictoriaMetrics or any other storage systems via Prometheus remote_write protocol.
-* [Grafana](https://grafana.com/) - visualization tool.
+* [grafana](https://grafana.com/) - visualization tool.
 * node-exporter - Prometheus [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) exposes a wide variety of hardware- and kernel-related metrics.
 * vmalert - VictoriaMetrics Alerting service.
 * vmanomaly - VictoriaMetrics Anomaly Detection service.
