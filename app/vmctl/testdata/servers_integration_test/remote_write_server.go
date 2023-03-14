@@ -18,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/native/stream"
 	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 // LabelValues represents series from api/v1/series response
@@ -35,7 +34,6 @@ type RemoteWriteServer struct {
 	server         *httptest.Server
 	series         []vm.TimeSeries
 	expectedSeries []vm.TimeSeries
-	storage        *storage.Storage
 }
 
 // NewRemoteWriteServer prepares test remote write server
