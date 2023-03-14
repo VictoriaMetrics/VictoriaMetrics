@@ -17,9 +17,9 @@ monitoring, logs collection, access protection, software updates, backups, etc.
 The document covers the following topics
 1. [How to register](#how-to-register)
 2. [How to restore password](#how-to-restore-password)
-3. [Creating instance](#creating-instance)
-4. [Instance access](#instance-access)
-5. [Modifying instance](#modifying-instance)
+3. [Creating deployment](#creating-deployment)
+4. [Deployment access](#deployment-access)
+5. [Modifying deployment](#modifying-deployment)
 
 ## How to register
 
@@ -104,16 +104,16 @@ If you forgot password, it can be restored in the following way:
 </p>
 
 
-## Creating instance
+## Creating deployment
 
 Deployments is a page where user can list and manage VictoriaMetrics deployments. 
-To create an instance click on the button `Create Deployments` button or link in the message:
+To create an deployment click on the button `Create Deployments` button or link in the message:
 
 <p>
   <img src="quickstart_deployments.png" width="800">
 </p>
 
-In the opened form, choose parameters of the new instance such as:
+In the opened form, choose parameters of the new deployment such as:
 
 * `Deployment type` from preset single or cluster deployments;
 * `Region` where deployment should run;
@@ -139,7 +139,7 @@ You'll also be notified via email once provisioning is finished:
   <img src="quickstart_deployments-running.png" width="800">
 </p>
 
-## Instance access
+## Deployment access
 
 After transition from `PROVISIONING` to `RUNNING` state, VictoriaMetrics is fully operational 
 and ready to accept write or read requests. But first, click on deployment name to get the access token:
@@ -163,7 +163,7 @@ to see usage examples:
 Follow usage example in order to configure access to VictoriaMetrics for your Prometheus, 
 Grafana or any other software.
 
-## Modifying instance
+## Modifying deployment
 
 Remember, you always can add, remove or modify existing deployment by changing their size or any parameters on the 
 update form.
