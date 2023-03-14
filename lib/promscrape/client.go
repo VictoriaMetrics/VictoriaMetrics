@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/fasthttp"
 	"github.com/VictoriaMetrics/metrics"
@@ -32,14 +33,14 @@ var (
 		"Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets")
 	streamParse = flag.Bool("promscrape.streamParse", false, "Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful "+
 		"for reducing memory usage when millions of metrics are exposed per each scrape target. "+
-		"It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
+		"It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control")
 )
 
 type client struct {
 	// hc is the default client optimized for common case of scraping targets with moderate number of metrics.
 	hc *fasthttp.HostClient
 
-	// sc (aka `stream client`) is used instead of hc if ScrapeWork.ParseStream is set.
+	// sc (aka `stream client`) is used instead of hc if ScrapeWork.StreamParse is set.
 	// It may be useful for scraping targets with millions of metrics per target.
 	sc *http.Client
 
@@ -78,7 +79,7 @@ func concatTwoStrings(x, y string) string {
 	return s
 }
 
-func newClient(sw *ScrapeWork, ctx context.Context) *client {
+func newClient(ctx context.Context, sw *ScrapeWork) *client {
 	var u fasthttp.URI
 	u.Update(sw.ScrapeURL)
 	hostPort := string(u.Host())
@@ -185,7 +186,7 @@ func newClient(sw *ScrapeWork, ctx context.Context) *client {
 func (c *client) GetStreamReader() (*streamReader, error) {
 	deadline := time.Now().Add(c.sc.Timeout)
 	ctx, cancel := context.WithDeadline(c.ctx, deadline)
-	req, err := http.NewRequestWithContext(ctx, "GET", c.scrapeURL, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.scrapeURL, nil)
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("cannot create request for %q: %w", c.scrapeURL, err)
@@ -259,10 +260,14 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 	swapResponseBodies := len(dst) == 0
 	if swapResponseBodies {
 		// An optimization: write response directly to dst.
-		// This should reduce memory uage when scraping big targets.
+		// This should reduce memory usage when scraping big targets.
 		dst = resp.SwapBody(dst)
 	}
-	err := doRequestWithPossibleRetry(c.hc, req, resp, deadline)
+
+	ctx, cancel := context.WithDeadline(c.ctx, deadline)
+	defer cancel()
+
+	err := doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 	statusCode := resp.StatusCode()
 	redirectsCount := 0
 	for err == nil && isStatusRedirect(statusCode) {
@@ -282,7 +287,7 @@ func (c *client) ReadData(dst []byte) ([]byte, error) {
 			break
 		}
 		req.URI().UpdateBytes(location)
-		err = doRequestWithPossibleRetry(c.hc, req, resp, deadline)
+		err = doRequestWithPossibleRetry(ctx, c.hc, req, resp)
 		statusCode = resp.StatusCode()
 		redirectsCount++
 	}
@@ -349,32 +354,45 @@ var (
 	scrapeRetries         = metrics.NewCounter(`vm_promscrape_scrape_retries_total`)
 )
 
-func doRequestWithPossibleRetry(hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response, deadline time.Time) error {
-	sleepTime := time.Second
+func doRequestWithPossibleRetry(ctx context.Context, hc *fasthttp.HostClient, req *fasthttp.Request, resp *fasthttp.Response) error {
 	scrapeRequests.Inc()
-	for {
-		// Use DoDeadline instead of Do even if hc.ReadTimeout is already set in order to guarantee the given deadline
-		// across multiple retries.
-		err := hc.DoDeadline(req, resp, deadline)
-		if err == nil {
+
+	var reqErr error
+	// Return true if the request execution is completed and retry is not required
+	attempt := func() bool {
+		// Use DoCtx instead of Do in order to support context cancellation
+		reqErr = hc.DoCtx(ctx, req, resp)
+		if reqErr == nil {
 			statusCode := resp.StatusCode()
 			if statusCode != fasthttp.StatusTooManyRequests {
-				return nil
+				return true
 			}
-		} else if err != fasthttp.ErrConnectionClosed && !strings.Contains(err.Error(), "broken pipe") {
-			return err
+		} else if reqErr != fasthttp.ErrConnectionClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+			return true
 		}
-		// Retry request after exponentially increased sleep.
-		maxSleepTime := time.Until(deadline)
-		if sleepTime > maxSleepTime {
-			return fmt.Errorf("the server closes all the connection attempts: %w", err)
+		return false
+	}
+
+	if attempt() {
+		return reqErr
+	}
+
+	// The first attempt was unsuccessful. Use exponential backoff for further attempts.
+	// Perform the second attempt immediately after the first attempt - this should help
+	// in cases when the remote side closes the keep-alive connection before the first attempt.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3293
+	sleepTime := time.Second
+	// It is expected that the deadline is already set to ctx, so the loop below
+	// should eventually finish if all the attempt() calls are unsuccessful.
+	for {
+		scrapeRetries.Inc()
+		if attempt() {
+			return reqErr
 		}
 		sleepTime += sleepTime
-		if sleepTime > maxSleepTime {
-			sleepTime = maxSleepTime
+		if !discoveryutils.SleepCtx(ctx, sleepTime) {
+			return reqErr
 		}
-		time.Sleep(sleepTime)
-		scrapeRetries.Inc()
 	}
 }
 

@@ -1165,7 +1165,7 @@ func testStorageAddRows(rng *rand.Rand, s *Storage) error {
 	}
 
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(0)
 	if err != nil {
 		return fmt.Errorf("cannot create snapshot from the storage: %w", err)
 	}
@@ -1332,7 +1332,7 @@ func TestStorageDeleteStaleSnapshots(t *testing.T) {
 		}
 	}
 	// Try creating a snapshot from the storage.
-	snapshotName, err := s.CreateSnapshot()
+	snapshotName, err := s.CreateSnapshot(0)
 	if err != nil {
 		t.Fatalf("cannot create snapshot from the storage: %s", err)
 	}

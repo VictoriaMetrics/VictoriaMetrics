@@ -6,6 +6,16 @@
   gap: $padding-global;
   max-width: 300px;
 
+  &_mobile {
+    width: 100%;
+    max-width: 100%;
+    gap: $padding-medium;
+  }
+
+  &_mobile &-list__inputs {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
   &-list {
     display: grid;
     align-items: center;

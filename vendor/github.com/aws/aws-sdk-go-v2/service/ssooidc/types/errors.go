@@ -29,7 +29,7 @@ func (e *AccessDeniedException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *AccessDeniedException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "AccessDeniedException"
 	}
 	return *e.ErrorCodeOverride
@@ -59,7 +59,7 @@ func (e *AuthorizationPendingException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *AuthorizationPendingException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "AuthorizationPendingException"
 	}
 	return *e.ErrorCodeOverride
@@ -89,7 +89,7 @@ func (e *ExpiredTokenException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *ExpiredTokenException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "ExpiredTokenException"
 	}
 	return *e.ErrorCodeOverride
@@ -119,7 +119,7 @@ func (e *InternalServerException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InternalServerException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InternalServerException"
 	}
 	return *e.ErrorCodeOverride
@@ -150,7 +150,7 @@ func (e *InvalidClientException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidClientException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidClientException"
 	}
 	return *e.ErrorCodeOverride
@@ -180,7 +180,7 @@ func (e *InvalidClientMetadataException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidClientMetadataException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidClientMetadataException"
 	}
 	return *e.ErrorCodeOverride
@@ -210,7 +210,7 @@ func (e *InvalidGrantException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidGrantException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidGrantException"
 	}
 	return *e.ErrorCodeOverride
@@ -240,7 +240,7 @@ func (e *InvalidRequestException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidRequestException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidRequestException"
 	}
 	return *e.ErrorCodeOverride
@@ -269,7 +269,7 @@ func (e *InvalidScopeException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidScopeException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidScopeException"
 	}
 	return *e.ErrorCodeOverride
@@ -299,7 +299,7 @@ func (e *SlowDownException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *SlowDownException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "SlowDownException"
 	}
 	return *e.ErrorCodeOverride
@@ -329,7 +329,7 @@ func (e *UnauthorizedClientException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *UnauthorizedClientException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "UnauthorizedClientException"
 	}
 	return *e.ErrorCodeOverride
@@ -358,7 +358,7 @@ func (e *UnsupportedGrantTypeException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *UnsupportedGrantTypeException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "UnsupportedGrantTypeException"
 	}
 	return *e.ErrorCodeOverride

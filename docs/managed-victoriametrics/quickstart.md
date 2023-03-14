@@ -1,3 +1,12 @@
+---
+sort: 2
+weight: 2
+title: Quick Start
+menu:
+  docs:
+    parent: "managed"
+    weight: 2
+---
 # Quick Start
 
 Managed VictoriaMetrics - is a database-as-a-service platform, where users can run the VictoriaMetrics 

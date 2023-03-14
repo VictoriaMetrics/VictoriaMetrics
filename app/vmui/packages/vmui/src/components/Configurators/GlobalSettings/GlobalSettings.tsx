@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useState } from "preact/compat";
 import ServerConfigurator from "./ServerConfigurator/ServerConfigurator";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
-import { SettingsIcon } from "../../Main/Icons";
+import { ArrowDownIcon, SettingsIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import Modal from "../../Main/Modal/Modal";
 import "./style.scss";
@@ -18,7 +18,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 const title = "Settings";
 
-const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
+const GlobalSettings: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
@@ -42,7 +42,6 @@ const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
-    handleClose();
   };
 
   useEffect(() => {
@@ -51,22 +50,30 @@ const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
   }, [stateServerUrl]);
 
   return <>
-    <Tooltip
-      open={showTitle === true ? false : undefined}
-      title={title}
-    >
-      <Button
-        className={classNames({
-          "vm-header-button": !appModeEnable
-        })}
-        variant="contained"
-        color="primary"
-        startIcon={<SettingsIcon/>}
+    {isMobile ? (
+      <div
+        className="vm-mobile-option"
         onClick={handleOpen}
       >
-        {showTitle && title}
-      </Button>
-    </Tooltip>
+        <span className="vm-mobile-option__icon"><SettingsIcon/></span>
+        <div className="vm-mobile-option-text">
+          <span className="vm-mobile-option-text__label">{title}</span>
+        </div>
+        <span className="vm-mobile-option__arrow"><ArrowDownIcon/></span>
+      </div>
+    ) : (
+      <Tooltip title={title}>
+        <Button
+          className={classNames({
+            "vm-header-button": !appModeEnable
+          })}
+          variant="contained"
+          color="primary"
+          startIcon={<SettingsIcon/>}
+          onClick={handleOpen}
+        />
+      </Tooltip>
+    )}
     {open && (
       <Modal
         title={title}
@@ -84,6 +91,7 @@ const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
                 serverUrl={serverUrl}
                 onChange={setServerUrl}
                 onEnter={handlerApply}
+                onBlur={handlerApply}
               />
             </div>
           )}
@@ -105,21 +113,6 @@ const GlobalSettings: FC<{showTitle?: boolean}> = ({ showTitle }) => {
               <ThemeControl/>
             </div>
           )}
-          <div className="vm-server-configurator__footer">
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={handleClose}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="contained"
-              onClick={handlerApply}
-            >
-              apply
-            </Button>
-          </div>
         </div>
       </Modal>
     )}

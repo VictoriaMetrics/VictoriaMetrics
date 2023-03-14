@@ -239,7 +239,7 @@ func (cfg *Config) getAPICredentials() (*credentials, error) {
 }
 
 // getECSRoleCredentialsByPath makes request to ecs metadata service
-// and retrieves instances credentails
+// and retrieves instances credentials
 // https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task-iam-roles.html
 func getECSRoleCredentialsByPath(client *http.Client, path string) (*credentials, error) {
 	resp, err := client.Get(path)
@@ -301,7 +301,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 
 	// Obtain session token
 	sessionTokenURL := "http://169.254.169.254/latest/api/token"
-	req, err := http.NewRequest("PUT", sessionTokenURL, nil)
+	req, err := http.NewRequest(http.MethodPut, sessionTokenURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request for IMDSv2 session token at url %q: %w", sessionTokenURL, err)
 	}
@@ -317,7 +317,7 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 
 	// Use session token in the request.
 	apiURL := "http://169.254.169.254/latest/" + apiPath
-	req, err = http.NewRequest("GET", apiURL, nil)
+	req, err = http.NewRequest(http.MethodGet, apiURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create request to %q: %w", apiURL, err)
 	}
@@ -329,14 +329,14 @@ func getMetadataByPath(client *http.Client, apiPath string) ([]byte, error) {
 	return readResponseBody(resp, apiURL)
 }
 
-// getRoleWebIdentityCredentials obtains credentials fo the given roleARN with webToken.
+// getRoleWebIdentityCredentials obtains credentials for the given roleARN with webToken.
 // https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html
 // aws IRSA for kubernetes.
 // https://aws.amazon.com/blogs/opensource/introducing-fine-grained-iam-roles-service-accounts/
 func (cfg *Config) getRoleWebIdentityCredentials(token string) (*credentials, error) {
 	data, err := cfg.getSTSAPIResponse("AssumeRoleWithWebIdentity", func(apiURL string) (*http.Request, error) {
 		apiURL += fmt.Sprintf("&WebIdentityToken=%s", url.QueryEscape(token))
-		return http.NewRequest("GET", apiURL, nil)
+		return http.NewRequest(http.MethodGet, apiURL, nil)
 	})
 	if err != nil {
 		return nil, err
@@ -365,7 +365,7 @@ func (cfg *Config) getSTSAPIResponse(action string, reqBuilder func(apiURL strin
 	return readResponseBody(resp, apiURL)
 }
 
-// getRoleARNCredentials obtains credentials fo the given roleARN.
+// getRoleARNCredentials obtains credentials for the given roleARN.
 func (cfg *Config) getRoleARNCredentials(creds *credentials) (*credentials, error) {
 	data, err := cfg.getSTSAPIResponse("AssumeRole", func(apiURL string) (*http.Request, error) {
 		return newSignedGetRequest(apiURL, "sts", cfg.region, creds)

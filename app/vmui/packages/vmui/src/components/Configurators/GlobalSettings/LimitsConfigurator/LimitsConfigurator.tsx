@@ -6,6 +6,8 @@ import { InfoIcon, RestartIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import { DEFAULT_MAX_SERIES } from "../../../../constants/graph";
 import "./style.scss";
+import classNames from "classnames";
+import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 
 export interface ServerConfiguratorProps {
   limits: SeriesLimits
@@ -20,6 +22,7 @@ const fields: {label: string, type: DisplayType}[] = [
 ];
 
 const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , onEnter }) => {
+  const { isMobile } = useDeviceDetect();
 
   const [error, setError] = useState({
     table: "",
@@ -68,7 +71,12 @@ const LimitsConfigurator: FC<ServerConfiguratorProps> = ({ limits, onChange , on
           </Button>
         </div>
       </div>
-      <div className="vm-limits-configurator__inputs">
+      <div
+        className={classNames({
+          "vm-limits-configurator__inputs": true,
+          "vm-limits-configurator__inputs_mobile": isMobile
+        })}
+      >
         {fields.map(f => (
           <div key={f.type}>
             <TextField

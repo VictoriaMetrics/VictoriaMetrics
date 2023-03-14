@@ -111,6 +111,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutils.Label
 			m.AddFrom(commonLabels)
 			m.Add("__address__", discoveryutils.JoinHostPort(commonLabels.Get("__meta_dockerswarm_node_address"), port.PublishedPort))
 			m.Add("__meta_dockerswarm_task_port_publish_mode", port.PublishMode)
+			// Remove possible duplicate labels, which can appear after AddFrom() call
 			m.RemoveDuplicates()
 			ms = append(ms, m)
 		}
@@ -132,6 +133,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutils.Label
 					m.AddFrom(networkLabels)
 					m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), ep.PublishedPort))
 					m.Add("__meta_dockerswarm_task_port_publish_mode", ep.PublishMode)
+					// Remove possible duplicate labels, which can appear after AddFrom() calls
 					m.RemoveDuplicates()
 					ms = append(ms, m)
 					added = true
@@ -141,6 +143,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutils.Label
 					m.AddFrom(commonLabels)
 					m.AddFrom(networkLabels)
 					m.Add("__address__", discoveryutils.JoinHostPort(ip.String(), port))
+					// Remove possible duplicate labels, which can appear after AddFrom() calls
 					m.RemoveDuplicates()
 					ms = append(ms, m)
 				}
@@ -150,7 +153,7 @@ func addTasksLabels(tasks []task, nodesLabels, servicesLabels []*promutils.Label
 	return ms
 }
 
-// addLabels adds lables from src to dst if they contain the given `key: value` pair.
+// addLabels adds labels from src to dst if they contain the given `key: value` pair.
 func addLabels(dst *promutils.Labels, src []*promutils.Labels, key, value string) {
 	for _, m := range src {
 		if m.Get(key) != value {

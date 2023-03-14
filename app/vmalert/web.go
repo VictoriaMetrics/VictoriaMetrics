@@ -57,7 +57,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 
 	switch r.URL.Path {
 	case "/", "/vmalert", "/vmalert/":
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			httpserver.Errorf(w, r, "path %q supports only GET method", r.URL.Path)
 			return false
 		}

@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
@@ -32,15 +33,41 @@ type AuthConfig struct {
 
 // UserInfo is user information read from authConfigPath
 type UserInfo struct {
-	Name        string     `yaml:"name,omitempty"`
-	BearerToken string     `yaml:"bearer_token,omitempty"`
-	Username    string     `yaml:"username,omitempty"`
-	Password    string     `yaml:"password,omitempty"`
-	URLPrefix   *URLPrefix `yaml:"url_prefix,omitempty"`
-	URLMaps     []URLMap   `yaml:"url_map,omitempty"`
-	Headers     []Header   `yaml:"headers,omitempty"`
+	Name                  string     `yaml:"name,omitempty"`
+	BearerToken           string     `yaml:"bearer_token,omitempty"`
+	Username              string     `yaml:"username,omitempty"`
+	Password              string     `yaml:"password,omitempty"`
+	URLPrefix             *URLPrefix `yaml:"url_prefix,omitempty"`
+	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
+	Headers               []Header   `yaml:"headers,omitempty"`
+	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
+
+	concurrencyLimitCh      chan struct{}
+	concurrencyLimitReached *metrics.Counter
 
 	requests *metrics.Counter
+}
+
+func (ui *UserInfo) beginConcurrencyLimit() error {
+	select {
+	case ui.concurrencyLimitCh <- struct{}{}:
+		return nil
+	default:
+		ui.concurrencyLimitReached.Inc()
+		return fmt.Errorf("cannot handle more than %d concurrent requests from user %s", ui.getMaxConcurrentRequests(), ui.name())
+	}
+}
+
+func (ui *UserInfo) endConcurrencyLimit() {
+	<-ui.concurrencyLimitCh
+}
+
+func (ui *UserInfo) getMaxConcurrentRequests() int {
+	mcr := ui.MaxConcurrentRequests
+	if mcr <= 0 {
+		mcr = *maxConcurrentPerUserRequests
+	}
+	return mcr
 }
 
 // Header is `Name: Value` http header, which must be added to the proxied request.
@@ -83,16 +110,77 @@ type SrcPath struct {
 	re        *regexp.Regexp
 }
 
-// URLPrefix represents pased `url_prefix`
+// URLPrefix represents passed `url_prefix`
 type URLPrefix struct {
-	n    uint32
-	urls []*url.URL
+	n   uint32
+	bus []*backendURL
 }
 
-func (up *URLPrefix) getNextURL() *url.URL {
+type backendURL struct {
+	brokenDeadline     uint64
+	concurrentRequests int32
+	url                *url.URL
+}
+
+func (bu *backendURL) isBroken() bool {
+	ct := fasttime.UnixTimestamp()
+	return ct < atomic.LoadUint64(&bu.brokenDeadline)
+}
+
+func (bu *backendURL) setBroken() {
+	deadline := fasttime.UnixTimestamp() + 3
+	atomic.StoreUint64(&bu.brokenDeadline, deadline)
+}
+
+func (bu *backendURL) put() {
+	atomic.AddInt32(&bu.concurrentRequests, -1)
+}
+
+func (up *URLPrefix) getBackendsCount() int {
+	return len(up.bus)
+}
+
+// getLeastLoadedBackendURL returns the backendURL with the minimum number of concurrent requests.
+//
+// backendURL.put() must be called on the returned backendURL after the request is complete.
+func (up *URLPrefix) getLeastLoadedBackendURL() *backendURL {
+	bus := up.bus
+	if len(bus) == 1 {
+		// Fast path - return the only backend url.
+		bu := bus[0]
+		atomic.AddInt32(&bu.concurrentRequests, 1)
+		return bu
+	}
+
+	// Slow path - select other backend urls.
 	n := atomic.AddUint32(&up.n, 1)
-	idx := n % uint32(len(up.urls))
-	return up.urls[idx]
+
+	for i := uint32(0); i < uint32(len(bus)); i++ {
+		idx := (n + i) % uint32(len(bus))
+		bu := bus[idx]
+		if bu.isBroken() {
+			continue
+		}
+		if atomic.CompareAndSwapInt32(&bu.concurrentRequests, 0, 1) {
+			// Fast path - return the backend with zero concurrently executed requests.
+			return bu
+		}
+	}
+
+	// Slow path - return the backend with the minimum number of concurrently executed requests.
+	buMin := bus[n%uint32(len(bus))]
+	minRequests := atomic.LoadInt32(&buMin.concurrentRequests)
+	for _, bu := range bus {
+		if bu.isBroken() {
+			continue
+		}
+		if n := atomic.LoadInt32(&bu.concurrentRequests); n < minRequests {
+			buMin = bu
+			minRequests = n
+		}
+	}
+	atomic.AddInt32(&buMin.concurrentRequests, 1)
+	return buMin
 }
 
 // UnmarshalYAML unmarshals up from yaml.
@@ -121,31 +209,33 @@ func (up *URLPrefix) UnmarshalYAML(f func(interface{}) error) error {
 	default:
 		return fmt.Errorf("unexpected type for `url_prefix`: %T; want string or []string", v)
 	}
-	pus := make([]*url.URL, len(urls))
+	bus := make([]*backendURL, len(urls))
 	for i, u := range urls {
 		pu, err := url.Parse(u)
 		if err != nil {
 			return fmt.Errorf("cannot unmarshal %q into url: %w", u, err)
 		}
-		pus[i] = pu
+		bus[i] = &backendURL{
+			url: pu,
+		}
 	}
-	up.urls = pus
+	up.bus = bus
 	return nil
 }
 
 // MarshalYAML marshals up to yaml.
 func (up *URLPrefix) MarshalYAML() (interface{}, error) {
 	var b []byte
-	if len(up.urls) == 1 {
-		u := up.urls[0].String()
+	if len(up.bus) == 1 {
+		u := up.bus[0].url.String()
 		b = strconv.AppendQuote(b, u)
 		return string(b), nil
 	}
 	b = append(b, '[')
-	for i, pu := range up.urls {
-		u := pu.String()
+	for i, bu := range up.bus {
+		u := bu.url.String()
 		b = strconv.AppendQuote(b, u)
-		if i+1 < len(up.urls) {
+		if i+1 < len(up.bus) {
 			b = append(b, ',')
 		}
 	}
@@ -298,27 +388,42 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
 			return nil, fmt.Errorf("missing `url_prefix`")
 		}
+		name := ui.name()
 		if ui.BearerToken != "" {
-			name := "bearer_token"
-			if ui.Name != "" {
-				name = ui.Name
-			}
 			if ui.Password != "" {
 				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
 		if ui.Username != "" {
-			name := ui.Username
-			if ui.Name != "" {
-				name = ui.Name
-			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
+		mcr := ui.getMaxConcurrentRequests()
+		ui.concurrencyLimitCh = make(chan struct{}, mcr)
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_concurrent_requests_limit_reached_total{username=%q}`, name))
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_capacity{username=%q}`, name), func() float64 {
+			return float64(cap(ui.concurrencyLimitCh))
+		})
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_user_concurrent_requests_current{username=%q}`, name), func() float64 {
+			return float64(len(ui.concurrencyLimitCh))
+		})
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui
 	}
 	return byAuthToken, nil
+}
+
+func (ui *UserInfo) name() string {
+	if ui.Name != "" {
+		return ui.Name
+	}
+	if ui.Username != "" {
+		return ui.Username
+	}
+	if ui.BearerToken != "" {
+		return "bearer_token"
+	}
+	return ""
 }
 
 func getAuthTokens(bearerToken, username, password string) (string, string) {
@@ -342,12 +447,12 @@ func getAuthToken(bearerToken, username, password string) string {
 }
 
 func (up *URLPrefix) sanitize() error {
-	for i, pu := range up.urls {
-		puNew, err := sanitizeURLPrefix(pu)
+	for _, bu := range up.bus {
+		puNew, err := sanitizeURLPrefix(bu.url)
 		if err != nil {
 			return err
 		}
-		up.urls[i] = puNew
+		bu.url = puNew
 	}
 	return nil
 }

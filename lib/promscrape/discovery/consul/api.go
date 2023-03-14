@@ -119,7 +119,7 @@ func getToken(token *promauth.Secret) (string, error) {
 		return string(data), nil
 	}
 	t := os.Getenv("CONSUL_HTTP_TOKEN")
-	// Allow empty token - it shouls work if authorization is disabled in Consul
+	// Allow empty token - it should work if authorization is disabled in Consul
 	return t, nil
 }
 
@@ -145,7 +145,7 @@ func maxWaitTime() time.Duration {
 	// Consul adds random delay up to wait/16, so reduce the timeout in order to keep it below BlockingClientReadTimeout.
 	// See https://www.consul.io/api-docs/features/blocking
 	d -= d / 8
-	// The timeout cannot exceed 10 minuntes. See https://www.consul.io/api-docs/features/blocking
+	// The timeout cannot exceed 10 minutes. See https://www.consul.io/api-docs/features/blocking
 	if d > 10*time.Minute {
 		d = 10 * time.Minute
 	}
@@ -155,7 +155,7 @@ func maxWaitTime() time.Duration {
 	return d
 }
 
-// getBlockingAPIResponse perfoms blocking request to Consul via client and returns response.
+// getBlockingAPIResponse performs blocking request to Consul via client and returns response.
 //
 // See https://www.consul.io/api-docs/features/blocking .
 func getBlockingAPIResponse(ctx context.Context, client *discoveryutils.Client, path string, index int64) ([]byte, int64, error) {

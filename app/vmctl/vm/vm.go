@@ -3,15 +3,16 @@ package vm
 import (
 	"bufio"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -75,7 +76,8 @@ type Importer struct {
 	wg   sync.WaitGroup
 	once sync.Once
 
-	s *stats
+	s       *stats
+	backoff *backoff.Backoff
 }
 
 // ResetStats resets im stats.
@@ -107,7 +109,7 @@ func AddExtraLabelsToImportPath(path string, extraLabels []string) (string, erro
 }
 
 // NewImporter creates new Importer for the given cfg.
-func NewImporter(cfg Config) (*Importer, error) {
+func NewImporter(ctx context.Context, cfg Config) (*Importer, error) {
 	if cfg.Concurrency < 1 {
 		return nil, fmt.Errorf("concurrency can't be lower than 1")
 	}
@@ -136,6 +138,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		close:      make(chan struct{}),
 		input:      make(chan *TimeSeries, cfg.Concurrency*4),
 		errors:     make(chan *ImportError, cfg.Concurrency),
+		backoff:    backoff.New(),
 	}
 	if err := im.Ping(); err != nil {
 		return nil, fmt.Errorf("ping to %q failed: %s", addr, err)
@@ -154,7 +157,7 @@ func NewImporter(cfg Config) (*Importer, error) {
 		}
 		go func(bar *pb.ProgressBar) {
 			defer im.wg.Done()
-			im.startWorker(bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
+			im.startWorker(ctx, bar, cfg.BatchSize, cfg.SignificantFigures, cfg.RoundDigits)
 		}(bar)
 	}
 	im.ResetStats()
@@ -205,7 +208,7 @@ func (im *Importer) Close() {
 	})
 }
 
-func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
+func (im *Importer) startWorker(ctx context.Context, bar *pb.ProgressBar, batchSize, significantFigures, roundDigits int) {
 	var batch []*TimeSeries
 	var dataPoints int
 	var waitForBatch time.Time
@@ -219,7 +222,9 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 			exitErr := &ImportError{
 				Batch: batch,
 			}
-			if err := im.Import(batch); err != nil {
+			retryableFunc := func() error { return im.Import(batch) }
+			_, err := im.backoff.Retry(ctx, retryableFunc)
+			if err != nil {
 				exitErr.Err = err
 			}
 			im.errors <- exitErr
@@ -249,7 +254,7 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 			im.s.idleDuration += time.Since(waitForBatch)
 			im.s.Unlock()
 
-			if err := im.flush(batch); err != nil {
+			if err := im.flush(ctx, batch); err != nil {
 				im.errors <- &ImportError{
 					Batch: batch,
 					Err:   err,
@@ -264,36 +269,22 @@ func (im *Importer) startWorker(bar *pb.ProgressBar, batchSize, significantFigur
 	}
 }
 
-const (
-	// TODO: make configurable
-	backoffRetries     = 5
-	backoffFactor      = 1.7
-	backoffMinDuration = time.Second
-)
-
-func (im *Importer) flush(b []*TimeSeries) error {
-	var err error
-	for i := 0; i < backoffRetries; i++ {
-		err = im.Import(b)
-		if err == nil {
-			return nil
-		}
-		if errors.Is(err, ErrBadRequest) {
-			return err // fail fast if not recoverable
-		}
-		im.s.Lock()
-		im.s.retries++
-		im.s.Unlock()
-		backoff := float64(backoffMinDuration) * math.Pow(backoffFactor, float64(i))
-		time.Sleep(time.Duration(backoff))
+func (im *Importer) flush(ctx context.Context, b []*TimeSeries) error {
+	retryableFunc := func() error { return im.Import(b) }
+	attempts, err := im.backoff.Retry(ctx, retryableFunc)
+	if err != nil {
+		return fmt.Errorf("import failed with %d retries: %s", attempts, err)
 	}
-	return fmt.Errorf("import failed with %d retries: %s", backoffRetries, err)
+	im.s.Lock()
+	im.s.retries = attempts
+	im.s.Unlock()
+	return nil
 }
 
 // Ping sends a ping to im.addr.
 func (im *Importer) Ping() error {
 	url := fmt.Sprintf("%s/health", im.addr)
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("cannot create request to %q: %s", im.addr, err)
 	}
@@ -317,7 +308,7 @@ func (im *Importer) Import(tsBatch []*TimeSeries) error {
 	}
 
 	pr, pw := io.Pipe()
-	req, err := http.NewRequest("POST", im.importPath, pr)
+	req, err := http.NewRequest(http.MethodPost, im.importPath, pr)
 	if err != nil {
 		return fmt.Errorf("cannot create request to %q: %s", im.addr, err)
 	}

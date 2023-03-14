@@ -10,13 +10,14 @@ import { CloseIcon } from "../../components/Main/Icons";
 import Modal from "../../components/Main/Modal/Modal";
 import JsonForm from "./JsonForm/JsonForm";
 import { ErrorTypes } from "../../types";
-import { setQueryStringWithoutPageReload } from "../../utils/query-string";
+import { useSearchParams } from "react-router-dom";
 
 const TracePage: FC = () => {
   const [openModal, setOpenModal] = useState(false);
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [errors, setErrors] = useState<{filename: string, text: string}[]>([]);
   const hasTraces = useMemo(() => !!tracesState.length, [tracesState]);
+  const [, setSearchParams] = useSearchParams();
 
   const handleOpenModal = () => {
     setOpenModal(true);
@@ -74,7 +75,7 @@ const TracePage: FC = () => {
   };
 
   useEffect(() => {
-    setQueryStringWithoutPageReload({});
+    setSearchParams({});
   }, []);
 
   const UploadButtons = () => (

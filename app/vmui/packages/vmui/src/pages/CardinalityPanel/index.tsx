@@ -10,11 +10,14 @@ import { DefaultActiveTab, Tabs, TSDBStatus, Containers } from "./types";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
 import Alert from "../../components/Main/Alert/Alert";
 import "./style.scss";
+import classNames from "classnames";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
 
 const Index: FC = () => {
+  const { isMobile } = useDeviceDetect();
   const { topN, match, date, focusLabel } = useCardinalityState();
   const cardinalityDispatch = useCardinalityDispatch();
   useSetQueryParams();
@@ -70,7 +73,12 @@ const Index: FC = () => {
   };
 
   return (
-    <div className="vm-cardinality-panel">
+    <div
+      className={classNames({
+        "vm-cardinality-panel": true,
+        "vm-cardinality-panel_mobile": isMobile
+      })}
+    >
       {isLoading && <Spinner message={spinnerMessage}/>}
       <CardinalityConfigurator
         error={configError}

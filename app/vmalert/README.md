@@ -28,7 +28,8 @@ Use this feature for the following cases:
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight and without extra dependencies.
-* Supports [reusable templates](#reusable-templates) for annotations.
+* Supports [reusable templates](#reusable-templates) for annotations;
+* Load of recording and alerting rules from local filesystem, GCS and S3.
 
 ## Limitations
 
@@ -404,6 +405,25 @@ The enterprise version of vmalert is available in `vmutils-*-enterprise.tar.gz` 
 at [release page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and in `*-enterprise`
 tags at [Docker Hub](https://hub.docker.com/r/victoriametrics/vmalert/tags).
 
+### Reading rules from object storage
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` may read alerting and recording rules
+from object storage:
+
+- `./bin/vmalert -rule=s3://bucket/dir/alert.rules` would read rules from the given path at S3 bucket
+- `./bin/vmalert -rule=gs://bucket/bir/alert.rules` would read rules from the given path at GCS bucket
+
+S3 and GCS paths support only matching by prefix, e.g. `s3://bucket/dir/rule_` matches
+all files with prefix `rule_` in the folder `dir`.
+
+The following [command-line flags](#flags) can be used for fine-tuning access to S3 and GCS:
+
+- `-s3.credsFilePath` - path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+- `-s3.configFilePath` - path to file with S3 configs. Configs are loaded from default location if not set.
+- `-s3.configProfile` - profile name for S3 configs. If no set, the value of the environment variable will be loaded (`AWS_PROFILE` or `AWS_DEFAULT_PROFILE`).
+- `-s3.customEndpoint` - custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set.
+- `-s3.forcePathStyle` - prefixing endpoint with bucket name when set false, true by default.
+
 ### Topology examples
 
 The following sections are showing how `vmalert` may be used and configured
@@ -601,6 +621,12 @@ can read the same rules configuration as normal, evaluate them on the given time
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
 
+Please note, that response caching may lead to unexpected results during and after backfilling process.
+In order to avoid this you need to reset cache contents or disable caching when using backfilling
+as described in [backfilling docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backfilling).
+
+See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
+
 ### How it works
 
 In `replay` mode vmalert works as a cli-tool and exits immediately after work is done.
@@ -705,31 +731,42 @@ a review to the dashboard.
 
 ## Troubleshooting
 
-vmalert executes configured rules within certain intervals. It is expected that at the moment when rule is executed,
-the data is already present in configured `-datasource.url`:
+### Data delay
+
+Data delay is one of the most common issues with rules execution.
+vmalert executes configured rules within certain intervals at specifics timestamps. 
+It expects that the data is already present in configured `-datasource.url` at the moment of time when rule is executed:
 
 <img alt="vmalert expected evaluation" src="vmalert_ts_normal.gif">
 
 Usually, troubles start to appear when data in `-datasource.url` is delayed or absent. In such cases, evaluations
-may get empty response from datasource and produce empty recording rules or reset alerts state:
+may get empty response from the datasource and produce empty recording rules or reset alerts state:
 
 <img alt="vmalert evaluation when data is delayed" src="vmalert_ts_data_delay.gif">
 
-By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s.
-This behavior is controlled by `-search.latencyOffset` command-line flag and the `latency_offset` query ag at `vmselect`.
-Usually, this results into a 30s shift for recording rules results.
-Note that too small value passed to `-search.latencyOffset` or to `latency_offest` query arg may lead to incomplete query results.
+Try the following recommendations to reduce the chance of hitting the data delay issue:
 
-Try the following recommendations in such cases:
-
-* Always configure group's `evaluationInterval` to be bigger or equal to `scrape_interval` at which metrics
-are delivered to the datasource;
+* Always configure group's `evaluationInterval` to be bigger or at least equal to 
+[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution);
+* Ensure that `[duration]` value is at least twice bigger than 
+[time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
+if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`. 
+If you use VictoriaMetrics as datasource, `[duration]` can be omitted and VictoriaMetrics will adjust it automatically.
 * If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
-command-line flag to add a time shift for evaluations;
-* If time intervals between datapoints in datasource are irregular or `>=5min` - try changing vmalert's
-`-datasource.queryStep` command-line flag to specify how far search query can lookback for the recent datapoint. 
-The recommendation is to have the step at least two times bigger than `scrape_interval`, since
-there are no guarantees that scrape will not fail.
+command-line flag to add a time shift for evaluations. Or extend `[duration]` to tolerate the delay.
+For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
+* If [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution)
+in datasource is inconsistent or `>=5min` - try changing vmalert's `-datasource.queryStep` command-line flag to specify 
+how far search query can lookback for the recent datapoint. The recommendation is to have the step 
+at least two times bigger than the resolution.
+
+> Please note, data delay is inevitable in distributed systems. And it is better to account for it instead of ignoring.
+
+By default, recently written samples to VictoriaMetrics aren't visible for queries for up to 30s
+(see `-search.latencyOffset` command-line flag at vmselect). Such delay is needed to eliminate risk of incomplete
+data on the moment of querying, since metrics collectors won't be able to deliver the data in time.
+
+### Alerts state
 
 Sometimes, it is not clear why some specific alert fired or didn't fire. It is very important to remember, that
 alerts with `for: 0` fire immediately when their expression becomes true. And alerts with `for > 0` will fire only
@@ -751,6 +788,8 @@ Rows in the section represent ordered rule evaluations and their results. The co
 HTTP request sent by vmalert to the `-datasource.url` during evaluation. If specific state shows that there were
 no samples returned and curl command returns data - then it is very likely there was no data in datasource on the
 moment when rule was evaluated.
+
+### Debug mode
 
 vmalert allows configuring more detailed logging for specific alerting rule. Just set `debug: true` in rule's configuration
 and vmalert will start printing additional log messages:
@@ -907,6 +946,10 @@ The shortlist of configuration flags is the following:
      Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+  -insert.maxQueueDuration duration
+     The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+  -internStringMaxLen int
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -923,6 +966,13 @@ The shortlist of configuration flags is the following:
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxConcurrentInserts int
+     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
+  -memory.allowedBytes size
+     Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+     Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -memory.allowedPercent float
+     Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
   -metricsAuthKey string
      Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -notifier.basicAuth.password array
@@ -1089,8 +1139,8 @@ The shortlist of configuration flags is the following:
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.disableProgressBar
      Whether to disable rendering progress bars during the replay. Progress bar rendering might be verbose or break the logs parsing, so it is recommended to be disabled when not used in interactive mode.
-  -replay.maxDatapointsPerQuery int
-     Max number of data points expected in one request. It affects the max time range for every `/query_range` request during the replay. The higher the value, the less requests will be made during replay. (default 1000)
+  -replay.maxDatapointsPerQuery /query_range
+     Max number of data points expected in one request. It affects the max time range for every /query_range request during the replay. The higher the value, the less requests will be made during replay. (default 1000)
   -replay.ruleRetryAttempts int
      Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
@@ -1100,18 +1150,24 @@ The shortlist of configuration flags is the following:
   -replay.timeTo string
      The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
-     Path to the file with alert rules.
-     Supports patterns. Flag can be specified multiple times.
+     Path to the files with alerting and/or recording rules.
+     Supports hierarchical patterns and regexpes.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules
-      -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-     absolute path to all .yaml files in root.
+      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+     
+     Enterprise version of vmalert supports S3 and GCS paths to rules.
+     For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+     S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+     all files with prefix rule_ in folder dir.
+     See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+     
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration
      Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
-     Limits the maximum duration for automatic alert expiration, which is by default equal to 3 evaluation intervals of the parent group.
+     Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array
@@ -1128,6 +1184,18 @@ The shortlist of configuration flags is the following:
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
+  -s3.configFilePath string
+     Path to file with S3 configs. Configs are loaded from default location if not set.
+     See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.configProfile string
+     Profile name for S3 configs. If no set, the value of the environment variable will be loaded (AWS_PROFILE or AWS_DEFAULT_PROFILE), or if both not set, DefaultSharedConfigProfile is used. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.credsFilePath string
+     Path to file with GCS or S3 credentials. Credentials are loaded from default locations if not set.
+     See https://cloud.google.com/iam/docs/creating-managing-service-account-keys and https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.customEndpoint string
+     Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+  -s3.forcePathStyle
+     Prefixing endpoint with bucket name when set false, true by default. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default true)
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string

@@ -28,13 +28,19 @@ import (
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the file with alert rules.
-Supports patterns. Flag can be specified multiple times.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files with alerting and/or recording rules.
+Supports hierarchical patterns and regexpes.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
- -rule="dir/*.yaml" -rule="/*.yaml". Relative path to all .yaml files in "dir" folder,
-absolute path to all .yaml files in root.
-Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.`)
+ -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
+Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
+
+Enterprise version of vmalert supports S3 and GCS paths to rules.
+For example: gs://bucket/path/to/rules, s3://bucket/path/to/rules
+S3 and GCS paths support only matching by prefix, e.g. s3://bucket/dir/rule_ matches
+all files with prefix rule_ in folder dir.
+See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage
+`)
 
 	ruleTemplatesPath = flagutil.NewArrayString("rule.templates", `Path or glob pattern to location with go template definitions
 	for rules annotations templating. Flag can be specified multiple times.
@@ -51,13 +57,14 @@ absolute path to all .tpl files in root.`)
 
 	httpListenAddr   = flag.String("httpListenAddr", ":8880", "Address to listen for http connections. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
-		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
+		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	evaluationInterval = flag.Duration("evaluationInterval", time.Minute, "How often to evaluate the rules")
 
 	validateTemplates   = flag.Bool("rule.validateTemplates", true, "Whether to validate annotation and label templates")
 	validateExpressions = flag.Bool("rule.validateExpressions", true, "Whether to validate rules expressions via MetricsQL engine")
 	maxResolveDuration  = flag.Duration("rule.maxResolveDuration", 0, "Limits the maximum duration for automatic alert expiration, "+
-		"which is by default equal to 3 evaluation intervals of the parent group.")
+		"which by default is 4 times evaluationInterval of the parent group.")
 	resendDelay            = flag.Duration("rule.resendDelay", 0, "Minimum amount of time to wait before resending an alert to notifier")
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overriden per rule via update_entries_limit param.")
@@ -338,7 +345,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.Parse(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := config.ParseSilent(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)

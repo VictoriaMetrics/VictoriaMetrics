@@ -321,12 +321,19 @@ func (s *Storage) DebugFlush() {
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
-func (s *Storage) CreateSnapshot() (string, error) {
+func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
 
 	s.snapshotLock.Lock()
 	defer s.snapshotLock.Unlock()
+
+	var dirsToRemoveOnError []string
+	defer func() {
+		for _, dir := range dirsToRemoveOnError {
+			fs.MustRemoveAll(dir)
+		}
+	}()
 
 	snapshotName := snapshot.NewName()
 	srcDir := s.path
@@ -334,14 +341,17 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
 	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
+
+	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
+	if err != nil {
+		return "", fmt.Errorf("cannot create table snapshot: %w", err)
+	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
+
 	dstDataDir := dstDir + "/data"
 	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
-	}
-
-	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName)
-	if err != nil {
-		return "", fmt.Errorf("cannot create table snapshot: %w", err)
 	}
 	dstSmallDir := dstDataDir + "/small"
 	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
@@ -353,15 +363,23 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	}
 	fs.MustSyncPath(dstDataDir)
 
+	srcMetadataDir := srcDir + "/metadata"
+	dstMetadataDir := dstDir + "/metadata"
+	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
+		return "", fmt.Errorf("cannot copy metadata: %w", err)
+	}
+
 	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
 	idb := s.idb()
 	currSnapshot := idbSnapshot + "/" + idb.name
-	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
+	if err := idb.tb.CreateSnapshotAt(currSnapshot, deadline); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
+
 	ok := idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := idbSnapshot + "/" + extDB.name
-		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
+		err = extDB.tb.CreateSnapshotAt(prevSnapshot, deadline)
 	})
 	if ok && err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
@@ -371,15 +389,10 @@ func (s *Storage) CreateSnapshot() (string, error) {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
 	}
 
-	srcMetadataDir := srcDir + "/metadata"
-	dstMetadataDir := dstDir + "/metadata"
-	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
-		return "", fmt.Errorf("cannot copy metadata: %w", err)
-	}
-
 	fs.MustSyncPath(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
+	dirsToRemoveOnError = nil
 	return snapshotName, nil
 }
 
@@ -1238,7 +1251,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, accountID, project
 			}
 		}
 	})
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return err
 	}
 	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
@@ -2091,7 +2104,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		s.pendingHourEntriesLock.Unlock()
 	}
 	if len(pendingDateMetricIDs) == 0 {
-		// Fast path - there are no new (date, metricID) entires in rows.
+		// Fast path - there are no new (date, metricID) entries in rows.
 		return nil
 	}
 

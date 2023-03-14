@@ -142,7 +142,9 @@ func openTable(path string, s *Storage) (*table, error) {
 }
 
 // CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
+// If deadline is reached before snapshot is created error is returned.
+// If any error occurs during snapshot created data is not removed.
+func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, string, error) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -155,13 +157,22 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 	}
 	dstBigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstBigDir); err != nil {
+		fs.MustRemoveAll(dstSmallDir)
 		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
 	}
 
 	for _, ptw := range ptws {
+		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
+			fs.MustRemoveAll(dstSmallDir)
+			fs.MustRemoveAll(dstBigDir)
+			return "", "", fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
+		}
+
 		smallPath := dstSmallDir + "/" + ptw.pt.name
 		bigPath := dstBigDir + "/" + ptw.pt.name
 		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
+			fs.MustRemoveAll(dstSmallDir)
+			fs.MustRemoveAll(dstBigDir)
 			return "", "", fmt.Errorf("cannot create snapshot for partition %q in %q: %w", ptw.pt.name, tb.path, err)
 		}
 	}
@@ -425,7 +436,7 @@ func (tb *table) retentionWatcher() {
 			continue
 		}
 
-		// There are paritions to drop. Drop them.
+		// There are partitions to drop. Drop them.
 
 		// Remove table references from partitions, so they will be eventually
 		// closed and dropped after all the pending searches are done.

@@ -9,6 +9,10 @@
     padding: $padding-medium 0;
   }
 
+  @media (max-width: 500px) {
+    padding: $padding-small 0;
+  }
+
   &-tabs.vm-block {
     padding: $padding-global;
   }

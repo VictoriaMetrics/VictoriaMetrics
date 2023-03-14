@@ -82,6 +82,9 @@ vmstorage-linux-arm64:
 vmstorage-linux-ppc64le:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-local-goos-goarch
 
+vmstorage-linux-s390x:
+	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=s390x $(MAKE) app-local-goos-goarch
+
 vmstorage-linux-386:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=linux GOARCH=386 $(MAKE) app-local-goos-goarch
 

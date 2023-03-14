@@ -672,7 +672,7 @@ func generateTSID(dst *TSID, mn *MetricName) {
 	// This assumption is true because mn.Tags must be sorted with mn.sortTags() before calling generateTSID() function.
 	// This allows grouping data blocks for the same (job, instance) close to each other on disk.
 	// This reduces disk seeks and disk read IO when data blocks are read from disk for the same job and/or instance.
-	// For example, data blocks for time series matching `process_resident_memory_bytes{job="vmstorage"}` are physically adjancent on disk.
+	// For example, data blocks for time series matching `process_resident_memory_bytes{job="vmstorage"}` are physically adjacent on disk.
 	if len(mn.Tags) > 0 {
 		dst.JobID = uint32(xxhash.Sum64(mn.Tags[0].Value))
 	}
@@ -2908,7 +2908,7 @@ func (is *indexSearch) getMetricIDsForDateAndFilters(qt *querytracer.Tracer, dat
 	// Intersect metricIDs with the rest of filters.
 	//
 	// Do not run these tag filters in parallel, since this may result in CPU and RAM waste
-	// when the intial tag filters significantly reduce the number of found metricIDs,
+	// when the initial tag filters significantly reduce the number of found metricIDs,
 	// so the remaining filters could be performed via much faster metricName matching instead
 	// of slow selecting of matching metricIDs.
 	qtChild = qt.NewChild("intersect the remaining %d filters with the found %d metric ids", len(tfws), metricIDs.Len())

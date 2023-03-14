@@ -56,6 +56,7 @@ var rollupFuncs = map[string]newRollupFunc{
 	"lag":                     newRollupFuncOneArg(rollupLag),
 	"last_over_time":          newRollupFuncOneArg(rollupLast),
 	"lifetime":                newRollupFuncOneArg(rollupLifetime),
+	"mad_over_time":           newRollupFuncOneArg(rollupMAD),
 	"max_over_time":           newRollupFuncOneArg(rollupMax),
 	"min_over_time":           newRollupFuncOneArg(rollupMin),
 	"mode_over_time":          newRollupFuncOneArg(rollupModeOverTime),
@@ -67,13 +68,13 @@ var rollupFuncs = map[string]newRollupFunc{
 	"rate":                    newRollupFuncOneArg(rollupDerivFast), // + rollupFuncsRemoveCounterResets
 	"rate_over_sum":           newRollupFuncOneArg(rollupRateOverSum),
 	"resets":                  newRollupFuncOneArg(rollupResets),
-	"rollup":                  newRollupFuncOneArg(rollupFake),
-	"rollup_candlestick":      newRollupFuncOneArg(rollupFake),
-	"rollup_delta":            newRollupFuncOneArg(rollupFake),
-	"rollup_deriv":            newRollupFuncOneArg(rollupFake),
-	"rollup_increase":         newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_rate":             newRollupFuncOneArg(rollupFake), // + rollupFuncsRemoveCounterResets
-	"rollup_scrape_interval":  newRollupFuncOneArg(rollupFake),
+	"rollup":                  newRollupFuncOneOrTwoArgs(rollupFake),
+	"rollup_candlestick":      newRollupFuncOneOrTwoArgs(rollupFake),
+	"rollup_delta":            newRollupFuncOneOrTwoArgs(rollupFake),
+	"rollup_deriv":            newRollupFuncOneOrTwoArgs(rollupFake),
+	"rollup_increase":         newRollupFuncOneOrTwoArgs(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_rate":             newRollupFuncOneOrTwoArgs(rollupFake), // + rollupFuncsRemoveCounterResets
+	"rollup_scrape_interval":  newRollupFuncOneOrTwoArgs(rollupFake),
 	"scrape_interval":         newRollupFuncOneArg(rollupScrapeInterval),
 	"share_gt_over_time":      newRollupShareGT,
 	"share_le_over_time":      newRollupShareLE,
@@ -121,6 +122,7 @@ var rollupAggrFuncs = map[string]rollupFunc{
 	"lag":                     rollupLag,
 	"last_over_time":          rollupLast,
 	"lifetime":                rollupLifetime,
+	"mad_over_time":           rollupMAD,
 	"max_over_time":           rollupMax,
 	"min_over_time":           rollupMin,
 	"mode_over_time":          rollupModeOverTime,
@@ -280,6 +282,42 @@ func getRollupAggrFuncNames(expr metricsql.Expr) ([]string, error) {
 	return aggrFuncNames, nil
 }
 
+// getRollupTag returns the possible second arg from the expr.
+//
+// The expr can have the following forms:
+// - rollup_func(q, tag)
+// - aggr_func(rollup_func(q, tag)) - this form is used during incremental aggregate calculations
+func getRollupTag(expr metricsql.Expr) (string, error) {
+	af, ok := expr.(*metricsql.AggrFuncExpr)
+	if ok {
+		// extract rollup_func() from aggr_func(rollup_func(q, tag))
+		if len(af.Args) != 1 {
+			logger.Panicf("BUG: unexpected number of args to %s; got %d; want 1", af.AppendString(nil), len(af.Args))
+		}
+		expr = af.Args[0]
+	}
+	fe, ok := expr.(*metricsql.FuncExpr)
+	if !ok {
+		logger.Panicf("BUG: unexpected expression; want *metricsql.FuncExpr; got %T; value: %s", expr, expr.AppendString(nil))
+	}
+	if len(fe.Args) < 2 {
+		return "", nil
+	}
+	if len(fe.Args) != 2 {
+		return "", fmt.Errorf("unexpected number of args; got %d; want %d", len(fe.Args), 2)
+	}
+	arg := fe.Args[1]
+
+	se, ok := arg.(*metricsql.StringExpr)
+	if !ok {
+		return "", fmt.Errorf("unexpected rollup tag type: %s; expecting string", arg.AppendString(nil))
+	}
+	if se.S == "" {
+		return "", fmt.Errorf("rollup tag cannot be empty")
+	}
+	return se.S, nil
+}
+
 func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start, end, step int64, maxPointsPerSeries int,
 	window, lookbackDelta int64, sharedTimestamps []int64) (
 	func(values []float64, timestamps []int64), []*rollupConfig, error) {
@@ -309,35 +347,69 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 			samplesScannedPerCall: samplesScannedPerCall,
 		}
 	}
-	appendRollupConfigs := func(dst []*rollupConfig) []*rollupConfig {
-		dst = append(dst, newRollupConfig(rollupMin, "min"))
-		dst = append(dst, newRollupConfig(rollupMax, "max"))
-		dst = append(dst, newRollupConfig(rollupAvg, "avg"))
-		return dst
+
+	appendRollupConfigs := func(dst []*rollupConfig, expr metricsql.Expr) ([]*rollupConfig, error) {
+		tag, err := getRollupTag(expr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
+		}
+		switch tag {
+		case "min":
+			dst = append(dst, newRollupConfig(rollupMin, ""))
+		case "max":
+			dst = append(dst, newRollupConfig(rollupMax, ""))
+		case "avg":
+			dst = append(dst, newRollupConfig(rollupAvg, ""))
+		case "":
+			dst = append(dst, newRollupConfig(rollupMin, "min"))
+			dst = append(dst, newRollupConfig(rollupMax, "max"))
+			dst = append(dst, newRollupConfig(rollupAvg, "avg"))
+		default:
+			return nil, fmt.Errorf("unexpected second arg for %s: %q; want `min`, `max` or `avg`", expr.AppendString(nil), tag)
+		}
+		return dst, nil
 	}
 	var rcs []*rollupConfig
+	var err error
 	switch funcName {
 	case "rollup":
-		rcs = appendRollupConfigs(rcs)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "rollup_rate", "rollup_deriv":
 		preFuncPrev := preFunc
 		preFunc = func(values []float64, timestamps []int64) {
 			preFuncPrev(values, timestamps)
 			derivValues(values, timestamps)
 		}
-		rcs = appendRollupConfigs(rcs)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "rollup_increase", "rollup_delta":
 		preFuncPrev := preFunc
 		preFunc = func(values []float64, timestamps []int64) {
 			preFuncPrev(values, timestamps)
 			deltaValues(values)
 		}
-		rcs = appendRollupConfigs(rcs)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "rollup_candlestick":
-		rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
-		rcs = append(rcs, newRollupConfig(rollupClose, "close"))
-		rcs = append(rcs, newRollupConfig(rollupLow, "low"))
-		rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
+		tag, err := getRollupTag(expr)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid args for %s: %w", expr.AppendString(nil), err)
+		}
+		switch tag {
+		case "open":
+			rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
+		case "close":
+			rcs = append(rcs, newRollupConfig(rollupClose, "close"))
+		case "low":
+			rcs = append(rcs, newRollupConfig(rollupLow, "low"))
+		case "high":
+			rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
+		case "":
+			rcs = append(rcs, newRollupConfig(rollupOpen, "open"))
+			rcs = append(rcs, newRollupConfig(rollupClose, "close"))
+			rcs = append(rcs, newRollupConfig(rollupLow, "low"))
+			rcs = append(rcs, newRollupConfig(rollupHigh, "high"))
+		default:
+			return nil, nil, fmt.Errorf("unexpected second arg for %s: %q; want `min`, `max` or `avg`", expr.AppendString(nil), tag)
+		}
 	case "rollup_scrape_interval":
 		preFuncPrev := preFunc
 		preFunc = func(values []float64, timestamps []int64) {
@@ -355,7 +427,7 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 				values[0] = values[1]
 			}
 		}
-		rcs = appendRollupConfigs(rcs)
+		rcs, err = appendRollupConfigs(rcs, expr)
 	case "aggr_over_time":
 		aggrFuncNames, err := getRollupAggrFuncNames(expr)
 		if err != nil {
@@ -374,6 +446,9 @@ func getRollupConfigs(funcName string, rf rollupFunc, expr metricsql.Expr, start
 	default:
 		rcs = append(rcs, newRollupConfig(rf, ""))
 	}
+	if err != nil {
+		return nil, nil, err
+	}
 	return preFunc, rcs, nil
 }
 
@@ -383,7 +458,7 @@ func getRollupFunc(funcName string) newRollupFunc {
 }
 
 type rollupFuncArg struct {
-	// The value preceeding values if it fits staleness interval.
+	// The value preceding values if it fits staleness interval.
 	prevValue float64
 
 	// The timestamp for prevValue.
@@ -395,7 +470,7 @@ type rollupFuncArg struct {
 	// Timestamps for values.
 	timestamps []int64
 
-	// Real value preceeding values without restrictions on staleness interval.
+	// Real value preceding values without restrictions on staleness interval.
 	realPrevValue float64
 
 	// Real value which goes after values.
@@ -585,7 +660,7 @@ func (rc *rollupConfig) doInternal(dstValues []float64, tsm *timeseriesMap, valu
 	if window <= 0 {
 		window = rc.Step
 		if rc.MayAdjustWindow && window < maxPrevInterval {
-			// Adjust lookbehind window only if it isn't set explicilty, e.g. rate(foo).
+			// Adjust lookbehind window only if it isn't set explicitly, e.g. rate(foo).
 			// In the case of missing lookbehind window it should be adjusted in order to return non-empty graph
 			// when the window doesn't cover at least two raw samples (this is what most users expect).
 			//
@@ -838,6 +913,15 @@ func newRollupFuncTwoArgs(rf rollupFunc) newRollupFunc {
 	return func(args []interface{}) (rollupFunc, error) {
 		if err := expectRollupArgsNum(args, 2); err != nil {
 			return nil, err
+		}
+		return rf, nil
+	}
+}
+
+func newRollupFuncOneOrTwoArgs(rf rollupFunc) newRollupFunc {
+	return func(args []interface{}) (rollupFunc, error) {
+		if len(args) < 1 || len(args) > 2 {
+			return nil, fmt.Errorf("unexpected number of args; got %d; want 1...2", len(args))
 		}
 		return rf, nil
 	}
@@ -1211,6 +1295,27 @@ func newRollupQuantile(args []interface{}) (rollupFunc, error) {
 		return qv
 	}
 	return rf, nil
+}
+
+func rollupMAD(rfa *rollupFuncArg) float64 {
+	// There is no need in handling NaNs here, since they must be cleaned up
+	// before calling rollup funcs.
+
+	return mad(rfa.values)
+}
+
+func mad(values []float64) float64 {
+	// See https://en.wikipedia.org/wiki/Median_absolute_deviation
+	median := quantile(0.5, values)
+	a := getFloat64s()
+	ds := a.A[:0]
+	for _, v := range values {
+		ds = append(ds, math.Abs(v-median))
+	}
+	v := quantile(0.5, ds)
+	a.A = ds
+	putFloat64s(a)
+	return v
 }
 
 func rollupHistogram(rfa *rollupFuncArg) float64 {

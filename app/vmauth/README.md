@@ -28,7 +28,36 @@ accounting and rate limiting such as [vmgateway](https://docs.victoriametrics.co
 
 ## Load balancing
 
-Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls. In the latter case `vmauth` balances load among the configured urls in a round-robin manner. This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+Each `url_prefix` in the [-auth.config](#auth-config) may contain either a single url or a list of urls.
+In the latter case `vmauth` balances load among the configured urls in least-loaded round-robin manner.
+`vmauth` retries failing `GET` requests across the configured list of urls.
+This feature is useful for balancing the load among multiple `vmselect` and/or `vminsert` nodes
+in [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+## Concurrency limiting
+
+`vmauth` limits the number of concurrent requests it can proxy according to the following command-line flags:
+
+- `-maxConcurrentRequests` limits the global number of concurrent requests `vmauth` can serve across all the configured users.
+- `-maxConcurrentPerUserRequests` limits the number of concurrent requests `vmauth` can serve per each configured user.
+
+It is also possible to set individual limits on the number of concurrent requests per each user
+with the `max_concurrent_requests` option - see [auth config example](#auth-config).
+
+`vmauth` responds with `429 Too Many Requests` HTTP error when the number of concurrent requests exceeds the configured limits.
+
+The following [metrics](#monitoring) related to concurrency limits are exposed by `vmauth`:
+
+- `vmauth_concurrent_requests_capacity` - the global limit on the number of concurrent requests `vmauth` can serve.
+  It is set via `-maxConcurrentRequests` command-line flag.
+- `vmauth_concurrent_requests_current` - the current number of concurrent requests `vmauth` processes.
+- `vmauth_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the global concurrency limit has been reached.
+- `vmauth_user_concurrent_requests_capacity{username="..."}` - the limit on the number of concurrent requests for the given `username`.
+- `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
+- `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for the given `username`.
+
 
 ## Auth config
 
@@ -55,26 +84,27 @@ users:
   headers:
   - "X-Scope-OrgID: foobar"
 
-  # The user for querying local single-node VictoriaMetrics.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be proxied to http://localhost:8428 .
+  # are proxied to http://localhost:8428 .
   # For example, http://vmauth:8427/api/v1/query is proxied to http://localhost:8428/api/v1/query
+  #
+  # The given user can send maximum 10 concurrent requests according to the provided max_concurrent_requests.
+  # Excess concurrent requests are rejected with 429 HTTP status code.
+  # See also -maxConcurrentPerUserRequests and -maxConcurrentRequests command-line flags.
 - username: "local-single-node"
   password: "***"
   url_prefix: "http://localhost:8428"
+  max_concurrent_requests: 10
 
-  # The user for querying local single-node VictoriaMetrics with extra_label team=dev.
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be routed to http://localhost:8428 with extra_label=team=dev query arg.
+  # are proxied to http://localhost:8428 with extra_label=team=dev query arg.
   # For example, http://vmauth:8427/api/v1/query is routed to http://localhost:8428/api/v1/query?extra_label=team=dev
-- username: "local-single-node"
+- username: "local-single-node2"
   password: "***"
   url_prefix: "http://localhost:8428?extra_label=team=dev"
 
-  # The user for querying account 123 in VictoriaMetrics cluster
-  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
+  # are load-balanced among http://vmselect1:8481/select/123/prometheus and http://vmselect2:8481/select/123/prometheus
   # For example, http://vmauth:8427/api/v1/query is proxied to the following urls in a round-robin manner:
   #   - http://vmselect1:8481/select/123/prometheus/api/v1/select
   #   - http://vmselect2:8481/select/123/prometheus/api/v1/select
@@ -84,10 +114,8 @@ users:
   - "http://vmselect1:8481/select/123/prometheus"
   - "http://vmselect2:8481/select/123/prometheus"
 
-  # The user for inserting Prometheus data into VictoriaMetrics cluster under account 42
-  # See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
   # All the requests to http://vmauth:8427 with the given Basic Auth (username:password)
-  # will be load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
+  # are load-balanced between http://vminsert1:8480/insert/42/prometheus and http://vminsert2:8480/insert/42/prometheus
   # For example, http://vmauth:8427/api/v1/write is proxied to the following urls in a round-robin manner:
   #   - http://vminsert1:8480/insert/42/prometheus/api/v1/write
   #   - http://vminsert2:8480/insert/42/prometheus/api/v1/write
@@ -265,7 +293,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 300)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
@@ -284,8 +312,10 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxConcurrentPerUserRequests int
+     The maximum number of concurrent requests vmauth can process per each configured user. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentRequests command-line option and max_concurrent_requests option in per-user config (default 300)
   -maxConcurrentRequests int
-     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxIdleConnsPerBackend (default 1000)
+     The maximum number of concurrent requests vmauth can process. Other requests are rejected with '429 Too Many Requests' http status code. See also -maxConcurrentPerUserRequests and -maxIdleConnsPerBackend command-line options (default 1000)
   -maxIdleConnsPerBackend int
      The maximum number of idle connections vmauth can open per each backend host. See also -maxConcurrentRequests (default 100)
   -memory.allowedBytes size

@@ -788,7 +788,18 @@ func (tb *Table) notifyBackgroundMergers() bool {
 	}
 }
 
-var flushConcurrencyCh = make(chan struct{}, cgroup.AvailableCPUs())
+var flushConcurrencyLimit = func() int {
+	n := cgroup.AvailableCPUs()
+	if n < 2 {
+		// Allow at least 2 concurrent flushers on systems with a single CPU core
+		// in order to guarantee that in-memory data flushes and background merges can be continued
+		// when a single flusher is busy with the long merge.
+		n = 2
+	}
+	return n
+}()
+
+var flushConcurrencyCh = make(chan struct{}, flushConcurrencyLimit)
 
 func needAssistedMerge(pws []*partWrapper, maxParts int) bool {
 	if len(pws) < maxParts {
@@ -1153,14 +1164,6 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	if err != nil {
 		return fmt.Errorf("cannot atomically register the created part: %w", err)
 	}
-	tb.swapSrcWithDstParts(pws, pwNew, dstPartType)
-
-	d := time.Since(startTime)
-	if d <= 30*time.Second {
-		return nil
-	}
-
-	// Log stats for long merges.
 	dstItemsCount := uint64(0)
 	dstBlocksCount := uint64(0)
 	dstSize := uint64(0)
@@ -1172,6 +1175,15 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		dstSize = pDst.size
 		dstPartPath = pDst.path
 	}
+
+	tb.swapSrcWithDstParts(pws, pwNew, dstPartType)
+
+	d := time.Since(startTime)
+	if d <= 30*time.Second {
+		return nil
+	}
+
+	// Log stats for long merges.
 	durationSecs := d.Seconds()
 	itemsPerSec := int(float64(srcItemsCount) / durationSecs)
 	logger.Infof("merged (%d parts, %d items, %d blocks, %d bytes) into (1 part, %d items, %d blocks, %d bytes) in %.3f seconds at %d items/sec to %q",
@@ -1492,7 +1504,11 @@ func mustCloseParts(pws []*partWrapper) {
 //
 // Snapshot is created using linux hard links, so it is usually created
 // very quickly.
-func (tb *Table) CreateSnapshotAt(dstDir string) error {
+//
+// If deadline is reached before snapshot is created error is returned.
+//
+// The caller is responsible for data removal at dstDir on unsuccessful snapshot creation.
+func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 	logger.Infof("creating Table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -1532,7 +1548,12 @@ func (tb *Table) CreateSnapshotAt(dstDir string) error {
 	if err != nil {
 		return fmt.Errorf("cannot read directory: %w", err)
 	}
+
 	for _, fi := range fis {
+		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
+			return fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
+		}
+
 		fn := fi.Name()
 		if !fs.IsDirOrSymlink(fi) {
 			// Skip non-directories.
@@ -1654,7 +1675,7 @@ func runTransaction(txnLock *sync.RWMutex, pathPrefix, txnPath string) error {
 			srcPath, dstPath)
 	}
 
-	// Flush pathPrefix directory metadata to the underying storage.
+	// Flush pathPrefix directory metadata to the underlying storage.
 	fs.MustSyncPath(pathPrefix)
 
 	pendingTxnDeletionsWG.Add(1)
@@ -1824,5 +1845,5 @@ func removeParts(pws []*partWrapper, partsToRemove map[*partWrapper]bool) ([]*pa
 func isSpecialDir(name string) bool {
 	// Snapshots and cache dirs aren't used anymore.
 	// Keep them here for backwards compatibility.
-	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache"
+	return name == "tmp" || name == "txn" || name == "snapshots" || name == "cache" || fs.IsScheduledForRemoval(name)
 }

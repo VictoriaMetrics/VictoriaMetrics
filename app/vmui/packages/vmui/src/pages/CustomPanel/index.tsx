@@ -20,18 +20,22 @@ import "./style.scss";
 import Alert from "../../components/Main/Alert/Alert";
 import TableView from "../../components/Views/TableView/TableView";
 import Button from "../../components/Main/Button/Button";
+import classNames from "classnames";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
   const { query } = useQueryState();
   const { period } = useTimeState();
   const timeDispatch = useTimeDispatch();
+  const { isMobile } = useDeviceDetect();
   useSetQueryParams();
 
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
   const [showAllSeries, setShowAllSeries] = useState(false);
+  const [hideError, setHideError] = useState(!query[0]);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -69,6 +73,10 @@ const CustomPanel: FC = () => {
     setHideQuery(queries);
   };
 
+  const handleRunQuery = () => {
+    setHideError(false);
+  };
+
   useEffect(() => {
     if (traces) {
       setTracesState([...tracesState, ...traces]);
@@ -84,11 +92,17 @@ const CustomPanel: FC = () => {
   }, [query]);
 
   return (
-    <div className="vm-custom-panel">
+    <div
+      className={classNames({
+        "vm-custom-panel": true,
+        "vm-custom-panel_mobile": isMobile,
+      })}
+    >
       <QueryConfigurator
-        error={error}
+        error={!hideError ? error : ""}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}
+        onRunQuery={handleRunQuery}
       />
       {isTracingEnabled && (
         <div className="vm-custom-panel__trace">
@@ -99,20 +113,32 @@ const CustomPanel: FC = () => {
         </div>
       )}
       {isLoading && <Spinner />}
-      {error && <Alert variant="error">{error}</Alert>}
+      {!hideError && error && <Alert variant="error">{error}</Alert>}
       {warning && <Alert variant="warning">
-        <div className="vm-custom-panel__warning">
+        <div
+          className={classNames({
+            "vm-custom-panel__warning": true,
+            "vm-custom-panel__warning_mobile": isMobile
+          })}
+        >
           <p>{warning}</p>
           <Button
             color="warning"
             variant="outlined"
             onClick={handleShowAll}
           >
-              Show all
+            Show all
           </Button>
         </div>
       </Alert>}
-      <div className="vm-custom-panel-body vm-block">
+      <div
+        className={classNames({
+          "vm-custom-panel-body": true,
+          "vm-custom-panel-body_mobile": isMobile,
+          "vm-block": true,
+          "vm-block_mobile": isMobile,
+        })}
+      >
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
           {displayType === "chart" && (
@@ -139,6 +165,7 @@ const CustomPanel: FC = () => {
             yaxis={yaxis}
             setYaxisLimits={setYaxisLimits}
             setPeriod={setPeriod}
+            height={isMobile ? window.innerHeight * 0.5 : 500}
           />
         )}
         {liveData && (displayType === "code") && (

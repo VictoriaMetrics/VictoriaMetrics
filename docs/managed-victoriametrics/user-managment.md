@@ -1,3 +1,12 @@
+---
+sort: 5
+weight: 5
+title: User Management in Managed VictoriaMetrics
+menu:
+  docs:
+    parent: "managed"
+    weight: 5
+---
 # User Management in Managed VictoriaMetrics 
 
 The user management system enables admins to control user access and onboard and offboard users to the Managed VictoriaMetrics. It organizes users according to their needs and role.

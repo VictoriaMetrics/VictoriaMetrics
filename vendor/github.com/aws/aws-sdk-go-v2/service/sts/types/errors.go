@@ -27,7 +27,7 @@ func (e *ExpiredTokenException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *ExpiredTokenException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "ExpiredTokenException"
 	}
 	return *e.ErrorCodeOverride
@@ -57,7 +57,7 @@ func (e *IDPCommunicationErrorException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *IDPCommunicationErrorException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "IDPCommunicationError"
 	}
 	return *e.ErrorCodeOverride
@@ -86,7 +86,7 @@ func (e *IDPRejectedClaimException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *IDPRejectedClaimException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "IDPRejectedClaim"
 	}
 	return *e.ErrorCodeOverride
@@ -114,7 +114,7 @@ func (e *InvalidAuthorizationMessageException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidAuthorizationMessageException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidAuthorizationMessageException"
 	}
 	return *e.ErrorCodeOverride
@@ -144,7 +144,7 @@ func (e *InvalidIdentityTokenException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *InvalidIdentityTokenException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "InvalidIdentityToken"
 	}
 	return *e.ErrorCodeOverride
@@ -171,7 +171,7 @@ func (e *MalformedPolicyDocumentException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *MalformedPolicyDocumentException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "MalformedPolicyDocument"
 	}
 	return *e.ErrorCodeOverride
@@ -208,7 +208,7 @@ func (e *PackedPolicyTooLargeException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *PackedPolicyTooLargeException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "PackedPolicyTooLarge"
 	}
 	return *e.ErrorCodeOverride
@@ -239,7 +239,7 @@ func (e *RegionDisabledException) ErrorMessage() string {
 	return *e.Message
 }
 func (e *RegionDisabledException) ErrorCode() string {
-	if e.ErrorCodeOverride == nil {
+	if e == nil || e.ErrorCodeOverride == nil {
 		return "RegionDisabledException"
 	}
 	return *e.ErrorCodeOverride

@@ -31,7 +31,11 @@ var (
 		"See https://valyala.medium.com/prometheus-subqueries-in-victoriametrics-9b1492b720b3")
 	maxMemoryPerQuery = flagutil.NewBytes("search.maxMemoryPerQuery", 0, "The maximum amounts of memory a single query may consume. "+
 		"Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated "+
-		"as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests")
+		"as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . "+
+		"See also -search.logQueryMemoryUsage")
+	logQueryMemoryUsage = flagutil.NewBytes("search.logQueryMemoryUsage", 0, "Log queries, which require more memory than specified by this flag. "+
+		"This may help detecting and optimizing heavy queries. Query logging is disabled by default. "+
+		"See also -search.logSlowQueryDuration and -search.maxMemoryPerQuery")
 	noStaleMarkers = flag.Bool("search.noStaleMarkers", false, "Set this flag to true if the database doesn't contain Prometheus stale markers, "+
 		"so there is no need in spending additional CPU time on its handling. Staleness markers may exist only in data obtained from Prometheus scrape targets")
 )
@@ -125,6 +129,10 @@ type EvalConfig struct {
 	// EnforcedTagFilterss may contain additional label filters to use in the query.
 	EnforcedTagFilterss [][]storage.TagFilter
 
+	// The callback, which returns the request URI during logging.
+	// The request URI isn't stored here because its' construction may take non-trivial amounts of CPU.
+	GetRequestURI func() string
+
 	// Whether to deny partial response.
 	DenyPartialResponse bool
 
@@ -149,6 +157,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.LookbackDelta = src.LookbackDelta
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
+	ec.GetRequestURI = src.GetRequestURI
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse = src.IsPartialResponse
 
@@ -381,7 +390,9 @@ func evalAggrFunc(qt *querytracer.Tracer, ec *EvalConfig, ae *metricsql.AggrFunc
 		args: args,
 		ec:   ec,
 	}
+	qtChild := qt.NewChild("eval %s", ae.Name)
 	rv, err := af(afa)
+	qtChild.Done()
 	if err != nil {
 		return nil, fmt.Errorf(`cannot evaluate %q: %w`, ae.AppendString(nil), err)
 	}
@@ -483,7 +494,7 @@ func execBinaryOpArgs(qt *querytracer.Tracer, ec *EvalConfig, exprFirst, exprSec
 	// 1) execute the exprFirst
 	// 2) get common label filters for series returned at step 1
 	// 3) push down the found common label filters to exprSecond. This filters out unneeded series
-	//    during exprSecond exection instead of spending compute resources on extracting and processing these series
+	//    during exprSecond execution instead of spending compute resources on extracting and processing these series
 	//    before they are dropped later when matching time series according to https://prometheus.io/docs/prometheus/latest/querying/operators/#vector-matching
 	// 4) execute the exprSecond with possible additional filters found at step 3
 	//
@@ -1099,26 +1110,33 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 	rollupPoints := mulNoOverflow(pointsPerTimeseries, int64(timeseriesLen*len(rcs)))
 	rollupMemorySize = sumNoOverflow(mulNoOverflow(int64(rssLen), 1000), mulNoOverflow(rollupPoints, 16))
+	if maxMemory := int64(logQueryMemoryUsage.N); maxMemory > 0 && rollupMemorySize > maxMemory {
+		requestURI := ec.GetRequestURI()
+		logger.Warnf("remoteAddr=%s, requestURI=%s: the %s requires %d bytes of memory for processing; "+
+			"logging this query, since it exceeds the -search.logQueryMemoryUsage=%d; "+
+			"the query selects %d time series and generates %d points across all the time series; try reducing the number of selected time series",
+			ec.QuotedRemoteAddr, requestURI, expr.AppendString(nil), rollupMemorySize, maxMemory, timeseriesLen*len(rcs), rollupPoints)
+	}
 	if maxMemory := int64(maxMemoryPerQuery.N); maxMemory > 0 && rollupMemorySize > maxMemory {
 		rss.Cancel()
 		return nil, &UserReadableError{
-			Err: fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series "+
+			Err: fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series "+
 				"according to -search.maxMemoryPerQuery=%d; requested memory: %d bytes; "+
 				"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
 				"increasing -search.maxMemoryPerQuery",
-				rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, maxMemory, rollupMemorySize, float64(ec.Step)/1e3),
+				expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, maxMemory, rollupMemorySize, float64(ec.Step)/1e3),
 		}
 	}
 	rml := getRollupMemoryLimiter()
 	if !rml.Get(uint64(rollupMemorySize)) {
 		rss.Cancel()
 		return nil, &UserReadableError{
-			Err: fmt.Errorf("not enough memory for processing %d data points across %d time series with %d points in each time series; "+
+			Err: fmt.Errorf("not enough memory for processing %s, which returns %d data points across %d time series with %d points in each time series; "+
 				"total available memory for concurrent requests: %d bytes; "+
 				"requested memory: %d bytes; "+
 				"possible solutions are: reducing the number of matching time series; increasing `step` query arg (step=%gs); "+
 				"switching to node with more RAM; increasing -memory.allowedPercent",
-				rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3),
+				expr.AppendString(nil), rollupPoints, timeseriesLen*len(rcs), pointsPerTimeseries, rml.MaxSize, uint64(rollupMemorySize), float64(ec.Step)/1e3),
 		}
 	}
 	defer rml.Put(uint64(rollupMemorySize))

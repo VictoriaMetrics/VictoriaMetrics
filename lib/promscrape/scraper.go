@@ -26,6 +26,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/gce"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/http"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kubernetes"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/kuma"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/nomad"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/openstack"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/yandexcloud"
@@ -102,6 +103,8 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 		return
 	}
 
+	metrics.RegisterSet(configMetricsSet)
+
 	// Register SIGHUP handler for config reload before loadConfig.
 	// This guarantees that the config will be re-read if the signal arrives just after loadConfig.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
@@ -132,6 +135,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 	scs.add("gce_sd_configs", *gce.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getGCESDScrapeWork(swsPrev) })
 	scs.add("http_sd_configs", *http.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getHTTPDScrapeWork(swsPrev) })
 	scs.add("kubernetes_sd_configs", *kubernetes.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getKubernetesSDScrapeWork(swsPrev) })
+	scs.add("kuma_sd_configs", *kuma.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getKumaSDScrapeWork(swsPrev) })
 	scs.add("nomad_sd_configs", *nomad.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getNomadSDScrapeWork(swsPrev) })
 	scs.add("openstack_sd_configs", *openstack.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getOpenStackSDScrapeWork(swsPrev) })
 	scs.add("yandexcloud_sd_configs", *yandexcloud.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getYandexCloudSDScrapeWork(swsPrev) })
@@ -198,10 +202,11 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 }
 
 var (
-	configReloads      = metrics.NewCounter(`vm_promscrape_config_reloads_total`)
-	configReloadErrors = metrics.NewCounter(`vm_promscrape_config_reloads_errors_total`)
-	configSuccess      = metrics.NewCounter(`vm_promscrape_config_last_reload_successful`)
-	configTimestamp    = metrics.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
+	configMetricsSet   = metrics.NewSet()
+	configReloads      = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_total`)
+	configReloadErrors = configMetricsSet.NewCounter(`vm_promscrape_config_reloads_errors_total`)
+	configSuccess      = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_successful`)
+	configTimestamp    = configMetricsSet.NewCounter(`vm_promscrape_config_last_reload_success_timestamp_seconds`)
 )
 
 type scrapeConfigs struct {
@@ -440,7 +445,7 @@ func newScraper(sw *ScrapeWork, group string, pushData func(at *auth.Token, wr *
 		cancel:    cancel,
 		stoppedCh: make(chan struct{}),
 	}
-	c := newClient(sw, ctx)
+	c := newClient(ctx, sw)
 	sc.sw.Config = sw
 	sc.sw.ScrapeGroup = group
 	sc.sw.ReadData = c.ReadData

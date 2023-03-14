@@ -210,6 +210,56 @@ mwIDAQAB
 ```
 This command will result in 3 keys loaded: 2 keys from files and 1 from command line.
 
+### Using OpenID discovery endpoint for JWT signature verification
+
+`vmgateway` supports using OpenID discovery endpoint for JWKS keys discovery.
+
+In order to enable [OpenID discovery](https://openid.net/specs/openid-connect-discovery-1_0.html) endpoint for JWT signature verification, you need to specify OpenID discovery endpoint URLs by using `auth.oidcDiscoveryEndpoints` flag.
+When `auth.oidcDiscoveryEndpoints` is specified `vmageteway` will fetch JWKS keys from the specified endpoint and use them for JWT signature verification.
+
+Example usage for tokens issued by Azure Active Directory:
+```console
+/bin/vmgateway -eula \
+  -enable.auth \
+  -write.url=http://localhost:8480 \
+  -read.url=http://localhost:8481 \
+  -auth.oidcDiscoveryEndpoints=https://login.microsoftonline.com/common/v2.0/.well-known/openid-configuration
+```
+
+Example usage for tokens issued by Google:
+```console
+/bin/vmgateway -eula \
+  -enable.auth \
+  -write.url=http://localhost:8480 \
+  -read.url=http://localhost:8481 \
+  -auth.oidcDiscoveryEndpoints=https://accounts.google.com/.well-known/openid-configuration
+```
+
+### Using JWKS endpoint for JWT signature verification
+
+`vmgateway` supports using JWKS endpoint for JWT signature verification.
+
+In order to enable JWKS endpoint for JWT signature verification, you need to specify JWKS endpoint URL by using `auth.jwksEndpoints` flag.
+When `auth.jwksEndpoints` is specified `vmageteway` will fetch public keys from the specified endpoint and use them for JWT signature verification.
+
+Example usage for tokens issued by Azure Active Directory:
+```console
+/bin/vmgateway -eula \
+  -enable.auth \
+  -write.url=http://localhost:8480 \
+  -read.url=http://localhost:8481 \
+  -auth.jwksEndpoints=https://login.microsoftonline.com/common/discovery/v2.0/keys
+```
+
+Example usage for tokens issued by Google:
+```console
+/bin/vmgateway -eula \
+  -enable.auth \
+  -write.url=http://localhost:8480 \
+  -read.url=http://localhost:8481 \
+  -auth.jwksEndpoints=https://www.googleapis.com/oauth2/v3/certs
+```
+
 ## Configuration
 
 The shortlist of configuration flags include the following:
@@ -217,6 +267,12 @@ The shortlist of configuration flags include the following:
 ```console
   -auth.httpHeader string
      HTTP header name to look for JWT authorization token (default "Authorization")
+  -auth.jwksEndpoints array
+     JWKS endpoints to fetch keys for JWT tokens signature verification
+     Supports an array of values separated by comma or specified via multiple flags.
+  -auth.oidcDiscoveryEndpoints array
+     OpenID Connect discovery endpoints to fetch keys for JWT tokens signature verification
+     Supports an array of values separated by comma or specified via multiple flags.
   -auth.publicKeyFiles array
      Path file with public key to verify JWT token signature
      Supports an array of values separated by comma or specified via multiple flags.
