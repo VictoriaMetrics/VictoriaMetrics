@@ -587,6 +587,9 @@ func (pts *packedTimeseries) Unpack(dst *Result, tbfs []*tmpBlocksFile, tr stora
 	dedupInterval := storage.GetDedupInterval()
 	mergeSortBlocks(dst, sbh, dedupInterval)
 	seriesUpdateSbss, err := pts.unpackUpdateAddrs(tbfs, tr)
+	if err != nil {
+		return fmt.Errorf("cannot unpack series updates: %w", err)
+	}
 	// apply updates
 	if len(seriesUpdateSbss) > 0 {
 		var updateDst Result
