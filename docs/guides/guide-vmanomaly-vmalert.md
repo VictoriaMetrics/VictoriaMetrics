@@ -184,7 +184,7 @@ Here are all services we are going to run:
   <img src="guide-vmanomaly-docker-compose.png" width="800" alt="Docker compose services">
 </p>
 
-* VictoriaMetrics - VictoriaMetrics Time Series Database
+* victoriametrics - VictoriaMetrics Time Series Database
 * vmagent - is an agent which helps you collect metrics from various sources, relabel and filter the collected metrics and store them in VictoriaMetrics or any other storage systems via Prometheus remote_write protocol.
 * [grafana](https://grafana.com/) - visualization tool.
 * node-exporter - Prometheus [Node Exporter](https://prometheus.io/docs/guides/node-exporter/) exposes a wide variety of hardware- and kernel-related metrics.
