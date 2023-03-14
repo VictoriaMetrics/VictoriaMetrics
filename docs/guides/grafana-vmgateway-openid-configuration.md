@@ -86,7 +86,7 @@ token_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-conne
 api_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/userinfo
 ```
 
-Start Grafana. You should be able to log in using your identity provider.
+After restarting Grafana with the new config you should be able to log in using your identity provider.
 
 ## Start vmgateway
 
