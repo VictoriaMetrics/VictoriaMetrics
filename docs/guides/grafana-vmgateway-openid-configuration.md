@@ -68,7 +68,7 @@ See details about all supported options in the [vmgateway documentation](https:/
 
 ## Configure grafana
 
-It is required to configure Grafana to use OpenID Connect authentication and to forward the JWT token to vmgateway.
+To forward JWT tokens Grafana must be configured to use OpenID Connect authentication as follows:
 
 Example configuration for Grafana OpenID Connect authentication:
 ```ini
