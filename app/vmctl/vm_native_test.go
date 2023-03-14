@@ -20,11 +20,14 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
-const storagePath = "TestStorage"
+const (
+	storagePath     = "TestStorage"
+	retentionPeriod = "100y"
+)
 
 func Test_vmNativeProcessor_run(t *testing.T) {
 
-	processFlags(storagePath)
+	processFlags()
 	vmstorage.Init(promql.ResetRollupResultCacheIfNeeded)
 	defer func() {
 		vmstorage.Stop()
@@ -239,14 +242,14 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 	}
 }
 
-func processFlags(path string) {
+func processFlags() {
 	flag.Parse()
 	for _, fv := range []struct {
 		flag  string
 		value string
 	}{
-		{flag: "storageDataPath", value: path},
-		{flag: "retentionPeriod", value: "100y"},
+		{flag: "storageDataPath", value: storagePath},
+		{flag: "retentionPeriod", value: retentionPeriod},
 	} {
 		// panics if flag doesn't exist
 		if err := flag.Lookup(fv.flag).Value.Set(fv.value); err != nil {

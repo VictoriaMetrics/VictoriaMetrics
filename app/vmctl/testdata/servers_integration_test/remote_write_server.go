@@ -144,9 +144,6 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-
-		w.WriteHeader(http.StatusOK)
-		return
 	})
 }
 
@@ -173,7 +170,6 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		var gotTimeSeries []vm.TimeSeries
 
 		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
-			log.Printf("BLOCK => %#v", block)
 			mn := &block.MetricName
 			var timeseries vm.TimeSeries
 			timeseries.Name = string(mn.MetricGroup)
@@ -213,6 +209,7 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		})
 
 		if !reflect.DeepEqual(gotTimeSeries, rws.expectedSeries) {
+			w.WriteHeader(http.StatusInternalServerError)
 			t.Fatalf("datasets not equal, expected: %#v;\n got: %#v", rws.expectedSeries, gotTimeSeries)
 		}
 
