@@ -9119,6 +9119,9 @@ var awsPartition = partition{
 					Region: "ap-southeast-3",
 				}: endpoint{},
 				endpointKey{
+					Region: "ap-southeast-4",
+				}: endpoint{},
+				endpointKey{
 					Region: "ca-central-1",
 				}: endpoint{},
 				endpointKey{
@@ -21665,6 +21668,9 @@ var awsPartition = partition{
 					Region: "eu-central-1",
 				}: endpoint{},
 				endpointKey{
+					Region: "eu-central-2",
+				}: endpoint{},
+				endpointKey{
 					Region: "eu-north-1",
 				}: endpoint{},
 				endpointKey{
@@ -31031,12 +31037,48 @@ var awsusgovPartition = partition{
 					},
 				},
 				endpointKey{
+					Region:  "us-gov-east-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname: "access-analyzer.us-gov-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-east-1",
+					},
+				},
+				endpointKey{
+					Region: "us-gov-east-1-fips",
+				}: endpoint{
+					Hostname: "access-analyzer.us-gov-east-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-east-1",
+					},
+					Deprecated: boxedTrue,
+				},
+				endpointKey{
 					Region: "us-gov-west-1",
 				}: endpoint{
 					Hostname: "access-analyzer.us-gov-west-1.amazonaws.com",
 					CredentialScope: credentialScope{
 						Region: "us-gov-west-1",
 					},
+				},
+				endpointKey{
+					Region:  "us-gov-west-1",
+					Variant: fipsVariant,
+				}: endpoint{
+					Hostname: "access-analyzer.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+				},
+				endpointKey{
+					Region: "us-gov-west-1-fips",
+				}: endpoint{
+					Hostname: "access-analyzer.us-gov-west-1.amazonaws.com",
+					CredentialScope: credentialScope{
+						Region: "us-gov-west-1",
+					},
+					Deprecated: boxedTrue,
 				},
 			},
 		},
