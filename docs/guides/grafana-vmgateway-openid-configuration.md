@@ -14,8 +14,7 @@ to restrict access to metrics to only those that belong to the tenant.
 
 ## Configure identity service
 
-The identity service must be able to issue JWT tokens with the following `vm_access` claim. Here is an example claims
-object:
+The identity service must be able to issue JWT tokens with the following `vm_access` claim:
 
 ```json
 {
