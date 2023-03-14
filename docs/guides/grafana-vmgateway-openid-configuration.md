@@ -94,7 +94,7 @@ Enable `Forward OAuth identity` flag.
 
 ## Start vmgateway
 
-Now starting vmgateway to enable authentication is as simple as adding the `-enable.auth=true` flag.
+Now starting vmgateway with enabled authentication is as simple as adding the `-enable.auth=true` flag.
 In order to enable multi-tenant access, you must also specify the `-clusterMode=true` flag.
 
 ```console
