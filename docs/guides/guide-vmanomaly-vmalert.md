@@ -358,7 +358,10 @@ networks:
 </div>
 
 Before running our docker-compose make sure that your directory contains all required files:
-![All files](guide-vmanomaly-files.png "all files")
+
+<p align="center">
+  <img src="guide-vmanomaly-files.png" width="400" alt="all files">
+</p>
 
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 
@@ -369,7 +372,9 @@ docker-compose up -d
 ```
 
 </div>
+
 ___________________________________________________________
+
 ## Model results
 To look at model results we need to go to grafana on the `localhost:3000`. Data
 vmanomaly need some time to generate more data to visualize.
