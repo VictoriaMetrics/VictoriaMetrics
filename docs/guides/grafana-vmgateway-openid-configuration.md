@@ -159,8 +159,7 @@ So when user will try to query `vm_http_requests_total` query will be transforme
 
 It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/vmgateway.html#jwt-signature-verification) at
 vmgateway.
-For example, To do this by using OpenID Connect discovery endpoint y[grafana-vmgateway-openid-configuration.md](grafana-vmgateway-openid-configuration.md)ou need to specify
-the `-auth.oidcDiscoveryEndpoints` flag. For example:
+To do this by using OpenID Connect discovery endpoint you need to specify the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
 ```console
 ./bin/vmgateway -eula \
