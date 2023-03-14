@@ -7,7 +7,7 @@
   -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.83.1)
   
   If you're unfamiliar with the listed components, please read [QuickStart](https://docs.victoriametrics.com/Quick-Start.html) first.
-- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and Docker.
+- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/).
 ## What is vmanomaly?
 *VictoriaMetrics Anomaly Detection* (vmanomaly) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
 
