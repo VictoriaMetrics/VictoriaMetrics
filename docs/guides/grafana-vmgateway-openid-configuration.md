@@ -1,16 +1,16 @@
 # How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
 
-Using Grafana with vmgateway is a great way to provide multi-tenant access to your metrics.
-vmgateway provides a way to authenticate users using JWT tokens issued by an external identity provider.
+Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway.html) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) access to your metrics.
+vmgateway provides a way to authenticate users using [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token) issued by an external identity provider.
 Those tokens can include information about the user and the tenant they belong to, which can be used
 to restrict access to metrics to only those that belong to the tenant.
 
 ## Prerequisites
 
-* Identity service that can issue JWT tokens
-* Grafana
+* Identity service that can issue [JWT tokens](https://en.wikipedia.org/wiki/JSON_Web_Token)
+* [Grafana](https://grafana.com/)
 * VictoriaMetrics single-node or cluster version
-* vmgateway
+* [vmgateway](https://docs.victoriametrics.com/vmgateway.html)
 
 ## Configure identity service
 
@@ -88,11 +88,9 @@ api_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect
 
 Start Grafana. You should be able to log in using your identity provider.
 
-Create a datasource in Grafana. For example, Prometheus datasource with the following URL `http://localhost:8431`.
-Enable `Forward OAuth identity` flag.
-<img src="grafana-vmgateway-openid-configuration/grafana-ds.png" width="800">
-
 ## Start vmgateway
+
+### Multi-tenant access for VictoriaMetrics cluster
 
 Now starting vmgateway with enabled authentication is as simple as adding the `-enable.auth=true` flag.
 In order to enable multi-tenant access, you must also specify the `-clusterMode=true` flag.
@@ -118,6 +116,7 @@ For example, if the JWT token contains the following `vm_access` claim:
   }
 }
 ```
+> Note: in case `project_id` is not specified, default value `0` is used.
 
 Then vmgateway will proxy request to an endpoint with the following path:
 
@@ -126,8 +125,37 @@ http://localhost:8480/select/0:0/
 ```
 
 This allows to restrict access to specific tenants without having to create separate datasources in Grafana,
-or manually managing access at another proxy level. Moreover, using token claims such as `extra_labels`
-or `extra_filters` allows to further restrict access to specific metrics dynamically by using Identity Provider's user information.
+or manually managing access at another proxy level. 
+
+### Multi-tenant access for single-node VictoriaMetrics
+
+In order to use multi-tenant access with single-node VictoriaMetrics, you can use token claims such as `extra_labels`
+or `extra_filters` filled dynamically by using Identity Provider's user information.
+vmgateway uses those claims and [enhanced Prometheus querying API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+to provide additional filtering capabilities.
+
+For example, the following claims can be used to restrict user access to specific metrics:
+
+```json
+{
+  "vm_access": {
+    "extra_labels": {
+      "team": "dev"
+    },
+    "extra_filters": ["{env=~\"aws|gcp\",cluster!=\"production\"}"]
+  }
+}
+```
+
+This will add the following query args to the proxied request:
+
+- `extra_labels=team=dev`
+- `extra_filters={env=~"aws|gcp",cluster!="production"}`
+
+With this configuration VictoriaMetrics will add the following filters to every query: `{team="dev", env=~"aws|gcp", cluster!="production"}`.
+So when user will try to query `vm_http_requests_total` query will be transformed to `vm_http_requests_total{team="dev", env=~"aws|gcp", cluster!="production"}`.
+
+### Token signature verification
 
 It is also possible to enable [JWT token signature verification](https://docs.victoriametrics.com/vmgateway.html#jwt-signature-verification) at
 vmgateway.
@@ -154,6 +182,15 @@ That means that vmgateway has successfully fetched the public keys from the Open
 It is also possible to provide the public keys directly via the `-auth.publicKeys` flag. See the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway.html#jwt-signature-verification) for details.
 
 ## Use Grafana to query metrics
+
+Create a new Prometheus datasource in Grafana with the following URL `http://<vmgateway>:8431`.
+URL should point to the vmgateway instance.
+
+You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource) plugin.
+See installation instructions [here](https://github.com/VictoriaMetrics/grafana-datasource#installation).
+
+Enable `Forward OAuth identity` flag.
+<img src="grafana-vmgateway-openid-configuration/grafana-ds.png" width="800">
 
 Now you can use Grafana to query metrics from the specified tenant.
 Users with `vm_access` claim will be able to query metrics from the specified tenant.
