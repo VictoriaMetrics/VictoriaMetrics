@@ -8,7 +8,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	parser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/vmimport/stream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
@@ -29,12 +30,12 @@ func generateUniqueGenerationID() []byte {
 // InsertHandler processes `/api/v1/update/series` request.
 func InsertHandler(at *auth.Token, req *http.Request) error {
 	isGzipped := req.Header.Get("Content-Encoding") == "gzip"
-	return parser.ParseStream(req.Body, isGzipped, func(rows []parser.Row) error {
+	return stream.Parse(req.Body, isGzipped, func(rows []vmimport.Row) error {
 		return insertRows(at, rows)
 	})
 }
 
-func insertRows(at *auth.Token, rows []parser.Row) error {
+func insertRows(at *auth.Token, rows []vmimport.Row) error {
 	ctx := netstorage.GetInsertCtx()
 	defer netstorage.PutInsertCtx(ctx)
 
