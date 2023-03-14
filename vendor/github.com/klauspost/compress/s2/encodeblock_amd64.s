@@ -19271,6 +19271,491 @@ lz4_s2_dstfull:
 	MOVQ SI, uncompressed+48(FP)
 	RET
 
+// func cvtLZ4sBlockAsm(dst []byte, src []byte) (uncompressed int, dstUsed int)
+// Requires: SSE2
+TEXT ·cvtLZ4sBlockAsm(SB), NOSPLIT, $0-64
+	XORQ SI, SI
+	MOVQ dst_base+0(FP), AX
+	MOVQ dst_len+8(FP), CX
+	MOVQ src_base+24(FP), DX
+	MOVQ src_len+32(FP), BX
+	LEAQ (DX)(BX*1), BX
+	LEAQ -10(AX)(CX*1), CX
+	XORQ DI, DI
+
+lz4s_s2_loop:
+	CMPQ    DX, BX
+	JAE     lz4s_s2_corrupt
+	CMPQ    AX, CX
+	JAE     lz4s_s2_dstfull
+	MOVBQZX (DX), R8
+	MOVQ    R8, R9
+	MOVQ    R8, R10
+	SHRQ    $0x04, R9
+	ANDQ    $0x0f, R10
+	CMPQ    R8, $0xf0
+	JB      lz4s_s2_ll_end
+
+lz4s_s2_ll_loop:
+	INCQ    DX
+	CMPQ    DX, BX
+	JAE     lz4s_s2_corrupt
+	MOVBQZX (DX), R8
+	ADDQ    R8, R9
+	CMPQ    R8, $0xff
+	JEQ     lz4s_s2_ll_loop
+
+lz4s_s2_ll_end:
+	LEAQ  (DX)(R9*1), R8
+	ADDQ  $0x03, R10
+	CMPQ  R8, BX
+	JAE   lz4s_s2_corrupt
+	INCQ  DX
+	INCQ  R8
+	TESTQ R9, R9
+	JZ    lz4s_s2_lits_done
+	LEAQ  (AX)(R9*1), R11
+	CMPQ  R11, CX
+	JAE   lz4s_s2_dstfull
+	ADDQ  R9, SI
+	LEAL  -1(R9), R11
+	CMPL  R11, $0x3c
+	JLT   one_byte_lz4s_s2
+	CMPL  R11, $0x00000100
+	JLT   two_bytes_lz4s_s2
+	CMPL  R11, $0x00010000
+	JLT   three_bytes_lz4s_s2
+	CMPL  R11, $0x01000000
+	JLT   four_bytes_lz4s_s2
+	MOVB  $0xfc, (AX)
+	MOVL  R11, 1(AX)
+	ADDQ  $0x05, AX
+	JMP   memmove_long_lz4s_s2
+
+four_bytes_lz4s_s2:
+	MOVL R11, R12
+	SHRL $0x10, R12
+	MOVB $0xf8, (AX)
+	MOVW R11, 1(AX)
+	MOVB R12, 3(AX)
+	ADDQ $0x04, AX
+	JMP  memmove_long_lz4s_s2
+
+three_bytes_lz4s_s2:
+	MOVB $0xf4, (AX)
+	MOVW R11, 1(AX)
+	ADDQ $0x03, AX
+	JMP  memmove_long_lz4s_s2
+
+two_bytes_lz4s_s2:
+	MOVB $0xf0, (AX)
+	MOVB R11, 1(AX)
+	ADDQ $0x02, AX
+	CMPL R11, $0x40
+	JL   memmove_lz4s_s2
+	JMP  memmove_long_lz4s_s2
+
+one_byte_lz4s_s2:
+	SHLB $0x02, R11
+	MOVB R11, (AX)
+	ADDQ $0x01, AX
+
+memmove_lz4s_s2:
+	LEAQ (AX)(R9*1), R11
+
+	// genMemMoveShort
+	CMPQ R9, $0x08
+	JLE  emit_lit_memmove_lz4s_s2_memmove_move_8
+	CMPQ R9, $0x10
+	JBE  emit_lit_memmove_lz4s_s2_memmove_move_8through16
+	CMPQ R9, $0x20
+	JBE  emit_lit_memmove_lz4s_s2_memmove_move_17through32
+	JMP  emit_lit_memmove_lz4s_s2_memmove_move_33through64
+
+emit_lit_memmove_lz4s_s2_memmove_move_8:
+	MOVQ (DX), R12
+	MOVQ R12, (AX)
+	JMP  memmove_end_copy_lz4s_s2
+
+emit_lit_memmove_lz4s_s2_memmove_move_8through16:
+	MOVQ (DX), R12
+	MOVQ -8(DX)(R9*1), DX
+	MOVQ R12, (AX)
+	MOVQ DX, -8(AX)(R9*1)
+	JMP  memmove_end_copy_lz4s_s2
+
+emit_lit_memmove_lz4s_s2_memmove_move_17through32:
+	MOVOU (DX), X0
+	MOVOU -16(DX)(R9*1), X1
+	MOVOU X0, (AX)
+	MOVOU X1, -16(AX)(R9*1)
+	JMP   memmove_end_copy_lz4s_s2
+
+emit_lit_memmove_lz4s_s2_memmove_move_33through64:
+	MOVOU (DX), X0
+	MOVOU 16(DX), X1
+	MOVOU -32(DX)(R9*1), X2
+	MOVOU -16(DX)(R9*1), X3
+	MOVOU X0, (AX)
+	MOVOU X1, 16(AX)
+	MOVOU X2, -32(AX)(R9*1)
+	MOVOU X3, -16(AX)(R9*1)
+
+memmove_end_copy_lz4s_s2:
+	MOVQ R11, AX
+	JMP  lz4s_s2_lits_emit_done
+
+memmove_long_lz4s_s2:
+	LEAQ (AX)(R9*1), R11
+
+	// genMemMoveLong
+	MOVOU (DX), X0
+	MOVOU 16(DX), X1
+	MOVOU -32(DX)(R9*1), X2
+	MOVOU -16(DX)(R9*1), X3
+	MOVQ  R9, R13
+	SHRQ  $0x05, R13
+	MOVQ  AX, R12
+	ANDL  $0x0000001f, R12
+	MOVQ  $0x00000040, R14
+	SUBQ  R12, R14
+	DECQ  R13
+	JA    emit_lit_memmove_long_lz4s_s2large_forward_sse_loop_32
+	LEAQ  -32(DX)(R14*1), R12
+	LEAQ  -32(AX)(R14*1), R15
+
+emit_lit_memmove_long_lz4s_s2large_big_loop_back:
+	MOVOU (R12), X4
+	MOVOU 16(R12), X5
+	MOVOA X4, (R15)
+	MOVOA X5, 16(R15)
+	ADDQ  $0x20, R15
+	ADDQ  $0x20, R12
+	ADDQ  $0x20, R14
+	DECQ  R13
+	JNA   emit_lit_memmove_long_lz4s_s2large_big_loop_back
+
+emit_lit_memmove_long_lz4s_s2large_forward_sse_loop_32:
+	MOVOU -32(DX)(R14*1), X4
+	MOVOU -16(DX)(R14*1), X5
+	MOVOA X4, -32(AX)(R14*1)
+	MOVOA X5, -16(AX)(R14*1)
+	ADDQ  $0x20, R14
+	CMPQ  R9, R14
+	JAE   emit_lit_memmove_long_lz4s_s2large_forward_sse_loop_32
+	MOVOU X0, (AX)
+	MOVOU X1, 16(AX)
+	MOVOU X2, -32(AX)(R9*1)
+	MOVOU X3, -16(AX)(R9*1)
+	MOVQ  R11, AX
+
+lz4s_s2_lits_emit_done:
+	MOVQ R8, DX
+
+lz4s_s2_lits_done:
+	CMPQ DX, BX
+	JNE  lz4s_s2_match
+	CMPQ R10, $0x03
+	JEQ  lz4s_s2_done
+	JMP  lz4s_s2_corrupt
+
+lz4s_s2_match:
+	CMPQ    R10, $0x03
+	JEQ     lz4s_s2_loop
+	LEAQ    2(DX), R8
+	CMPQ    R8, BX
+	JAE     lz4s_s2_corrupt
+	MOVWQZX (DX), R9
+	MOVQ    R8, DX
+	TESTQ   R9, R9
+	JZ      lz4s_s2_corrupt
+	CMPQ    R9, SI
+	JA      lz4s_s2_corrupt
+	CMPQ    R10, $0x12
+	JNE     lz4s_s2_ml_done
+
+lz4s_s2_ml_loop:
+	MOVBQZX (DX), R8
+	INCQ    DX
+	ADDQ    R8, R10
+	CMPQ    DX, BX
+	JAE     lz4s_s2_corrupt
+	CMPQ    R8, $0xff
+	JEQ     lz4s_s2_ml_loop
+
+lz4s_s2_ml_done:
+	ADDQ R10, SI
+	CMPQ R9, DI
+	JNE  lz4s_s2_docopy
+
+	// emitRepeat
+emit_repeat_again_lz4_s2:
+	MOVL R10, R8
+	LEAL -4(R10), R10
+	CMPL R8, $0x08
+	JLE  repeat_two_lz4_s2
+	CMPL R8, $0x0c
+	JGE  cant_repeat_two_offset_lz4_s2
+	CMPL R9, $0x00000800
+	JLT  repeat_two_offset_lz4_s2
+
+cant_repeat_two_offset_lz4_s2:
+	CMPL R10, $0x00000104
+	JLT  repeat_three_lz4_s2
+	CMPL R10, $0x00010100
+	JLT  repeat_four_lz4_s2
+	CMPL R10, $0x0100ffff
+	JLT  repeat_five_lz4_s2
+	LEAL -16842747(R10), R10
+	MOVL $0xfffb001d, (AX)
+	MOVB $0xff, 4(AX)
+	ADDQ $0x05, AX
+	JMP  emit_repeat_again_lz4_s2
+
+repeat_five_lz4_s2:
+	LEAL -65536(R10), R10
+	MOVL R10, R9
+	MOVW $0x001d, (AX)
+	MOVW R10, 2(AX)
+	SARL $0x10, R9
+	MOVB R9, 4(AX)
+	ADDQ $0x05, AX
+	JMP  lz4s_s2_loop
+
+repeat_four_lz4_s2:
+	LEAL -256(R10), R10
+	MOVW $0x0019, (AX)
+	MOVW R10, 2(AX)
+	ADDQ $0x04, AX
+	JMP  lz4s_s2_loop
+
+repeat_three_lz4_s2:
+	LEAL -4(R10), R10
+	MOVW $0x0015, (AX)
+	MOVB R10, 2(AX)
+	ADDQ $0x03, AX
+	JMP  lz4s_s2_loop
+
+repeat_two_lz4_s2:
+	SHLL $0x02, R10
+	ORL  $0x01, R10
+	MOVW R10, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+repeat_two_offset_lz4_s2:
+	XORQ R8, R8
+	LEAL 1(R8)(R10*4), R10
+	MOVB R9, 1(AX)
+	SARL $0x08, R9
+	SHLL $0x05, R9
+	ORL  R9, R10
+	MOVB R10, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+lz4s_s2_docopy:
+	MOVQ R9, DI
+
+	// emitCopy
+	CMPL R10, $0x40
+	JLE  two_byte_offset_short_lz4_s2
+	CMPL R9, $0x00000800
+	JAE  long_offset_short_lz4_s2
+	MOVL $0x00000001, R8
+	LEAL 16(R8), R8
+	MOVB R9, 1(AX)
+	MOVL R9, R11
+	SHRL $0x08, R11
+	SHLL $0x05, R11
+	ORL  R11, R8
+	MOVB R8, (AX)
+	ADDQ $0x02, AX
+	SUBL $0x08, R10
+
+	// emitRepeat
+	LEAL -4(R10), R10
+	JMP  cant_repeat_two_offset_lz4_s2_emit_copy_short_2b
+
+emit_repeat_again_lz4_s2_emit_copy_short_2b:
+	MOVL R10, R8
+	LEAL -4(R10), R10
+	CMPL R8, $0x08
+	JLE  repeat_two_lz4_s2_emit_copy_short_2b
+	CMPL R8, $0x0c
+	JGE  cant_repeat_two_offset_lz4_s2_emit_copy_short_2b
+	CMPL R9, $0x00000800
+	JLT  repeat_two_offset_lz4_s2_emit_copy_short_2b
+
+cant_repeat_two_offset_lz4_s2_emit_copy_short_2b:
+	CMPL R10, $0x00000104
+	JLT  repeat_three_lz4_s2_emit_copy_short_2b
+	CMPL R10, $0x00010100
+	JLT  repeat_four_lz4_s2_emit_copy_short_2b
+	CMPL R10, $0x0100ffff
+	JLT  repeat_five_lz4_s2_emit_copy_short_2b
+	LEAL -16842747(R10), R10
+	MOVL $0xfffb001d, (AX)
+	MOVB $0xff, 4(AX)
+	ADDQ $0x05, AX
+	JMP  emit_repeat_again_lz4_s2_emit_copy_short_2b
+
+repeat_five_lz4_s2_emit_copy_short_2b:
+	LEAL -65536(R10), R10
+	MOVL R10, R9
+	MOVW $0x001d, (AX)
+	MOVW R10, 2(AX)
+	SARL $0x10, R9
+	MOVB R9, 4(AX)
+	ADDQ $0x05, AX
+	JMP  lz4s_s2_loop
+
+repeat_four_lz4_s2_emit_copy_short_2b:
+	LEAL -256(R10), R10
+	MOVW $0x0019, (AX)
+	MOVW R10, 2(AX)
+	ADDQ $0x04, AX
+	JMP  lz4s_s2_loop
+
+repeat_three_lz4_s2_emit_copy_short_2b:
+	LEAL -4(R10), R10
+	MOVW $0x0015, (AX)
+	MOVB R10, 2(AX)
+	ADDQ $0x03, AX
+	JMP  lz4s_s2_loop
+
+repeat_two_lz4_s2_emit_copy_short_2b:
+	SHLL $0x02, R10
+	ORL  $0x01, R10
+	MOVW R10, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+repeat_two_offset_lz4_s2_emit_copy_short_2b:
+	XORQ R8, R8
+	LEAL 1(R8)(R10*4), R10
+	MOVB R9, 1(AX)
+	SARL $0x08, R9
+	SHLL $0x05, R9
+	ORL  R9, R10
+	MOVB R10, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+long_offset_short_lz4_s2:
+	MOVB $0xee, (AX)
+	MOVW R9, 1(AX)
+	LEAL -60(R10), R10
+	ADDQ $0x03, AX
+
+	// emitRepeat
+emit_repeat_again_lz4_s2_emit_copy_short:
+	MOVL R10, R8
+	LEAL -4(R10), R10
+	CMPL R8, $0x08
+	JLE  repeat_two_lz4_s2_emit_copy_short
+	CMPL R8, $0x0c
+	JGE  cant_repeat_two_offset_lz4_s2_emit_copy_short
+	CMPL R9, $0x00000800
+	JLT  repeat_two_offset_lz4_s2_emit_copy_short
+
+cant_repeat_two_offset_lz4_s2_emit_copy_short:
+	CMPL R10, $0x00000104
+	JLT  repeat_three_lz4_s2_emit_copy_short
+	CMPL R10, $0x00010100
+	JLT  repeat_four_lz4_s2_emit_copy_short
+	CMPL R10, $0x0100ffff
+	JLT  repeat_five_lz4_s2_emit_copy_short
+	LEAL -16842747(R10), R10
+	MOVL $0xfffb001d, (AX)
+	MOVB $0xff, 4(AX)
+	ADDQ $0x05, AX
+	JMP  emit_repeat_again_lz4_s2_emit_copy_short
+
+repeat_five_lz4_s2_emit_copy_short:
+	LEAL -65536(R10), R10
+	MOVL R10, R9
+	MOVW $0x001d, (AX)
+	MOVW R10, 2(AX)
+	SARL $0x10, R9
+	MOVB R9, 4(AX)
+	ADDQ $0x05, AX
+	JMP  lz4s_s2_loop
+
+repeat_four_lz4_s2_emit_copy_short:
+	LEAL -256(R10), R10
+	MOVW $0x0019, (AX)
+	MOVW R10, 2(AX)
+	ADDQ $0x04, AX
+	JMP  lz4s_s2_loop
+
+repeat_three_lz4_s2_emit_copy_short:
+	LEAL -4(R10), R10
+	MOVW $0x0015, (AX)
+	MOVB R10, 2(AX)
+	ADDQ $0x03, AX
+	JMP  lz4s_s2_loop
+
+repeat_two_lz4_s2_emit_copy_short:
+	SHLL $0x02, R10
+	ORL  $0x01, R10
+	MOVW R10, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+repeat_two_offset_lz4_s2_emit_copy_short:
+	XORQ R8, R8
+	LEAL 1(R8)(R10*4), R10
+	MOVB R9, 1(AX)
+	SARL $0x08, R9
+	SHLL $0x05, R9
+	ORL  R9, R10
+	MOVB R10, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+two_byte_offset_short_lz4_s2:
+	MOVL R10, R8
+	SHLL $0x02, R8
+	CMPL R10, $0x0c
+	JGE  emit_copy_three_lz4_s2
+	CMPL R9, $0x00000800
+	JGE  emit_copy_three_lz4_s2
+	LEAL -15(R8), R8
+	MOVB R9, 1(AX)
+	SHRL $0x08, R9
+	SHLL $0x05, R9
+	ORL  R9, R8
+	MOVB R8, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_s2_loop
+
+emit_copy_three_lz4_s2:
+	LEAL -2(R8), R8
+	MOVB R8, (AX)
+	MOVW R9, 1(AX)
+	ADDQ $0x03, AX
+	JMP  lz4s_s2_loop
+
+lz4s_s2_done:
+	MOVQ dst_base+0(FP), CX
+	SUBQ CX, AX
+	MOVQ SI, uncompressed+48(FP)
+	MOVQ AX, dstUsed+56(FP)
+	RET
+
+lz4s_s2_corrupt:
+	XORQ AX, AX
+	LEAQ -1(AX), SI
+	MOVQ SI, uncompressed+48(FP)
+	RET
+
+lz4s_s2_dstfull:
+	XORQ AX, AX
+	LEAQ -2(AX), SI
+	MOVQ SI, uncompressed+48(FP)
+	RET
+
 // func cvtLZ4BlockSnappyAsm(dst []byte, src []byte) (uncompressed int, dstUsed int)
 // Requires: SSE2
 TEXT ·cvtLZ4BlockSnappyAsm(SB), NOSPLIT, $0-64
@@ -19532,6 +20017,274 @@ lz4_snappy_corrupt:
 	RET
 
 lz4_snappy_dstfull:
+	XORQ AX, AX
+	LEAQ -2(AX), SI
+	MOVQ SI, uncompressed+48(FP)
+	RET
+
+// func cvtLZ4sBlockSnappyAsm(dst []byte, src []byte) (uncompressed int, dstUsed int)
+// Requires: SSE2
+TEXT ·cvtLZ4sBlockSnappyAsm(SB), NOSPLIT, $0-64
+	XORQ SI, SI
+	MOVQ dst_base+0(FP), AX
+	MOVQ dst_len+8(FP), CX
+	MOVQ src_base+24(FP), DX
+	MOVQ src_len+32(FP), BX
+	LEAQ (DX)(BX*1), BX
+	LEAQ -10(AX)(CX*1), CX
+
+lz4s_snappy_loop:
+	CMPQ    DX, BX
+	JAE     lz4s_snappy_corrupt
+	CMPQ    AX, CX
+	JAE     lz4s_snappy_dstfull
+	MOVBQZX (DX), DI
+	MOVQ    DI, R8
+	MOVQ    DI, R9
+	SHRQ    $0x04, R8
+	ANDQ    $0x0f, R9
+	CMPQ    DI, $0xf0
+	JB      lz4s_snappy_ll_end
+
+lz4s_snappy_ll_loop:
+	INCQ    DX
+	CMPQ    DX, BX
+	JAE     lz4s_snappy_corrupt
+	MOVBQZX (DX), DI
+	ADDQ    DI, R8
+	CMPQ    DI, $0xff
+	JEQ     lz4s_snappy_ll_loop
+
+lz4s_snappy_ll_end:
+	LEAQ  (DX)(R8*1), DI
+	ADDQ  $0x03, R9
+	CMPQ  DI, BX
+	JAE   lz4s_snappy_corrupt
+	INCQ  DX
+	INCQ  DI
+	TESTQ R8, R8
+	JZ    lz4s_snappy_lits_done
+	LEAQ  (AX)(R8*1), R10
+	CMPQ  R10, CX
+	JAE   lz4s_snappy_dstfull
+	ADDQ  R8, SI
+	LEAL  -1(R8), R10
+	CMPL  R10, $0x3c
+	JLT   one_byte_lz4s_snappy
+	CMPL  R10, $0x00000100
+	JLT   two_bytes_lz4s_snappy
+	CMPL  R10, $0x00010000
+	JLT   three_bytes_lz4s_snappy
+	CMPL  R10, $0x01000000
+	JLT   four_bytes_lz4s_snappy
+	MOVB  $0xfc, (AX)
+	MOVL  R10, 1(AX)
+	ADDQ  $0x05, AX
+	JMP   memmove_long_lz4s_snappy
+
+four_bytes_lz4s_snappy:
+	MOVL R10, R11
+	SHRL $0x10, R11
+	MOVB $0xf8, (AX)
+	MOVW R10, 1(AX)
+	MOVB R11, 3(AX)
+	ADDQ $0x04, AX
+	JMP  memmove_long_lz4s_snappy
+
+three_bytes_lz4s_snappy:
+	MOVB $0xf4, (AX)
+	MOVW R10, 1(AX)
+	ADDQ $0x03, AX
+	JMP  memmove_long_lz4s_snappy
+
+two_bytes_lz4s_snappy:
+	MOVB $0xf0, (AX)
+	MOVB R10, 1(AX)
+	ADDQ $0x02, AX
+	CMPL R10, $0x40
+	JL   memmove_lz4s_snappy
+	JMP  memmove_long_lz4s_snappy
+
+one_byte_lz4s_snappy:
+	SHLB $0x02, R10
+	MOVB R10, (AX)
+	ADDQ $0x01, AX
+
+memmove_lz4s_snappy:
+	LEAQ (AX)(R8*1), R10
+
+	// genMemMoveShort
+	CMPQ R8, $0x08
+	JLE  emit_lit_memmove_lz4s_snappy_memmove_move_8
+	CMPQ R8, $0x10
+	JBE  emit_lit_memmove_lz4s_snappy_memmove_move_8through16
+	CMPQ R8, $0x20
+	JBE  emit_lit_memmove_lz4s_snappy_memmove_move_17through32
+	JMP  emit_lit_memmove_lz4s_snappy_memmove_move_33through64
+
+emit_lit_memmove_lz4s_snappy_memmove_move_8:
+	MOVQ (DX), R11
+	MOVQ R11, (AX)
+	JMP  memmove_end_copy_lz4s_snappy
+
+emit_lit_memmove_lz4s_snappy_memmove_move_8through16:
+	MOVQ (DX), R11
+	MOVQ -8(DX)(R8*1), DX
+	MOVQ R11, (AX)
+	MOVQ DX, -8(AX)(R8*1)
+	JMP  memmove_end_copy_lz4s_snappy
+
+emit_lit_memmove_lz4s_snappy_memmove_move_17through32:
+	MOVOU (DX), X0
+	MOVOU -16(DX)(R8*1), X1
+	MOVOU X0, (AX)
+	MOVOU X1, -16(AX)(R8*1)
+	JMP   memmove_end_copy_lz4s_snappy
+
+emit_lit_memmove_lz4s_snappy_memmove_move_33through64:
+	MOVOU (DX), X0
+	MOVOU 16(DX), X1
+	MOVOU -32(DX)(R8*1), X2
+	MOVOU -16(DX)(R8*1), X3
+	MOVOU X0, (AX)
+	MOVOU X1, 16(AX)
+	MOVOU X2, -32(AX)(R8*1)
+	MOVOU X3, -16(AX)(R8*1)
+
+memmove_end_copy_lz4s_snappy:
+	MOVQ R10, AX
+	JMP  lz4s_snappy_lits_emit_done
+
+memmove_long_lz4s_snappy:
+	LEAQ (AX)(R8*1), R10
+
+	// genMemMoveLong
+	MOVOU (DX), X0
+	MOVOU 16(DX), X1
+	MOVOU -32(DX)(R8*1), X2
+	MOVOU -16(DX)(R8*1), X3
+	MOVQ  R8, R12
+	SHRQ  $0x05, R12
+	MOVQ  AX, R11
+	ANDL  $0x0000001f, R11
+	MOVQ  $0x00000040, R13
+	SUBQ  R11, R13
+	DECQ  R12
+	JA    emit_lit_memmove_long_lz4s_snappylarge_forward_sse_loop_32
+	LEAQ  -32(DX)(R13*1), R11
+	LEAQ  -32(AX)(R13*1), R14
+
+emit_lit_memmove_long_lz4s_snappylarge_big_loop_back:
+	MOVOU (R11), X4
+	MOVOU 16(R11), X5
+	MOVOA X4, (R14)
+	MOVOA X5, 16(R14)
+	ADDQ  $0x20, R14
+	ADDQ  $0x20, R11
+	ADDQ  $0x20, R13
+	DECQ  R12
+	JNA   emit_lit_memmove_long_lz4s_snappylarge_big_loop_back
+
+emit_lit_memmove_long_lz4s_snappylarge_forward_sse_loop_32:
+	MOVOU -32(DX)(R13*1), X4
+	MOVOU -16(DX)(R13*1), X5
+	MOVOA X4, -32(AX)(R13*1)
+	MOVOA X5, -16(AX)(R13*1)
+	ADDQ  $0x20, R13
+	CMPQ  R8, R13
+	JAE   emit_lit_memmove_long_lz4s_snappylarge_forward_sse_loop_32
+	MOVOU X0, (AX)
+	MOVOU X1, 16(AX)
+	MOVOU X2, -32(AX)(R8*1)
+	MOVOU X3, -16(AX)(R8*1)
+	MOVQ  R10, AX
+
+lz4s_snappy_lits_emit_done:
+	MOVQ DI, DX
+
+lz4s_snappy_lits_done:
+	CMPQ DX, BX
+	JNE  lz4s_snappy_match
+	CMPQ R9, $0x03
+	JEQ  lz4s_snappy_done
+	JMP  lz4s_snappy_corrupt
+
+lz4s_snappy_match:
+	CMPQ    R9, $0x03
+	JEQ     lz4s_snappy_loop
+	LEAQ    2(DX), DI
+	CMPQ    DI, BX
+	JAE     lz4s_snappy_corrupt
+	MOVWQZX (DX), R8
+	MOVQ    DI, DX
+	TESTQ   R8, R8
+	JZ      lz4s_snappy_corrupt
+	CMPQ    R8, SI
+	JA      lz4s_snappy_corrupt
+	CMPQ    R9, $0x12
+	JNE     lz4s_snappy_ml_done
+
+lz4s_snappy_ml_loop:
+	MOVBQZX (DX), DI
+	INCQ    DX
+	ADDQ    DI, R9
+	CMPQ    DX, BX
+	JAE     lz4s_snappy_corrupt
+	CMPQ    DI, $0xff
+	JEQ     lz4s_snappy_ml_loop
+
+lz4s_snappy_ml_done:
+	ADDQ R9, SI
+
+	// emitCopy
+two_byte_offset_lz4_s2:
+	CMPL R9, $0x40
+	JLE  two_byte_offset_short_lz4_s2
+	MOVB $0xee, (AX)
+	MOVW R8, 1(AX)
+	LEAL -60(R9), R9
+	ADDQ $0x03, AX
+	CMPQ AX, CX
+	JAE  lz4s_snappy_loop
+	JMP  two_byte_offset_lz4_s2
+
+two_byte_offset_short_lz4_s2:
+	MOVL R9, DI
+	SHLL $0x02, DI
+	CMPL R9, $0x0c
+	JGE  emit_copy_three_lz4_s2
+	CMPL R8, $0x00000800
+	JGE  emit_copy_three_lz4_s2
+	LEAL -15(DI), DI
+	MOVB R8, 1(AX)
+	SHRL $0x08, R8
+	SHLL $0x05, R8
+	ORL  R8, DI
+	MOVB DI, (AX)
+	ADDQ $0x02, AX
+	JMP  lz4s_snappy_loop
+
+emit_copy_three_lz4_s2:
+	LEAL -2(DI), DI
+	MOVB DI, (AX)
+	MOVW R8, 1(AX)
+	ADDQ $0x03, AX
+	JMP  lz4s_snappy_loop
+
+lz4s_snappy_done:
+	MOVQ dst_base+0(FP), CX
+	SUBQ CX, AX
+	MOVQ SI, uncompressed+48(FP)
+	MOVQ AX, dstUsed+56(FP)
+	RET
+
+lz4s_snappy_corrupt:
+	XORQ AX, AX
+	LEAQ -1(AX), SI
+	MOVQ SI, uncompressed+48(FP)
+	RET
+
+lz4s_snappy_dstfull:
 	XORQ AX, AX
 	LEAQ -2(AX), SI
 	MOVQ SI, uncompressed+48(FP)

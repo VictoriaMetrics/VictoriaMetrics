@@ -61,6 +61,15 @@ func NewWriter(w io.Writer, level int) writer.GzipWriter {
 	}
 }
 
+// SetHeader will override the gzip header on pw.
+func (pw *pooledWriter) SetHeader(h writer.Header) {
+	pw.Name = h.Name
+	pw.Extra = h.Extra
+	pw.Comment = h.Comment
+	pw.ModTime = h.ModTime
+	pw.OS = h.OS
+}
+
 func Levels() (min, max int) {
 	return gzip.StatelessCompression, gzip.BestCompression
 }
