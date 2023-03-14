@@ -137,7 +137,6 @@ For example, To do this by using OpenID Connect discovery endpoint y[grafana-vmg
 the `-auth.oidcDiscoveryEndpoints` flag. For example:
 
 ```console
-```console
 ./bin/vmgateway -eula \
     -enable.auth=true \
     -clusterMode=true \
