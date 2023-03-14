@@ -29,7 +29,9 @@ The identity service must be able to issue JWT tokens with the following `vm_acc
 
 See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway.html#access-control).
 
-### Configuration for Keycloak
+### Configuration example for Keycloak
+
+[Keycloak](https://www.keycloak.org/) is an open source identity service that can be used to issue JWT tokens.
 
 1. Log in with admin credentials to your Keycloak instance
 2. Go to `Clients` -> `Create`.
@@ -74,8 +76,6 @@ To forward JWT tokens Grafana must be configured to use OpenID Connect authentic
 [auth.generic_oauth]
 enabled = true
 allow_sign_up = true
-team_ids =
-allowed_organizations =
 name = keycloak
 client_id = {CLIENT_ID_FROM_IDENTITY_PROVIDER}
 client_secret = {SECRET_FROM_IDENTITY_PROVIDER}
