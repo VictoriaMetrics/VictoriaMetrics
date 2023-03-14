@@ -28,8 +28,7 @@ object:
 }
 ```
 
-You can find details about all supported options in the
-vmgateway [documentation](https://docs.victoriametrics.com/vmgateway.html#access-control).
+See details about all supported options in the [vmgateway documentation](https://docs.victoriametrics.com/vmgateway.html#access-control).
 
 ### Configuration for Keycloak
 
