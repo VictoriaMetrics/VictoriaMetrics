@@ -83,7 +83,7 @@ There are 4 main sections in config file:
 
 `model` - specific model parameters and configurations, 
 
-`reader` - where and how to read data from,
+`reader` - how to read data and where it is located
 
 `writer` - where and how to write the generated output.
 
