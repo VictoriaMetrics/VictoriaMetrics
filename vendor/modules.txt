@@ -335,7 +335,7 @@ github.com/jmespath/go-jmespath
 # github.com/jpillora/backoff v1.0.0
 ## explicit; go 1.13
 github.com/jpillora/backoff
-# github.com/klauspost/compress v1.16.0
+# github.com/klauspost/compress v1.16.3
 ## explicit; go 1.18
 github.com/klauspost/compress
 github.com/klauspost/compress/flate
