@@ -9,7 +9,7 @@ to restrict access to metrics to only those that belong to the tenant.
 
 * Identity service that can issue JWT tokens
 * Grafana
-* VMSingle or VMCluster
+* VictoriaMetrics single-node or cluster version
 * vmgateway
 
 ## Configure identity service
