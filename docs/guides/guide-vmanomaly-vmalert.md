@@ -28,7 +28,7 @@ The value is designed to:
 
 Then, users can enable alerting rules based on the **anomaly score** with [vmalert](#what-is-vmalert).
 ## What is vmalert?
-[vmagent](https://docs.victoriametrics.com/vmagent.html) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
+[vmalert](https://docs.victoriametrics.com/vmalert.html) is an alerting tool for VictoriaMetrics. It executes a list of the given alerting or recording rules against configured `-datasource.url`.
 
 [Alerting rules](https://docs.victoriametrics.com/vmalert.html#alerting-rules) allow you to define conditions that, when met, will notify the user. The alerting condition is defined in a form of a query expression via [MetricsQL query language](https://docs.victoriametrics.com/MetricsQL.html). For example, in our case, the expression `anomaly_score > 1.0` will notify a user when the calculated anomaly score exceeds a threshold of 1.
 ## How does vmanomaly works with vmalert?
