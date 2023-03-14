@@ -109,7 +109,7 @@ Let's look into parameters in each section:
   * `queries`: - MetricsQL (extension of PromQL) expressions,  where you want to find anomalies.
 
   You can put several queries in a form:
-  `<QUERY_ALIAS>: "QUERY"`. QUERY_ALIAS will be used as a `_key` label in generated metrics and anomaly scores.
+  `<QUERY_ALIAS>: "QUERY"`. QUERY_ALIAS will be used as a `for` label in generated metrics and anomaly scores.
 
 * `writer`
     * `datasource_url` - Output destination. An HTTP endpoint that serves `/api/v1/import`.
