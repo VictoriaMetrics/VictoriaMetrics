@@ -115,7 +115,9 @@ Let's look into parameters in each section:
     * `datasource_url` - Output destination. An HTTP endpoint that serves `/api/v1/import`.
 
 Here is an example of the config file `vmanomaly_config.yml`.
+
 <div class="with-copy" markdown="1">
+
 ```
 scheduler:
   infer_every: "1m"
@@ -135,6 +137,7 @@ writer:
   datasource_url: "http://victoriametrics:8428/"
 
 ```
+
 </div>
 
 _____________________________________________
@@ -155,6 +158,7 @@ ____________________________________________
 Here we provide an example of the config for vmalert `vmalert_config.yml`.
 
 <div class="with-copy" markdown="1">
+
 ```
 groups:
 - name: AnomalyExample
@@ -166,6 +170,7 @@ groups:
     annotations:
       summary: Anomaly Score exceeded 1.0. `rate(node_cpu_seconds_total)` is showing abnormal behavior. 
 ```
+
 </div>
 
 In the query expression we need to put a condition on the generated anomaly scores. Usually if the anomaly score is between 0.0 and 1.0, the analyzed value is not abnormal. The more anomaly score exceeded 1 the more our model is sure that value is an anomaly.
@@ -188,7 +193,9 @@ Here are all services we are going to run:
 
 ### Grafana setup
 To enable VictoriaMetrics datasource as the default in Grafana we need to create a file `datasource.yml`
+
 <div class="with-copy" markdown="1">
+
 ```
 apiVersion: 1
 
@@ -200,12 +207,14 @@ datasources:
       isDefault: true
 
 ```
+
 </div>
 
 ### Prometheus config
 Let's create `prometheus.yml` file for `vmagent` configuration.
 
 <div class="with-copy" markdown="1">
+
 ```
 global:
   scrape_interval: 10s
@@ -227,12 +236,14 @@ scrape_configs:
     static_configs:
       - targets: [ 'vmanomaly:8500' ]
 ```
+
 </div>
 
 ### Docker-compose
 Let's wrap it all up together into the `docker-compose.yml` file
 
 <div class="with-copy" markdown="1">
+
 ```
 services:
   vmagent:
@@ -343,6 +354,7 @@ volumes:
 networks:
   vm_net:
 ```
+
 </div>
 
 Before running our docker-compose make sure that your directory contains all required files:
@@ -351,9 +363,11 @@ Before running our docker-compose make sure that your directory contains all req
 This docker-compose file will pull docker images,  set up each service and run them all together with the command:
 
 <div class="with-copy" markdown="1">
+
 ```
 docker-compose up -d
 ```
+
 </div>
 ___________________________________________________________
 ## Model results
