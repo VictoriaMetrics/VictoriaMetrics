@@ -107,7 +107,7 @@ If you forgot password, it can be restored in the following way:
 ## Creating deployment
 
 Deployments is a page where user can list and manage VictoriaMetrics deployments. 
-To create an deployment click on the button `Create Deployments` button or link in the message:
+To create an deployment click on the button `Create Deployment` button or link in the message:
 
 <p>
   <img src="quickstart_deployments.png" width="800">
