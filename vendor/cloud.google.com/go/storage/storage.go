@@ -129,8 +129,10 @@ type Client struct {
 //
 // Clients should be reused instead of created as needed. The methods of Client
 // are safe for concurrent use by multiple goroutines.
+//
+// You may configure the client by passing in options from the [google.golang.org/api/option]
+// package. You may also use options defined in this package, such as [WithJSONReads].
 func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error) {
-
 	// Use the experimental gRPC client if the env var is set.
 	// This is an experimental API and not intended for public use.
 	if withGRPC := os.Getenv("STORAGE_USE_GRPC"); withGRPC != "" {
@@ -179,10 +181,12 @@ func NewClient(ctx context.Context, opts ...option.ClientOption) (*Client, error
 		endpoint := hostURL.String()
 
 		// Append the emulator host as default endpoint for the user
-		opts = append([]option.ClientOption{option.WithoutAuthentication()}, opts...)
-
-		opts = append(opts, internaloption.WithDefaultEndpoint(endpoint))
-		opts = append(opts, internaloption.WithDefaultMTLSEndpoint(endpoint))
+		opts = append([]option.ClientOption{
+			option.WithoutAuthentication(),
+			internaloption.SkipDialSettingsValidation(),
+			internaloption.WithDefaultEndpoint(endpoint),
+			internaloption.WithDefaultMTLSEndpoint(endpoint),
+		}, opts...)
 	}
 
 	// htransport selects the correct endpoint among WithEndpoint (user override), WithDefaultEndpoint, and WithDefaultMTLSEndpoint.
@@ -1713,6 +1717,8 @@ type Conditions struct {
 	// GenerationNotMatch specifies that the object must not have the given
 	// generation for the operation to occur.
 	// If GenerationNotMatch is zero, it has no effect.
+	// This condition only works for object reads if the WithJSONReads client
+	// option is set.
 	GenerationNotMatch int64
 
 	// DoesNotExist specifies that the object must not exist in the bucket for
@@ -1731,6 +1737,8 @@ type Conditions struct {
 	// MetagenerationNotMatch specifies that the object must not have the given
 	// metageneration for the operation to occur.
 	// If MetagenerationNotMatch is zero, it has no effect.
+	// This condition only works for object reads if the WithJSONReads client
+	// option is set.
 	MetagenerationNotMatch int64
 }
 
