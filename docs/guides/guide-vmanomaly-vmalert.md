@@ -7,7 +7,7 @@
   -  [vmagent](https://docs.victoriametrics.com/vmagent.html) (v.1.83.1)
   
   If you're unfamiliar with the listed components, please read [QuickStart](https://docs.victoriametrics.com/Quick-Start.html) first.
-- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/).
+- It is assumed that you are familiar with [Grafana](https://grafana.com/)(v.9.3.1) and [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/).
 ## What is vmanomaly?
 *VictoriaMetrics Anomaly Detection* ([vmanomaly](https://docs.victoriametrics.com/vmanomaly.html)) is a service that continuously scans time series stored in VictoriaMetrics and detects unexpected changes within data patterns in real-time. It does so by utilizing user-configurable machine learning models.
 
@@ -118,7 +118,7 @@ Here is an example of the config file `vmanomaly_config.yml`.
 
 <div class="with-copy" markdown="1">
 
-```
+``` yaml
 scheduler:
   infer_every: "1m"
   fit_every: "2h"
@@ -159,7 +159,7 @@ Here we provide an example of the config for vmalert `vmalert_config.yml`.
 
 <div class="with-copy" markdown="1">
 
-```
+``` yaml
 groups:
 - name: AnomalyExample
   rules:
@@ -196,7 +196,7 @@ To enable VictoriaMetrics datasource as the default in Grafana we need to create
 
 <div class="with-copy" markdown="1">
 
-```
+``` yaml
 apiVersion: 1
 
 datasources:
@@ -215,7 +215,7 @@ Let's create `prometheus.yml` file for `vmagent` configuration.
 
 <div class="with-copy" markdown="1">
 
-```
+``` yaml
 global:
   scrape_interval: 10s
 
@@ -244,7 +244,7 @@ Let's wrap it all up together into the `docker-compose.yml` file
 
 <div class="with-copy" markdown="1">
 
-```
+``` yaml
 services:
   vmagent:
     container_name: vmagent
