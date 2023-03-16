@@ -162,12 +162,7 @@ package-via-docker-arm:
 	GOARCH=arm $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-arm64:
-ifeq ($(APP_NAME),vmagent)
-	GOARCH=arm64 $(MAKE) package-via-docker-goarch-nocgo
-else
 	$(MAKE) package-via-docker-goarch-arm64
-endif
-
 
 package-via-docker-ppc64le:
 	GOARCH=ppc64le $(MAKE) package-via-docker-goarch-nocgo
