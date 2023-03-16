@@ -16,6 +16,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * FEATURE: log metrics with truncated labels if the length of label value in the ingested metric exceeds `-maxLabelValueLen`. This should simplify debugging for this case.
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): Add the ability to manually input date and time when selecting a time range. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3968).
 
 ## [v1.89.1](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.89.1)
 
