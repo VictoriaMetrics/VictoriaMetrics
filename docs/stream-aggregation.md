@@ -545,3 +545,20 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
 
 The file can contain multiple aggregation configs. The aggregation is performed independently
 per each specified config entry.
+
+### Configuration update
+
+[vmagent](https://docs.victoriametrics.com/vmagent.html) and 
+[single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) support two 
+approaches for reloading stream aggregation configs from updated config files such as
+`-remoteWrite.streamAggr.config` and `-streamAggr.config` without restart. 
+
+* Sending `SIGHUP` signal to `vmagent` process:
+
+  ```console
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* Sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload`).
+
+It will reset the aggregation state only for changed rules in the configuration files.

@@ -105,7 +105,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 
 `vmagent` should be restarted in order to update config options set via command-line args.
 `vmagent` supports multiple approaches for reloading configs from updated config files such as
-`-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
+`-promscrape.config`, `-remoteWrite.relabelConfig`, `-remoteWrite.urlRelabelConfig` and `-remoteWrite.streamAggr.config`:
 
 * Sending `SIGHUP` signal to `vmagent` process:
 
