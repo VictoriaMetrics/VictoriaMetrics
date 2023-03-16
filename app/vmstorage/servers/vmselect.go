@@ -200,7 +200,9 @@ func (bi *blockIterator) NextBlock(mb *storage.MetricBlock) bool {
 	if !bi.sr.NextMetricBlock() {
 		return false
 	}
-	mb.MetricName = bi.sr.MetricBlockRef.MetricName
+	// copy metricName for series update API
+	// it may modify metricName and referenced BlockRef
+	mb.MetricName = append(mb.MetricName[:0], bi.sr.MetricBlockRef.MetricName...)
 	bi.sr.MetricBlockRef.BlockRef.MustReadBlock(&mb.Block)
 	return true
 }
