@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // FS represent a file system abstract for reading files.
@@ -36,10 +36,9 @@ var (
 // readFromFS returns an error if at least one FS failed to init.
 // The function can be called multiple times but each unique path
 // will be inited only once.
-// If silent == true, readFromFS will not emit any logs.
 //
 // It is allowed to mix different FS types in path list.
-func readFromFS(paths []string, silent bool) (map[string][]byte, error) {
+func readFromFS(paths []string) (map[string][]byte, error) {
 	var err error
 	result := make(map[string][]byte)
 	for _, path := range paths {
@@ -65,18 +64,19 @@ func readFromFS(paths []string, silent bool) (map[string][]byte, error) {
 			return nil, fmt.Errorf("failed to list files from %q", fs)
 		}
 
-		if !silent {
-			logger.Infof("found %d files to read from %q", len(list), fs)
-		}
+		cLogger.Infof("found %d files to read from %q", len(list), fs)
 
 		if len(list) < 1 {
 			continue
 		}
 
+		ts := time.Now()
 		files, err := fs.Read(list)
 		if err != nil {
 			return nil, fmt.Errorf("error while reading files from %q: %w", fs, err)
 		}
+		cLogger.Infof("finished reading %d files in %v from %q", len(list), time.Since(ts), fs)
+
 		for k, v := range files {
 			if _, ok := result[k]; ok {
 				return nil, fmt.Errorf("duplicate found for file name %q: file names must be unique", k)
