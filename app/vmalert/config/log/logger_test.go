@@ -40,7 +40,7 @@ func TestOutput(t *testing.T) {
 	log.Errorf("error %s %d", "baz", 5)
 	mustMatch("error baz 5")
 
-	log.Disable(true)
+	log.Suppress(true)
 
 	log.Warnf("foo")
 	mustMatch("")

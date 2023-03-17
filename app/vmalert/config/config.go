@@ -206,8 +206,8 @@ var cLogger = &log.Logger{}
 
 // ParseSilent parses rule configs from given file patterns without emitting logs
 func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	cLogger.Disable(true)
-	defer cLogger.Disable(false)
+	cLogger.Suppress(true)
+	defer cLogger.Suppress(false)
 
 	files, err := readFromFS(pathPatterns)
 	if err != nil {

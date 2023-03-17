@@ -1,24 +1,36 @@
 package log
 
-import "github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+import (
+	"sync"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+)
 
 // Logger is using lib/logger for logging
-// but can be disabled via Disable method
+// but can be suppressed via Suppress method
 type Logger struct {
+	mu       sync.RWMutex
 	disabled bool
 }
 
-// Disable whether to ignore message logging.
-// Once disabled, logging continues to be ignored
-// until logger is enabled again.
-// Not thread-safe.
-func (l *Logger) Disable(v bool) {
+// Suppress whether to ignore message logging.
+// Once suppressed, logging continues to be ignored
+// until logger is un-suppressed.
+func (l *Logger) Suppress(v bool) {
+	l.mu.Lock()
 	l.disabled = v
+	l.mu.Unlock()
+}
+
+func (l *Logger) isDisabled() bool {
+	l.mu.RLock()
+	defer l.mu.RUnlock()
+	return l.disabled
 }
 
 // Errorf logs error message.
 func (l *Logger) Errorf(format string, args ...interface{}) {
-	if l.disabled {
+	if l.isDisabled() {
 		return
 	}
 	logger.Errorf(format, args...)
@@ -26,7 +38,7 @@ func (l *Logger) Errorf(format string, args ...interface{}) {
 
 // Warnf logs warning message.
 func (l *Logger) Warnf(format string, args ...interface{}) {
-	if l.disabled {
+	if l.isDisabled() {
 		return
 	}
 	logger.Warnf(format, args...)
@@ -34,13 +46,14 @@ func (l *Logger) Warnf(format string, args ...interface{}) {
 
 // Infof logs info message.
 func (l *Logger) Infof(format string, args ...interface{}) {
-	if l.disabled {
+	if l.isDisabled() {
 		return
 	}
 	logger.Infof(format, args...)
 }
 
 // Panicf logs panic message and panics.
+// Panicf can't be suppressed
 func (l *Logger) Panicf(format string, args ...interface{}) {
 	logger.Panicf(format, args...)
 }
