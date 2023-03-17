@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
@@ -19,9 +20,18 @@ func TestHandler(t *testing.T) {
 		},
 		state: newRuleState(10),
 	}
+	ar.state.add(ruleStateEntry{
+		time:    time.Now(),
+		at:      time.Now(),
+		samples: 10,
+	})
+	rr := &RecordingRule{
+		Name:  "record",
+		state: newRuleState(10),
+	}
 	g := &Group{
 		Name:  "group",
-		Rules: []Rule{ar},
+		Rules: []Rule{ar, rr},
 	}
 	m := &manager{groups: make(map[uint64]*Group)}
 	m.groups[0] = g
@@ -62,6 +72,14 @@ func TestHandler(t *testing.T) {
 	t.Run("/vmalert/rule", func(t *testing.T) {
 		a := ar.ToAPI()
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
+		r := rr.ToAPI()
+		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
+	})
+	t.Run("/vmalert/alert", func(t *testing.T) {
+		alerts := ar.AlertsToAPI()
+		for _, a := range alerts {
+			getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
+		}
 	})
 	t.Run("/vmalert/rule?badParam", func(t *testing.T) {
 		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramRuleID)
