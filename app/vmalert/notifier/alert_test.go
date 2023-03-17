@@ -200,6 +200,9 @@ func TestAlert_ExecTemplate(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			if err := ValidateTemplates(tc.annotations); err != nil {
+				t.Fatal(err)
+			}
 			tpl, err := tc.alert.ExecTemplate(qFn, tc.alert.Labels, tc.annotations)
 			if err != nil {
 				t.Fatal(err)
