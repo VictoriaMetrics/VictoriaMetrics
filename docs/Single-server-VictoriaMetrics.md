@@ -205,7 +205,7 @@ Changing scrape configuration is possible with text editor:
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
-After changes were made, trigger config re-read with the command `curl 127.0.0.1:8248/-/reload`.
+After changes were made, trigger config re-read with the command `curl 127.0.0.1:8428/-/reload`.
 
 ## Prometheus setup
 
