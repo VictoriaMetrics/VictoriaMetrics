@@ -638,14 +638,15 @@ func (rwctx *remoteWriteCtx) reloadStreamAggr() error {
 		return err
 	}
 
-	if rwctx.cfgHash != cfgHash {
-		err = rwctx.sas.ReInitConfigs(cfgs)
-		if err != nil {
-			logger.Errorf("cannot apply new stream aggregation configs from file %q: %s", rwctx.sasFile, err)
-			rwctx.saCfgSuccess.Set(0)
-			rwctx.saCfgReloadErr.Inc()
-			return err
-		}
+	if rwctx.cfgHash == cfgHash {
+	  return nil
+	}
+	err = rwctx.sas.ReInitConfigs(cfgs)
+	if err != nil {
+		logger.Errorf("cannot apply new stream aggregation configs from file %q: %s", rwctx.sasFile, err)
+		rwctx.saCfgSuccess.Set(0)
+		rwctx.saCfgReloadErr.Inc()
+		return err
 	}
 
 	rwctx.cfgHash = cfgHash
