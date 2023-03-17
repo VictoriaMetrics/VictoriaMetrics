@@ -34,38 +34,41 @@ See details about all supported options in the [vmgateway documentation](https:/
 [Keycloak](https://www.keycloak.org/) is an open source identity service that can be used to issue JWT tokens.
 
 1. Log in with admin credentials to your Keycloak instance
-2. Go to `Clients` -> `Create`.
-   Use `OpenID Connect` as `Client Type`.
-   Specify `grafana` as `Client ID`.
-   Click `Next`.
+2. Go to `Clients` -> `Create`.<br>
+   Use `OpenID Connect` as `Client Type`.<br>
+   Specify `grafana` as `Client ID`.<br>
+   Click `Next`.<br>
    <img src="grafana-vmgateway-openid-configuration/create-client-1.png" width="800">
-3. Enable `Client authentication`.
-   Enable `Authorization`.
-   <img src="grafana-vmgateway-openid-configuration/create-client-2.png" width="800">
-   Click `Next`.
-4. Add Grafana URL as `Valid Redirect URIs`. For example, `http://localhost:3000/`.
-   <img src="grafana-vmgateway-openid-configuration/create-client-3.png" width="800">
-   Click `Save`.
-5. Go to `Clients` -> `grafana` -> `Credentials`.
-   <img src="grafana-vmgateway-openid-configuration/client-secret.png" width="800">
-   Copy the value of `Client secret`. It will be used later in Grafana configuration.
-6. Go to `Clients` -> `grafana` -> `Client scopes`.
-   Click at `grafana-dedicated` -> `Add mapper`.
-   <img src="grafana-vmgateway-openid-configuration/create-mapper-1.png" width="800">
-   <img src="grafana-vmgateway-openid-configuration/create-mapper-2.png" width="800">
-   Configure the mapper as follows
-    - `Mapper Type` as `User Attribute`.
+3. Enable `Client authentication`.<br>
+   Enable `Authorization`.<br>
+   <img src="grafana-vmgateway-openid-configuration/create-client-2.png" width="800"><br>
+   Click `Next`.<br>
+4. Add Grafana URL as `Root URL`. For example, `http://localhost:3000/`.<br>
+   <img src="grafana-vmgateway-openid-configuration/create-client-3.png" width="800"><br>
+   Click `Save`.<br>
+5. Go to `Clients` -> `grafana` -> `Credentials`.<br>
+   <img src="grafana-vmgateway-openid-configuration/client-secret.png" width="800"><br>
+   Copy the value of `Client secret`. It will be used later in Grafana configuration.<br>
+6. Go to `Clients` -> `grafana` -> `Client scopes`.<br>
+   Click at `grafana-dedicated` -> `Add mapper` -> `By configuration` -> `User attribute`.<br>
+   <img src="grafana-vmgateway-openid-configuration/create-mapper-1.png" width="800"><br>
+   <img src="grafana-vmgateway-openid-configuration/create-mapper-2.png" width="800"><br>
+   Configure the mapper as follows<br>
     - `Name` as `vm_access`.
     - `Token Claim Name` as `vm_access`.
     - `User Attribute` as `vm_access`.
     - `Claim JSON Type` as `JSON`.
-      Enable `Add to ID token` and `Add to access token`.
-      <img src="grafana-vmgateway-openid-configuration/create-mapper-3.png" width="800">
-      Click `Save`.
-7. Go to `Users` -> select user to configure claims -> `Attributes`.
-   Specify `vm_access` as `Key`.
-   Specify `{"tenant_id" : {"account_id": 0, "project_id": 0 }}` as `Value`.
-   <img src="grafana-vmgateway-openid-configuration/user-attributes.png" width="800">
+      Enable `Add to ID token` and `Add to access token`.<br>
+   
+    <img src="grafana-vmgateway-openid-configuration/create-mapper-3.png" width="800"><br>
+    Click `Save`.<br>
+7. Go to `Users` -> select user to configure claims -> `Attributes`.<br>
+   Specify `vm_access` as `Key`.<br>
+   For the purpose of this example, we will use 2 users:<br>
+   - for the first user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 0 },"extra_labels":{ "team": "admin" }}` as `Value`.
+   - for the second user we will specify `{"tenant_id" : {"account_id": 0, "project_id": 1 },"extra_labels":{ "team": "dev" }}` as `Value`.
+   <br>
+   <img src="grafana-vmgateway-openid-configuration/user-attributes.png" width="800"><br>
    Click `Save`.
 
 ## Configure grafana
@@ -187,8 +190,146 @@ URL should point to the vmgateway instance.
 You can also use VictoriaMetrics [Grafana datasource](https://github.com/VictoriaMetrics/grafana-datasource) plugin.
 See installation instructions [here](https://github.com/VictoriaMetrics/grafana-datasource#installation).
 
-Enable `Forward OAuth identity` flag.
+Enable `Forward OAuth identity` flag.<br>
 <img src="grafana-vmgateway-openid-configuration/grafana-ds.png" width="800">
 
 Now you can use Grafana to query metrics from the specified tenant.
 Users with `vm_access` claim will be able to query metrics from the specified tenant.
+
+## Test multi-tenant access
+
+For the test purpose we will setup the following services as [docker-compose](https://docs.docker.com/compose/) manifest:
+- Grafana
+- Keycloak
+- vmagent to generate test metrics
+- VictoriaMetrics cluster
+- vmgateway configured to work in cluster mode
+- VictoriaMetrics single node
+- vmgateway configured to work in single node mode
+
+```yaml
+version: '3'
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:21.0
+    command:
+      - start-dev
+    ports:
+      - 3001:8080
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: change_me
+
+  grafana:
+    image: grafana/grafana-oss:9.4.3
+    network_mode: host
+    volumes:
+      - ./grafana.ini:/etc/grafana/grafana.ini
+      - grafana_data:/var/lib/grafana/
+
+  vmsingle:
+    image: victoriametrics/victoria-metrics:v1.89.1
+    command:
+      - -httpListenAddr=0.0.0.0:8429
+
+  vmstorage:
+    image: victoriametrics/vmstorage:v1.89.1-cluster
+
+  vminsert:
+    image: victoriametrics/vminsert:v1.89.1-cluster
+    command:
+      - -storageNode=vmstorage:8400
+      - -httpListenAddr=0.0.0.0:8480
+
+  vmselect:
+    image: victoriametrics/vmselect:v1.89.1-cluster
+    command:
+      - -storageNode=vmstorage:8401
+      - -httpListenAddr=0.0.0.0:8481
+
+  vmagent:
+    image: victoriametrics/vmagent:v1.89.1
+    volumes:
+      - ./scrape.yaml:/etc/vmagent/config.yaml
+    command:
+      - -promscrape.config=/etc/vmagent/config.yaml
+      - -remoteWrite.url=http://vminsert:8480/insert/0/prometheus/api/v1/write
+      - -remoteWrite.url=http://vmsingle:8429/api/v1/write
+
+  vmgateway-cluster:
+    image: victoriametrics/vmgateway:v1.89.1-enterprise
+    ports:
+      - 8431:8431
+    command:
+      - -eula
+      - -enable.auth=true
+      - -clusterMode=true
+      - -write.url=http://vminsert:8480
+      - -read.url=http://vmselect:8481
+      - -httpListenAddr=0.0.0.0:8431
+      - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
+
+  vmgateway-single:
+    image: victoriametrics/vmgateway:v1.89.1-enterprise
+    ports:
+      - 8432:8431
+    command:
+      - -eula
+      - -enable.auth=true
+      - -write.url=http://vmsingle:8429
+      - -read.url=http://vmsingle:8429
+      - -httpListenAddr=0.0.0.0:8431
+      - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
+
+volumes:
+  grafana_data:
+```
+
+For the test purpose vmagent will be configured to scrape metrics from the following targets(`scrape.yaml` contents):
+
+```yaml
+scrape_configs:
+  - job_name: stat
+    metric_relabel_configs:
+      - if: "{instance =~ 'vmgateway.*'}"
+        action: replace
+        target_label: team
+        replacement: admin
+      - if: "{instance =~ 'localhost.*'}"
+        action: replace
+        target_label: team
+        replacement: dev
+    static_configs:
+      - targets:
+          - localhost:8429
+          - vmgateway-single:8431
+          - vmgateway-cluster:8431
+```
+
+Relabeling rules will add the `team` label to the scraped metrics in order to test multi-tenant access.
+Metrics from `localhost` will be labeled with `team=dev` and metrics from `vmgateway` will be labeled with `team=admin`.
+
+vmagent will write data into VictoriaMetrics single-node and cluster(with tenant `0:0`).
+
+Grafana datasources configuration will be the following:
+
+<img src="grafana-vmgateway-openid-configuration/grafana-test-datasources.png" width="800">
+
+Let's login as user with `team=dev` labels limitation set via claims.
+
+Using `vmgateway-cluster` results into `No data` response as proxied request will go to tenant `0:1`.
+Since vmagent is only configured to write to `0:0` `No data` is an expected response.
+
+<img src="grafana-vmgateway-openid-configuration/dev-cluster-nodata.png" width="800">
+
+Switching to `vmgateway-single` does have data. Note that it is limited to metrics with `team=dev` label.
+
+<img src="grafana-vmgateway-openid-configuration/dev-single-data.png" width="800">
+
+Now lets login as user with `team=admin`.
+
+Both cluster and single node datasources now return metrics for `team=admin`.
+
+<img src="grafana-vmgateway-openid-configuration/admin-cluster-data.png" width="800">
+<img src="grafana-vmgateway-openid-configuration/admin-single-data.png" width="800">
