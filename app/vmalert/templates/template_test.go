@@ -83,7 +83,7 @@ func TestTemplateFuncs(t *testing.T) {
 	formatting("humanizeDuration", 1, "1s")
 	formatting("humanizeDuration", 0.2, "200ms")
 	formatting("humanizeDuration", 42000, "11h 40m 0s")
-	formatting("humanizeDuration", 1679055557691, "19433513d 9h 34m 51s")
+	formatting("humanizeDuration", 16790555, "194d 8h 2m 35s")
 
 	formatting("humanizePercentage", 1, "100%")
 	formatting("humanizePercentage", 0.8, "80%")
