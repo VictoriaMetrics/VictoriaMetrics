@@ -39,17 +39,22 @@ var supportedOutputs = []string{
 	"quantiles(phi1, ..., phiN)",
 }
 
+// ParseConfig loads array of stream aggregation configs from the given path.
+func ParseConfig(data []byte) ([]*Config, uint64, error) {
+	var cfgs []*Config
+	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
+		return nil, 0, fmt.Errorf("cannot parse stream aggregation config %w", err)
+	}
+	return cfgs, xxhash.Sum64(data), nil
+}
+
 // LoadConfigsFromFile loads array of stream aggregation configs from the given path.
 func LoadConfigsFromFile(path string) ([]*Config, uint64, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, 0, fmt.Errorf("cannot load stream aggregation config from %q: %w", path, err)
 	}
-	var cfgs []*Config
-	if err = yaml.UnmarshalStrict(data, &cfgs); err != nil {
-		return nil, 0, fmt.Errorf("cannot parse stream aggregation config from %q: %w", path, err)
-	}
-	return cfgs, xxhash.Sum64(data), nil
+	return ParseConfig(data)
 }
 
 // LoadAggregatorsFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
@@ -156,8 +161,7 @@ func (cfg *Config) hash() (uint64, error) {
 
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
 type Aggregators struct {
-	mu            sync.RWMutex
-	as            []*aggregator
+	as            atomic.Pointer[[]*aggregator]
 	pushFunc      PushFunc
 	dedupInterval time.Duration
 }
@@ -182,11 +186,13 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 		}
 		as[i] = a
 	}
-	return &Aggregators{
-		as:            as,
+	result := &Aggregators{
 		pushFunc:      pushFunc,
 		dedupInterval: dedupInterval,
-	}, nil
+	}
+	result.as.Store(&as)
+
+	return result, nil
 }
 
 // MustStop stops a.
@@ -194,11 +200,7 @@ func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
-
-	a.mu.Lock()
-	defer a.mu.Unlock()
-
-	for _, aggr := range a.as {
+	for _, aggr := range *a.as.Load() {
 		aggr.MustStop()
 	}
 }
@@ -208,11 +210,7 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries) {
 	if a == nil {
 		return
 	}
-
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-
-	for _, aggr := range a.as {
+	for _, aggr := range *a.as.Load() {
 		aggr.Push(tss)
 	}
 }
@@ -223,51 +221,58 @@ func (a *Aggregators) ReInitConfigs(cfgs []*Config) error {
 		return nil
 	}
 
-	a.mu.Lock()
-	defer a.mu.Unlock()
+	keys := make(map[uint64]struct{})        // set of all keys (configs and aggregators)
+	cfgsMap := make(map[uint64]*Config)      // map of config keys to their indices in cfgs
+	aggrsMap := make(map[uint64]*aggregator) // map of aggregator keys to their indices in a.as
 
-	keys := make(map[uint64]struct{}) // set of all keys (configs and aggregators)
-	cfgsMap := make(map[uint64]int)   // map of config keys to their indices in cfgs
-	aggrsMap := make(map[uint64]int)  // map of aggregator keys to their indices in a.as
-
-	for i, cfg := range cfgs {
+	for _, cfg := range cfgs {
 		key, err := cfg.hash()
 		if err != nil {
 			return fmt.Errorf("cannot marshal config '%+v': %w", cfg, err)
 		}
 		keys[key] = struct{}{}
-		cfgsMap[key] = i
+		cfgsMap[key] = cfg
 	}
-
-	for i, aggr := range a.as {
+	for _, aggr := range *a.as.Load() {
 		keys[aggr.cfgHash] = struct{}{}
-		aggrsMap[aggr.cfgHash] = i
+		aggrsMap[aggr.cfgHash] = aggr
 	}
 
+	asNew := make([]*aggregator, 0, len(aggrsMap))
+	asDel := make([]*aggregator, 0, len(aggrsMap))
 	for key := range keys {
-		cfgIdx, hasCfg := cfgsMap[key]
-		aggrIdx, hasAggr := aggrsMap[key]
+		cfg, hasCfg := cfgsMap[key]
+		agg, hasAggr := aggrsMap[key]
 
 		// if config for aggregator was changed or removed
 		// then we need to stop aggregator and remove it
 		if !hasCfg && hasAggr {
-			a.as[aggrIdx].MustStop()
-			a.as = make([]*aggregator, 0, len(a.as)-1)
-			a.as = append(a.as, a.as[:aggrIdx]...)
-			a.as = append(a.as, a.as[aggrIdx+1:]...)
+			asDel = append(asDel, agg)
 			continue
 		}
 
 		// if there is no aggregator for config (new config),
 		// then we need to create it
 		if hasCfg && !hasAggr {
-			newAgg, err := newAggregator(cfgs[cfgIdx], a.pushFunc, a.dedupInterval)
+			newAgg, err := newAggregator(cfg, a.pushFunc, a.dedupInterval)
 			if err != nil {
-				return fmt.Errorf("cannot initialize aggregator for config '%+v': %w", cfgs[cfgIdx], err)
+				return fmt.Errorf("cannot initialize aggregator for config '%+v': %w", cfg, err)
 			}
-			a.as = append(a.as, newAgg)
+			asNew = append(asNew, newAgg)
 			continue
 		}
+
+		// if aggregator config was not changed, then we can just keep it
+		if hasCfg && hasAggr {
+			asNew = append(asNew, agg)
+		}
+	}
+
+	// Atomically replace aggregators array.
+	a.as.Store(&asNew)
+	// and stop old aggregators
+	for _, aggr := range asDel {
+		aggr.MustStop()
 	}
 
 	return nil

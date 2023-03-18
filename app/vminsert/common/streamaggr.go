@@ -2,6 +2,7 @@ package common
 
 import (
 	"flag"
+	"fmt"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -45,20 +46,23 @@ var (
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
 func InitStreamAggr() {
 	if *streamAggrConfig == "" {
-		// Nothing to initialize
 		return
 	}
-	a, hash, err := streamaggr.LoadAggregatorsFromFile(*streamAggrConfig, pushAggregateSeries, *streamAggrDedupInterval)
+
+	sighupCh := procutil.NewSighupChan()
+
+	configs, hash, err := streamaggr.LoadConfigsFromFile(*streamAggrConfig)
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
+	a, err := streamaggr.NewAggregators(configs, pushAggregateSeries, *streamAggrDedupInterval)
+	if err != nil {
+		logger.Fatalf("cannot init -streamAggr.config=%q: %s", *streamAggrConfig, err)
+	}
 	sa = a
 	saHash = hash
-
 	saCfgSuccess.Set(1)
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
-
-	sighupCh := procutil.NewSighupChan()
 
 	// Start config reloader.
 	configReloaderWG.Add(1)
@@ -70,17 +74,21 @@ func InitStreamAggr() {
 			case <-stopCh:
 				return
 			}
-			reloadSaConfig()
+			if err := reloadSaConfig(); err != nil {
+				logger.Errorf("cannot reload -streamAggr.config=%q: %s", *streamAggrConfig, err)
+				continue
+			}
 		}
 	}()
 }
 
 // MustStopStreamAggr stops stream aggregators.
 func MustStopStreamAggr() {
+	close(stopCh)
+
 	sa.MustStop()
 	sa = nil
 
-	close(stopCh)
 	configReloaderWG.Wait()
 }
 
@@ -157,29 +165,32 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 	}
 }
 
-func reloadSaConfig() {
+func reloadSaConfig() error {
 	saCfgReloads.Inc()
 
 	cfgs, hash, err := streamaggr.LoadConfigsFromFile(*streamAggrConfig)
 	if err != nil {
-		logger.Errorf("cannot reload new stream aggregation config from file %q: %s", *streamAggrConfig, err)
 		saCfgSuccess.Set(0)
 		saCfgReloadErr.Inc()
-		return
+		return fmt.Errorf("cannot reload -streamAggr.config=%q: %w", *streamAggrConfig, err)
 	}
 
-	if hash != saHash {
-		err = sa.ReInitConfigs(cfgs)
-		if err != nil {
-			logger.Errorf("cannot apply new stream aggregation configs from file %q: %s", *streamAggrConfig, err)
-			saCfgSuccess.Set(0)
-			saCfgReloadErr.Inc()
-			return
-		}
+	if saHash == hash {
+		return nil
+	}
+
+	if err = sa.ReInitConfigs(cfgs); err != nil {
+		saCfgSuccess.Set(0)
+		saCfgReloadErr.Inc()
+		return fmt.Errorf("cannot apply new -streamAggr.config=%q: %w", *streamAggrConfig, err)
 	}
 
 	saHash = hash
+
 	saCfgSuccess.Set(1)
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
-	logger.Infof("Successfully reloaded stream aggregation configs")
+
+	logger.Infof("Successfully reloaded stream aggregation config")
+
+	return nil
 }

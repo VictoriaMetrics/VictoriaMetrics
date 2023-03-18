@@ -59,15 +59,6 @@ var (
 		"Excess series are logged and dropped. This can be useful for limiting series cardinality. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
 	maxDailySeries = flag.Int("remoteWrite.maxDailySeries", 0, "The maximum number of unique series vmagent can send to remote storage systems during the last 24 hours. "+
 		"Excess series are logged and dropped. This can be useful for limiting series churn rate. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter")
-
-	streamAggrConfig = flagutil.NewArrayString("remoteWrite.streamAggr.config", "Optional path to file with stream aggregation config. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
-		"See also -remoteWrite.streamAggr.keepInput and -remoteWrite.streamAggr.dedupInterval")
-	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
-		"By default the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
-		"See https://docs.victoriametrics.com/stream-aggregation.html")
-	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
-		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
 
 var (
@@ -89,6 +80,9 @@ func MultitenancyEnabled() bool {
 
 // Contains the current relabelConfigs.
 var allRelabelConfigs atomic.Value
+
+// Contains the loader for stream aggregation configs.
+var saConfigLoader *SaConfigLoader
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
@@ -154,6 +148,11 @@ func Init() {
 	relabelConfigSuccess.Set(1)
 	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 
+	saConfigLoader, err = NewSaConfigLoader(*streamAggrConfig)
+	if err != nil {
+		logger.Fatalf("cannot load stream aggregation config: %s", err)
+	}
+
 	if len(*remoteWriteURLs) > 0 {
 		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 	}
@@ -182,24 +181,11 @@ func Init() {
 			relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("Successfully reloaded relabel configs")
 
-			hasErrors := false
-			for _, rwctxs := range rwctxsMap {
-				for _, rwctx := range rwctxs {
-					err = rwctx.reloadStreamAggr()
-					if err != nil {
-						hasErrors = true
-					}
-				}
+			err = saConfigLoader.ReloadConfigs()
+			if err != nil {
+				logger.Errorf("Cannot reload stream aggregation configs: %s", err)
 			}
-			for _, rwctx := range rwctxsDefault {
-				err = rwctx.reloadStreamAggr()
-				if err != nil {
-					hasErrors = true
-				}
-			}
-			if !hasErrors {
-				logger.Infof("Successfully reloaded stream aggregation configs")
-			}
+			logger.Infof("Successfully reloaded stream aggregation configs")
 		}
 	}()
 }
@@ -469,22 +455,13 @@ type remoteWriteCtx struct {
 	c   *client
 
 	sas                 *streamaggr.Aggregators
-	sasFile             string
 	streamAggrKeepInput bool
-	dedupInterval       time.Duration
 
 	pss        []*pendingSeries
 	pssNextIdx uint64
 
 	rowsPushedAfterRelabel *metrics.Counter
 	rowsDroppedByRelabel   *metrics.Counter
-
-	saCfgReloads   *metrics.Counter
-	saCfgReloadErr *metrics.Counter
-	saCfgSuccess   *metrics.Counter
-	saCfgTimestamp *metrics.Counter
-
-	cfgHash uint64
 }
 
 func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxInmemoryBlocks int, sanitizedURL string) *remoteWriteCtx {
@@ -534,29 +511,34 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 
 		rowsPushedAfterRelabel: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_rows_pushed_after_relabel_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
 		rowsDroppedByRelabel:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_remotewrite_relabel_metrics_dropped_total{path=%q, url=%q}`, queuePath, sanitizedURL)),
-
-		saCfgReloads:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamagg_config_reloads_total{url=%q}`, sanitizedURL)),
-		saCfgReloadErr: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamagg_config_reloads_errors_total{url=%q}`, sanitizedURL)),
-		saCfgSuccess:   metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamagg_config_last_reload_successful{url=%q}`, sanitizedURL)),
-		saCfgTimestamp: metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamagg_config_last_reload_success_timestamp_seconds{url=%q}`, sanitizedURL)),
 	}
 
 	// Initialize sas
-	sasFile := streamAggrConfig.GetOptionalArg(argIdx)
-	if sasFile != "" {
+	sacfg := saConfigLoader.GetCurrentConfig(argIdx)
+	if len(sacfg) > 0 {
+		sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 		dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(argIdx, 0)
-		sas, cfgHash, err := streamaggr.LoadAggregatorsFromFile(sasFile, rwctx.pushInternal, dedupInterval)
+		sas, err := streamaggr.NewAggregators(sacfg, rwctx.pushInternal, dedupInterval)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggrFile=%q: %s", sasFile, err)
 		}
 		rwctx.sas = sas
 		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
-		rwctx.dedupInterval = dedupInterval
-		rwctx.sasFile = sasFile
-		rwctx.cfgHash = cfgHash
 
-		rwctx.saCfgSuccess.Set(1)
-		rwctx.saCfgTimestamp.Set(fasttime.UnixTimestamp())
+		configReloaderWG.Add(1)
+		go func() {
+			defer configReloaderWG.Done()
+			for {
+				select {
+				case <-stopCh:
+					return
+				case c := <-saConfigLoader.UpdatesCh(argIdx): // wait for updates after config reload
+					if err := rwctx.sas.ReInitConfigs(c); err != nil {
+						logger.Errorf("cannot reinit stream aggregation config from -remoteWrite.streamAggrFile=%q: %s", sasFile, err)
+					}
+				}
+			}
+		}()
 	}
 
 	return rwctx
@@ -621,39 +603,6 @@ func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)
-}
-
-func (rwctx *remoteWriteCtx) reloadStreamAggr() error {
-	if rwctx.sasFile == "" || rwctx.sas == nil {
-		return nil
-	}
-
-	rwctx.saCfgReloads.Inc()
-
-	cfgs, cfgHash, err := streamaggr.LoadConfigsFromFile(rwctx.sasFile)
-	if err != nil {
-		logger.Errorf("cannot reload new stream aggregation config from file %q: %s", rwctx.sasFile, err)
-		rwctx.saCfgSuccess.Set(0)
-		rwctx.saCfgReloadErr.Inc()
-		return err
-	}
-
-	if rwctx.cfgHash == cfgHash {
-	  return nil
-	}
-	err = rwctx.sas.ReInitConfigs(cfgs)
-	if err != nil {
-		logger.Errorf("cannot apply new stream aggregation configs from file %q: %s", rwctx.sasFile, err)
-		rwctx.saCfgSuccess.Set(0)
-		rwctx.saCfgReloadErr.Inc()
-		return err
-	}
-
-	rwctx.cfgHash = cfgHash
-	rwctx.saCfgSuccess.Set(1)
-	rwctx.saCfgTimestamp.Set(fasttime.UnixTimestamp())
-
-	return nil
 }
 
 var tssRelabelPool = &sync.Pool{
