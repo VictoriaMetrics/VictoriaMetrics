@@ -871,35 +871,20 @@ func (pt *partition) flushInmemoryRows() {
 }
 
 func (pt *partition) flushInmemoryParts(isFinal bool) {
-	for {
-		currentTime := time.Now()
-		var pws []*partWrapper
+	currentTime := time.Now()
+	var pws []*partWrapper
 
-		pt.partsLock.Lock()
-		for _, pw := range pt.inmemoryParts {
-			if !pw.isInMerge && (isFinal || pw.flushToDiskDeadline.Before(currentTime)) {
-				pw.isInMerge = true
-				pws = append(pws, pw)
-			}
+	pt.partsLock.Lock()
+	for _, pw := range pt.inmemoryParts {
+		if !pw.isInMerge && (isFinal || pw.flushToDiskDeadline.Before(currentTime)) {
+			pw.isInMerge = true
+			pws = append(pws, pw)
 		}
-		pt.partsLock.Unlock()
+	}
+	pt.partsLock.Unlock()
 
-		if err := pt.mergePartsOptimal(pws, nil); err != nil {
-			logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
-		}
-		if !isFinal {
-			return
-		}
-		pt.partsLock.Lock()
-		n := len(pt.inmemoryParts)
-		pt.partsLock.Unlock()
-		if n == 0 {
-			// All the in-memory parts were flushed to disk.
-			return
-		}
-		// Some parts weren't flushed to disk because they were being merged.
-		// Sleep for a while and try flushing them again.
-		time.Sleep(10 * time.Millisecond)
+	if err := pt.mergePartsOptimal(pws, nil); err != nil {
+		logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
 	}
 }
 
@@ -1889,11 +1874,6 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 		return nil, err
 	}
 	fs.MustRemoveTemporaryDirs(path)
-	d, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open partition directory: %w", err)
-	}
-	defer fs.MustClose(d)
 
 	// Run remaining transactions and cleanup /txn and /tmp directories.
 	// Snapshots cannot be created yet, so use fakeSnapshotLock.
@@ -1911,17 +1891,17 @@ func openParts(pathPrefix1, pathPrefix2, path string) ([]*partWrapper, error) {
 	}
 
 	// Open parts.
-	fis, err := d.Readdir(-1)
+	des, err := os.ReadDir(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot read directory %q: %w", d.Name(), err)
+		return nil, fmt.Errorf("cannot read partition directory: %w", err)
 	}
 	var pws []*partWrapper
-	for _, fi := range fis {
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories.
 			continue
 		}
-		fn := fi.Name()
+		fn := de.Name()
 		if fn == "snapshots" {
 			// "snapshots" dir is skipped for backwards compatibility. Now it is unused.
 			continue
@@ -2000,19 +1980,13 @@ func (pt *partition) createSnapshot(srcDir, dstDir string) error {
 		return fmt.Errorf("cannot create snapshot dir %q: %w", dstDir, err)
 	}
 
-	d, err := os.Open(srcDir)
-	if err != nil {
-		return fmt.Errorf("cannot open partition difrectory: %w", err)
-	}
-	defer fs.MustClose(d)
-
-	fis, err := d.Readdir(-1)
+	des, err := os.ReadDir(srcDir)
 	if err != nil {
 		return fmt.Errorf("cannot read partition directory: %w", err)
 	}
-	for _, fi := range fis {
-		fn := fi.Name()
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		fn := de.Name()
+		if !fs.IsDirOrSymlink(de) {
 			if fn == "appliedRetention.txt" {
 				// Copy the appliedRetention.txt file to dstDir.
 				// This file can be created by VictoriaMetrics enterprise.
@@ -2052,27 +2026,21 @@ func runTransactions(txnLock *sync.RWMutex, pathPrefix1, pathPrefix2, path strin
 	defer pendingTxnDeletionsWG.Wait()
 
 	txnDir := path + "/txn"
-	d, err := os.Open(txnDir)
+	des, err := os.ReadDir(txnDir)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return fmt.Errorf("cannot open transaction directory: %w", err)
-	}
-	defer fs.MustClose(d)
-
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		return fmt.Errorf("cannot read directory %q: %w", d.Name(), err)
+		return fmt.Errorf("cannot read transaction directory: %w", err)
 	}
 
 	// Sort transaction files by id.
-	sort.Slice(fis, func(i, j int) bool {
-		return fis[i].Name() < fis[j].Name()
+	sort.Slice(des, func(i, j int) bool {
+		return des[i].Name() < des[j].Name()
 	})
 
-	for _, fi := range fis {
-		fn := fi.Name()
+	for _, de := range des {
+		fn := de.Name()
 		if fs.IsTemporaryFileName(fn) {
 			// Skip temporary files, which could be left after unclean shutdown.
 			continue

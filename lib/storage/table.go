@@ -535,22 +535,16 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 }
 
 func populatePartitionNames(partitionsPath string, ptNames map[string]bool) error {
-	d, err := os.Open(partitionsPath)
+	des, err := os.ReadDir(partitionsPath)
 	if err != nil {
-		return fmt.Errorf("cannot open directory with partitions: %w", err)
+		return fmt.Errorf("cannot read directory with partitions: %w", err)
 	}
-	defer fs.MustClose(d)
-
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		return fmt.Errorf("cannot read directory with partitions %q: %w", partitionsPath, err)
-	}
-	for _, fi := range fis {
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories
 			continue
 		}
-		ptName := fi.Name()
+		ptName := de.Name()
 		if ptName == "snapshots" {
 			// Skip directory with snapshots
 			continue

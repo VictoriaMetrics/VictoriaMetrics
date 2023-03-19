@@ -1184,7 +1184,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 			}
 		}
 	})
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return err
 	}
 	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
@@ -2339,25 +2339,19 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	}
 	fs.MustRemoveTemporaryDirs(path)
 
-	d, err := os.Open(path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open directory: %w", err)
-	}
-	defer fs.MustClose(d)
-
 	// Search for the two most recent tables - the last one is active,
 	// the previous one contains backup data.
-	fis, err := d.Readdir(-1)
+	des, err := os.ReadDir(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read directory: %w", err)
 	}
 	var tableNames []string
-	for _, fi := range fis {
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories.
 			continue
 		}
-		tableName := fi.Name()
+		tableName := de.Name()
 		if !indexDBTableNameRegexp.MatchString(tableName) {
 			// Skip invalid directories.
 			continue

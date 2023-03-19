@@ -9,17 +9,18 @@ menu:
 aliases:
 - /operator/vars.html
 ---
-# Auto Generated vars for package config 
- updated at Fri Jan 21 15:57:41 UTC 2022 
+# Auto Generated vars for package config
+updated at Wed Mar 15 16:18:54 UTC 2023
 
 
 | varible name | variable default value | variable required | variable description |
 | --- | --- | --- | --- |
 | VM_USECUSTOMCONFIGRELOADER | false | false | enables custom config reloader for vmauth and vmagent,it should speed-up config reloading process. |
-| VM_CUSTOMCONFIGRELOADERIMAGE | victoriametrics/operator:config-reloader-0.1.0 | false | - |
+| VM_CONTAINERREGISTRY | - | false | container registry name prefix, e.g. docker.io |
+| VM_CUSTOMCONFIGRELOADERIMAGE | victoriametrics/operator:config-reloader-v0.27.0 | false | - |
 | VM_PSPAUTOCREATEENABLED | true | false | - |
 | VM_VMALERTDEFAULT_IMAGE | victoriametrics/vmalert | false | - |
-| VM_VMALERTDEFAULT_VERSION | v1.72.0 | false | - |
+| VM_VMALERTDEFAULT_VERSION | v1.85.3 | false | - |
 | VM_VMALERTDEFAULT_PORT | 8080 | false | - |
 | VM_VMALERTDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMALERTDEFAULT_RESOURCE_LIMIT_MEM | 500Mi | false | - |
@@ -30,8 +31,8 @@ aliases:
 | VM_VMALERTDEFAULT_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMALERTDEFAULT_CONFIGRELOADIMAGE | jimmidyson/configmap-reload:v0.3.0 | false | - |
 | VM_VMAGENTDEFAULT_IMAGE | victoriametrics/vmagent | false | - |
-| VM_VMAGENTDEFAULT_VERSION | v1.72.0 | false | - |
-| VM_VMAGENTDEFAULT_CONFIGRELOADIMAGE | quay.io/prometheus-operator/prometheus-config-reloader:v0.48.1 | false | - |
+| VM_VMAGENTDEFAULT_VERSION | v1.85.3 | false | - |
+| VM_VMAGENTDEFAULT_CONFIGRELOADIMAGE | quay.io/prometheus-operator/prometheus-config-reloader:v0.58.0 | false | - |
 | VM_VMAGENTDEFAULT_PORT | 8429 | false | - |
 | VM_VMAGENTDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMAGENTDEFAULT_RESOURCE_LIMIT_MEM | 500Mi | false | - |
@@ -41,7 +42,7 @@ aliases:
 | VM_VMAGENTDEFAULT_CONFIGRELOADERCPU | 100m | false | - |
 | VM_VMAGENTDEFAULT_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMSINGLEDEFAULT_IMAGE | victoriametrics/victoria-metrics | false | - |
-| VM_VMSINGLEDEFAULT_VERSION | v1.72.0 | false | - |
+| VM_VMSINGLEDEFAULT_VERSION | v1.85.3 | false | - |
 | VM_VMSINGLEDEFAULT_PORT | 8429 | false | - |
 | VM_VMSINGLEDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMSINGLEDEFAULT_RESOURCE_LIMIT_MEM | 1500Mi | false | - |
@@ -52,14 +53,14 @@ aliases:
 | VM_VMSINGLEDEFAULT_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMCLUSTERDEFAULT_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_IMAGE | victoriametrics/vmselect | false | - |
-| VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_VERSION | v1.72.0-cluster | false | - |
+| VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_VERSION | v1.85.3-cluster | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_PORT | 8481 | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_LIMIT_MEM | 1000Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_LIMIT_CPU | 500m | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_REQUEST_MEM | 500Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMSELECTDEFAULT_RESOURCE_REQUEST_CPU | 100m | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_IMAGE | victoriametrics/vmstorage | false | - |
-| VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VERSION | v1.72.0-cluster | false | - |
+| VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VERSION | v1.85.3-cluster | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VMINSERTPORT | 8400 | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_VMSELECTPORT | 8401 | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_PORT | 8482 | false | - |
@@ -68,7 +69,7 @@ aliases:
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_REQUEST_MEM | 500Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMSTORAGEDEFAULT_RESOURCE_REQUEST_CPU | 250m | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_IMAGE | victoriametrics/vminsert | false | - |
-| VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_VERSION | v1.72.0-cluster | false | - |
+| VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_VERSION | v1.85.3-cluster | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_PORT | 8480 | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_LIMIT_MEM | 500Mi | false | - |
 | VM_VMCLUSTERDEFAULT_VMINSERTDEFAULT_RESOURCE_LIMIT_CPU | 500m | false | - |
@@ -78,7 +79,7 @@ aliases:
 | VM_VMALERTMANAGER_CONFIGRELOADERCPU | 100m | false | - |
 | VM_VMALERTMANAGER_CONFIGRELOADERMEMORY | 25Mi | false | - |
 | VM_VMALERTMANAGER_ALERTMANAGERDEFAULTBASEIMAGE | prom/alertmanager | false | - |
-| VM_VMALERTMANAGER_ALERTMANAGERVERSION | v0.22.2 | false | - |
+| VM_VMALERTMANAGER_ALERTMANAGERVERSION | v0.24.0 | false | - |
 | VM_VMALERTMANAGER_LOCALHOST | 127.0.0.1 | false | - |
 | VM_VMALERTMANAGER_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMALERTMANAGER_RESOURCE_LIMIT_MEM | 256Mi | false | - |
@@ -87,7 +88,7 @@ aliases:
 | VM_VMALERTMANAGER_RESOURCE_REQUEST_CPU | 30m | false | - |
 | VM_DISABLESELFSERVICESCRAPECREATION | false | false | - |
 | VM_VMBACKUP_IMAGE | victoriametrics/vmbackupmanager | false | - |
-| VM_VMBACKUP_VERSION | v1.72.0-enterprise | false | - |
+| VM_VMBACKUP_VERSION | v1.85.3-enterprise | false | - |
 | VM_VMBACKUP_PORT | 8300 | false | - |
 | VM_VMBACKUP_USEDEFAULTRESOURCES | true | false | - |
 | VM_VMBACKUP_RESOURCE_LIMIT_MEM | 500Mi | false | - |
@@ -96,7 +97,7 @@ aliases:
 | VM_VMBACKUP_RESOURCE_REQUEST_CPU | 150m | false | - |
 | VM_VMBACKUP_LOGLEVEL | INFO | false | - |
 | VM_VMAUTHDEFAULT_IMAGE | victoriametrics/vmauth | false | - |
-| VM_VMAUTHDEFAULT_VERSION | v1.72.0 | false | - |
+| VM_VMAUTHDEFAULT_VERSION | v1.85.3 | false | - |
 | VM_VMAUTHDEFAULT_CONFIGRELOADIMAGE | quay.io/prometheus-operator/prometheus-config-reloader:v0.48.1 | false | - |
 | VM_VMAUTHDEFAULT_PORT | 8427 | false | - |
 | VM_VMAUTHDEFAULT_USEDEFAULTRESOURCES | true | false | - |
@@ -110,7 +111,13 @@ aliases:
 | VM_ENABLEDPROMETHEUSCONVERTER_SERVICESCRAPE | true | false | - |
 | VM_ENABLEDPROMETHEUSCONVERTER_PROMETHEUSRULE | true | false | - |
 | VM_ENABLEDPROMETHEUSCONVERTER_PROBE | true | false | - |
+| VM_ENABLEDPROMETHEUSCONVERTER_ALERTMANAGERCONFIG | true | false | - |
+| VM_FILTERCHILDLABELPREFIXES | - | false | - |
+| VM_FILTERCHILDANNOTATIONPREFIXES | - | false | - |
+| VM_PROMETHEUSCONVERTERADDARGOCDIGNOREANNOTATIONS | false | false | adds compare-options and sync-options for prometheus objects converted by operatorit helps to properly use converter with ArgoCD |
 | VM_ENABLEDPROMETHEUSCONVERTEROWNERREFERENCES | false | false | - |
+| VM_FILTERPROMETHEUSCONVERTERLABELPREFIXES | - | false | allows filtering for converted labels, labels with matched prefix will be ignored |
+| VM_FILTERPROMETHEUSCONVERTERANNOTATIONPREFIXES | - | false | allows filtering for converted annotations, annotations with matched prefix will be ignored |
 | VM_HOST | 0.0.0.0 | false | - |
 | VM_LISTENADDRESS | 0.0.0.0 | false | - |
 | VM_DEFAULTLABELS | managed-by=vm-operator | false | - |
@@ -119,3 +126,4 @@ aliases:
 | VM_PODWAITREADYTIMEOUT | 80s | false | - |
 | VM_PODWAITREADYINTERVALCHECK | 5s | false | - |
 | VM_PODWAITREADYINITDELAY | 10s | false | - |
+| VM_FORCERESYNCINTERVAL | 60s | false | configures force resync interval for VMAgent, VMAlert and VMAlertmanager |
