@@ -662,35 +662,20 @@ func (tb *Table) flushInmemoryItems() {
 }
 
 func (tb *Table) flushInmemoryParts(isFinal bool) {
-	for {
-		currentTime := time.Now()
-		var pws []*partWrapper
+	currentTime := time.Now()
+	var pws []*partWrapper
 
-		tb.partsLock.Lock()
-		for _, pw := range tb.inmemoryParts {
-			if !pw.isInMerge && (isFinal || pw.flushToDiskDeadline.Before(currentTime)) {
-				pw.isInMerge = true
-				pws = append(pws, pw)
-			}
+	tb.partsLock.Lock()
+	for _, pw := range tb.inmemoryParts {
+		if !pw.isInMerge && (isFinal || pw.flushToDiskDeadline.Before(currentTime)) {
+			pw.isInMerge = true
+			pws = append(pws, pw)
 		}
-		tb.partsLock.Unlock()
+	}
+	tb.partsLock.Unlock()
 
-		if err := tb.mergePartsOptimal(pws); err != nil {
-			logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
-		}
-		if !isFinal {
-			return
-		}
-		tb.partsLock.Lock()
-		n := len(tb.inmemoryParts)
-		tb.partsLock.Unlock()
-		if n == 0 {
-			// All the in-memory parts were flushed to disk.
-			return
-		}
-		// Some parts weren't flushed to disk because they were being merged.
-		// Sleep for a while and try flushing them again.
-		time.Sleep(10 * time.Millisecond)
+	if err := tb.mergePartsOptimal(pws); err != nil {
+		logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
 	}
 }
 
