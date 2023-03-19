@@ -40,6 +40,9 @@ vmstorage-freebsd-amd64-prod:
 vmstorage-openbsd-amd64-prod:
 	APP_NAME=vmstorage $(MAKE) app-via-docker-openbsd-amd64
 
+vmstorage-windows-amd64-prod:
+	APP_NAME=vmstorage $(MAKE) app-via-docker-windows-amd64
+
 vmstorage-prod-race:
 	APP_NAME=vmstorage RACE=-race $(MAKE) app-via-docker
 
@@ -93,6 +96,9 @@ vmstorage-freebsd-amd64:
 
 vmstorage-openbsd-amd64:
 	APP_NAME=vmstorage CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmstorage-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmstorage $(MAKE) app-local-windows-goarch
 
 vmstorage-pure:
 	APP_NAME=vmstorage $(MAKE) app-local-pure

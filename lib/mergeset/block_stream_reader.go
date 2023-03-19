@@ -143,8 +143,8 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 
 	path = filepath.Clean(path)
 
-	if err := bsr.ph.ParseFromPath(path); err != nil {
-		return fmt.Errorf("cannot parse partHeader data from %q: %w", path, err)
+	if err := bsr.ph.ReadMetadata(path); err != nil {
+		return fmt.Errorf("cannot read metadata from %q: %w", path, err)
 	}
 
 	metaindexPath := path + "/metaindex.bin"
