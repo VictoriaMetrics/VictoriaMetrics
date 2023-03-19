@@ -871,35 +871,20 @@ func (pt *partition) flushInmemoryRows() {
 }
 
 func (pt *partition) flushInmemoryParts(isFinal bool) {
-	for {
-		currentTime := time.Now()
-		var pws []*partWrapper
+	currentTime := time.Now()
+	var pws []*partWrapper
 
-		pt.partsLock.Lock()
-		for _, pw := range pt.inmemoryParts {
-			if !pw.isInMerge && (isFinal || pw.flushToDiskDeadline.Before(currentTime)) {
-				pw.isInMerge = true
-				pws = append(pws, pw)
-			}
+	pt.partsLock.Lock()
+	for _, pw := range pt.inmemoryParts {
+		if !pw.isInMerge && (isFinal || pw.flushToDiskDeadline.Before(currentTime)) {
+			pw.isInMerge = true
+			pws = append(pws, pw)
 		}
-		pt.partsLock.Unlock()
+	}
+	pt.partsLock.Unlock()
 
-		if err := pt.mergePartsOptimal(pws, nil); err != nil {
-			logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
-		}
-		if !isFinal {
-			return
-		}
-		pt.partsLock.Lock()
-		n := len(pt.inmemoryParts)
-		pt.partsLock.Unlock()
-		if n == 0 {
-			// All the in-memory parts were flushed to disk.
-			return
-		}
-		// Some parts weren't flushed to disk because they were being merged.
-		// Sleep for a while and try flushing them again.
-		time.Sleep(10 * time.Millisecond)
+	if err := pt.mergePartsOptimal(pws, nil); err != nil {
+		logger.Panicf("FATAL: cannot merge in-memory parts: %s", err)
 	}
 }
 
