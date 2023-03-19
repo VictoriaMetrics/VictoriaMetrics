@@ -128,7 +128,7 @@ app-via-docker-openbsd-amd64:
 	CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-windows-amd64:
-	APP_SUFFIX='-$(GOARCH)' \
+	APP_SUFFIX='-amd64' \
 	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=amd64' \
 	$(MAKE) app-via-docker-windows
 
