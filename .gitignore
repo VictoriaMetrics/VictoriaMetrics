@@ -16,6 +16,7 @@
 /package/temp-rpm-*
 /package/*.deb
 /package/*.rpm
+/deployment/docker/grafana-plugins/*
 .DS_store
 Gemfile.lock
 /_site

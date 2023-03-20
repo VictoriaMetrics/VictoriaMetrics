@@ -1,44 +1,4 @@
 {
-  "__inputs": [],
-  "__elements": {},
-  "__requires": [
-    {
-      "type": "grafana",
-      "id": "grafana",
-      "name": "Grafana",
-      "version": "9.2.6"
-    },
-    {
-      "type": "datasource",
-      "id": "prometheus",
-      "name": "Prometheus",
-      "version": "1.0.0"
-    },
-    {
-      "type": "panel",
-      "id": "stat",
-      "name": "Stat",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "table",
-      "name": "Table",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "text",
-      "name": "Text",
-      "version": ""
-    },
-    {
-      "type": "panel",
-      "id": "timeseries",
-      "name": "Time series",
-      "version": ""
-    }
-  ],
   "annotations": {
     "list": [
       {
@@ -61,7 +21,7 @@
       },
       {
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-datasource",
           "uid": "$ds"
         },
         "enable": true,
@@ -72,7 +32,7 @@
       },
       {
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-datasource",
           "uid": "$ds"
         },
         "enable": true,
@@ -90,7 +50,7 @@
   "fiscalYearStartMonth": 0,
   "gnetId": 10229,
   "graphTooltip": 0,
-  "id": null,
+  "id": 1,
   "links": [
     {
       "icon": "doc",
@@ -123,7 +83,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -137,7 +97,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -148,7 +108,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "",
@@ -168,11 +128,11 @@
         "content": "<div style=\"text-align: center;\">$version</div>",
         "mode": "markdown"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -183,7 +143,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "How many datapoints are in storage",
@@ -230,11 +190,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "exemplar": false,
@@ -252,7 +212,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the datapoints ingestion rate.",
@@ -299,11 +259,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -322,7 +282,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the rate of HTTP read requests.",
@@ -369,11 +329,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -392,7 +352,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Total number of available CPUs for VM process",
@@ -443,11 +403,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "exemplar": false,
@@ -465,7 +425,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "fieldConfig": {
@@ -513,11 +473,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -534,7 +494,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee more details here https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series",
@@ -581,11 +541,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "exemplar": false,
@@ -603,7 +563,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Total amount of used disk space",
@@ -650,11 +610,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -673,7 +633,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Average disk usage per datapoint.",
@@ -720,11 +680,11 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -743,7 +703,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Total size of available memory for VM process",
@@ -790,7 +750,7 @@
         "text": {},
         "textMode": "auto"
       },
-      "pluginVersion": "9.2.6",
+      "pluginVersion": "9.2.7",
       "targets": [
         {
           "datasource": {
@@ -812,7 +772,7 @@
     {
       "collapsed": false,
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -826,7 +786,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -837,7 +797,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "How many datapoints are inserted into storage per second",
@@ -942,7 +902,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1031,7 +991,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1049,7 +1009,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the number of active time series with new data points inserted during the last hour. High value may result in ingestion slowdown. \n\nSee following link for details:",
@@ -1142,7 +1102,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "expr": "vm_cache_entries{job=~\"$job\", instance=~\"$instance\", type=\"storage/hour_metric_ids\"}",
@@ -1157,7 +1117,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "The less time it takes is better.\n* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1246,7 +1206,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1263,7 +1223,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "* `*` - unsupported query path\n* `/write` - insert into VM\n* `/metrics` - query VM system metrics\n* `/query` - query instant values\n* `/query_range` - query over a range of time\n* `/series` - match a certain label set\n* `/label/{}/values` - query a list of label values (variables mostly)",
@@ -1349,7 +1309,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1368,7 +1328,7 @@
     },
     {
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "description": "Shows the rate of logging the messages by their level. Unexpected spike in rate is a good reason to check logs.",
@@ -1452,7 +1412,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "editorMode": "code",
@@ -1469,7 +1429,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -1482,7 +1442,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Percentage of used memory (resident).\nThe application's performance will significantly degrade when memory usage is close to 100%.",
@@ -1528,8 +1488,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1571,7 +1530,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1588,7 +1547,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -1633,8 +1592,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1676,7 +1634,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -1695,7 +1653,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -1741,8 +1699,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1784,7 +1741,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(go_memstats_sys_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -1796,7 +1753,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(go_memstats_heap_inuse_bytes{job=~\"$job\", instance=~\"$instance\"}) + sum(vm_cache_size_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -1808,7 +1765,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(go_memstats_stack_inuse_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -1820,7 +1777,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(process_resident_memory_bytes{job=~\"$job\", instance=~\"$instance\"})",
@@ -1833,7 +1790,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": false,
@@ -1851,7 +1808,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -1897,8 +1854,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -1956,7 +1912,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "rate(process_cpu_seconds_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])",
@@ -1968,7 +1924,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": false,
@@ -1986,7 +1942,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of open file descriptors compared to the limit set in the OS.\nReaching the limit of open files can cause various issues and must be prevented.\n\nSee how to change limits here https://medium.com/@muhammadtriwibowo/set-permanently-ulimit-n-open-files-in-ubuntu-4d61064429a",
@@ -2033,8 +1989,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2092,7 +2047,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2111,7 +2066,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the number of bytes read/write from the storage layer.",
@@ -2156,8 +2111,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2212,7 +2166,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(process_io_storage_read_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -2225,7 +2179,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(process_io_storage_written_bytes_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -2242,7 +2196,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2288,8 +2242,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2331,7 +2284,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(go_goroutines{job=~\"$job\", instance=~\"$instance\"})",
@@ -2346,7 +2299,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -2392,8 +2345,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2435,7 +2387,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_tcplistener_conns{job=~\"$job\", instance=~\"$instance\"})",
@@ -2451,7 +2403,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -2497,8 +2449,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2540,7 +2491,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(process_num_threads{job=~\"$job\", instance=~\"$instance\"})",
@@ -2555,7 +2506,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "",
@@ -2601,8 +2552,7 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green",
-                    "value": null
+                    "color": "green"
                   },
                   {
                     "color": "red",
@@ -2644,7 +2594,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2664,7 +2614,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -2676,7 +2626,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -2689,7 +2639,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the rate and total number of new series created over last 24h.\n\nHigh churn rate tightly connected with database performance and may result in unexpected OOM's or slow queries. It is recommended to always keep an eye on this metric to avoid unexpected cardinality \"explosions\".\n\nThe higher churn rate is, the more resources required to handle it. Consider to keep the churn rate as low as possible.\n\nGood references to read:\n* https://www.robustperception.io/cardinality-is-key\n* https://www.robustperception.io/using-tsdb-analyze-to-investigate-churn-and-cardinality",
@@ -2776,7 +2726,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -2786,7 +2736,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(increase(vm_new_timeseries_created_total{job=~\"$job\", instance=~\"$instance\"}[24h]))",
@@ -2800,7 +2750,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "The percentage of slow inserts comparing to total insertion rate during the last 5 minutes. \n\nThe less value is better. If percentage remains high (>10%) during extended periods of time, then it is likely more RAM is needed for optimal handling of the current number of active time series. \n\nIn general, VictoriaMetrics requires ~1KB or RAM per active time series, so it should be easy calculating the required amounts of RAM for the current workload according to capacity planning docs. But the resulting number may be far from the real number because the required amounts of memory depends on may other factors such as the number of labels per time series and the length of label values.",
@@ -2889,7 +2839,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -2908,7 +2858,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Merge assist happens when storage can't keep up with merging parts. This is usually a sign of overload for storage.",
@@ -2994,7 +2944,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3013,7 +2963,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Slow queries rate according to `search.logSlowQueryDuration` flag, which is `5s` by default.",
@@ -3101,7 +3051,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_slow_queries_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval]))",
@@ -3117,7 +3067,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the percentage of used cache size from the allowed size by type. \nValues close to 100% show the maximum potential utilization.\nValues close to 0% show that cache is underutilized.",
@@ -3202,7 +3152,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3219,7 +3169,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows cache miss ratio. Lower is better.",
@@ -3308,7 +3258,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3328,7 +3278,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "fieldConfig": {
@@ -3409,7 +3359,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3450,7 +3400,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "VictoriaMetrics limits the number of labels per each metric with `-maxLabelsPerTimeseries` command-line flag.\n\nThis prevents from ingesting metrics with too many labels. The value of `maxLabelsPerTimeseries` must be adjusted for your workload.\n\nWhen limit is exceeded (graph is > 0) - extra labels are dropped, which could result in unexpected identical time series.",
@@ -3537,7 +3487,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "exemplar": false,
@@ -3557,7 +3507,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -3569,7 +3519,7 @@
     {
       "collapsed": true,
       "datasource": {
-        "type": "prometheus",
+        "type": "victoriametrics-datasource",
         "uid": "$ds"
       },
       "gridPos": {
@@ -3582,7 +3532,7 @@
       "panels": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "How many datapoints are inserted into storage per second",
@@ -3670,7 +3620,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3688,7 +3638,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows the time needed to reach the 100% of disk capacity based on the following params:\n* free disk space;\n* row ingestion rate;\n* dedup rate;\n* compression.\n\nUse this panel for capacity planning in order to estimate the time remaining for running out of the disk space.\n\n",
@@ -3776,7 +3726,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3795,7 +3745,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows amount of on-disk space occupied by data points and the remaining disk space at `-storageDataPath`",
@@ -3883,7 +3833,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3897,7 +3847,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "vm_free_disk_space_bytes{job=~\"$job\", instance=~\"$instance\"}",
@@ -3909,7 +3859,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -3928,7 +3878,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "How many datapoints are in RAM queue waiting to be written into storage. The number of pending data points should be in the range from 0 to `2*<ingestion_rate>`, since VictoriaMetrics pushes pending data to persistent storage every second.",
@@ -4033,7 +3983,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "vm_pending_rows{job=~\"$job\", instance=~\"$instance\", type=\"storage\"}",
@@ -4045,7 +3995,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "vm_pending_rows{job=~\"$job\", instance=~\"$instance\", type=\"indexdb\"}",
@@ -4061,7 +4011,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows how many datapoints are in the storage and what is average disk usage per datapoint.",
@@ -4166,7 +4116,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_rows{job=~\"$job\", instance=~\"$instance\", type!~\"indexdb.*\"})",
@@ -4178,7 +4128,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4283,7 +4233,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_parts{job=~\"$job\", instance=~\"$instance\"}) by (type)",
@@ -4298,7 +4248,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows how many rows were ignored on insertion due to corrupted or out of retention timestamps.",
@@ -4384,7 +4334,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4404,7 +4354,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "The number of on-going merges in storage nodes.  It is expected to have high numbers for `storage/small` metric.",
@@ -4490,7 +4440,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_active_merges{job=~\"$job\", instance=~\"$instance\"}) by(type)",
@@ -4503,7 +4453,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "Shows how many ongoing insertions (not API /write calls) on disk are taking place, where:\n* `max` - equal to number of CPUs;\n* `current` - current number of goroutines busy with inserting rows into underlying storage.\n\nEvery successful API /write call results into flush on disk. However, these two actions are separated and controlled via different concurrency limiters. The `max` on this panel can't be changed and always equal to number of CPUs. \n\nWhen `current` hits `max` constantly, it means storage is overloaded and requires more CPU.\n\n",
@@ -4605,7 +4555,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4619,7 +4569,7 @@
             },
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(vm_concurrent_insert_current{job=~\"$job\", instance=~\"$instance\"})",
@@ -4634,7 +4584,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "The number of rows merged per second by storage nodes.",
@@ -4722,7 +4672,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "sum(rate(vm_rows_merged_total{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by(type)",
@@ -4735,7 +4685,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of number of series read per query.",
@@ -4824,7 +4774,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "histogram_quantile(0.99, sum(rate(vm_series_read_per_query_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (vmrange))",
@@ -4840,7 +4790,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of number of raw samples read per queried series.",
@@ -4929,7 +4879,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -4947,7 +4897,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of number of raw datapoints read per query.",
@@ -5036,7 +4986,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "editorMode": "code",
@@ -5054,7 +5004,7 @@
         },
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "description": "99th percentile of number of raw samples scanner per query.\n\nThis number can exceed number of RowsReadPerQuery if `step` query arg passed to [/api/v1/query_range](https://prometheus.io/docs/prometheus/latest/querying/api/#range-queries) is smaller than the lookbehind window set in square brackets of [rollup function](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions). For example, if `increase(some_metric[1h])` is executed with the `step=5m`, then the same raw samples on a hour time range are scanned `1h/5m=12` times. See [this article](https://valyala.medium.com/how-to-optimize-promql-and-metricsql-queries-85a1b75bf986) for details.",
@@ -5143,7 +5093,7 @@
           "targets": [
             {
               "datasource": {
-                "type": "prometheus",
+                "type": "victoriametrics-datasource",
                 "uid": "$ds"
               },
               "expr": "histogram_quantile(0.99, sum(rate(vm_rows_scanned_per_query_bucket{job=~\"$job\", instance=~\"$instance\"}[$__rate_interval])) by (vmrange))",
@@ -5161,7 +5111,7 @@
       "targets": [
         {
           "datasource": {
-            "type": "prometheus",
+            "type": "victoriametrics-datasource",
             "uid": "$ds"
           },
           "refId": "A"
@@ -5182,7 +5132,7 @@
     "list": [
       {
         "current": {
-          "selected": true,
+          "selected": false,
           "text": "VictoriaMetrics",
           "value": "VictoriaMetrics"
         },
@@ -5191,7 +5141,7 @@
         "multi": false,
         "name": "ds",
         "options": [],
-        "query": "prometheus",
+        "query": "victoriametrics-datasource",
         "queryValue": "",
         "refresh": 1,
         "regex": "",
@@ -5199,9 +5149,13 @@
         "type": "datasource"
       },
       {
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "victoriametrics",
+          "value": "victoriametrics"
+        },
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{version=~\"victoria-metrics-.*\"}, job)",
@@ -5224,9 +5178,13 @@
         "useTags": false
       },
       {
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "v1.89.1",
+          "value": "v1.89.1"
+        },
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\", instance=~\"$instance\"},  version)",
@@ -5249,9 +5207,13 @@
         "useTags": false
       },
       {
-        "current": {},
+        "current": {
+          "selected": false,
+          "text": "victoriametrics:8428",
+          "value": "victoriametrics:8428"
+        },
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-datasource",
           "uid": "$ds"
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
@@ -5275,7 +5237,7 @@
       },
       {
         "datasource": {
-          "type": "prometheus",
+          "type": "victoriametrics-datasource",
           "uid": "$ds"
         },
         "filters": [],
@@ -5287,7 +5249,7 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-5m",
     "to": "now"
   },
   "timepicker": {
@@ -5317,6 +5279,6 @@
   "timezone": "",
   "title": "VictoriaMetrics",
   "uid": "wNf0q_kZk",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

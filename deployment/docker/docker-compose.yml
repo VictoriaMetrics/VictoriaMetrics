@@ -40,17 +40,21 @@ services:
     restart: always
   grafana:
     container_name: grafana
-    image: grafana/grafana:9.2.7
+    image: grafana/grafana:9.4.3
     depends_on:
       - "victoriametrics"
     ports:
       - 3000:3000
     volumes:
       - grafanadata:/var/lib/grafana
+      - ./grafana-plugins:/var/lib/grafana/plugins
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+    environment:
+      - "GF_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
+      - "GF_DEFAULT_APP_MODE=development"
     networks:
       - vm_net
     restart: always

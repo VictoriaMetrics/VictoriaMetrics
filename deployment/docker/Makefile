@@ -8,6 +8,9 @@ GO_BUILDER_IMAGE := golang:1.20.2-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
+VM_DATASOURCE_VERSION := 0.1.3
+ARCH := $(shell uname -i)
+
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
 		|| docker build \
@@ -173,15 +176,22 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f
 
-
 docker-single-up:
-	docker-compose -f deployment/docker/docker-compose.yml up
+	rm -rf deployment/docker/grafana-plugins/victoriametrics-datasource
+	wget -nc https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v$(VM_DATASOURCE_VERSION)/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz \
+	-O deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz
+	tar -xzvf deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz -C deployment/docker/grafana-plugins/
+	docker-compose -f deployment/docker/docker-compose.yml up -d
 
 docker-single-down:
 	docker-compose -f deployment/docker/docker-compose.yml down -v
 
 docker-cluster-up:
-	docker-compose -f deployment/docker/docker-compose-cluster.yml up
+	rm -rf deployment/docker/grafana-plugins/victoriametrics-datasource
+	wget -nc https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v$(VM_DATASOURCE_VERSION)/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz \
+	-O deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz
+	tar -xzvf deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz -C deployment/docker/grafana-plugins/
+	docker-compose -f deployment/docker/docker-compose-cluster.yml up -d
 
 docker-cluster-down:
 	docker-compose -f deployment/docker/docker-compose-cluster.yml down -v

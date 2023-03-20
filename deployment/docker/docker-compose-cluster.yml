@@ -25,10 +25,14 @@ services:
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
+      - ./grafana-plugins:/var/lib/grafana/plugins
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+    environment:
+      - "GF_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
+      - "GF_DEFAULT_APP_MODE=development"
 
   vmstorage-1:
     container_name: vmstorage-1
