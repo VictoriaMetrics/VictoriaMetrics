@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/terminal"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -71,7 +72,7 @@ func main() {
 					}
 
 					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
-					return otsdbProcessor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					return otsdbProcessor.run(isNonInteractive(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -112,7 +113,7 @@ func main() {
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
 						c.Bool(influxPrometheusMode))
-					return processor.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					return processor.run(isNonInteractive(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -152,7 +153,7 @@ func main() {
 						},
 						cc: c.Int(remoteReadConcurrency),
 					}
-					return rmp.run(ctx, c.Bool(globalSilent), c.Bool(globalVerbose))
+					return rmp.run(ctx, isNonInteractive(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -186,7 +187,7 @@ func main() {
 						im: importer,
 						cc: c.Int(promConcurrency),
 					}
-					return pp.run(c.Bool(globalSilent), c.Bool(globalVerbose))
+					return pp.run(isNonInteractive(c), c.Bool(globalVerbose))
 				},
 			},
 			{
@@ -244,7 +245,7 @@ func main() {
 						backoff: backoff.New(),
 						cc:      c.Int(vmConcurrency),
 					}
-					return p.run(ctx, c.Bool(globalSilent))
+					return p.run(ctx, isNonInteractive(c))
 				},
 			},
 			{
@@ -316,4 +317,9 @@ func initConfigVM(c *cli.Context) vm.Config {
 		RateLimit:          c.Int64(vmRateLimit),
 		DisableProgressBar: c.Bool(vmDisableProgressBar),
 	}
+}
+
+func isNonInteractive(c *cli.Context) bool {
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+	return c.Bool(globalSilent) || !isTerminal
 }
