@@ -207,10 +207,17 @@ type result struct {
 
 var resultPool sync.Pool
 
+// MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
+func MaxWorkers() int {
+	return gomaxprocs
+}
+
+var gomaxprocs = cgroup.AvailableCPUs()
+
 // RunParallel runs f in parallel for all the results from rss.
 //
 // f shouldn't hold references to rs after returning.
-// workerID is the id of the worker goroutine that calls f.
+// workerID is the id of the worker goroutine that calls f. The workerID is in the range [0..MaxWorkers()-1].
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
@@ -244,7 +251,8 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsw.f = f
 		tsw.mustStop = &mustStop
 	}
-	if gomaxprocs == 1 || tswsLen == 1 {
+	maxWorkers := MaxWorkers()
+	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
 		tsw := getTimeseriesWork()
 		tmpResult := getTmpResult()
@@ -280,8 +288,8 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 
 	// Prepare worker channels.
 	workers := len(tsws)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
+	if workers > maxWorkers {
+		workers = maxWorkers
 	}
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
 	workChs := make([]chan *timeseriesWork, workers)
@@ -332,8 +340,6 @@ var (
 	rowsReadPerQuery   = metrics.NewHistogram(`vm_rows_read_per_query`)
 	seriesReadPerQuery = metrics.NewHistogram(`vm_series_read_per_query`)
 )
-
-var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
 	metricName string
@@ -1017,7 +1023,6 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
-	gomaxprocs := cgroup.AvailableCPUs()
 	workCh := make(chan *exportWork, gomaxprocs*8)
 	var (
 		errGlobal     error
