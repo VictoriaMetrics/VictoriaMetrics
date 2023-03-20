@@ -17,7 +17,6 @@ export interface CardinalityTotalsProps {
 const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   totalSeries,
   totalSeriesAll,
-  totalLabelValuePairs,
   seriesCountByMetricName
 }) => {
   const { isMobile } = useDeviceDetect();
@@ -38,16 +37,6 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
              A time series is a unique combination of a metric name and key-value label pairs. 
              For example, "events_totalenv=dev!" and "events_total{env=prod}" are two distinct time series, 
              both of which belong to the same parent metric, "events_total."`
-    },
-    {
-      title: "Total label value pairs",
-      value: totalLabelValuePairs.toLocaleString("en-US"),
-      display: !match && !focusLabel,
-      info: `Labels are key<>value pairs. 
-             "Total unique label value pairs" is the count of unique labels in the selected data source. 
-             The word "unique" If y emphasizes that if the same label (e.g., "env=dev") 
-             is applied to every uni time series in your system, 
-             it would still only increase your count of "total unique label values pairs" by one.`
     },
     {
       title: "Percentage of total series",

@@ -28,16 +28,20 @@ const Index: FC = () => {
   const showTips = searchParams.get("tips") || "";
   const match = searchParams.get("match") || "";
   const focusLabel = searchParams.get("focusLabel") || "";
+  const isMetric = match && /__name__=".+"/.test(match);
 
   const { isLoading, appConfigurator, error } = useFetchQuery();
   const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
   const defaultState = getDefaultState(match, focusLabel);
 
-  const handleFilterClick = (key: string) => (name: string) => {
-    const value = queryUpdater[key](focusLabel, name);
+  const handleFilterClick = (key: string) => (query: string) => {
+    const value = queryUpdater[key]({ query, focusLabel, match });
     searchParams.set("match", value);
     if (key === "labelValueCountByLabelName" || key == "seriesCountByLabelName") {
-      searchParams.set("focusLabel", name);
+      searchParams.set("focusLabel", query);
+    }
+    if (key == "seriesCountByFocusLabelValue") {
+      searchParams.set("focusLabel", "");
     }
     setSearchParams(searchParams);
   };
@@ -81,6 +85,36 @@ const Index: FC = () => {
           tableHeaderCells={tablesHeaders[keyName]}
         />
       ))}
+      {isMetric && !focusLabel && (
+        <div
+          className={classNames({
+            "vm-block": true,
+            "vm-block_mobile": isMobile
+          })}
+        >
+          <div className="vm-metrics-content-header vm-section-header vm-cardinality-panel-pairs__header">
+            <h5
+              className={classNames({
+                "vm-metrics-content-header__title": true,
+                "vm-section-header__title": true,
+                "vm-section-header__title_mobile": isMobile,
+              })}
+            >
+              Label=value pairs with the highest number of series
+            </h5>
+          </div>
+          <div className="vm-cardinality-panel-pairs">
+            {tsdbStatusData.seriesCountByLabelValuePair.map((item) => (
+              <div
+                className="vm-cardinality-panel-pairs__item"
+                key={item.name}
+              >
+                {item.name}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

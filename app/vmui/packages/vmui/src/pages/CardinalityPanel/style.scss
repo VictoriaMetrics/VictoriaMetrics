@@ -18,4 +18,29 @@
     flex-grow: 1;
     width: 100%;
   }
+
+  &-pairs {
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: $padding-small;
+
+    &__header {
+      min-height: 48px;
+      margin-bottom: $padding-medium;
+    }
+
+    &__item {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background-color: $color-hover-black;
+      padding: #{$padding-small / 2} $padding-small;
+      border-radius: $border-radius-small;
+      font-size: $font-size;
+      line-height: $font-size;
+      flex-grow: 1;
+    }
+  }
 }

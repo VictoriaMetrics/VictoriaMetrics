@@ -39,15 +39,19 @@ export default class AppConfigurator {
   }
 
   keys(match?: string | null, focusLabel?: string | null): string[] {
-    const isMetric = match && match.includes("__name__");
-    let keys: string[] = [];
-    if (focusLabel) {
-      keys = keys.concat("seriesCountByFocusLabelValue");
+    const isMetric = match && /__name__=".+"/.test(match);
+    const isLabel = match && /{.+=".+"}/g.test(match);
+    const isMetricWithLabel = match && /__name__=".+", .+!=""/g.test(match);
 
+    let keys: string[] = [];
+    if (focusLabel || isMetricWithLabel) {
+      keys = keys.concat("seriesCountByFocusLabelValue");
     } else if (isMetric) {
-      keys = keys.concat("labelValueCountByLabelName", "seriesCountByLabelValuePair");
+      keys = keys.concat("labelValueCountByLabelName");
+    } else if (isLabel) {
+      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName");
     } else {
-      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName",);
+      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName", "seriesCountByLabelValuePair");
     }
     return keys;
   }
@@ -85,14 +89,14 @@ export default class AppConfigurator {
     return {
       seriesCountByMetricName: `
         <p>
-          This table returns a list of the highest cardinality metrics in the selected data source. 
-          The cardinality of a metric is the number of time series associated with that metric, 
+          This table returns a list of the highest cardinality metrics in the selected data source.
+          The cardinality of a metric is the number of time series associated with that metric,
           where each time series is defined as a unique combination of key-value label pairs.
         </p>
         <p>
-          When looking to reduce the number of active series in your data source, 
+          When looking to reduce the number of active series in your data source,
           you can start by inspecting individual metrics with high cardinality
-          (i.e. that have lots of active time series associated with them), 
+          (i.e. that have lots of active time series associated with them),
           since that single metric contributes a large fraction of the series that make up your total series count.
         </p>`,
       seriesCountByLabelName: `
@@ -100,12 +104,12 @@ export default class AppConfigurator {
           This table returns a list of the label keys with the highest number of values.
         </p>
         <p>
-          Use this table to identify labels that are storing dimensions with high cardinality 
+          Use this table to identify labels that are storing dimensions with high cardinality
           (many different label values), such as user IDs, email addresses, or other unbounded sets of values.
-        </p> 
+        </p>
         <p>
-          We advise being careful in choosing labels such that they have a finite set of values, 
-          since every unique combination of key-value label pairs creates a new time series 
+          We advise being careful in choosing labels such that they have a finite set of values,
+          since every unique combination of key-value label pairs creates a new time series
           and therefore can dramatically increase the number of time series in your system.
         </p>`,
       seriesCountByFocusLabelValue: "",

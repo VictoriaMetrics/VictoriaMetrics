@@ -16,8 +16,14 @@ export interface TopHeapEntry {
   value: number;
 }
 
+interface QueryUpdaterArgs {
+  query: string;
+  focusLabel: string;
+  match: string;
+}
+
 export type QueryUpdater = {
-  [key: string]: (focusLabel: string | null, query: string) => string,
+  [key: string]: (args: QueryUpdaterArgs) => string,
 }
 
 export interface Tabs {

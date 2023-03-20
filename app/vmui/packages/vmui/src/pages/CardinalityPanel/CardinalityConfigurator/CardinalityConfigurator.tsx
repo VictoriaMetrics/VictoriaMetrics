@@ -1,5 +1,5 @@
 import React, { FC, useMemo } from "react";
-import { PlayIcon, QuestionIcon, TipIcon, WikiIcon } from "../../../components/Main/Icons";
+import { PlayIcon, QuestionIcon, RestartIcon, TipIcon, WikiIcon } from "../../../components/Main/Icons";
 import Button from "../../../components/Main/Button/Button";
 import TextField from "../../../components/Main/TextField/TextField";
 import "./style.scss";
@@ -30,6 +30,12 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
     searchParams.set("match", match);
     searchParams.set("topN", topN.toString());
     searchParams.set("focusLabel", focusLabel);
+    setSearchParams(searchParams);
+  };
+
+  const handleResetQuery = () => {
+    searchParams.set("match", "");
+    searchParams.set("focusLabel", "");
     setSearchParams(searchParams);
   };
 
@@ -132,6 +138,13 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
             onClick={handleToggleTips}
           />
         </Tooltip>
+        <Button
+          variant="text"
+          startIcon={<RestartIcon/>}
+          onClick={handleResetQuery}
+        >
+          Reset
+        </Button>
         <Button
           startIcon={<PlayIcon/>}
           onClick={handleRunQuery}
