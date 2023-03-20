@@ -27,6 +27,7 @@ created by v1.90.0 or newer versions. The solution is to upgrade to v1.90.0 or n
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add support for drag'n'drop and paste from clipboard in the "Trace analyzer" page. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3971).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): Hide messages longer than 3 lines in the trace. You can view the full message by clicking on the `show more` button. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3971).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): Add the ability to manually input date and time when selecting a time range. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3968).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): `vmctl` check whether TTY is available and disable prompt automatically and progress bar when TTY not available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3823).
 
 * BUGFIX: prevent from slow [snapshot creating](https://docs.victoriametrics.com/#how-to-work-with-snapshots) under high data ingestion rate. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
 
