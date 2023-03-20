@@ -186,6 +186,11 @@ There are the following most commons reasons for slow data ingestion in Victoria
    Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
    and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
 
+6. If you see `TooHighSlowInsertsRate` [alert](https://docs.victoriametrics.com/#monitoring) when single-node VictoriaMetrics or `vmstorage` has enough
+   free CPU and RAM, then increase `-cacheExpireDuration` command-line flag at single-node VictoriaMetrics or at `vmstorage` to the value,
+   which exceeds the interval between ingested samples for the same time series (aka `scrape_interval`).
+   See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for more details.
+
 ## Slow queries
 
 Some queries may take more time and resources (CPU, RAM, network bandwidth) than others.
