@@ -9,7 +9,6 @@ interface DatePickerProps {
   date: string | Date | Dayjs,
   targetRef: Ref<HTMLElement>
   format?: string
-  timepicker?: boolean
   label?: string
   onChange: (val: string) => void
 }
@@ -18,12 +17,11 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   date,
   targetRef,
   format = DATE_TIME_FORMAT,
-  timepicker,
   onChange,
   label
 }, ref) => {
   const [openCalendar, setOpenCalendar] = useState(false);
-  const dateDayjs = useMemo(() => date ? dayjs.tz(date) : dayjs().tz(), [date]);
+  const dateDayjs = useMemo(() => dayjs(date).isValid() ? dayjs.tz(date) : dayjs().tz(), [date]);
   const { isMobile } = useDeviceDetect();
 
   const toggleOpenCalendar = () => {
@@ -35,8 +33,8 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
   };
 
   const handleChangeDate = (val: string) => {
-    if (!timepicker) handleCloseCalendar();
     onChange(val);
+    handleCloseCalendar();
   };
 
   const handleKeyUp = (e: KeyboardEvent) => {
@@ -71,9 +69,7 @@ const DatePicker = forwardRef<HTMLDivElement, DatePickerProps>(({
         <Calendar
           date={dateDayjs}
           format={format}
-          timepicker={timepicker}
           onChange={handleChangeDate}
-          onClose={handleCloseCalendar}
         />
       </div>
     </Popper>

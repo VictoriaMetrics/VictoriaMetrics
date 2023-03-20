@@ -2,7 +2,6 @@ package mergeset
 
 import (
 	"fmt"
-	"path/filepath"
 	"sync"
 	"unsafe"
 
@@ -68,11 +67,9 @@ type part struct {
 }
 
 func openFilePart(path string) (*part, error) {
-	path = filepath.Clean(path)
-
 	var ph partHeader
-	if err := ph.ParseFromPath(path); err != nil {
-		return nil, fmt.Errorf("cannot parse path to part: %w", err)
+	if err := ph.ReadMetadata(path); err != nil {
+		return nil, fmt.Errorf("cannot read part metadata: %w", err)
 	}
 
 	metaindexPath := path + "/metaindex.bin"

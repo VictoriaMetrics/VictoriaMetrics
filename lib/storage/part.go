@@ -50,7 +50,7 @@ func openFilePart(path string) (*part, error) {
 	path = filepath.Clean(path)
 
 	var ph partHeader
-	if err := ph.ParseFromPath(path); err != nil {
+	if err := ph.ReadMetadata(path); err != nil {
 		return nil, fmt.Errorf("cannot parse path to part: %w", err)
 	}
 

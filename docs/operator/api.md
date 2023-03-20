@@ -65,6 +65,8 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [HTTPAuth](#httpauth)
 * [ServiceSpec](#servicespec)
 * [StorageSpec](#storagespec)
+* [StreamAggrConfig](#streamaggrconfig)
+* [StreamAggrRule](#streamaggrrule)
 * [VMAlert](#vmalert)
 * [VMAlertDatasourceSpec](#vmalertdatasourcespec)
 * [VMAlertList](#vmalertlist)
@@ -709,6 +711,7 @@ VMAgentRemoteWriteSpec defines the remote storage configuration for VmAgent
 | tlsConfig | TLSConfig describes tls configuration for remote write target | *[TLSConfig](#tlsconfig) | false |
 | sendTimeout | Timeout for sending a single block of data to -remoteWrite.url (default 1m0s) | *string | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName: headerValue vmagent supports since 1.79.0 version | []string | false |
+| streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMAgent for -remoteWrite.url | *[StreamAggrConfig](#streamaggrconfig) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -744,6 +747,7 @@ VMAgentSpec defines the desired state of VMAgent
 | dnsPolicy | DNSPolicy set DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#pod-v1-core) | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
 | scrapeInterval | ScrapeInterval defines how often scrape targets by default | string | false |
+| scrapeTimeout | ScrapeTimeout defines global timeout for targets scrape | string | false |
 | aPIServerConfig | APIServerConfig allows specifying a host and auth methods to access apiserver. If left empty, VMAgent is assumed to run inside of the cluster and will discover API servers automatically and use the pod&#39;s CA certificate and bearer token file at /var/run/secrets/kubernetes.io/serviceaccount/. | *[APIServerConfig](#apiserverconfig) | false |
 | overrideHonorLabels | OverrideHonorLabels if set to true overrides all user configured honor_labels. If HonorLabels is set in ServiceScrape or PodScrape to true, this overrides honor_labels to false. | bool | false |
 | overrideHonorTimestamps | OverrideHonorTimestamps allows to globally enforce honoring timestamps in all scrape configs. | bool | false |
@@ -955,6 +959,34 @@ StorageSpec defines the configured storage for a group Prometheus servers. If ne
 | disableMountSubPath | Deprecated: subPath usage will be disabled by default in a future release, this option will become unnecessary. DisableMountSubPath allows to remove any subPath usage in volume mounts. | bool | false |
 | emptyDir | EmptyDirVolumeSource to be used by the Prometheus StatefulSets. If specified, used in place of any volumeClaimTemplate. More info: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir | *[v1.EmptyDirVolumeSource](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#emptydirvolumesource-v1-core) | false |
 | volumeClaimTemplate | A PVC spec to be used by the VMAlertManager StatefulSets. | [EmbeddedPersistentVolumeClaim](#embeddedpersistentvolumeclaim) | false |
+
+[Back to TOC](#table-of-contents)
+
+## StreamAggrConfig
+
+StreamAggrConfig defines the stream aggregation config
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| rules | Stream aggregation rules | [][StreamAggrRule](#streamaggrrule) | true |
+| keepInput | Allows writing both raw and aggregate data | bool | false |
+| dedupInterval | Allows setting different de-duplication intervals per each configured remote storage | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## StreamAggrRule
+
+StreamAggrRule defines the rule in stream aggregation config
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| match | Match is a label selector for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | string | false |
+| interval | Interval is the interval between aggregations. | string | true |
+| outputs | Outputs is a list of output aggregate functions to produce.\n\nThe following names are allowed:\n\n- total - aggregates input counters - increase - counts the increase over input counters - count_series - counts the input series - count_samples - counts the input samples - sum_samples - sums the input samples - last - the last biggest sample value - min - the minimum sample value - max - the maximum sample value - avg - the average value across all the samples - stddev - standard deviation across all the samples - stdvar - standard variance across all the samples - histogram_bucket - creates VictoriaMetrics histogram for input samples - quantiles(phi1, ..., phiN) - quantiles&#39; estimation for phi in the range [0..1]\n\nThe output time series will have the following names:\n\n  input_name:aggr_&lt;interval&gt;_&lt;output&gt; | []string | true |
+| by | By is an optional list of labels for grouping input series.\n\nSee also Without.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
+| without | Without is an optional list of labels, which must be excluded when grouping input series.\n\nSee also By.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
+| input_relabel_configs | InputRelabelConfigs is an optional relabeling rules, which are applied on the input before aggregation. | [][RelabelConfig](#relabelconfig) | false |
+| output_relabel_configs | OutputRelabelConfigs is an optional relabeling rules, which are applied on the aggregated output before being sent to remote storage. | [][RelabelConfig](#relabelconfig) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1198,6 +1230,7 @@ VMSingleSpec defines the desired state of VMSingle
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
+| streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMSingle | *[StreamAggrConfig](#streamaggrconfig) | false |
 
 [Back to TOC](#table-of-contents)
 
