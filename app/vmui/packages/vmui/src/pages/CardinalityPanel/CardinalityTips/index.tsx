@@ -45,8 +45,9 @@ export const TipHighNumberOfSeries: FC = () => (
   <TipCard title="Metrics with a high number of series">
     <ul>
       <li>
-        You can drop some labels on that metric to reduce its&nbsp;
-        <Link href='https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality'>cardinality</Link>
+        You can to identify and eliminate labels with frequently changed values to reduce its&nbsp;
+        <Link href='https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality'>cardinality</Link>&nbsp;and&nbsp;
+        <Link href='https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate'>high churn rate</Link>
       </li>
       <li>
          You can find unused metrics and <Link href='https://docs.victoriametrics.com/relabeling.html'>drop entire metrics</Link>
@@ -72,8 +73,8 @@ export const TipCardinalityOfSingle: FC = () => (
   <TipCard title="Dashboard of a single metric">
     <p>
       This dashboard helps you understand the cardinality of a single metric.
-      It shows you the count of series with this metric name and how that count relates
-      to the total number of time series in your data source.
+      It shows you the count of labels with this metric name and how that count relates
+      to the total number of time series.
       Then it helps you understand which labels associated
       with that metric have the greatest impact on its cardinality.
     </p>
@@ -98,14 +99,13 @@ export const TipCardinalityOfLabel: FC = () => (
       Use the selector at the top of the page to pick a label name you’d like to inspect.
       For the selected label name, you’ll see the label values that have the highest number of series associated with
       them.
-      So if you’ve chosen “environment” as your label name, you may see that 1231 time series have value
-      “environmentA”
-      attached to them and 542 time series have value “environmentB” attached to them.
+      So if you’ve chosen `instance` as your label name, you may see that `657` time series have value
+      “host-1” attached to them and `580` time series have value `host-2` attached to them.
     </p>
     <p>
       This can be helpful in allowing you to determine where the bulk of your time series are coming from.
-      If the label “team=teamA” was applied to 34,222 series and the label “team=teamB”
-      was only applied to 1,237 series, you’d know, for example, that teamA was responsible for sending
+      If the label “instance=host-1” was applied to 657 series and the label “instance=host-2”
+      was only applied to 580 series, you’d know, for example, that host-01 was responsible for sending
       the majority of the time series.
     </p>
   </TipCard>

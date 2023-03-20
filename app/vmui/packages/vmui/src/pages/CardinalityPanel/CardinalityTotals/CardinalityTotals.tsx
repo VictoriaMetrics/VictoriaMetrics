@@ -42,8 +42,8 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
       title: "Percentage of total series",
       value: isNaN(progress) ? "-" : `${progress.toFixed(2)}%`,
       display: isMetric,
-      info: `Count all time series with metric name and express that as a percentage 
-             of the total number of time series in data source.`
+      info: `Count all time series with metric and express that as a percentage 
+             of the total number of time series.`
     }
   ].filter(t => t.display);
 
