@@ -8,7 +8,6 @@
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      gap: 4px;
     }
 
     &__tip {
@@ -29,6 +28,7 @@
       align-items: center;
       justify-content: center;
       color: $color-primary;
+      margin-right: 4px;
     }
   }
 
@@ -56,5 +56,9 @@
 
   &_mobile &__table {
     width: calc(100vw - ($padding-global * 2) - var(--scrollbar-width));
+  }
+
+  &__chart {
+    padding-top: $padding-medium;
   }
 }
