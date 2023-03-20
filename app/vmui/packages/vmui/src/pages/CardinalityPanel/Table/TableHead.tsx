@@ -27,7 +27,7 @@ export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
             <div className="vm-table-cell__content">
               {
                 headCell.info ?
-                  <Tooltip title={<p className="vm-metrics-content-header__title vm-section-header__title">{headCell.info}</p>}>
+                  <Tooltip title={headCell.info}>
                     <div className="vm-metrics-content-header__tip-icon"><InfoIcon /></div>
                     {headCell.label}
                   </Tooltip>: <>{headCell.label}</>
