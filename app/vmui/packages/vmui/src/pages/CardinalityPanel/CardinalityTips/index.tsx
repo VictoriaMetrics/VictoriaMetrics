@@ -42,27 +42,28 @@ export const TipDocumentation: FC = () => (
 );
 
 export const TipHighNumberOfSeries: FC = () => (
-  <TipCard title="If you have metrics with a high number of series">
+  <TipCard title="Metrics with a high number of series">
     <ul>
       <li>
-        Could you drop some labels on that metric to reduce its <Link href='#'>cardinality</Link>?
+        You can drop some labels on that metric to reduce its&nbsp;
+        <Link href='https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality'>cardinality</Link>
       </li>
       <li>
-        Could you <Link href='#'>find unused metrics</Link> and <Link href='#'>drop entire metrics</Link>?
+         You can find unused metrics and <Link href='https://docs.victoriametrics.com/relabeling.html'>drop entire metrics</Link>
       </li>
       <li>
-        Could you replace a large number of underlying series with a single rolled up value?
+        You can replace a large number of underlying series with a single rolled up value
       </li>
     </ul>
   </TipCard>
 );
 
 export const TipHighNumberOfValues: FC = () => (
-  <TipCard title="If you have labels with a high number of unique values">
+  <TipCard title="Labels with a high number of unique values">
     <ul>
-      <li>Could you drop this label entirely?</li>
-      <li>Could you decrease its number of values?</li>
-      <li>If you still need the information in this label, could you store it in a log file?</li>
+      <li>You can decrease its number of values</li>
+      <li>You can drop this label entirely</li>
+      <li>If you still this label with its values, could you store it in a log file?</li>
     </ul>
   </TipCard>
 );

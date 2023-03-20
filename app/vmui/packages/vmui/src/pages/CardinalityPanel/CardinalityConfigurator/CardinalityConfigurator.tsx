@@ -85,7 +85,6 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
               title={(
                 <div>
                   <p>To identify values with the highest number of series for the selected label.</p>
-                  <p>Adds a table showing the series with the highest number of series.</p>
                 </div>
               )}
             >
@@ -117,15 +116,6 @@ const CardinalityConfigurator: FC<CardinalityTotalsProps> = (props) => {
         >
           <WikiIcon/>
           Documentation
-        </a>
-        <a
-          className="vm-link vm-link_with-icon"
-          target="_blank"
-          href="https://victoriametrics.com/blog/cardinality-explorer/"
-          rel="help noreferrer"
-        >
-          <QuestionIcon/>
-          Example of using
         </a>
       </div>
 

@@ -89,7 +89,7 @@ export default class AppConfigurator {
     return {
       seriesCountByMetricName: `
         <p>
-          This table returns a list of the highest cardinality metrics in the selected data source.
+          This table returns a list of metrics with the highest cardinality.
           The cardinality of a metric is the number of time series associated with that metric,
           where each time series is defined as a unique combination of key-value label pairs.
         </p>
@@ -101,20 +101,34 @@ export default class AppConfigurator {
         </p>`,
       seriesCountByLabelName: `
         <p>
-          This table returns a list of the label keys with the highest number of values.
+          This table returns a list of the labels with the highest number of series.
         </p>
         <p>
           Use this table to identify labels that are storing dimensions with high cardinality
-          (many different label values), such as user IDs, email addresses, or other unbounded sets of values.
+          (many different label values).
         </p>
         <p>
-          We advise being careful in choosing labels such that they have a finite set of values,
+          It is recommended to choose labels such that they have a finite set of values,
           since every unique combination of key-value label pairs creates a new time series
           and therefore can dramatically increase the number of time series in your system.
         </p>`,
-      seriesCountByFocusLabelValue: "",
+      seriesCountByFocusLabelValue: `
+       <p>
+          This table returns a list of unique label values per selected label.
+       </p>
+       <p>
+          Use this table to identify label values that are storing per each selected series.
+       </p>`,
       labelValueCountByLabelName: "",
-      seriesCountByLabelValuePair: "",
+      seriesCountByLabelValuePair: `
+        <p>
+          This table returns a list of the label values pairs with the highest number of series.
+        </p>
+        <p>
+          Use this table to identify unique label values pairs. This helps to identify same labels 
+          is applied to count timeseries in your system, since every unique combination of key-value label pairs 
+          creates a new time series and therefore can dramatically increase the number of time series in your system
+        </p>`,
     };
   }
 
@@ -147,7 +161,8 @@ const METRIC_NAMES_HEADERS = [
   },
   {
     id: "percentage",
-    label: "Percent of series",
+    label: "Share in total",
+    info: "Shows the impact of a metric name on the total number of series"
   },
   {
     id: "action",
@@ -166,7 +181,8 @@ const LABEL_NAMES_HEADERS = [
   },
   {
     id: "percentage",
-    label: "Percent of series",
+    label: "Share in total",
+    info: "Shows the impact of the label on the total number of series"
   },
   {
     id: "action",
@@ -185,7 +201,7 @@ const FOCUS_LABEL_VALUES_HEADERS = [
   },
   {
     id: "percentage",
-    label: "Percent of series",
+    label: "Share in total",
   },
   {
     disablePadding: false,
@@ -206,7 +222,8 @@ export const LABEL_VALUE_PAIRS_HEADERS = [
   },
   {
     id: "percentage",
-    label: "Percent of series",
+    label: "Share in total",
+    info: "Shows the impact of the label value pair on the total number of series"
   },
   {
     id: "action",

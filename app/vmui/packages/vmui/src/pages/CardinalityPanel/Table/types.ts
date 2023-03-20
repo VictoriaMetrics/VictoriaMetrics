@@ -5,6 +5,7 @@ export type Order = "asc" | "desc";
 export interface HeadCell {
   id: string;
   label: string | ReactNode;
+  info?: string;
 }
 
 export interface EnhancedHeaderTableProps {

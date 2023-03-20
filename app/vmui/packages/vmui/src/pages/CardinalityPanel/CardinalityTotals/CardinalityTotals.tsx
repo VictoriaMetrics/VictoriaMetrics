@@ -33,17 +33,17 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
       title: "Total series",
       value: totalSeries.toLocaleString("en-US"),
       display: !focusLabel,
-      info: `The total number of active time series in the selected data source. 
-             A time series is a unique combination of a metric name and key-value label pairs. 
-             For example, "events_totalenv=dev!" and "events_total{env=prod}" are two distinct time series, 
-             both of which belong to the same parent metric, "events_total."`
+      info: `The total number of active time series. 
+             A time series is uniquely identified by its name plus a set of its labels. 
+             For example, temperature{city="NY",country="US"} and temperature{city="SF",country="US"} 
+             are two distinct series, since they differ by the city label.`
     },
     {
       title: "Percentage of total series",
       value: isNaN(progress) ? "-" : `${progress.toFixed(2)}%`,
       display: isMetric,
-      info: `Count all time series with metric name testrr and express that as a percentage 
-             of the total number of time series in this data source.`
+      info: `Count all time series with metric name and express that as a percentage 
+             of the total number of time series in data source.`
     }
   ].filter(t => t.display);
 

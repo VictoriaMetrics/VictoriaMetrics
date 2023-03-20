@@ -2,7 +2,8 @@ import { MouseEvent } from "react";
 import React from "preact/compat";
 import { Data, EnhancedHeaderTableProps } from "./types";
 import classNames from "classnames";
-import { ArrowDropDownIcon } from "../../../components/Main/Icons";
+import { ArrowDropDownIcon, InfoIcon } from "../../../components/Main/Icons";
+import Tooltip from "../../../components/Main/Tooltip/Tooltip";
 
 export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
   const { order, orderBy, onRequestSort, headerCells } = props;
@@ -24,7 +25,13 @@ export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
             onClick={createSortHandler(headCell.id as keyof Data)}
           >
             <div className="vm-table-cell__content">
-              {headCell.label}
+              {
+                headCell.info ?
+                  <Tooltip title={<p className="vm-metrics-content-header__title vm-section-header__title">{headCell.info}</p>}>
+                    <div className="vm-metrics-content-header__tip-icon"><InfoIcon /></div>
+                    {headCell.label}
+                  </Tooltip>: <>{headCell.label}</>
+              }
               {headCell.id !== "action" && headCell.id !== "percentage" && (
                 <div
                   className={classNames({
