@@ -11,12 +11,11 @@ import (
 	"syscall"
 	"time"
 
-	"golang.org/x/term"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/remoteread"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/terminal"
 	"github.com/urfave/cli/v2"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/influx"
@@ -321,6 +320,6 @@ func initConfigVM(c *cli.Context) vm.Config {
 }
 
 func isNonInteractive(c *cli.Context) bool {
-	isTerminal := term.IsTerminal(int(os.Stdout.Fd()))
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
 	return c.Bool(globalSilent) || !isTerminal
 }
