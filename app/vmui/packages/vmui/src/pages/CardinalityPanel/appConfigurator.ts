@@ -162,7 +162,7 @@ const METRIC_NAMES_HEADERS = [
   {
     id: "percentage",
     label: "Share in total",
-    info: "Shows the impact of a metric name on the total number of series"
+    info: "Shows the share of a metric to the total number of series"
   },
   {
     id: "action",
@@ -182,7 +182,7 @@ const LABEL_NAMES_HEADERS = [
   {
     id: "percentage",
     label: "Share in total",
-    info: "Shows the impact of the label on the total number of series"
+    info: "Shows the share of the label to the total number of series"
   },
   {
     id: "action",
@@ -223,7 +223,7 @@ export const LABEL_VALUE_PAIRS_HEADERS = [
   {
     id: "percentage",
     label: "Share in total",
-    info: "Shows the impact of the label value pair on the total number of series"
+    info: "Shows the share of the label value pair to the total number of series"
   },
   {
     id: "action",
