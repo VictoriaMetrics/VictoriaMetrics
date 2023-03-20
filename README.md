@@ -1447,12 +1447,14 @@ can be configured with the `-inmemoryDataFlushInterval` command-line flag (note 
 In-memory parts are persisted to disk into `part` directories under the `<-storageDataPath>/data/small/YYYY_MM/` folder,
 where `YYYY_MM` is the month partition for the stored data. For example, `2022_11` is the partition for `parts`
 with [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) from `November 2022`.
+Each partition directory contains `parts.json` file with the actual list of parts in the partition.
 
-The `part` directory has the following name pattern: `rowsCount_blocksCount_minTimestamp_maxTimestamp`, where:
+Every `part` directory contains `metadata.json` file with the following fields:
 
-- `rowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
-- `blocksCount` - the number of blocks stored in the part (see details about blocks below)
-- `minTimestamp` and `maxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+- `RowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
+- `BlocksCount` - the number of blocks stored in the part (see details about blocks below)
+- `MinTimestamp` and `MaxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+- `MinDedupInterval` - the [deduplication interval](#deduplication) applied to the given part.
 
 Each `part` consists of `blocks` sorted by internal time series id (aka `TSID`).
 Each `block` contains up to 8K [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
@@ -1474,9 +1476,8 @@ for fast block lookups, which belong to the given `TSID` and cover the given tim
   and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge
 
 Newly added `parts` either successfully appear in the storage or fail to appear.
-The newly added `parts` are being created in a temporary directory under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` folder.
-When the newly added `part` is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html)
-to a temporary directory, then it is atomically moved to the storage directory.
+The newly added `part` is atomically registered in the `parts.json` file under the corresponding partition
+after it is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html) to the storage.
 Thanks to this alogrithm, storage never contains partially created parts, even if hardware power off
 occurrs in the middle of writing the `part` to disk - such incompletely written `parts`
 are automatically deleted on the next VictoriaMetrics start.
@@ -1505,8 +1506,7 @@ Retention is configured with the `-retentionPeriod` command-line flag, which tak
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 Data partitions outside the configured retention are deleted on the first day of the new month.
-Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
-Data parts outside of the configured retention are eventually deleted during
+Each partition consists of one or more data parts. Data parts outside of the configured retention are eventually deleted during
 [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
