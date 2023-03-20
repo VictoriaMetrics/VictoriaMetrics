@@ -1,8 +1,6 @@
 import React, { FC } from "react";
 import EnhancedTable from "../Table/Table";
 import TableCells from "../Table/TableCells/TableCells";
-import BarChart from "../../../components/Chart/BarChart/BarChart";
-import { barOptions } from "../../../components/Chart/BarChart/consts";
 import { Data, HeadCell } from "../Table/types";
 import { MutableRef } from "preact/hooks";
 import Tabs from "../../../components/Main/Tabs/Tabs";
@@ -12,6 +10,7 @@ import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Tooltip from "../../../components/Main/Tooltip/Tooltip";
+import SimpleBarChart from "../../../components/Chart/SimpleBarChart/SimpleBarChart";
 
 interface MetricsProperties {
   rows: Data[];
@@ -88,35 +87,28 @@ const MetricsContent: FC<MetricsProperties> = ({
           />
         </div>
       </div>
-      <div
-        ref={chartContainer}
-        className={classNames({
-          "vm-metrics-content__table": true,
-          "vm-metrics-content__table_mobile": isMobile
-        })}
-      >
-        {activeTab === "table" && (
+
+      {activeTab === "table" && (
+        <div
+          ref={chartContainer}
+          className={classNames({
+            "vm-metrics-content__table": true,
+            "vm-metrics-content__table_mobile": isMobile
+          })}
+        >
           <EnhancedTable
             rows={rows}
             headerCells={tableHeaderCells}
             defaultSortColumn={"value"}
             tableCells={tableCells}
           />
-        )}
-        {activeTab === "graph" && (
-          <BarChart
-            data={[
-              // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-              // @ts-ignore
-              rows.map((v) => v.name),
-              rows.map((v) => v.value),
-              rows.map((_, i) => i % 12 == 0 ? 1 : i % 10 == 0 ? 2 : 0),
-            ]}
-            container={chartContainer?.current || null}
-            configs={barOptions}
-          />
-        )}
-      </div>
+        </div>
+      )}
+      {activeTab === "graph" && (
+        <div className="vm-metrics-content__chart">
+          <SimpleBarChart data={rows.map(({ name, value }) => ({ name, value }))}/>
+        </div>
+      )}
     </div>
   );
 };
