@@ -325,13 +325,19 @@ const (
 	vmNativeFilterTimeEnd   = "vm-native-filter-time-end"
 	vmNativeStepInterval    = "vm-native-step-interval"
 
-	vmNativeSrcAddr     = "vm-native-src-addr"
-	vmNativeSrcUser     = "vm-native-src-user"
-	vmNativeSrcPassword = "vm-native-src-password"
+	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
 
-	vmNativeDstAddr     = "vm-native-dst-addr"
-	vmNativeDstUser     = "vm-native-dst-user"
-	vmNativeDstPassword = "vm-native-dst-password"
+	vmNativeSrcAddr        = "vm-native-src-addr"
+	vmNativeSrcUser        = "vm-native-src-user"
+	vmNativeSrcPassword    = "vm-native-src-password"
+	vmNativeSrcHeaders     = "vm-native-src-headers"
+	vmNativeSrcBearerToken = "vm-native-src-bearer-token"
+
+	vmNativeDstAddr        = "vm-native-dst-addr"
+	vmNativeDstUser        = "vm-native-dst-user"
+	vmNativeDstPassword    = "vm-native-dst-password"
+	vmNativeDstHeaders     = "vm-native-dst-headers"
+	vmNativeDstBearerToken = "vm-native-dst-bearer-token"
 )
 
 var (
@@ -344,8 +350,9 @@ var (
 			Value: `{__name__!=""}`,
 		},
 		&cli.StringFlag{
-			Name:  vmNativeFilterTimeStart,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Name:     vmNativeFilterTimeStart,
+			Usage:    "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
@@ -354,6 +361,11 @@ var (
 		&cli.StringFlag{
 			Name:  vmNativeStepInterval,
 			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisableHTTPKeepAlive,
+			Usage: "Disable HTTP persistent connections for requests made to VictoriaMetrics components during export",
+			Value: false,
 		},
 		&cli.StringFlag{
 			Name: vmNativeSrcAddr,
@@ -373,6 +385,16 @@ var (
 			EnvVars: []string{"VM_NATIVE_SRC_PASSWORD"},
 		},
 		&cli.StringFlag{
+			Name: vmNativeSrcHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding source address. \n" +
+				"For example, --vm-native-src-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding source address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-native-src-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeSrcBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-src-addr`",
+		},
+		&cli.StringFlag{
 			Name: vmNativeDstAddr,
 			Usage: "VictoriaMetrics address to perform import to. \n" +
 				" Should be the same as --httpListenAddr value for single-node version or vminsert component." +
@@ -388,6 +410,16 @@ var (
 			Name:    vmNativeDstPassword,
 			Usage:   "VictoriaMetrics password for basic auth",
 			EnvVars: []string{"VM_NATIVE_DST_PASSWORD"},
+		},
+		&cli.StringFlag{
+			Name: vmNativeDstHeaders,
+			Usage: "Optional HTTP headers to send with each request to the corresponding destination address. \n" +
+				"For example, --vm-native-dst-headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding destination address. \n" +
+				"Multiple headers must be delimited by '^^': --vm-native-dst-headers='header1:value1^^header2:value2'",
+		},
+		&cli.StringFlag{
+			Name:  vmNativeDstBearerToken,
+			Usage: "Optional bearer auth token to use for the corresponding `--vm-native-dst-addr`",
 		},
 		&cli.StringSliceFlag{
 			Name:  vmExtraLabel,
@@ -405,6 +437,11 @@ var (
 			Usage: "Enables cluster-to-cluster migration mode with automatic tenants data migration.\n" +
 				fmt.Sprintf(" In this mode --%s flag format is: 'http://vmselect:8481/'. --%s flag format is: http://vminsert:8480/. \n", vmNativeSrcAddr, vmNativeDstAddr) +
 				" TenantID will be appended automatically after discovering tenants from src.",
+		},
+		&cli.UintFlag{
+			Name:  vmConcurrency,
+			Usage: "Number of workers concurrently performing import requests to VM",
+			Value: 2,
 		},
 	}
 )

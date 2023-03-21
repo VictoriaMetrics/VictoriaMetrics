@@ -38,7 +38,7 @@ Configuration management:
 vi /var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
-after changes, you can trigger config reread with `curl localhost:8248/-/reload`.
+after changes, you can trigger config reread with `curl localhost:8428/-/reload`.
 
 Configuration tuning is possible with editing extra_flags:
 

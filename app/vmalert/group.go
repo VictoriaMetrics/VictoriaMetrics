@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"net/url"
@@ -44,6 +45,9 @@ type Group struct {
 	// channel accepts new Group obj
 	// which supposed to update current group
 	updateCh chan *Group
+	// evalCancel stores the cancel fn for interrupting
+	// rules evaluation. Used on groups update() and close().
+	evalCancel context.CancelFunc
 
 	metrics *groupMetrics
 }
@@ -233,11 +237,24 @@ func (g *Group) updateWith(newGroup *Group) error {
 	return nil
 }
 
+// interruptEval interrupts in-flight rules evaluations
+// within the group. It is expected that g.evalCancel
+// will be repopulated after the call.
+func (g *Group) interruptEval() {
+	g.mu.RLock()
+	defer g.mu.RUnlock()
+
+	if g.evalCancel != nil {
+		g.evalCancel()
+	}
+}
+
 func (g *Group) close() {
 	if g.doneCh == nil {
 		return
 	}
 	close(g.doneCh)
+	g.interruptEval()
 	<-g.finishedCh
 
 	g.metrics.iterationDuration.Unregister()
@@ -254,6 +271,26 @@ var skipRandSleepOnGroupStart bool
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
 
+	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	if !skipRandSleepOnGroupStart {
+		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
+		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+		if randSleep < sleepOffset {
+			randSleep += uint64(g.Interval)
+		}
+		randSleep -= sleepOffset
+		sleepTimer := time.NewTimer(time.Duration(randSleep))
+		select {
+		case <-ctx.Done():
+			sleepTimer.Stop()
+			return
+		case <-g.doneCh:
+			sleepTimer.Stop()
+			return
+		case <-sleepTimer.C:
+		}
+	}
+
 	e := &executor{
 		rw:                       rw,
 		notifiers:                nts,
@@ -263,7 +300,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 
 	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 
-	eval := func(ts time.Time) {
+	eval := func(ctx context.Context, ts time.Time) {
 		g.metrics.iterationTotal.Inc()
 
 		start := time.Now()
@@ -285,7 +322,13 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		g.LastEvaluation = start
 	}
 
-	eval(evalTS)
+	evalCtx, cancel := context.WithCancel(ctx)
+	g.mu.Lock()
+	g.evalCancel = cancel
+	g.mu.Unlock()
+	defer g.evalCancel()
+
+	eval(evalCtx, evalTS)
 
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
@@ -309,6 +352,14 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			return
 		case ng := <-g.updateCh:
 			g.mu.Lock()
+
+			// it is expected that g.evalCancel will be evoked
+			// somewhere else to unblock group from the rules evaluation.
+			// we recreate the evalCtx and g.evalCancel, so it can
+			// be called again.
+			evalCtx, cancel = context.WithCancel(ctx)
+			g.evalCancel = cancel
+
 			err := g.updateWith(ng)
 			if err != nil {
 				logger.Errorf("group %q: failed to update: %s", g.Name, err)
@@ -333,7 +384,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			}
 			evalTS = evalTS.Add((missed + 1) * g.Interval)
 
-			eval(evalTS)
+			eval(evalCtx, evalTS)
 		}
 	}
 }
@@ -407,6 +458,11 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 
 	tss, err := rule.Exec(ctx, ts, limit)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			// the context can be cancelled on graceful shutdown
+			// or on group update. So no need to handle the error as usual.
+			return nil
+		}
 		execErrors.Inc()
 		return fmt.Errorf("rule %q: failed to execute: %w", rule, err)
 	}
