@@ -319,6 +319,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 	// init reload metrics with positive values to improve alerting conditions
 	configSuccess.Set(1)
 	configTimestamp.Set(fasttime.UnixTimestamp())
+	parseFn := config.Parse
 	for {
 		select {
 		case <-ctx.Done():
@@ -330,7 +331,11 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			}
 			logger.Infof("SIGHUP received. Going to reload rules %q %s...", *rulePath, tmplMsg)
 			configReloads.Inc()
+			// allow logs emitting during manual config reload
+			parseFn = config.Parse
 		case <-configCheckCh:
+			// disable logs emitting during per-interval config reload
+			parseFn = config.ParseSilent
 		}
 		if err := notifier.Reload(); err != nil {
 			configReloadErrors.Inc()
@@ -345,7 +350,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.ParseSilent(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := parseFn(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)

@@ -152,7 +152,8 @@ groups:
           dashboard: "http://localhost:3000/d/oS7Bi_0Wz?viewPanel=108"
           summary: "Percentage of slow inserts is more than 5% for the last 15m"
           description: "High rate of slow inserts may be a sign of resource exhaustion
-            for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series."
+            for the current load. It is likely more RAM is needed for optimal handling of the current number of active time series.
+            See also https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183"
 
       - alert: ProcessNearFDLimits
         expr: (process_max_fds - process_open_fds) < 100
