@@ -148,38 +148,26 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 	// Then help others with the remaining work.
 	rowsProcessed = 0
 	seriesProcessed = 0
-	idx := int(workerID)
-	for {
-		tsw, idxNext := stealTimeseriesWork(workChs, idx)
-		if tsw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Give a chance other goroutines to perform their work.
+			runtime.Gosched()
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			tsw, ok := <-ch
+			if !ok {
+				break
+			}
+			tsw.err = tsw.do(&tmpResult.rs, workerID)
+			rowsProcessed += tsw.rowsProcessed
+			seriesProcessed++
 		}
-		tsw.err = tsw.do(&tmpResult.rs, workerID)
-		rowsProcessed += tsw.rowsProcessed
-		seriesProcessed++
-		idx = idxNext
 	}
 	qt.Printf("others work processed: series=%d, samples=%d", seriesProcessed, rowsProcessed)
 
 	putTmpResult(tmpResult)
-}
-
-func stealTimeseriesWork(workChs []chan *timeseriesWork, startIdx int) (*timeseriesWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		tsw, ok := <-ch
-		if ok {
-			return tsw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpResult() *result {
@@ -397,35 +385,23 @@ func unpackWorker(workChs []chan *unpackWork, workerID uint) {
 	}
 
 	// Then help others with their work.
-	idx := int(workerID)
-	for {
-		upw, idxNext := stealUnpackWork(workChs, idx)
-		if upw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Give a chance other goroutines to perform their work
+			runtime.Gosched()
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			upw, ok := <-ch
+			if !ok {
+				break
+			}
+			upw.unpack(tmpBlock)
 		}
-		upw.unpack(tmpBlock)
-		idx = idxNext
 	}
 
 	putTmpStorageBlock(tmpBlock)
-}
-
-func stealUnpackWork(workChs []chan *unpackWork, startIdx int) (*unpackWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		upw, ok := <-ch
-		if ok {
-			return upw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpStorageBlock() *storage.Block {
