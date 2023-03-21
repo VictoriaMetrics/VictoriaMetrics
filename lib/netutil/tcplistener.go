@@ -99,7 +99,6 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 		if ln.useProxyProtocol {
 			pConn, err := newProxyProtocolConn(conn)
 			if err != nil {
-				// log only actual errors
 				if !errors.Is(err, io.EOF) {
 					proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ln.Addr(), err)
 				}
