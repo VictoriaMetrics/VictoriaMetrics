@@ -53,7 +53,7 @@ export const TipHighNumberOfSeries: FC = () => (
          You can find unused metrics and <Link href='https://docs.victoriametrics.com/relabeling.html'>drop entire metrics</Link>
       </li>
       <li>
-        You can replace a large number of underlying series with a single rolled up value
+          You can replace a large number of underlying series with <Link href='https://docs.victoriametrics.com/stream-aggregation.html'>streaming aggregation</Link>
       </li>
     </ul>
   </TipCard>
