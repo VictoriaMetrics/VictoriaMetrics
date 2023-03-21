@@ -637,18 +637,19 @@ provide the following tools for debugging target-level and metric-level relabeli
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug target relabeling` link at the target, which must be debugged.
-  The opened page will show step-by-step results for the actual target relabeling rules applied to the discovered target labels.
+  The opened page shows step-by-step results for the actual target relabeling rules applied to the discovered target labels.
+  The page shows also the target URL generated after applying all the relabeling rules.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
   is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
   (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
-  and click the `debug` link there. The opened page will show step-by-step results for the actual relabeling rules,
+  and click the `debug` link there. The opened page shows step-by-step results for the actual relabeling rules,
   which result to target drop.
 
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug metrics relabeling` link at the target, which must be debugged.
-  The opened page will show step-by-step results for the actual metric relabeling rules applied to the given target labels.
+  The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
 
 ## Prometheus staleness markers
 

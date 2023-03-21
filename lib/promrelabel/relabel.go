@@ -49,7 +49,7 @@ type DebugStep struct {
 	// Rule contains string representation of the rule step
 	Rule string
 
-	// In contains the input labels before the exeuction of the rule step
+	// In contains the input labels before the execution of the rule step
 	In string
 
 	// Out contains the output labels after the execution of the rule step
