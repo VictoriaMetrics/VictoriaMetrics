@@ -181,6 +181,7 @@ func Init() {
 			relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 			logger.Infof("Successfully reloaded relabel configs")
 
+			logger.Infof("reloading stream agg configs pointed by -remoteWrite.streamAggr.config")
 			err = saConfigLoader.ReloadConfigs()
 			if err != nil {
 				logger.Errorf("Cannot reload stream aggregation configs: %s", err)
