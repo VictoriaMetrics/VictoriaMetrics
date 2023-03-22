@@ -18,6 +18,8 @@ var (
 	procDisk  = kernelDLL.MustFindProc("GetDiskFreeSpaceExW")
 )
 
+// at windows only files could be synced
+// Sync for directories is not supported.
 func mustSyncPath(path string) {
 }
 
