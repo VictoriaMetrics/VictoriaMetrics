@@ -83,11 +83,10 @@ func (ph *partHeader) ParseFromPath(path string) error {
 	path = filepath.Clean(path)
 
 	// Extract encoded part name.
-	n := strings.LastIndexByte(path, '/')
-	if n < 0 {
+	dir, partName := filepath.Split(path)
+	if len(dir) == 0 {
 		return fmt.Errorf("cannot find encoded part name in the path %q", path)
 	}
-	partName := path[n+1:]
 
 	// PartName must have the following form:
 	// RowsCount_BlocksCount_MinTimestamp_MaxTimestamp_Garbage
