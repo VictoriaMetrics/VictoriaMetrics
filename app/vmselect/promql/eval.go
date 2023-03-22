@@ -1200,6 +1200,21 @@ func evalRollupWithIncrementalAggregate(qt *querytracer.Tracer, funcName string,
 	return tss, nil
 }
 
+var tspPool sync.Pool
+
+func getTimeseriesPadded() *timeseriesWithPadding {
+	v := tspPool.Get()
+	if v == nil {
+		return &timeseriesWithPadding{}
+	}
+	return v.(*timeseriesWithPadding)
+}
+
+func putTimeseriesPadded(tsp *timeseriesWithPadding) {
+	tsp.tss = tsp.tss[:0]
+	tspPool.Put(tsp)
+}
+
 type timeseriesWithPadding struct {
 	tss []*timeseries
 
@@ -1212,7 +1227,12 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
 	defer qt.Done()
-	seriesByWorkerID := make([]timeseriesWithPadding, netstorage.MaxWorkers())
+
+	seriesByWorkerID := make([]*timeseriesWithPadding, 0, netstorage.MaxWorkers())
+	for i := 0; i < netstorage.MaxWorkers(); i++ {
+		seriesByWorkerID = append(seriesByWorkerID, getTimeseriesPadded())
+	}
+
 	var samplesScannedTotal uint64
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
@@ -1237,6 +1257,7 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
 	for i := range seriesByWorkerID {
 		tss = append(tss, seriesByWorkerID[i].tss...)
+		putTimeseriesPadded(seriesByWorkerID[i])
 	}
 
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
