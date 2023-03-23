@@ -39,11 +39,10 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
              are two distinct series, since they differ by the city label.`
     },
     {
-      title: "Percentage of total series",
+      title: "Percentage from total",
       value: isNaN(progress) ? "-" : `${progress.toFixed(2)}%`,
       display: isMetric,
-      info: `Count all time series with metric and express that as a percentage 
-             of the total number of time series.`
+      info: "The share of these series in the total number of time series."
     }
   ].filter(t => t.display);
 
