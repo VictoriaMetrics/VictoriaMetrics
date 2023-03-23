@@ -160,8 +160,8 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
 	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
 		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
-		// Do not use fs.MustRemoveDirAtomic() here, since the cache directory may be mounted
-		// to a separate filesystem. In this case the fs.MustRemoveDirAtomic() will fail while
+		// Do not use fs.MustRemoveAll() here, since the cache directory may be mounted
+		// to a separate filesystem. In this case the fs.MustRemoveAll() will fail while
 		// trying to remove the mount root.
 		fs.RemoveDirContents(s.cachePath)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
@@ -306,12 +306,19 @@ func (s *Storage) DebugFlush() {
 }
 
 // CreateSnapshot creates snapshot for s and returns the snapshot name.
-func (s *Storage) CreateSnapshot() (string, error) {
+func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	logger.Infof("creating Storage snapshot for %q...", s.path)
 	startTime := time.Now()
 
 	s.snapshotLock.Lock()
 	defer s.snapshotLock.Unlock()
+
+	var dirsToRemoveOnError []string
+	defer func() {
+		for _, dir := range dirsToRemoveOnError {
+			fs.MustRemoveAll(dir)
+		}
+	}()
 
 	snapshotName := snapshot.NewName()
 	srcDir := s.path
@@ -319,14 +326,17 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
 	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
+
+	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
+	if err != nil {
+		return "", fmt.Errorf("cannot create table snapshot: %w", err)
+	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
+
 	dstDataDir := dstDir + "/data"
 	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
-	}
-
-	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName)
-	if err != nil {
-		return "", fmt.Errorf("cannot create table snapshot: %w", err)
 	}
 	dstSmallDir := dstDataDir + "/small"
 	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
@@ -338,15 +348,23 @@ func (s *Storage) CreateSnapshot() (string, error) {
 	}
 	fs.MustSyncPath(dstDataDir)
 
+	srcMetadataDir := srcDir + "/metadata"
+	dstMetadataDir := dstDir + "/metadata"
+	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
+		return "", fmt.Errorf("cannot copy metadata: %w", err)
+	}
+
 	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
 	idb := s.idb()
 	currSnapshot := idbSnapshot + "/" + idb.name
-	if err := idb.tb.CreateSnapshotAt(currSnapshot); err != nil {
+	if err := idb.tb.CreateSnapshotAt(currSnapshot, deadline); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
+	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
+
 	ok := idb.doExtDB(func(extDB *indexDB) {
 		prevSnapshot := idbSnapshot + "/" + extDB.name
-		err = extDB.tb.CreateSnapshotAt(prevSnapshot)
+		err = extDB.tb.CreateSnapshotAt(prevSnapshot, deadline)
 	})
 	if ok && err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
@@ -356,15 +374,10 @@ func (s *Storage) CreateSnapshot() (string, error) {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
 	}
 
-	srcMetadataDir := srcDir + "/metadata"
-	dstMetadataDir := dstDir + "/metadata"
-	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
-		return "", fmt.Errorf("cannot copy metadata: %w", err)
-	}
-
 	fs.MustSyncPath(dstDir)
 
 	logger.Infof("created Storage snapshot for %q at %q in %.3f seconds", srcDir, dstDir, time.Since(startTime).Seconds())
+	dirsToRemoveOnError = nil
 	return snapshotName, nil
 }
 
@@ -1171,7 +1184,7 @@ func (s *Storage) prefetchMetricNames(qt *querytracer.Tracer, srcMetricIDs []uin
 			}
 		}
 	})
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return err
 	}
 	qt.Printf("pre-fetch metric names for %d metric ids", len(metricIDs))
@@ -2326,25 +2339,19 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	}
 	fs.MustRemoveTemporaryDirs(path)
 
-	d, err := os.Open(path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open directory: %w", err)
-	}
-	defer fs.MustClose(d)
-
 	// Search for the two most recent tables - the last one is active,
 	// the previous one contains backup data.
-	fis, err := d.Readdir(-1)
+	des, err := os.ReadDir(path)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot read directory: %w", err)
 	}
 	var tableNames []string
-	for _, fi := range fis {
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories.
 			continue
 		}
-		tableName := fi.Name()
+		tableName := de.Name()
 		if !indexDBTableNameRegexp.MatchString(tableName) {
 			// Skip invalid directories.
 			continue
@@ -2370,7 +2377,7 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	for _, tn := range tableNames[:len(tableNames)-2] {
 		pathToRemove := path + "/" + tn
 		logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-		fs.MustRemoveDirAtomic(pathToRemove)
+		fs.MustRemoveAll(pathToRemove)
 		logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 	}
 

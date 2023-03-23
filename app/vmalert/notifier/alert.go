@@ -111,11 +111,7 @@ func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string
 		ActiveAt: a.ActiveAt,
 		For:      a.For,
 	}
-	tmpl, err := templates.GetWithFuncs(templates.FuncsWithQuery(q))
-	if err != nil {
-		return nil, fmt.Errorf("error getting a template: %w", err)
-	}
-	return templateAnnotations(annotations, tplData, tmpl, true)
+	return ExecTemplate(q, annotations, tplData)
 }
 
 // ExecTemplate executes the given template for given annotations map.

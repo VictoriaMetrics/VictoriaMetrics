@@ -142,7 +142,9 @@ func openTable(path string, s *Storage) (*table, error) {
 }
 
 // CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
-func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
+// If deadline is reached before snapshot is created error is returned.
+// If any error occurs during snapshot created data is not removed.
+func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, string, error) {
 	logger.Infof("creating table snapshot of %q...", tb.path)
 	startTime := time.Now()
 
@@ -155,13 +157,22 @@ func (tb *table) CreateSnapshot(snapshotName string) (string, string, error) {
 	}
 	dstBigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstBigDir); err != nil {
+		fs.MustRemoveAll(dstSmallDir)
 		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
 	}
 
 	for _, ptw := range ptws {
+		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
+			fs.MustRemoveAll(dstSmallDir)
+			fs.MustRemoveAll(dstBigDir)
+			return "", "", fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
+		}
+
 		smallPath := dstSmallDir + "/" + ptw.pt.name
 		bigPath := dstBigDir + "/" + ptw.pt.name
 		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
+			fs.MustRemoveAll(dstSmallDir)
+			fs.MustRemoveAll(dstBigDir)
 			return "", "", fmt.Errorf("cannot create snapshot for partition %q in %q: %w", ptw.pt.name, tb.path, err)
 		}
 	}
@@ -455,7 +466,7 @@ func (tb *table) finalDedupWatcher() {
 		timestamp := timestampFromTime(time.Now())
 		currentPartitionName := timestampToPartitionName(timestamp)
 		for _, ptw := range ptws {
-			if ptw.pt.name == currentPartitionName {
+			if ptw.pt.name == currentPartitionName || !ptw.pt.isFinalDedupNeeded() {
 				// Do not run final dedup for the current month.
 				continue
 			}
@@ -524,22 +535,16 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 }
 
 func populatePartitionNames(partitionsPath string, ptNames map[string]bool) error {
-	d, err := os.Open(partitionsPath)
+	des, err := os.ReadDir(partitionsPath)
 	if err != nil {
-		return fmt.Errorf("cannot open directory with partitions: %w", err)
+		return fmt.Errorf("cannot read directory with partitions: %w", err)
 	}
-	defer fs.MustClose(d)
-
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		return fmt.Errorf("cannot read directory with partitions %q: %w", partitionsPath, err)
-	}
-	for _, fi := range fis {
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories
 			continue
 		}
-		ptName := fi.Name()
+		ptName := de.Name()
 		if ptName == "snapshots" {
 			// Skip directory with snapshots
 			continue

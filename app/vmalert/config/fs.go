@@ -2,9 +2,11 @@ package config
 
 import (
 	"fmt"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
 )
 
 // FS represent a file system abstract for reading files.
@@ -15,10 +17,13 @@ type FS interface {
 	// String must return human-readable representation of FS.
 	String() string
 
+	// List returns the list of file names which will be read via Read fn
+	List() ([]string, error)
+
 	// Read returns a list of read files in form of a map
 	// where key is a file name and value is a content of read file.
 	// Read must be called only after the successful Init call.
-	Read() (map[string][]byte, error)
+	Read(files []string) (map[string][]byte, error)
 }
 
 var (
@@ -54,10 +59,24 @@ func readFromFS(paths []string) (map[string][]byte, error) {
 		}
 		fsRegistryMu.Unlock()
 
-		files, err := fs.Read()
+		list, err := fs.List()
+		if err != nil {
+			return nil, fmt.Errorf("failed to list files from %q", fs)
+		}
+
+		cLogger.Infof("found %d files to read from %q", len(list), fs)
+
+		if len(list) < 1 {
+			continue
+		}
+
+		ts := time.Now()
+		files, err := fs.Read(list)
 		if err != nil {
 			return nil, fmt.Errorf("error while reading files from %q: %w", fs, err)
 		}
+		cLogger.Infof("finished reading %d files in %v from %q", len(list), time.Since(ts), fs)
+
 		for k, v := range files {
 			if _, ok := result[k]; ok {
 				return nil, fmt.Errorf("duplicate found for file name %q: file names must be unique", k)

@@ -13,10 +13,6 @@
     padding: $padding-small 0;
   }
 
-  &-tabs.vm-block {
-    padding: $padding-global;
-  }
-
   &-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -24,18 +20,26 @@
     justify-content: flex-start;
     font-size: $font-size-small;
     gap: $padding-small;
-    white-space: nowrap;
     overflow: hidden;
+
+    @media (max-width: 768px) {
+      padding: 0 $padding-global;
+    }
 
     &__tab {
       padding: $padding-small $padding-global;
       border-radius: $border-radius-medium;
       cursor: pointer;
       transition: background 200ms ease-in-out, color 150ms ease-in;
-      background: $color-white;
+      background: $color-background-block;
       text-transform: uppercase;
-      color: rgba($color-black, 0.2);
+      color: $color-text-secondary;
+      text-align: center;
       border: 1px solid rgba($color-black, 0.2);
+
+      @media (max-width: 500px) {
+        flex-grow: 1;
+      }
 
       &:hover {
         color: $color-primary;

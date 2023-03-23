@@ -2,7 +2,6 @@ import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { ChangeEvent } from "react";
 import Trace from "../../components/TraceQuery/Trace";
 import TracingsView from "../../components/TraceQuery/TracingsView";
-import Tooltip from "../../components/Main/Tooltip/Tooltip";
 import Button from "../../components/Main/Button/Button";
 import Alert from "../../components/Main/Alert/Alert";
 import "./style.scss";
@@ -11,6 +10,8 @@ import Modal from "../../components/Main/Modal/Modal";
 import JsonForm from "./JsonForm/JsonForm";
 import { ErrorTypes } from "../../types";
 import { useSearchParams } from "react-router-dom";
+import useDropzone from "../../hooks/useDropzone";
+import TraceUploadButtons from "./TraceUploadButtons/TraceUploadButtons";
 
 const TracePage: FC = () => {
   const [openModal, setOpenModal] = useState(false);
@@ -46,9 +47,7 @@ const TracePage: FC = () => {
     }
   };
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setErrors([]);
-    const files = Array.from(e.target.files || []);
+  const handleReadFiles = (files: File[]) => {
     files.map(f => {
       const reader = new FileReader();
       const filename = f?.name || "";
@@ -58,6 +57,12 @@ const TracePage: FC = () => {
       };
       reader.readAsText(f);
     });
+  };
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setErrors([]);
+    const files = Array.from(e.target.files || []);
+    handleReadFiles(files);
     e.target.value = "";
   };
 
@@ -78,29 +83,12 @@ const TracePage: FC = () => {
     setSearchParams({});
   }, []);
 
-  const UploadButtons = () => (
-    <div className="vm-trace-page-controls">
-      <Button
-        variant="outlined"
-        onClick={handleOpenModal}
-      >
-        Paste JSON
-      </Button>
-      <Tooltip title="The file must contain tracing information in JSON format">
-        <Button>
-          Upload Files
-          <input
-            id="json"
-            type="file"
-            accept="application/json"
-            multiple
-            title=" "
-            onChange={handleChange}
-          />
-        </Button>
-      </Tooltip>
-    </div>
-  );
+
+  const { files, dragging } = useDropzone(document.body);
+
+  useEffect(() => {
+    handleReadFiles(files);
+  }, [files]);
 
   return (
     <div className="vm-trace-page">
@@ -126,7 +114,12 @@ const TracePage: FC = () => {
           ))}
         </div>
         <div>
-          {hasTraces && <UploadButtons/>}
+          {hasTraces && (
+            <TraceUploadButtons
+              onOpenModal={handleOpenModal}
+              onChange={handleChange}
+            />
+          )}
         </div>
       </div>
 
@@ -158,8 +151,13 @@ const TracePage: FC = () => {
             </a>
             {"\n"}
             Tracing graph will be displayed after file upload.
+            {"\n"}
+            Attach files by dragging & dropping, selecting or pasting them.
           </p>
-          <UploadButtons/>
+          <TraceUploadButtons
+            onOpenModal={handleOpenModal}
+            onChange={handleChange}
+          />
         </div>
       )}
 
@@ -176,6 +174,10 @@ const TracePage: FC = () => {
             onUpload={handleOnload}
           />
         </Modal>
+      )}
+
+      {dragging && (
+        <div className="vm-trace-page__dropzone"/>
       )}
     </div>
   );

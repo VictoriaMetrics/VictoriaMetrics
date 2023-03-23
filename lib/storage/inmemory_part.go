@@ -56,8 +56,8 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
 		return fmt.Errorf("cannot store metaindex: %w", err)
 	}
-	if err := mp.ph.writeMinDedupInterval(path); err != nil {
-		return fmt.Errorf("cannot store min dedup interval: %w", err)
+	if err := mp.ph.WriteMetadata(path); err != nil {
+		return fmt.Errorf("cannot store metadata: %w", err)
 	}
 	// Sync parent directory in order to make sure the written files remain visible after hardware reset
 	parentDirPath := filepath.Dir(path)

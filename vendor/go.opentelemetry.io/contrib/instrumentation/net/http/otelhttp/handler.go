@@ -134,7 +134,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		trace.WithAttributes(httpconv.ServerRequest(h.server, r)...),
 	}
 	if h.server != "" {
-		hostAttr := semconv.NetHostNameKey.String(h.server)
+		hostAttr := semconv.NetHostName(h.server)
 		opts = append(opts, trace.WithAttributes(hostAttr))
 	}
 	opts = append(opts, h.spanStartOptions...)
@@ -217,7 +217,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Add metrics
 	attributes := append(labeler.Get(), httpconv.ServerRequest(h.server, r)...)
 	if rww.statusCode > 0 {
-		attributes = append(attributes, semconv.HTTPStatusCodeKey.Int(rww.statusCode))
+		attributes = append(attributes, semconv.HTTPStatusCode(rww.statusCode))
 	}
 	h.counters[RequestContentLength].Add(ctx, bw.read, attributes...)
 	h.counters[ResponseContentLength].Add(ctx, rww.written, attributes...)
@@ -243,7 +243,7 @@ func setAfterServeAttributes(span trace.Span, read, wrote int64, statusCode int,
 		attributes = append(attributes, WroteBytesKey.Int64(wrote))
 	}
 	if statusCode > 0 {
-		attributes = append(attributes, semconv.HTTPStatusCodeKey.Int(statusCode))
+		attributes = append(attributes, semconv.HTTPStatusCode(statusCode))
 	}
 	span.SetStatus(httpconv.ServerStatus(statusCode))
 
@@ -258,7 +258,7 @@ func setAfterServeAttributes(span trace.Span, read, wrote int64, statusCode int,
 func WithRouteTag(route string, h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		span := trace.SpanFromContext(r.Context())
-		span.SetAttributes(semconv.HTTPRouteKey.String(route))
+		span.SetAttributes(semconv.HTTPRoute(route))
 		h.ServeHTTP(w, r)
 	})
 }
