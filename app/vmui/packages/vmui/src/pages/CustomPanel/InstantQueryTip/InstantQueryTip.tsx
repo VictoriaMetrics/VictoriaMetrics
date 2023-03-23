@@ -1,28 +1,28 @@
 import React, { FC } from "preact/compat";
+import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 
-const InstantQueryTip: FC = () => {
+const last_over_time = <Hyperlink
+  text="last_over_time"
+  href="https://docs.victoriametrics.com/MetricsQL.html#last_over_time"
+  underlined
+/>;
 
-  return (
-    <div>
-      <p>
-        This tab use <a
-          className="vm-link vm-link_colored vm-link_underlined"
-          href="https://docs.victoriametrics.com/keyConcepts.html#instant-query"
-          target="_blank"
-          rel="help noreferrer"
-        >instant query</a> that tries to locate a data sample is equal to <b>5m</b>.
-        We have intentionally done this to ensure compatibility with Prometheus.
-      </p>
-      <p>
-        You can change the <b>time range</b> or use <a
-          className="vm-link vm-link_colored vm-link_underlined"
-          href="https://docs.victoriametrics.com/MetricsQL.html#last_over_time"
-          target="_blank"
-          rel="help noreferrer"
-        >last_over_time</a>.
-      </p>
-    </div>
-  );
-};
+const instant_query = <Hyperlink
+  text="instant query"
+  href="https://docs.victoriametrics.com/MetricsQL.html#last_over_time"
+  underlined
+/>;
+
+const InstantQueryTip: FC = () => (
+  <div>
+    <p>
+      This tab use {instant_query} that tries to locate a data sample is equal to <b>5m</b>.
+      We have intentionally done this to ensure compatibility with Prometheus.
+    </p>
+    <p>
+      You can change the <b>time range</b> or use {last_over_time} .
+    </p>
+  </div>
+);
 
 export default InstantQueryTip;
