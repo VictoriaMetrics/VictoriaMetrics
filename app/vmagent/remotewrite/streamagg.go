@@ -32,18 +32,12 @@ type SaConfigRules = []*streamaggr.Config
 
 type SaConfigLoader struct {
 	files   []string
-	chans   []chan SaConfigRules
 	configs atomic.Pointer[[]saConfig]
 }
 
 // NewSaConfigLoader creates new SaConfigLoader for the given config files.
 func NewSaConfigLoader(configFiles []string) (*SaConfigLoader, error) {
-	var chans = make([]chan SaConfigRules, len(configFiles))
-	for i := range chans {
-		chans[i] = make(chan SaConfigRules)
-	}
 	result := &SaConfigLoader{
-		chans: chans,
 		files: configFiles,
 	}
 	// Initial load of configs.
@@ -81,18 +75,7 @@ func (r *SaConfigLoader) ReloadConfigs() error {
 	}
 
 	// Update configs.
-	old := r.configs.Swap(&configs)
-	// If it is the initial load, then don't notify the consumers about the configs.
-	if old != nil {
-		for i, ch := range r.chans {
-			// Skip sending configs to ch if they haven't changed.
-			if (*old)[i].hash == configs[i].hash {
-				continue
-			}
-			// Notify the consumer about the new configs.
-			ch <- configs[i].rules
-		}
-	}
+	r.configs.Store(&configs)
 
 	saCfgSuccess.Set(1)
 	saCfgTimestamp.Set(fasttime.UnixTimestamp())
@@ -100,18 +83,24 @@ func (r *SaConfigLoader) ReloadConfigs() error {
 }
 
 // GetCurrentConfig returns the current stream aggregation config with the given idx.
-func (r *SaConfigLoader) GetCurrentConfig(idx int) SaConfigRules {
+func (r *SaConfigLoader) GetCurrentConfig(idx int) (SaConfigRules, uint64) {
 	all := r.configs.Load()
 	if all == nil {
-		panic("BUG: SaConfigLoader.GetCurrentConfig called before SaConfigLoader.ReloadConfigs")
+		return nil, 0
 	}
-	cfg := (*all)[idx]
-	return cfg.rules
-}
-
-// UpdatesCh returns channel for receiving updates for the stream aggregation config with the given idx.
-func (r *SaConfigLoader) UpdatesCh(idx int) chan SaConfigRules {
-	return r.chans[idx]
+	cfgs := *all
+	if len(cfgs) == 0 {
+		return nil, 0
+	}
+	if idx >= len(cfgs) {
+		if len(cfgs) == 1 {
+			cfg := cfgs[0]
+			return cfg.rules, cfg.hash
+		}
+		return nil, 0
+	}
+	cfg := cfgs[idx]
+	return cfg.rules, cfg.hash
 }
 
 type saConfig struct {

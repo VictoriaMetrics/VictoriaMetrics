@@ -186,6 +186,19 @@ func Init() {
 			if err != nil {
 				logger.Errorf("Cannot reload stream aggregation configs: %s", err)
 			}
+			if len(*remoteWriteMultitenantURLs) > 0 {
+				rwctxsMapLock.Lock()
+				for _, rwctxs := range rwctxsMap {
+					for _, rwctx := range rwctxs {
+						rwctx.reinitStreamAggr()
+					}
+				}
+				rwctxsMapLock.Unlock()
+			} else {
+				for _, rwctx := range rwctxsDefault {
+					rwctx.reinitStreamAggr()
+				}
+			}
 			logger.Infof("Successfully reloaded stream aggregation configs")
 		}
 	}()
@@ -456,6 +469,7 @@ type remoteWriteCtx struct {
 	c   *client
 
 	sas                 *streamaggr.Aggregators
+	saHash              uint64
 	streamAggrKeepInput bool
 
 	pss        []*pendingSeries
@@ -515,31 +529,17 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	}
 
 	// Initialize sas
-	sacfg := saConfigLoader.GetCurrentConfig(argIdx)
-	if len(sacfg) > 0 {
+	saCfg, saHash := saConfigLoader.GetCurrentConfig(argIdx)
+	if len(saCfg) > 0 {
 		sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 		dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(argIdx, 0)
-		sas, err := streamaggr.NewAggregators(sacfg, rwctx.pushInternal, dedupInterval)
+		sas, err := streamaggr.NewAggregators(saCfg, rwctx.pushInternal, dedupInterval)
 		if err != nil {
 			logger.Fatalf("cannot initialize stream aggregators from -remoteWrite.streamAggrFile=%q: %s", sasFile, err)
 		}
 		rwctx.sas = sas
+		rwctx.saHash = saHash
 		rwctx.streamAggrKeepInput = streamAggrKeepInput.GetOptionalArg(argIdx)
-
-		configReloaderWG.Add(1)
-		go func() {
-			defer configReloaderWG.Done()
-			for {
-				select {
-				case <-stopCh:
-					return
-				case c := <-saConfigLoader.UpdatesCh(argIdx): // wait for updates after config reload
-					if err := rwctx.sas.ReInitConfigs(c); err != nil {
-						logger.Errorf("cannot reinit stream aggregation config from -remoteWrite.streamAggrFile=%q: %s", sasFile, err)
-					}
-				}
-			}
-		}()
 	}
 
 	return rwctx
@@ -604,6 +604,20 @@ func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
 	pss := rwctx.pss
 	idx := atomic.AddUint64(&rwctx.pssNextIdx, 1) % uint64(len(pss))
 	pss[idx].Push(tss)
+}
+
+func (rwctx *remoteWriteCtx) reinitStreamAggr() {
+	if rwctx.sas == nil {
+		return
+	}
+	saCfg, saHash := saConfigLoader.GetCurrentConfig(rwctx.idx)
+	if rwctx.saHash == saHash {
+		return
+	}
+	if err := rwctx.sas.ReInitConfigs(saCfg); err != nil {
+		logger.Errorf("Cannot apply stream aggregation configs %d: %s", rwctx.idx, err)
+	}
+	rwctx.saHash = saHash
 }
 
 var tssRelabelPool = &sync.Pool{

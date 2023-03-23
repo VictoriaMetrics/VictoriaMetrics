@@ -228,7 +228,7 @@ func (a *Aggregators) ReInitConfigs(cfgs []*Config) error {
 	for _, cfg := range cfgs {
 		key, err := cfg.hash()
 		if err != nil {
-			return fmt.Errorf("cannot marshal config '%+v': %w", cfg, err)
+			return fmt.Errorf("unable to calculate hash for config '%+v': %w", cfg, err)
 		}
 		keys[key] = struct{}{}
 		cfgsMap[key] = cfg
