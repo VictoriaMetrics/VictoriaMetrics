@@ -58,6 +58,8 @@
   &__error {
     top: calc((100% - ($font-size-small/2)) - 2px);
     color: $color-error;
+    pointer-events: auto;
+    user-select: text;
   }
 
   &__helper-text {
