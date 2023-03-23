@@ -1,16 +1,15 @@
-import { ChangeEvent, MouseEvent, ReactNode } from "react";
+import { MouseEvent, ReactNode } from "react";
 
 export type Order = "asc" | "desc";
 
 export interface HeadCell {
   id: string;
   label: string | ReactNode;
+  info?: string;
 }
 
 export interface EnhancedHeaderTableProps {
-  numSelected: number;
   onRequestSort: (event: MouseEvent<unknown>, property: keyof Data) => void;
-  onSelectAllClick: (event: ChangeEvent<HTMLInputElement>) => void;
   order: Order;
   orderBy: string;
   rowCount: number;
