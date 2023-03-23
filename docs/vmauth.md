@@ -264,6 +264,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
      Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
+  -configCheckInterval duration
+     Interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
