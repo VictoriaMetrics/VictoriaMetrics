@@ -67,7 +67,7 @@ const MetricsContent: FC<MetricsProperties> = ({
             "vm-section-header__title_mobile": isMobile,
           })}
         >
-          {tip && (
+          {!isMobile && tip && (
             <Tooltip
               title={<p
                 dangerouslySetInnerHTML={{ __html: tip }}
