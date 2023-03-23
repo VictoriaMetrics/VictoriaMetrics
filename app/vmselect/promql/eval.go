@@ -905,8 +905,12 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	if err != nil {
 		return nil, err
 	}
-	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
-	var tssLock sync.Mutex
+
+	seriesByWorkerID := make([]*timeseriesWithPadding, 0, netstorage.MaxWorkers())
+	for i := 0; i < netstorage.MaxWorkers(); i++ {
+		seriesByWorkerID = append(seriesByWorkerID, getTimeseriesPadded())
+	}
+
 	var samplesScannedTotal uint64
 	keepMetricNames := getKeepMetricNames(expr)
 	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64) {
@@ -916,20 +920,22 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
 				samplesScanned := rc.DoTimeseriesMap(tsm, values, timestamps)
 				atomic.AddUint64(&samplesScannedTotal, samplesScanned)
-				tssLock.Lock()
-				tss = tsm.AppendTimeseriesTo(tss)
-				tssLock.Unlock()
+				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
 				continue
 			}
 			var ts timeseries
 			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps)
 			atomic.AddUint64(&samplesScannedTotal, samplesScanned)
-			tssLock.Lock()
-			tss = append(tss, &ts)
-			tssLock.Unlock()
+			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
 		}
 		return values, timestamps
 	})
+	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
+	for i := range seriesByWorkerID {
+		tss = append(tss, seriesByWorkerID[i].tss...)
+		putTimeseriesPadded(seriesByWorkerID[i])
+	}
+
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
 	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal)
 	return tss, nil
