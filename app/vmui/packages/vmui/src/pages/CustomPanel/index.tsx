@@ -41,7 +41,9 @@ const CustomPanel: FC = () => {
   const graphDispatch = useGraphDispatch();
 
   const { queryOptions } = useFetchQueryOptions();
-  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
+  const {
+    isLoading, liveData, graphData, error, queryErrors, warning, traces
+  } = useFetchQuery({
     visible: true,
     customStep,
     hideQuery,
@@ -99,7 +101,7 @@ const CustomPanel: FC = () => {
       })}
     >
       <QueryConfigurator
-        error={!hideError ? error : ""}
+        errors={!hideError ? queryErrors : []}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
