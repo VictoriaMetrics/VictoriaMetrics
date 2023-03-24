@@ -152,8 +152,6 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 		idx := (i + workerID) % uint(len(workChs))
 		ch := workChs[idx]
 		for len(ch) > 0 {
-			// Give a chance other goroutines to perform their work.
-			runtime.Gosched()
 			// It is expected that every channel in the workChs is already closed,
 			// so the next line should return immediately.
 			tsw, ok := <-ch
