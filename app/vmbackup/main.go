@@ -49,6 +49,11 @@ func main() {
 	logger.Init()
 	pushmetrics.Init()
 
+	// Storing snapshot delete function to be able to call it in case
+	// of error since logger.Fatal will exit the program without
+	// calling deferred functions.
+	var deleteSnapshot func()
+
 	if len(*snapshotCreateURL) > 0 {
 		// create net/url object
 		createURL, err := url.Parse(*snapshotCreateURL)
@@ -80,12 +85,14 @@ func main() {
 			logger.Fatalf("cannot set snapshotName flag: %v", err)
 		}
 
-		defer func() {
+		deleteSnapshot = func() {
 			err := snapshot.Delete(deleteURL.String(), name)
 			if err != nil {
 				logger.Fatalf("cannot delete snapshot: %s", err)
 			}
-		}()
+		}
+
+		defer deleteSnapshot()
 	} else if len(*snapshotName) == 0 {
 		logger.Fatalf("`-snapshotName` or `-snapshot.createURL` must be provided")
 	}
@@ -97,14 +104,17 @@ func main() {
 
 	srcFS, err := newSrcFS()
 	if err != nil {
+		deleteSnapshot()
 		logger.Fatalf("%s", err)
 	}
 	dstFS, err := newDstFS()
 	if err != nil {
+		deleteSnapshot()
 		logger.Fatalf("%s", err)
 	}
 	originFS, err := newOriginFS()
 	if err != nil {
+		deleteSnapshot()
 		logger.Fatalf("%s", err)
 	}
 	a := &actions.Backup{
@@ -114,6 +124,7 @@ func main() {
 		Origin:      originFS,
 	}
 	if err := a.Run(); err != nil {
+		deleteSnapshot()
 		logger.Fatalf("cannot create backup: %s", err)
 	}
 	srcFS.MustStop()
@@ -123,6 +134,7 @@ func main() {
 	startTime := time.Now()
 	logger.Infof("gracefully shutting down http server for metrics at %q", *httpListenAddr)
 	if err := httpserver.Stop(*httpListenAddr); err != nil {
+		deleteSnapshot()
 		logger.Fatalf("cannot stop http server for metrics: %s", err)
 	}
 	logger.Infof("successfully shut down http server for metrics in %.3f seconds", time.Since(startTime).Seconds())
