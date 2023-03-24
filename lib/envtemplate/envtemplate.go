@@ -113,4 +113,4 @@ func isValidEnvVarName(s string) bool {
 	return envVarNameRegex.MatchString(s)
 }
 
-var envVarNameRegex = regexp.MustCompile("^[a-zA-Z0-9_]+$")
+var envVarNameRegex = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_\-.]*$`)
