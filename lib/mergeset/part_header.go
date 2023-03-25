@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -81,7 +82,7 @@ func (ph *partHeader) ReadMetadata(partPath string) error {
 	ph.Reset()
 
 	// Read ph fields from metadata.
-	metadataPath := partPath + "/metadata.json"
+	metadataPath := filepath.Join(partPath, metadataFilename)
 	metadata, err := os.ReadFile(metadataPath)
 	if err != nil {
 		return fmt.Errorf("cannot read %q: %w", metadataPath, err)
@@ -123,7 +124,7 @@ func (ph *partHeader) WriteMetadata(partPath string) error {
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
-	metadataPath := partPath + "/metadata.json"
+	metadataPath := filepath.Join(partPath, metadataFilename)
 	if err := fs.WriteFileAtomically(metadataPath, metadata, false); err != nil {
 		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
 	}
