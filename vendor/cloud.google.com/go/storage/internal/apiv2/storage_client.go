@@ -24,7 +24,7 @@ import (
 	"regexp"
 	"strings"
 
-	"cloud.google.com/go/iam/apiv1/iampb"
+	iampb "cloud.google.com/go/iam/apiv1/iampb"
 	storagepb "cloud.google.com/go/storage/internal/apiv2/stubs"
 	gax "github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
