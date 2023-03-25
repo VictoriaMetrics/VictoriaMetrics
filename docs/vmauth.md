@@ -21,7 +21,12 @@ and pass the following flag to `vmauth` binary in order to start authorizing and
 After that `vmauth` starts accepting HTTP requests on port `8427` and routing them according to the provided [-auth.config](#auth-config).
 The port can be modified via `-httpListenAddr` command-line flag.
 
-The auth config can be reloaded either by passing `SIGHUP` signal to `vmauth` or by querying `/-/reload` http endpoint.
+The auth config can be reloaded via the following ways:
+
+- By passing `SIGHUP` signal to `vmauth`.
+- By querying `/-/reload` http endpoint. This endpoint can be protected with `-reloadAuthKey` command-line flag. See [security docs](#security) for more details.
+- By specifying `-configCheckInterval` command-line flag to the interval between config re-reads. For example, `-configCheckInterval=5s` will re-read the config
+  and apply new changes every 5 seconds.
 
 Docker images for `vmauth` are available [here](https://hub.docker.com/r/victoriametrics/vmauth/tags).
 
@@ -264,6 +269,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
      Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
+  -configCheckInterval duration
+     Interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
