@@ -1294,7 +1294,7 @@ type timeseriesByWorkerID struct {
 func (tsw *timeseriesByWorkerID) reset() {
 	byWorkerID := tsw.byWorkerID
 	for i := range byWorkerID {
-		tsw.byWorkerID[i].tss = nil
+		byWorkerID[i].tss = nil
 	}
 }
 
