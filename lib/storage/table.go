@@ -522,8 +522,8 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 	}
 	var pts []*partition
 	for ptName := range ptNames {
-		smallPartsPath := smallPartitionsPath + "/" + ptName
-		bigPartsPath := bigPartitionsPath + "/" + ptName
+		smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
+		bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
 		pt, err := openPartition(smallPartsPath, bigPartsPath, s)
 		if err != nil {
 			mustClosePartitions(pts)
