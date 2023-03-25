@@ -54,19 +54,19 @@ func openFilePart(path string) (*part, error) {
 		return nil, fmt.Errorf("cannot parse path to part: %w", err)
 	}
 
-	timestampsPath := path + "/timestamps.bin"
+	timestampsPath := filepath.Join(path, timestampsFilename)
 	timestampsFile := fs.MustOpenReaderAt(timestampsPath)
 	timestampsSize := fs.MustFileSize(timestampsPath)
 
-	valuesPath := path + "/values.bin"
+	valuesPath := filepath.Join(path, valuesFilename)
 	valuesFile := fs.MustOpenReaderAt(valuesPath)
 	valuesSize := fs.MustFileSize(valuesPath)
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile := fs.MustOpenReaderAt(indexPath)
 	indexSize := fs.MustFileSize(indexPath)
 
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile, err := filestream.Open(metaindexPath, true)
 	if err != nil {
 		timestampsFile.MustClose()

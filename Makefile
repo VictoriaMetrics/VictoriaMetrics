@@ -141,6 +141,8 @@ vmutils-windows-amd64: \
 	vmagent-windows-amd64 \
 	vmalert-windows-amd64 \
 	vmauth-windows-amd64 \
+	vmbackup-windows-amd64 \
+	vmrestore-windows-amd64 \
 	vmctl-windows-amd64
 
 victoria-metrics-crossbuild: \
@@ -309,23 +311,31 @@ release-vmutils-windows-goarch: \
 	vmagent-windows-$(GOARCH)-prod \
 	vmalert-windows-$(GOARCH)-prod \
 	vmauth-windows-$(GOARCH)-prod \
+	vmbackup-windows-$(GOARCH)-prod \
+	vmrestore-windows-$(GOARCH)-prod \
 	vmctl-windows-$(GOARCH)-prod
 	cd bin && \
 		zip vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
+			vmbackup-windows-$(GOARCH)-prod.exe \
+			vmrestore-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
 		&& sha256sum vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
+			vmbackup-windows-$(GOARCH)-prod.exe \
+			vmrestore-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
 			> vmutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		vmagent-windows-$(GOARCH)-prod.exe \
 		vmalert-windows-$(GOARCH)-prod.exe \
 		vmauth-windows-$(GOARCH)-prod.exe \
+		vmbackup-windows-$(GOARCH)-prod.exe \
+		vmrestore-windows-$(GOARCH)-prod.exe \
 		vmctl-windows-$(GOARCH)-prod.exe
 
 pprof-cpu:

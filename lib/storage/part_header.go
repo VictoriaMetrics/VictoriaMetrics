@@ -48,7 +48,7 @@ func (ph *partHeader) Reset() {
 }
 
 func (ph *partHeader) readMinDedupInterval(partPath string) error {
-	filePath := partPath + "/min_dedup_interval"
+	filePath := filepath.Join(partPath, "min_dedup_interval")
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -83,11 +83,7 @@ func (ph *partHeader) ParseFromPath(path string) error {
 	path = filepath.Clean(path)
 
 	// Extract encoded part name.
-	n := strings.LastIndexByte(path, '/')
-	if n < 0 {
-		return fmt.Errorf("cannot find encoded part name in the path %q", path)
-	}
-	partName := path[n+1:]
+	partName := filepath.Base(path)
 
 	// PartName must have the following form:
 	// RowsCount_BlocksCount_MinTimestamp_MaxTimestamp_Garbage
@@ -138,7 +134,7 @@ func (ph *partHeader) ParseFromPath(path string) error {
 func (ph *partHeader) ReadMetadata(partPath string) error {
 	ph.Reset()
 
-	metadataPath := partPath + "/metadata.json"
+	metadataPath := filepath.Join(partPath, metadataFilename)
 	metadata, err := os.ReadFile(metadataPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -174,7 +170,7 @@ func (ph *partHeader) WriteMetadata(partPath string) error {
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
-	metadataPath := partPath + "/metadata.json"
+	metadataPath := filepath.Join(partPath, metadataFilename)
 	if err := fs.WriteFileAtomically(metadataPath, metadata, false); err != nil {
 		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
 	}

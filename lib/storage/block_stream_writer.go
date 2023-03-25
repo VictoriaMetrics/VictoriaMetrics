@@ -104,14 +104,14 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	}
 
 	// Create part files in the directory.
-	timestampsPath := path + "/timestamps.bin"
+	timestampsPath := filepath.Join(path, timestampsFilename)
 	timestampsFile, err := filestream.Create(timestampsPath, nocache)
 	if err != nil {
 		fs.MustRemoveDirAtomic(path)
 		return fmt.Errorf("cannot create timestamps file: %w", err)
 	}
 
-	valuesPath := path + "/values.bin"
+	valuesPath := filepath.Join(path, valuesFilename)
 	valuesFile, err := filestream.Create(valuesPath, nocache)
 	if err != nil {
 		timestampsFile.MustClose()
@@ -119,7 +119,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		return fmt.Errorf("cannot create values file: %w", err)
 	}
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile, err := filestream.Create(indexPath, nocache)
 	if err != nil {
 		timestampsFile.MustClose()
@@ -130,7 +130,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile, err := filestream.Create(metaindexPath, false)
 	if err != nil {
 		timestampsFile.MustClose()

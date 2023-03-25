@@ -16,6 +16,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -147,7 +148,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 	s := &Storage{
 		path:           path,
-		cachePath:      path + "/cache",
+		cachePath:      filepath.Join(path, cacheDirname),
 		retentionMsecs: retentionMsecs,
 		stop:           make(chan struct{}),
 	}
@@ -156,10 +157,10 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 
 	// Check whether the cache directory must be removed
-	// It is removed if it contains reset_cache_on_startup file.
+	// It is removed if it contains resetCacheOnStartupFilename.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
-	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
-		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
+	if fs.IsPathExist(filepath.Join(s.cachePath, resetCacheOnStartupFilename)) {
+		logger.Infof("removing cache directory at %q, since it contains `%s` file...", s.cachePath, resetCacheOnStartupFilename)
 		// Do not use fs.MustRemoveAll() here, since the cache directory may be mounted
 		// to a separate filesystem. In this case the fs.MustRemoveAll() will fail while
 		// trying to remove the mount root.
@@ -176,13 +177,13 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.flockF = flockF
 
 	// Check whether restore process finished successfully
-	restoreLockF := path + "/restore-in-progress"
+	restoreLockF := filepath.Join(path, backupnames.RestoreInProgressFilename)
 	if fs.IsPathExist(restoreLockF) {
 		return nil, fmt.Errorf("restore lock file exists, incomplete vmrestore run. Run vmrestore again or remove lock file %q", restoreLockF)
 	}
 
 	// Pre-create snapshots directory if it is missing.
-	snapshotsPath := path + "/snapshots"
+	snapshotsPath := filepath.Join(path, snapshotsDirname)
 	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
 	}
@@ -218,16 +219,16 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.prefetchedMetricIDs.Store(&uint64set.Set{})
 
 	// Load metadata
-	metadataDir := path + "/metadata"
-	isEmptyDB := !fs.IsPathExist(path + "/indexdb")
+	metadataDir := filepath.Join(path, metadataDirname)
+	isEmptyDB := !fs.IsPathExist(filepath.Join(path, indexdbDirname))
 	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
 	}
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	// Load indexdb
-	idbPath := path + "/indexdb"
-	idbSnapshotsPath := idbPath + "/snapshots"
+	idbPath := filepath.Join(path, indexdbDirname)
+	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
 	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
 	}
@@ -252,7 +253,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.updateDeletedMetricIDs(dmisPrev)
 
 	// Load data
-	tablePath := path + "/data"
+	tablePath := filepath.Join(path, dataDirname)
 	tb, err := openTable(tablePath, s)
 	if err != nil {
 		s.idb().MustClose()
@@ -322,7 +323,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 
 	snapshotName := snapshot.NewName()
 	srcDir := s.path
-	dstDir := fmt.Sprintf("%s/snapshots/%s", srcDir, snapshotName)
+	dstDir := filepath.Join(srcDir, snapshotsDirname, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
 	}
@@ -334,42 +335,42 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	}
 	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
 
-	dstDataDir := dstDir + "/data"
+	dstDataDir := filepath.Join(dstDir, dataDirname)
 	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
 		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
 	}
-	dstSmallDir := dstDataDir + "/small"
+	dstSmallDir := filepath.Join(dstDataDir, smallDirname)
 	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", smallDir, dstSmallDir, err)
 	}
-	dstBigDir := dstDataDir + "/big"
+	dstBigDir := filepath.Join(dstDataDir, bigDirname)
 	if err := fs.SymlinkRelative(bigDir, dstBigDir); err != nil {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", bigDir, dstBigDir, err)
 	}
 	fs.MustSyncPath(dstDataDir)
 
-	srcMetadataDir := srcDir + "/metadata"
-	dstMetadataDir := dstDir + "/metadata"
+	srcMetadataDir := filepath.Join(srcDir, metadataDirname)
+	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
 	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
 		return "", fmt.Errorf("cannot copy metadata: %w", err)
 	}
 
-	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
+	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	idb := s.idb()
-	currSnapshot := idbSnapshot + "/" + idb.name
+	currSnapshot := filepath.Join(idbSnapshot, idb.name)
 	if err := idb.tb.CreateSnapshotAt(currSnapshot, deadline); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
 	ok := idb.doExtDB(func(extDB *indexDB) {
-		prevSnapshot := idbSnapshot + "/" + extDB.name
+		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot, deadline)
 	})
 	if ok && err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
-	dstIdbDir := dstDir + "/indexdb"
+	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
 	if err := fs.SymlinkRelative(idbSnapshot, dstIdbDir); err != nil {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
 	}
@@ -383,7 +384,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 
 // ListSnapshots returns sorted list of existing snapshots for s.
 func (s *Storage) ListSnapshots() ([]string, error) {
-	snapshotsPath := s.path + "/snapshots"
+	snapshotsPath := filepath.Join(s.path, snapshotsDirname)
 	d, err := os.Open(snapshotsPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open snapshots directory: %w", err)
@@ -410,13 +411,13 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 	if err := snapshot.Validate(snapshotName); err != nil {
 		return fmt.Errorf("invalid snapshotName %q: %w", snapshotName, err)
 	}
-	snapshotPath := s.path + "/snapshots/" + snapshotName
+	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
 
 	logger.Infof("deleting snapshot %q...", snapshotPath)
 	startTime := time.Now()
 
 	s.tb.MustDeleteSnapshot(snapshotName)
-	idbPath := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
+	idbPath := filepath.Join(s.path, indexdbDirname, snapshotsDirname, snapshotName)
 	fs.MustRemoveDirAtomic(idbPath)
 	fs.MustRemoveDirAtomic(snapshotPath)
 
@@ -723,7 +724,7 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
-	idbNewPath := s.path + "/indexdb/" + newTableName
+	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
 	rotationTimestamp := fasttime.UnixTimestamp()
 	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
 	if err != nil {
@@ -835,7 +836,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 		date: date,
 	}
 	name := "next_day_metric_ids"
-	path := s.cachePath + "/" + name
+	path := filepath.Join(s.cachePath, name)
 	logger.Infof("loading %s from %q...", name, path)
 	startTime := time.Now()
 	if !fs.IsPathExist(path) {
@@ -879,7 +880,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	hm := &hourMetricIDs{
 		hour: hour,
 	}
-	path := s.cachePath + "/" + name
+	path := filepath.Join(s.cachePath, name)
 	logger.Infof("loading %s from %q...", name, path)
 	startTime := time.Now()
 	if !fs.IsPathExist(path) {
@@ -921,7 +922,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	name := "next_day_metric_ids"
-	path := s.cachePath + "/" + name
+	path := filepath.Join(s.cachePath, name)
 	logger.Infof("saving %s to %q...", name, path)
 	startTime := time.Now()
 	dst := make([]byte, 0, e.v.Len()*8+16)
@@ -939,7 +940,7 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 }
 
 func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
-	path := s.cachePath + "/" + name
+	path := filepath.Join(s.cachePath, name)
 	logger.Infof("saving %s to %q...", name, path)
 	startTime := time.Now()
 	dst := make([]byte, 0, hm.m.Len()*8+24)
@@ -983,7 +984,7 @@ func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
 }
 
 func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {
-	path := metadataDir + "/minTimestampForCompositeIndex"
+	path := filepath.Join(metadataDir, "minTimestampForCompositeIndex")
 	minTimestamp, err := loadMinTimestampForCompositeIndex(path)
 	if err == nil {
 		return minTimestamp
@@ -1019,7 +1020,7 @@ func loadMinTimestampForCompositeIndex(path string) (int64, error) {
 }
 
 func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
-	path := s.cachePath + "/" + name
+	path := filepath.Join(s.cachePath, name)
 	logger.Infof("loading %s cache from %q...", info, path)
 	startTime := time.Now()
 	c := workingsetcache.Load(path, sizeBytes)
@@ -1034,7 +1035,7 @@ func (s *Storage) mustSaveCache(c *workingsetcache.Cache, info, name string) {
 	saveCacheLock.Lock()
 	defer saveCacheLock.Unlock()
 
-	path := s.cachePath + "/" + name
+	path := filepath.Join(s.cachePath, name)
 	logger.Infof("saving %s cache to %q...", info, path)
 	startTime := time.Now()
 	if err := c.Save(path); err != nil {
@@ -2375,7 +2376,7 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 
 	// Remove all the tables except two last tables.
 	for _, tn := range tableNames[:len(tableNames)-2] {
-		pathToRemove := path + "/" + tn
+		pathToRemove := filepath.Join(path, tn)
 		logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
 		fs.MustRemoveAll(pathToRemove)
 		logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
@@ -2385,13 +2386,13 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	fs.MustSyncPath(path)
 
 	// Open the last two tables.
-	currPath := path + "/" + tableNames[len(tableNames)-1]
+	currPath := filepath.Join(path, tableNames[len(tableNames)-1])
 
 	curr, err = openIndexDB(currPath, s, 0, &s.isReadOnly)
 	if err != nil {
 		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
 	}
-	prevPath := path + "/" + tableNames[len(tableNames)-2]
+	prevPath := filepath.Join(path, tableNames[len(tableNames)-2])
 	prev, err = openIndexDB(prevPath, s, 0, &s.isReadOnly)
 	if err != nil {
 		curr.MustClose()
