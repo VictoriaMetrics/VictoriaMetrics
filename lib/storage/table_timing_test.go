@@ -45,7 +45,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	b.SetBytes(int64(rowsCountExpected))
-	tablePath := "./benchmarkTableAddRows"
+	tablePath := "benchmarkTableAddRows"
 	strg := newTestStorage()
 	for i := 0; i < b.N; i++ {
 		tb, err := openTable(tablePath, strg)

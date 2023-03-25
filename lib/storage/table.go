@@ -95,23 +95,23 @@ func openTable(path string, s *Storage) (*table, error) {
 	}
 
 	// Create directories for small and big partitions if they don't exist yet.
-	smallPartitionsPath := path + "/small"
+	smallPartitionsPath := filepath.Join(path, smallDirname)
 	if err := fs.MkdirAllIfNotExist(smallPartitionsPath); err != nil {
 		return nil, fmt.Errorf("cannot create directory for small partitions %q: %w", smallPartitionsPath, err)
 	}
 	fs.MustRemoveTemporaryDirs(smallPartitionsPath)
-	smallSnapshotsPath := smallPartitionsPath + "/snapshots"
+	smallSnapshotsPath := filepath.Join(smallPartitionsPath, snapshotsDirname)
 	if err := fs.MkdirAllIfNotExist(smallSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", smallSnapshotsPath, err)
 	}
 	fs.MustRemoveTemporaryDirs(smallSnapshotsPath)
 
-	bigPartitionsPath := path + "/big"
+	bigPartitionsPath := filepath.Join(path, bigDirname)
 	if err := fs.MkdirAllIfNotExist(bigPartitionsPath); err != nil {
 		return nil, fmt.Errorf("cannot create directory for big partitions %q: %w", bigPartitionsPath, err)
 	}
 	fs.MustRemoveTemporaryDirs(bigPartitionsPath)
-	bigSnapshotsPath := bigPartitionsPath + "/snapshots"
+	bigSnapshotsPath := filepath.Join(bigPartitionsPath, snapshotsDirname)
 	if err := fs.MkdirAllIfNotExist(bigSnapshotsPath); err != nil {
 		return nil, fmt.Errorf("cannot create %q: %w", bigSnapshotsPath, err)
 	}
@@ -151,11 +151,11 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	ptws := tb.GetPartitions(nil)
 	defer tb.PutPartitions(ptws)
 
-	dstSmallDir := fmt.Sprintf("%s/small/snapshots/%s", tb.path, snapshotName)
+	dstSmallDir := filepath.Join(tb.path, smallDirname, snapshotsDirname, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstSmallDir); err != nil {
 		return "", "", fmt.Errorf("cannot create dir %q: %w", dstSmallDir, err)
 	}
-	dstBigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
+	dstBigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
 	if err := fs.MkdirAllFailIfExist(dstBigDir); err != nil {
 		fs.MustRemoveAll(dstSmallDir)
 		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
@@ -168,8 +168,8 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 			return "", "", fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
 
-		smallPath := dstSmallDir + "/" + ptw.pt.name
-		bigPath := dstBigDir + "/" + ptw.pt.name
+		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
+		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
 		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
 			fs.MustRemoveAll(dstSmallDir)
 			fs.MustRemoveAll(dstBigDir)
@@ -188,9 +188,9 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 
 // MustDeleteSnapshot deletes snapshot with the given snapshotName.
 func (tb *table) MustDeleteSnapshot(snapshotName string) {
-	smallDir := fmt.Sprintf("%s/small/snapshots/%s", tb.path, snapshotName)
+	smallDir := filepath.Join(tb.path, smallDirname, snapshotsDirname, snapshotName)
 	fs.MustRemoveDirAtomic(smallDir)
-	bigDir := fmt.Sprintf("%s/big/snapshots/%s", tb.path, snapshotName)
+	bigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
 	fs.MustRemoveDirAtomic(bigDir)
 }
 
@@ -545,7 +545,7 @@ func populatePartitionNames(partitionsPath string, ptNames map[string]bool) erro
 			continue
 		}
 		ptName := de.Name()
-		if ptName == "snapshots" {
+		if ptName == snapshotsDirname {
 			// Skip directory with snapshots
 			continue
 		}
