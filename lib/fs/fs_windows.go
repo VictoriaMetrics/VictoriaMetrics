@@ -58,8 +58,8 @@ func createFlockFile(flockFile string) (*os.File, error) {
 }
 
 var (
-	fileMappingMU     sync.Mutex
-	fileMappingByAddr = map[uintptr]windows.Handle{}
+	mmapByAddrLock sync.Mutex
+	mmapByAddr     = map[uintptr]windows.Handle{}
 )
 
 func mmap(fd int, length int) ([]byte, error) {
@@ -77,14 +77,15 @@ func mmap(fd int, length int) ([]byte, error) {
 		windows.CloseHandle(h)
 		return nil, os.NewSyscallError("MapViewOfFile", errno)
 	}
-	fileMappingMU.Lock()
-	fileMappingByAddr[addr] = h
-	fileMappingMU.Unlock()
 	data := make([]byte, 0)
 	hdr := (*reflect.SliceHeader)(unsafe.Pointer(&data))
 	hdr.Data = addr
 	hdr.Len = length
 	hdr.Cap = hdr.Len
+
+	mmapByAddrLock.Lock()
+	mmapByAddr[addr] = h
+	mmapByAddrLock.Unlock()
 
 	return data, nil
 }
@@ -94,20 +95,20 @@ func mUnmap(data []byte) error {
 	// In case of write, additional call FlushViewOfFile must be performed.
 	header := (*reflect.SliceHeader)(unsafe.Pointer(&data))
 	addr := header.Data
-	fileMappingMU.Lock()
-	defer fileMappingMU.Unlock()
-	if err := windows.UnmapViewOfFile(addr); err != nil {
-		return err
-	}
 
-	handle, ok := fileMappingByAddr[addr]
+	mmapByAddrLock.Lock()
+	h, ok := mmapByAddr[addr]
 	if !ok {
 		logger.Fatalf("BUG: unmapping for non exist addr: %d", addr)
 	}
-	delete(fileMappingByAddr, addr)
+	delete(mmapByAddr, addr)
+	mmapByAddrLock.Unlock()
 
-	e := windows.CloseHandle(handle)
-	return os.NewSyscallError("CloseHandle", e)
+	if err := windows.UnmapViewOfFile(addr); err != nil {
+		return fmt.Errorf("cannot unmap memory mapped file: %w", err)
+	}
+	errno := windows.CloseHandle(h)
+	return os.NewSyscallError("CloseHandle", errno)
 }
 
 func mustGetFreeSpace(path string) uint64 {
@@ -115,8 +116,7 @@ func mustGetFreeSpace(path string) uint64 {
 	r, _, err := procDisk.Call(uintptr(unsafe.Pointer(windows.StringToUTF16Ptr(path))),
 		uintptr(unsafe.Pointer(&freeBytes)))
 	if r == 0 {
-		logger.Errorf("cannot get free space for path: %q : %s", path, err)
-		return 0
+		logger.Panicf("FATAL: cannot get free space for %q : %s", path, err)
 	}
 	return uint64(freeBytes)
 }

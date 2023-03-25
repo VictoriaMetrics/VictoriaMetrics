@@ -8,7 +8,7 @@ import (
 
 func (st *streamTracker) adviseDontNeed(n int, fdatasync bool) error {
 	if fdatasync && st.fd > 0 {
-		if err := windows.Fsync(windows.Handle(st.fd)); err != nil {
+		if err := windows.FlushFileBuffers(windows.Handle(st.fd)); err != nil {
 			return fmt.Errorf("windows.Fsync error: %w", err)
 		}
 	}
