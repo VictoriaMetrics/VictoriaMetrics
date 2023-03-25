@@ -1529,9 +1529,9 @@ func mustReadPartNames(srcDir string) []string {
 		return partNames
 	}
 	if !os.IsNotExist(err) {
-		logger.Panicf("FATAL: cannot read parts.json file: %s", err)
+		logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
 	}
-	// The parts.json is missing. This is the upgrade from versions previous to v1.90.0.
+	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from directories under srcDir
 	des, err := os.ReadDir(srcDir)
 	if err != nil {

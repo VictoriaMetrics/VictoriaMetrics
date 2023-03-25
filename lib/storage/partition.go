@@ -216,8 +216,8 @@ func (pw *partWrapper) decRef() {
 // to small and big partitions.
 func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) (*partition, error) {
 	name := timestampToPartitionName(timestamp)
-	smallPartsPath := filepath.Clean(smallPartitionsPath) + "/" + name
-	bigPartsPath := filepath.Clean(bigPartitionsPath) + "/" + name
+	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
+	bigPartsPath := filepath.Join(filepath.Clean(bigPartitionsPath), name)
 	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q", name, smallPartsPath, bigPartsPath)
 
 	if err := fs.MkdirAllFailIfExist(smallPartsPath); err != nil {
@@ -1422,7 +1422,7 @@ func (pt *partition) getDstPartPath(dstPartType partType, mergeIdx uint64) strin
 	}
 	dstPartPath := ""
 	if dstPartType != partInmemory {
-		dstPartPath = fmt.Sprintf("%s/%016X", ptPath, mergeIdx)
+		dstPartPath = filepath.Join(ptPath, fmt.Sprintf("%016X", mergeIdx))
 	}
 	return dstPartPath
 }
@@ -1821,8 +1821,8 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
-	fs.MustRemoveAll(path + "/txn")
-	fs.MustRemoveAll(path + "/tmp")
+	fs.MustRemoveAll(filepath.Join(path, "txn"))
+	fs.MustRemoveAll(filepath.Join(path, "tmp"))
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
@@ -1841,7 +1841,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 		}
 		fn := de.Name()
 		if _, ok := m[fn]; !ok {
-			deletePath := path + "/" + fn
+			deletePath := filepath.Join(path, fn)
 			fs.MustRemoveAll(deletePath)
 		}
 	}
@@ -1850,7 +1850,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 	// Open parts
 	var pws []*partWrapper
 	for _, partName := range partNames {
-		partPath := path + "/" + partName
+		partPath := filepath.Join(path, partName)
 		p, err := openFilePart(partPath)
 		if err != nil {
 			mustCloseParts(pws)
@@ -1926,19 +1926,19 @@ func (pt *partition) createSnapshot(srcDir, dstDir string, pws []*partWrapper) e
 	// Make hardlinks for pws at dstDir
 	for _, pw := range pws {
 		srcPartPath := pw.p.path
-		dstPartPath := dstDir + "/" + filepath.Base(srcPartPath)
+		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
 		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
 			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
 		}
 	}
 
-	// Copy the appliedRetention.txt file to dstDir.
+	// Copy the appliedRetentionFilename to dstDir.
 	// This file can be created by VictoriaMetrics enterprise.
 	// See https://docs.victoriametrics.com/#retention-filters .
 	// Do not make hard link to this file, since it can be modified over time.
-	srcPath := srcDir + "/appliedRetention.txt"
+	srcPath := filepath.Join(srcDir, appliedRetentionFilename)
 	if fs.IsPathExist(srcPath) {
-		dstPath := dstDir + "/" + filepath.Base(srcPath)
+		dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
 		if err := fs.CopyFile(srcPath, dstPath); err != nil {
 			return fmt.Errorf("cannot copy %q to %q: %w", srcPath, dstPath, err)
 		}
@@ -1967,7 +1967,7 @@ func mustWritePartNames(pwsSmall, pwsBig []*partWrapper, dstDir string) {
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partNames to JSON: %s", err)
 	}
-	partNamesPath := dstDir + "/parts.json"
+	partNamesPath := filepath.Join(dstDir, partsFilename)
 	if err := fs.WriteFileAtomically(partNamesPath, data, true); err != nil {
 		logger.Panicf("FATAL: cannot update %s: %s", partNamesPath, err)
 	}
@@ -1988,7 +1988,7 @@ func getPartNames(pws []*partWrapper) []string {
 }
 
 func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string) {
-	partNamesPath := smallPartsPath + "/parts.json"
+	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
 	data, err := os.ReadFile(partNamesPath)
 	if err == nil {
 		var partNames partNamesJSON
@@ -1998,9 +1998,9 @@ func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string)
 		return partNames.Small, partNames.Big
 	}
 	if !os.IsNotExist(err) {
-		logger.Panicf("FATAL: cannot read parts.json file: %s", err)
+		logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
 	}
-	// The parts.json is missing. This is the upgrade from versions previous to v1.90.0.
+	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from smallPartsPath and bigPartsPath directories
 	partNamesSmall := mustReadPartNamesFromDir(smallPartsPath)
 	partNamesBig := mustReadPartNamesFromDir(bigPartsPath)
@@ -2032,5 +2032,5 @@ func mustReadPartNamesFromDir(srcDir string) []string {
 }
 
 func isSpecialDir(name string) bool {
-	return name == "tmp" || name == "txn" || name == "snapshots" || fs.IsScheduledForRemoval(name)
+	return name == "tmp" || name == "txn" || name == snapshotsDirname || fs.IsScheduledForRemoval(name)
 }
