@@ -147,7 +147,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 		return fmt.Errorf("cannot read metadata from %q: %w", path, err)
 	}
 
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile, err := filestream.Open(metaindexPath, true)
 	if err != nil {
 		return fmt.Errorf("cannot open metaindex file in stream mode: %w", err)
@@ -158,20 +158,20 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 		return fmt.Errorf("cannot unmarshal metaindex rows from file %q: %w", metaindexPath, err)
 	}
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile, err := filestream.Open(indexPath, true)
 	if err != nil {
 		return fmt.Errorf("cannot open index file in stream mode: %w", err)
 	}
 
-	itemsPath := path + "/items.bin"
+	itemsPath := filepath.Join(path, itemsFilename)
 	itemsFile, err := filestream.Open(itemsPath, true)
 	if err != nil {
 		indexFile.MustClose()
 		return fmt.Errorf("cannot open items file in stream mode: %w", err)
 	}
 
-	lensPath := path + "/lens.bin"
+	lensPath := filepath.Join(path, lensFilename)
 	lensFile, err := filestream.Open(lensPath, true)
 	if err != nil {
 		indexFile.MustClose()

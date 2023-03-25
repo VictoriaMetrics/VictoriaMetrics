@@ -1085,7 +1085,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	mergeIdx := tb.nextMergeIdx()
 	dstPartPath := ""
 	if dstPartType == partFile {
-		dstPartPath = fmt.Sprintf("%s/%016X", tb.path, mergeIdx)
+		dstPartPath = filepath.Join(tb.path, fmt.Sprintf("%016X", mergeIdx))
 	}
 
 	if isFinal && len(pws) == 1 && pws[0].mp != nil {
@@ -1379,8 +1379,8 @@ func openParts(path string) ([]*partWrapper, error) {
 
 	// Remove txn and tmp directories, which may be left after the upgrade
 	// to v1.90.0 and newer versions.
-	fs.MustRemoveAll(path + "/txn")
-	fs.MustRemoveAll(path + "/tmp")
+	fs.MustRemoveAll(filepath.Join(path, "txn"))
+	fs.MustRemoveAll(filepath.Join(path, "tmp"))
 
 	partNames := mustReadPartNames(path)
 
@@ -1401,7 +1401,7 @@ func openParts(path string) ([]*partWrapper, error) {
 		}
 		fn := de.Name()
 		if _, ok := m[fn]; !ok {
-			deletePath := path + "/" + fn
+			deletePath := filepath.Join(path, fn)
 			fs.MustRemoveAll(deletePath)
 		}
 	}
@@ -1410,7 +1410,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	// Open parts
 	var pws []*partWrapper
 	for _, partName := range partNames {
-		partPath := path + "/" + partName
+		partPath := filepath.Join(path, partName)
 		p, err := openFilePart(partPath)
 		if err != nil {
 			mustCloseParts(pws)
@@ -1456,7 +1456,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 	if err != nil {
 		return fmt.Errorf("cannot obtain absolute dir for %q: %w", dstDir, err)
 	}
-	if strings.HasPrefix(dstDir, srcDir+"/") {
+	if strings.HasPrefix(dstDir, srcDir+string(filepath.Separator)) {
 		return fmt.Errorf("cannot create snapshot %q inside the data dir %q", dstDir, srcDir)
 	}
 
@@ -1483,7 +1483,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 			return fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
 		srcPartPath := pw.p.path
-		dstPartPath := dstDir + "/" + filepath.Base(srcPartPath)
+		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
 		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
 			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
 		}
@@ -1512,14 +1512,14 @@ func mustWritePartNames(pws []*partWrapper, dstDir string) {
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partNames to JSON: %s", err)
 	}
-	partNamesPath := dstDir + "/parts.json"
+	partNamesPath := filepath.Join(dstDir, partsFilename)
 	if err := fs.WriteFileAtomically(partNamesPath, data, true); err != nil {
 		logger.Panicf("FATAL: cannot update %s: %s", partNamesPath, err)
 	}
 }
 
 func mustReadPartNames(srcDir string) []string {
-	partNamesPath := srcDir + "/parts.json"
+	partNamesPath := filepath.Join(srcDir, partsFilename)
 	data, err := os.ReadFile(partNamesPath)
 	if err == nil {
 		var partNames []string
