@@ -66,6 +66,11 @@ vmcluster-openbsd-amd64: \
 	vmselect-openbsd-amd64 \
 	vmstorage-openbsd-amd64
 
+vmcluster-windows-amd64: \
+	vminsert-windows-amd64 \
+	vmselect-windows-amd64 \
+	vmstorage-windows-amd64
+
 vmcluster-crossbuild: \
 	vmcluster-linux-amd64 \
 	vmcluster-linux-arm64 \
