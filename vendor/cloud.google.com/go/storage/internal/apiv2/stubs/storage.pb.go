@@ -25,7 +25,7 @@ import (
 	reflect "reflect"
 	sync "sync"
 
-	v1 "cloud.google.com/go/iam/apiv1/iampb"
+	iampb "cloud.google.com/go/iam/apiv1/iampb"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	date "google.golang.org/genproto/googleapis/type/date"
 	grpc "google.golang.org/grpc"
@@ -8270,12 +8270,12 @@ var file_google_storage_v2_storage_proto_goTypes = []interface{}{
 	(*timestamppb.Timestamp)(nil),                                 // 76: google.protobuf.Timestamp
 	(*durationpb.Duration)(nil),                                   // 77: google.protobuf.Duration
 	(*date.Date)(nil),                                             // 78: google.type.Date
-	(*v1.GetIamPolicyRequest)(nil),                                // 79: google.iam.v1.GetIamPolicyRequest
-	(*v1.SetIamPolicyRequest)(nil),                                // 80: google.iam.v1.SetIamPolicyRequest
-	(*v1.TestIamPermissionsRequest)(nil),                          // 81: google.iam.v1.TestIamPermissionsRequest
+	(*iampb.GetIamPolicyRequest)(nil),                             // 79: google.iam.v1.GetIamPolicyRequest
+	(*iampb.SetIamPolicyRequest)(nil),                             // 80: google.iam.v1.SetIamPolicyRequest
+	(*iampb.TestIamPermissionsRequest)(nil),                       // 81: google.iam.v1.TestIamPermissionsRequest
 	(*emptypb.Empty)(nil),                                         // 82: google.protobuf.Empty
-	(*v1.Policy)(nil),                                             // 83: google.iam.v1.Policy
-	(*v1.TestIamPermissionsResponse)(nil),                         // 84: google.iam.v1.TestIamPermissionsResponse
+	(*iampb.Policy)(nil),                                          // 83: google.iam.v1.Policy
+	(*iampb.TestIamPermissionsResponse)(nil),                      // 84: google.iam.v1.TestIamPermissionsResponse
 }
 var file_google_storage_v2_storage_proto_depIdxs = []int32{
 	75,  // 0: google.storage.v2.GetBucketRequest.read_mask:type_name -> google.protobuf.FieldMask
@@ -9372,18 +9372,18 @@ type StorageClient interface {
 	// The `resource` field in the request should be
 	// projects/_/buckets/<bucket_name> for a bucket or
 	// projects/_/buckets/<bucket_name>/objects/<object_name> for an object.
-	GetIamPolicy(ctx context.Context, in *v1.GetIamPolicyRequest, opts ...grpc.CallOption) (*v1.Policy, error)
+	GetIamPolicy(ctx context.Context, in *iampb.GetIamPolicyRequest, opts ...grpc.CallOption) (*iampb.Policy, error)
 	// Updates an IAM policy for the specified bucket or object.
 	// The `resource` field in the request should be
 	// projects/_/buckets/<bucket_name> for a bucket or
 	// projects/_/buckets/<bucket_name>/objects/<object_name> for an object.
-	SetIamPolicy(ctx context.Context, in *v1.SetIamPolicyRequest, opts ...grpc.CallOption) (*v1.Policy, error)
+	SetIamPolicy(ctx context.Context, in *iampb.SetIamPolicyRequest, opts ...grpc.CallOption) (*iampb.Policy, error)
 	// Tests a set of permissions on the given bucket or object to see which, if
 	// any, are held by the caller.
 	// The `resource` field in the request should be
 	// projects/_/buckets/<bucket_name> for a bucket or
 	// projects/_/buckets/<bucket_name>/objects/<object_name> for an object.
-	TestIamPermissions(ctx context.Context, in *v1.TestIamPermissionsRequest, opts ...grpc.CallOption) (*v1.TestIamPermissionsResponse, error)
+	TestIamPermissions(ctx context.Context, in *iampb.TestIamPermissionsRequest, opts ...grpc.CallOption) (*iampb.TestIamPermissionsResponse, error)
 	// Updates a bucket. Equivalent to JSON API's storage.buckets.patch method.
 	UpdateBucket(ctx context.Context, in *UpdateBucketRequest, opts ...grpc.CallOption) (*Bucket, error)
 	// Permanently deletes a NotificationConfig.
@@ -9556,8 +9556,8 @@ func (c *storageClient) LockBucketRetentionPolicy(ctx context.Context, in *LockB
 	return out, nil
 }
 
-func (c *storageClient) GetIamPolicy(ctx context.Context, in *v1.GetIamPolicyRequest, opts ...grpc.CallOption) (*v1.Policy, error) {
-	out := new(v1.Policy)
+func (c *storageClient) GetIamPolicy(ctx context.Context, in *iampb.GetIamPolicyRequest, opts ...grpc.CallOption) (*iampb.Policy, error) {
+	out := new(iampb.Policy)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/GetIamPolicy", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9565,8 +9565,8 @@ func (c *storageClient) GetIamPolicy(ctx context.Context, in *v1.GetIamPolicyReq
 	return out, nil
 }
 
-func (c *storageClient) SetIamPolicy(ctx context.Context, in *v1.SetIamPolicyRequest, opts ...grpc.CallOption) (*v1.Policy, error) {
-	out := new(v1.Policy)
+func (c *storageClient) SetIamPolicy(ctx context.Context, in *iampb.SetIamPolicyRequest, opts ...grpc.CallOption) (*iampb.Policy, error) {
+	out := new(iampb.Policy)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/SetIamPolicy", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9574,8 +9574,8 @@ func (c *storageClient) SetIamPolicy(ctx context.Context, in *v1.SetIamPolicyReq
 	return out, nil
 }
 
-func (c *storageClient) TestIamPermissions(ctx context.Context, in *v1.TestIamPermissionsRequest, opts ...grpc.CallOption) (*v1.TestIamPermissionsResponse, error) {
-	out := new(v1.TestIamPermissionsResponse)
+func (c *storageClient) TestIamPermissions(ctx context.Context, in *iampb.TestIamPermissionsRequest, opts ...grpc.CallOption) (*iampb.TestIamPermissionsResponse, error) {
+	out := new(iampb.TestIamPermissionsResponse)
 	err := c.cc.Invoke(ctx, "/google.storage.v2.Storage/TestIamPermissions", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -9845,18 +9845,18 @@ type StorageServer interface {
 	// The `resource` field in the request should be
 	// projects/_/buckets/<bucket_name> for a bucket or
 	// projects/_/buckets/<bucket_name>/objects/<object_name> for an object.
-	GetIamPolicy(context.Context, *v1.GetIamPolicyRequest) (*v1.Policy, error)
+	GetIamPolicy(context.Context, *iampb.GetIamPolicyRequest) (*iampb.Policy, error)
 	// Updates an IAM policy for the specified bucket or object.
 	// The `resource` field in the request should be
 	// projects/_/buckets/<bucket_name> for a bucket or
 	// projects/_/buckets/<bucket_name>/objects/<object_name> for an object.
-	SetIamPolicy(context.Context, *v1.SetIamPolicyRequest) (*v1.Policy, error)
+	SetIamPolicy(context.Context, *iampb.SetIamPolicyRequest) (*iampb.Policy, error)
 	// Tests a set of permissions on the given bucket or object to see which, if
 	// any, are held by the caller.
 	// The `resource` field in the request should be
 	// projects/_/buckets/<bucket_name> for a bucket or
 	// projects/_/buckets/<bucket_name>/objects/<object_name> for an object.
-	TestIamPermissions(context.Context, *v1.TestIamPermissionsRequest) (*v1.TestIamPermissionsResponse, error)
+	TestIamPermissions(context.Context, *iampb.TestIamPermissionsRequest) (*iampb.TestIamPermissionsResponse, error)
 	// Updates a bucket. Equivalent to JSON API's storage.buckets.patch method.
 	UpdateBucket(context.Context, *UpdateBucketRequest) (*Bucket, error)
 	// Permanently deletes a NotificationConfig.
@@ -9995,13 +9995,13 @@ func (*UnimplementedStorageServer) ListBuckets(context.Context, *ListBucketsRequ
 func (*UnimplementedStorageServer) LockBucketRetentionPolicy(context.Context, *LockBucketRetentionPolicyRequest) (*Bucket, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method LockBucketRetentionPolicy not implemented")
 }
-func (*UnimplementedStorageServer) GetIamPolicy(context.Context, *v1.GetIamPolicyRequest) (*v1.Policy, error) {
+func (*UnimplementedStorageServer) GetIamPolicy(context.Context, *iampb.GetIamPolicyRequest) (*iampb.Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetIamPolicy not implemented")
 }
-func (*UnimplementedStorageServer) SetIamPolicy(context.Context, *v1.SetIamPolicyRequest) (*v1.Policy, error) {
+func (*UnimplementedStorageServer) SetIamPolicy(context.Context, *iampb.SetIamPolicyRequest) (*iampb.Policy, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetIamPolicy not implemented")
 }
-func (*UnimplementedStorageServer) TestIamPermissions(context.Context, *v1.TestIamPermissionsRequest) (*v1.TestIamPermissionsResponse, error) {
+func (*UnimplementedStorageServer) TestIamPermissions(context.Context, *iampb.TestIamPermissionsRequest) (*iampb.TestIamPermissionsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method TestIamPermissions not implemented")
 }
 func (*UnimplementedStorageServer) UpdateBucket(context.Context, *UpdateBucketRequest) (*Bucket, error) {
@@ -10166,7 +10166,7 @@ func _Storage_LockBucketRetentionPolicy_Handler(srv interface{}, ctx context.Con
 }
 
 func _Storage_GetIamPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(v1.GetIamPolicyRequest)
+	in := new(iampb.GetIamPolicyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -10178,13 +10178,13 @@ func _Storage_GetIamPolicy_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/google.storage.v2.Storage/GetIamPolicy",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorageServer).GetIamPolicy(ctx, req.(*v1.GetIamPolicyRequest))
+		return srv.(StorageServer).GetIamPolicy(ctx, req.(*iampb.GetIamPolicyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Storage_SetIamPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(v1.SetIamPolicyRequest)
+	in := new(iampb.SetIamPolicyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -10196,13 +10196,13 @@ func _Storage_SetIamPolicy_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/google.storage.v2.Storage/SetIamPolicy",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorageServer).SetIamPolicy(ctx, req.(*v1.SetIamPolicyRequest))
+		return srv.(StorageServer).SetIamPolicy(ctx, req.(*iampb.SetIamPolicyRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Storage_TestIamPermissions_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(v1.TestIamPermissionsRequest)
+	in := new(iampb.TestIamPermissionsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -10214,7 +10214,7 @@ func _Storage_TestIamPermissions_Handler(srv interface{}, ctx context.Context, d
 		FullMethod: "/google.storage.v2.Storage/TestIamPermissions",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StorageServer).TestIamPermissions(ctx, req.(*v1.TestIamPermissionsRequest))
+		return srv.(StorageServer).TestIamPermissions(ctx, req.(*iampb.TestIamPermissionsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
