@@ -500,6 +500,9 @@ func (c *Client) addOperationPutObjectMiddlewares(stack *middleware.Stack, optio
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
 		return err
 	}
+	if err = add100Continue(stack, options); err != nil {
+		return err
+	}
 	if err = addPutObjectInputChecksumMiddlewares(stack, options); err != nil {
 		return err
 	}
