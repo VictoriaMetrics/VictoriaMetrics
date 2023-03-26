@@ -1,3 +1,5 @@
+import { ArrayRGB } from "./uplot/types";
+
 export const baseContrastColors = [
   "#e54040",
   "#32a9dc",
@@ -55,4 +57,16 @@ export const getContrastColor = (value: string) => {
   const b = parseInt(hex.slice(4, 6), 16);
   const yiq = ((r*299)+(g*587)+(b*114))/1000;
   return yiq >= 128 ? "#000000" : "#FFFFFF";
+};
+
+export const generateGradient = (start: ArrayRGB, end: ArrayRGB, steps: number) => {
+  const gradient = [];
+  for (let i = 0; i < steps; i++) {
+    const k = (i / (steps - 1));
+    const r = start[0] + (end[0] - start[0]) * k;
+    const g = start[1] + (end[1] - start[1]) * k;
+    const b = start[2] + (end[2] - start[2]) * k;
+    gradient.push([r,g,b].map(n => Math.round(n)).join(", "));
+  }
+  return gradient.map(c => `rgb(${c})`);
 };

@@ -28,3 +28,17 @@ export const promValueToNumber = (s: string): number => {
       return parseFloat(s);
   }
 };
+
+export const isHistogramData = (result: MetricBase[]) => {
+  if (result.length < 2) return false;
+  const histogramNames = ["le", "vmrange"];
+
+  return result.every(r => {
+    const keys = Object.keys(r.metric);
+    const labels = Object.keys(r.metric).filter(n => !histogramNames.includes(n));
+    const byName = keys.length > labels.length;
+    const byLabels = labels.every(l => r.metric[l] === result[0].metric[l]);
+
+    return byName && byLabels;
+  });
+};
