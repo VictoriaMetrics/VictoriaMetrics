@@ -15,6 +15,13 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.87.x long-time support release (LTS)
 
+## [v1.87.4](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.4)
+
+Released at 2023-03-25
+
+**v1.87.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.87.x line will be supported for at least 12 months since [v1.87.0](https://docs.victoriametrics.com/CHANGELOG.html#v1870) release**
+
 * BUGFIX: prevent from slow [snapshot creating](https://docs.victoriametrics.com/#how-to-work-with-snapshots) under high data ingestion rate. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3551).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html):  suppress [proxy protocol](https://www.haproxy.org/download/2.3/doc/proxy-protocol.txt) parsing errors in case of `EOF`. Usually, the error is caused by health checks and is not a sign of an actual error.
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): fix snapshot not being deleted in case of error during backup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2055).
