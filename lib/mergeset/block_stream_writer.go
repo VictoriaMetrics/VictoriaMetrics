@@ -88,14 +88,14 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile, err := filestream.Create(metaindexPath, false)
 	if err != nil {
 		fs.MustRemoveDirAtomic(path)
 		return fmt.Errorf("cannot create metaindex file: %w", err)
 	}
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile, err := filestream.Create(indexPath, nocache)
 	if err != nil {
 		metaindexFile.MustClose()
@@ -103,7 +103,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		return fmt.Errorf("cannot create index file: %w", err)
 	}
 
-	itemsPath := path + "/items.bin"
+	itemsPath := filepath.Join(path, itemsFilename)
 	itemsFile, err := filestream.Create(itemsPath, nocache)
 	if err != nil {
 		metaindexFile.MustClose()
@@ -112,7 +112,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 		return fmt.Errorf("cannot create items file: %w", err)
 	}
 
-	lensPath := path + "/lens.bin"
+	lensPath := filepath.Join(path, lensFilename)
 	lensFile, err := filestream.Create(lensPath, nocache)
 	if err != nil {
 		metaindexFile.MustClose()

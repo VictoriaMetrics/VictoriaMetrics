@@ -615,7 +615,7 @@ This function is supported by PromQL.
 on the given lookbehind window `d` and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 These values are calculated individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 #### rollup_candlestick
 
@@ -624,7 +624,7 @@ over raw samples on the given lookbehind window `d` and returns them in time ser
 The calculations are performed individually per each time series returned
 from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering). This function is useful for financial applications.
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 #### rollup_delta
 
@@ -633,7 +633,7 @@ on the given lookbehind window `d` and returns `min`, `max` and `avg` values for
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -646,7 +646,7 @@ for adjacent raw samples on the given lookbehind window `d` and returns `min`, `
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -657,7 +657,7 @@ on the given lookbehind window `d` and returns `min`, `max` and `avg` values for
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [rollup_delta](#rollup_delta).
 
@@ -670,7 +670,7 @@ and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup=
 See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832) in order to undertand better
 when to use `rollup_rate()`.
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
@@ -684,7 +684,7 @@ adjacent raw samples on the given lookbehind window `d` and returns `min`, `max`
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 The calculations are performed individually per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 
-Optional 2nd argument `min`, `max` or `avg` can be passed to keep only one calculation result and without adding a label.
+Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names. See also [scrape_interval](#scrape_interval).
 

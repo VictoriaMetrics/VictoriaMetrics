@@ -152,8 +152,11 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 		idx := (i + workerID) % uint(len(workChs))
 		ch := workChs[idx]
 		for len(ch) > 0 {
-			// Give a chance other goroutines to perform their work.
-			runtime.Gosched()
+			// Do not call runtime.Gosched() here in order to give a chance
+			// the real owner of the work to complete it, since it consumes additional CPU
+			// and slows down the code on systems with big number of CPU cores.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3966#issuecomment-1483208419
+
 			// It is expected that every channel in the workChs is already closed,
 			// so the next line should return immediately.
 			tsw, ok := <-ch

@@ -37,19 +37,19 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
 		return fmt.Errorf("cannot store metaindex: %w", err)
 	}
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
 		return fmt.Errorf("cannot store index: %w", err)
 	}
-	itemsPath := path + "/items.bin"
+	itemsPath := filepath.Join(path, itemsFilename)
 	if err := fs.WriteFileAndSync(itemsPath, mp.itemsData.B); err != nil {
 		return fmt.Errorf("cannot store items: %w", err)
 	}
-	lensPath := path + "/lens.bin"
+	lensPath := filepath.Join(path, lensFilename)
 	if err := fs.WriteFileAndSync(lensPath, mp.lensData.B); err != nil {
 		return fmt.Errorf("cannot store lens: %w", err)
 	}

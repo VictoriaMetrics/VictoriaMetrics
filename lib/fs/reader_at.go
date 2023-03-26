@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
@@ -27,8 +28,13 @@ type MustReadAtCloser interface {
 
 // ReaderAt implements rand-access reader.
 type ReaderAt struct {
+	readCalls uint64
+	readBytes uint64
+
 	f        *os.File
 	mmapData []byte
+
+	useLocalStats bool
 }
 
 // MustReadAt reads len(p) bytes at off from r.
@@ -56,8 +62,13 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		// But production workload proved this is OK in most cases, so use it without fear :)
 		copy(p, src)
 	}
-	readCalls.Inc()
-	readBytes.Add(len(p))
+	if r.useLocalStats {
+		atomic.AddUint64(&r.readCalls, 1)
+		atomic.AddUint64(&r.readBytes, uint64(len(p)))
+	} else {
+		readCalls.Inc()
+		readBytes.Add(len(p))
+	}
 }
 
 // MustClose closes r.
@@ -71,7 +82,26 @@ func (r *ReaderAt) MustClose() {
 	}
 	MustClose(r.f)
 	r.f = nil
+
+	if r.useLocalStats {
+		readCalls.Add(int(r.readCalls))
+		readBytes.Add(int(r.readBytes))
+		r.readCalls = 0
+		r.readBytes = 0
+		r.useLocalStats = false
+	}
 	readersCount.Dec()
+}
+
+// SetUseLocalStats switches to local stats collection instead of global stats collection.
+//
+// This function must be called before the first call to MustReadAt().
+//
+// Collecting local stats may improve performance on systems with big number of CPU cores,
+// since the locally collected stats is pushed to global stats only at MustClose() call
+// instead of pushing it at every MustReadAt call.
+func (r *ReaderAt) SetUseLocalStats() {
+	r.useLocalStats = true
 }
 
 // MustFadviseSequentialRead hints the OS that f is read mostly sequentially.

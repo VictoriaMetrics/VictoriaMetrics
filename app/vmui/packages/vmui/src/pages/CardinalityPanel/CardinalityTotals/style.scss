@@ -1,0 +1,60 @@
+@use "src/styles/variables" as *;
+
+.vm-cardinality-totals {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: flex-start;
+  gap: $padding-global;
+  flex-grow: 1;
+
+  &_mobile {
+    gap: $padding-small;
+    justify-content: center;
+  }
+
+  &-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+
+    &-header {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+
+      &__info-icon {
+        width: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: $color-primary;
+      }
+
+      &__title {
+        font-weight: bold;
+        color: $color-text;
+
+        &:after {
+          content: ':';
+        }
+      }
+
+      &__tooltip {
+        max-width: 280px;
+        white-space: normal;
+        padding: $padding-small;
+        line-height: 130%;
+        font-size: $font-size;
+      }
+    }
+
+    &__value {
+      font-weight: bold;
+      color: $color-primary;
+      font-size: $font-size-medium;
+    }
+  }
+}
