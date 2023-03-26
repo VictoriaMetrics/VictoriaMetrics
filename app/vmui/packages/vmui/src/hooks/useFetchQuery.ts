@@ -10,6 +10,7 @@ import Trace from "../components/TraceQuery/Trace";
 import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
+import { isHistogramData } from "../utils/metric";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -29,6 +30,7 @@ interface FetchQueryReturn {
   queryErrors: (ErrorTypes | string)[],
   warning?: string,
   traces?: Trace[],
+  isHistogram: boolean,
 }
 
 interface FetchDataParams {
@@ -62,6 +64,7 @@ export const useFetchQuery = ({
   const [queryErrors, setQueryErrors] = useState<(ErrorTypes | string)[]>([]);
   const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
+  const [isHistogram, setIsHistogram] = useState(false);
 
   const fetchData = async ({
     fetchUrl,
@@ -118,6 +121,7 @@ export const useFetchQuery = ({
       const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
 
+      setIsHistogram(isDisplayChart && isHistogramData(tempData));
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
     } catch (e) {
@@ -178,5 +182,5 @@ export const useFetchQuery = ({
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, warning, traces };
+  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, warning, traces, isHistogram };
 };

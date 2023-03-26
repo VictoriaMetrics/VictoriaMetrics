@@ -42,7 +42,7 @@ const CustomPanel: FC = () => {
 
   const { queryOptions } = useFetchQueryOptions();
   const {
-    isLoading, liveData, graphData, error, queryErrors, warning, traces
+    isLoading, liveData, graphData, error, queryErrors, warning, traces, isHistogram
   } = useFetchQuery({
     visible: true,
     customStep,
@@ -92,6 +92,10 @@ const CustomPanel: FC = () => {
   useEffect(() => {
     setShowAllSeries(false);
   }, [query]);
+
+  useEffect(() => {
+    graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
+  }, [isHistogram]);
 
   return (
     <div
@@ -143,7 +147,7 @@ const CustomPanel: FC = () => {
       >
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && (
+          {displayType === "chart" && !isHistogram && (
             <GraphSettings
               yaxis={yaxis}
               setYaxisLimits={setYaxisLimits}
@@ -168,6 +172,7 @@ const CustomPanel: FC = () => {
             setYaxisLimits={setYaxisLimits}
             setPeriod={setPeriod}
             height={isMobile ? window.innerHeight * 0.5 : 500}
+            isHistogram={isHistogram}
           />
         )}
         {liveData && (displayType === "code") && (
