@@ -141,6 +141,8 @@ vmutils-windows-amd64: \
 	vmagent-windows-amd64 \
 	vmalert-windows-amd64 \
 	vmauth-windows-amd64 \
+	vmbackup-windows-amd64 \
+	vmrestore-windows-amd64 \
 	vmctl-windows-amd64
 
 victoria-metrics-crossbuild: \
@@ -186,7 +188,8 @@ release-victoria-metrics: \
 	release-victoria-metrics-darwin-amd64 \
 	release-victoria-metrics-darwin-arm64 \
 	release-victoria-metrics-freebsd-amd64 \
-	release-victoria-metrics-openbsd-amd64
+	release-victoria-metrics-openbsd-amd64 \
+	release-victoria-metrics-windows-amd64
 
 # adds i386 arch
 release-victoria-metrics-linux-386:
@@ -213,6 +216,9 @@ release-victoria-metrics-freebsd-amd64:
 release-victoria-metrics-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-victoria-metrics-goos-goarch
 
+release-victoria-metrics-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-victoria-metrics-windows-goarch
+
 release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
 	cd bin && \
 		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
@@ -221,6 +227,16 @@ release-victoria-metrics-goos-goarch: victoria-metrics-$(GOOS)-$(GOARCH)-prod
 			victoria-metrics-$(GOOS)-$(GOARCH)-prod \
 			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-metrics-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf victoria-metrics-$(GOOS)-$(GOARCH)-prod
+
+release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
+	cd bin && \
+		zip victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
+			victoria-metrics-windows-$(GOARCH)-prod.exe \
+		&& sha256sum victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
+			victoria-metrics-windows-$(GOARCH)-prod.exe \
+			> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		victoria-metrics-windows-$(GOARCH)-prod.exe
 
 release-vmutils: \
 	release-vmutils-linux-386 \
@@ -295,25 +311,32 @@ release-vmutils-windows-goarch: \
 	vmagent-windows-$(GOARCH)-prod \
 	vmalert-windows-$(GOARCH)-prod \
 	vmauth-windows-$(GOARCH)-prod \
+	vmbackup-windows-$(GOARCH)-prod \
+	vmrestore-windows-$(GOARCH)-prod \
 	vmctl-windows-$(GOARCH)-prod
 	cd bin && \
 		zip vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
+			vmbackup-windows-$(GOARCH)-prod.exe \
+			vmrestore-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
 		&& sha256sum vmutils-windows-$(GOARCH)-$(PKG_TAG).zip \
 			vmagent-windows-$(GOARCH)-prod.exe \
 			vmalert-windows-$(GOARCH)-prod.exe \
 			vmauth-windows-$(GOARCH)-prod.exe \
+			vmbackup-windows-$(GOARCH)-prod.exe \
+			vmrestore-windows-$(GOARCH)-prod.exe \
 			vmctl-windows-$(GOARCH)-prod.exe \
 			> vmutils-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		vmagent-windows-$(GOARCH)-prod.exe \
 		vmalert-windows-$(GOARCH)-prod.exe \
 		vmauth-windows-$(GOARCH)-prod.exe \
+		vmbackup-windows-$(GOARCH)-prod.exe \
+		vmrestore-windows-$(GOARCH)-prod.exe \
 		vmctl-windows-$(GOARCH)-prod.exe
-
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -380,7 +403,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.51.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.51.2
 
 govulncheck: install-govulncheck
 	govulncheck ./...

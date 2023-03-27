@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
@@ -209,7 +210,7 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 }
 
 func createRestoreLock(dstDir string) error {
-	lockF := path.Join(dstDir, "restore-in-progress")
+	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	f, err := os.Create(lockF)
 	if err != nil {
 		return fmt.Errorf("cannot create restore lock file %q: %w", lockF, err)
@@ -218,7 +219,7 @@ func createRestoreLock(dstDir string) error {
 }
 
 func removeRestoreLock(dstDir string) error {
-	lockF := path.Join(dstDir, "restore-in-progress")
+	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	if err := os.Remove(lockF); err != nil {
 		return fmt.Errorf("cannote remove restore lock file %q: %w", lockF, err)
 	}

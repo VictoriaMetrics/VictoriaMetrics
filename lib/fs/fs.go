@@ -247,21 +247,16 @@ var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
 //
 // Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
 func MustRemoveTemporaryDirs(dir string) {
-	d, err := os.Open(dir)
+	des, err := os.ReadDir(dir)
 	if err != nil {
-		logger.Panicf("FATAL: cannot open dir: %s", err)
+		logger.Panicf("FATAL: cannot read dir: %s", err)
 	}
-	defer MustClose(d)
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read dir %q: %s", dir, err)
-	}
-	for _, fi := range fis {
-		if !IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !IsDirOrSymlink(de) {
 			// Skip non-directories
 			continue
 		}
-		dirName := fi.Name()
+		dirName := de.Name()
 		if IsScheduledForRemoval(dirName) {
 			fullPath := dir + "/" + dirName
 			MustRemoveAll(fullPath)
@@ -276,26 +271,16 @@ func HardLinkFiles(srcDir, dstDir string) error {
 		return fmt.Errorf("cannot create dstDir=%q: %w", dstDir, err)
 	}
 
-	d, err := os.Open(srcDir)
+	des, err := os.ReadDir(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot open srcDir: %w", err)
+		return fmt.Errorf("cannot read files in scrDir: %w", err)
 	}
-	defer func() {
-		if err := d.Close(); err != nil {
-			logger.Panicf("FATAL: cannot close %q: %s", srcDir, err)
-		}
-	}()
-
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		return fmt.Errorf("cannot read files in scrDir=%q: %w", srcDir, err)
-	}
-	for _, fi := range fis {
-		if IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if IsDirOrSymlink(de) {
 			// Skip directories.
 			continue
 		}
-		fn := fi.Name()
+		fn := de.Name()
 		srcPath := srcDir + "/" + fn
 		dstPath := dstDir + "/" + fn
 		if err := os.Link(srcPath, dstPath); err != nil {
@@ -307,9 +292,9 @@ func HardLinkFiles(srcDir, dstDir string) error {
 	return nil
 }
 
-// IsDirOrSymlink returns true if fi is directory or symlink.
-func IsDirOrSymlink(fi os.FileInfo) bool {
-	return fi.IsDir() || (fi.Mode()&os.ModeSymlink == os.ModeSymlink)
+// IsDirOrSymlink returns true if de is directory or symlink.
+func IsDirOrSymlink(de os.DirEntry) bool {
+	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
 // SymlinkRelative creates relative symlink for srcPath in dstPath.

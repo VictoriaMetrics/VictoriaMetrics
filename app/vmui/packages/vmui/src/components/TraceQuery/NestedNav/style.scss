@@ -43,12 +43,33 @@
     }
 
     &__message {
+      position: relative;
       grid-column: 2;
+      line-height: 130%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: -moz-box;
+      -moz-box-orient: vertical;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      line-clamp: 3;
+
+      &_show-full {
+        display: block;
+        overflow: visible;
+      }
     }
 
-    &__duration {
+    &-bottom {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
       grid-column: 2;
-      color: $color-text-secondary;
+
+      &__duration {
+        color: $color-text-secondary;
+      }
     }
   }
 }

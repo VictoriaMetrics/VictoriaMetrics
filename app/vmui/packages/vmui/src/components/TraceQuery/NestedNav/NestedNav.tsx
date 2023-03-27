@@ -1,4 +1,5 @@
-import React, { FC, useState } from "preact/compat";
+import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import { MouseEvent } from "react";
 import LineProgress from "../../Main/LineProgress/LineProgress";
 import Trace from "../Trace";
 import { ArrowDownIcon } from "../../Main/Icons";
@@ -6,6 +7,7 @@ import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import Button from "../../Main/Button/Button";
 
 interface RecursiveProps {
   trace: Trace;
@@ -20,6 +22,23 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
   const { isDarkTheme } = useAppState();
   const { isMobile } = useDeviceDetect();
   const [openLevels, setOpenLevels] = useState({} as OpenLevels);
+  const messageRef = useRef<HTMLDivElement>(null);
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showFullMessage, setShowFullMessage] = useState(false);
+
+  useEffect(() => {
+    if (!messageRef.current) return;
+    const contentElement = messageRef.current;
+    const child = messageRef.current.children[0];
+    const { height } = child.getBoundingClientRect();
+    setIsExpanded(height > contentElement.clientHeight);
+  }, [trace]);
+
+  const handleClickShowMore = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setShowFullMessage(prev => !prev);
+  };
 
   const handleListClick = (level: number) => () => {
     setOpenLevels((prevState:OpenLevels) => {
@@ -54,11 +73,28 @@ const NestedNav: FC<RecursiveProps> = ({ trace, totalMsec })  => {
         <div className="vm-nested-nav-header__progress">
           <LineProgress value={progress}/>
         </div>
-        <div className="vm-nested-nav-header__message">
-          {trace.message}
+        <div
+          className={classNames({
+            "vm-nested-nav-header__message": true,
+            "vm-nested-nav-header__message_show-full": showFullMessage,
+          })}
+          ref={messageRef}
+        >
+          <span>{trace.message}</span>
         </div>
-        <div className="vm-nested-nav-header__duration">
-          {`duration: ${trace.duration} ms`}
+        <div className="vm-nested-nav-header-bottom">
+          <div className="vm-nested-nav-header-bottom__duration">
+            {`duration: ${trace.duration} ms`}
+          </div>
+          {(isExpanded || showFullMessage) && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={handleClickShowMore}
+            >
+              {showFullMessage ? "Hide" : "Show more"}
+            </Button>
+          )}
         </div>
       </div>
       {openLevels[trace.idValue] && <div>

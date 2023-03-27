@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
@@ -88,25 +87,6 @@ func (m *manager) startGroup(ctx context.Context, g *Group, restore bool) error 
 	id := g.ID()
 	go func() {
 		defer m.wg.Done()
-		// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
-		if !skipRandSleepOnGroupStart {
-			randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
-			sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
-			if randSleep < sleepOffset {
-				randSleep += uint64(g.Interval)
-			}
-			randSleep -= sleepOffset
-			sleepTimer := time.NewTimer(time.Duration(randSleep))
-			select {
-			case <-ctx.Done():
-				sleepTimer.Stop()
-				return
-			case <-g.doneCh:
-				sleepTimer.Stop()
-				return
-			case <-sleepTimer.C:
-			}
-		}
 		if restore {
 			g.start(ctx, m.notifiers, m.rw, m.rr)
 		} else {

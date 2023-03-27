@@ -1,3 +1,12 @@
+# v1.31.0 (2023-03-21)
+
+* **Feature**: port v1 sdk 100-continue http header customization for s3 PutObject/UploadPart request and enable user config
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.30.6 (2023-03-10)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.30.5 (2023-02-22)
 
 * **Bug Fix**: Prevent nil pointer dereference when retrieving error codes.

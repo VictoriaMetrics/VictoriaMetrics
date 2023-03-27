@@ -148,38 +148,29 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 	// Then help others with the remaining work.
 	rowsProcessed = 0
 	seriesProcessed = 0
-	idx := int(workerID)
-	for {
-		tsw, idxNext := stealTimeseriesWork(workChs, idx)
-		if tsw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Do not call runtime.Gosched() here in order to give a chance
+			// the real owner of the work to complete it, since it consumes additional CPU
+			// and slows down the code on systems with big number of CPU cores.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3966#issuecomment-1483208419
+
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			tsw, ok := <-ch
+			if !ok {
+				break
+			}
+			tsw.err = tsw.do(&tmpResult.rs, workerID)
+			rowsProcessed += tsw.rowsProcessed
+			seriesProcessed++
 		}
-		tsw.err = tsw.do(&tmpResult.rs, workerID)
-		rowsProcessed += tsw.rowsProcessed
-		seriesProcessed++
-		idx = idxNext
 	}
 	qt.Printf("others work processed: series=%d, samples=%d", seriesProcessed, rowsProcessed)
 
 	putTmpResult(tmpResult)
-}
-
-func stealTimeseriesWork(workChs []chan *timeseriesWork, startIdx int) (*timeseriesWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		tsw, ok := <-ch
-		if ok {
-			return tsw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpResult() *result {
@@ -207,10 +198,17 @@ type result struct {
 
 var resultPool sync.Pool
 
+// MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
+func MaxWorkers() int {
+	return gomaxprocs
+}
+
+var gomaxprocs = cgroup.AvailableCPUs()
+
 // RunParallel runs f in parallel for all the results from rss.
 //
 // f shouldn't hold references to rs after returning.
-// workerID is the id of the worker goroutine that calls f.
+// workerID is the id of the worker goroutine that calls f. The workerID is in the range [0..MaxWorkers()-1].
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
@@ -244,7 +242,8 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsw.f = f
 		tsw.mustStop = &mustStop
 	}
-	if gomaxprocs == 1 || tswsLen == 1 {
+	maxWorkers := MaxWorkers()
+	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
 		tsw := getTimeseriesWork()
 		tmpResult := getTmpResult()
@@ -280,8 +279,8 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 
 	// Prepare worker channels.
 	workers := len(tsws)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
+	if workers > maxWorkers {
+		workers = maxWorkers
 	}
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
 	workChs := make([]chan *timeseriesWork, workers)
@@ -332,8 +331,6 @@ var (
 	rowsReadPerQuery   = metrics.NewHistogram(`vm_rows_read_per_query`)
 	seriesReadPerQuery = metrics.NewHistogram(`vm_series_read_per_query`)
 )
-
-var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
 	metricName string
@@ -391,35 +388,23 @@ func unpackWorker(workChs []chan *unpackWork, workerID uint) {
 	}
 
 	// Then help others with their work.
-	idx := int(workerID)
-	for {
-		upw, idxNext := stealUnpackWork(workChs, idx)
-		if upw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Give a chance other goroutines to perform their work
+			runtime.Gosched()
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			upw, ok := <-ch
+			if !ok {
+				break
+			}
+			upw.unpack(tmpBlock)
 		}
-		upw.unpack(tmpBlock)
-		idx = idxNext
 	}
 
 	putTmpStorageBlock(tmpBlock)
-}
-
-func stealUnpackWork(workChs []chan *unpackWork, startIdx int) (*unpackWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		upw, ok := <-ch
-		if ok {
-			return upw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpStorageBlock() *storage.Block {
@@ -1017,7 +1002,6 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 	indexSearchDuration.UpdateDuration(startTime)
 
 	// Start workers that call f in parallel on available CPU cores.
-	gomaxprocs := cgroup.AvailableCPUs()
 	workCh := make(chan *exportWork, gomaxprocs*8)
 	var (
 		errGlobal     error
@@ -1187,8 +1171,10 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			putStorageSearch(sr)
 			return nil, fmt.Errorf("cannot write %d bytes to temporary file: %w", len(buf), err)
 		}
-		metricName := bytesutil.InternBytes(sr.MetricBlockRef.MetricName)
-		brs := m[metricName]
+		// Do not intern mb.MetricName, since it leads to increased memory usage.
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
+		metricName := sr.MetricBlockRef.MetricName
+		brs := m[string(metricName)]
 		if brs == nil {
 			brs = &blockRefs{}
 			brs.brs = brs.brsPrealloc[:0]
@@ -1198,8 +1184,9 @@ func ProcessSearchQuery(qt *querytracer.Tracer, sq *storage.SearchQuery, deadlin
 			addr:    addr,
 		})
 		if len(brs.brs) == 1 {
-			orderedMetricNames = append(orderedMetricNames, metricName)
-			m[metricName] = brs
+			metricNameStr := string(metricName)
+			orderedMetricNames = append(orderedMetricNames, metricNameStr)
+			m[metricNameStr] = brs
 		}
 	}
 	if err := sr.Error(); err != nil {

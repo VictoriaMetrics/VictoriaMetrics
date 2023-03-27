@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,7 +15,7 @@ import (
 
 func TestMain(m *testing.M) {
 	n := m.Run()
-	if err := os.RemoveAll("./benchmarkTableSearch"); err != nil {
+	if err := os.RemoveAll("benchmarkTableSearch"); err != nil {
 		panic(fmt.Errorf("cannot remove benchmark tables: %w", err))
 	}
 	os.Exit(n)
@@ -39,7 +40,7 @@ func BenchmarkTableSearch(b *testing.B) {
 func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) *table {
 	b.Helper()
 
-	path := fmt.Sprintf("./benchmarkTableSearch/rows%d_tsids%d", rowsCount, tsidsCount)
+	path := filepath.Join("benchmarkTableSearch", fmt.Sprintf("rows%d_tsids%d", rowsCount, tsidsCount))
 	if !createdBenchTables[path] {
 		createBenchTable(b, path, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 		createdBenchTables[path] = true

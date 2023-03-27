@@ -80,6 +80,11 @@ type Options struct {
 	// Configures the events that will be sent to the configured logger.
 	ClientLogMode aws.ClientLogMode
 
+	// The threshold ContentLength in bytes for HTTP PUT request to receive {Expect:
+	// 100-continue} header. Setting to -1 will disable adding the Expect header to
+	// requests; setting to 0 will set the threshold to default 2MB
+	ContinueHeaderThresholdBytes int64
+
 	// The credentials object to use when signing requests.
 	Credentials aws.CredentialsProvider
 
@@ -528,6 +533,10 @@ func newDefaultV4aSigner(o Options) *v4a.Signer {
 
 func addMetadataRetrieverMiddleware(stack *middleware.Stack) error {
 	return s3shared.AddMetadataRetrieverMiddleware(stack)
+}
+
+func add100Continue(stack *middleware.Stack, options Options) error {
+	return s3shared.Add100Continue(stack, options.ContinueHeaderThresholdBytes)
 }
 
 // ComputedInputChecksumsMetadata provides information about the algorithms used to

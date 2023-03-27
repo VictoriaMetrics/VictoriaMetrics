@@ -16,12 +16,18 @@ import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 export interface QueryConfiguratorProps {
-  error?: ErrorTypes | string;
+  errors: (ErrorTypes | string)[];
   queryOptions: string[]
   onHideQuery: (queries: number[]) => void
+  onRunQuery: () => void
 }
 
-const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, onHideQuery }) => {
+const QueryConfigurator: FC<QueryConfiguratorProps> = ({
+  errors,
+  queryOptions,
+  onHideQuery,
+  onRunQuery
+}) => {
   const { isMobile } = useDeviceDetect();
 
   const { query, queryHistory, autocomplete } = useQueryState();
@@ -45,21 +51,22 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
     });
   };
 
-  const onRunQuery = () => {
+  const handleRunQuery = () => {
     updateHistory();
     queryDispatch({ type: "SET_QUERY", payload: stateQuery });
     timeDispatch({ type: "RUN_QUERY" });
+    onRunQuery();
   };
 
-  const onAddQuery = () => {
+  const handleAddQuery = () => {
     setStateQuery(prev => [...prev, ""]);
   };
 
-  const onRemoveQuery = (index: number) => {
+  const handleRemoveQuery = (index: number) => {
     setStateQuery(prev => prev.filter((q, i) => i !== index));
   };
 
-  const onToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, index: number) => {
+  const handleToggleHideQuery = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, index: number) => {
     const { ctrlKey, metaKey } = e;
     const ctrlMetaKey = ctrlKey || metaKey;
 
@@ -95,17 +102,17 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
   };
 
   const createHandlerRemoveQuery = (i: number) => () => {
-    onRemoveQuery(i);
+    handleRemoveQuery(i);
     setHideQuery(prev => prev.includes(i) ? prev.filter(n => n !== i) : prev.map(n => n > i ? n - 1: n));
   };
 
   const createHandlerHideQuery = (i: number) => (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
-    onToggleHideQuery(e, i);
+    handleToggleHideQuery(e, i);
   };
 
   useEffect(() => {
     if (prevStateQuery && (stateQuery.length < prevStateQuery.length)) {
-      onRunQuery();
+      handleRunQuery();
     }
   }, [stateQuery]);
 
@@ -134,10 +141,10 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
             value={stateQuery[i]}
             autocomplete={autocomplete}
             options={queryOptions}
-            error={error}
+            error={errors[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
-            onEnter={onRunQuery}
+            onEnter={handleRunQuery}
             onChange={createHandlerChangeQuery(i)}
             label={`Query ${i + 1}`}
             disabled={hideQuery.includes(i)}
@@ -173,7 +180,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
         {stateQuery.length < MAX_QUERY_FIELDS && (
           <Button
             variant="outlined"
-            onClick={onAddQuery}
+            onClick={handleAddQuery}
             startIcon={<PlusIcon/>}
           >
             Add Query
@@ -181,7 +188,7 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({ error, queryOptions, on
         )}
         <Button
           variant="contained"
-          onClick={onRunQuery}
+          onClick={handleRunQuery}
           startIcon={<PlayIcon/>}
         >
           {isMobile ? "Execute" : "Execute Query"}
