@@ -25,7 +25,7 @@ require (
 	github.com/influxdata/influxdb v1.11.0
 	github.com/klauspost/compress v1.16.3
 	github.com/prometheus/prometheus v0.43.0
-	github.com/urfave/cli/v2 v2.25.0
+	github.com/urfave/cli/v2 v2.25.1
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
