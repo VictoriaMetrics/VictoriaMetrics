@@ -884,7 +884,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	qtDone := func() {
 		qt.Donef("query=%s, time=%d: series=%d", query, start, len(result))
 	}
-	WriteQueryResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone)
+
+	WriteQueryResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone, ec.SeriesFetched())
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
