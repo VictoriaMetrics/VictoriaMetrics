@@ -16,8 +16,8 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if format == "json" {
-    	w.Header().Set("Content-Type", "application/json")
-    }
+		w.Header().Set("Content-Type", "application/json")
+	}
 
 	if metric == "" && relabelConfigs == "" && targetID != "" {
 		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
