@@ -21,30 +21,32 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 	if metric == "" {
 		metric = "{}"
 	}
+	targetURL := ""
 	if err != nil {
-		WriteRelabelDebugSteps(w, isTargetRelabel, targetID, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, nil, metric, relabelConfigs, err)
 		return
 	}
 	labels, err := promutils.NewLabelsFromString(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %s", err)
-		WriteRelabelDebugSteps(w, isTargetRelabel, targetID, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, nil, metric, relabelConfigs, err)
 		return
 	}
 	pcs, err := ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
 		err = fmt.Errorf("cannot parse relabel configs: %s", err)
-		WriteRelabelDebugSteps(w, isTargetRelabel, targetID, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, nil, metric, relabelConfigs, err)
 		return
 	}
 
-	dss := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
-	WriteRelabelDebugSteps(w, isTargetRelabel, targetID, dss, metric, relabelConfigs, nil)
+	dss, targetURL := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
+	WriteRelabelDebugSteps(w, targetURL, targetID, dss, metric, relabelConfigs, nil)
 }
 
-func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTargetRelabel bool) []DebugStep {
-	// The target relabeling below must be in sync with the code at scrapeWorkConfig.getScrapeWork if isTragetRelabeling=true
+func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTargetRelabel bool) ([]DebugStep, string) {
+	// The target relabeling below must be in sync with the code at scrapeWorkConfig.getScrapeWork if isTargetRelabel=true
 	// and with the code at scrapeWork.addRowToTimeseries when isTargetRelabeling=false
+	targetURL := ""
 
 	// Prevent from modifying the original labels
 	labels = labels.Clone()
@@ -69,6 +71,9 @@ func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTarget
 				})
 			}
 		}
+
+		// Generate targetURL
+		targetURL, _ = GetScrapeURL(labels, nil)
 
 		// Remove labels with __ prefix
 		inStr := outStr
@@ -96,7 +101,7 @@ func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTarget
 	}
 
 	// There is no need in labels' sorting, since LabelsToString() automatically sorts labels.
-	return dss
+	return dss, targetURL
 }
 
 func getChangedLabelNames(in, out *promutils.Labels) map[string]struct{} {

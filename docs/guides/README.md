@@ -13,3 +13,5 @@ sort: 26
 7. [Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring](https://docs.victoriametrics.com/guides/multi-regional-setup-dedicated-regions.html)
 8. [How to delete or replace metrics in VictoriaMetrics](https://docs.victoriametrics.com/guides/guide-delete-or-replace-metrics.html)
 9. [How to monitor kubernetes cluster using Managed VictoriaMetrics](https://docs.victoriametrics.com/managed-victoriametrics/how-to-monitor-k8s.html)
+10. [How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect](https://docs.victoriametrics.com/guides/grafana-vmgateway-openid-configuration.html)
+11. [How to setup vmanomaly together with vmalert](https://docs.victoriametrics.com/guide/guide-vmanomaly-vmalert.html)

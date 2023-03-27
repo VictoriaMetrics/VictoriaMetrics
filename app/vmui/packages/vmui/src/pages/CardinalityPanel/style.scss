@@ -5,7 +5,17 @@
   align-items: flex-start;
   gap: $padding-medium;
 
-  &_mobile {
+  &_mobile, &_mobile &-tips {
     gap: $padding-small;
+  }
+
+  &-tips {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    justify-content: flex-start;
+    gap: $padding-medium;
+    flex-grow: 1;
+    width: 100%;
   }
 }

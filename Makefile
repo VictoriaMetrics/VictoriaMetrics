@@ -66,6 +66,11 @@ vmcluster-openbsd-amd64: \
 	vmselect-openbsd-amd64 \
 	vmstorage-openbsd-amd64
 
+vmcluster-windows-amd64: \
+	vminsert-windows-amd64 \
+	vmselect-windows-amd64 \
+	vmstorage-windows-amd64
+
 vmcluster-crossbuild: \
 	vmcluster-linux-amd64 \
 	vmcluster-linux-arm64 \
@@ -98,7 +103,8 @@ release-vmcluster: \
 	release-vmcluster-linux-amd64 \
 	release-vmcluster-linux-arm64 \
 	release-vmcluster-freebsd-amd64 \
-	release-vmcluster-openbsd-amd64
+	release-vmcluster-openbsd-amd64 \
+	release-vmcluster-windows-amd64
 
 release-vmcluster-linux-amd64:
 	GOOS=linux GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
@@ -111,6 +117,9 @@ release-vmcluster-freebsd-amd64:
 
 release-vmcluster-openbsd-amd64:
 	GOOS=openbsd GOARCH=amd64 $(MAKE) release-vmcluster-goos-goarch
+
+release-vmcluster-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-vmcluster-windows-goarch
 
 release-vmcluster-goos-goarch: \
 	vminsert-$(GOOS)-$(GOARCH)-prod \
@@ -130,6 +139,25 @@ release-vmcluster-goos-goarch: \
 		vminsert-$(GOOS)-$(GOARCH)-prod \
 		vmselect-$(GOOS)-$(GOARCH)-prod \
 		vmstorage-$(GOOS)-$(GOARCH)-prod
+
+release-vmcluster-windows-goarch: \
+	vminsert-windows-$(GOARCH)-prod \
+	vmselect-windows-$(GOARCH)-prod \
+	vmstorage-windows-$(GOARCH)-prod
+	cd bin && \
+		zip victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vminsert-windows-$(GOARCH)-prod.exe \
+			vmselect-windows-$(GOARCH)-prod.exe \
+			vmstorage-windows-$(GOARCH)-prod.exe \
+		&& sha256sum victoria-metrics-windows-$(GOARCH)-$(PKG_TAG).zip \
+			vminsert-windows-$(GOARCH)-prod.exe \
+			vmselect-windows-$(GOARCH)-prod.exe \
+			vmstorage-windows-$(GOARCH)-prod.exe \
+		> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		vminsert-windows-$(GOARCH)-prod.exe \
+		vmselect-windows-$(GOARCH)-prod.exe \
+		vmstorage-windows-$(GOARCH)-prod.exe
 
 pprof-cpu:
 	go tool pprof -trim_path=github.com/VictoriaMetrics/VictoriaMetrics@ $(PPROF_FILE)
@@ -196,7 +224,7 @@ golangci-lint: install-golangci-lint
 	golangci-lint run
 
 install-golangci-lint:
-	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.51.1
+	which golangci-lint || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.51.2
 
 govulncheck: install-govulncheck
 	govulncheck ./...

@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
@@ -24,6 +25,8 @@ import (
 var (
 	authConfigPath = flag.String("auth.config", "", "Path to auth config. It can point either to local file or to http url. "+
 		"See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config")
+	configCheckInterval = flag.Duration("configCheckInterval", 0, "interval for config file re-read. "+
+		"Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.")
 )
 
 // AuthConfig represents auth config.
@@ -305,10 +308,20 @@ func stopAuthConfig() {
 }
 
 func authConfigReloader(sighupCh <-chan os.Signal) {
+	var refreshCh <-chan time.Time
+	// initialize auth refresh interval
+	if *configCheckInterval > 0 {
+		ticker := time.NewTicker(*configCheckInterval)
+		defer ticker.Stop()
+		refreshCh = ticker.C
+	}
+
 	for {
 		select {
 		case <-stopCh:
 			return
+		case <-refreshCh:
+			procutil.SelfSIGHUP()
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
 			m, err := readAuthConfig(*authConfigPath)

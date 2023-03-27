@@ -141,24 +141,24 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 
 	path = filepath.Clean(path)
 
-	if err := bsr.ph.ParseFromPath(path); err != nil {
+	if err := bsr.ph.ReadMetadata(path); err != nil {
 		return fmt.Errorf("cannot parse path to part: %w", err)
 	}
 
-	timestampsPath := path + "/timestamps.bin"
+	timestampsPath := filepath.Join(path, timestampsFilename)
 	timestampsFile, err := filestream.Open(timestampsPath, true)
 	if err != nil {
 		return fmt.Errorf("cannot open timestamps file in stream mode: %w", err)
 	}
 
-	valuesPath := path + "/values.bin"
+	valuesPath := filepath.Join(path, valuesFilename)
 	valuesFile, err := filestream.Open(valuesPath, true)
 	if err != nil {
 		timestampsFile.MustClose()
 		return fmt.Errorf("cannot open values file in stream mode: %w", err)
 	}
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile, err := filestream.Open(indexPath, true)
 	if err != nil {
 		timestampsFile.MustClose()
@@ -166,7 +166,7 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 		return fmt.Errorf("cannot open index file in stream mode: %w", err)
 	}
 
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile, err := filestream.Open(metaindexPath, true)
 	if err != nil {
 		timestampsFile.MustClose()

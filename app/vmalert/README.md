@@ -621,6 +621,10 @@ can read the same rules configuration as normal, evaluate them on the given time
 results via remote write to the configured storage. vmalert supports any PromQL/MetricsQL compatible
 data source for backfilling.
 
+Please note, that response caching may lead to unexpected results during and after backfilling process.
+In order to avoid this you need to reset cache contents or disable caching when using backfilling
+as described in [backfilling docs](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#backfilling).
+
 See a blogpost about [Rules backfilling via vmalert](https://victoriametrics.com/blog/rules-replay/).
 
 ### How it works
@@ -912,7 +916,7 @@ The shortlist of configuration flags is the following:
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' . If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
+     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.

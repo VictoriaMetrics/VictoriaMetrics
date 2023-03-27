@@ -147,10 +147,6 @@ func newHTTPClient(argIdx int, remoteWriteURL, sanitizedURL string, fq *persiste
 	}
 	c.sendBlock = c.sendBlockHTTP
 
-	return c
-}
-
-func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	useVMProto := forceVMProto.GetOptionalArg(argIdx)
 	usePromProto := forcePromProto.GetOptionalArg(argIdx)
 	if useVMProto && usePromProto {
@@ -169,6 +165,10 @@ func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	}
 	c.useVMProto = useVMProto
 
+	return c
+}
+
+func (c *client) init(argIdx, concurrency int, sanitizedURL string) {
 	if bytesPerSec := rateLimit.GetOptionalArgOrDefault(argIdx, 0); bytesPerSec > 0 {
 		logger.Infof("applying %d bytes per second rate limit for -remoteWrite.url=%q", bytesPerSec, sanitizedURL)
 		c.rl.perSecondLimit = int64(bytesPerSec)

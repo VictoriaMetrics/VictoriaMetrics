@@ -10,9 +10,9 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -199,12 +199,40 @@ func (r *Rule) Validate() error {
 // ValidateTplFn must validate the given annotations
 type ValidateTplFn func(annotations map[string]string) error
 
+// cLogger is a logger with support of logs suppressing.
+// it is used when logs emitted by config package needs
+// to be suppressed.
+var cLogger = &log.Logger{}
+
+// ParseSilent parses rule configs from given file patterns without emitting logs
+func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
+	cLogger.Suppress(true)
+	defer cLogger.Suppress(false)
+
+	files, err := readFromFS(pathPatterns)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read from the config: %s", err)
+	}
+	return parse(files, validateTplFn, validateExpressions)
+}
+
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	files, err := readFromFS(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
+	groups, err := parse(files, validateTplFn, validateExpressions)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
+	}
+	if len(groups) < 1 {
+		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+	}
+	return groups, nil
+}
+
+func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
 	for file, data := range files {
@@ -231,9 +259,12 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	if err := errGroup.Err(); err != nil {
 		return nil, err
 	}
-	if len(groups) < 1 {
-		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
-	}
+	sort.SliceStable(groups, func(i, j int) bool {
+		if groups[i].File != groups[j].File {
+			return groups[i].File < groups[j].File
+		}
+		return groups[i].Name < groups[j].Name
+	})
 	return groups, nil
 }
 

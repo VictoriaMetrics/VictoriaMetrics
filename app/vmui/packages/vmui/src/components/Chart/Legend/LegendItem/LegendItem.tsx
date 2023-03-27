@@ -15,6 +15,7 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
   const [copiedValue, setCopiedValue] = useState("");
   const freeFormFields = useMemo(() => getFreeFields(legend), [legend]);
   const calculations = legend.calculations;
+  const showCalculations = Object.values(calculations).some(v => v);
 
   const handleClickFreeField = async (val: string, id: string) => {
     await navigator.clipboard.writeText(val);
@@ -68,9 +69,11 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange }) => {
           &#125;
         </span>
       </div>
-      <div className="vm-legend-item-values">
-        median:{calculations.median}, min:{calculations.min}, max:{calculations.max}, last:{calculations.last}
-      </div>
+      {showCalculations && (
+        <div className="vm-legend-item-values">
+          median:{calculations.median}, min:{calculations.min}, max:{calculations.max}, last:{calculations.last}
+        </div>
+      )}
     </div>
   );
 };

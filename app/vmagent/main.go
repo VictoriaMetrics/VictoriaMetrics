@@ -46,7 +46,8 @@ var (
 		"Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. "+
 		"Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol")
 	useProxyProtocol = flag.Bool("httpListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted at -httpListenAddr . "+
-		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
+		"See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . "+
+		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	influxListenAddr = flag.String("influxListenAddr", "", "TCP and UDP address to listen for InfluxDB line protocol data. Usually :8089 must be set. Doesn't work if empty. "+
 		"This flag isn't needed when ingesting data over HTTP - just send it to http://<vmagent>:8429/write . "+
 		"See also -influxListenAddr.useProxyProtocol")
@@ -98,7 +99,7 @@ func main() {
 		if err := promscrape.CheckConfig(); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
-		logger.Infof("-promscrape.config is ok; exitting with 0 status code")
+		logger.Infof("-promscrape.config is ok; exiting with 0 status code")
 		return
 	}
 	if *dryRun {
@@ -108,7 +109,7 @@ func main() {
 		if err := promscrape.CheckConfig(); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
-		logger.Infof("all the configs are ok; exitting with 0 status code")
+		logger.Infof("all the configs are ok; exiting with 0 status code")
 		return
 	}
 

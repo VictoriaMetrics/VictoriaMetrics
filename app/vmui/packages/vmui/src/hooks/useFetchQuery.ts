@@ -10,6 +10,7 @@ import Trace from "../components/TraceQuery/Trace";
 import { useQueryState } from "../state/query/QueryStateContext";
 import { useTimeState } from "../state/time/TimeStateContext";
 import { useCustomPanelState } from "../state/customPanel/CustomPanelStateContext";
+import { isHistogramData } from "../utils/metric";
 
 interface FetchQueryParams {
   predefinedQuery?: string[]
@@ -26,8 +27,10 @@ interface FetchQueryReturn {
   graphData?: MetricResult[],
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
+  queryErrors: (ErrorTypes | string)[],
   warning?: string,
   traces?: Trace[],
+  isHistogram: boolean,
 }
 
 interface FetchDataParams {
@@ -58,16 +61,10 @@ export const useFetchQuery = ({
   const [liveData, setLiveData] = useState<InstantMetricResult[]>();
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
+  const [queryErrors, setQueryErrors] = useState<(ErrorTypes | string)[]>([]);
   const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
-
-  useEffect(() => {
-    if (error) {
-      setGraphData(undefined);
-      setLiveData(undefined);
-      setTraces(undefined);
-    }
-  }, [error]);
+  const [isHistogram, setIsHistogram] = useState(false);
 
   const fetchData = async ({
     fetchUrl,
@@ -100,7 +97,7 @@ export const useFetchQuery = ({
         const resp = await response.json();
 
         if (response.ok) {
-          setError(undefined);
+          setQueryErrors(prev => [...prev, ""]);
 
           if (resp.trace) {
             const trace = new Trace(resp.trace, query[counter - 1]);
@@ -114,15 +111,17 @@ export const useFetchQuery = ({
           });
 
           totalLength += resp.data.result.length;
-          counter++;
         } else {
-          setError(`${resp.errorType}\r\n${resp?.error}`);
+          tempData.push({ metric: {}, values: [], group: counter } as MetricBase);
+          setQueryErrors(prev => [...prev, `${resp.errorType}\r\n${resp?.error}`]);
         }
+        counter++;
       }
 
       const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
 
+      setIsHistogram(isDisplayChart && isHistogramData(tempData));
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
     } catch (e) {
@@ -136,13 +135,15 @@ export const useFetchQuery = ({
   const throttledFetchData = useCallback(debounce(fetchData, 300), []);
 
   const fetchUrl = useMemo(() => {
+    setError("");
+    setQueryErrors([]);
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
     if (!period) return;
     if (!serverUrl) {
       setError(ErrorTypes.emptyServer);
     } else if (expr.every(q => !q.trim())) {
-      setError(ErrorTypes.validQuery);
+      setQueryErrors(expr.map(() => ErrorTypes.validQuery));
     } else if (isValidHttpUrl(serverUrl)) {
       const updatedPeriod = { ...period };
       updatedPeriod.step = customStep;
@@ -181,5 +182,5 @@ export const useFetchQuery = ({
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, warning, traces };
+  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, warning, traces, isHistogram };
 };

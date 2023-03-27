@@ -4,10 +4,10 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 1.81.x  | :white_check_mark: |
-| 1.80.x  | :x:                |
-| 1.79.x  | :white_check_mark: |
-| < 1.78  | :x:                |
+| [latest release](https://docs.victoriametrics.com/CHANGELOG.html) | :white_check_mark: |
+| v1.87.x LTS release | :white_check_mark: |
+| v1.79.x LTS release | :white_check_mark: |
+| other releases  | :x:                |
 
 ## Reporting a Vulnerability
 

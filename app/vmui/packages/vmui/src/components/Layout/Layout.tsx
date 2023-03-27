@@ -1,6 +1,7 @@
 import Header from "./Header/Header";
 import React, { FC, useEffect } from "preact/compat";
-import { Outlet, useLocation } from "react-router-dom";
+import { Outlet, useLocation, useSearchParams } from "react-router-dom";
+import qs from "qs";
 import "./style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
@@ -12,14 +13,33 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 const Layout: FC = () => {
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
+  const { pathname } = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+
   useFetchDashboards();
 
-  const { pathname } = useLocation();
-  useEffect(() => {
+  const setDocumentTitle = () => {
     const defaultTitle = "vmui";
     const routeTitle = routerOptions[pathname]?.title;
     document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
-  }, [pathname]);
+  };
+
+  // for support old links with search params
+  const redirectSearchToHashParams = () => {
+    const { search } = window.location;
+    if (search) {
+      const query = qs.parse(search, { ignoreQueryPrefix: true });
+      Object.entries(query).forEach(([key, value]) => {
+        searchParams.set(key, value as string);
+        setSearchParams(searchParams);
+      });
+      window.location.search = "";
+    }
+    window.location.replace(window.location.href.replace(/\/\?#\//, "/#/"));
+  };
+
+  useEffect(setDocumentTitle, [pathname]);
+  useEffect(redirectSearchToHashParams, []);
 
   return <section className="vm-container">
     <Header/>

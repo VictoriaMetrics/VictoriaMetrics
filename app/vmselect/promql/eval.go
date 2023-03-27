@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
@@ -137,7 +138,7 @@ type EvalConfig struct {
 	DenyPartialResponse bool
 
 	// IsPartialResponse is set during query execution and can be used by Exec caller after query execution.
-	IsPartialResponse bool
+	IsPartialResponse atomic.Bool
 
 	timestamps     []int64
 	timestampsOnce sync.Once
@@ -165,7 +166,7 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
 	ec.GetRequestURI = src.GetRequestURI
 	ec.DenyPartialResponse = src.DenyPartialResponse
-	ec.IsPartialResponse = src.IsPartialResponse
+	ec.IsPartialResponse.Store(src.IsPartialResponse.Load())
 
 	ec.seriesFetched = src.seriesFetched
 
@@ -190,9 +191,7 @@ func (ec *EvalConfig) SeriesFetched() int {
 }
 
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
-	if !ec.IsPartialResponse {
-		ec.IsPartialResponse = isPartialResponse
-	}
+	ec.IsPartialResponse.CompareAndSwap(false, isPartialResponse)
 }
 
 func (ec *EvalConfig) validate() {
@@ -878,7 +877,7 @@ func evalRollupFuncWithoutAt(qt *querytracer.Tracer, ec *EvalConfig, funcName st
 	if funcName == "absent_over_time" {
 		rvs = aggregateAbsentOverTime(ec, re.Expr, rvs)
 	}
-	ec.updateIsPartialResponse(ecNew.IsPartialResponse)
+	ec.updateIsPartialResponse(ecNew.IsPartialResponse.Load())
 	if offset != 0 && len(rvs) > 0 {
 		// Make a copy of timestamps, since they may be used in other values.
 		srcTimestamps := rvs[0].Timestamps
@@ -938,7 +937,7 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	if err != nil {
 		return nil, err
 	}
-	ec.updateIsPartialResponse(ecSQ.IsPartialResponse)
+	ec.updateIsPartialResponse(ecSQ.IsPartialResponse.Load())
 	if len(tssSQ) == 0 {
 		return nil, nil
 	}
@@ -947,31 +946,34 @@ func evalRollupFuncWithSubquery(qt *querytracer.Tracer, ec *EvalConfig, funcName
 	if err != nil {
 		return nil, err
 	}
-	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
-	var tssLock sync.Mutex
+
 	var samplesScannedTotal uint64
 	keepMetricNames := getKeepMetricNames(expr)
-	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64) ([]float64, []int64) {
+	tsw := getTimeseriesByWorkerID()
+	seriesByWorkerID := tsw.byWorkerID
+	doParallel(tssSQ, func(tsSQ *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64) {
 		values, timestamps = removeNanValues(values[:0], timestamps[:0], tsSQ.Values, tsSQ.Timestamps)
 		preFunc(values, timestamps)
 		for _, rc := range rcs {
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &tsSQ.MetricName); tsm != nil {
 				samplesScanned := rc.DoTimeseriesMap(tsm, values, timestamps)
 				atomic.AddUint64(&samplesScannedTotal, samplesScanned)
-				tssLock.Lock()
-				tss = tsm.AppendTimeseriesTo(tss)
-				tssLock.Unlock()
+				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
 				continue
 			}
 			var ts timeseries
 			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &tsSQ.MetricName, values, timestamps, sharedTimestamps)
 			atomic.AddUint64(&samplesScannedTotal, samplesScanned)
-			tssLock.Lock()
-			tss = append(tss, &ts)
-			tssLock.Unlock()
+			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
 		}
 		return values, timestamps
 	})
+	tss := make([]*timeseries, 0, len(tssSQ)*len(rcs))
+	for i := range seriesByWorkerID {
+		tss = append(tss, seriesByWorkerID[i].tss...)
+	}
+	putTimeseriesByWorkerID(tsw)
+
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
 	qt.Printf("rollup %s() over %d series returned by subquery: series=%d, samplesScanned=%d", funcName, len(tssSQ), len(tss), samplesScannedTotal)
 	return tss, nil
@@ -995,28 +997,36 @@ func getKeepMetricNames(expr metricsql.Expr) bool {
 	return false
 }
 
-func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, timestamps []int64) ([]float64, []int64)) {
-	concurrency := cgroup.AvailableCPUs()
-	if concurrency > len(tss) {
-		concurrency = len(tss)
+func doParallel(tss []*timeseries, f func(ts *timeseries, values []float64, timestamps []int64, workerID uint) ([]float64, []int64)) {
+	workers := netstorage.MaxWorkers()
+	if workers > len(tss) {
+		workers = len(tss)
 	}
-	workCh := make(chan *timeseries, concurrency)
+	seriesPerWorker := (len(tss) + workers - 1) / workers
+	workChs := make([]chan *timeseries, workers)
+	for i := range workChs {
+		workChs[i] = make(chan *timeseries, seriesPerWorker)
+	}
+	for i, ts := range tss {
+		idx := i % len(workChs)
+		workChs[idx] <- ts
+	}
+	for _, workCh := range workChs {
+		close(workCh)
+	}
+
 	var wg sync.WaitGroup
-	wg.Add(concurrency)
-	for i := 0; i < concurrency; i++ {
-		go func() {
+	wg.Add(workers)
+	for i := 0; i < workers; i++ {
+		go func(workerID uint) {
 			defer wg.Done()
 			var tmpValues []float64
 			var tmpTimestamps []int64
-			for ts := range workCh {
-				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps)
+			for ts := range workChs[workerID] {
+				tmpValues, tmpTimestamps = f(ts, tmpValues, tmpTimestamps, workerID)
 			}
-		}()
+		}(uint(i))
 	}
-	for _, ts := range tss {
-		workCh <- ts
-	}
-	close(workCh)
 	wg.Wait()
 }
 
@@ -1242,9 +1252,11 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 	preFunc func(values []float64, timestamps []int64), sharedTimestamps []int64) ([]*timeseries, error) {
 	qt = qt.NewChild("rollup %s() over %d series; rollupConfigs=%s", funcName, rss.Len(), rcs)
 	defer qt.Done()
-	tss := make([]*timeseries, 0, rss.Len()*len(rcs))
-	var tssLock sync.Mutex
+
 	var samplesScannedTotal uint64
+	tsw := getTimeseriesByWorkerID()
+	seriesByWorkerID := tsw.byWorkerID
+	seriesLen := rss.Len()
 	err := rss.RunParallel(qt, func(rs *netstorage.Result, workerID uint) error {
 		rs.Values, rs.Timestamps = dropStaleNaNs(funcName, rs.Values, rs.Timestamps)
 		preFunc(rs.Values, rs.Timestamps)
@@ -1252,23 +1264,25 @@ func evalRollupNoIncrementalAggregate(qt *querytracer.Tracer, funcName string, k
 			if tsm := newTimeseriesMap(funcName, keepMetricNames, sharedTimestamps, &rs.MetricName); tsm != nil {
 				samplesScanned := rc.DoTimeseriesMap(tsm, rs.Values, rs.Timestamps)
 				atomic.AddUint64(&samplesScannedTotal, samplesScanned)
-				tssLock.Lock()
-				tss = tsm.AppendTimeseriesTo(tss)
-				tssLock.Unlock()
+				seriesByWorkerID[workerID].tss = tsm.AppendTimeseriesTo(seriesByWorkerID[workerID].tss)
 				continue
 			}
 			var ts timeseries
 			samplesScanned := doRollupForTimeseries(funcName, keepMetricNames, rc, &ts, &rs.MetricName, rs.Values, rs.Timestamps, sharedTimestamps)
 			atomic.AddUint64(&samplesScannedTotal, samplesScanned)
-			tssLock.Lock()
-			tss = append(tss, &ts)
-			tssLock.Unlock()
+			seriesByWorkerID[workerID].tss = append(seriesByWorkerID[workerID].tss, &ts)
 		}
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
+	tss := make([]*timeseries, 0, seriesLen*len(rcs))
+	for i := range seriesByWorkerID {
+		tss = append(tss, seriesByWorkerID[i].tss...)
+	}
+	putTimeseriesByWorkerID(tsw)
+
 	rowsScannedPerQuery.Update(float64(samplesScannedTotal))
 	qt.Printf("samplesScanned=%d", samplesScannedTotal)
 	return tss, nil
@@ -1289,6 +1303,42 @@ func doRollupForTimeseries(funcName string, keepMetricNames bool, rc *rollupConf
 	tsDst.denyReuse = true
 	return samplesScanned
 }
+
+type timeseriesWithPadding struct {
+	tss []*timeseries
+
+	// The padding prevents false sharing on widespread platforms with
+	// 128 mod (cache line size) = 0 .
+	_ [128 - unsafe.Sizeof([]*timeseries{})%128]byte
+}
+
+type timeseriesByWorkerID struct {
+	byWorkerID []timeseriesWithPadding
+}
+
+func (tsw *timeseriesByWorkerID) reset() {
+	byWorkerID := tsw.byWorkerID
+	for i := range byWorkerID {
+		byWorkerID[i].tss = nil
+	}
+}
+
+func getTimeseriesByWorkerID() *timeseriesByWorkerID {
+	v := timeseriesByWorkerIDPool.Get()
+	if v == nil {
+		return &timeseriesByWorkerID{
+			byWorkerID: make([]timeseriesWithPadding, netstorage.MaxWorkers()),
+		}
+	}
+	return v.(*timeseriesByWorkerID)
+}
+
+func putTimeseriesByWorkerID(tsw *timeseriesByWorkerID) {
+	tsw.reset()
+	timeseriesByWorkerIDPool.Put(tsw)
+}
+
+var timeseriesByWorkerIDPool sync.Pool
 
 var bbPool bytesutil.ByteBufferPool
 

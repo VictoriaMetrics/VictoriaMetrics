@@ -3,6 +3,7 @@
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
 [![Docker Pulls](https://img.shields.io/docker/pulls/victoriametrics/victoria-metrics.svg?maxAge=604800)](https://hub.docker.com/r/victoriametrics/victoria-metrics)
+[![victoriametrics](https://snapcraft.io/victoriametrics/badge.svg)](https://snapcraft.io/victoriametrics)
 [![Slack](https://img.shields.io/badge/join%20slack-%23victoriametrics-brightgreen.svg)](https://slack.victoriametrics.com/)
 [![GitHub license](https://img.shields.io/github/license/VictoriaMetrics/VictoriaMetrics.svg)](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE)
 [![Go Report](https://goreportcard.com/badge/github.com/VictoriaMetrics/VictoriaMetrics)](https://goreportcard.com/report/github.com/VictoriaMetrics/VictoriaMetrics)
@@ -127,10 +128,21 @@ See also [articles and slides about VictoriaMetrics from our users](https://docs
 
 ## Operation
 
-### How to start VictoriaMetrics
+### Install
 
-Just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
+To quickly try VictoriaMetrics, just download [VictoriaMetrics executable](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) or [Docker image](https://hub.docker.com/r/victoriametrics/victoria-metrics/) and start it with the desired command-line flags.
 See also [QuickStart guide](https://docs.victoriametrics.com/Quick-Start.html) for additional information.
+
+VictoriaMetrics can also be installed via these installation methods:
+
+* [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
+* [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
+* [Ansible role for installing cluster VictoriaMetrics (by VictoriaMetrics)](https://github.com/VictoriaMetrics/ansible-playbooks).
+* [Ansible role for installing cluster VictoriaMetrics (by community)](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
+* [Ansible role for installing single-node VictoriaMetrics (by community)](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
+* [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
+
+### How to start VictoriaMetrics
 
 The following command-line flags are used the most:
 
@@ -190,7 +202,7 @@ Changing scrape configuration is possible with text editor:
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
-After changes were made, trigger config re-read with the command `curl 127.0.0.1:8248/-/reload`.
+After changes were made, trigger config re-read with the command `curl 127.0.0.1:8428/-/reload`.
 
 ## Prometheus setup
 
@@ -1436,12 +1448,14 @@ can be configured with the `-inmemoryDataFlushInterval` command-line flag (note 
 In-memory parts are persisted to disk into `part` directories under the `<-storageDataPath>/data/small/YYYY_MM/` folder,
 where `YYYY_MM` is the month partition for the stored data. For example, `2022_11` is the partition for `parts`
 with [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) from `November 2022`.
+Each partition directory contains `parts.json` file with the actual list of parts in the partition.
 
-The `part` directory has the following name pattern: `rowsCount_blocksCount_minTimestamp_maxTimestamp`, where:
+Every `part` directory contains `metadata.json` file with the following fields:
 
-- `rowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
-- `blocksCount` - the number of blocks stored in the part (see details about blocks below)
-- `minTimestamp` and `maxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+- `RowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
+- `BlocksCount` - the number of blocks stored in the part (see details about blocks below)
+- `MinTimestamp` and `MaxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+- `MinDedupInterval` - the [deduplication interval](#deduplication) applied to the given part.
 
 Each `part` consists of `blocks` sorted by internal time series id (aka `TSID`).
 Each `block` contains up to 8K [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
@@ -1463,9 +1477,8 @@ for fast block lookups, which belong to the given `TSID` and cover the given tim
   and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge
 
 Newly added `parts` either successfully appear in the storage or fail to appear.
-The newly added `parts` are being created in a temporary directory under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` folder.
-When the newly added `part` is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html)
-to a temporary directory, then it is atomically moved to the storage directory.
+The newly added `part` is atomically registered in the `parts.json` file under the corresponding partition
+after it is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html) to the storage.
 Thanks to this alogrithm, storage never contains partially created parts, even if hardware power off
 occurrs in the middle of writing the `part` to disk - such incompletely written `parts`
 are automatically deleted on the next VictoriaMetrics start.
@@ -1494,8 +1507,7 @@ Retention is configured with the `-retentionPeriod` command-line flag, which tak
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 Data partitions outside the configured retention are deleted on the first day of the new month.
-Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
-Data parts outside of the configured retention are eventually deleted during
+Each partition consists of one or more data parts. Data parts outside of the configured retention are eventually deleted during
 [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
@@ -1888,7 +1900,14 @@ are added to all the metrics before sending them to the remote storage:
 
 ## Cache removal
 
-VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
+VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown
+(e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup.
+Sometimes it is needed to remove such caches on the next startup. This can be done in the following ways:
+
+- By manually removing the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
+- By placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
+  In this case VictoriaMetrics will automatically remove all the caches on the next start.
+  See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
 ## Cache tuning
 
@@ -2040,17 +2059,10 @@ It is safe sharing the collected profiles from security point of view, since the
 
 ## Integrations
 
-* [Helm charts for single-node and cluster versions of VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts).
-* [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator).
-* [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
-  See [these docs](https://github.com/netdata/netdata#integrations).
 * [go-graphite/carbonapi](https://github.com/go-graphite/carbonapi) can use VictoriaMetrics as time series backend.
   See [this example](https://github.com/go-graphite/carbonapi/blob/main/cmd/carbonapi/carbonapi.example.victoriametrics.yaml).
-* [Ansible role for installing cluster VictoriaMetrics (by VictoriaMetrics)](https://github.com/VictoriaMetrics/ansible-playbooks).
-* [Ansible role for installing cluster VictoriaMetrics (by community)](https://github.com/Slapper/ansible-victoriametrics-cluster-role).
-* [Ansible role for installing single-node VictoriaMetrics (by community)](https://github.com/dreamteam-gg/ansible-victoriametrics-role).
-
-* [Snap package for VictoriaMetrics](https://snapcraft.io/victoriametrics).
+* [netdata](https://github.com/netdata/netdata) can push data into VictoriaMetrics via `Prometheus remote_write API`.
+  See [these docs](https://github.com/netdata/netdata#integrations).
 * [vmalert-cli](https://github.com/aorfanos/vmalert-cli) - a CLI application for managing [vmalert](https://docs.victoriametrics.com/vmalert.html).
 
 ## Third-party contributions
@@ -2368,7 +2380,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info
   -promscrape.streamParse
-     Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is posible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+     Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
   -promscrape.suppressDuplicateScrapeTargetErrors
      Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -78,6 +79,8 @@ type TCPListener struct {
 	connMetrics
 }
 
+var proxyProtocolReadErrorLogger = logger.WithThrottler("proxyProtocolReadError", 5*time.Second)
+
 // Accept accepts connections from the addr passed to NewTCPListener.
 func (ln *TCPListener) Accept() (net.Conn, error) {
 	for {
@@ -94,10 +97,15 @@ func (ln *TCPListener) Accept() (net.Conn, error) {
 			return nil, err
 		}
 		if ln.useProxyProtocol {
-			conn, err = newProxyProtocolConn(conn)
+			pConn, err := newProxyProtocolConn(conn)
 			if err != nil {
-				return nil, err
+				if !errors.Is(err, io.EOF) {
+					proxyProtocolReadErrorLogger.Errorf("cannot read proxy proto conn for TCP addr %q: %s", ln.Addr(), err)
+				}
+				_ = conn.Close()
+				continue
 			}
+			conn = pConn
 		}
 		ln.conns.Inc()
 		sc := &statConn{
