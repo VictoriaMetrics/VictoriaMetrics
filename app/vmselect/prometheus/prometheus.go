@@ -842,7 +842,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	} else {
 		queryOffset = 0
 	}
-	ec := promql.EvalConfig{
+	qs := &promql.QueryStats{}
+	ec := &promql.EvalConfig{
 		AuthToken:           at,
 		Start:               start,
 		End:                 start,
@@ -860,8 +861,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		},
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
+		QueryStats:          qs,
 	}
-	result, err := promql.Exec(qt, &ec, query, true)
+	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
@@ -885,7 +887,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		qt.Donef("query=%s, time=%d: series=%d", query, start, len(result))
 	}
 
-	WriteQueryResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone, ec.SeriesFetched())
+	WriteQueryResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone, qs)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
@@ -950,7 +952,8 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	ec := promql.EvalConfig{
+	qs := &promql.QueryStats{}
+	ec := &promql.EvalConfig{
 		AuthToken:           at,
 		Start:               start,
 		End:                 end,
@@ -968,8 +971,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		},
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
+		QueryStats:          qs,
 	}
-	result, err := promql.Exec(qt, &ec, query, false)
+	result, err := promql.Exec(qt, ec, query, false)
 	if err != nil {
 		return err
 	}
@@ -993,7 +997,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d, step=%d, query=%q: series=%d", start, end, step, query, len(result))
 	}
-	WriteQueryRangeResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone)
+	WriteQueryRangeResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone, qs)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}

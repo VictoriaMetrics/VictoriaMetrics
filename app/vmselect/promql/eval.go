@@ -140,14 +140,14 @@ type EvalConfig struct {
 	// IsPartialResponse is set during query execution and can be used by Exec caller after query execution.
 	IsPartialResponse atomic.Bool
 
+	// QueryStats contains various stats for the currently executed query.
+	//
+	// The caller must initialize the QueryStats if it needs the stats.
+	// Otherwise the stats isn't collected.
+	QueryStats *QueryStats
+
 	timestamps     []int64
 	timestampsOnce sync.Once
-
-	// seriesFetched stores the number of time series fetched
-	// from the storage during the evaluation.
-	// It is defined as a pointer since EvalConfig can be forked
-	// during the evaluation but we want to keep its state.
-	seriesFetched *int
 }
 
 // copyEvalConfig returns src copy.
@@ -167,27 +167,22 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.GetRequestURI = src.GetRequestURI
 	ec.DenyPartialResponse = src.DenyPartialResponse
 	ec.IsPartialResponse.Store(src.IsPartialResponse.Load())
-
-	ec.seriesFetched = src.seriesFetched
+	ec.QueryStats = src.QueryStats
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
 }
 
-func (ec *EvalConfig) addStats(series int) {
-	if ec.seriesFetched == nil {
-		ec.seriesFetched = new(int)
-	}
-	*ec.seriesFetched += series
+// QueryStats contains various stats for the query.
+type QueryStats struct {
+	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
+	SeriesFetched int
 }
 
-// SeriesFetched returns the number of series fetched from storages
-// during the evaluation.
-func (ec *EvalConfig) SeriesFetched() int {
-	if ec.seriesFetched == nil {
-		return 0
+func (qs *QueryStats) addSeriesFetched(n int) {
+	if qs != nil {
+		qs.SeriesFetched += n
 	}
-	return *ec.seriesFetched
 }
 
 func (ec *EvalConfig) updateIsPartialResponse(isPartialResponse bool) {
@@ -1119,7 +1114,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		tss := mergeTimeseries(tssCached, nil, start, ec)
 		return tss, nil
 	}
-	ec.addStats(rssLen)
+	ec.QueryStats.addSeriesFetched(rssLen)
 
 	// Verify timeseries fit available memory after the rollup.
 	// Take into account points from tssCached.
