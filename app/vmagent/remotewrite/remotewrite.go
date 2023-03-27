@@ -11,6 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/cespare/xxhash/v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -27,7 +29,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/tenantmetrics"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/cespare/xxhash/v2"
 )
 
 var (
@@ -39,8 +40,8 @@ var (
 		"Pass multiple -remoteWrite.multitenantURL flags in order to replicate data to multiple remote storage systems. See also -remoteWrite.url")
 	tmpDataPath = flag.String("remoteWrite.tmpDataPath", "vmagent-remotewrite-data", "Path to directory where temporary data for remote write component is stored. "+
 		"See also -remoteWrite.maxDiskUsagePerURL")
-	removeDanglingQueues = flag.Bool("remoteWrite.removeDanglingQueues", false, "Perform startup check against queues stored in --remoteWrite.tmpDataPath and remove queues without respective --remoteWrite.url. "+
-		"Useful when --remoteWrite.url is changed and old queues are not needed anymore.")
+	keepDanglingQueues = flag.Bool("remoteWrite.keepDanglingQueues", false, "Keep persistent queues contents in case there are no matching -remoteWrite.url. "+
+		"Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.")
 	queues = flag.Int("remoteWrite.queues", cgroup.AvailableCPUs()*2, "The number of concurrent queues to each -remoteWrite.url. Set more queues if default number of queues "+
 		"isn't enough for sending high volume of collected data to remote storage. Default value is 2 * numberOfAvailableCPUs")
 	showRemoteWriteURL = flag.Bool("remoteWrite.showURL", false, "Whether to show -remoteWrite.url in the exported metrics. "+
@@ -233,7 +234,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		rwctxs[i] = newRemoteWriteCtx(i, at, remoteWriteURL, maxInmemoryBlocks, sanitizedURL)
 	}
 
-	if *removeDanglingQueues {
+	if !*keepDanglingQueues {
 		// Remove dangling queues, if any.
 		// This is required for the case when the number of queues has been changed or URL have been changed.
 		// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
