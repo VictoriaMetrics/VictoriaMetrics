@@ -6,16 +6,15 @@
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(targetURL string, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
-{% func RelabelDebugSteps(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs, format string, err error) %}
+{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs  string, err error) %}
   {% if format == "json" %}
-      {%= RelabelDebugStepsJSON(isTargetRelabel, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, err) %}
   {% else %}
-      {%= RelabelDebugStepsHTML(isTargetRelabel, targetID, dss, metric, relabelConfigs, err) %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, err) %}
   {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsHTML(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -138,7 +137,7 @@ function submitRelabelDebugForm(e) {
 {% endif %}
 {% endfunc %}
 
-{% func RelabelDebugStepsJSON(isTargetRelabel bool, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
     {
        {% if err != nil %}
                 "status": "error",
