@@ -5,6 +5,7 @@ import { DATE_ISO_FORMAT } from "../constants/date";
 import timezones from "../constants/timezones";
 
 const MAX_ITEMS_PER_CHART = window.innerWidth / 4;
+const MAX_ITEMS_PER_HISTOGRAM = window.innerWidth / 40;
 
 export const limitsDurations = { min: 1, max: 1.578e+11 }; // min: 1 ms, max: 5 years
 
@@ -83,17 +84,19 @@ export const getSecondsFromDuration = (dur: string) => {
   return dayjs.duration(durObject).asSeconds();
 };
 
+export const getStepFromDuration = (dur: number, histogram?: boolean) => {
+  const size = histogram ? MAX_ITEMS_PER_HISTOGRAM : MAX_ITEMS_PER_CHART;
+  return roundStep(dur / size);
+};
+
 export const getTimeperiodForDuration = (dur: string, date?: Date): TimeParams => {
   const n = (date || dayjs().toDate()).valueOf() / 1000;
-
   const delta = getSecondsFromDuration(dur);
-  const rawStep = delta / MAX_ITEMS_PER_CHART;
-  const step = roundStep(rawStep);
 
   return {
     start: n - delta,
     end: n,
-    step: step,
+    step: getStepFromDuration(delta),
     date: formatDateToUTC(date || dayjs().toDate())
   };
 };

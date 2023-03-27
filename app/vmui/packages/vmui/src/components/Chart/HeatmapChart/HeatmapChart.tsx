@@ -2,14 +2,11 @@ import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "pr
 import uPlot, {
   AlignedData as uPlotData,
   Options as uPlotOptions,
-  Series as uPlotSeries,
-  Range,
-  Scales,
-  Scale,
+  Range
 } from "uplot";
-import { defaultOptions } from "../../../utils/uplot/helpers";
+import { defaultOptions, sizeAxis } from "../../../utils/uplot/helpers";
 import { dragChart } from "../../../utils/uplot/events";
-import { getAxes, getMinMaxBuffer } from "../../../utils/uplot/axes";
+import { getAxes } from "../../../utils/uplot/axes";
 import { MetricResult } from "../../../api/types";
 import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../utils/time";
 import throttle from "lodash.throttle";
@@ -17,55 +14,59 @@ import useResize from "../../../hooks/useResize";
 import { TimeParams } from "../../../types";
 import { YaxisState } from "../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
-import "./style.scss";
 import classNames from "classnames";
-import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
 import { useAppState } from "../../../state/common/StateContext";
-import { SeriesItem } from "../../../utils/uplot/series";
+import { heatmapPaths } from "../../../utils/uplot/heatmap";
+import { DATE_FULL_TIMEZONE_FORMAT } from "../../../constants/date";
+import ChartTooltipHeatmap, {
+  ChartTooltipHeatmapProps,
+  TooltipHeatmapProps
+} from "../ChartTooltipHeatmap/ChartTooltipHeatmap";
 
-export interface LineChartProps {
+export interface HeatmapChartProps {
   metrics: MetricResult[];
   data: uPlotData;
   period: TimeParams;
   yaxis: YaxisState;
-  series: uPlotSeries[];
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
   container: HTMLDivElement | null;
   height?: number;
+  onChangeLegend: (val: number) => void;
 }
 
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange"}
 
-const LineChart: FC<LineChartProps> = ({
+const HeatmapChart: FC<HeatmapChartProps> = ({
   data,
-  series,
   metrics = [],
   period,
   yaxis,
   unit,
   setPeriod,
   container,
-  height
+  height,
+  onChangeLegend,
 }) => {
   const { isDarkTheme } = useAppState();
 
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
-  const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const [startTouchDistance, setStartTouchDistance] = useState(0);
   const layoutSize = useResize(container);
 
-  const [showTooltip, setShowTooltip] = useState(false);
-  const [tooltipIdx, setTooltipIdx] = useState({ seriesIdx: -1, dataIdx: -1 });
+  const [tooltipProps, setTooltipProps] = useState<TooltipHeatmapProps | null>(null);
   const [tooltipOffset, setTooltipOffset] = useState({ left: 0, top: 0 });
-  const [stickyTooltips, setStickyToolTips] = useState<ChartTooltipProps[]>([]);
-  const tooltipId = useMemo(() => `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`, [tooltipIdx]);
+  const [stickyTooltips, setStickyToolTips] = useState<ChartTooltipHeatmapProps[]>([]);
+  const tooltipId = useMemo(() => {
+    return `${tooltipProps?.fields.join(",")}_${tooltipProps?.startDate}`;
+  }, [tooltipProps]);
 
   const setScale = ({ min, max }: { min: number, max: number }): void => {
+    if (isNaN(min) || isNaN(max)) return;
     setPeriod({
       from: dayjs(min * 1000).toDate(),
       to: dayjs(max * 1000).toDate()
@@ -133,20 +134,18 @@ const LineChart: FC<LineChartProps> = ({
   };
 
   const handleClick = () => {
-    const id = `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`;
+    if (!tooltipProps) return;
+    const id = `${tooltipProps?.fields.join(",")}_${tooltipProps?.startDate}`;
     const props = {
       id,
       unit,
-      series,
-      metrics,
-      yRange,
-      tooltipIdx,
       tooltipOffset,
+      ...tooltipProps
     };
 
     if (!stickyTooltips.find(t => t.id === id)) {
-      const tooltipProps = JSON.parse(JSON.stringify(props));
-      setStickyToolTips(prev => [...prev, tooltipProps]);
+      const res = JSON.parse(JSON.stringify(props));
+      setStickyToolTips(prev => [...prev, res]);
     }
   };
 
@@ -154,44 +153,97 @@ const LineChart: FC<LineChartProps> = ({
     setStickyToolTips(prev => prev.filter(t => t.id !== id));
   };
 
-  const setCursor = (u: uPlot) => {
-    const dataIdx = u.cursor.idx ?? -1;
-    setTooltipIdx(prev => ({ ...prev, dataIdx }));
-  };
 
-  const seriesFocus = (u: uPlot, sidx: (number | null)) => {
-    const seriesIdx = sidx ?? -1;
-    setTooltipIdx(prev => ({ ...prev, seriesIdx }));
+  const setCursor = (u: uPlot) => {
+    const left = u.cursor.left && u.cursor.left > 0 ? u.cursor.left : 0;
+    const top = u.cursor.top && u.cursor.top > 0 ? u.cursor.top : 0;
+
+    const xArr = (u.data[1][0] || []) as number[];
+    if (!Array.isArray(xArr)) return;
+    const xVal = u.posToVal(left, "x");
+    const yVal = u.posToVal(top, "y");
+    const xIdx = xArr.findIndex((t, i) => xVal >= t && xVal < xArr[i + 1]) || -1;
+    const second = xArr[xIdx + 1];
+
+    const result = metrics[Math.round(yVal)];
+    if (!result) {
+      setTooltipProps(null);
+      return;
+    }
+
+    const metric = result?.metric;
+    const metricName = metric["__name__"] || "value";
+
+    const labelNames = Object.keys(metric).filter(x => x != "__name__");
+    const fields = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
+
+    const [endTime = 0, value = ""] = result.values.find(v => v[0] === second) || [];
+    const valueFormat = `${+value}%`;
+    const startTime = xArr[xIdx];
+    const startDate = dayjs(startTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
+    const endDate = dayjs(endTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
+
+    setTooltipProps({
+      cursor: { left, top },
+      startDate,
+      endDate,
+      metricName,
+      fields,
+      value: +value,
+      valueFormat: valueFormat,
+    });
   };
 
   const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
 
-  const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
-    if (axis == "1") {
-      setYRange([min, max]);
-    }
-    if (yaxis.limits.enable) return yaxis.limits.range[axis];
-    return getMinMaxBuffer(min, max);
-  };
-
-  const getScales = (): Scales => {
-    const scales: { [key: string]: { range: Scale.Range } } = { x: { range: getRangeX } };
-    const ranges = Object.keys(yaxis.limits.range);
-    (ranges.length ? ranges : ["1"]).forEach(axis => {
-      scales[axis] = { range: (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis) };
-    });
-    return scales;
-  };
-
+  const axes = getAxes( [{}], unit);
   const options: uPlotOptions = {
     ...defaultOptions,
+    mode: 2,
     tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
-    series,
-    axes: getAxes( [{}, { scale: "1" }], unit),
-    scales: { ...getScales() },
+    series: [
+      {},
+      {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        paths: heatmapPaths(),
+        facets: [
+          {
+            scale: "x",
+            auto: true,
+            sorted: 1,
+          },
+          {
+            scale: "y",
+            auto: true,
+          },
+        ],
+      },
+    ],
+    axes: [
+      ...axes,
+      {
+        scale: "y",
+        stroke: axes[0].stroke,
+        font: axes[0].font,
+        size: sizeAxis,
+        splits: metrics.map((m, i) => i),
+        values: metrics.map(m => Object.entries(m.metric).map(e => `${e[0]}=${JSON.stringify(e[1])}`)[0]),
+      }
+    ],
+    scales: {
+      x: {
+        time: true,
+      },
+      y: {
+        log: 2,
+        time: false,
+        range: (self, initMin, initMax) => [initMin - 1, initMax + 1]
+      }
+    },
     width: layoutSize.width || 400,
     height: height || 500,
-    plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus } }],
+    plugins: [{ hooks: { ready: onReadyChart, setCursor } }],
     hooks: {
       setSelect: [
         (u) => {
@@ -200,7 +252,7 @@ const LineChart: FC<LineChartProps> = ({
           setPlotScale({ u, min, max });
         }
       ]
-    }
+    },
   };
 
   const updateChart = (type: typeChartUpdate): void => {
@@ -208,12 +260,6 @@ const LineChart: FC<LineChartProps> = ({
     switch (type) {
       case typeChartUpdate.xRange:
         uPlotInst.scales.x.range = getRangeX;
-        break;
-      case typeChartUpdate.yRange:
-        Object.keys(yaxis.limits.range).forEach(axis => {
-          if (!uPlotInst.scales[axis]) return;
-          uPlotInst.scales[axis].range = (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis);
-        });
         break;
     }
     if (!isPanning) uPlotInst.redraw();
@@ -223,13 +269,13 @@ const LineChart: FC<LineChartProps> = ({
 
   useEffect(() => {
     setStickyToolTips([]);
-    setTooltipIdx({ seriesIdx: -1, dataIdx: -1 });
-    if (!uPlotRef.current) return;
+    setTooltipProps(null);
+    if (!uPlotRef.current || !layoutSize.width || !layoutSize.height) return;
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
     return u.destroy;
-  }, [uPlotRef.current, series, layoutSize, height, isDarkTheme]);
+  }, [uPlotRef.current, layoutSize, height, isDarkTheme, data]);
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown);
@@ -284,15 +330,17 @@ const LineChart: FC<LineChartProps> = ({
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
   useEffect(() => {
-    const show = tooltipIdx.dataIdx !== -1 && tooltipIdx.seriesIdx !== -1;
-    setShowTooltip(show);
-
+    const show = !!tooltipProps?.value;
     if (show) window.addEventListener("click", handleClick);
 
     return () => {
       window.removeEventListener("click", handleClick);
     };
-  }, [tooltipIdx, stickyTooltips]);
+  }, [tooltipProps, stickyTooltips]);
+
+  useEffect(() => {
+    onChangeLegend(tooltipProps?.value || 0);
+  }, [tooltipProps]);
 
   return (
     <div
@@ -309,21 +357,18 @@ const LineChart: FC<LineChartProps> = ({
         className="vm-line-chart__u-plot"
         ref={uPlotRef}
       />
-      {uPlotInst && showTooltip && (
-        <ChartTooltip
+      {uPlotInst && tooltipProps && (
+        <ChartTooltipHeatmap
+          {...tooltipProps}
           unit={unit}
           u={uPlotInst}
-          series={series as SeriesItem[]}
-          metrics={metrics}
-          yRange={yRange}
-          tooltipIdx={tooltipIdx}
           tooltipOffset={tooltipOffset}
           id={tooltipId}
         />
       )}
 
       {uPlotInst && stickyTooltips.map(t => (
-        <ChartTooltip
+        <ChartTooltipHeatmap
           {...t}
           isSticky
           u={uPlotInst}
@@ -335,4 +380,4 @@ const LineChart: FC<LineChartProps> = ({
   );
 };
 
-export default LineChart;
+export default HeatmapChart;

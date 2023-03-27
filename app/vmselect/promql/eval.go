@@ -132,6 +132,12 @@ type EvalConfig struct {
 	// The request URI isn't stored here because its' construction may take non-trivial amounts of CPU.
 	GetRequestURI func() string
 
+	// QueryStats contains various stats for the currently executed query.
+	//
+	// The caller must initialize the QueryStats if it needs the stats.
+	// Otherwise the stats isn't collected.
+	QueryStats *QueryStats
+
 	timestamps     []int64
 	timestampsOnce sync.Once
 }
@@ -150,9 +156,22 @@ func copyEvalConfig(src *EvalConfig) *EvalConfig {
 	ec.RoundDigits = src.RoundDigits
 	ec.EnforcedTagFilterss = src.EnforcedTagFilterss
 	ec.GetRequestURI = src.GetRequestURI
+	ec.QueryStats = src.QueryStats
 
 	// do not copy src.timestamps - they must be generated again.
 	return &ec
+}
+
+// QueryStats contains various stats for the query.
+type QueryStats struct {
+	// SeriesFetched contains the number of series fetched from storage during the query evaluation.
+	SeriesFetched int
+}
+
+func (qs *QueryStats) addSeriesFetched(n int) {
+	if qs != nil {
+		qs.SeriesFetched += n
+	}
 }
 
 func (ec *EvalConfig) validate() {
@@ -1077,6 +1096,7 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 		tss := mergeTimeseries(tssCached, nil, start, ec)
 		return tss, nil
 	}
+	ec.QueryStats.addSeriesFetched(rssLen)
 
 	// Verify timeseries fit available memory after the rollup.
 	// Take into account points from tssCached.
