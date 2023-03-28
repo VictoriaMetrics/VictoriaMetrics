@@ -201,7 +201,7 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 	}
 }
 
-// Dir returns the directory for persistent queue.
+// Dirname returns the directory name for persistent queue.
 func (fq *FastQueue) Dirname() string {
 	return filepath.Base(fq.pq.dir)
 }
