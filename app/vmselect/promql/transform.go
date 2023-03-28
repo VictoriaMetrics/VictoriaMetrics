@@ -548,33 +548,32 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		sort.Slice(xss, func(i, j int) bool { return xss[i].end < xss[j].end })
 		xssNew := make([]x, 0, len(xss)+2)
 		var xsPrev x
-		hasNonEmpty := false
 		uniqTs := make(map[string]*timeseries, len(xss))
 		for _, xs := range xss {
 			ts := xs.ts
 			if isZeroTS(ts) {
-				xsPrev = xs
+				// Skip buckets with zero values - they will be merged into a single bucket
+				// when the next non-zero bucket appears.
 
-				if uniqTs[xs.endStr] == nil {
-					uniqTs[xs.endStr] = xs.ts
-					xssNew = append(xssNew, x{
-						endStr: xs.endStr,
-						end:    xs.end,
-						ts:     copyTS(ts, xs.endStr),
-					})
-				}
+				// Do not store xs in xsPrev in order to properly create `le` time series
+				// for zero buckets.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4021
 				continue
 			}
-
-			hasNonEmpty = true
-			if xs.start != xsPrev.end && uniqTs[xs.startStr] == nil {
-				uniqTs[xs.startStr] = xs.ts
-				xssNew = append(xssNew, x{
-					endStr: xs.startStr,
-					end:    xs.start,
-					ts:     copyTS(ts, xs.startStr),
-				})
+			if xs.start != xsPrev.end {
+				// There is a gap between the previous bucket and the current bucket
+				// or the previous bucket is skipped because it was zero.
+				// Fill it with a time series with le=xs.start.
+				if uniqTs[xs.startStr] == nil {
+					uniqTs[xs.startStr] = xs.ts
+					xssNew = append(xssNew, x{
+						endStr: xs.startStr,
+						end:    xs.start,
+						ts:     copyTS(ts, xs.startStr),
+					})
+				}
 			}
+			// Convert the current time series to a time series with le=xs.end
 			ts.MetricName.AddTag("le", xs.endStr)
 			prevTs := uniqTs[xs.endStr]
 			if prevTs != nil {
@@ -586,13 +585,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			}
 			xsPrev = xs
 		}
-
-		if !hasNonEmpty {
-			xssNew = []x{}
-			continue
-		}
-
-		if !math.IsInf(xsPrev.end, 1) && !isZeroTS(xsPrev.ts) {
+		if xsPrev.ts != nil && !math.IsInf(xsPrev.end, 1) && !isZeroTS(xsPrev.ts) {
 			xssNew = append(xssNew, x{
 				endStr: "+Inf",
 				end:    math.Inf(1),
