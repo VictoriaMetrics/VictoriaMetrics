@@ -179,14 +179,12 @@ func (tbf *tmpBlocksFile) MustClose() {
 	}
 	fname := tbf.f.Name()
 
-	// Remove the file at first, then close it.
-	// This way the OS shouldn't try to flush file contents to storage
-	// on close.
-	if err := os.Remove(fname); err != nil {
-		logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
-	}
 	if err := tbf.f.Close(); err != nil {
 		logger.Panicf("FATAL: cannot close %q: %s", fname, err)
+	}
+	// We cannot remove unclosed at non-posix filesystems, like windows
+	if err := os.Remove(fname); err != nil {
+		logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
 	}
 	tbf.f = nil
 }
