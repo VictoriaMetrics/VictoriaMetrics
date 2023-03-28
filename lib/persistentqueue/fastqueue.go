@@ -199,3 +199,8 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 		fq.cond.Wait()
 	}
 }
+
+// Dir returns the directory for persistent queue.
+func (fq *FastQueue) Dir() string {
+	return fq.pq.dir
+}
