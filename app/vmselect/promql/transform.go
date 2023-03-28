@@ -548,14 +548,25 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		sort.Slice(xss, func(i, j int) bool { return xss[i].end < xss[j].end })
 		xssNew := make([]x, 0, len(xss)+2)
 		var xsPrev x
+		hasNonEmpty := false
 		uniqTs := make(map[string]*timeseries, len(xss))
 		for _, xs := range xss {
 			ts := xs.ts
 			if isZeroTS(ts) {
-				// Skip time series with zeros. They are substituted by xssNew below.
 				xsPrev = xs
+
+				if uniqTs[xs.endStr] == nil {
+					uniqTs[xs.endStr] = xs.ts
+					xssNew = append(xssNew, x{
+						endStr: xs.endStr,
+						end:    xs.end,
+						ts:     copyTS(ts, xs.endStr),
+					})
+				}
 				continue
 			}
+
+			hasNonEmpty = true
 			if xs.start != xsPrev.end && uniqTs[xs.startStr] == nil {
 				uniqTs[xs.startStr] = xs.ts
 				xssNew = append(xssNew, x{
@@ -575,6 +586,12 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			}
 			xsPrev = xs
 		}
+
+		if !hasNonEmpty {
+			xssNew = []x{}
+			continue
+		}
+
 		if !math.IsInf(xsPrev.end, 1) && !isZeroTS(xsPrev.ts) {
 			xssNew = append(xssNew, x{
 				endStr: "+Inf",
