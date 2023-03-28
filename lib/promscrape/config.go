@@ -1144,6 +1144,9 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 				if sws := swsMapPrev[path]; sws != nil {
 					// Re-use the previous valid scrape work for this path.
 					logger.Errorf("keeping the previously loaded `static_configs` from %q because of error when re-loading the file: %s", path, err)
+					// Slice of destinations should be cleared because if we add previously got scrape work, it will contain duplicates.
+					// In that case, duplicates will be added at every error.
+					dst = dst[:0]
 					dst = append(dst, sws...)
 				} else {
 					logger.Errorf("skipping loading `static_configs` from %q because of error: %s", path, err)
