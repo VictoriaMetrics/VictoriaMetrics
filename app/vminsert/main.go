@@ -178,6 +178,8 @@ func main() {
 	netstorage.MustStop()
 	logger.Infof("successfully stopped netstorage in %.3f seconds", time.Since(startTime).Seconds())
 
+	relabel.Stop()
+
 	fs.MustStopDirRemover()
 
 	logger.Infof("the vminsert has been stopped")
