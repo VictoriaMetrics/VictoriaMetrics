@@ -100,7 +100,7 @@ var allRelabelConfigs atomic.Value
 // since it may lead to high memory usage due to big number of buffers.
 var maxQueues = cgroup.AvailableCPUs() * 16
 
-const persistentQueueDir = "persistent-queue"
+const persistentQueueDirname = "persistent-queue"
 
 // InitSecretFlags must be called after flag.Parse and before any logging.
 func InitSecretFlags() {
@@ -240,25 +240,27 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4014
 		existingQueues := make(map[string]struct{}, len(rwctxs))
 		for _, rwctx := range rwctxs {
-			existingQueues[rwctx.fq.Dir()] = struct{}{}
+			existingQueues[rwctx.fq.Dirname()] = struct{}{}
 		}
 
-		queuesDir := filepath.Join(*tmpDataPath, persistentQueueDir)
+		queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
 		files, err := os.ReadDir(queuesDir)
 		if err != nil {
 			logger.Fatalf("cannot read queues dir %q: %s", queuesDir, err)
 		}
 		removed := 0
 		for _, f := range files {
-			fullPath := filepath.Join(queuesDir, f.Name())
-			if _, ok := existingQueues[fullPath]; !ok {
-				logger.Infof("removing dangling queue %q", fullPath)
+			dirname := f.Name()
+			if _, ok := existingQueues[dirname]; !ok {
+				logger.Infof("removing dangling queue %q", dirname)
+				fullPath := filepath.Join(queuesDir, dirname)
 				fs.MustRemoveAll(fullPath)
 				removed++
 			}
 		}
-
-		logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxs))
+		if removed > 0 {
+			logger.Infof("removed %d dangling queues from %q, active queues: %d", removed, *tmpDataPath, len(rwctxs))
+		}
 	}
 
 	return rwctxs
@@ -502,7 +504,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	pqURL.RawQuery = ""
 	pqURL.Fragment = ""
 	h := xxhash.Sum64([]byte(pqURL.String()))
-	queuePath := fmt.Sprintf("%s/%s/%d_%016X", *tmpDataPath, persistentQueueDir, argIdx+1, h)
+	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
 	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArgOrDefault(argIdx, 0)
 	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {

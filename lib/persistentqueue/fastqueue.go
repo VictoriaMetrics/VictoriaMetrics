@@ -2,6 +2,7 @@ package persistentqueue
 
 import (
 	"fmt"
+	"path/filepath"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -201,6 +202,6 @@ func (fq *FastQueue) MustReadBlock(dst []byte) ([]byte, bool) {
 }
 
 // Dir returns the directory for persistent queue.
-func (fq *FastQueue) Dir() string {
-	return fq.pq.dir
+func (fq *FastQueue) Dirname() string {
+	return filepath.Base(fq.pq.dir)
 }
