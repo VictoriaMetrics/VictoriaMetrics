@@ -75,7 +75,7 @@ Here is how this query may look like in Grafana:
 This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
 ______________________________
 
-## 4. vmanomaly configuration and parameter description
+## 5. vmanomaly configuration and parameter description
 **Parameter description**:
 There are 4 main sections in config file:
 
@@ -141,7 +141,7 @@ writer:
 </div>
 
 _____________________________________________
-## 5. vmanomaly output
+## 6. vmanomaly output
 As the result of running vmanomaly, it produces the following metrics:
 - `anomaly_score` - the main one. Ideally, if it is between 0.0 and 1.0 it is considered to be a non-anomalous value. If it is greater than 1.0, it is considered an anomaly (but you can reconfigure that in alerting config, of course), 
 - `yhat` - predicted expected value, 
@@ -154,7 +154,7 @@ Here is an example of how output metric will be written into VictoriaMetrics:
 
 ____________________________________________
 
-## 6. vmalert configuration
+## 7. vmalert configuration
 Here we provide an example of the config for vmalert `vmalert_config.yml`.
 
 <div class="with-copy" markdown="1">
@@ -375,7 +375,7 @@ docker-compose up -d
 
 ___________________________________________________________
 
-## 7. Model results
+## 8. Model results
 To look at model results we need to go to grafana on the `localhost:3000`. Data
 vmanomaly need some time to generate more data to visualize.
 Let's investigate model output visualization in Grafana.
@@ -410,5 +410,5 @@ On the page `http://localhost:8880/vmalert/groups` you can find our configured A
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`
 ![alerts](guide-vmanomaly-alerts-firing.png "alerts firing")
-## 8. Conclusion
+## 9. Conclusion
 Now we know how to set up Victoria Metric Anomaly Detection tool and use it together with vmalert. We also discovered core vmanomaly generated metrics and behaviour.
