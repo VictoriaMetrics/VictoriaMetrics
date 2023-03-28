@@ -1,4 +1,4 @@
-# Anomaly Detection with vmanomaly and vmalert
+# Getting started with vmanomaly
 
 **Prerequisites**
 - In the tutorial, we'll be using the following VictoriaMetrics components:
