@@ -88,7 +88,7 @@ func MultitenancyEnabled() bool {
 var allRelabelConfigs atomic.Value
 
 // Contains the loader for stream aggregation configs.
-var saConfigLoader *SaConfigLoader
+var saCfgLoader *saConfigsLoader
 
 // maxQueues limits the maximum value for `-remoteWrite.queues`. There is no sense in setting too high value,
 // since it may lead to high memory usage due to big number of buffers.
@@ -156,7 +156,7 @@ func Init() {
 	relabelConfigSuccess.Set(1)
 	relabelConfigTimestamp.Set(fasttime.UnixTimestamp())
 
-	saConfigLoader, err = NewSaConfigLoader(*streamAggrConfig)
+	saCfgLoader, err = newSaConfigsLoader(*streamAggrConfig)
 	if err != nil {
 		logger.Fatalf("cannot load stream aggregation config: %s", err)
 	}
@@ -190,7 +190,7 @@ func Init() {
 			logger.Infof("Successfully reloaded relabel configs")
 
 			logger.Infof("reloading stream agg configs pointed by -remoteWrite.streamAggr.config")
-			err = saConfigLoader.ReloadConfigs()
+			err = saCfgLoader.reloadConfigs()
 			if err != nil {
 				logger.Errorf("Cannot reload stream aggregation configs: %s", err)
 			}
@@ -567,7 +567,7 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	}
 
 	// Initialize sas
-	saCfg, saHash := saConfigLoader.GetCurrentConfig(argIdx)
+	saCfg, saHash := saCfgLoader.getCurrentConfig(argIdx)
 	if len(saCfg) > 0 {
 		sasFile := streamAggrConfig.GetOptionalArg(argIdx)
 		dedupInterval := streamAggrDedupInterval.GetOptionalArgOrDefault(argIdx, 0)
@@ -648,7 +648,7 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	if rwctx.sas == nil {
 		return
 	}
-	saCfg, saHash := saConfigLoader.GetCurrentConfig(rwctx.idx)
+	saCfg, saHash := saCfgLoader.getCurrentConfig(rwctx.idx)
 	if rwctx.saHash == saHash {
 		return
 	}

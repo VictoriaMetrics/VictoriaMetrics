@@ -28,27 +28,29 @@ var (
 	saCfgTimestamp = metrics.NewCounter(`vmagent_streamaggr_config_last_reload_success_timestamp_seconds`)
 )
 
-type SaConfigRules = []*streamaggr.Config
+// saConfigRules - type alias for unmarshalled stream aggregation config
+type saConfigRules = []*streamaggr.Config
 
-type SaConfigLoader struct {
+// saConfigsLoader loads stream aggregation configs from the given files.
+type saConfigsLoader struct {
 	files   []string
 	configs atomic.Pointer[[]saConfig]
 }
 
-// NewSaConfigLoader creates new SaConfigLoader for the given config files.
-func NewSaConfigLoader(configFiles []string) (*SaConfigLoader, error) {
-	result := &SaConfigLoader{
+// newSaConfigsLoader creates new saConfigsLoader for the given config files.
+func newSaConfigsLoader(configFiles []string) (*saConfigsLoader, error) {
+	result := &saConfigsLoader{
 		files: configFiles,
 	}
 	// Initial load of configs.
-	if err := result.ReloadConfigs(); err != nil {
+	if err := result.reloadConfigs(); err != nil {
 		return nil, err
 	}
 	return result, nil
 }
 
-// ReloadConfigs reloads stream aggregation configs from the files given in constructor.
-func (r *SaConfigLoader) ReloadConfigs() error {
+// reloadConfigs reloads stream aggregation configs from the files given in constructor.
+func (r *saConfigsLoader) reloadConfigs() error {
 	// Increment reloads counter if it is not the initial load.
 	if r.configs.Load() != nil {
 		saCfgReloads.Inc()
@@ -82,8 +84,8 @@ func (r *SaConfigLoader) ReloadConfigs() error {
 	return nil
 }
 
-// GetCurrentConfig returns the current stream aggregation config with the given idx.
-func (r *SaConfigLoader) GetCurrentConfig(idx int) (SaConfigRules, uint64) {
+// getCurrentConfig returns the current stream aggregation config with the given idx.
+func (r *saConfigsLoader) getCurrentConfig(idx int) (saConfigRules, uint64) {
 	all := r.configs.Load()
 	if all == nil {
 		return nil, 0
@@ -106,11 +108,11 @@ func (r *SaConfigLoader) GetCurrentConfig(idx int) (SaConfigRules, uint64) {
 type saConfig struct {
 	path  string
 	hash  uint64
-	rules SaConfigRules
+	rules saConfigRules
 }
 
 // CheckStreamAggConfigs checks -remoteWrite.streamAggr.config.
 func CheckStreamAggConfigs() error {
-	_, err := NewSaConfigLoader(*streamAggrConfig)
+	_, err := newSaConfigsLoader(*streamAggrConfig)
 	return err
 }
