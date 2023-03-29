@@ -59,16 +59,19 @@ func NewArrayBytes(name, description string) *ArrayBytes {
 //	-foo=value1 -foo=value2
 //	-foo=value1,value2
 //
-// Flag values may be quoted. For instance, the following arg creates an array of ("a", "b, c") items:
+// Each flag value may contain commas inside single quotes, double quotes, [], () or {} braces.
+// For example, -foo=[a,b,c] defines a single command-line flag with `[a,b,c]` value.
 //
-//	-foo='a,"b, c"'
+// Flag values may be quoted. For instance, the following arg creates an array of ("a", "b,c") items:
+//
+//	-foo='a,"b,c"'
 type ArrayString []string
 
 // String implements flag.Value interface
 func (a *ArrayString) String() string {
 	aEscaped := make([]string, len(*a))
 	for i, v := range *a {
-		if strings.ContainsAny(v, `", `+"\n") {
+		if strings.ContainsAny(v, `,'"{[(`+"\n") {
 			v = fmt.Sprintf("%q", v)
 		}
 		aEscaped[i] = v
@@ -94,55 +97,105 @@ func parseArrayValues(s string) []string {
 		if len(tail) == 0 {
 			return values
 		}
-		if tail[0] == ',' {
-			tail = tail[1:]
-		}
 		s = tail
+		if s[0] == ',' {
+			s = s[1:]
+		}
 	}
 }
 
+var closeQuotes = map[byte]byte{
+	'"':  '"',
+	'\'': '\'',
+	'[':  ']',
+	'{':  '}',
+	'(':  ')',
+}
+
 func getNextArrayValue(s string) (string, string) {
-	if len(s) == 0 {
-		return "", ""
+	v, tail := getNextArrayValueMaybeQuoted(s)
+	if strings.HasPrefix(v, `"`) && strings.HasSuffix(v, `"`) {
+		vUnquoted, err := strconv.Unquote(v)
+		if err == nil {
+			return vUnquoted, tail
+		}
+		v = v[1 : len(v)-1]
+		v = strings.ReplaceAll(v, `\"`, `"`)
+		v = strings.ReplaceAll(v, `\\`, `\`)
+		return v, tail
 	}
-	if s[0] != '"' {
-		// Fast path - unquoted string
-		n := strings.IndexByte(s, ',')
+	if strings.HasPrefix(v, `'`) && strings.HasSuffix(v, `'`) {
+		v = v[1 : len(v)-1]
+		v = strings.ReplaceAll(v, `\'`, "'")
+		v = strings.ReplaceAll(v, `\\`, `\`)
+		return v, tail
+	}
+	return v, tail
+}
+
+func getNextArrayValueMaybeQuoted(s string) (string, string) {
+	idx := 0
+	for {
+		n := strings.IndexAny(s[idx:], `,"'[{(`)
 		if n < 0 {
 			// The last item
 			return s, ""
 		}
-		return s[:n], s[n:]
+		idx += n
+		ch := s[idx]
+		if ch == ',' {
+			// The next item
+			return s[:idx], s[idx:]
+		}
+		idx++
+		m := indexCloseQuote(s[idx:], closeQuotes[ch])
+		idx += m
 	}
+}
 
-	// Find the end of quoted string
-	end := 1
-	ss := s[1:]
+func indexCloseQuote(s string, closeQuote byte) int {
+	if closeQuote == '"' || closeQuote == '\'' {
+		idx := 0
+		for {
+			n := strings.IndexByte(s[idx:], closeQuote)
+			if n < 0 {
+				return 0
+			}
+			idx += n
+			if n := getTrailingBackslashesCount(s[:idx]); n%2 == 1 {
+				// The quote is escaped with backslash. Skip it
+				idx++
+				continue
+			}
+			return idx + 1
+		}
+	}
+	idx := 0
 	for {
-		n := strings.IndexByte(ss, '"')
+		n := strings.IndexAny(s[idx:], `"'[{()}]`)
 		if n < 0 {
-			// Cannot find trailing quote. Return the whole string till the end.
-			return s, ""
+			return 0
 		}
-		end += n + 1
-		// Verify whether the trailing quote is escaped with backslash.
-		backslashes := 0
-		for n > backslashes && ss[n-backslashes-1] == '\\' {
-			backslashes++
+		idx += n
+		ch := s[idx]
+		if ch == closeQuote {
+			return idx + 1
 		}
-		if backslashes&1 == 0 {
-			// The trailing quote isn't escaped.
-			break
+		idx++
+		m := indexCloseQuote(s[idx:], closeQuotes[ch])
+		if m == 0 {
+			return 0
 		}
-		// The trailing quote is escaped. Continue searching for the next quote.
-		ss = ss[n+1:]
+		idx += m
 	}
-	v := s[:end]
-	vUnquoted, err := strconv.Unquote(v)
-	if err == nil {
-		v = vUnquoted
+}
+
+func getTrailingBackslashesCount(s string) int {
+	n := len(s)
+	for n > 0 && s[n-1] == '\\' {
+		n--
 	}
-	return v, s[end:]
+	return len(s) - n
 }
 
 // GetOptionalArg returns optional arg under the given argIdx.
