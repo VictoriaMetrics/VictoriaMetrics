@@ -2,15 +2,19 @@ package common
 
 import (
 	"flag"
+	"fmt"
+	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/streamaggr"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -24,28 +28,69 @@ var (
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
 )
 
+var (
+	stopCh           = make(chan struct{})
+	configReloaderWG sync.WaitGroup
+
+	saCfgReloads   = metrics.NewCounter(`vminsert_streamagg_config_reloads_total`)
+	saCfgReloadErr = metrics.NewCounter(`vminsert_streamagg_config_reloads_errors_total`)
+	saCfgSuccess   = metrics.NewCounter(`vminsert_streamagg_config_last_reload_successful`)
+	saCfgTimestamp = metrics.NewCounter(`vminsert_streamagg_config_last_reload_success_timestamp_seconds`)
+
+	sa     *streamaggr.Aggregators
+	saHash uint64
+)
+
 // InitStreamAggr must be called after flag.Parse and before using the common package.
 //
 // MustStopStreamAggr must be called when stream aggr is no longer needed.
 func InitStreamAggr() {
 	if *streamAggrConfig == "" {
-		// Nothing to initialize
 		return
 	}
-	a, err := streamaggr.LoadFromFile(*streamAggrConfig, pushAggregateSeries, *streamAggrDedupInterval)
+
+	sighupCh := procutil.NewSighupChan()
+
+	configs, hash, err := streamaggr.LoadConfigsFromFile(*streamAggrConfig)
 	if err != nil {
 		logger.Fatalf("cannot load -streamAggr.config=%q: %s", *streamAggrConfig, err)
 	}
+	a, err := streamaggr.NewAggregators(configs, pushAggregateSeries, *streamAggrDedupInterval)
+	if err != nil {
+		logger.Fatalf("cannot init -streamAggr.config=%q: %s", *streamAggrConfig, err)
+	}
 	sa = a
+	saHash = hash
+	saCfgSuccess.Set(1)
+	saCfgTimestamp.Set(fasttime.UnixTimestamp())
+
+	// Start config reloader.
+	configReloaderWG.Add(1)
+	go func() {
+		defer configReloaderWG.Done()
+		for {
+			select {
+			case <-sighupCh:
+			case <-stopCh:
+				return
+			}
+			if err := reloadSaConfig(); err != nil {
+				logger.Errorf("cannot reload -streamAggr.config=%q: %s", *streamAggrConfig, err)
+				continue
+			}
+		}
+	}()
 }
 
 // MustStopStreamAggr stops stream aggregators.
 func MustStopStreamAggr() {
+	close(stopCh)
+
 	sa.MustStop()
 	sa = nil
-}
 
-var sa *streamaggr.Aggregators
+	configReloaderWG.Wait()
+}
 
 type streamAggrCtx struct {
 	mn  storage.MetricName
@@ -118,4 +163,34 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 	if err := vmstorage.AddRows(ctx.mrs); err != nil {
 		logger.Errorf("cannot flush aggregate series: %s", err)
 	}
+}
+
+func reloadSaConfig() error {
+	saCfgReloads.Inc()
+
+	cfgs, hash, err := streamaggr.LoadConfigsFromFile(*streamAggrConfig)
+	if err != nil {
+		saCfgSuccess.Set(0)
+		saCfgReloadErr.Inc()
+		return fmt.Errorf("cannot reload -streamAggr.config=%q: %w", *streamAggrConfig, err)
+	}
+
+	if saHash == hash {
+		return nil
+	}
+
+	if err = sa.ReInitConfigs(cfgs); err != nil {
+		saCfgSuccess.Set(0)
+		saCfgReloadErr.Inc()
+		return fmt.Errorf("cannot apply new -streamAggr.config=%q: %w", *streamAggrConfig, err)
+	}
+
+	saHash = hash
+
+	saCfgSuccess.Set(1)
+	saCfgTimestamp.Set(fasttime.UnixTimestamp())
+
+	logger.Infof("Successfully reloaded stream aggregation config")
+
+	return nil
 }

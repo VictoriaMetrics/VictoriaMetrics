@@ -146,7 +146,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 		tssInput := mustParsePromMetrics(inputMetrics)
 		a.Push(tssInput)
 		if a != nil {
-			for _, aggr := range a.as {
+			for _, aggr := range *a.as.Load() {
 				aggr.flush()
 			}
 		}
@@ -671,7 +671,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 		tssInput := mustParsePromMetrics(inputMetrics)
 		a.Push(tssInput)
 		if a != nil {
-			for _, aggr := range a.as {
+			for _, aggr := range *a.as.Load() {
 				aggr.dedupFlush()
 				aggr.flush()
 			}
@@ -716,6 +716,106 @@ foo{baz="qwe"} 10
 bar:1m_sum_samples{baz="qwer"} 344
 foo:1m_sum_samples 123
 foo:1m_sum_samples{baz="qwe"} 10
+`)
+}
+
+func TestAggregatorsReinit(t *testing.T) {
+	f := func(config, newConfig, inputMetrics, outputMetricsExpected string) {
+		t.Helper()
+
+		// Initialize Aggregators
+		var tssOutput []prompbmarshal.TimeSeries
+		var tssOutputLock sync.Mutex
+		pushFunc := func(tss []prompbmarshal.TimeSeries) {
+			tssOutputLock.Lock()
+			for _, ts := range tss {
+				labelsCopy := append([]prompbmarshal.Label{}, ts.Labels...)
+				samplesCopy := append([]prompbmarshal.Sample{}, ts.Samples...)
+				tssOutput = append(tssOutput, prompbmarshal.TimeSeries{
+					Labels:  labelsCopy,
+					Samples: samplesCopy,
+				})
+			}
+			tssOutputLock.Unlock()
+		}
+
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
+		if err != nil {
+			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+
+		// Push the inputMetrics to Aggregators
+		tssInput := mustParsePromMetrics(inputMetrics)
+		a.Push(tssInput)
+
+		// Reinitialize Aggregators
+		nc, _, err := ParseConfig([]byte(newConfig))
+		if err != nil {
+			t.Fatalf("cannot parse new config: %s", err)
+		}
+		err = a.ReInitConfigs(nc)
+		if err != nil {
+			t.Fatalf("cannot reinit aggregators: %s", err)
+		}
+
+		// Push the inputMetrics to Aggregators
+		a.Push(tssInput)
+		if a != nil {
+			for _, aggr := range *a.as.Load() {
+				aggr.flush()
+			}
+		}
+
+		a.MustStop()
+
+		// Verify the tssOutput contains the expected metrics
+		tsStrings := make([]string, len(tssOutput))
+		for i, ts := range tssOutput {
+			tsStrings[i] = timeSeriesToString(ts)
+		}
+		sort.Strings(tsStrings)
+		outputMetrics := strings.Join(tsStrings, "")
+		if outputMetrics != outputMetricsExpected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, outputMetricsExpected)
+		}
+	}
+
+	f(`
+- interval: 1m
+  outputs: [count_samples]
+`, `
+- interval: 1m
+  outputs: [sum_samples]
+`, `
+foo 123
+bar 567
+foo 234
+`, `bar:1m_count_samples 1
+bar:1m_sum_samples 567
+foo:1m_count_samples 2
+foo:1m_sum_samples 357
+`)
+
+	f(`
+- interval: 1m
+  outputs: [total]
+- interval: 2m
+  outputs: [count_samples]
+`, `
+- interval: 1m
+  outputs: [sum_samples]
+- interval: 2m
+  outputs: [count_samples]
+`, `
+foo 123
+bar 567
+foo 234
+`, `bar:1m_sum_samples 567
+bar:1m_total 0
+bar:2m_count_samples 2
+foo:1m_sum_samples 357
+foo:1m_total 111
+foo:2m_count_samples 4
 `)
 }
 
