@@ -39,6 +39,9 @@ vmrestore-freebsd-amd64-prod:
 vmrestore-openbsd-amd64-prod:
 	APP_NAME=vmrestore $(MAKE) app-via-docker-openbsd-amd64
 
+vmrestore-windows-amd64-prod:
+	APP_NAME=vmrestore $(MAKE) app-via-docker-windows-amd64
+
 package-vmrestore:
 	APP_NAME=vmrestore $(MAKE) package-via-docker
 
@@ -92,6 +95,9 @@ vmrestore-freebsd-amd64:
 
 vmrestore-openbsd-amd64:
 	APP_NAME=vmrestore CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmrestore-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmrestore $(MAKE) app-local-windows-goarch
 
 vmrestore-pure:
 	APP_NAME=vmrestore $(MAKE) app-local-pure

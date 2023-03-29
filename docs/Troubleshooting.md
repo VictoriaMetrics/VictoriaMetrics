@@ -42,9 +42,10 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
    on the given `[start..end]` time range and check whether they are expected:
 
    ```console
-   curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
+   single-node: curl http://victoriametrics:8428/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
+   
+   cluster: curl http://<vmselect>:8481/select/<tenantID>/prometheus/api/v1/export -d 'match[]=http_requests_total' -d 'start=...' -d 'end=...'
    ```
-
    Note that responses returned from [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
    and from [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) contain **evaluated** data
    instead of raw samples stored in VictoriaMetrics. See [these docs](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness)
@@ -185,6 +186,11 @@ There are the following most commons reasons for slow data ingestion in Victoria
    Such apps may steal RAM, CPU, disk IO and network bandwidth, which is needed for VictoriaMetrics components.
    Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
    and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
+
+6. If you see `TooHighSlowInsertsRate` [alert](https://docs.victoriametrics.com/#monitoring) when single-node VictoriaMetrics or `vmstorage` has enough
+   free CPU and RAM, then increase `-cacheExpireDuration` command-line flag at single-node VictoriaMetrics or at `vmstorage` to the value,
+   which exceeds the interval between ingested samples for the same time series (aka `scrape_interval`).
+   See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3976#issuecomment-1476883183) for more details.
 
 ## Slow queries
 

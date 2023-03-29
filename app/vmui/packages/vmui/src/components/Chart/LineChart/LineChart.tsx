@@ -36,7 +36,7 @@ export interface LineChartProps {
   height?: number;
 }
 
-enum typeChartUpdate {xRange = "xRange", yRange = "yRange", data = "data"}
+enum typeChartUpdate {xRange = "xRange", yRange = "yRange"}
 
 const LineChart: FC<LineChartProps> = ({
   data,
@@ -215,9 +215,6 @@ const LineChart: FC<LineChartProps> = ({
           uPlotInst.scales[axis].range = (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis);
         });
         break;
-      case typeChartUpdate.data:
-        uPlotInst.setData(data);
-        break;
     }
     if (!isPanning) uPlotInst.redraw();
   };
@@ -283,7 +280,6 @@ const LineChart: FC<LineChartProps> = ({
     };
   }, [uPlotInst, startTouchDistance]);
 
-  useEffect(() => updateChart(typeChartUpdate.data), [data]);
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 

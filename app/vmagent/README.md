@@ -54,10 +54,19 @@ and sending the data to the Prometheus-compatible remote storage:
   The path can point either to local file or to http url. `vmagent` doesn't support some sections of Prometheus config file,
   so you may need either to delete these sections or to run `vmagent` with `-promscrape.config.strictParse=false` command-line flag.
   In this case `vmagent` ignores unsupported sections. See [the list of unsupported sections](#unsupported-prometheus-config-sections).
-* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics, the `-remoteWrite.url` argument can be specified
-  multiple times to replicate data concurrently to multiple remote storage systems. See [various use cases](#use-cases).
+* `-remoteWrite.url` with Prometheus-compatible remote storage endpoint such as VictoriaMetrics.
 
-Example command line:
+Example command for writing the data recieved via [supported push-based protocols](#how-to-push-data-to-vmagent)
+to [single-node VictoriaMetrics](https://docs.victoriametrics.com/) located at `victoria-metrics-host:8428`:
+
+```console
+/path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
+```
+
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format) if you need writing
+the data to [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
+
+Example command for scraping Prometheus targets and writing the data to single-node VictoriaMetrics:
 
 ```console
 /path/to/vmagent -promscrape.config=/path/to/prometheus.yml -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
@@ -68,17 +77,11 @@ See [how to scrape Prometheus-compatible targets](#how-to-collect-metrics-in-pro
 If you use single-node VictoriaMetrics, then you can discover and scrape Prometheus-compatible targets directly from VictoriaMetrics
 without the need to use `vmagent` - see [these docs](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
-If you don't need to scrape Prometheus-compatible targets, then the `-promscrape.config` option isn't needed.
-For example, the following command is sufficient for accepting data via [supported push-based protocols](#how-to-push-data-to-vmagent)
-and sending it to the provided `-remoteWrite.url`:
-
-```console
-/path/to/vmagent -remoteWrite.url=https://victoria-metrics-host:8428/api/v1/write
-```
-
-`vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is enabled](#victoriametrics-remote-write-protocol).
+`vmagent` can save network bandwidth usage costs under high load when [VictoriaMetrics remote write protocol is used](#victoriametrics-remote-write-protocol).
 
 See [troubleshooting docs](#troubleshooting) if you encounter common issues with `vmagent`.
+
+See [various use cases](#use-cases) for vmagent.
 
 Pass `-help` to `vmagent` in order to see [the full list of supported command-line flags with their descriptions](#advanced-usage).
 
@@ -150,6 +153,11 @@ to other remote storage systems, which support Prometheus `remote_write` protoco
 If a single remote storage instance temporarily is out of service, then the collected data remains available in another remote storage instance.
 `vmagent` buffers the collected data in files at `-remoteWrite.tmpDataPath` until the remote storage becomes available again
 and then it sends the buffered data to the remote storage in order to prevent data gaps.
+
+[VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) already supports replication,
+so there is no need in specifying multiple `-remoteWrite.url` flags when writing data to the same cluster.
+See [these docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#replication-and-data-safety).
+
 
 ### Relabeling and filtering
 
@@ -637,18 +645,19 @@ provide the following tools for debugging target-level and metric-level relabeli
 - Target-level debugging (e.g. `relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs))
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug target relabeling` link at the target, which must be debugged.
-  The opened page will show step-by-step results for the actual target relabeling rules applied to the discovered target labels.
+  The opened page shows step-by-step results for the actual target relabeling rules applied to the discovered target labels.
+  The page shows also the target URL generated after applying all the relabeling rules.
 
   The `http://vmagent:8429/targets` page shows only active targets. If you need to understand why some target
   is dropped during the relabeling, then navigate to `http://vmagent:8428/service-discovery` page
   (`http://victoriametrics:8428/service-discovery` for single-node VictoriaMetrics), find the dropped target
-  and click the `debug` link there. The opened page will show step-by-step results for the actual relabeling rules,
+  and click the `debug` link there. The opened page shows step-by-step results for the actual relabeling rules,
   which result to target drop.
 
 - Metric-level debugging (e.g. `metric_relabel_configs` section at [scrape_configs](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   can be performed by navigating to `http://vmagent:8429/targets` page (`http://victoriametrics:8428/targets` page for single-node VictoriaMetrics)
   and clicking the `debug metrics relabeling` link at the target, which must be debugged.
-  The opened page will show step-by-step results for the actual metric relabeling rules applied to the given target labels.
+  The opened page shows step-by-step results for the actual metric relabeling rules applied to the given target labels.
 
 ## Prometheus staleness markers
 
@@ -1509,6 +1518,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
+  -remoteWrite.keepDanglingQueues
+     Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.

@@ -40,24 +40,24 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 	if err := fs.MkdirAllIfNotExist(path); err != nil {
 		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
-	timestampsPath := path + "/timestamps.bin"
+	timestampsPath := filepath.Join(path, timestampsFilename)
 	if err := fs.WriteFileAndSync(timestampsPath, mp.timestampsData.B); err != nil {
 		return fmt.Errorf("cannot store timestamps: %w", err)
 	}
-	valuesPath := path + "/values.bin"
+	valuesPath := filepath.Join(path, valuesFilename)
 	if err := fs.WriteFileAndSync(valuesPath, mp.valuesData.B); err != nil {
 		return fmt.Errorf("cannot store values: %w", err)
 	}
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
 		return fmt.Errorf("cannot store index: %w", err)
 	}
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
 		return fmt.Errorf("cannot store metaindex: %w", err)
 	}
-	if err := mp.ph.writeMinDedupInterval(path); err != nil {
-		return fmt.Errorf("cannot store min dedup interval: %w", err)
+	if err := mp.ph.WriteMetadata(path); err != nil {
+		return fmt.Errorf("cannot store metadata: %w", err)
 	}
 	// Sync parent directory in order to make sure the written files remain visible after hardware reset
 	parentDirPath := filepath.Dir(path)

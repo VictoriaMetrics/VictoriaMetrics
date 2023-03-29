@@ -556,18 +556,28 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 		for _, xs := range xss {
 			ts := xs.ts
 			if isZeroTS(ts) {
-				// Skip time series with zeros. They are substituted by xssNew below.
-				xsPrev = xs
+				// Skip buckets with zero values - they will be merged into a single bucket
+				// when the next non-zero bucket appears.
+
+				// Do not store xs in xsPrev in order to properly create `le` time series
+				// for zero buckets.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4021
 				continue
 			}
-			if xs.start != xsPrev.end && uniqTs[xs.startStr] == nil {
-				uniqTs[xs.startStr] = xs.ts
-				xssNew = append(xssNew, x{
-					endStr: xs.startStr,
-					end:    xs.start,
-					ts:     copyTS(ts, xs.startStr),
-				})
+			if xs.start != xsPrev.end {
+				// There is a gap between the previous bucket and the current bucket
+				// or the previous bucket is skipped because it was zero.
+				// Fill it with a time series with le=xs.start.
+				if uniqTs[xs.startStr] == nil {
+					uniqTs[xs.startStr] = xs.ts
+					xssNew = append(xssNew, x{
+						endStr: xs.startStr,
+						end:    xs.start,
+						ts:     copyTS(ts, xs.startStr),
+					})
+				}
 			}
+			// Convert the current time series to a time series with le=xs.end
 			ts.MetricName.AddTag("le", xs.endStr)
 			prevTs := uniqTs[xs.endStr]
 			if prevTs != nil {
@@ -579,7 +589,7 @@ func vmrangeBucketsToLE(tss []*timeseries) []*timeseries {
 			}
 			xsPrev = xs
 		}
-		if !math.IsInf(xsPrev.end, 1) && !isZeroTS(xsPrev.ts) {
+		if xsPrev.ts != nil && !math.IsInf(xsPrev.end, 1) && !isZeroTS(xsPrev.ts) {
 			xssNew = append(xssNew, x{
 				endStr: "+Inf",
 				end:    math.Inf(1),

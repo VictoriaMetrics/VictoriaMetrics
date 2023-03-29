@@ -52,7 +52,7 @@
         {% for _, g := range groups  %}
               <div class="group-heading{% if rNotOk[g.ID] > 0 %} alert-danger{% endif %}"  data-bs-target="rules-{%s g.ID %}">
                 <span class="anchor" id="group-{%s g.ID %}"></span>
-                <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s)</a>
+                <a href="#group-{%s g.ID %}">{%s g.Name %}{% if g.Type != "prometheus" %} ({%s g.Type %}){% endif %} (every {%f.0 g.Interval %}s) #</a>
                  {% if rNotOk[g.ID] > 0 %}<span class="badge bg-danger" title="Number of rules with status Error">{%d rNotOk[g.ID] %}</span> {% endif %}
                 <span class="badge bg-success" title="Number of rules withs status Ok">{%d rOk[g.ID] %}</span>
                 <p class="fs-6 fw-lighter">{%s g.File %}</p>

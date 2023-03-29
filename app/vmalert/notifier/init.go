@@ -81,10 +81,6 @@ var (
 //
 // Init returns an error if both mods are used.
 func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (func() []Notifier, error) {
-	if externalLabels != nil || externalURL != "" {
-		return nil, fmt.Errorf("BUG: notifier.Init was called multiple times")
-	}
-
 	externalURL = extURL
 	externalLabels = extLabels
 	eu, err := url.Parse(externalURL)

@@ -227,7 +227,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, groups []APIGr
 //line app/vmalert/web.qtpl:55
 			qw422016.N().FPrec(g.Interval, 0)
 //line app/vmalert/web.qtpl:55
-			qw422016.N().S(`s)</a>
+			qw422016.N().S(`s) #</a>
                  `)
 //line app/vmalert/web.qtpl:56
 			if rNotOk[g.ID] > 0 {

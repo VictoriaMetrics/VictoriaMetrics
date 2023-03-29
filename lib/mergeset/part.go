@@ -68,29 +68,27 @@ type part struct {
 }
 
 func openFilePart(path string) (*part, error) {
-	path = filepath.Clean(path)
-
 	var ph partHeader
-	if err := ph.ParseFromPath(path); err != nil {
-		return nil, fmt.Errorf("cannot parse path to part: %w", err)
+	if err := ph.ReadMetadata(path); err != nil {
+		return nil, fmt.Errorf("cannot read part metadata: %w", err)
 	}
 
-	metaindexPath := path + "/metaindex.bin"
+	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile, err := filestream.Open(metaindexPath, true)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open %q: %w", metaindexPath, err)
 	}
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
-	indexPath := path + "/index.bin"
+	indexPath := filepath.Join(path, indexFilename)
 	indexFile := fs.MustOpenReaderAt(indexPath)
 	indexSize := fs.MustFileSize(indexPath)
 
-	itemsPath := path + "/items.bin"
+	itemsPath := filepath.Join(path, itemsFilename)
 	itemsFile := fs.MustOpenReaderAt(itemsPath)
 	itemsSize := fs.MustFileSize(itemsPath)
 
-	lensPath := path + "/lens.bin"
+	lensPath := filepath.Join(path, lensFilename)
 	lensFile := fs.MustOpenReaderAt(lensPath)
 	lensSize := fs.MustFileSize(lensPath)
 

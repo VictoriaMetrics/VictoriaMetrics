@@ -73,7 +73,8 @@ absolute path to all .tpl files in root.`)
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
 		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+
-		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]' . `+
+		`For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'. `+
+		`Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. `+
 		`If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.`)
 	externalLabels = flagutil.NewArrayString("external.label", "Optional label in the form 'Name=value' to add to all generated recording rules and alerts. "+
 		"Pass multiple -label flags in order to add multiple label sets.")
@@ -319,6 +320,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 	// init reload metrics with positive values to improve alerting conditions
 	configSuccess.Set(1)
 	configTimestamp.Set(fasttime.UnixTimestamp())
+	parseFn := config.Parse
 	for {
 		select {
 		case <-ctx.Done():
@@ -330,7 +332,11 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			}
 			logger.Infof("SIGHUP received. Going to reload rules %q %s...", *rulePath, tmplMsg)
 			configReloads.Inc()
+			// allow logs emitting during manual config reload
+			parseFn = config.Parse
 		case <-configCheckCh:
+			// disable logs emitting during per-interval config reload
+			parseFn = config.ParseSilent
 		}
 		if err := notifier.Reload(); err != nil {
 			configReloadErrors.Inc()
@@ -345,7 +351,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
-		newGroupsCfg, err := config.ParseSilent(*rulePath, validateTplFn, *validateExpressions)
+		newGroupsCfg, err := parseFn(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
