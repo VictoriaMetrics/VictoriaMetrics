@@ -112,7 +112,10 @@ func (m *manager) update(ctx context.Context, groupsCfg []config.Group, restore 
 				arPresent = true
 			}
 		}
-		ng := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
+		ng,err := newGroup(cfg, m.querierBuilder, *evaluationInterval, m.labels)
+		if err != nil {
+			return err
+		}
 		groupsRegistry[ng.ID()] = ng
 	}
 
@@ -180,6 +183,7 @@ func (g *Group) toAPI() APIGroup {
 		Type:           g.Type.String(),
 		File:           g.File,
 		Interval:       g.Interval.Seconds(),
+		IntervalOffset: g.IntervalOffset.Seconds(),
 		LastEvaluation: g.LastEvaluation,
 		Concurrency:    g.Concurrency,
 		Params:         urlValuesToStrings(g.Params),

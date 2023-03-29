@@ -55,6 +55,8 @@ type APIGroup struct {
 	Rules []APIRule `json:"rules"`
 	// Interval is the Group's evaluation interval in float seconds as present in the file.
 	Interval float64 `json:"interval"`
+	// IntervalOffset is the Group's evaluation offset within the interval in float seconds
+	IntervalOffset float64 `json:"interval_offset"`
 	// LastEvaluation is the timestamp of the last time the Group was executed
 	LastEvaluation time.Time `json:"lastEvaluation"`
 

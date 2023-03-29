@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -22,7 +23,8 @@ type Group struct {
 	Type        Type `yaml:"type,omitempty"`
 	File        string
 	Name        string              `yaml:"name"`
-	Interval    *promutils.Duration `yaml:"interval,omitempty"`
+	Interval    *promutils.Duration   `yaml:"interval,omitempty"`
+	IntervalOffset *promutils.Duration `yaml:"interval_offset,omitempty"`
 	Limit       int                 `yaml:"limit,omitempty"`
 	Rules       []Rule              `yaml:"rules"`
 	Concurrency int                 `yaml:"concurrency"`
@@ -39,6 +41,13 @@ type Group struct {
 
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
+}
+
+func (g *Group) ParseIntervalOffset() time.Duration {
+	if g.IntervalOffset == nil {
+		return -1
+	}
+	return g.IntervalOffset.D
 }
 
 // UnmarshalYAML implements the yaml.Unmarshaler interface.

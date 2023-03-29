@@ -1,0 +1,4 @@
+groups:
+  - name: groupTest
+    interval: 5
+    interval_offset: 3

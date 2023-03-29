@@ -23,6 +23,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 )
 
+const GroupIntervalOffSetNotExplicitlySpecified = time.Nanosecond * -1
 // Group is an entity for grouping rules
 type Group struct {
 	mu             sync.RWMutex
@@ -31,6 +32,7 @@ type Group struct {
 	Rules          []Rule
 	Type           config.Type
 	Interval       time.Duration
+	IntervalOffset time.Duration
 	Limit          int
 	Concurrency    int
 	Checksum       string
@@ -57,6 +59,7 @@ type groupMetrics struct {
 	iterationDuration *utils.Summary
 	iterationMissed   *utils.Counter
 	iterationInterval *utils.Gauge
+	iterationIntervalOffset *utils.Gauge
 }
 
 func newGroupMetrics(g *Group) *groupMetrics {
@@ -68,6 +71,12 @@ func newGroupMetrics(g *Group) *groupMetrics {
 	m.iterationInterval = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_seconds{%s}`, labels), func() float64 {
 		g.mu.RLock()
 		i := g.Interval.Seconds()
+		g.mu.RUnlock()
+		return i
+	})
+	m.iterationIntervalOffset = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_iteration_interval_offset_seconds{%s}`, labels), func() float64 {
+		g.mu.RLock()
+		i := g.IntervalOffset.Seconds()
 		g.mu.RUnlock()
 		return i
 	})
@@ -91,12 +100,13 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 	return r
 }
 
-func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
+func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) (*Group, error) {
 	g := &Group{
 		Type:        cfg.Type,
 		Name:        cfg.Name,
 		File:        cfg.File,
 		Interval:    cfg.Interval.Duration(),
+		IntervalOffset: cfg.ParseIntervalOffset(),
 		Limit:       cfg.Limit,
 		Concurrency: cfg.Concurrency,
 		Checksum:    cfg.Checksum,
@@ -111,6 +121,11 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	if g.Interval == 0 {
 		g.Interval = defaultInterval
 	}
+
+	if g.Interval < g.IntervalOffset {
+		return nil, fmt.Errorf("interval %v cannot be lesser than interval offset %v", g.Interval, g.IntervalOffset)
+	}
+
 	if g.Concurrency < 1 {
 		g.Concurrency = 1
 	}
@@ -137,7 +152,7 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 		rules[i] = g.newRule(qb, r)
 	}
 	g.Rules = rules
-	return g
+	return g, nil
 }
 
 func (g *Group) newRule(qb datasource.QuerierBuilder, rule config.Rule) Rule {
@@ -270,15 +285,21 @@ var skipRandSleepOnGroupStart bool
 
 func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *remotewrite.Client, rr datasource.QuerierBuilder) {
 	defer func() { close(g.finishedCh) }()
-
-	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics.
+	// Spread group rules evaluation over time in order to reduce load on VictoriaMetrics
 	if !skipRandSleepOnGroupStart {
-		randSleep := uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
-		sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
-		if randSleep < sleepOffset {
-			randSleep += uint64(g.Interval)
+		var randSleep uint64
+		// group interval not offset explicitly specified default to random behavior
+		if g.IntervalOffset == GroupIntervalOffSetNotExplicitlySpecified {
+			randSleep = uint64(float64(g.Interval) * (float64(g.ID()) / (1 << 64)))
+			sleepOffset := uint64(time.Now().UnixNano()) % uint64(g.Interval)
+			if randSleep < sleepOffset {
+				randSleep += uint64(g.Interval)
+			}
+			randSleep -= sleepOffset
+		} else {
+			// group interval offset explicitly specified adhere to spec
+			randSleep = uint64(g.IntervalOffset)
 		}
-		randSleep -= sleepOffset
 		sleepTimer := time.NewTimer(time.Duration(randSleep))
 		select {
 		case <-ctx.Done():
@@ -298,7 +319,7 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 
 	evalTS := time.Now()
 
-	logger.Infof("group %q started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+	logger.Infof("group %q started; interval=%v; concurrency=%d, interval_offset=%v", g.Name, g.Interval, g.Concurrency, g.IntervalOffset)
 
 	eval := func(ctx context.Context, ts time.Time) {
 		g.metrics.iterationTotal.Inc()
@@ -330,6 +351,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 
 	eval(evalCtx, evalTS)
 
+	// accounted for group interval offset (if explicitly specified) in the initial recording of evalTS
+	// now need to keep ticking at interval/default interval
 	t := time.NewTicker(g.Interval)
 	defer t.Stop()
 
@@ -376,8 +399,9 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 				t = time.NewTicker(g.Interval)
 			}
 			g.mu.Unlock()
-			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
+			logger.Infof("group %q re-started; interval=%v; interval_offset-%v, concurrency=%d", g.Name, g.Interval, g.IntervalOffset, g.Concurrency)
 		case <-t.C:
+			// we have accounted for interval offset in the initial recording of evalTS
 			missed := (time.Since(evalTS) / g.Interval) - 1
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()

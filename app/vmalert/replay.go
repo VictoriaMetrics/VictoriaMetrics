@@ -68,7 +68,10 @@ func replay(groupsCfg []config.Group, qb datasource.QuerierBuilder, rw *remotewr
 
 	var total int
 	for _, cfg := range groupsCfg {
-		ng := newGroup(cfg, qb, *evaluationInterval, labels)
+		ng,err := newGroup(cfg, qb, *evaluationInterval, labels)
+		if err != nil {
+			return err
+		}
 		total += ng.replay(tFrom, tTo, rw)
 	}
 	logger.Infof("replay finished! Imported %d samples", total)
@@ -85,9 +88,10 @@ func (g *Group) replay(start, end time.Time, rw *remotewrite.Client) int {
 	iterations := int(end.Sub(start)/step) + 1
 	fmt.Printf("\nGroup %q"+
 		"\ninterval: \t%v"+
+		"\ninterval_offset: \t%v"+
 		"\nrequests to make: \t%d"+
 		"\nmax range per request: \t%v\n",
-		g.Name, g.Interval, iterations, step)
+		g.Name, g.Interval, g.IntervalOffset, iterations, step)
 	if g.Limit > 0 {
 		fmt.Printf("\nPlease note, `limit: %d` param has no effect during replay.\n",
 			g.Limit)

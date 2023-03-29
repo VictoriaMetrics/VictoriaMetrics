@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"sort"
 	"testing"
@@ -156,6 +157,36 @@ func TestUpdateWith(t *testing.T) {
 	}
 }
 
+func TestGroupStartEvaluationOffset(t *testing.T) {
+	skipRandSleepOnGroupStart = false
+	// TODO: make parsing from string instead of file
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good-interval-offset.rules"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("failed to parse rules: %s", err)
+	}
+	fs := &fakeQuerier{}
+	fn := &fakeNotifier{}
+	const evalInterval = time.Second * 5
+	g,_ := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
+	g.Concurrency = 1
+	go func() {
+		g.start(context.Background(), func() []notifier.Notifier { return []notifier.Notifier{fn} }, nil, fs)
+	}()
+	metricsIterationTotal := g.metrics.iterationTotal.Get()
+	// no evaluations would have happened because of group offset of 3s
+	assert.Equal(t, metricsIterationTotal, uint64(0))
+	sleepTimer := time.NewTimer(time.Second * 11)
+	select {
+	case <-sleepTimer.C:
+		//
+		metricsIterationTotal = g.metrics.iterationTotal.Get()
+		// without offset, we expect 3 evals after 11s but now only 2 evals would have happened
+		// third eval at ~13s
+		assert.Equal(t, metricsIterationTotal, uint64(2))
+	}
+	g.close()
+}
+
 func TestGroupStart(t *testing.T) {
 	// TODO: make parsing from string instead of file
 	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
@@ -167,7 +198,7 @@ func TestGroupStart(t *testing.T) {
 	fn := &fakeNotifier{}
 
 	const evalInterval = time.Millisecond
-	g := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
+	g,_ := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
 	g.Concurrency = 2
 
 	const inst1, inst2, job = "foo", "bar", "baz"
@@ -241,6 +272,37 @@ func TestGroupStart(t *testing.T) {
 
 	g.close()
 	<-finished
+}
+
+func TestGroupEvaluationOffset(t *testing.T) {
+	groups, err := config.Parse([]string{"config/testdata/rules/rules1-good.rules"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("failed to parse rules: %s", err)
+	}
+	fs := &fakeQuerier{}
+	var evalInterval = time.Minute
+	g,_ := newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
+	assert.Equal(t, time.Nanosecond*-1, g.IntervalOffset)
+
+	groups, err = config.Parse([]string{"config/testdata/rules/group-interval-offset-explicit-good.rules"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("failed to parse rules: %s", err)
+	}
+
+	fs = &fakeQuerier{}
+	evalInterval = time.Minute
+	g,_ = newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
+	assert.Equal(t, time.Minute*0, g.IntervalOffset)
+
+	groups, err = config.Parse([]string{"config/testdata/rules/group-interval-offset-explicit-bad.rules"}, notifier.ValidateTemplates, true)
+	if err != nil {
+		t.Fatalf("failed to parse rules: %s", err)
+	}
+
+	fs = &fakeQuerier{}
+	evalInterval = time.Minute
+	_,err = newGroup(groups[0], fs, evalInterval, map[string]string{"cluster": "east-1"})
+	assert.Errorf(t, err, "Error interval 5m0s cannot be lesser than interval offset 6m0s")
 }
 
 func TestResolveDuration(t *testing.T) {
@@ -485,7 +547,7 @@ func TestCloseWithEvalInterruption(t *testing.T) {
 	fq := &fakeQuerierWithDelay{delay: delay}
 
 	const evalInterval = time.Millisecond
-	g := newGroup(groups[0], fq, evalInterval, nil)
+	g,_ := newGroup(groups[0], fq, evalInterval, nil)
 
 	go g.start(context.Background(), nil, nil, nil)
 
