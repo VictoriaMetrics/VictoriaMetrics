@@ -252,6 +252,8 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
 
+	// check for free disk space before opening the table
+	// to prevent unexpected part merges.
 	s.startFreeDiskSpaceWatcher()
 
 	// Load data
