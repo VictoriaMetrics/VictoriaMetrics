@@ -252,6 +252,8 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
 
+	s.startFreeDiskSpaceWatcher()
+
 	// Load data
 	tablePath := filepath.Join(path, dataDirname)
 	tb, err := openTable(tablePath, s)
@@ -264,7 +266,6 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-	s.startFreeDiskSpaceWatcher()
 
 	return s, nil
 }
