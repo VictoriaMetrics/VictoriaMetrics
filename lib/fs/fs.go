@@ -385,6 +385,12 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		}
 		data, err := ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			if len(data) > 4192 {
+				data = data[:4192]
+			}
+			return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d; response: %q", path, resp.StatusCode, http.StatusOK, data)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %s", path, err)
 		}
