@@ -718,14 +718,19 @@ func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		if len(filepath) == 0 {
 			logger.Panicf("BUG: missing `__vm_filepath` label")
 		} else {
-			swsMapPrev[filepath] = append(swsMapPrev[filepath], sw)
+			// user can define many file_sd_config with the same path and it will produce the same ScrapeWorks
+			// in this case we just make key for map as job name and filepath with ":" delimiter,
+			// it will create each job with its ScrapeWorks
+			key := fmt.Sprintf("%s:%s", sw.Job(), filepath)
+			swsMapPrev[key] = append(swsMapPrev[key], sw)
 		}
 	}
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
+		configPaths := make(map[string]struct{}, len(sc.FileSDConfigs))
 		for j := range sc.FileSDConfigs {
 			sdc := &sc.FileSDConfigs[j]
-			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
+			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc, configPaths)
 		}
 	}
 	return dst
@@ -1122,7 +1127,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 	return dst
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[string][]*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
+func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[string][]*ScrapeWork, baseDir string, swc *scrapeWorkConfig, configPaths map[string]struct{}) []*ScrapeWork {
 	metaLabels := promutils.GetLabels()
 	defer promutils.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
@@ -1138,14 +1143,22 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			}
 		}
 		for _, path := range paths {
+			// make a key as for previous ScrapeWorks (swsMapPrev map[string][]*ScrapeWork) and show to user
+			// warning about identical file_sd_config.
+			// We skip it because it will make dst with duplicated ScrapeWork.
+			key := fmt.Sprintf("%s:%s", swc.jobName, path)
+			if _, ok := configPaths[key]; ok {
+				logger.Warnf("file_sd_config contains multiple references to %q, ignoring duplicated entry. please check -promscrape.config and remove duplicated configurations", path)
+				continue
+			}
+			configPaths[key] = struct{}{}
+
 			stcs, err := loadStaticConfigs(path)
 			if err != nil {
 				// Do not return this error, since other paths may contain valid scrape configs.
-				if sws := swsMapPrev[path]; sws != nil {
+				if sws := swsMapPrev[key]; sws != nil {
 					// Re-use the previous valid scrape work for this path.
 					logger.Errorf("keeping the previously loaded `static_configs` from %q because of error when re-loading the file: %s", path, err)
-					// Remove all scrape work because all of them will be added from the previous scrape work map.
-					dst = dst[:0]
 					dst = append(dst, sws...)
 				} else {
 					logger.Errorf("skipping loading `static_configs` from %q because of error: %s", path, err)
