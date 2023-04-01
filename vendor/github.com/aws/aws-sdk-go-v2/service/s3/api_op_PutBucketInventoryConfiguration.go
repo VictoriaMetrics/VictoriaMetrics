@@ -31,12 +31,24 @@ import (
 // location. For an example policy, see  Granting Permissions for Amazon S3
 // Inventory and Storage Class Analysis
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/example-bucket-policies.html#example-bucket-policies-use-case-9).
-// To use this operation, you must have permissions to perform the
+// Permissions To use this operation, you must have permission to perform the
 // s3:PutInventoryConfiguration action. The bucket owner has this permission by
-// default and can grant this permission to others. For more information about
-// permissions, see Permissions Related to Bucket Subresource Operations
+// default and can grant this permission to others. The
+// s3:PutInventoryConfiguration permission allows a user to create an S3 Inventory
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-inventory.html)
+// report that includes all object metadata fields available and to specify the
+// destination bucket to store the inventory. A user with read access to objects in
+// the destination bucket can also access all object metadata fields that are
+// available in the inventory report. To restrict access to an inventory report,
+// see Restricting access to an Amazon S3 Inventory report
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html#example-bucket-policies-use-case-10)
+// in the Amazon S3 User Guide. For more information about the metadata fields
+// available in S3 Inventory, see Amazon S3 Inventory lists
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-inventory.html#storage-inventory-contents)
+// in the Amazon S3 User Guide. For more information about permissions, see
+// Permissions related to bucket subresource operations
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources
+// and Identity and access management in Amazon S3
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // in the Amazon S3 User Guide. Special Errors
 //

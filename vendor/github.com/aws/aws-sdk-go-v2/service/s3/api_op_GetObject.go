@@ -37,7 +37,7 @@ import (
 // Archive tiers, before you can retrieve the object you must first restore a copy
 // using RestoreObject
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html).
-// Otherwise, this action returns an InvalidObjectStateError error. For information
+// Otherwise, this action returns an InvalidObjectState error. For information
 // about restoring archived objects, see Restoring Archived Objects
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html).
 // Encryption request headers, like x-amz-server-side-encryption, should not be
@@ -85,14 +85,16 @@ import (
 // * If you
 // supply a versionId, you need the s3:GetObjectVersion permission to access a
 // specific version of an object. If you request a specific version, you do not
-// need to have the s3:GetObject permission.
+// need to have the s3:GetObject permission. If you request the current version
+// without a specific version ID, only s3:GetObject permission is required.
+// s3:GetObjectVersion permission won't be required.
 //
-// * If the current version of the
-// object is a delete marker, Amazon S3 behaves as if the object was deleted and
-// includes x-amz-delete-marker: true in the response.
+// * If the current version of
+// the object is a delete marker, Amazon S3 behaves as if the object was deleted
+// and includes x-amz-delete-marker: true in the response.
 //
-// For more information about
-// versioning, see PutBucketVersioning
+// For more information
+// about versioning, see PutBucketVersioning
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html).
 // Overriding Response Header Values There are times when you want to override
 // certain response header values in a GET response. For example, you might
@@ -167,13 +169,13 @@ type GetObjectInput struct {
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide. When using an Object Lambda access point the
 	// hostname takes the form
-	// AccessPointName-AccountId.s3-object-lambda.Region.amazonaws.com. When using this
-	// action with Amazon S3 on Outposts, you must direct requests to the S3 on
+	// AccessPointName-AccountId.s3-object-lambda.Region.amazonaws.com. When you use
+	// this action with Amazon S3 on Outposts, you must direct requests to the S3 on
 	// Outposts hostname. The S3 on Outposts hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -215,10 +217,9 @@ type GetObjectInput struct {
 	PartNumber int32
 
 	// Downloads the specified range bytes of an object. For more information about the
-	// HTTP Range header, see
-	// https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-	// (https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35). Amazon S3
-	// doesn't support retrieving multiple ranges of data per GET request.
+	// HTTP Range header, see https://www.rfc-editor.org/rfc/rfc9110.html#name-range
+	// (https://www.rfc-editor.org/rfc/rfc9110.html#name-range). Amazon S3 doesn't
+	// support retrieving multiple ranges of data per GET request.
 	Range *string
 
 	// Confirms that the requester knows that they will be charged for the request.
@@ -403,8 +404,8 @@ type GetObjectOutput struct {
 	SSECustomerKeyMD5 *string
 
 	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric customer managed key that was used for the
-	// object.
+	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
+	// used for the object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3

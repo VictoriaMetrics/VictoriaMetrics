@@ -243,8 +243,8 @@ type WriteGetObjectResponseInput struct {
 	SSECustomerKeyMD5 *string
 
 	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric customer managed key that was used for
-	// stored in Amazon S3 object.
+	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
+	// used for stored in Amazon S3 object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing requested object in

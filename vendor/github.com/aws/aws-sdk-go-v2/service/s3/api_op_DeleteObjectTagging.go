@@ -18,7 +18,7 @@ import (
 // action. To delete tags of a specific object version, add the versionId query
 // parameter in the request. You will need permission for the
 // s3:DeleteObjectVersionTagging action. The following operations are related to
-// DeleteBucketMetricsConfiguration:
+// DeleteObjectTagging:
 //
 // * PutObjectTagging
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObjectTagging.html)
@@ -51,13 +51,13 @@ type DeleteObjectTaggingInput struct {
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
