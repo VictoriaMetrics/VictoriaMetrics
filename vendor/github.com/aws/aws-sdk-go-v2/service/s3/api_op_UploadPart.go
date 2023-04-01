@@ -49,26 +49,33 @@ import (
 // the Amazon S3 User Guide . For information on the permissions required to use
 // the multipart upload API, go to Multipart Upload and Permissions
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html) in the
-// Amazon S3 User Guide. You can optionally request server-side encryption where
+// Amazon S3 User Guide. Server-side encryption is for data encryption at rest.
 // Amazon S3 encrypts your data as it writes it to disks in its data centers and
-// decrypts it for you when you access it. You have the option of providing your
-// own encryption key, or you can use the Amazon Web Services managed encryption
-// keys. If you choose to provide your own encryption key, the request headers you
-// provide in the request must match the headers you used in the request to
-// initiate the upload by using CreateMultipartUpload
+// decrypts it when you access it. You have three mutually exclusive options to
+// protect data using server-side encryption in Amazon S3, depending on how you
+// choose to manage the encryption keys. Specifically, the encryption key options
+// are Amazon S3 managed keys (SSE-S3), Amazon Web Services KMS keys (SSE-KMS), and
+// Customer-Provided Keys (SSE-C). Amazon S3 encrypts data with server-side
+// encryption using Amazon S3 managed keys (SSE-S3) by default. You can optionally
+// tell Amazon S3 to encrypt data at rest using server-side encryption with other
+// key options. The option you use depends on whether you want to use KMS keys
+// (SSE-KMS) or provide your own encryption key (SSE-C). If you choose to provide
+// your own encryption key, the request headers you provide in the request must
+// match the headers you used in the request to initiate the upload by using
+// CreateMultipartUpload
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html).
 // For more information, go to Using Server-Side Encryption
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
 // in the Amazon S3 User Guide. Server-side encryption is supported by the S3
 // Multipart Upload actions. Unless you are using a customer-provided encryption
-// key, you don't need to specify the encryption parameters in each UploadPart
-// request. Instead, you only need to specify the server-side encryption parameters
-// in the initial Initiate Multipart request. For more information, see
+// key (SSE-C), you don't need to specify the encryption parameters in each
+// UploadPart request. Instead, you only need to specify the server-side encryption
+// parameters in the initial Initiate Multipart request. For more information, see
 // CreateMultipartUpload
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html).
 // If you requested server-side encryption using a customer-provided encryption key
-// in your initiate multipart upload request, you must provide identical encryption
-// information in each part upload using the following headers.
+// (SSE-C) in your initiate multipart upload request, you must provide identical
+// encryption information in each part upload using the following headers.
 //
 // *
 // x-amz-server-side-encryption-customer-algorithm
@@ -138,13 +145,13 @@ type UploadPartInput struct {
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -312,8 +319,8 @@ type UploadPartOutput struct {
 	SSECustomerKeyMD5 *string
 
 	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric customer managed key was used for the
-	// object.
+	// (Amazon Web Services KMS) symmetric encryption customer managed key was used for
+	// the object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3

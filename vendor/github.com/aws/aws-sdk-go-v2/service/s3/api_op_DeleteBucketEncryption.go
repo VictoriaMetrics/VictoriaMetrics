@@ -11,9 +11,10 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// This implementation of the DELETE action removes default encryption from the
-// bucket. For information about the Amazon S3 default encryption feature, see
-// Amazon S3 Default Bucket Encryption
+// This implementation of the DELETE action resets the default encryption for the
+// bucket as server-side encryption with Amazon S3 managed keys (SSE-S3). For
+// information about the bucket default encryption feature, see Amazon S3 Bucket
+// Default Encryption
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html) in the
 // Amazon S3 User Guide. To use this operation, you must have permissions to
 // perform the s3:PutEncryptionConfiguration action. The bucket owner has this
