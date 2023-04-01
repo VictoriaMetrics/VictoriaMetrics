@@ -424,13 +424,14 @@ func ReadFileOrHTTP(path string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("cannot fetch %q: %w", path, err)
 		}
-
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d", path, resp.StatusCode, http.StatusOK)
-		}
-
 		data, err := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			if len(data) > 4*1024 {
+				data = data[:4*1024]
+			}
+			return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d; response: %q", path, resp.StatusCode, http.StatusOK, data)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("cannot read %q: %s", path, err)
 		}
