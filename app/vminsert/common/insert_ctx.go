@@ -137,7 +137,8 @@ func (ctx *InsertCtx) ApplyRelabeling() {
 
 // FlushBufs flushes buffered rows to the underlying storage.
 func (ctx *InsertCtx) FlushBufs() error {
-	if sa != nil && !ctx.skipStreamAggr {
+	sas := sasGlobal.Load()
+	if sas != nil && !ctx.skipStreamAggr {
 		ctx.streamAggrCtx.push(ctx.mrs)
 		if !*streamAggrKeepInput {
 			ctx.Reset(0)

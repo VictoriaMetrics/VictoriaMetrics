@@ -509,7 +509,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # match is an optional filter for incoming samples to aggregate.
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyConcepts.html#filtering .
-  # If match is missing, then all the incoming samples are aggregated.
+  # If match isn't set, then all the incoming samples are aggregated.
 - match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
@@ -545,3 +545,16 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
 
 The file can contain multiple aggregation configs. The aggregation is performed independently
 per each specified config entry.
+
+### Configuration update
+
+[vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+support the following approaches for hot reloading stream aggregation configs from `-remoteWrite.streamAggr.config` and `-streamAggr.config`:
+
+* By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:
+
+  ```console
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload).

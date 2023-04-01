@@ -781,7 +781,25 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 4. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
 5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
-and specify `accountID` param.
+and specify `accountID` param. Example formats:
+
+```console
+# Migrating from cluster to single
+--vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+--vm-native-dst-addr=http://<dst-vmsingle>:8428
+
+ # Migrating from single to cluster
+--vm-native-src-addr=http://<src-vmsingle>:8428
+--vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+
+# Migrating single to single
+--vm-native-src-addr=http://<src-vmsingle>:8428
+--vm-native-dst-addr=http://<dst-vmsingle>:8428
+
+# Migrating cluster to cluster
+--vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+--vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+```
 6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
 7. `vmctl` supports `--vm-concurrency` which controls the number of concurrent workers that process the input from source query results.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
