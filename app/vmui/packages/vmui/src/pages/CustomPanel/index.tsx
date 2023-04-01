@@ -22,6 +22,7 @@ import TableView from "../../components/Views/TableView/TableView";
 import Button from "../../components/Main/Button/Button";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import GraphTips from "../../components/Chart/GraphTips/GraphTips";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
 
 const CustomPanel: FC = () => {
@@ -149,12 +150,15 @@ const CustomPanel: FC = () => {
       >
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
-          {displayType === "chart" && !isHistogram && (
-            <GraphSettings
-              yaxis={yaxis}
-              setYaxisLimits={setYaxisLimits}
-              toggleEnableLimits={toggleEnableLimits}
-            />
+          {displayType === "chart" && (
+            <div className="vm-custom-panel-body-header__left">
+              <GraphTips/>
+              <GraphSettings
+                yaxis={yaxis}
+                setYaxisLimits={setYaxisLimits}
+                toggleEnableLimits={toggleEnableLimits}
+              />
+            </div>
           )}
           {displayType === "table" && (
             <TableSettings

@@ -36,6 +36,8 @@ created by v1.90.0 or newer versions. The solution is to upgrade to v1.90.0 or n
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): hide messages longer than 3 lines in the trace. You can view the full message by clicking on the `show more` button. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3971).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to manually input date and time when selecting a time range. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3968).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): updated usability and the search process in cardinality explorer. Made this process straightforward for user. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3986).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the ability to collapse/expand the legend. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4045).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add tips for working with the graph and legend. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4045).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): automatically disable progress bar when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3823).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add `-configCheckInterval` command-line flag, which can be used for automatic re-reading the `-auth.config` file. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3990).
 
