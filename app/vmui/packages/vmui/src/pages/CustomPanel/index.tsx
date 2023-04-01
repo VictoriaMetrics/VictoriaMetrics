@@ -22,6 +22,7 @@ import TableView from "../../components/Views/TableView/TableView";
 import Button from "../../components/Main/Button/Button";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -120,6 +121,7 @@ const CustomPanel: FC = () => {
       )}
       {isLoading && <Spinner />}
       {!hideError && error && <Alert variant="error">{error}</Alert>}
+      {!liveData?.length && (displayType !== "chart") && <Alert variant="info"><InstantQueryTip/></Alert>}
       {warning && <Alert variant="warning">
         <div
           className={classNames({
