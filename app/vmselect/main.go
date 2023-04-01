@@ -224,9 +224,23 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	}
 	if strings.HasPrefix(path, "/functions") {
-		graphiteFunctionsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{}`)
+		funcName := path[len("/functions"):]
+		funcName = strings.TrimPrefix(funcName, "/")
+		if funcName == "" {
+			graphiteFunctionsRequests.Inc()
+			if err := graphite.FunctionsHandler(startTime, w, r); err != nil {
+				graphiteFunctionsErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
+		graphiteFunctionDetailsRequests.Inc()
+		if err := graphite.FunctionDetailsHandler(startTime, funcName, w, r); err != nil {
+			graphiteFunctionDetailsErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		return true
 	}
 
@@ -437,6 +451,14 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			return true
 		}
 		return true
+	case "/render":
+		graphiteRenderRequests.Inc()
+		if err := graphite.RenderHandler(startTime, w, r); err != nil {
+			graphiteRenderErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
 		promscrape.WriteMetricRelabelDebug(w, r)
@@ -611,10 +633,17 @@ var (
 	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/tags/delSeries"}`)
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/tags/delSeries"}`)
 
+	graphiteRenderRequests = metrics.NewCounter(`vm_http_requests_total{path="/render"}`)
+	graphiteRenderErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/render"}`)
+
 	promscrapeMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/metric-relabel-debug"}`)
 	promscrapeTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/target-relabel-debug"}`)
 
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions"}`)
+	graphiteFunctionsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/functions"}`)
+
+	graphiteFunctionDetailsRequests = metrics.NewCounter(`vm_http_requests_total{path="/functions/<func_name>"}`)
+	graphiteFunctionDetailsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/functions/<func_name>"}`)
 
 	expandWithExprsRequests = metrics.NewCounter(`vm_http_requests_total{path="/expand-with-exprs"}`)
 

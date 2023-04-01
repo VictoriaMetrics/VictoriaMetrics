@@ -50,7 +50,7 @@ var (
 // CheckConfig checks -promscrape.config for errors and unsupported options.
 func CheckConfig() error {
 	if *promscrapeConfigFile == "" {
-		return fmt.Errorf("missing -promscrape.config option")
+		return nil
 	}
 	_, _, err := loadConfig(*promscrapeConfigFile)
 	return err

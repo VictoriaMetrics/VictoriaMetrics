@@ -67,8 +67,8 @@ var (
 	opentsdbHTTPUseProxyProtocol = flag.Bool("opentsdbHTTPListenAddr.useProxyProtocol", false, "Whether to use proxy protocol for connections accepted "+
 		"at -opentsdbHTTPListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt")
 	configAuthKey = flag.String("configAuthKey", "", "Authorization key for accessing /config page. It must be passed via authKey query arg")
-	dryRun        = flag.Bool("dryRun", false, "Whether to check only config files without running vmagent. The following files are checked: "+
-		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . "+
+	dryRun        = flag.Bool("dryRun", false, "Whether to check config files without running vmagent. The following files are checked: "+
+		"-promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . "+
 		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag")
 )
 
@@ -103,11 +103,14 @@ func main() {
 		return
 	}
 	if *dryRun {
+		if err := promscrape.CheckConfig(); err != nil {
+			logger.Fatalf("error when checking -promscrape.config: %s", err)
+		}
 		if err := remotewrite.CheckRelabelConfigs(); err != nil {
 			logger.Fatalf("error when checking relabel configs: %s", err)
 		}
-		if err := promscrape.CheckConfig(); err != nil {
-			logger.Fatalf("error when checking -promscrape.config: %s", err)
+		if err := remotewrite.CheckStreamAggrConfigs(); err != nil {
+			logger.Fatalf("error when checking -remoteWrite.streamAggr.config: %s", err)
 		}
 		logger.Infof("all the configs are ok; exiting with 0 status code")
 		return
