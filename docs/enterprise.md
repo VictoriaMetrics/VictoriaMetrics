@@ -34,10 +34,6 @@ plus the following additional features:
   by specifying different retentions to different datasets.
 - [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) -
   this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
-- [Graphite querying](https://docs.victoriametrics.com/#graphite-render-api-usage) - this feature allows seamless
-  transition from Graphite to VictoriaMetrics without the need to modify queries at dashboards and alerts.
-  VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite -
-  see [this case study](https://docs.victoriametrics.com/CaseStudies.html#grammarly).
 - [Backup automation](https://docs.victoriametrics.com/vmbackupmanager.html).
 - [Advanced per-tenant stats](https://docs.victoriametrics.com/PerTenantStatistic.html).
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
