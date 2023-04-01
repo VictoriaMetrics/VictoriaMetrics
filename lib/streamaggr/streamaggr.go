@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -19,7 +18,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"github.com/cespare/xxhash/v2"
 	"gopkg.in/yaml.v2"
 )
 
@@ -39,40 +37,22 @@ var supportedOutputs = []string{
 	"quantiles(phi1, ..., phiN)",
 }
 
-// ParseConfig loads array of stream aggregation configs from the given path.
-func ParseConfig(data []byte) ([]*Config, uint64, error) {
-	var cfgs []*Config
-	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
-		return nil, 0, fmt.Errorf("cannot parse stream aggregation config %w", err)
-	}
-	return cfgs, xxhash.Sum64(data), nil
-}
-
-// LoadConfigsFromFile loads array of stream aggregation configs from the given path.
-func LoadConfigsFromFile(path string) ([]*Config, uint64, error) {
-	data, err := fs.ReadFileOrHTTP(path)
-	if err != nil {
-		return nil, 0, fmt.Errorf("cannot load stream aggregation config from %q: %w", path, err)
-	}
-	return ParseConfig(data)
-}
-
-// LoadAggregatorsFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
+// LoadFromFile loads Aggregators from the given path and uses the given pushFunc for pushing the aggregated data.
 //
 // If dedupInterval > 0, then the input samples are de-duplicated before being aggregated,
 // e.g. only the last sample per each time series per each dedupInterval is aggregated.
 //
 // The returned Aggregators must be stopped with MustStop() when no longer needed.
-func LoadAggregatorsFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, uint64, error) {
-	cfgs, configHash, err := LoadConfigsFromFile(path)
+func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
+	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
-		return nil, 0, fmt.Errorf("cannot load stream aggregation config: %w", err)
+		return nil, fmt.Errorf("cannot load aggregators: %w", err)
 	}
-	as, err := NewAggregators(cfgs, pushFunc, dedupInterval)
+	as, err := NewAggregatorsFromData(data, pushFunc, dedupInterval)
 	if err != nil {
-		return nil, 0, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
+		return nil, fmt.Errorf("cannot initialize aggregators from %q: %w", path, err)
 	}
-	return as, configHash, nil
+	return as, nil
 }
 
 // NewAggregatorsFromData initializes Aggregators from the given data and uses the given pushFunc for pushing the aggregated data.
@@ -84,7 +64,7 @@ func LoadAggregatorsFromFile(path string, pushFunc PushFunc, dedupInterval time.
 func NewAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
 	}
 	return NewAggregators(cfgs, pushFunc, dedupInterval)
 }
@@ -148,22 +128,13 @@ type Config struct {
 	OutputRelabelConfigs []promrelabel.RelabelConfig `yaml:"output_relabel_configs,omitempty"`
 }
 
-func (cfg *Config) hash() (uint64, error) {
-	if cfg == nil {
-		return 0, nil
-	}
-	data, err := json.Marshal(cfg)
-	if err != nil {
-		return 0, fmt.Errorf("cannot marshal stream aggregation rule %+v: %w", cfg, err)
-	}
-	return xxhash.Sum64(data), nil
-}
-
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
 type Aggregators struct {
-	as            atomic.Pointer[[]*aggregator]
-	pushFunc      PushFunc
-	dedupInterval time.Duration
+	as []*aggregator
+
+	// configData contains marshaled configs passed to NewAggregators().
+	// It is used in Equal() for comparing Aggregators.
+	configData []byte
 }
 
 // NewAggregators creates Aggregators from the given cfgs.
@@ -182,17 +153,22 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	for i, cfg := range cfgs {
 		a, err := newAggregator(cfg, pushFunc, dedupInterval)
 		if err != nil {
+			// Stop already initialized aggregators before returning the error.
+			for _, a := range as[:i] {
+				a.MustStop()
+			}
 			return nil, fmt.Errorf("cannot initialize aggregator #%d: %w", i, err)
 		}
 		as[i] = a
 	}
-	result := &Aggregators{
-		pushFunc:      pushFunc,
-		dedupInterval: dedupInterval,
+	configData, err := json.Marshal(cfgs)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
 	}
-	result.as.Store(&as)
-
-	return result, nil
+	return &Aggregators{
+		as:         as,
+		configData: configData,
+	}, nil
 }
 
 // MustStop stops a.
@@ -200,9 +176,17 @@ func (a *Aggregators) MustStop() {
 	if a == nil {
 		return
 	}
-	for _, aggr := range *a.as.Load() {
+	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
+}
+
+// Equal returns true if a and b are initialized from identical configs.
+func (a *Aggregators) Equal(b *Aggregators) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return string(a.configData) == string(b.configData)
 }
 
 // Push pushes tss to a.
@@ -210,72 +194,9 @@ func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries) {
 	if a == nil {
 		return
 	}
-	for _, aggr := range *a.as.Load() {
+	for _, aggr := range a.as {
 		aggr.Push(tss)
 	}
-}
-
-// ReInitConfigs reinits state of Aggregators a with the given new stream aggregation config
-func (a *Aggregators) ReInitConfigs(cfgs []*Config) error {
-	if a == nil {
-		return nil
-	}
-
-	keys := make(map[uint64]struct{})        // set of all keys (configs and aggregators)
-	cfgsMap := make(map[uint64]*Config)      // map of config keys to their indices in cfgs
-	aggrsMap := make(map[uint64]*aggregator) // map of aggregator keys to their indices in a.as
-
-	for _, cfg := range cfgs {
-		key, err := cfg.hash()
-		if err != nil {
-			return fmt.Errorf("unable to calculate hash for config '%+v': %w", cfg, err)
-		}
-		keys[key] = struct{}{}
-		cfgsMap[key] = cfg
-	}
-	for _, aggr := range *a.as.Load() {
-		keys[aggr.cfgHash] = struct{}{}
-		aggrsMap[aggr.cfgHash] = aggr
-	}
-
-	asNew := make([]*aggregator, 0, len(aggrsMap))
-	asDel := make([]*aggregator, 0, len(aggrsMap))
-	for key := range keys {
-		cfg, hasCfg := cfgsMap[key]
-		agg, hasAggr := aggrsMap[key]
-
-		// if config for aggregator was changed or removed
-		// then we need to stop aggregator and remove it
-		if !hasCfg && hasAggr {
-			asDel = append(asDel, agg)
-			continue
-		}
-
-		// if there is no aggregator for config (new config),
-		// then we need to create it
-		if hasCfg && !hasAggr {
-			newAgg, err := newAggregator(cfg, a.pushFunc, a.dedupInterval)
-			if err != nil {
-				return fmt.Errorf("cannot initialize aggregator for config '%+v': %w", cfg, err)
-			}
-			asNew = append(asNew, newAgg)
-			continue
-		}
-
-		// if aggregator config was not changed, then we can just keep it
-		if hasCfg && hasAggr {
-			asNew = append(asNew, agg)
-		}
-	}
-
-	// Atomically replace aggregators array.
-	a.as.Store(&asNew)
-	// and stop old aggregators
-	for _, aggr := range asDel {
-		aggr.MustStop()
-	}
-
-	return nil
 }
 
 // aggregator aggregates input series according to the config passed to NewAggregator
@@ -295,7 +216,6 @@ type aggregator struct {
 
 	// aggrStates contains aggregate states for the given outputs
 	aggrStates []aggrState
-	hasState   atomic.Bool
 
 	pushFunc PushFunc
 
@@ -304,8 +224,7 @@ type aggregator struct {
 	// It contains the interval, labels in (by, without), plus output name.
 	// For example, foo_bar metric name is transformed to foo_bar:1m_by_job
 	// for `interval: 1m`, `by: [job]`
-	suffix  string
-	cfgHash uint64
+	suffix string
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
@@ -433,11 +352,6 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		dedupAggr = newLastAggrState()
 	}
 
-	cfgHash, err := cfg.hash()
-	if err != nil {
-		return nil, fmt.Errorf("cannot calculate config hash for config %+v: %w", cfg, err)
-	}
-
 	// initialize the aggregator
 	a := &aggregator{
 		match: cfg.Match,
@@ -453,8 +367,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		aggrStates: aggrStates,
 		pushFunc:   pushFunc,
 
-		suffix:  suffix,
-		cfgHash: cfgHash,
+		suffix: suffix,
 
 		stopCh: make(chan struct{}),
 	}
@@ -521,8 +434,6 @@ func (a *aggregator) dedupFlush() {
 	}
 	a.dedupAggr.appendSeriesForFlush(ctx)
 	a.push(ctx.tss)
-
-	a.hasState.Store(false)
 }
 
 func (a *aggregator) flush() {
@@ -552,8 +463,6 @@ func (a *aggregator) flush() {
 		// Push the output metrics.
 		a.pushFunc(tss)
 	}
-
-	a.hasState.Store(false)
 }
 
 // MustStop stops the aggregator.
@@ -561,26 +470,19 @@ func (a *aggregator) flush() {
 // The aggregator stops pushing the aggregated metrics after this call.
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
-
-	if a.hasState.Load() {
-		if a.dedupAggr != nil {
-			flushConcurrencyCh <- struct{}{}
-			a.dedupFlush()
-			<-flushConcurrencyCh
-		}
-
-		flushConcurrencyCh <- struct{}{}
-		a.flush()
-		<-flushConcurrencyCh
-	}
-
 	a.wg.Wait()
+
+	// Flush the remaining data from the last interval if needed.
+	flushConcurrencyCh <- struct{}{}
+	if a.dedupAggr != nil {
+		a.dedupFlush()
+	}
+	a.flush()
+	<-flushConcurrencyCh
 }
 
 // Push pushes tss to a.
 func (a *aggregator) Push(tss []prompbmarshal.TimeSeries) {
-	a.hasState.Store(true)
-
 	if a.dedupAggr == nil {
 		a.push(tss)
 		return

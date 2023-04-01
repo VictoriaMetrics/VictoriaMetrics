@@ -14,14 +14,11 @@ import (
 )
 
 // Returns torrent files from a bucket. BitTorrent can save you bandwidth when
-// you're distributing large files. For more information about BitTorrent, see
-// Using BitTorrent with Amazon S3
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3Torrent.html). You can get
-// torrent only for objects that are less than 5 GB in size, and that are not
-// encrypted using server-side encryption with a customer-provided encryption key.
-// To use GET, you must have READ access to the object. This action is not
-// supported by Amazon S3 on Outposts. The following action is related to
-// GetObjectTorrent:
+// you're distributing large files. You can get torrent only for objects that are
+// less than 5 GB in size, and that are not encrypted using server-side encryption
+// with a customer-provided encryption key. To use GET, you must have READ access
+// to the object. This action is not supported by Amazon S3 on Outposts. The
+// following action is related to GetObjectTorrent:
 //
 // * GetObject
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)

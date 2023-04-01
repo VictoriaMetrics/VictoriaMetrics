@@ -1,17 +1,8 @@
 import { TipIcon } from "../../../components/Main/Icons";
 import React, { FC } from "preact/compat";
 import { ReactNode } from "react";
+import Hyperlink from "../../../components/Main/Hyperlink/Hyperlink";
 import "./style.scss";
-
-const Link: FC<{ href: string, children: ReactNode, target?: string }> = ({ href, children, target }) => (
-  <a
-    href={href}
-    className="vm-link vm-link_colored"
-    target={target}
-  >
-    {children}
-  </a>
-);
 
 const TipCard: FC<{ title?: string, children: ReactNode }> = ({ title, children }) => (
   <div className="vm-cardinality-tip">
@@ -25,50 +16,22 @@ const TipCard: FC<{ title?: string, children: ReactNode }> = ({ title, children 
   </div>
 );
 
-export const TipDocumentation: FC = () => (
-  <TipCard title="Cardinality explorer">
-    <h6>Helpful for analyzing VictoriaMetrics TSDB data</h6>
-    <ul>
-      <li>
-        <Link href="https://docs.victoriametrics.com/#cardinality-explorer">
-          Cardinality explorer documentation
-        </Link>
-      </li>
-      <li>
-        See the <Link href="https://victoriametrics.com/blog/cardinality-explorer/">
-        example of using</Link> the cardinality explorer
-      </li>
-    </ul>
-  </TipCard>
-);
-
 export const TipHighNumberOfSeries: FC = () => (
   <TipCard title="Metrics with a high number of series">
     <ul>
       <li>
         Identify and eliminate labels with frequently changed values to reduce their&nbsp;
-        <Link
-          href='https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality'
-          target={"_blank"}
-        >cardinality</Link>&nbsp;and&nbsp;
-        <Link
-          href='https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate'
-          target={"_blank"}
-        >high churn rate</Link>
+        <Hyperlink href='https://docs.victoriametrics.com/FAQ.html#what-is-high-cardinality'>cardinality</Hyperlink>
+        &nbsp;and&nbsp;
+        <Hyperlink href='https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate'>high churn rate</Hyperlink>
       </li>
       <li>
         Find unused time series and&nbsp;
-        <Link
-          href='https://docs.victoriametrics.com/relabeling.html'
-          target={"_blank"}
-        >drop entire metrics</Link>
+        <Hyperlink href='https://docs.victoriametrics.com/relabeling.html'>drop entire metrics</Hyperlink>
       </li>
       <li>
-          Aggregate time series before they got ingested into the database via&nbsp;
-        <Link
-          href='https://docs.victoriametrics.com/stream-aggregation.html'
-          target={"_blank"}
-        >streaming aggregation</Link>
+        Aggregate time series before they got ingested into the database via&nbsp;
+        <Hyperlink href='https://docs.victoriametrics.com/stream-aggregation.html'>streaming aggregation</Hyperlink>
       </li>
     </ul>
   </TipCard>
@@ -79,12 +42,10 @@ export const TipHighNumberOfValues: FC = () => (
     <ul>
       <li>Decrease the number of unique label values to reduce cardinality</li>
       <li>Drop the label entirely via&nbsp;
-        <Link
-          href='https://docs.victoriametrics.com/relabeling.html'
-          target={"_blank"}
-        >relabeling</Link></li>
+        <Hyperlink href='https://docs.victoriametrics.com/relabeling.html'>relabeling</Hyperlink></li>
       <li>For volatile label values (such as URL path, user session, etc.)
-          consider printing them to the log file instead of adding to time series</li>
+        consider printing them to the log file instead of adding to time series
+      </li>
     </ul>
   </TipCard>
 );
