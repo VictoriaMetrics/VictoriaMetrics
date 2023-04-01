@@ -251,6 +251,10 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
 
+	// check for free disk space before opening the table
+	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
+	s.startFreeDiskSpaceWatcher()
+
 	// Load data
 	tablePath := path + "/data"
 	tb, err := openTable(tablePath, s)
@@ -263,7 +267,6 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-	s.startFreeDiskSpaceWatcher()
 
 	return s, nil
 }
