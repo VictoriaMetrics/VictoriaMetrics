@@ -7,7 +7,7 @@ import Modal from "../../Main/Modal/Modal";
 import "./style.scss";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
-import { SeriesLimits } from "../../../types";
+import { Theme } from "../../../types";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
@@ -22,7 +22,7 @@ const GlobalSettings: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
-  const { serverUrl: stateServerUrl } = useAppState();
+  const { serverUrl: stateServerUrl, theme } = useAppState();
   const { timezone: stateTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
 
@@ -31,20 +31,40 @@ const GlobalSettings: FC = () => {
   const customPanelDispatch = useCustomPanelDispatch();
 
   const [serverUrl, setServerUrl] = useState(stateServerUrl);
-  const [limits, setLimits] = useState<SeriesLimits>(seriesLimits);
+  const [limits, setLimits] = useState(seriesLimits);
   const [timezone, setTimezone] = useState(stateTimezone);
+
+  const setDefaultsValues = () => {
+    setServerUrl(stateServerUrl);
+    setLimits(seriesLimits);
+    setTimezone(stateTimezone);
+  };
 
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const handleClose = () => {
+    setOpen(false);
+    setDefaultsValues();
+  };
+
+  const handleCloseForce = () => {
+    setOpen(false);
+    setDefaultsValues();
+  };
+
+  const handleChangeTheme = (value: Theme) => {
+    dispatch({ type: "SET_THEME", payload: value });
+  };
 
   const handlerApply = () => {
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
+    setOpen(false);
   };
 
   useEffect(() => {
+    // the tenant selector can change the serverUrl
     if (stateServerUrl === serverUrl) return;
     setServerUrl(stateServerUrl);
   }, [stateServerUrl]);
@@ -88,10 +108,10 @@ const GlobalSettings: FC = () => {
           {!appModeEnable && (
             <div className="vm-server-configurator__input">
               <ServerConfigurator
+                stateServerUrl={stateServerUrl}
                 serverUrl={serverUrl}
                 onChange={setServerUrl}
                 onEnter={handlerApply}
-                onBlur={handlerApply}
               />
             </div>
           )}
@@ -110,9 +130,28 @@ const GlobalSettings: FC = () => {
           </div>
           {!appModeEnable && (
             <div className="vm-server-configurator__input">
-              <ThemeControl/>
+              <ThemeControl
+                theme={theme}
+                onChange={handleChangeTheme}
+              />
             </div>
           )}
+          <div className="vm-server-configurator-footer">
+            <Button
+              color="error"
+              variant="outlined"
+              onClick={handleCloseForce}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              variant="contained"
+              onClick={handlerApply}
+            >
+              Apply
+            </Button>
+          </div>
         </div>
       </Modal>
     )}
