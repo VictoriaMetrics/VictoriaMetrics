@@ -255,8 +255,7 @@ func (x *Labels) RemoveLabelsWithDoubleUnderscorePrefix() {
 	dst := x.Labels[:0]
 	for _, label := range src {
 		name := label.Name
-		// A hack: do not delete __vm_filepath label, since it is used by internal logic for FileSDConfig.
-		if strings.HasPrefix(name, "__") && name != "__vm_filepath" {
+		if strings.HasPrefix(name, "__") {
 			continue
 		}
 		dst = append(dst, label)
