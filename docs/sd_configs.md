@@ -88,6 +88,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_azure_subscription_id`: the subscription ID
 * `__meta_azure_tenant_id`: the tenant ID
 
+The list of discovered Azure targets is refreshed at the interval, which can be configured via `-promscrape.azureSDCheckInterval` command-line flag.
 
 ## consul_sd_configs
 
@@ -173,6 +174,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_consul_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
 * `__meta_consul_tags`: the list of tags of the target joined by the `tag_separator`
 
+The list of discovered Consul targets is refreshed at the interval, which can be configured via `-promscrape.consulSDCheckInterval` command-line flag.
 
 ## digitalocean_sd_configs
 
@@ -211,6 +213,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_digitalocean_tags`: the comma-separated list of tags of the droplet
 * `__meta_digitalocean_vpc`: the id of the droplet's VPC
 
+The list of discovered DigitalOcean targets is refreshed at the interval, which can be configured via `-promscrape.digitaloceanSDCheckInterval` command-line flag.
 
 ## dns_sd_configs
 
@@ -243,6 +246,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_dns_srv_record_port`: the port field of the SRV record
 * `__meta_dns_mx_record_target`: the target field of the MX record.
 
+The list of discovered DNS targets is refreshed at the interval, which can be configured via `-promscrape.dnsSDCheckInterval` command-line flag.
 
 ## docker_sd_configs
 
@@ -293,6 +297,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_docker_port_public`: the external port if a port-mapping exists
 * `__meta_docker_port_public_ip`: the public IP if a port-mapping exists
 
+The list of discovered Docker targets is refreshed at the interval, which can be configured via `-promscrape.dockerSDCheckInterval` command-line flag.
 
 ## dockerswarm_sd_configs
 
@@ -413,6 +418,7 @@ One of the following roles can be configured to discover targets:
   * `__meta_dockerswarm_node_role`: the role of the node
   * `__meta_dockerswarm_node_status`: the status of the node
 
+The list of discovered Docker Swarm targets is refreshed at the interval, which can be configured via `-promscrape.dockerswarmSDCheckInterval` command-line flag.
 
 ## ec2_sd_configs
 
@@ -491,6 +497,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_ec2_tag_<tagkey>`: each tag value of the instance
 * `__meta_ec2_vpc_id`: the ID of the VPC in which the instance is running, if available
 
+The list of discovered EC2 targets is refreshed at the interval, which can be configured via `-promscrape.ec2SDCheckInterval` command-line flag.
 
 ## eureka_sd_configs
 
@@ -531,11 +538,11 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_eureka_app_instance_datacenterinfo_name`: the datacenter name of the app instance
 * `__meta_eureka_app_instance_datacenterinfo_metadata_<metadataname>`: the datacenter metadata
 
+The list of discovered Eureka targets is refreshed at the interval, which can be configured via `-promscrape.eurekaSDCheckInterval` command-line flag.
 
 ## file_sd_configs
 
 File-based service discovery reads a set of files with lists of targets to scrape.
-Scrape targets are automatically updated when the underlying files are changed with the interval
 
 Configuration example:
 
@@ -583,6 +590,7 @@ The following meta labels are available on discovered targets during [relabeling
 
 See the [list of integrations](https://prometheus.io/docs/operating/integrations/#file-service-discovery) with `file_sd_configs`.
 
+The list of discovered file-based targets is refreshed at the interval, which can be configured via `-promscrape.fileSDCheckInterval` command-line flag.
 
 ## gce_sd_configs
 
@@ -639,6 +647,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_gce_tags`: list of instance tags separated by tag_separator
 * `__meta_gce_zone`: the GCE zone URL in which the instance is running
 
+The list of discovered GCE targets is refreshed at the interval, which can be configured via `-promscrape.gceSDCheckInterval` command-line flag.
 
 ## http_sd_configs
 
@@ -679,6 +688,7 @@ The following meta labels are available on discovered targets during [relabeling
 
 * `__meta_url`: the URL from which the target was extracted
 
+The list of discovered HTTP-based targets is refreshed at the interval, which can be configured via `-promscrape.httpSDCheckInterval` command-line flag.
 
 ## kubernetes_sd_configs
 
@@ -872,6 +882,8 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
   * `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
 
+The list of discovered Kuberntes targets is refreshed at the interval, which can be configured via `-promscrape.kubernetesSDCheckInterval` command-line flag.
+
 ## nomad_sd_configs
 
 Nomad SD configuration allows retrieving scrape targets from [HashiCorp Nomad Services](https://www.hashicorp.com/blog/nomad-service-discovery).
@@ -926,6 +938,8 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_nomad_tag_<tagname>`: the value for the given <tagname> tag of the target
 * `__meta_nomad_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
 * `__meta_nomad_tags`: the list of tags of the target joined by the `tag_separator`
+
+The list of discovered Nomad targets is refreshed at the interval, which can be configured via `-promscrape.nomadSDCheckInterval` command-line flag.
 
 ## openstack_sd_configs
 
@@ -1035,6 +1049,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_openstack_tag_<tagkey>`: each tag value of the instance.
   * `__meta_openstack_user_id`: the user account owning the tenant.
 
+The list of discovered OpenStack targets is refreshed at the interval, which can be configured via `-promscrape.openstackSDCheckInterval` command-line flag.
 
 ## static_configs
 
@@ -1136,6 +1151,7 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_yandexcloud_instance_private_dns_<record number>`: if configured DNS records for private IP
 * `__meta_yandexcloud_instance_public_dns_<record number>`: if configured DNS records for public IP
 
+The list of discovered Yandex Cloud targets is refreshed at the interval, which can be configured via `-promscrape.yandexcloudSDCheckInterval` command-line flag.
 
 ## scrape_configs
 

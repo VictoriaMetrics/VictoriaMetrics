@@ -172,6 +172,6 @@ func TestLabelsRemoveLabelsWithDoubleUnderscorePrefix(t *testing.T) {
 	}
 	f(`{}`, `{}`)
 	f(`{foo="bar"}`, `{foo="bar"}`)
-	f(`{__meta_foo="bar",a="b",__name__="foo",__vm_filepath="aa"}`, `{a="b",__vm_filepath="aa"}`)
+	f(`{__meta_foo="bar",a="b",__name__="foo",__vm_filepath="aa"}`, `{a="b"}`)
 	f(`{__meta_foo="bdffr",foo="bar",__meta_xxx="basd"}`, `{foo="bar"}`)
 }
