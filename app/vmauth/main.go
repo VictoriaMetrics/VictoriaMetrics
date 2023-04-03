@@ -13,7 +13,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmauth/ip_filters"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmauth/ipfilters"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -73,7 +73,7 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	if err := ip_filters.CheckRequest(r); err != nil {
+	if err := ipfilters.CheckRequest(r); err != nil {
 		err = &httpserver.ErrorWithStatusCode{
 			Err:        err,
 			StatusCode: http.StatusForbidden,

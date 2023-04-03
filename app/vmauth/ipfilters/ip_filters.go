@@ -1,6 +1,6 @@
 // vmauth-oss
 
-package ip_filters
+package ipfilters
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 )
 
 // Init initializes ip filters checking
-func Init(filters *IpLists) error {
+func Init(filters *IPLists) error {
 	if filters == nil {
 		return nil
 	}

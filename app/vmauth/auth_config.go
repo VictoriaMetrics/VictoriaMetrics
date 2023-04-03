@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmauth/ip_filters"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmauth/ipfilters"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -32,8 +32,8 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users     []UserInfo          `yaml:"users,omitempty"`
-	IpFilters *ip_filters.IpLists `yaml:"ip_filters,omitempty"`
+	Users     []UserInfo         `yaml:"users,omitempty"`
+	IPFilters *ipfilters.IPLists `yaml:"ip_filters,omitempty"`
 }
 
 // UserInfo is user information read from authConfigPath
@@ -295,8 +295,8 @@ func initAuthConfig() {
 	if err != nil {
 		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
 	}
-	if err = ip_filters.Init(ac.IpFilters); err != nil {
-		logger.Fatalf("cannot init auth config from `-auth.config=%s`: %s", err)
+	if err = ipfilters.Init(ac.IPFilters); err != nil {
+		logger.Fatalf("cannot init auth config from `-auth.config=%s`: %s", *authConfigPath, err)
 	}
 	authUsers.Store(&m)
 	stopCh = make(chan struct{})
@@ -334,8 +334,8 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 				logger.Errorf("failed to load -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
 				continue
 			}
-			if err = ip_filters.Init(ac.IpFilters); err != nil {
-				logger.Errorf("failed to ini -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
+			if err = ipfilters.Init(ac.IPFilters); err != nil {
+				logger.Errorf("failed to init -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
 				continue
 			}
 			authUsers.Store(&m)
