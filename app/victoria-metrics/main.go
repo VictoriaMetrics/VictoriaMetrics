@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert"
+	vminsertcommon "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
+	vminsertrelabel "github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/relabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -30,8 +32,9 @@ var (
 		"With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing")
 	minScrapeInterval = flag.Duration("dedup.minScrapeInterval", 0, "Leave only the last sample in every time series per each discrete interval "+
 		"equal to -dedup.minScrapeInterval > 0. See https://docs.victoriametrics.com/#deduplication and https://docs.victoriametrics.com/#downsampling")
-	dryRun = flag.Bool("dryRun", false, "Whether to check only -promscrape.config and then exit. "+
-		"Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag")
+	dryRun = flag.Bool("dryRun", false, "Whether to check config files without running VictoriaMetrics. The following config files are checked: "+
+		"-promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. "+
+		"This can be changed with -promscrape.config.strictParse=false command-line flag")
 	inmemoryDataFlushInterval = flag.Duration("inmemoryDataFlushInterval", 5*time.Second, "The interval for guaranteed saving of in-memory data to disk. "+
 		"The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. "+
 		"Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). "+
@@ -53,6 +56,12 @@ func main() {
 	if *dryRun {
 		if err := promscrape.CheckConfig(); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
+		}
+		if err := vminsertrelabel.CheckRelabelConfig(); err != nil {
+			logger.Fatalf("error when checking -relabelConfig: %s", err)
+		}
+		if err := vminsertcommon.CheckStreamAggrConfig(); err != nil {
+			logger.Fatalf("error when checking -streamAggr.config: %s", err)
 		}
 		logger.Infof("-promscrape.config is ok; exiting with 0 status code")
 		return

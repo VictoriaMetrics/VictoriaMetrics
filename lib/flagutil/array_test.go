@@ -53,15 +53,54 @@ func TestArrayString_Set(t *testing.T) {
 			t.Fatalf("unexpected values parsed;\ngot\n%q\nwant\n%q", a, expectedValues)
 		}
 	}
+	// Zero args
 	f("", nil)
+
+	// Single arg
 	f(`foo`, []string{`foo`})
-	f(`foo,b ar,baz`, []string{`foo`, `b ar`, `baz`})
-	f(`foo,b\"'ar,"baz,d`, []string{`foo`, `b\"'ar`, `"baz,d`})
-	f(`,foo,,ba"r,`, []string{``, `foo`, ``, `ba"r`, ``})
+	f(`fo"o`, []string{`fo"o`})
+	f(`fo'o`, []string{`fo'o`})
+	f(`fo{o`, []string{`fo{o`})
+	f(`fo[o`, []string{`fo[o`})
+	f(`fo(o`, []string{`fo(o`})
+
+	// Single arg with Prometheus label filters
+	f(`foo{bar="baz",x="y"}`, []string{`foo{bar="baz",x="y"}`})
+	f(`foo{bar="ba}z",x="y"}`, []string{`foo{bar="ba}z",x="y"}`})
+	f(`foo{bar='baz',x="y"}`, []string{`foo{bar='baz',x="y"}`})
+	f(`foo{bar='baz',x='y'}`, []string{`foo{bar='baz',x='y'}`})
+	f(`foo{bar='ba}z',x='y'}`, []string{`foo{bar='ba}z',x='y'}`})
+	f(`{foo="ba[r",baz='a'}`, []string{`{foo="ba[r",baz='a'}`})
+
+	// Single arg with JSON
+	f(`[1,2,3]`, []string{`[1,2,3]`})
+	f(`{"foo":"ba,r",baz:x}`, []string{`{"foo":"ba,r",baz:x}`})
+
+	// Single quoted arg
+	f(`"foo"`, []string{`foo`})
+	f(`"fo,'o"`, []string{`fo,'o`})
+	f(`"f\\o,\'\"o"`, []string{`f\o,\'"o`})
+	f(`"foo{bar='baz',x='y'}"`, []string{`foo{bar='baz',x='y'}`})
+	f(`'foo'`, []string{`foo`})
+	f(`'fo,"o'`, []string{`fo,"o`})
+	f(`'f\\o,\'\"o'`, []string{`f\o,'\"o`})
+	f(`'foo{bar="baz",x="y"}'`, []string{`foo{bar="baz",x="y"}`})
+
+	// Multiple args
+	f(`foo,bar,baz`, []string{`foo`, `bar`, `baz`})
+	f(`"foo",'bar',{[(ba'",z"`, []string{`foo`, `bar`, `{[(ba'",z"`})
+	f(`foo,b"'ar,"baz,d`, []string{`foo`, `b"'ar,"baz`, `d`})
+	f(`{foo="b,ar"},baz{x="y",z="d"}`, []string{`{foo="b,ar"}`, `baz{x="y",z="d"}`})
+
+	// Empty args
 	f(`""`, []string{``})
-	f(`"foo,b\nar"`, []string{`foo,b` + "\n" + `ar`})
-	f(`"foo","bar",baz`, []string{`foo`, `bar`, `baz`})
-	f(`,fo,"\"b, a'\\",,r,`, []string{``, `fo`, `"b, a'\`, ``, `r`, ``})
+	f(`''`, []string{``})
+	f(`,`, []string{``, ``})
+	f(`,foo,,ba"r,`, []string{``, `foo`, ``, `ba"r`, ``})
+
+	// Special chars inside double quotes
+	f(`"foo,b\nar"`, []string{"foo,b\nar"})
+	f(`"foo\x23bar"`, []string{"foo\x23bar"})
 }
 
 func TestArrayString_GetOptionalArg(t *testing.T) {
@@ -100,6 +139,7 @@ func TestArrayString_String(t *testing.T) {
 	f(",foo,")
 	f(`", foo","b\"ar",`)
 	f(`,"\nfoo\\",bar`)
+	f(`"foo{bar=~\"baz\",a!=\"b\"}","{a='b,{[(c'}"`)
 }
 
 func TestArrayDuration(t *testing.T) {

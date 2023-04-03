@@ -1,6 +1,7 @@
 package streamaggr
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"sort"
@@ -63,7 +64,7 @@ func LoadFromFile(path string, pushFunc PushFunc, dedupInterval time.Duration) (
 func NewAggregatorsFromData(data []byte, pushFunc PushFunc, dedupInterval time.Duration) (*Aggregators, error) {
 	var cfgs []*Config
 	if err := yaml.UnmarshalStrict(data, &cfgs); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot parse stream aggregation config: %w", err)
 	}
 	return NewAggregators(cfgs, pushFunc, dedupInterval)
 }
@@ -130,6 +131,10 @@ type Config struct {
 // Aggregators aggregates metrics passed to Push and calls pushFunc for aggregate data.
 type Aggregators struct {
 	as []*aggregator
+
+	// configData contains marshaled configs passed to NewAggregators().
+	// It is used in Equal() for comparing Aggregators.
+	configData []byte
 }
 
 // NewAggregators creates Aggregators from the given cfgs.
@@ -148,12 +153,21 @@ func NewAggregators(cfgs []*Config, pushFunc PushFunc, dedupInterval time.Durati
 	for i, cfg := range cfgs {
 		a, err := newAggregator(cfg, pushFunc, dedupInterval)
 		if err != nil {
+			// Stop already initialized aggregators before returning the error.
+			for _, a := range as[:i] {
+				a.MustStop()
+			}
 			return nil, fmt.Errorf("cannot initialize aggregator #%d: %w", i, err)
 		}
 		as[i] = a
 	}
+	configData, err := json.Marshal(cfgs)
+	if err != nil {
+		logger.Panicf("BUG: cannot marshal the provided configs: %s", err)
+	}
 	return &Aggregators{
-		as: as,
+		as:         as,
+		configData: configData,
 	}, nil
 }
 
@@ -165,6 +179,14 @@ func (a *Aggregators) MustStop() {
 	for _, aggr := range a.as {
 		aggr.MustStop()
 	}
+}
+
+// Equal returns true if a and b are initialized from identical configs.
+func (a *Aggregators) Equal(b *Aggregators) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return string(a.configData) == string(b.configData)
 }
 
 // Push pushes tss to a.
@@ -411,7 +433,6 @@ func (a *aggregator) dedupFlush() {
 		skipAggrSuffix: true,
 	}
 	a.dedupAggr.appendSeriesForFlush(ctx)
-	logger.Errorf("series after dedup: %v", ctx.tss)
 	a.push(ctx.tss)
 }
 
@@ -450,6 +471,14 @@ func (a *aggregator) flush() {
 func (a *aggregator) MustStop() {
 	close(a.stopCh)
 	a.wg.Wait()
+
+	// Flush the remaining data from the last interval if needed.
+	flushConcurrencyCh <- struct{}{}
+	if a.dedupAggr != nil {
+		a.dedupFlush()
+	}
+	a.flush()
+	<-flushConcurrencyCh
 }
 
 // Push pushes tss to a.

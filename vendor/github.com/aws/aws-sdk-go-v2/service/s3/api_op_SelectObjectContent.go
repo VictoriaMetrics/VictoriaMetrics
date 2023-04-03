@@ -25,9 +25,6 @@ import (
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/selecting-content-from-objects.html)
 // and SELECT Command
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-glacier-select-sql-reference-select.html)
-// in the Amazon S3 User Guide. For more information about using SQL with Amazon S3
-// Select, see  SQL Reference for Amazon S3 Select and S3 Glacier Select
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/s3-glacier-select-sql-reference.html)
 // in the Amazon S3 User Guide. Permissions You must have s3:GetObject permission
 // for this operation. Amazon S3 Select does not support anonymous access. For more
 // information about permissions, see Specifying Permissions in a Policy
@@ -57,10 +54,10 @@ import (
 // Encryption Keys)
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 // in the Amazon S3 User Guide. For objects that are encrypted with Amazon S3
-// managed encryption keys (SSE-S3) and Amazon Web Services KMS keys (SSE-KMS),
-// server-side encryption is handled transparently, so you don't need to specify
-// anything. For more information about server-side encryption, including SSE-S3
-// and SSE-KMS, see Protecting Data Using Server-Side Encryption
+// managed keys (SSE-S3) and Amazon Web Services KMS keys (SSE-KMS), server-side
+// encryption is handled transparently, so you don't need to specify anything. For
+// more information about server-side encryption, including SSE-S3 and SSE-KMS, see
+// Protecting Data Using Server-Side Encryption
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html) in
 // the Amazon S3 User Guide.
 //
