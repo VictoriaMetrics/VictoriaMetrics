@@ -731,15 +731,6 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 		}
 		resetNonEssentialFields(sws)
 
-		// Remove `__vm_filepath` label, since its value depends on the current working dir.
-		for _, sw := range sws {
-			for j := range sw.Labels {
-				label := &sw.Labels[j]
-				if label.Name == "__vm_filepath" {
-					label.Value = ""
-				}
-			}
-		}
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%+v\nwant\n%+v", sws, expectedSws)
 		}
@@ -782,10 +773,6 @@ scrape_configs:
 				{
 					Name:  "__scrape_timeout__",
 					Value: "10s",
-				},
-				{
-					Name:  "__vm_filepath",
-					Value: "",
 				},
 				{
 					Name:  "instance",
@@ -831,10 +818,6 @@ scrape_configs:
 					Value: "10s",
 				},
 				{
-					Name:  "__vm_filepath",
-					Value: "",
-				},
-				{
 					Name:  "instance",
 					Value: "host2:80",
 				},
@@ -876,10 +859,6 @@ scrape_configs:
 				{
 					Name:  "__scrape_timeout__",
 					Value: "10s",
-				},
-				{
-					Name:  "__vm_filepath",
-					Value: "",
 				},
 				{
 					Name:  "instance",
