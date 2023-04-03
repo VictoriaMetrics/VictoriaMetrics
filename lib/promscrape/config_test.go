@@ -739,16 +739,6 @@ func TestGetFileSDScrapeWorkSuccess(t *testing.T) {
 		}
 		resetNonEssentialFields(sws)
 
-		// Remove `__vm_filepath` label, since its value depends on the current working dir.
-		for _, sw := range sws {
-			labels := sw.Labels.GetLabels()
-			for j := range labels {
-				label := &labels[j]
-				if label.Name == "__vm_filepath" {
-					label.Value = ""
-				}
-			}
-		}
 		if !reflect.DeepEqual(sws, expectedSws) {
 			t.Fatalf("unexpected scrapeWork; got\n%+v\nwant\n%+v", sws, expectedSws)
 		}
@@ -772,10 +762,9 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
-				"__vm_filepath": "",
-				"instance":      "host1:80",
-				"job":           "foo",
-				"qwe":           "rty",
+				"instance": "host1:80",
+				"job":      "foo",
+				"qwe":      "rty",
 			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
@@ -787,10 +776,9 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
-				"__vm_filepath": "",
-				"instance":      "host2:80",
-				"job":           "foo",
-				"qwe":           "rty",
+				"instance": "host2:80",
+				"job":      "foo",
+				"qwe":      "rty",
 			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
@@ -802,10 +790,9 @@ scrape_configs:
 			ScrapeTimeout:   defaultScrapeTimeout,
 			HonorTimestamps: true,
 			Labels: promutils.NewLabelsFromMap(map[string]string{
-				"__vm_filepath": "",
-				"instance":      "localhost:9090",
-				"job":           "foo",
-				"yml":           "test",
+				"instance": "localhost:9090",
+				"job":      "foo",
+				"yml":      "test",
 			}),
 			AuthConfig:      &promauth.Config{},
 			ProxyAuthConfig: &promauth.Config{},
