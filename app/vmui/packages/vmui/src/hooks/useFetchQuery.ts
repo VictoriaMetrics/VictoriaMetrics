@@ -79,7 +79,7 @@ export const useFetchQuery = ({
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      const seriesLimit = showAllSeries ? Infinity : stateSeriesLimits[displayType];
+      const seriesLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
