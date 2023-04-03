@@ -275,6 +275,37 @@ func (EncodingType) Values() []EncodingType {
 
 type Event string
 
+// Enum values for Event
+const (
+	EventS3ReducedRedundancyLostObject                  Event = "s3:ReducedRedundancyLostObject"
+	EventS3ObjectCreated                                Event = "s3:ObjectCreated:*"
+	EventS3ObjectCreatedPut                             Event = "s3:ObjectCreated:Put"
+	EventS3ObjectCreatedPost                            Event = "s3:ObjectCreated:Post"
+	EventS3ObjectCreatedCopy                            Event = "s3:ObjectCreated:Copy"
+	EventS3ObjectCreatedCompleteMultipartUpload         Event = "s3:ObjectCreated:CompleteMultipartUpload"
+	EventS3ObjectRemoved                                Event = "s3:ObjectRemoved:*"
+	EventS3ObjectRemovedDelete                          Event = "s3:ObjectRemoved:Delete"
+	EventS3ObjectRemovedDeleteMarkerCreated             Event = "s3:ObjectRemoved:DeleteMarkerCreated"
+	EventS3ObjectRestore                                Event = "s3:ObjectRestore:*"
+	EventS3ObjectRestorePost                            Event = "s3:ObjectRestore:Post"
+	EventS3ObjectRestoreCompleted                       Event = "s3:ObjectRestore:Completed"
+	EventS3Replication                                  Event = "s3:Replication:*"
+	EventS3ReplicationOperationFailedReplication        Event = "s3:Replication:OperationFailedReplication"
+	EventS3ReplicationOperationNotTracked               Event = "s3:Replication:OperationNotTracked"
+	EventS3ReplicationOperationMissedThreshold          Event = "s3:Replication:OperationMissedThreshold"
+	EventS3ReplicationOperationReplicatedAfterThreshold Event = "s3:Replication:OperationReplicatedAfterThreshold"
+	EventS3ObjectRestoreDelete                          Event = "s3:ObjectRestore:Delete"
+	EventS3LifecycleTransition                          Event = "s3:LifecycleTransition"
+	EventS3IntelligentTiering                           Event = "s3:IntelligentTiering"
+	EventS3ObjectAclPut                                 Event = "s3:ObjectAcl:Put"
+	EventS3LifecycleExpiration                          Event = "s3:LifecycleExpiration:*"
+	EventS3LifecycleExpirationDelete                    Event = "s3:LifecycleExpiration:Delete"
+	EventS3LifecycleExpirationDeleteMarkerCreated       Event = "s3:LifecycleExpiration:DeleteMarkerCreated"
+	EventS3ObjectTagging                                Event = "s3:ObjectTagging:*"
+	EventS3ObjectTaggingPut                             Event = "s3:ObjectTagging:Put"
+	EventS3ObjectTaggingDelete                          Event = "s3:ObjectTagging:Delete"
+)
+
 // Values returns all known values for Event. Note that this can be expanded in the
 // future, and so it is only as up to date as the client. The ordering of this
 // slice is not guaranteed to be stable across updates.

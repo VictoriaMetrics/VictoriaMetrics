@@ -32,4 +32,17 @@
     font-weight: bold;
     margin-bottom: $padding-global;
   }
+
+  &-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: $padding-small;
+    width: 100%;
+  }
+
+  &_mobile &-footer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
 }

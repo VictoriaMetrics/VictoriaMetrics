@@ -1,19 +1,22 @@
 import React from "react";
 import "./style.scss";
-import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import { Theme } from "../../../types";
 import Toggle from "../../Main/Toggle/Toggle";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
+import { FC } from "preact/compat";
+
+interface ThemeControlProps {
+  theme: Theme;
+  onChange: (val: Theme) => void
+}
 
 const options = Object.values(Theme).map(value => ({ title: value, value }));
-const ThemeControl = () => {
+const ThemeControl: FC<ThemeControlProps> = ({ theme, onChange }) => {
   const { isMobile } = useDeviceDetect();
-  const { theme } = useAppState();
-  const dispatch = useAppDispatch();
 
   const handleClickItem = (value: string) => {
-    dispatch({ type: "SET_THEME", payload: value as Theme });
+    onChange(value as Theme);
   };
 
   return (

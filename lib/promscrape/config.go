@@ -711,21 +711,11 @@ func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	// Create a map for the previous scrape work.
-	swsMapPrev := make(map[string][]*ScrapeWork)
-	for _, sw := range prev {
-		filepath := sw.Labels.Get("__vm_filepath")
-		if len(filepath) == 0 {
-			logger.Panicf("BUG: missing `__vm_filepath` label")
-		} else {
-			swsMapPrev[filepath] = append(swsMapPrev[filepath], sw)
-		}
-	}
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
 		for j := range sc.FileSDConfigs {
 			sdc := &sc.FileSDConfigs[j]
-			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
+			dst = sdc.appendScrapeWork(dst, cfg.baseDir, sc.swc)
 		}
 	}
 	return dst
@@ -1122,7 +1112,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 	return dst
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[string][]*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
+func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
 	metaLabels := promutils.GetLabels()
 	defer promutils.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
@@ -1133,7 +1123,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			paths, err = filepath.Glob(pathPattern)
 			if err != nil {
 				// Do not return this error, since other files may contain valid scrape configs.
-				logger.Errorf("invalid pattern %q in `files` section: %s; skipping it", file, err)
+				logger.Errorf("invalid pattern %q in `file_sd_config->files` section of job_name=%q: %s; skipping it", file, swc.jobName, err)
 				continue
 			}
 		}
@@ -1141,13 +1131,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			stcs, err := loadStaticConfigs(path)
 			if err != nil {
 				// Do not return this error, since other paths may contain valid scrape configs.
-				if sws := swsMapPrev[path]; sws != nil {
-					// Re-use the previous valid scrape work for this path.
-					logger.Errorf("keeping the previously loaded `static_configs` from %q because of error when re-loading the file: %s", path, err)
-					dst = append(dst, sws...)
-				} else {
-					logger.Errorf("skipping loading `static_configs` from %q because of error: %s", path, err)
-				}
+				logger.Errorf("cannot load file %q for job_name=%q at `file_sd_configs`: %s; skipping this file", path, swc.jobName, err)
 				continue
 			}
 			pathShort := path
@@ -1159,7 +1143,6 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			}
 			metaLabels.Reset()
 			metaLabels.Add("__meta_filepath", pathShort)
-			metaLabels.Add("__vm_filepath", path) // This label is needed for internal promscrape logic
 			for i := range stcs {
 				dst = stcs[i].appendScrapeWork(dst, swc, metaLabels)
 			}

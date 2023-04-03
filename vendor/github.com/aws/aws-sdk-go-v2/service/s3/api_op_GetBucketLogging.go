@@ -13,8 +13,8 @@ import (
 )
 
 // Returns the logging status of a bucket and the permissions users have to view
-// and modify that status. To use GET, you must be the bucket owner. The following
-// operations are related to GetBucketLogging:
+// and modify that status. The following operations are related to
+// GetBucketLogging:
 //
 // * CreateBucket
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)

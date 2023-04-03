@@ -252,6 +252,10 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
 
+	// check for free disk space before opening the table
+	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
+	s.startFreeDiskSpaceWatcher()
+
 	// Load data
 	tablePath := filepath.Join(path, dataDirname)
 	tb, err := openTable(tablePath, s)
@@ -264,7 +268,6 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-	s.startFreeDiskSpaceWatcher()
 
 	return s, nil
 }
@@ -1848,11 +1851,13 @@ type pendingMetricRows struct {
 }
 
 func (pmrs *pendingMetricRows) reset() {
-	for _, pmr := range pmrs.pmrs {
+	mrs := pmrs.pmrs
+	for i := range mrs {
+		pmr := &mrs[i]
 		pmr.MetricName = nil
 		pmr.mr = nil
 	}
-	pmrs.pmrs = pmrs.pmrs[:0]
+	pmrs.pmrs = mrs[:0]
 	pmrs.metricNamesBuf = pmrs.metricNamesBuf[:0]
 	pmrs.lastMetricNameRaw = nil
 	pmrs.lastMetricName = nil
@@ -1872,10 +1877,16 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 		pmrs.lastMetricName = pmrs.metricNamesBuf[metricNamesBufLen:]
 		pmrs.lastMetricNameRaw = mr.MetricNameRaw
 	}
-	pmrs.pmrs = append(pmrs.pmrs, pendingMetricRow{
-		MetricName: pmrs.lastMetricName,
-		mr:         mr,
-	})
+	mrs := pmrs.pmrs
+	if cap(mrs) > len(mrs) {
+		mrs = mrs[:len(mrs)+1]
+	} else {
+		mrs = append(mrs, pendingMetricRow{})
+	}
+	pmrs.pmrs = mrs
+	pmr := &mrs[len(mrs)-1]
+	pmr.MetricName = pmrs.lastMetricName
+	pmr.mr = mr
 	return nil
 }
 
