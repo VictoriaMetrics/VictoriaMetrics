@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmauth/ip_filters"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
@@ -31,7 +32,8 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users []UserInfo `yaml:"users,omitempty"`
+	Users     []UserInfo          `yaml:"users,omitempty"`
+	IpFilters *ip_filters.IpLists `yaml:"ip_filters,omitempty"`
 }
 
 // UserInfo is user information read from authConfigPath
@@ -289,11 +291,14 @@ func initAuthConfig() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	m, err := readAuthConfig(*authConfigPath)
+	ac, m, err := readAuthConfig(*authConfigPath)
 	if err != nil {
 		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
 	}
-	authConfig.Store(m)
+	if err = ip_filters.Init(ac.IpFilters); err != nil {
+		logger.Fatalf("cannot init auth config from `-auth.config=%s`: %s", err)
+	}
+	authUsers.Store(&m)
 	stopCh = make(chan struct{})
 	authConfigWG.Add(1)
 	go func() {
@@ -324,87 +329,92 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 			procutil.SelfSIGHUP()
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
-			m, err := readAuthConfig(*authConfigPath)
+			ac, m, err := readAuthConfig(*authConfigPath)
 			if err != nil {
 				logger.Errorf("failed to load -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
 				continue
 			}
-			authConfig.Store(m)
+			if err = ip_filters.Init(ac.IpFilters); err != nil {
+				logger.Errorf("failed to ini -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
+				continue
+			}
+			authUsers.Store(&m)
 			logger.Infof("Successfully reloaded -auth.config=%q", *authConfigPath)
 		}
 	}
 }
 
-var authConfig atomic.Value
+var authUsers atomic.Pointer[map[string]*UserInfo]
 var authConfigWG sync.WaitGroup
 var stopCh chan struct{}
 
-func readAuthConfig(path string) (map[string]*UserInfo, error) {
+func readAuthConfig(path string) (*AuthConfig, map[string]*UserInfo, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	m, err := parseAuthConfig(data)
+	ac, m, err := parseAuthConfig(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %w", path, err)
+		return nil, nil, fmt.Errorf("cannot parse %q: %w", path, err)
 	}
 	logger.Infof("Loaded information about %d users from %q", len(m), path)
-	return m, nil
+	return ac, m, nil
 }
 
-func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
+func parseAuthConfig(data []byte) (*AuthConfig, map[string]*UserInfo, error) {
 	var err error
 	data, err = envtemplate.ReplaceBytes(data)
 	if err != nil {
-		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
+		return nil, nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 	var ac AuthConfig
 	if err := yaml.UnmarshalStrict(data, &ac); err != nil {
-		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
+		return nil, nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
 	uis := ac.Users
 	if len(uis) == 0 {
-		return nil, fmt.Errorf("`users` section cannot be empty in AuthConfig")
+		return nil, nil, fmt.Errorf("`users` section cannot be empty in AuthConfig")
 	}
+
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
 		ui := &uis[i]
 		if ui.BearerToken == "" && ui.Username == "" {
-			return nil, fmt.Errorf("either bearer_token or username must be set")
+			return nil, nil, fmt.Errorf("either bearer_token or username must be set")
 		}
 		if ui.BearerToken != "" && ui.Username != "" {
-			return nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
+			return nil, nil, fmt.Errorf("bearer_token=%q and username=%q cannot be set simultaneously", ui.BearerToken, ui.Username)
 		}
 		at1, at2 := getAuthTokens(ui.BearerToken, ui.Username, ui.Password)
 		if byAuthToken[at1] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at1)
+			return nil, nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at1)
 		}
 		if byAuthToken[at2] != nil {
-			return nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at2)
+			return nil, nil, fmt.Errorf("duplicate auth token found for bearer_token=%q, username=%q: %q", ui.BearerToken, ui.Username, at2)
 		}
 		if ui.URLPrefix != nil {
 			if err := ui.URLPrefix.sanitize(); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		for _, e := range ui.URLMaps {
 			if len(e.SrcPaths) == 0 {
-				return nil, fmt.Errorf("missing `src_paths` in `url_map`")
+				return nil, nil, fmt.Errorf("missing `src_paths` in `url_map`")
 			}
 			if e.URLPrefix == nil {
-				return nil, fmt.Errorf("missing `url_prefix` in `url_map`")
+				return nil, nil, fmt.Errorf("missing `url_prefix` in `url_map`")
 			}
 			if err := e.URLPrefix.sanitize(); err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 		}
 		if len(ui.URLMaps) == 0 && ui.URLPrefix == nil {
-			return nil, fmt.Errorf("missing `url_prefix`")
+			return nil, nil, fmt.Errorf("missing `url_prefix`")
 		}
 		name := ui.name()
 		if ui.BearerToken != "" {
 			if ui.Password != "" {
-				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
+				return nil, nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
 		}
@@ -423,7 +433,7 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		byAuthToken[at1] = ui
 		byAuthToken[at2] = ui
 	}
-	return byAuthToken, nil
+	return &ac, byAuthToken, nil
 }
 
 func (ui *UserInfo) name() string {

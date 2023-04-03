@@ -194,6 +194,29 @@ users:
   # other config options here
 ```
 
+## IP Filters
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` supports IP filters for incoming requests. 
+The filters can be configured via `ip_filters` section in the [-auth.config](#auth-config):
+
+```yml
+ip_filters:
+  whitelist:
+    - 192.168.0.1/24
+    - 127.0.0.1
+  blacklist:
+    - 192.168.0.13
+```
+
+The `whitelist` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are allowed to access `vmauth`.
+The `blacklist` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are denied to access `vmauth`.
+
+The both IP versions are supported: IPv4 and IPv6.
+
+If the `whitelist` section is empty, then all IP addresses are allowed to access `vmauth`. 
+If the `whitelist` section is not empty, then only IP addresses from the `whitelist` section are allowed to access `vmauth`.
+The `blacklist` section has higher priority than the `whitelist` section.
+
 ## How to build from sources
 
 It is recommended using [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) - `vmauth` is located in `vmutils-*` archives there.
