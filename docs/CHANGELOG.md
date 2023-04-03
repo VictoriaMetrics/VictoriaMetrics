@@ -17,6 +17,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * SECURITY: upgrade base docker image (alpine) from 3.17.2 to 3.17.3. See [alpine 3.17.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.3-released.html).
 
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmgent.html): fix CPU and memory usage spikes when files pointed by [file_sd_config](https://docs.victoriametrics.com/sd_configs.html#file_sd_configs) cannot be re-read. See [this_issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3989).
 * BUGFIX: prevent unexpected merges on start-up when `-storage.minFreeDiskSpaceBytes` is set. See [the issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023).
 * BUGFIX: verify response code when fetching configuration files via HTTP. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4034).
 
