@@ -1959,7 +1959,8 @@ type pendingMetricRows struct {
 }
 
 func (pmrs *pendingMetricRows) reset() {
-	for _, pmr := range pmrs.pmrs {
+	for i := range pmrs.pmrs {
+		pmr := &pmrs.pmrs[i]
 		pmr.MetricName = nil
 		pmr.mr = nil
 	}
@@ -1983,10 +1984,14 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 		pmrs.lastMetricName = pmrs.metricNamesBuf[metricNamesBufLen:]
 		pmrs.lastMetricNameRaw = mr.MetricNameRaw
 	}
-	pmrs.pmrs = append(pmrs.pmrs, pendingMetricRow{
-		MetricName: pmrs.lastMetricName,
-		mr:         mr,
-	})
+	if cap(pmrs.pmrs) > len(pmrs.pmrs) {
+		pmrs.pmrs = pmrs.pmrs[:len(pmrs.pmrs)+1]
+	} else {
+		pmrs.pmrs = append(pmrs.pmrs, pendingMetricRow{})
+	}
+	pmr := &pmrs.pmrs[len(pmrs.pmrs)-1]
+	pmr.MetricName = pmrs.lastMetricName
+	pmr.mr = mr
 	return nil
 }
 
