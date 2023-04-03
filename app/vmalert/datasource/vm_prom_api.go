@@ -9,10 +9,8 @@ import (
 	"time"
 )
 
-var (
-	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
-		"to the configured -datasource.url and -remoteRead.url")
-)
+var disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
+	"to the configured -datasource.url and -remoteRead.url")
 
 type promResponse struct {
 	Status    string `json:"status"`
@@ -22,6 +20,9 @@ type promResponse struct {
 		ResultType string          `json:"resultType"`
 		Result     json.RawMessage `json:"result"`
 	} `json:"data"`
+	Stats struct {
+		SeriesFetched string `json:"seriesFetched,omitempty"`
+	} `json:"stats,omitempty"`
 }
 
 type promInstant struct {
@@ -96,38 +97,44 @@ const (
 	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
-func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, error) {
+func parsePrometheusResponse(req *http.Request, resp *http.Response) (int, []Metric, error) {
 	r := &promResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return nil, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
+		return 0, nil, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
 	}
 	if r.Status == statusError {
-		return nil, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
+		return 0, nil, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
 	}
 	if r.Status != statusSuccess {
-		return nil, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
+		return 0, nil, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
 	}
+	seriesFetched, _ := strconv.ParseInt(r.Stats.SeriesFetched, 10, 64)
+	var err error
+	var metrics []Metric
 	switch r.Data.ResultType {
 	case rtVector:
 		var pi promInstant
 		if err := json.Unmarshal(r.Data.Result, &pi.Result); err != nil {
-			return nil, fmt.Errorf("umarshal err %s; \n %#v", err, string(r.Data.Result))
+			return 0, nil, fmt.Errorf("unmarshal err %s; \n %#v", err, string(r.Data.Result))
 		}
-		return pi.metrics()
+		metrics, err = pi.metrics()
+		return int(seriesFetched), metrics, err
 	case rtMatrix:
 		var pr promRange
 		if err := json.Unmarshal(r.Data.Result, &pr.Result); err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		return pr.metrics()
+		metrics, err = pr.metrics()
+		return int(seriesFetched), metrics, err
 	case rScalar:
 		var ps promScalar
 		if err := json.Unmarshal(r.Data.Result, &ps); err != nil {
-			return nil, err
+			return 0, nil, err
 		}
-		return ps.metrics()
+		metrics, err = ps.metrics()
+		return int(seriesFetched), metrics, err
 	default:
-		return nil, fmt.Errorf("unknown result type %q", r.Data.ResultType)
+		return 0, nil, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
 }
 

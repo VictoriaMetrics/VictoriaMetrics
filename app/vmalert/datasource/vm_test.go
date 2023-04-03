@@ -38,7 +38,7 @@ func TestVMInstantQuery(t *testing.T) {
 	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
 		c++
 		switch c {
-		case 8:
+		case 9:
 			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
 		}
 	})
@@ -78,6 +78,8 @@ func TestVMInstantQuery(t *testing.T) {
 			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
 		case 7:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
+		case 8:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched":2}}`))
 		}
 	})
 
@@ -95,7 +97,7 @@ func TestVMInstantQuery(t *testing.T) {
 	ts := time.Now()
 
 	expErr := func(err string) {
-		if _, _, err := pq.Query(ctx, query, ts); err == nil {
+		if _, _, _, err := pq.Query(ctx, query, ts); err == nil {
 			t.Fatalf("expected %q got nil", err)
 		}
 	}
@@ -107,7 +109,7 @@ func TestVMInstantQuery(t *testing.T) {
 	expErr("unknown status")                // 4
 	expErr("non-vector resultType error")   // 5
 
-	m, _, err := pq.Query(ctx, query, ts) // 6 - vector
+	_, m, _, err := pq.Query(ctx, query, ts) // 6 - vector
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -128,7 +130,7 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	metricsEqual(t, m, expected)
 
-	m, req, err := pq.Query(ctx, query, ts) // 7 - scalar
+	_, m, req, err := pq.Query(ctx, query, ts) // 7 - scalar
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -148,9 +150,18 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Fatalf("unexpected metric %+v want %+v", m, expected)
 	}
 
+	seriesFetched, _, _, err := pq.Query(ctx, query, ts) // 8 - scalar with series fetched
+	if err != nil {
+		t.Fatalf("unexpected %s", err)
+	}
+	expectedSeriesFetched := 2
+	if seriesFetched != expectedSeriesFetched {
+		t.Fatalf("unexpected series fetched %d want %d", seriesFetched, expectedSeriesFetched)
+	}
+
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
-	m, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
+	_, m, _, err = gq.Query(ctx, queryRender, ts) // 9 - graphite
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -514,7 +525,7 @@ func TestRequestParams(t *testing.T) {
 }
 
 func TestHeaders(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		name    string
 		vmFn    func() *VMStorage
 		checkFn func(t *testing.T, r *http.Request)
@@ -579,7 +590,8 @@ func TestHeaders(t *testing.T) {
 					authCfg: cfg,
 					extraHeaders: []keyValue{
 						{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
-					}}
+					},
+				}
 			},
 			checkFn: func(t *testing.T, r *http.Request) {
 				u, p, _ := r.BasicAuth()

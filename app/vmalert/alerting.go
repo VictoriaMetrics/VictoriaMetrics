@@ -47,10 +47,11 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors  *utils.Gauge
-	pending *utils.Gauge
-	active  *utils.Gauge
-	samples *utils.Gauge
+	errors        *utils.Gauge
+	pending       *utils.Gauge
+	active        *utils.Gauge
+	samples       *utils.Gauge
+	seriesFetched *utils.Gauge
 }
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
@@ -121,6 +122,11 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			e := ar.state.getLast()
 			return float64(e.samples)
 		})
+	ar.metrics.seriesFetched = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
+		func() float64 {
+			e := ar.state.getLast()
+			return float64(e.seriesFetched)
+		})
 	return ar
 }
 
@@ -130,6 +136,7 @@ func (ar *AlertingRule) Close() {
 	ar.metrics.pending.Unregister()
 	ar.metrics.errors.Unregister()
 	ar.metrics.samples.Unregister()
+	ar.metrics.seriesFetched.Unregister()
 }
 
 // String implements Stringer interface
@@ -282,14 +289,15 @@ const resolvedRetention = 15 * time.Minute
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
-	qMetrics, req, err := ar.q.Query(ctx, ar.Expr, ts)
+	seriesFetched, qMetrics, req, err := ar.q.Query(ctx, ar.Expr, ts)
 	curState := ruleStateEntry{
-		time:     start,
-		at:       ts,
-		duration: time.Since(start),
-		samples:  len(qMetrics),
-		err:      err,
-		curl:     requestToCurl(req),
+		time:          start,
+		at:            ts,
+		duration:      time.Since(start),
+		samples:       len(qMetrics),
+		err:           err,
+		curl:          requestToCurl(req),
+		seriesFetched: seriesFetched,
 	}
 
 	defer func() {
@@ -303,7 +311,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		return nil, fmt.Errorf("failed to execute query %q: %w", ar.Expr, err)
 	}
 
-	ar.logDebugf(ts, nil, "query returned %d samples (elapsed: %s)", curState.samples, curState.duration)
+	ar.logDebugf(ts, nil, "query returned %d samples, fetched %d series (elapsed: %s)", curState.samples, curState.seriesFetched, curState.duration)
 
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
@@ -314,7 +322,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	}
 
 	qFn := func(query string) ([]datasource.Metric, error) {
-		res, _, err := ar.q.Query(ctx, query, ts)
+		_, res, _, err := ar.q.Query(ctx, query, ts)
 		return res, err
 	}
 	updated := make(map[uint64]struct{})
@@ -637,7 +645,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, ts ti
 
 		ar.logDebugf(ts, nil, "restoring alert state via query %q", expr)
 
-		qMetrics, _, err := q.Query(ctx, expr, ts)
+		_, qMetrics, _, err := q.Query(ctx, expr, ts)
 		if err != nil {
 			return err
 		}

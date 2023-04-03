@@ -55,6 +55,9 @@ type ruleStateEntry struct {
 	samples int
 	// stores the curl command reflecting the HTTP request used during rule.Exec
 	curl string
+	// store how much series fetched from storage during the query evaluation.
+	// 0 means do not match any series.
+	seriesFetched int
 }
 
 func newRuleState(size int) *ruleState {
