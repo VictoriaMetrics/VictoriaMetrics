@@ -205,21 +205,21 @@ The filters can be configured via `ip_filters` section in the [-auth.config](#au
 
 ```yml
 ip_filters:
-  whitelist:
+  allow_list:
     - 192.168.0.1/24
     - 127.0.0.1
-  blacklist:
+  deny_list:
     - 192.168.0.13
 ```
 
-The `whitelist` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are allowed to access `vmauth`.
-The `blacklist` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are denied to access `vmauth`.
+The `allow_list` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are allowed to access `vmauth`.
+The `deny_list` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are denied to access `vmauth`.
 
 The both IP versions are supported: IPv4 and IPv6.
 
-If the `whitelist` section is empty, then all IP addresses are allowed to access `vmauth`. 
-If the `whitelist` section is not empty, then only IP addresses from the `whitelist` section are allowed to access `vmauth`.
-The `blacklist` section has higher priority than the `whitelist` section.
+If the `allow_list` section is empty, then all IP addresses are allowed to access `vmauth`. 
+If the `allow_list` section is not empty, then only IP addresses from the `allow_list` section are allowed to access `vmauth`.
+The `deny_list` section has higher priority than the `allow_list` section.
 
 ## How to build from sources
 
