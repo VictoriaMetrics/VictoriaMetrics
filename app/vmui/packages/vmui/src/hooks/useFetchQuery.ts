@@ -79,7 +79,7 @@ export const useFetchQuery = ({
     setFetchQueue([...fetchQueue, controller]);
     try {
       const isDisplayChart = displayType === "chart";
-      const seriesLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
+      let seriesLimit = showAllSeries ? Infinity : (+stateSeriesLimits[displayType] || Infinity);
       const tempData: MetricBase[] = [];
       const tempTraces: Trace[] = [];
       let counter = 1;
@@ -104,6 +104,8 @@ export const useFetchQuery = ({
             tempTraces.push(trace);
           }
 
+          const isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          if (isHistogramResult) seriesLimit = Infinity;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
             d.group = counter;
