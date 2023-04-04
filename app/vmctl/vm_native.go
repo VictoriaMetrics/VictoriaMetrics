@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -14,6 +16,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -108,6 +111,12 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
+
+	matchWithFilters, err := buildMatchWithFilter(p.filter.Match, f.Match)
+	if err != nil {
+		return fmt.Errorf("failed to build export filters: %w", err)
+	}
+	f.Match = matchWithFilters
 
 	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
@@ -239,7 +248,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			case infErr := <-errCh:
 				return fmt.Errorf("native error: %s", infErr)
 			case filterCh <- native.Filter{
-				Match:     fmt.Sprintf("{%s=%q}", nameLabel, s),
+				Match:     s,
 				TimeStart: times[0].Format(time.RFC3339),
 				TimeEnd:   times[1].Format(time.RFC3339),
 			}:
@@ -302,4 +311,31 @@ func byteCountSI(b int64) string {
 	}
 	return fmt.Sprintf("%.1f %cB",
 		float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+// buildMatchWithFilter adds additional filters from native.Filter.Match to discovered
+// metric names via /api/v1/series API.
+func buildMatchWithFilter(filter string, metricName string) (string, error) {
+	labels, err := promutils.NewLabelsFromString(filter)
+	if err != nil {
+		return "", err
+	}
+
+	var str strings.Builder
+
+	str.WriteString("{")
+	str.WriteString(nameLabel)
+	str.WriteString("=")
+	str.WriteString(strconv.Quote(metricName))
+	for _, label := range labels.Labels {
+		if label.Name == nameLabel {
+			continue
+		}
+		str.WriteString(",")
+		str.WriteString(label.Name)
+		str.WriteString("=")
+		str.WriteString(strconv.Quote(label.Value))
+	}
+	str.WriteString("}")
+	return str.String(), nil
 }

@@ -294,3 +294,68 @@ func deleteSeries(name, value string) (int, error) {
 	}
 	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs})
 }
+
+func Test_buildMatchWithFilter(t *testing.T) {
+	tests := []struct {
+		name       string
+		filter     string
+		metricName string
+		want       string
+		wantErr    bool
+	}{
+		{
+			name:       "parsed metric with label",
+			filter:     `{__name__="http_request_count_total",cluster="kube1"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total",cluster="kube1"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "metric name with label",
+			filter:     `http_request_count_total{cluster="kube1"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total",cluster="kube1"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "parsed metric with regexp value",
+			filter:     `{__name__="http_request_count_total",cluster~="kube.*"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total",cluster~="kube.*"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "only label with regexp",
+			filter:     `{cluster~=".*"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total",cluster~=".*"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "many labels in filter with regexp",
+			filter:     `{cluster~=".*",job!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total",cluster~=".*",job!=""}`,
+			wantErr:    false,
+		},
+		{
+			name:       "match with error",
+			filter:     `{cluster=~".*"}`,
+			metricName: "http_request_count_total",
+			want:       ``,
+			wantErr:    true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildMatchWithFilter(tt.filter, tt.metricName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("buildMatchWithFilter() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("buildMatchWithFilter() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
