@@ -98,7 +98,7 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 }
 
 // Query executes the given query and returns parsed response
-func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (int, []Metric, *http.Request, error) {
+func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (int64, []Metric, *http.Request, error) {
 	req, err := s.newRequestPOST()
 	if err != nil {
 		return 0, nil, nil, err

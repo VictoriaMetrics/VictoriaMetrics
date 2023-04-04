@@ -49,7 +49,7 @@ func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time)
 	return req, err
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) (int, []datasource.Metric, *http.Request, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) (int64, []datasource.Metric, *http.Request, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {
@@ -90,7 +90,7 @@ func (fqr *fakeQuerierWithRegistry) QueryRange(ctx context.Context, q string, _,
 	return req, err
 }
 
-func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) (int, []datasource.Metric, *http.Request, error) {
+func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) (int64, []datasource.Metric, *http.Request, error) {
 	fqr.Lock()
 	defer fqr.Unlock()
 
@@ -109,7 +109,7 @@ type fakeQuerierWithDelay struct {
 	delay time.Duration
 }
 
-func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) (int, []datasource.Metric, *http.Request, error) {
+func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) (int64, []datasource.Metric, *http.Request, error) {
 	timer := time.NewTimer(fqd.delay)
 	select {
 	case <-ctx.Done():

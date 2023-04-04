@@ -155,7 +155,7 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Fatalf("unexpected %s", err)
 	}
 	expectedSeriesFetched := 2
-	if seriesFetched != expectedSeriesFetched {
+	if seriesFetched != int64(expectedSeriesFetched) {
 		t.Fatalf("unexpected series fetched %d want %d", seriesFetched, expectedSeriesFetched)
 	}
 

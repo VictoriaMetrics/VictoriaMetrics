@@ -21,7 +21,7 @@ type promResponse struct {
 		Result     json.RawMessage `json:"result"`
 	} `json:"data"`
 	Stats struct {
-		SeriesFetched string `json:"seriesFetched,omitempty"`
+		SeriesFetched int64 `json:"seriesFetched,omitempty"`
 	} `json:"stats,omitempty"`
 }
 
@@ -97,7 +97,7 @@ const (
 	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
-func parsePrometheusResponse(req *http.Request, resp *http.Response) (int, []Metric, error) {
+func parsePrometheusResponse(req *http.Request, resp *http.Response) (int64, []Metric, error) {
 	r := &promResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
 		return 0, nil, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
@@ -108,7 +108,6 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (int, []Met
 	if r.Status != statusSuccess {
 		return 0, nil, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
 	}
-	seriesFetched, _ := strconv.ParseInt(r.Stats.SeriesFetched, 10, 64)
 	var err error
 	var metrics []Metric
 	switch r.Data.ResultType {
@@ -118,21 +117,21 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (int, []Met
 			return 0, nil, fmt.Errorf("unmarshal err %s; \n %#v", err, string(r.Data.Result))
 		}
 		metrics, err = pi.metrics()
-		return int(seriesFetched), metrics, err
+		return r.Stats.SeriesFetched, metrics, err
 	case rtMatrix:
 		var pr promRange
 		if err := json.Unmarshal(r.Data.Result, &pr.Result); err != nil {
 			return 0, nil, err
 		}
 		metrics, err = pr.metrics()
-		return int(seriesFetched), metrics, err
+		return r.Stats.SeriesFetched, metrics, err
 	case rScalar:
 		var ps promScalar
 		if err := json.Unmarshal(r.Data.Result, &ps); err != nil {
 			return 0, nil, err
 		}
 		metrics, err = ps.metrics()
-		return int(seriesFetched), metrics, err
+		return r.Stats.SeriesFetched, metrics, err
 	default:
 		return 0, nil, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
