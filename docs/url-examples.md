@@ -226,6 +226,7 @@ Single-node VictoriaMetrics:
 ```console
 curl -X POST http://localhost:8428/api/v1/import/native -T filename.bin
 ```
+</div>
 
 Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -251,6 +252,8 @@ Single-node VictoriaMetrics:
 ```console
 curl -d 'metric_name{foo="bar"} 123' -X POST http://localhost:8428/api/v1/import/prometheus
 ```
+
+</div>
 
 Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
