@@ -1,11 +1,11 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import uPlot from "uplot";
 import ReactDOM from "react-dom";
-import Button from "../../Main/Button/Button";
-import { CloseIcon, DragIcon } from "../../Main/Icons";
+import Button from "../../../Main/Button/Button";
+import { CloseIcon, DragIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
-import "../ChartTooltip/style.scss";
+import "../../Line/ChartTooltip/style.scss";
 
 export interface TooltipHeatmapProps  {
   cursor: {left: number, top: number}

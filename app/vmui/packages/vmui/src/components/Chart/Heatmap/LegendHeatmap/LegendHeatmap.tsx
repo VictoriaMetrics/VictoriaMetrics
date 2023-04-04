@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useState } from "preact/compat";
-import { gradMetal16 } from "../../../utils/uplot/heatmap";
+import { gradMetal16 } from "../../../../utils/uplot/heatmap";
 import "./style.scss";
 
 interface LegendHeatmapProps {

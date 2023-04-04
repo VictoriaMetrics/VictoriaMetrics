@@ -4,21 +4,21 @@ import uPlot, {
   Options as uPlotOptions,
   Range
 } from "uplot";
-import { defaultOptions, sizeAxis } from "../../../utils/uplot/helpers";
-import { dragChart } from "../../../utils/uplot/events";
-import { getAxes } from "../../../utils/uplot/axes";
-import { MetricResult } from "../../../api/types";
-import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../utils/time";
+import { defaultOptions, sizeAxis } from "../../../../utils/uplot/helpers";
+import { dragChart } from "../../../../utils/uplot/events";
+import { getAxes } from "../../../../utils/uplot/axes";
+import { MetricResult } from "../../../../api/types";
+import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
 import throttle from "lodash.throttle";
-import useResize from "../../../hooks/useResize";
-import { TimeParams } from "../../../types";
-import { YaxisState } from "../../../state/graph/reducer";
+import useResize from "../../../../hooks/useResize";
+import { TimeParams } from "../../../../types";
+import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
 import classNames from "classnames";
 import dayjs from "dayjs";
-import { useAppState } from "../../../state/common/StateContext";
-import { heatmapPaths } from "../../../utils/uplot/heatmap";
-import { DATE_FULL_TIMEZONE_FORMAT } from "../../../constants/date";
+import { useAppState } from "../../../../state/common/StateContext";
+import { heatmapPaths } from "../../../../utils/uplot/heatmap";
+import { DATE_FULL_TIMEZONE_FORMAT } from "../../../../constants/date";
 import ChartTooltipHeatmap, {
   ChartTooltipHeatmapProps,
   TooltipHeatmapProps
@@ -175,7 +175,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
     const metricName = metric["__name__"] || "value";
 
     const labelNames = Object.keys(metric).filter(x => x != "__name__");
-    const fields = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
+    const fields = labelNames.map(key => metric[key]);
 
     const [endTime = 0, value = ""] = result.values.find(v => v[0] === second) || [];
     const valueFormat = `${+value}%`;
@@ -228,7 +228,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
         font: axes[0].font,
         size: sizeAxis,
         splits: metrics.map((m, i) => i),
-        values: metrics.map(m => Object.entries(m.metric).map(e => `${e[0]}=${JSON.stringify(e[1])}`)[0]),
+        values: metrics.map(m => Object.entries(m.metric).map(e => `${e[1]}`)[0]),
       }
     ],
     scales: {
