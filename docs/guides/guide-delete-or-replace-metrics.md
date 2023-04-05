@@ -89,6 +89,7 @@ To trigger [forced merge](https://docs.victoriametrics.com/Single-server-Victori
 ```console
 curl -v -X POST http://vmstorage:8482/internal/force_merge
 ```
+</div>
 
 After the merge is complete, the data will be permanently deleted from the disk.
 
