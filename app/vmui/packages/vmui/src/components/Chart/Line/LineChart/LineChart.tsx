@@ -7,22 +7,22 @@ import uPlot, {
   Scales,
   Scale,
 } from "uplot";
-import { defaultOptions } from "../../../utils/uplot/helpers";
-import { dragChart } from "../../../utils/uplot/events";
-import { getAxes, getMinMaxBuffer } from "../../../utils/uplot/axes";
-import { MetricResult } from "../../../api/types";
-import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../utils/time";
+import { defaultOptions } from "../../../../utils/uplot/helpers";
+import { dragChart } from "../../../../utils/uplot/events";
+import { getAxes, getMinMaxBuffer } from "../../../../utils/uplot/axes";
+import { MetricResult } from "../../../../api/types";
+import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
 import throttle from "lodash.throttle";
-import useResize from "../../../hooks/useResize";
-import { TimeParams } from "../../../types";
-import { YaxisState } from "../../../state/graph/reducer";
+import useResize from "../../../../hooks/useResize";
+import { TimeParams } from "../../../../types";
+import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
 import "./style.scss";
 import classNames from "classnames";
 import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
-import { useAppState } from "../../../state/common/StateContext";
-import { SeriesItem } from "../../../utils/uplot/series";
+import { useAppState } from "../../../../state/common/StateContext";
+import { SeriesItem } from "../../../../utils/uplot/series";
 
 export interface LineChartProps {
   metrics: MetricResult[];

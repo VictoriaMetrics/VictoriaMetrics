@@ -1,17 +1,17 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import uPlot from "uplot";
-import { MetricResult } from "../../../api/types";
-import { formatPrettyNumber } from "../../../utils/uplot/helpers";
+import { MetricResult } from "../../../../api/types";
+import { formatPrettyNumber } from "../../../../utils/uplot/helpers";
 import dayjs from "dayjs";
-import { DATE_FULL_TIMEZONE_FORMAT } from "../../../constants/date";
+import { DATE_FULL_TIMEZONE_FORMAT } from "../../../../constants/date";
 import ReactDOM from "react-dom";
 import get from "lodash.get";
-import Button from "../../Main/Button/Button";
-import { CloseIcon, DragIcon } from "../../Main/Icons";
+import Button from "../../../Main/Button/Button";
+import { CloseIcon, DragIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import "./style.scss";
-import { SeriesItem } from "../../../utils/uplot/series";
+import { SeriesItem } from "../../../../utils/uplot/series";
 
 export interface ChartTooltipProps {
   id: string,
