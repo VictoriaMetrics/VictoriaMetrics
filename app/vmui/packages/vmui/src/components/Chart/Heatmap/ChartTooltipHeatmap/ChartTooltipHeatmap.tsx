@@ -11,8 +11,7 @@ export interface TooltipHeatmapProps  {
   cursor: {left: number, top: number}
   startDate: string,
   endDate: string,
-  metricName: string,
-  fields: string[],
+  bucket: string,
   value: number,
   valueFormat: string
 }
@@ -36,8 +35,7 @@ const ChartTooltipHeatmap: FC<ChartTooltipHeatmapProps> = ({
   onClose,
   startDate,
   endDate,
-  metricName,
-  fields,
+  bucket,
   valueFormat,
   value
 }) => {
@@ -141,18 +139,12 @@ const ChartTooltipHeatmap: FC<ChartTooltipHeatmapProps> = ({
       </div>
       <div className="vm-chart-tooltip-data">
         <p>
-          {metricName}:
-          <b className="vm-chart-tooltip-data__value">{valueFormat}</b>
-          {unit}
+          value: <b className="vm-chart-tooltip-data__value">{valueFormat}</b>{unit}
         </p>
       </div>
-      {!!fields.length && (
-        <div className="vm-chart-tooltip-info">
-          {fields.map((f, i) => (
-            <div key={`${f}_${i}`}>{f}</div>
-          ))}
-        </div>
-      )}
+      <div className="vm-chart-tooltip-info">
+        {bucket}
+      </div>
     </div>
   ), targetPortal);
 };

@@ -33,7 +33,7 @@ export interface HeatmapChartProps {
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
   container: HTMLDivElement | null;
   height?: number;
-  onChangeLegend: (val: number) => void;
+  onChangeLegend: (val: TooltipHeatmapProps) => void;
 }
 
 enum typeChartUpdate {xRange = "xRange", yRange = "yRange"}
@@ -62,7 +62,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   const [tooltipOffset, setTooltipOffset] = useState({ left: 0, top: 0 });
   const [stickyTooltips, setStickyToolTips] = useState<ChartTooltipHeatmapProps[]>([]);
   const tooltipId = useMemo(() => {
-    return `${tooltipProps?.fields.join(",")}_${tooltipProps?.startDate}`;
+    return `${tooltipProps?.bucket}_${tooltipProps?.startDate}`;
   }, [tooltipProps]);
 
   const setScale = ({ min, max }: { min: number, max: number }): void => {
@@ -135,7 +135,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
 
   const handleClick = () => {
     if (!tooltipProps) return;
-    const id = `${tooltipProps?.fields.join(",")}_${tooltipProps?.startDate}`;
+    const id = `${tooltipProps?.bucket}_${tooltipProps?.startDate}`;
     const props = {
       id,
       unit,
@@ -171,12 +171,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       return;
     }
 
-    const metric = result?.metric;
-    const metricName = metric["__name__"] || "value";
-
-    const labelNames = Object.keys(metric).filter(x => x != "__name__");
-    const fields = labelNames.map(key => metric[key]);
-
     const [endTime = 0, value = ""] = result.values.find(v => v[0] === second) || [];
     const valueFormat = `${+value}%`;
     const startTime = xArr[xIdx];
@@ -187,8 +181,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       cursor: { left, top },
       startDate,
       endDate,
-      metricName,
-      fields,
+      bucket: result?.metric?.vmrange || "",
       value: +value,
       valueFormat: valueFormat,
     });
@@ -228,7 +221,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
         font: axes[0].font,
         size: sizeAxis,
         splits: metrics.map((m, i) => i),
-        values: metrics.map(m => Object.entries(m.metric).map(e => `${e[1]}`)[0]),
+        values: metrics.map(m => m.metric.vmrange),
       }
     ],
     scales: {
@@ -339,7 +332,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   }, [tooltipProps, stickyTooltips]);
 
   useEffect(() => {
-    onChangeLegend(tooltipProps?.value || 0);
+    if (tooltipProps) onChangeLegend(tooltipProps);
   }, [tooltipProps]);
 
   return (
