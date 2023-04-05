@@ -20,76 +20,76 @@ If you hit some issue or have some question about VictoriaMetrics components,
 then please follow the following steps in order to quickly find the solution:
 
 1. Check the version of VictoriaMetrics component, which needs to be troubleshot and compare
-  it to [the latest available version](https://docs.victoriametrics.com/CHANGELOG.html).
-  If the used version is lower than the latest available version, then there are high chances
-  that the issue is already resolved in newer versions. Carefully read [the changelog](https://docs.victoriametrics.com/CHANGELOG.html)
-  between your version and the latest version and check whether the issue is already fixed there.
+   it to [the latest available version](https://docs.victoriametrics.com/CHANGELOG.html).
+   If the used version is lower than the latest available version, then there are high chances
+   that the issue is already resolved in newer versions. Carefully read [the changelog](https://docs.victoriametrics.com/CHANGELOG.html)
+   between your version and the latest version and check whether the issue is already fixed there.
 
-  If the issue is already fixed in newer versions, then upgrade to the newer version and verify whether the issue is fixed:
+   If the issue is already fixed in newer versions, then upgrade to the newer version and verify whether the issue is fixed:
 
-  - [How to upgrade single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics)
-  - [How to upgrade VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes)
+   - [How to upgrade single-node VictoriaMetrics](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics)
+   - [How to upgrade VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#updating--reconfiguring-cluster-nodes)
 
-  Upgrade procedure for other VictoriaMetrics components is as simple as gracefully stopping the component
-  by sending `SIGINT` signal to it and starting the new version of the component.
+   Upgrade procedure for other VictoriaMetrics components is as simple as gracefully stopping the component
+   by sending `SIGINT` signal to it and starting the new version of the component.
 
-  There may be breaking changes between different versions of VictoriaMetrics components in rare cases.
-  These cases are documented in [the changelog](https://docs.victoriametrics.com/CHANGELOG.html).
-  So please read the changelog before the upgrade.
+   There may be breaking changes between different versions of VictoriaMetrics components in rare cases.
+   These cases are documented in [the changelog](https://docs.victoriametrics.com/CHANGELOG.html).
+   So please read the changelog before the upgrade.
 
 1. Check for logs in VictoriaMetrics components. They may contain useful information about the issue.
-  If the log message doesn't have enough useful information for troubleshooting the issue,
-  then search the log message in Google. There are high chances that the issue is already reported
-  somewhere (docs, StackOverflow, Github issues, etc.) indexed by Google and the solution is already documented there.
+   If the log message doesn't have enough useful information for troubleshooting the issue,
+   then search the log message in Google. There are high chances that the issue is already reported
+   somewhere (docs, StackOverflow, Github issues, etc.) indexed by Google and the solution is already documented there.
 
 1. If VictoriaMetrics logs have no relevant information, then try searching for the issue in Google
-  via multiple keywords and phrases specific to the issue. There are high chances that the issue
-  and the solution is already documented somewhere.
+   via multiple keywords and phrases specific to the issue. There are high chances that the issue
+   and the solution is already documented somewhere.
 
 1. Try searching for the issue at [VictoriaMetrics Github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
-  The sinal/noise quality of search results here is much lower than in Google, but sometimes it may help
-  finding the relevant information about the issue when Google fails to find the needed information.
-  If you located the relevant Github issue, but it misses some information on how to diagnose or troubleshoot
-  the issue, then please provide this information in comments to the issue. This increases chances
-  that the issue will be resolved soon.
+   The sinal/noise quality of search results here is much lower than in Google, but sometimes it may help
+   finding the relevant information about the issue when Google fails to find the needed information.
+   If you located the relevant Github issue, but it misses some information on how to diagnose or troubleshoot
+   the issue, then please provide this information in comments to the issue. This increases chances
+   that the issue will be resolved soon.
 
 1. Try searching for information about the issue in [VictoriaMetrics source code](https://github.com/search?q=repo%3AVictoriaMetrics%2FVictoriaMetrics&type=code).
-  Github code search may be not very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
-  and perform local search in the checked out code.
-  Note that the source code for VictoriaMetrics cluster is located in [the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) branch.
+   Github code search may be not very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
+   and perform local search in the checked out code.
+   Note that the source code for VictoriaMetrics cluster is located in [the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) branch.
 
 1. Try searching for information about the issue in the history of [VictoriaMetrics Slack chat](https://victoriametrics.slack.com).
-  There are non-zero chances that somebody already stuck with the same issue and documented the solution at Slack.
+   There are non-zero chances that somebody already stuck with the same issue and documented the solution at Slack.
 
 1. If steps above didn't help finding the solution to the issue, then please [file a new issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/new/choose)
-  by providing the maximum details on how to reproduce the issue.
+   by providing the maximum details on how to reproduce the issue.
 
-  After that you can post the link to the issue to [VictoriaMetrics Slack chat](https://victoriametrics.slack.com),
-  so VictoriaMetrics community could help finding the solution to the issue. It is better filing the issue at VictoriaMetrics Github
-  before posting your question to VictoriaMetrics Slack chat, since Github issues are indexed by Google,
-  while Slack messages aren't indexed by Google. This simplifies searching for the solution to the issue for future VictoriaMetrics users.
+   After that you can post the link to the issue to [VictoriaMetrics Slack chat](https://victoriametrics.slack.com),
+   so VictoriaMetrics community could help finding the solution to the issue. It is better filing the issue at VictoriaMetrics Github
+   before posting your question to VictoriaMetrics Slack chat, since Github issues are indexed by Google,
+   while Slack messages aren't indexed by Google. This simplifies searching for the solution to the issue for future VictoriaMetrics users.
 
 1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/) contain incomplete or incorrect information,
-  then please create a pull request with the relevant changes. This will VictoriaMetrics community.
+   then please create a pull request with the relevant changes. This will VictoriaMetrics community.
 
-  All the docs published at `https://docs.victoriametrics.com` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
-  folder inside VictoriaMetrics repository.
+   All the docs published at `https://docs.victoriametrics.com` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
+   folder inside VictoriaMetrics repository.
 
 1. Pro tip 2: please provide links to existing docs / Github issues / StackOverflow questions
-  instead of copy-n-pasting the information from these sources when asking or answering questions
-  from VictoriaMetrics community. If the linked resources have no enough information,
-  then it is better posting the missing information in the web resource before providing links
-  to this information in Slack chat. This will simplify searching for this information in the future
-  for VictoriaMetrics users via Google and ChatGPT :)
+   instead of copy-n-pasting the information from these sources when asking or answering questions
+   from VictoriaMetrics community. If the linked resources have no enough information,
+   then it is better posting the missing information in the web resource before providing links
+   to this information in Slack chat. This will simplify searching for this information in the future
+   for VictoriaMetrics users via Google and ChatGPT :)
 
 1. Pro tip 3: if you are answering somebody's question about VictoriaMetrics components
-  at Github issues / Slack chat / StackOverflow, then the best answer is a direct link to the information
-  regaring the question.
-  The better answer is a concise message with multiple links to the relevant information.
-  The worst answer is a message with misleading or completely wrong information.
+   at Github issues / Slack chat / StackOverflow, then the best answer is a direct link to the information
+   regaring the question.
+   The better answer is a concise message with multiple links to the relevant information.
+   The worst answer is a message with misleading or completely wrong information.
 
 1. Pro tip 4: if you can fix the issue on yourself, then please do it and provide the corresponding pull request!
-  We are glad to get pull requests from VictoriaMetrics community.
+   We are glad to get pull requests from VictoriaMetrics community.
 
 
 ## Unexpected query results
@@ -97,7 +97,7 @@ then please follow the following steps in order to quickly find the solution:
 If you see unexpected or unreliable query results from VictoriaMetrics, then try the following steps:
 
 1. Check whether simplified queries return unexpected results. For example, if the query looks like
-  `sum(rate(http_requests_total[5m])) by (job)`, then check whether the following queries return
+   `sum(rate(http_requests_total[5m])) by (job)`, then check whether the following queries return
    expected results:
 
    - Remove the outer `sum` and execute `rate(http_requests_total[5m])`,
