@@ -6,7 +6,7 @@ sort: 23
 
 This document contains troubleshooting guides for most common issues when working with VictoriaMetrics:
 
-- [General troubleshooting checklist](#general-toubleshooting-checklist)
+- [General troubleshooting checklist](#general-troubleshooting-checklist)
 - [Unexpected query results](#unexpected-query-results)
 - [Slow data ingestion](#slow-data-ingestion)
 - [Slow queries](#slow-queries)
