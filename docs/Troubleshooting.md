@@ -40,14 +40,14 @@ then please follow the following steps in order to quickly find the solution:
 1. Check for logs in VictoriaMetrics components. They may contain useful information about the issue.
    If the log message doesn't have enough useful information for troubleshooting the issue,
    then search the log message in Google. There are high chances that the issue is already reported
-   somewhere (docs, StackOverflow, Github issues, etc.) indexed by Google and the solution is already documented there.
+   somewhere (docs, StackOverflow, Github issues, etc.) and indexed by Google and the solution is already documented there.
 
 1. If VictoriaMetrics logs have no relevant information, then try searching for the issue in Google
    via multiple keywords and phrases specific to the issue. There are high chances that the issue
    and the solution is already documented somewhere.
 
-1. Try searching for the issue at [VictoriaMetrics Github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
-   The sinal/noise quality of search results here is much lower than in Google, but sometimes it may help
+1. Try searching for the issue at [VictoriaMetrics Github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+   The signal/noise quality of search results here is much lower than in Google, but sometimes it may help
    finding the relevant information about the issue when Google fails to find the needed information.
    If you located the relevant Github issue, but it misses some information on how to diagnose or troubleshoot
    the issue, then please provide this information in comments to the issue. This increases chances
