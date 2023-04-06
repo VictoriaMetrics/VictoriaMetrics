@@ -411,7 +411,6 @@ func (a *aggregator) dedupFlush() {
 		skipAggrSuffix: true,
 	}
 	a.dedupAggr.appendSeriesForFlush(ctx)
-	logger.Errorf("series after dedup: %v", ctx.tss)
 	a.push(ctx.tss)
 }
 
