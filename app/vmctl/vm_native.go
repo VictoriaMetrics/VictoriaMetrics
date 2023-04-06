@@ -110,12 +110,6 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
 
-	matchWithFilters, err := buildMatchWithFilter(p.filter.Match, f.Match)
-	if err != nil {
-		return fmt.Errorf("failed to build export filters: %w", err)
-	}
-	f.Match = matchWithFilters
-
 	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
@@ -239,6 +233,13 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	// any error breaks the import
 	for s := range metrics {
+
+		match, err := buildMatchWithFilter(p.filter.Match, s)
+		if err != nil {
+			logger.Errorf("failed to build export filters: %w", err)
+			continue
+		}
+
 		for _, times := range ranges {
 			select {
 			case <-ctx.Done():
@@ -246,7 +247,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			case infErr := <-errCh:
 				return fmt.Errorf("native error: %s", infErr)
 			case filterCh <- native.Filter{
-				Match:     s,
+				Match:     match,
 				TimeStart: times[0].Format(time.RFC3339),
 				TimeEnd:   times[1].Format(time.RFC3339),
 			}:
