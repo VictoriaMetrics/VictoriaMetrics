@@ -14,14 +14,13 @@ import (
 )
 
 // This action uses the encryption subresource to configure default encryption and
-// Amazon S3 Bucket Key for an existing bucket. Default encryption for a bucket can
-// use server-side encryption with Amazon S3-managed keys (SSE-S3) or customer
-// managed keys (SSE-KMS). If you specify default encryption using SSE-KMS, you can
-// also configure Amazon S3 Bucket Key. When the default encryption is SSE-KMS, if
-// you upload an object to the bucket and do not specify the KMS key to use for
-// encryption, Amazon S3 uses the default Amazon Web Services managed KMS key for
-// your account. For information about default encryption, see Amazon S3 default
-// bucket encryption
+// Amazon S3 Bucket Keys for an existing bucket. By default, all buckets have a
+// default encryption configuration that uses server-side encryption with Amazon S3
+// managed keys (SSE-S3). You can optionally configure default encryption for a
+// bucket by using server-side encryption with an Amazon Web Services KMS key
+// (SSE-KMS) or a customer-provided key (SSE-C). If you specify default encryption
+// by using SSE-KMS, you can also configure Amazon S3 Bucket Keys. For information
+// about bucket default encryption, see Amazon S3 bucket default encryption
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html) in the
 // Amazon S3 User Guide. For more information about S3 Bucket Keys, see Amazon S3
 // Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html) in
@@ -63,9 +62,12 @@ func (c *Client) PutBucketEncryption(ctx context.Context, params *PutBucketEncry
 type PutBucketEncryptionInput struct {
 
 	// Specifies default encryption for a bucket using server-side encryption with
-	// Amazon S3-managed keys (SSE-S3) or customer managed keys (SSE-KMS). For
-	// information about the Amazon S3 default encryption feature, see Amazon S3
-	// Default Bucket Encryption
+	// different key options. By default, all buckets have a default encryption
+	// configuration that uses server-side encryption with Amazon S3 managed keys
+	// (SSE-S3). You can optionally configure default encryption for a bucket by using
+	// server-side encryption with an Amazon Web Services KMS key (SSE-KMS) or a
+	// customer-provided key (SSE-C). For information about the bucket default
+	// encryption feature, see Amazon S3 Bucket Default Encryption
 	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html) in the
 	// Amazon S3 User Guide.
 	//

@@ -12,15 +12,15 @@ import (
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns the default encryption configuration for an Amazon S3 bucket. If the
-// bucket does not have a default encryption configuration, GetBucketEncryption
-// returns ServerSideEncryptionConfigurationNotFoundError. For information about
-// the Amazon S3 default encryption feature, see Amazon S3 Default Bucket
+// Returns the default encryption configuration for an Amazon S3 bucket. By
+// default, all buckets have a default encryption configuration that uses
+// server-side encryption with Amazon S3 managed keys (SSE-S3). For information
+// about the bucket default encryption feature, see Amazon S3 Bucket Default
 // Encryption
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html). To use
-// this operation, you must have permission to perform the
-// s3:GetEncryptionConfiguration action. The bucket owner has this permission by
-// default. The bucket owner can grant this permission to others. For more
+// (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html) in the
+// Amazon S3 User Guide. To use this operation, you must have permission to perform
+// the s3:GetEncryptionConfiguration action. The bucket owner has this permission
+// by default. The bucket owner can grant this permission to others. For more
 // information about permissions, see Permissions Related to Bucket Subresource
 // Operations
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)

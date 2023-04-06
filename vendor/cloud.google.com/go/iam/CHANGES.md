@@ -1,5 +1,13 @@
 # Changes
 
+
+## [1.0.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.13.0...iam/v1.0.0) (2023-04-04)
+
+
+### Features
+
+* **iam:** Promote to GA ([#7627](https://github.com/googleapis/google-cloud-go/issues/7627)) ([b351906](https://github.com/googleapis/google-cloud-go/commit/b351906a10e17a02d7f7e2551bc1585fd9dc3742))
+
 ## [0.13.0](https://github.com/googleapis/google-cloud-go/compare/iam/v0.12.0...iam/v0.13.0) (2023-03-15)
 
 
