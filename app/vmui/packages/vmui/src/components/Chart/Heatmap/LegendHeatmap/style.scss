@@ -7,6 +7,14 @@
   justify-content: space-between;
   gap: 4px;
 
+  &__wrapper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $padding-global;
+    flex-wrap: wrap;
+  }
+
   &__value {
     color: $color-text;
     font-size: $font-size-small;
@@ -51,5 +59,9 @@
         box-shadow: $box-shadow;
       }
     }
+  }
+
+  &__labels {
+    word-break: break-all;
   }
 }
