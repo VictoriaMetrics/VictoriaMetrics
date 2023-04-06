@@ -15,6 +15,13 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## v1.79.x long-time support release (LTS)
 
+## [v1.79.12](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.79.12)
+
+Released at 2023-04-06
+
+**v1.79.x is a line of LTS releases (e.g. long-time support). It contains important up-to-date bugfixes.
+The v1.79.x line will be supported for at least 12 months since [v1.79.0](https://docs.victoriametrics.com/CHANGELOG.html#v1790) release**
+
 * SECURITY: upgrade base docker image (alpine) from 3.17.2 to 3.17.3. See [alpine 3.17.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.3-released.html).
 * SECURITY: upgrade Go builder from Go1.20.2 to Go1.20.3. See [the list of issues addressed in Go1.20.3](https://github.com/golang/go/issues?q=milestone%3AGo1.20.3+label%3ACherryPickApproved).
 
