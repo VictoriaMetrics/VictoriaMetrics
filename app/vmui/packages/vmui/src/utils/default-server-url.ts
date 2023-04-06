@@ -4,6 +4,7 @@ export const getDefaultServer = (tenantId?: string): string => {
   const { serverURL } = getAppModeParams();
   const url = serverURL || window.location.href.replace(/\/(?:prometheus\/)?(?:graph|vmui)\/.*/, "/prometheus");
   if (tenantId) return replaceTenantId(url, tenantId);
+  return "https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus";
   return url;
 };
 

@@ -89,6 +89,7 @@ export const useFetchQuery = ({
 
         const isHideQuery = hideQuery?.includes(counter - 1);
         if (isHideQuery) {
+          setQueryErrors(prev => [...prev, ""]);
           counter++;
           continue;
         }
