@@ -1,4 +1,4 @@
-import { LegendItemType } from "../../../../utils/uplot/types";
+import { LegendItemType } from "../../../../../utils/uplot/types";
 
 export const getFreeFields = (legend: LegendItemType) => {
   const keys = Object.keys(legend.freeFormFields).filter(f => f !== "__name__");

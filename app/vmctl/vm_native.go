@@ -14,6 +14,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -232,6 +233,13 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	// any error breaks the import
 	for s := range metrics {
+
+		match, err := buildMatchWithFilter(p.filter.Match, s)
+		if err != nil {
+			logger.Errorf("failed to build export filters: %s", err)
+			continue
+		}
+
 		for _, times := range ranges {
 			select {
 			case <-ctx.Done():
@@ -239,7 +247,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 			case infErr := <-errCh:
 				return fmt.Errorf("native error: %s", infErr)
 			case filterCh <- native.Filter{
-				Match:     fmt.Sprintf("{%s=%q}", nameLabel, s),
+				Match:     match,
 				TimeStart: times[0].Format(time.RFC3339),
 				TimeEnd:   times[1].Format(time.RFC3339),
 			}:
@@ -302,4 +310,14 @@ func byteCountSI(b int64) string {
 	}
 	return fmt.Sprintf("%.1f %cB",
 		float64(b)/float64(div), "kMGTPE"[exp])
+}
+
+func buildMatchWithFilter(filter string, metricName string) (string, error) {
+	labels, err := promutils.NewLabelsFromString(filter)
+	if err != nil {
+		return "", err
+	}
+	labels.Set("__name__", metricName)
+
+	return labels.String(), nil
 }
