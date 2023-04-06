@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -313,29 +311,12 @@ func byteCountSI(b int64) string {
 		float64(b)/float64(div), "kMGTPE"[exp])
 }
 
-// buildMatchWithFilter adds additional filters from native.Filter.Match to discovered
-// metric names via /api/v1/series API.
 func buildMatchWithFilter(filter string, metricName string) (string, error) {
 	labels, err := promutils.NewLabelsFromString(filter)
 	if err != nil {
 		return "", err
 	}
+	labels.Set("__name__", metricName)
 
-	var str strings.Builder
-
-	str.WriteString("{")
-	str.WriteString(nameLabel)
-	str.WriteString("=")
-	str.WriteString(strconv.Quote(metricName))
-	for _, label := range labels.Labels {
-		if label.Name == nameLabel {
-			continue
-		}
-		str.WriteString(",")
-		str.WriteString(label.Name)
-		str.WriteString("=")
-		str.WriteString(strconv.Quote(label.Value))
-	}
-	str.WriteString("}")
-	return str.String(), nil
+	return labels.String(), nil
 }
