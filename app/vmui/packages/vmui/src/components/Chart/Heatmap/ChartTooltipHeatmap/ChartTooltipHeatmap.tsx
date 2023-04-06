@@ -1,42 +1,43 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
 import uPlot from "uplot";
-import { MetricResult } from "../../../api/types";
-import { formatPrettyNumber } from "../../../utils/uplot/helpers";
-import dayjs from "dayjs";
-import { DATE_FULL_TIMEZONE_FORMAT } from "../../../constants/date";
 import ReactDOM from "react-dom";
-import get from "lodash.get";
-import Button from "../../Main/Button/Button";
-import { CloseIcon, DragIcon } from "../../Main/Icons";
+import Button from "../../../Main/Button/Button";
+import { CloseIcon, DragIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
-import "./style.scss";
-import { SeriesItem } from "../../../utils/uplot/series";
+import "../../Line/ChartTooltip/style.scss";
 
-export interface ChartTooltipProps {
+export interface TooltipHeatmapProps  {
+  cursor: {left: number, top: number}
+  startDate: string,
+  endDate: string,
+  bucket: string,
+  value: number,
+  valueFormat: string
+}
+
+export interface ChartTooltipHeatmapProps extends TooltipHeatmapProps {
   id: string,
   u: uPlot,
-  metrics: MetricResult[],
-  series: SeriesItem[],
-  yRange: number[];
   unit?: string,
   isSticky?: boolean,
   tooltipOffset: { left: number, top: number },
-  tooltipIdx: { seriesIdx: number, dataIdx: number },
   onClose?: (id: string) => void
 }
 
-const ChartTooltip: FC<ChartTooltipProps> = ({
+const ChartTooltipHeatmap: FC<ChartTooltipHeatmapProps> = ({
   u,
   id,
   unit = "",
-  metrics,
-  series,
-  yRange,
-  tooltipIdx,
+  cursor,
   tooltipOffset,
   isSticky,
-  onClose
+  onClose,
+  startDate,
+  endDate,
+  bucket,
+  valueFormat,
+  value
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -44,35 +45,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const [moving, setMoving] = useState(false);
   const [moved, setMoved] = useState(false);
 
-  const [seriesIdx, setSeriesIdx] = useState(tooltipIdx.seriesIdx);
-  const [dataIdx, setDataIdx] = useState(tooltipIdx.dataIdx);
-
   const targetPortal = useMemo(() => u.root.querySelector(".u-wrap"), [u]);
-
-  const value = get(u, ["data", seriesIdx, dataIdx], 0);
-  const valueFormat = formatPrettyNumber(value, get(yRange, [0]), get(yRange, [1]));
-  const dataTime = u.data[0][dataIdx];
-  const date = dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
-
-  const color = series[seriesIdx]?.stroke+"";
-
-  const calculations = series[seriesIdx]?.calculations || {};
-
-  const groups = new Set(metrics.map(m => m.group));
-  const showQueryNum = groups.size > 1;
-  const group = metrics[seriesIdx-1]?.group || 0;
-
-
-  const fullMetricName = useMemo(() => {
-    const metric = metrics[seriesIdx-1]?.metric || {};
-    const labelNames = Object.keys(metric).filter(x => x != "__name__");
-    const labels = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
-    let metricName = metric["__name__"] || "";
-    if (labels.length > 0) {
-      metricName += "{" + labels.join(",") + "}";
-    }
-    return metricName;
-  }, [metrics, seriesIdx]);
 
   const handleClose = () => {
     onClose && onClose(id);
@@ -98,8 +71,8 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const calcPosition = () => {
     if (!tooltipRef.current) return;
 
-    const topOnChart = u.valToPos((value || 0), series[seriesIdx]?.scale || "1");
-    const leftOnChart = u.valToPos(dataTime, "x");
+    const topOnChart = cursor.top;
+    const leftOnChart = cursor.left;
     const { width: tooltipWidth, height: tooltipHeight } = tooltipRef.current.getBoundingClientRect();
     const { width, height } = u.over.getBoundingClientRect();
 
@@ -107,23 +80,13 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     const overflowX = leftOnChart + tooltipWidth >= width ? tooltipWidth + (2 * margin) : 0;
     const overflowY = topOnChart + tooltipHeight >= height ? tooltipHeight + (2 * margin) : 0;
 
-    const position = {
+    setPosition({
       top: topOnChart + tooltipOffset.top + margin - overflowY,
       left: leftOnChart + tooltipOffset.left + margin - overflowX
-    };
-
-    if (position.left < 0) position.left = 20;
-    if (position.top < 0) position.top = 20;
-
-    setPosition(position);
+    });
   };
 
-  useEffect(calcPosition, [u, value, dataTime, seriesIdx, tooltipOffset, tooltipRef]);
-
-  useEffect(() => {
-    setSeriesIdx(tooltipIdx.seriesIdx);
-    setDataIdx(tooltipIdx.dataIdx);
-  }, [tooltipIdx]);
+  useEffect(calcPosition, [u, cursor, tooltipOffset, tooltipRef]);
 
   useEffect(() => {
     if (moving) {
@@ -137,7 +100,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     };
   }, [moving]);
 
-  if (!targetPortal || tooltipIdx.seriesIdx < 0 || tooltipIdx.dataIdx < 0) return null;
+  if (!targetPortal || !cursor.left || !cursor.top || !value) return null;
 
   return ReactDOM.createPortal((
     <div
@@ -151,11 +114,9 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
       style={position}
     >
       <div className="vm-chart-tooltip-header">
-        <div className="vm-chart-tooltip-header__date">
-          {showQueryNum && (
-            <div>Query {group}</div>
-          )}
-          {date}
+        <div className="vm-chart-tooltip-header__date vm-chart-tooltip-header__date_range">
+          <span>{startDate}</span>
+          <span>{endDate}</span>
         </div>
         {isSticky && (
           <>
@@ -177,20 +138,15 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
         )}
       </div>
       <div className="vm-chart-tooltip-data">
-        <div
-          className="vm-chart-tooltip-data__marker"
-          style={{ background: color }}
-        />
-        <div>
-          <b>{valueFormat}{unit}</b><br/>
-          median:<b>{calculations.median}</b>, min:<b>{calculations.min}</b>, max:<b>{calculations.max}</b>
-        </div>
+        <p>
+          value: <b className="vm-chart-tooltip-data__value">{valueFormat}</b>{unit}
+        </p>
       </div>
       <div className="vm-chart-tooltip-info">
-        {fullMetricName}
+        {bucket}
       </div>
     </div>
   ), targetPortal);
 };
 
-export default ChartTooltip;
+export default ChartTooltipHeatmap;

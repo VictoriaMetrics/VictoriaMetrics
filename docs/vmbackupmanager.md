@@ -279,7 +279,8 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
    ```yaml
    vmbackup:
      restore:
-       onStart: "true"
+       onStart:
+         enabled: "true"
    ```
    See operator `VMStorage` schema [here](https://docs.victoriametrics.com/operator/api.html#vmstorage) and `VMSingle` [here](https://docs.victoriametrics.com/operator/api.html#vmsinglespec).
 2. Enter container running `vmbackupmanager`
@@ -309,7 +310,8 @@ Clusters here are referred to as `source` and `destination`.
    ```yaml
    vmbackup:
      restore:
-       onStart: "true"
+       onStart:
+         enabled: "true"
    ```
    Note: it is safe to leave this section in the cluster configuration, since it will be ignored if restore mark doesn't exist.
    > Important! Use different `-dst` for *destination* cluster to avoid overwriting backup data of the *source* cluster.
