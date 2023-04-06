@@ -73,7 +73,8 @@ type PutBucketMetricsConfigurationInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The ID used to identify the metrics configuration.
+	// The ID used to identify the metrics configuration. The ID has a 64 character
+	// limit and can only contain letters, numbers, periods, dashes, and underscores.
 	//
 	// This member is required.
 	Id *string

@@ -26,10 +26,16 @@ import (
 // minutes to complete. After Amazon S3 begins processing the request, it sends an
 // HTTP response header that specifies a 200 OK response. While processing is in
 // progress, Amazon S3 periodically sends white space characters to keep the
-// connection from timing out. Because a request could fail after the initial 200
-// OK response has been sent, it is important that you check the response body to
-// determine whether the request succeeded. Note that if CompleteMultipartUpload
-// fails, applications should be prepared to retry the failed requests. For more
+// connection from timing out. A request could fail after the initial 200 OK
+// response has been sent. This means that a 200 OK response can contain either a
+// success or an error. If you call the S3 API directly, make sure to design your
+// application to parse the contents of the response and handle it appropriately.
+// If you use Amazon Web Services SDKs, SDKs handle this condition. The SDKs detect
+// the embedded error and apply error handling per your configuration settings
+// (including automatically retrying the request as appropriate). If the condition
+// persists, the SDKs throws an exception (or, for the SDKs that don't use
+// exceptions, they return the error). Note that if CompleteMultipartUpload fails,
+// applications should be prepared to retry the failed requests. For more
 // information, see Amazon S3 Error Best Practices
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/ErrorBestPractices.html). You
 // cannot use Content-Type: application/x-www-form-urlencoded with Complete
@@ -123,13 +129,13 @@ type CompleteMultipartUploadInput struct {
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
@@ -229,13 +235,13 @@ type CompleteMultipartUploadOutput struct {
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	Bucket *string
@@ -302,14 +308,12 @@ type CompleteMultipartUploadOutput struct {
 	RequestCharged types.RequestCharged
 
 	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric customer managed key that was used for the
-	// object.
+	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
+	// used for the object.
 	SSEKMSKeyId *string
 
-	// If you specified server-side encryption either with an Amazon S3-managed
-	// encryption key or an Amazon Web Services KMS key in your initiate multipart
-	// upload request, the response includes this header. It confirms the encryption
-	// algorithm that Amazon S3 used to encrypt the object.
+	// The server-side encryption algorithm used when storing this object in Amazon S3
+	// (for example, AES256, aws:kms).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Version ID of the newly created object, in case the bucket has versioning turned

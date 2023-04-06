@@ -20,11 +20,11 @@ import (
 // This action is useful to determine if a bucket exists and you have permission to
 // access it. The action returns a 200 OK if the bucket exists and you have
 // permission to access it. If the bucket does not exist or you do not have
-// permission to access it, the HEAD request returns a generic 404 Not Found or 403
-// Forbidden code. A message body is not included, so you cannot determine the
-// exception beyond these error codes. To use this operation, you must have
-// permissions to perform the s3:ListBucket action. The bucket owner has this
-// permission by default and can grant this permission to others. For more
+// permission to access it, the HEAD request returns a generic 400 Bad Request, 403
+// Forbidden or 404 Not Found code. A message body is not included, so you cannot
+// determine the exception beyond these error codes. To use this operation, you
+// must have permissions to perform the s3:ListBucket action. The bucket owner has
+// this permission by default and can grant this permission to others. For more
 // information about permissions, see Permissions Related to Bucket Subresource
 // Operations
 // (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
@@ -62,13 +62,13 @@ type HeadBucketInput struct {
 	// the access point ARN in place of the bucket name. For more information about
 	// access point ARNs, see Using access points
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts
 	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
 	// Amazon S3 User Guide.
 	//
