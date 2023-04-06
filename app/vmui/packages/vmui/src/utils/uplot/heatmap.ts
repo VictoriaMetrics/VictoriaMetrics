@@ -149,7 +149,7 @@ export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): M
   const vmBuckets = convertPrometheusToVictoriaMetrics(sortedBuckets);
   const allValues = vmBuckets.map(b => b.values).flat();
 
-  return vmBuckets.map(bucket => {
+  const result = vmBuckets.map(bucket => {
     const values = bucket.values.map((v) => {
       const totalHits = allValues
         .filter(av => av[0] === v[0])
@@ -160,4 +160,6 @@ export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): M
 
     return { ...bucket, values };
   }) as MetricResult[];
+
+  return result.filter(r => !r.values.every(v => v[1] === "0"));
 };
