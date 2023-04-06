@@ -29,7 +29,7 @@ require (
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/valyala/gozstd v1.18.0
+	github.com/valyala/gozstd v1.19.0
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.8.0
