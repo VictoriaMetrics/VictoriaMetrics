@@ -106,7 +106,7 @@ export const useFetchQuery = ({
           }
 
           const isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
-          setIsHistogram(isHistogramResult);
+          if (resp.data.result.length) setIsHistogram(isHistogramResult);
           if (isHistogramResult) seriesLimit = Infinity;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
