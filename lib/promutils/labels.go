@@ -195,17 +195,13 @@ func (x *Labels) Set(name, value string) {
 		return
 	}
 	labels := x.GetLabels()
-	var found bool
 	for i, label := range labels {
 		if label.Name == name {
 			labels[i].Value = value
-			found = true
 			return
 		}
 	}
-	if !found {
-		x.Add(name, value)
-	}
+	x.Add(name, value)
 }
 
 // InternStrings interns all the strings used in x labels.
