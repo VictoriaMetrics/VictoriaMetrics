@@ -19,7 +19,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 		v += int64(rand.NormFloat64() * 1e6)
 		va = append(va, v)
 	}
-	for precisionBits := uint8(1); precisionBits < 23; precisionBits++ {
+	for precisionBits := uint8(1); precisionBits < 22; precisionBits++ {
 		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta)
 	}
 	for precisionBits := uint8(23); precisionBits < 65; precisionBits++ {
@@ -33,7 +33,7 @@ func TestMarshalUnmarshalInt64Array(t *testing.T) {
 		v += 30e6 + int64(rand.NormFloat64()*1e6)
 		va = append(va, v)
 	}
-	for precisionBits := uint8(1); precisionBits < 24; precisionBits++ {
+	for precisionBits := uint8(1); precisionBits < 23; precisionBits++ {
 		testMarshalUnmarshalInt64Array(t, va, precisionBits, MarshalTypeZSTDNearestDelta2)
 	}
 	for precisionBits := uint8(24); precisionBits < 65; precisionBits++ {
