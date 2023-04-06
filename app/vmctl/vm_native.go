@@ -236,7 +236,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 		match, err := buildMatchWithFilter(p.filter.Match, s)
 		if err != nil {
-			logger.Errorf("failed to build export filters: %w", err)
+			logger.Errorf("failed to build export filters: %s", err)
 			continue
 		}
 
