@@ -40,12 +40,12 @@ type UploadInput struct {
 	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide.
 	//
-	// When using this action with Amazon S3 on Outposts, you must direct requests
+	// When you use this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
-	// using this action with S3 on Outposts through the Amazon Web Services SDKs,
-	// you provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// you use this action with S3 on Outposts through the Amazon Web Services SDKs,
+	// you provide the Outposts access point ARN in place of the bucket name. For
+	// more information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// Bucket is a required field
@@ -111,13 +111,13 @@ type UploadInput struct {
 	ChecksumSHA256 *string `location:"header" locationName:"x-amz-checksum-sha256" type:"string"`
 
 	// Specifies presentational information for the object. For more information,
-	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html#sec19.5.1 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec19.html#sec19.5.1).
+	// see https://www.rfc-editor.org/rfc/rfc6266#section-4 (https://www.rfc-editor.org/rfc/rfc6266#section-4).
 	ContentDisposition *string `location:"header" locationName:"Content-Disposition" type:"string"`
 
 	// Specifies what content encodings have been applied to the object and thus
 	// what decoding mechanisms must be applied to obtain the media-type referenced
-	// by the Content-Type header field. For more information, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11
-	// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.11).
+	// by the Content-Type header field. For more information, see https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding
+	// (https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding).
 	ContentEncoding *string `location:"header" locationName:"Content-Encoding" type:"string"`
 
 	// The language the content is in.
@@ -135,7 +135,7 @@ type UploadInput struct {
 	ContentMD5 *string `location:"header" locationName:"Content-MD5" type:"string"`
 
 	// A standard MIME type describing the format of the contents. For more information,
-	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.17).
+	// see https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type (https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type).
 	ContentType *string `location:"header" locationName:"Content-Type" type:"string"`
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
@@ -144,7 +144,7 @@ type UploadInput struct {
 	ExpectedBucketOwner *string `location:"header" locationName:"x-amz-expected-bucket-owner" type:"string"`
 
 	// The date and time at which the object is no longer cacheable. For more information,
-	// see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.21).
+	// see https://www.rfc-editor.org/rfc/rfc7234#section-5.3 (https://www.rfc-editor.org/rfc/rfc7234#section-5.3).
 	Expires *time.Time `location:"header" locationName:"Expires" type:"timestamp"`
 
 	// Gives the grantee READ, READ_ACP, and WRITE_ACP permissions on the object.
@@ -211,12 +211,14 @@ type UploadInput struct {
 
 	// Specifies the Amazon Web Services KMS Encryption Context to use for object
 	// encryption. The value of this header is a base64-encoded UTF-8 string holding
-	// JSON with the encryption context key-value pairs.
+	// JSON with the encryption context key-value pairs. This value is stored as
+	// object metadata and automatically gets passed on to Amazon Web Services KMS
+	// for future GetObject or CopyObject operations on this object.
 	SSEKMSEncryptionContext *string `location:"header" locationName:"x-amz-server-side-encryption-context" type:"string" sensitive:"true"`
 
-	// If x-amz-server-side-encryption is present and has the value of aws:kms,
-	// this header specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetrical customer managed key that was used
+	// If x-amz-server-side-encryption has a valid value of aws:kms, this header
+	// specifies the ID of the Amazon Web Services Key Management Service (Amazon
+	// Web Services KMS) symmetric encryption customer managed key that was used
 	// for the object. If you specify x-amz-server-side-encryption:aws:kms, but
 	// do not providex-amz-server-side-encryption-aws-kms-key-id, Amazon S3 uses
 	// the Amazon Web Services managed key to protect the data. If the KMS key does
