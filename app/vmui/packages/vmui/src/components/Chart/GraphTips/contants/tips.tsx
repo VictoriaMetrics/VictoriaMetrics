@@ -51,15 +51,16 @@ const legendTips = [
     </>
   },
   {
-    title: "Copy key-value pairs",
+    title: "Copy label key-value pairs",
     description: <>
-      <code>click</code> on a key-value pair to save it to the clipboard.
+      <code>click</code> on a label key-value pair to save it to the clipboard.
     </>
   },
   {
     title: "Collapse/Expand the legend group",
     description: <>
-      <code>click</code> on the group name (e.g. <b>Query 1: &#123;name!=&#34;&#34;&#125;</b>) to collapse or expand the legend.
+      <code>click</code> on the group name (e.g. <b>Query 1: &#123;__name__!=&#34;&#34;&#125;</b>)
+      to collapse or expand the legend.
     </>
   },
 ];
