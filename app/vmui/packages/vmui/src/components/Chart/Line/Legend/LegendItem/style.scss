@@ -21,6 +21,17 @@
     opacity: 0.5;
   }
 
+  &_static {
+    grid-template-columns: 1fr;
+    margin: 0;
+    padding: 0;
+    cursor: default;
+
+    &:hover {
+      background-color: $color-background-block;
+    }
+  }
+
   &__marker {
     width: 14px;
     height: 14px;
