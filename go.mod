@@ -23,13 +23,13 @@ require (
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.8.0
 	github.com/influxdata/influxdb v1.11.0
-	github.com/klauspost/compress v1.16.3
+	github.com/klauspost/compress v1.16.4
 	github.com/prometheus/prometheus v0.43.0
 	github.com/urfave/cli/v2 v2.25.1
 	github.com/valyala/fastjson v1.6.4
 	github.com/valyala/fastrand v1.1.0
 	github.com/valyala/fasttemplate v1.2.2
-	github.com/valyala/gozstd v1.18.0
+	github.com/valyala/gozstd v1.19.0
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
 	golang.org/x/net v0.8.0
