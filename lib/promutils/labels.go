@@ -188,6 +188,22 @@ func (x *Labels) Get(name string) string {
 	return ""
 }
 
+// Set label value for label with given name
+// If the label with the given name doesn't exist, it adds as the new label
+func (x *Labels) Set(name, value string) {
+	if name == "" || value == "" {
+		return
+	}
+	labels := x.GetLabels()
+	for i, label := range labels {
+		if label.Name == name {
+			labels[i].Value = value
+			return
+		}
+	}
+	x.Add(name, value)
+}
+
 // InternStrings interns all the strings used in x labels.
 func (x *Labels) InternStrings() {
 	labels := x.GetLabels()
@@ -306,7 +322,7 @@ func MustNewLabelsFromString(metricWithLabels string) *Labels {
 
 // NewLabelsFromString creates labels from s, which can have the form `metric{labels}`.
 //
-// This function must be used only in tests
+// This function must be used only in non performance-critical code, since it allocates too much
 func NewLabelsFromString(metricWithLabels string) (*Labels, error) {
 	stripDummyMetric := false
 	if strings.HasPrefix(metricWithLabels, "{") {
