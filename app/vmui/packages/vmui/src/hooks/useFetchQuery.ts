@@ -89,6 +89,7 @@ export const useFetchQuery = ({
 
         const isHideQuery = hideQuery?.includes(counter - 1);
         if (isHideQuery) {
+          setQueryErrors(prev => [...prev, ""]);
           counter++;
           continue;
         }
@@ -105,6 +106,7 @@ export const useFetchQuery = ({
           }
 
           const isHistogramResult = isDisplayChart && isHistogramData(resp.data.result);
+          if (resp.data.result.length) setIsHistogram(isHistogramResult);
           if (isHistogramResult) seriesLimit = Infinity;
           const freeTempSize = seriesLimit - tempData.length;
           resp.data.result.slice(0, freeTempSize).forEach((d: MetricBase) => {
@@ -122,8 +124,6 @@ export const useFetchQuery = ({
 
       const limitText = `Showing ${seriesLimit} series out of ${totalLength} series due to performance reasons. Please narrow down the query, so it returns less series`;
       setWarning(totalLength > seriesLimit ? limitText : "");
-
-      setIsHistogram(isDisplayChart && isHistogramData(tempData));
       isDisplayChart ? setGraphData(tempData as MetricResult[]) : setLiveData(tempData as InstantMetricResult[]);
       setTraces(tempTraces);
     } catch (e) {
