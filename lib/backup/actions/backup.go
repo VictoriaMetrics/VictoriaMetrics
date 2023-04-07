@@ -66,7 +66,8 @@ func (b *Backup) Run() error {
 	if err := runBackup(src, dst, origin, concurrency); err != nil {
 		return err
 	}
-	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte("ok")); err != nil {
+	completionTime := time.Now().Format(time.RFC3339)
+	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte(completionTime)); err != nil {
 		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
 	return nil
