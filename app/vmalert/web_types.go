@@ -72,6 +72,8 @@ type APIGroup struct {
 	Params []string `json:"params,omitempty"`
 	// Headers contains HTTP headers added to each Rule's request
 	Headers []string `json:"headers,omitempty"`
+	// NotifierHeaders contains HTTP headers added to each alert request which will send to notifier
+	NotifierHeaders []string `json:"notifier_headers,omitempty"`
 	// Labels is a set of label value pairs, that will be added to every rule.
 	Labels map[string]string `json:"labels,omitempty"`
 }

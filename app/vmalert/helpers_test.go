@@ -131,7 +131,7 @@ type fakeNotifier struct {
 
 func (*fakeNotifier) Close()       {}
 func (*fakeNotifier) Addr() string { return "" }
-func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
+func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert, _ map[string]string) error {
 	fn.Lock()
 	defer fn.Unlock()
 	fn.counter += len(alerts)
@@ -155,7 +155,7 @@ type faultyNotifier struct {
 	fakeNotifier
 }
 
-func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert) error {
+func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert, _ map[string]string) error {
 	d, ok := ctx.Deadline()
 	if ok {
 		time.Sleep(time.Until(d))

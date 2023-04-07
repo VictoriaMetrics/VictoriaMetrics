@@ -43,6 +43,8 @@ type AlertingRule struct {
 	// during evaluations
 	state *ruleState
 
+	notifierHeaders map[string]string
+
 	metrics *alertingRuleMetrics
 }
 
@@ -53,7 +55,7 @@ type alertingRuleMetrics struct {
 	samples *utils.Gauge
 }
 
-func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
+func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule, notifierHeaders map[string]string) *AlertingRule {
 	ar := &AlertingRule{
 		Type:         group.Type,
 		RuleID:       cfg.ID,
@@ -73,8 +75,9 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			Headers:            group.Headers,
 			Debug:              cfg.Debug,
 		}),
-		alerts:  make(map[uint64]*notifier.Alert),
-		metrics: &alertingRuleMetrics{},
+		alerts:          make(map[uint64]*notifier.Alert),
+		notifierHeaders: notifierHeaders,
+		metrics:         &alertingRuleMetrics{},
 	}
 
 	if cfg.UpdateEntriesLimit != nil {
