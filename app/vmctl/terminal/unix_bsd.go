@@ -1,5 +1,5 @@
-//go:build darwin
-// +build darwin
+//go:build darwin || freebsd || openbsd
+// +build darwin freebsd openbsd
 
 package terminal
 
