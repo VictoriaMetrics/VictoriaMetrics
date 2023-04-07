@@ -328,14 +328,14 @@ func Test_buildMatchWithFilter(t *testing.T) {
 			name:       "only label with regexp",
 			filter:     `{cluster~=".*"}`,
 			metricName: "http_request_count_total",
-			want:       `{cluster~=".*",__name__="http_request_count_total"}`,
+			want:       `{__name__="http_request_count_total",cluster~=".*"}`,
 			wantErr:    false,
 		},
 		{
 			name:       "many labels in filter with regexp",
 			filter:     `{cluster~=".*",job!=""}`,
 			metricName: "http_request_count_total",
-			want:       `{cluster~=".*",job!="",__name__="http_request_count_total"}`,
+			want:       `{__name__="http_request_count_total",cluster~=".*",job!=""}`,
 			wantErr:    false,
 		},
 		{
@@ -344,6 +344,13 @@ func Test_buildMatchWithFilter(t *testing.T) {
 			metricName: "http_request_count_total",
 			want:       ``,
 			wantErr:    true,
+		},
+		{
+			name:       "all names",
+			filter:     `{__name__!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
 		},
 	}
 	for _, tt := range tests {

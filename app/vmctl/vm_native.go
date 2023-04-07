@@ -232,7 +232,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	}
 
 	// any error breaks the import
-	for s := range metrics {
+	for _, s := range metrics {
 
 		match, err := buildMatchWithFilter(p.filter.Match, s)
 		if err != nil {
@@ -317,7 +317,10 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	labels.RemoveLabelsWithDoubleUnderscorePrefix()
 	labels.Set("__name__", metricName)
+	labels.SortStable()
 
 	return labels.String(), nil
 }
