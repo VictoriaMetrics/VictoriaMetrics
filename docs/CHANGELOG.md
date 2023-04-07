@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix issue where vmui would freeze when adding a query that returned regular rows alongside a heatmap query.
+
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
 Released at 2023-04-06
