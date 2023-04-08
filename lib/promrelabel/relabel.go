@@ -546,6 +546,17 @@ func GetLabelByName(labels []prompbmarshal.Label, name string) *prompbmarshal.La
 	return nil
 }
 
+// GetLabelValueByName returns value for label with the given name from labels.
+//
+// It returns empty string for non-existing label.
+func GetLabelValueByName(labels []prompbmarshal.Label, name string) string {
+	label := GetLabelByName(labels, name)
+	if label == nil {
+		return ""
+	}
+	return label.Value
+}
+
 // CleanLabels sets label.Name and label.Value to an empty string for all the labels.
 //
 // This should help GC cleaning up label.Name and label.Value strings.

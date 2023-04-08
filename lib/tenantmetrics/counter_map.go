@@ -11,6 +11,8 @@ import (
 
 // TenantID defines metric tenant.
 type TenantID struct {
+	ClsID     string
+	PrjID     string
 	AccountID uint32
 	ProjectID uint32
 }

@@ -1,12 +1,17 @@
 package remotewrite
 
 import (
+	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -74,6 +79,8 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
+	gateway = flag.String("gateway", "", "Get remote storage URL from gateway")
+	pdAddr  = flag.String("pdAddr", "", "Get cluster meta id from pdAddr")
 )
 
 var (
@@ -86,6 +93,13 @@ var (
 
 	// Data without tenant id is written to defaultAuthToken if -remoteWrite.multitenantURL is specified.
 	defaultAuthToken = &auth.Token{}
+
+	// RetryCount http request retry count
+	RetryCount      = 3
+	remoteURLMap    sync.Map
+	keyspaceMetaMap sync.Map
+	blackKeys       sync.Map
+	pdLock          sync.Mutex
 )
 
 // MultitenancyEnabled returns true if -remoteWrite.multitenantURL is specified.
@@ -165,6 +179,7 @@ func Init() {
 		rwctxsDefault = newRemoteWriteCtxs(nil, *remoteWriteURLs)
 	}
 
+	go updateKeyspacesTimer()
 	// Start config reloader.
 	configReloaderWG.Add(1)
 	go func() {
@@ -248,6 +263,10 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 			// Construct full remote_write url for the given tenant according to https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format
 			remoteWriteURL.Path = fmt.Sprintf("%s/insert/%d:%d/prometheus/api/v1/write", remoteWriteURL.Path, at.AccountID, at.ProjectID)
 			sanitizedURL = fmt.Sprintf("%s:%d:%d", sanitizedURL, at.AccountID, at.ProjectID)
+			if at.AccountID == 0 {
+				// serverless
+				sanitizedURL = fmt.Sprintf("%s:%s:%s", sanitizedURL, at.ClsID, at.PrjID)
+			}
 		}
 		if *showRemoteWriteURL {
 			sanitizedURL = fmt.Sprintf("%d:%s", i+1, remoteWriteURL)
@@ -287,6 +306,54 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 	return rwctxs
 }
 
+func newRemoteWriteUrls(at *auth.Token) (string, error) {
+	cacheKey := at.ClsID + "_" + at.PrjID
+	if v, ok := remoteURLMap.Load(cacheKey); ok {
+		return v.(string), nil
+	}
+	if v, ok := blackKeys.Load(cacheKey); ok {
+		if v.(uint) < 100 {
+			num := v.(uint) + 1
+			blackKeys.Store(cacheKey, num)
+			return "", errors.New("resource not found")
+		}
+		blackKeys.Delete(cacheKey)
+	}
+	if *gateway == "" {
+		return "", errors.New("empty gateway addr")
+	}
+	url := fmt.Sprintf("%s?cluster_id=%s&project_id=%s", *gateway, at.ClsID, at.PrjID)
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+	var num uint = 0
+	for i := 0; i < RetryCount; i++ {
+		resp, err := client.Get(url)
+		if err != nil || resp == nil || resp.StatusCode != http.StatusOK {
+			if resp != nil && resp.StatusCode != http.StatusNotFound {
+				blackKeys.Store(cacheKey, num)
+				return "", errors.New("resource not found")
+			}
+			time.Sleep(time.Second)
+			continue
+		}
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			resp.Body.Close()
+			time.Sleep(time.Second)
+			continue
+		}
+		clusterURL := string(body)
+		resp.Body.Close()
+		if len(clusterURL) > 0 {
+			remoteURLMap.Store(cacheKey, clusterURL)
+			return clusterURL, nil
+		}
+	}
+	blackKeys.Store(cacheKey, num)
+	return "", errors.New("empty cluster remote url")
+}
+
 var configReloaderStopCh = make(chan struct{})
 var configReloaderWG sync.WaitGroup
 
@@ -318,6 +385,83 @@ func Stop() {
 	}
 }
 
+// KeyspaceMeta pd keyspece meta struct
+type KeyspaceMeta struct {
+	ID     uint32            `json:"id"`
+	Name   string            `json:"name"`
+	State  string            `json:"state"`
+	Config map[string]string `json:"config"`
+}
+
+// AllKeyspaces pd get all keyspece meta struct
+type AllKeyspaces struct {
+	Keyspaces []KeyspaceMeta `json:"keyspaces"`
+}
+
+func updateKeyspacesTimer() {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		go func() {
+			client := http.Client{
+				Timeout: 5 * time.Second,
+			}
+			for i := 0; i < RetryCount; i++ {
+				pdLock.Lock()
+				resp, err := client.Get(*pdAddr)
+				pdLock.Unlock()
+				if err != nil || resp == nil {
+					time.Sleep(time.Second)
+					continue
+				}
+				if resp.StatusCode != http.StatusOK {
+					return
+				}
+				body, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					resp.Body.Close()
+					time.Sleep(time.Second)
+					continue
+				}
+				result := AllKeyspaces{}
+				ids := make(map[string]bool)
+				err = json.Unmarshal([]byte(body), &result)
+				resp.Body.Close()
+				if err != nil || len(result.Keyspaces) <= 1 {
+					logger.Errorf("reload keyspace meta failed, error: %v", err)
+					return
+				}
+				for _, v := range result.Keyspaces {
+					idStr := fmt.Sprint(v.ID)
+					keyspaceMetaMap.Store(idStr, v)
+					ids[idStr] = true
+				}
+				keyspaceMetaMap.Range(func(id, v interface{}) bool {
+					if ok := ids[id.(string)]; !ok {
+						keyspaceMetaMap.Delete(id)
+					}
+					return true
+				})
+				return
+			}
+		}()
+		<-t.C
+	}
+}
+
+// getClusterIdByKeyspaceID get keyspece meta from pd
+func getClusterIDByKeyspaceID(id string) map[string]string {
+	if v, ok := keyspaceMetaMap.Load(id); ok {
+		km := v.(KeyspaceMeta)
+		if km.State == "ENABLED" &&
+			len(km.Config["serverless_cluster_id"]) > 2 &&
+			len(km.Config["serverless_project_id"]) > 2 {
+			return km.Config
+		}
+	}
+	return nil
+}
+
 // Push sends wr to remote storage systems set via `-remoteWrite.url`.
 //
 // If at is nil, then the data is pushed to the configured `-remoteWrite.url`.
@@ -325,6 +469,54 @@ func Stop() {
 //
 // Note that wr may be modified by Push due to relabeling and rounding.
 func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
+	if len(wr.Timeseries) == 0 {
+		return
+	}
+	if at != nil && len(at.ClsID) > 2 {
+		/* tidb metrics */
+		pushTss(at, wr.Timeseries)
+		return
+	}
+	// write cluster only storage
+	keyspaceTssMap := make(map[string][]prompbmarshal.TimeSeries)
+	for _, ts := range wr.Timeseries {
+		metricName := promrelabel.GetLabelValueByName(ts.Labels, "__name__")
+		if strings.HasPrefix(metricName, "tikv") ||
+			strings.HasPrefix(metricName, "tiflash") ||
+			strings.HasPrefix(metricName, "resource_manager_resource_unit") ||
+			strings.HasPrefix(metricName, "gateway_connection_flow") {
+			keyspaceID := promrelabel.GetLabelValueByName(ts.Labels, "keyspace_id")
+			if (keyspaceID == "" || keyspaceID == "0") &&
+				strings.HasPrefix(metricName, "resource_manager_resource_unit") {
+				keyspaceID = promrelabel.GetLabelValueByName(ts.Labels, "name")
+			}
+			if keyspaceID == "" || getClusterIDByKeyspaceID(keyspaceID) == nil {
+				continue
+			}
+			if _, ok := keyspaceTssMap[keyspaceID]; !ok {
+				value := []prompbmarshal.TimeSeries{ts}
+				keyspaceTssMap[keyspaceID] = value
+				continue
+			}
+			value := keyspaceTssMap[keyspaceID]
+			value = append(value, ts)
+			keyspaceTssMap[keyspaceID] = value
+		}
+	}
+	for keyspaceID := range keyspaceTssMap {
+		ids := getClusterIDByKeyspaceID(keyspaceID)
+		if ids == nil {
+			continue
+		}
+		at := &auth.Token{
+			ClsID: ids["serverless_cluster_id"],
+			PrjID: ids["serverless_project_id"],
+		}
+		pushTss(at, keyspaceTssMap[keyspaceID])
+	}
+}
+
+func pushTss(at *auth.Token, tss []prompbmarshal.TimeSeries) {
 	if at == nil && len(*remoteWriteMultitenantURLs) > 0 {
 		// Write data to default tenant if at isn't set while -remoteWrite.multitenantURL is set.
 		at = defaultAuthToken
@@ -333,18 +525,19 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	if at == nil {
 		rwctxs = rwctxsDefault
 	} else {
-		if len(*remoteWriteMultitenantURLs) == 0 {
-			logger.Panicf("BUG: -remoteWrite.multitenantURL command-line flag must be set when __tenant_id__=%q label is set", at)
-		}
 		rwctxsMapLock.Lock()
 		tenantID := tenantmetrics.TenantID{
-			AccountID: at.AccountID,
-			ProjectID: at.ProjectID,
+			ClsID: at.ClsID,
+			PrjID: at.PrjID,
 		}
 		rwctxs = rwctxsMap[tenantID]
 		if rwctxs == nil {
-			rwctxs = newRemoteWriteCtxs(at, *remoteWriteMultitenantURLs)
-			rwctxsMap[tenantID] = rwctxs
+			remoteUrl, err := newRemoteWriteUrls(at)
+			if err == nil && len(remoteUrl) > 0 {
+				logger.Infof("get remoteWriteURLs = %v", remoteUrl)
+				rwctxs = newRemoteWriteCtxs(at, []string{remoteUrl})
+				rwctxsMap[tenantID] = rwctxs
+			}
 		}
 		rwctxsMapLock.Unlock()
 	}
@@ -355,7 +548,6 @@ func Push(at *auth.Token, wr *prompbmarshal.WriteRequest) {
 	if pcsGlobal.Len() > 0 || len(labelsGlobal) > 0 {
 		rctx = getRelabelCtx()
 	}
-	tss := wr.Timeseries
 	rowsCount := getRowsCount(tss)
 	globalRowsPushedBeforeRelabel.Add(rowsCount)
 	maxSamplesPerBlock := *maxRowsPerBlock

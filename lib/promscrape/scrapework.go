@@ -496,7 +496,13 @@ func (sw *scrapeWork) processScrapedData(scrapeTimestamp, realTimestamp int64, b
 		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+	at := &auth.Token{}
+	clsID := promrelabel.GetLabelValueByName(wc.labels, "cluster_id")
+	if len(clsID) > 2 {
+		at.ClsID = clsID
+		at.PrjID = promrelabel.GetLabelValueByName(wc.labels, "project_id")
+	}
+	sw.pushData(at, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = len(bodyString)
 	wc.reset()
@@ -593,10 +599,17 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 				if sw.seriesLimitExceeded || !areIdenticalSeries {
 					samplesDropped += sw.applySeriesLimit(wc)
 				}
+
 				// Push the collected rows to sw before returning from the callback, since they cannot be held
 				// after returning from the callback - this will result in data race.
 				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
-				sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+				at := &auth.Token{}
+				clsID := promrelabel.GetLabelValueByName(wc.labels, "cluster_id")
+				if len(clsID) > 2 {
+					at.ClsID = clsID
+					at.PrjID = promrelabel.GetLabelValueByName(wc.labels, "project_id")
+				}
+				sw.pushData(at, &wc.writeRequest)
 				wc.resetNoRows()
 				return nil
 			}, sw.logError)
@@ -632,7 +645,13 @@ func (sw *scrapeWork) scrapeStream(scrapeTimestamp, realTimestamp int64) error {
 		seriesLimitSamplesDropped: samplesDropped,
 	}
 	sw.addAutoMetrics(am, wc, scrapeTimestamp)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+	at := &auth.Token{}
+	clsID := promrelabel.GetLabelValueByName(wc.labels, "cluster_id")
+	if len(clsID) > 2 {
+		at.ClsID = clsID
+		at.PrjID = promrelabel.GetLabelValueByName(wc.labels, "project_id")
+	}
+	sw.pushData(at, &wc.writeRequest)
 	sw.prevLabelsLen = len(wc.labels)
 	sw.prevBodyLen = sbr.bodyLen
 	wc.reset()
@@ -812,7 +831,13 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 			// after returning from the callback - this will result in data race.
 			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/825#issuecomment-723198247
 			setStaleMarkersForRows(wc.writeRequest.Timeseries)
-			sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+			at := &auth.Token{}
+			clsID := promrelabel.GetLabelValueByName(wc.labels, "cluster_id")
+			if len(clsID) > 2 {
+				at.ClsID = clsID
+				at.PrjID = promrelabel.GetLabelValueByName(wc.labels, "project_id")
+			}
+			sw.pushData(at, &wc.writeRequest)
 			wc.resetNoRows()
 			return nil
 		}, sw.logError)
@@ -825,7 +850,13 @@ func (sw *scrapeWork) sendStaleSeries(lastScrape, currScrape string, timestamp i
 		sw.addAutoMetrics(am, wc, timestamp)
 	}
 	setStaleMarkersForRows(wc.writeRequest.Timeseries)
-	sw.pushData(sw.Config.AuthToken, &wc.writeRequest)
+	at := &auth.Token{}
+	clsID := promrelabel.GetLabelValueByName(wc.labels, "cluster_id")
+	if len(clsID) > 2 {
+		at.ClsID = clsID
+		at.PrjID = promrelabel.GetLabelValueByName(wc.labels, "project_id")
+	}
+	sw.pushData(at, &wc.writeRequest)
 }
 
 func setStaleMarkersForRows(series []prompbmarshal.TimeSeries) {

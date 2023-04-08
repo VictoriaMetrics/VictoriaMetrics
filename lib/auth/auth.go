@@ -8,6 +8,8 @@ import (
 
 // Token contains settings for request processing
 type Token struct {
+	ClsID     string
+	PrjID     string
 	AccountID uint32
 	ProjectID uint32
 }

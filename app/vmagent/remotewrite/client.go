@@ -408,6 +408,13 @@ again:
 		return true
 	}
 
+	if statusCode == 404 {
+		remoteWriteRejectedLogger.Warnf("sending a block with size %d bytes to %q was rejected (skipping the block): status code %d",
+			len(block), c.sanitizedURL, statusCode)
+		_ = resp.Body.Close()
+		c.packetsDropped.Inc()
+		return true
+	}
 	// Unexpected status code returned
 	retriesCount++
 	retryDuration *= 2
