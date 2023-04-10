@@ -213,7 +213,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
-					srcHttpClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
+					srcHTTPClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
@@ -224,7 +224,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
-					dstHttpClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
+					dstHTTPClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
 
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
@@ -239,13 +239,13 @@ func main() {
 							AuthCfg:     srcAuthConfig,
 							Addr:        srcAddr,
 							ExtraLabels: srcExtraLabels,
-							HttpClient:  srcHttpClient,
+							HTTPClient:  srcHTTPClient,
 						},
 						dst: &native.Client{
 							AuthCfg:     dstAuthConfig,
 							Addr:        dstAddr,
 							ExtraLabels: dstExtraLabels,
-							HttpClient:  dstHttpClient,
+							HTTPClient:  dstHTTPClient,
 						},
 						backoff:             backoff.New(),
 						cc:                  c.Int(vmConcurrency),

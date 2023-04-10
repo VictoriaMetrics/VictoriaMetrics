@@ -21,7 +21,7 @@ type Client struct {
 	AuthCfg     *auth.Config
 	Addr        string
 	ExtraLabels []string
-	HttpClient  *http.Client
+	HTTPClient  *http.Client
 }
 
 // LabelValues represents series from api/v1/series response
@@ -155,7 +155,7 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 		c.AuthCfg.SetHeaders(req, true)
 	}
 
-	resp, err := c.HttpClient.Do(req)
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}
