@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -205,16 +206,16 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			}
 
 			tt.fields.src = &native.Client{
-				AuthCfg:              nil,
-				Addr:                 src.URL(),
-				ExtraLabels:          []string{},
-				DisableHTTPKeepAlive: false,
+				AuthCfg:     nil,
+				Addr:        src.URL(),
+				ExtraLabels: []string{},
+				HttpClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 			tt.fields.dst = &native.Client{
-				AuthCfg:              nil,
-				Addr:                 dst.URL(),
-				ExtraLabels:          []string{},
-				DisableHTTPKeepAlive: false,
+				AuthCfg:     nil,
+				Addr:        dst.URL(),
+				ExtraLabels: []string{},
+				HttpClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 
 			p := &vmNativeProcessor{

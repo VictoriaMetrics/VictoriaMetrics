@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -201,6 +202,8 @@ func main() {
 						return fmt.Errorf("flag %q can't be empty", vmNativeFilterMatch)
 					}
 
+					disableKeepAlive := c.Bool(vmNativeDisableHTTPKeepAlive)
+
 					var srcExtraLabels []string
 					srcAddr := strings.Trim(c.String(vmNativeSrcAddr), "/")
 					srcAuthConfig, err := auth.Generate(
@@ -210,6 +213,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for source: %s", srcAddr)
 					}
+					srcHttpClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
 
 					dstAddr := strings.Trim(c.String(vmNativeDstAddr), "/")
 					dstExtraLabels := c.StringSlice(vmExtraLabel)
@@ -220,6 +224,7 @@ func main() {
 					if err != nil {
 						return fmt.Errorf("error initilize auth config for destination: %s", dstAddr)
 					}
+					dstHttpClient := &http.Client{Transport: &http.Transport{DisableKeepAlives: disableKeepAlive}}
 
 					p := vmNativeProcessor{
 						rateLimit:    c.Int64(vmRateLimit),
@@ -231,16 +236,16 @@ func main() {
 							Chunk:     c.String(vmNativeStepInterval),
 						},
 						src: &native.Client{
-							AuthCfg:              srcAuthConfig,
-							Addr:                 srcAddr,
-							ExtraLabels:          srcExtraLabels,
-							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
+							AuthCfg:     srcAuthConfig,
+							Addr:        srcAddr,
+							ExtraLabels: srcExtraLabels,
+							HttpClient:  srcHttpClient,
 						},
 						dst: &native.Client{
-							AuthCfg:              dstAuthConfig,
-							Addr:                 dstAddr,
-							ExtraLabels:          dstExtraLabels,
-							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
+							AuthCfg:     dstAuthConfig,
+							Addr:        dstAddr,
+							ExtraLabels: dstExtraLabels,
+							HttpClient:  dstHttpClient,
 						},
 						backoff:             backoff.New(),
 						cc:                  c.Int(vmConcurrency),
