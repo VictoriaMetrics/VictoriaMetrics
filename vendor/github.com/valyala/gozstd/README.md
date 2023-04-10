@@ -76,6 +76,18 @@ env CC=arm-linux-gnueabi-gcc GOOS=linux GOARCH=arm CGO_ENABLED=1 go build ./main
 
 * [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
 
+### How to build for Windows x64
+
+* download & install TDM64-GCC: https://github.com/jmeubank/tdm-gcc/releases/download/v10.3.0-tdm64-2/tdm64-gcc-10.3.0-2.exe
+* download & install GnuWin32-make: https://gnuwin32.sourceforge.net/downlinks/make.php
+* download & install CMake: https://github.com/Kitware/CMake/releases/download/v3.26.3/cmake-3.26.3-windows-x86_64.msi
+* `cd gozstd\zstd\cmake`
+* `mkdir out`
+* `cd out`
+* `cmake .. -DZSTD_BUILD_SHARED=OFF -DZSTD_BUILD_PROGRAMS=OFF -G "MinGW Makefiles"`
+* `make`
+* `copy lib/libzstd.a ../../../../libzstd_windows_amd64.a`
+
 
 ## FAQ
 
