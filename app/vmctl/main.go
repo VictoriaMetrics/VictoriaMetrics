@@ -242,8 +242,9 @@ func main() {
 							ExtraLabels:          dstExtraLabels,
 							DisableHTTPKeepAlive: c.Bool(vmNativeDisableHTTPKeepAlive),
 						},
-						backoff: backoff.New(),
-						cc:      c.Int(vmConcurrency),
+						backoff:             backoff.New(),
+						cc:                  c.Int(vmConcurrency),
+						enableBackoffPolicy: c.Bool(vmNativeEnableBackoffPolicy),
 					}
 					return p.run(ctx, isNonInteractive(c))
 				},

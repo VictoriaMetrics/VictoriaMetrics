@@ -25,16 +25,18 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s            *stats
-	rateLimit    int64
-	interCluster bool
-	cc           int
+	s                   *stats
+	rateLimit           int64
+	interCluster        bool
+	cc                  int
+	enableBackoffPolicy bool
 }
 
 const (
-	nativeExportAddr = "api/v1/export/native"
-	nativeImportAddr = "api/v1/import/native"
-	nativeBarTpl     = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
+	nativeExportAddr       = "api/v1/export/native"
+	nativeImportAddr       = "api/v1/import/native"
+	nativeWithBackoffTpl   = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
+	nativeSingleProcessTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
@@ -94,9 +96,9 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
+func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
 
-	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL, bar) }
 	attempts, err := p.backoff.Retry(ctx, retryableFunc)
 	p.s.Lock()
 	p.s.retries += attempts
@@ -108,11 +110,16 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
 
-	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
+	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
+	}
+
+	if !p.enableBackoffPolicy && bar != nil {
+		fmt.Printf("Continue import process with filter %s:\n", f.String())
+		reader = bar.NewProxyReader(reader)
 	}
 
 	pr, pw := io.Pipe()
@@ -131,7 +138,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
 
-	written, err := io.Copy(w, exportReader)
+	written, err := io.Copy(w, reader)
 	if err != nil {
 		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
 	}
@@ -176,17 +183,22 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	fmt.Println("") // extra line for better output formatting
 	log.Printf(initMessage, initParams...)
 
-	log.Printf("Exploring metrics...")
-	metrics, err := p.src.Explore(ctx, p.filter, tenantID)
-	if err != nil {
-		return fmt.Errorf("cannot get metrics from source %s: %w", p.src.Addr, err)
+	var foundSeriesMsg string
+
+	metrics := []string{p.filter.Match}
+	if p.enableBackoffPolicy {
+		log.Printf("Exploring metrics...")
+		metrics, err = p.src.Explore(ctx, p.filter, tenantID)
+		if err != nil {
+			return fmt.Errorf("cannot get metrics from source %s: %w", p.src.Addr, err)
+		}
+
+		if len(metrics) == 0 {
+			return fmt.Errorf("no metrics found")
+		}
+		foundSeriesMsg = fmt.Sprintf("Found %d metrics to import", len(metrics))
 	}
 
-	if len(metrics) == 0 {
-		return fmt.Errorf("no metrics found")
-	}
-
-	foundSeriesMsg := fmt.Sprintf("Found %d metrics to import", len(metrics))
 	if !p.interCluster {
 		// do not prompt for intercluster because there could be many tenants,
 		// and we don't want to interrupt the process when moving to the next tenant.
@@ -198,7 +210,8 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		log.Print(foundSeriesMsg)
 	}
 
-	processingMsg := fmt.Sprintf("Requests to make: %d", len(metrics)*len(ranges))
+	numOfTasks := len(metrics) * len(ranges)
+	processingMsg := fmt.Sprintf("Requests to make: %d", numOfTasks)
 	if len(ranges) > 1 {
 		processingMsg = fmt.Sprintf("Selected time range will be split into %d ranges according to %q step. %s", len(ranges), p.filter.Chunk, processingMsg)
 	}
@@ -206,9 +219,17 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeBarTpl, barPrefix)).New(len(metrics) * len(ranges))
+		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeWithBackoffTpl, barPrefix)).New(len(metrics) * len(ranges))
+		if !p.enableBackoffPolicy {
+			bar = pb.ProgressBarTemplate(nativeSingleProcessTpl).New(0)
+		}
 		bar.Start()
 		defer bar.Finish()
+	}
+
+	if p.cc > numOfTasks {
+		p.cc = numOfTasks
+		log.Printf("number of workers decresed to %d, because vmctl calculated requests to make %d", p.cc, numOfTasks)
 	}
 
 	filterCh := make(chan native.Filter)
@@ -220,12 +241,19 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
-				if err := p.do(ctx, f, srcURL, dstURL); err != nil {
-					errCh <- err
-					return
-				}
-				if bar != nil {
-					bar.Increment()
+				if p.enableBackoffPolicy {
+					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
+						errCh <- err
+						return
+					}
+					if bar != nil {
+						bar.Increment()
+					}
+				} else {
+					if err := p.runSingle(ctx, f, srcURL, dstURL, bar); err != nil {
+						errCh <- err
+						return
+					}
 				}
 			}
 		}()
@@ -313,6 +341,10 @@ func byteCountSI(b int64) string {
 }
 
 func buildMatchWithFilter(filter string, metricName string) (string, error) {
+	if filter == metricName {
+		return filter, nil
+	}
+
 	labels, err := promutils.NewLabelsFromString(filter)
 	if err != nil {
 		return "", err

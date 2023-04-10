@@ -191,7 +191,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				t.Fatalf("Error parse end time: %s", err)
 			}
 
-			tt.fields.filter.Match = fmt.Sprintf("%s=%q", tt.fields.matchName, tt.fields.matchValue)
+			tt.fields.filter.Match = fmt.Sprintf("{%s=~%q}", tt.fields.matchName, tt.fields.matchValue)
 			tt.fields.filter.TimeStart = tt.start
 			tt.fields.filter.TimeEnd = tt.end
 

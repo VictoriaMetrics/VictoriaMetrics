@@ -175,6 +175,9 @@ func (rws *RemoteWriteServer) valuesHandler() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return
 	})
 }
 
