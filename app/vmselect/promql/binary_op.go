@@ -315,6 +315,11 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 		// Do not reset MetricGroup for non-boolean `compare` binary ops like Prometheus does.
 		return
 	}
+
+	if be.KeepMetricNames {
+		return
+	}
+
 	ts.MetricName.ResetMetricGroup()
 }
 
@@ -496,7 +501,9 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 		mn := storage.GetMetricName()
 		for _, ts := range arg {
 			mn.CopyFrom(&ts.MetricName)
-			mn.ResetMetricGroup()
+			if !be.KeepMetricNames {
+				mn.ResetMetricGroup()
+			}
 			switch groupOp {
 			case "on":
 				mn.RemoveTagsOn(groupTags)
@@ -505,7 +512,11 @@ func createTimeseriesMapByTagSet(be *metricsql.BinaryOpExpr, left, right []*time
 			default:
 				logger.Panicf("BUG: unexpected binary op modifier %q", groupOp)
 			}
-			bb.B = marshalMetricTagsSorted(bb.B[:0], mn)
+			if be.KeepMetricNames {
+				bb.B = marshalMetricNameSorted(bb.B[:0], mn)
+			} else {
+				bb.B = marshalMetricTagsSorted(bb.B[:0], mn)
+			}
 			k := bytesutil.InternBytes(bb.B)
 			m[k] = append(m[k], ts)
 		}

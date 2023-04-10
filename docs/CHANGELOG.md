@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): add support of `keep_metric_names` for binary operators. This modifier prevents from deleting metric names from function results. For example, `{__name__=~"foo|bar"} / 10 keep_metric_names` leaves `foo` and `bar` metric names in division results. See [this doc](https://docs.victoriametrics.com/MetricsQL.html#keep_metric_names). This helps to address issues like [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3710) and avoid use confusion when using binary operators.
+
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
 Released at 2023-04-06

@@ -96,16 +96,19 @@ The list of MetricsQL features:
   Go to [WITH templates playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/expand-with-exprs) and try it.
 * String literals may be concatenated. This is useful with `WITH` templates:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
-* `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions) and [transform functions](#transform-functions).
+* `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions), [transform functions](#transform-functions) and [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators).
   This modifier prevents from dropping metric names in function results. See [these docs](#keep_metric_names).
 
 ## keep_metric_names
 
-By default metric names are dropped after applying functions, which change the meaning of the original time series.
+By default, metric names are dropped after applying functions or [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators) 
+between [vector and scalar](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) values, which change the meaning of the original time series.
 This may result in `duplicate time series` error when the function is applied to multiple time series with different names.
-This error can be fixed by applying `keep_metric_names` modifier to the function.
+This error can be fixed by applying `keep_metric_names` modifier to the function or binary operator.
 
-For example, `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+For example:
+- `rate({__name__=~"foo|bar"}) keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
+- `{__name__=~"foo|bar"} / 10 keep_metric_names` leaves `foo` and `bar` metric names in the returned time series.
 
 ## MetricsQL functions
 
