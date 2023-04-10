@@ -1,3 +1,7 @@
+# v1.14.1 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.14.0 (2023-03-21)
 
 * **Feature**: port v1 sdk 100-continue http header customization for s3 PutObject/UploadPart request and enable user config
