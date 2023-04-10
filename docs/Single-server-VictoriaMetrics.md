@@ -307,13 +307,17 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables.
-It also provides the following features:
+The UI allows exploring query results via graphs and tables. It also provides the following features:
 
 - [metrics explorer](#metrics-explorer)
 - [cardinality explorer](#cardinality-explorer)
 - [query tracer](#query-tracing)
 - [top queries explorer](#top-queries)
+
+VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
+(both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
+and [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) are supported).
+Try, for example, [this query](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vm_promscrape_scrape_duration_seconds_bucket%29%29+by+%28vmrange%29&g0.range_input=24h&g0.end_input=2023-04-10T17%3A46%3A12&g0.relative_time=last_24_hours&g0.step_input=31m).
 
 Graphs in `vmui` support scrolling and zooming:
 
@@ -325,9 +329,12 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling) or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results), it may be useful disabling response cache by clicking `Disable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling)
+or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results),
+it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
+The step value can be customized by changing `Step value` input.
 
 VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
 enter an additional query in the newly appeared input field and press `Enter`.
