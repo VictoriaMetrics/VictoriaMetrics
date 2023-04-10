@@ -37,10 +37,14 @@ then please follow the following steps in order to quickly find the solution:
    These cases are documented in [the changelog](https://docs.victoriametrics.com/CHANGELOG.html).
    So please read the changelog before the upgrade.
 
-1. Check for logs in VictoriaMetrics components. They may contain useful information about the issue.
-   If the log message doesn't have enough useful information for troubleshooting the issue,
+1. Inpsect command-line flags passed to VictoriaMetrics components and remove flags which unclear outcomes for your workload.
+   VictoriaMetrics components are designed to work optimally with the default command-line flag values (e.g. when these flags aren't set explicitly).
+   It is recommended removing flags with unclear outcomes, since they may result in unexpected issues.
+
+1. Check for logs in VictoriaMetrics components. They may contain useful information about cause of the issue
+   and how to fix the issue. If the log message doesn't have enough useful information for troubleshooting,
    then search the log message in Google. There are high chances that the issue is already reported
-   somewhere (docs, StackOverflow, Github issues, etc.) and indexed by Google and the solution is already documented there.
+   somewhere (docs, StackOverflow, Github issues, etc.) and the solution is already documented there.
 
 1. If VictoriaMetrics logs have no relevant information, then try searching for the issue in Google
    via multiple keywords and phrases specific to the issue. There are high chances that the issue
@@ -49,9 +53,8 @@ then please follow the following steps in order to quickly find the solution:
 1. Try searching for the issue at [VictoriaMetrics Github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
    The signal/noise quality of search results here is much lower than in Google, but sometimes it may help
    finding the relevant information about the issue when Google fails to find the needed information.
-   If you located the relevant Github issue, but it misses some information on how to diagnose or troubleshoot
-   the issue, then please provide this information in comments to the issue. This increases chances
-   that the issue will be resolved soon.
+   If you located the relevant Github issue, but it misses some information on how to diagnose or troubleshoot it,
+   then please provide this information in comments to the issue. This increases chances that it will be resolved soon.
 
 1. Try searching for information about the issue in [VictoriaMetrics source code](https://github.com/search?q=repo%3AVictoriaMetrics%2FVictoriaMetrics&type=code).
    Github code search may be not very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
