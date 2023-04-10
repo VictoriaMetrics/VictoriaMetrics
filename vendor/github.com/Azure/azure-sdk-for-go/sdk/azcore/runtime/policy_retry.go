@@ -19,6 +19,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/internal/shared"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/internal/errorinfo"
+	"github.com/Azure/azure-sdk-for-go/sdk/internal/exported"
 )
 
 const (
@@ -133,7 +134,7 @@ func (p *retryPolicy) Do(req *policy.Request) (resp *http.Response, err error) {
 			// if the body was already downloaded or there was an error it's safe to cancel the context now
 			if err != nil {
 				tryCancel()
-			} else if _, ok := resp.Body.(*shared.NopClosingBytesReader); ok {
+			} else if exported.PayloadDownloaded(resp) {
 				tryCancel()
 			} else {
 				// must cancel the context after the body has been read and closed
@@ -146,11 +147,7 @@ func (p *retryPolicy) Do(req *policy.Request) (resp *http.Response, err error) {
 			log.Writef(log.EventRetryPolicy, "error %v", err)
 		}
 
-		if err == nil && !HasStatusCode(resp, options.StatusCodes...) {
-			// if there is no error and the response code isn't in the list of retry codes then we're done.
-			log.Write(log.EventRetryPolicy, "exit due to non-retriable status code")
-			return
-		} else if ctxErr := req.Raw().Context().Err(); ctxErr != nil {
+		if ctxErr := req.Raw().Context().Err(); ctxErr != nil {
 			// don't retry if the parent context has been cancelled or its deadline exceeded
 			err = ctxErr
 			log.Writef(log.EventRetryPolicy, "abort due to %v", err)
@@ -162,6 +159,19 @@ func (p *retryPolicy) Do(req *policy.Request) (resp *http.Response, err error) {
 		if errors.As(err, &nre) {
 			// the error says it's not retriable so don't retry
 			log.Writef(log.EventRetryPolicy, "non-retriable error %T", nre)
+			return
+		}
+
+		if options.ShouldRetry != nil {
+			// a non-nil ShouldRetry overrides our HTTP status code check
+			if !options.ShouldRetry(resp, err) {
+				// predicate says we shouldn't retry
+				log.Write(log.EventRetryPolicy, "exit due to ShouldRetry")
+				return
+			}
+		} else if err == nil && !HasStatusCode(resp, options.StatusCodes...) {
+			// if there is no error and the response code isn't in the list of retry codes then we're done.
+			log.Write(log.EventRetryPolicy, "exit due to non-retriable status code")
 			return
 		}
 
