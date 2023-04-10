@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmauth/ipfilters"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/buildinfo"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envflag"
@@ -73,15 +72,6 @@ func main() {
 }
 
 func requestHandler(w http.ResponseWriter, r *http.Request) bool {
-	if err := ipfilters.CheckRequest(r); err != nil {
-		err = &httpserver.ErrorWithStatusCode{
-			Err:        err,
-			StatusCode: http.StatusForbidden,
-		}
-		httpserver.Errorf(w, r, "%s", err)
-		return true
-	}
-
 	switch r.URL.Path {
 	case "/-/reload":
 		if !httpserver.CheckAuthFlag(w, r, *reloadAuthKey, "reloadAuthKey") {

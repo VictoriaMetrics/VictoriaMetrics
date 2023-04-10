@@ -201,7 +201,7 @@ users:
 ## IP Filters
 
 [Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmalert` supports IP filters for incoming requests. 
-The filters can be configured via `ip_filters` section in the [-auth.config](#auth-config):
+You can configure filters globally via `ip_filters` section in the [-auth.config](#auth-config):
 
 ```yml
 ip_filters:
@@ -210,6 +210,21 @@ ip_filters:
     - 127.0.0.1
   deny_list:
     - 192.168.0.13
+```
+
+Or you can configure ip filters per user via `ip_filters` field for entries of `users` section in the [auth.config](#auth-config):
+
+```yml
+users:
+  - username: "username"
+    password: "password"
+    # ...
+    ip_filters:
+      allow_list:
+        - 192.168.0.1/24
+        - 127.0.0.1
+      deny_list:
+        - 192.168.0.13
 ```
 
 The `allow_list` section contains IP addresses and [CIDR blocks](https://en.wikipedia.org/wiki/Classless_Inter-Domain_Routing), which are allowed to access `vmauth`.
