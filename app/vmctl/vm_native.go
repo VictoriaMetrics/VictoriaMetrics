@@ -25,11 +25,11 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s                   *stats
-	rateLimit           int64
-	interCluster        bool
-	cc                  int
-	enableBackoffPolicy bool
+	s                    *stats
+	rateLimit            int64
+	interCluster         bool
+	cc                   int
+	disableBackoffPolicy bool
 }
 
 const (
@@ -117,7 +117,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
-	if !p.enableBackoffPolicy && bar != nil {
+	if p.disableBackoffPolicy && bar != nil {
 		fmt.Printf("Continue import process with filter %s:\n", f.String())
 		reader = bar.NewProxyReader(reader)
 	}
@@ -186,7 +186,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var foundSeriesMsg string
 
 	metrics := []string{p.filter.Match}
-	if p.enableBackoffPolicy {
+	if !p.disableBackoffPolicy {
 		log.Printf("Exploring metrics...")
 		metrics, err = p.src.Explore(ctx, p.filter, tenantID)
 		if err != nil {
@@ -220,7 +220,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeWithBackoffTpl, barPrefix)).New(len(metrics) * len(ranges))
-		if !p.enableBackoffPolicy {
+		if p.disableBackoffPolicy {
 			bar = pb.ProgressBarTemplate(nativeSingleProcessTpl).New(0)
 		}
 		bar.Start()
@@ -229,7 +229,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	if p.cc > numOfTasks {
 		p.cc = numOfTasks
-		log.Printf("number of workers decresed to %d, because vmctl calculated requests to make %d", p.cc, numOfTasks)
+		log.Printf("number of workers decreased to %d, because vmctl calculated requests to make %d", p.cc, numOfTasks)
 	}
 
 	filterCh := make(chan native.Filter)
@@ -241,7 +241,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
-				if p.enableBackoffPolicy {
+				if !p.disableBackoffPolicy {
 					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
 						errCh <- err
 						return

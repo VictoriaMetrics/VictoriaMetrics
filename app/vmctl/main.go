@@ -247,9 +247,9 @@ func main() {
 							ExtraLabels: dstExtraLabels,
 							HTTPClient:  dstHTTPClient,
 						},
-						backoff:             backoff.New(),
-						cc:                  c.Int(vmConcurrency),
-						enableBackoffPolicy: c.Bool(vmNativeEnableBackoffPolicy),
+						backoff:              backoff.New(),
+						cc:                   c.Int(vmConcurrency),
+						disableBackoffPolicy: c.Bool(vmNativeDisableBackoffPolicy),
 					}
 					return p.run(ctx, isNonInteractive(c))
 				},
