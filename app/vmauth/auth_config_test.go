@@ -207,11 +207,11 @@ func TestParseAuthConfigSuccess(t *testing.T) {
 	f := func(s string, expectedAuthConfig map[string]*UserInfo) {
 		t.Helper()
 		ac, err := parseAuthConfig([]byte(s))
-		if err == nil {
+		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		m, err := parseAuthConfigUsers(ac)
-		if err == nil {
+		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		removeMetrics(m)
