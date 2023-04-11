@@ -13,7 +13,11 @@ import (
 func TestParseAuthConfigFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		_, _, err := parseAuthConfig([]byte(s))
+		ac, err := parseAuthConfig([]byte(s))
+		if err != nil {
+			return
+		}
+		_, err = parseAuthConfigUsers(ac)
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -202,9 +206,13 @@ users:
 func TestParseAuthConfigSuccess(t *testing.T) {
 	f := func(s string, expectedAuthConfig map[string]*UserInfo) {
 		t.Helper()
-		_, m, err := parseAuthConfig([]byte(s))
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		ac, err := parseAuthConfig([]byte(s))
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+		m, err := parseAuthConfigUsers(ac)
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
 		}
 		removeMetrics(m)
 		if err := areEqualConfigs(m, expectedAuthConfig); err != nil {
