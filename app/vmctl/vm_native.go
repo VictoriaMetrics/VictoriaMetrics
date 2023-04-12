@@ -210,8 +210,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		log.Print(foundSeriesMsg)
 	}
 
-	numOfTasks := len(metrics) * len(ranges)
-	processingMsg := fmt.Sprintf("Requests to make: %d", numOfTasks)
+	processingMsg := fmt.Sprintf("Requests to make: %d", len(metrics)*len(ranges))
 	if len(ranges) > 1 {
 		processingMsg = fmt.Sprintf("Selected time range will be split into %d ranges according to %q step. %s", len(ranges), p.filter.Chunk, processingMsg)
 	}
@@ -225,11 +224,6 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		}
 		bar.Start()
 		defer bar.Finish()
-	}
-
-	if p.cc > numOfTasks {
-		p.cc = numOfTasks
-		log.Printf("number of workers decreased to %d, because vmctl calculated requests to make %d", p.cc, numOfTasks)
 	}
 
 	filterCh := make(chan native.Filter)
