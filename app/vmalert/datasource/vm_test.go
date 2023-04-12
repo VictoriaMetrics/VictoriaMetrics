@@ -79,7 +79,7 @@ func TestVMInstantQuery(t *testing.T) {
 		case 7:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
 		case 8:
-			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched":2}}`))
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched":1}}`))
 		}
 	})
 
@@ -154,7 +154,7 @@ func TestVMInstantQuery(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
-	expectedSeriesFetched := 2
+	expectedSeriesFetched := 1
 	if seriesFetched != int64(expectedSeriesFetched) {
 		t.Fatalf("unexpected series fetched %d want %d", seriesFetched, expectedSeriesFetched)
 	}

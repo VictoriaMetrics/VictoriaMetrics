@@ -13,23 +13,29 @@ var disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whethe
 	"to the configured -datasource.url and -remoteRead.url")
 
 type promResponse struct {
-	Status    string `json:"status"`
-	ErrorType string `json:"errorType"`
-	Error     string `json:"error"`
-	Data      struct {
-		ResultType string          `json:"resultType"`
-		Result     json.RawMessage `json:"result"`
-	} `json:"data"`
-	Stats struct {
-		SeriesFetched int64 `json:"seriesFetched,omitempty"`
-	} `json:"stats,omitempty"`
+	Status    string            `json:"status"`
+	ErrorType string            `json:"errorType"`
+	Error     string            `json:"error"`
+	Data      promResponseData  `json:"data"`
+	Stats     promResponseStats `json:"stats,omitempty"`
+}
+
+type promResponseData struct {
+	ResultType string          `json:"resultType"`
+	Result     json.RawMessage `json:"result"`
+}
+
+type promResponseStats struct {
+	SeriesFetched int64 `json:"seriesFetched,omitempty"`
 }
 
 type promInstant struct {
-	Result []struct {
-		Labels map[string]string `json:"metric"`
-		TV     [2]interface{}    `json:"value"`
-	} `json:"result"`
+	Result []promInstantResult `json:"result"`
+}
+
+type promInstantResult struct {
+	Labels map[string]string `json:"metric"`
+	TV     [2]interface{}    `json:"value"`
 }
 
 func (r promInstant) metrics() ([]Metric, error) {
