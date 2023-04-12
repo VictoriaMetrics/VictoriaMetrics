@@ -25,11 +25,11 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s                    *stats
-	rateLimit            int64
-	interCluster         bool
-	cc                   int
-	disableBackoffPolicy bool
+	s              *stats
+	rateLimit      int64
+	interCluster   bool
+	cc             int
+	disableRetries bool
 }
 
 const (
@@ -117,7 +117,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		return fmt.Errorf("failed to init export pipe: %w", err)
 	}
 
-	if p.disableBackoffPolicy && bar != nil {
+	if p.disableRetries && bar != nil {
 		fmt.Printf("Continue import process with filter %s:\n", f.String())
 		reader = bar.NewProxyReader(reader)
 	}
@@ -186,7 +186,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var foundSeriesMsg string
 
 	metrics := []string{p.filter.Match}
-	if !p.disableBackoffPolicy {
+	if !p.disableRetries {
 		log.Printf("Exploring metrics...")
 		metrics, err = p.src.Explore(ctx, p.filter, tenantID)
 		if err != nil {
@@ -219,7 +219,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	var bar *pb.ProgressBar
 	if !silent {
 		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeWithBackoffTpl, barPrefix)).New(len(metrics) * len(ranges))
-		if p.disableBackoffPolicy {
+		if p.disableRetries {
 			bar = pb.ProgressBarTemplate(nativeSingleProcessTpl).New(0)
 		}
 		bar.Start()
@@ -235,7 +235,7 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
-				if !p.disableBackoffPolicy {
+				if !p.disableRetries {
 					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
 						errCh <- err
 						return

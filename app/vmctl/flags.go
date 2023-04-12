@@ -326,7 +326,7 @@ const (
 	vmNativeStepInterval    = "vm-native-step-interval"
 
 	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
-	vmNativeDisableBackoffPolicy = "vm-native-disable-backoff-policy"
+	vmNativeDisableRetries       = "vm-native-disable-retries"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -445,8 +445,8 @@ var (
 			Value: 2,
 		},
 		&cli.BoolFlag{
-			Name:  vmNativeDisableBackoffPolicy,
-			Usage: "Defines whether to disable backoff policy for migration process",
+			Name:  vmNativeDisableRetries,
+			Usage: "Defines whether to disable retries with backoff policy for migration process",
 			Value: false,
 		},
 	}

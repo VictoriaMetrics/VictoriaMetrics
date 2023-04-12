@@ -770,9 +770,9 @@ Requests to make: 9 / 9 [██████████████████�
 2023/03/02 09:22:06 Total time: 3.633127625s
 ```
 
-In case when backoff policy is unneeded `--vm-native-disable-backoff-policy` command line flag can be used.
+In case when retries with backoff policy is unneeded `--vm-native-disable-retries` command line flag can be used.
 When this flag is set to `true`, `vmctl` skips additional call to the `api/v1/label/__name__/values` API and starts
-migration process by making calls to the `/api/v1/export` and `api/v1/import`. If some errors happen `vmctl` emmidiatly
+migration process by making calls to the `/api/v1/export` and `api/v1/import`. If some errors happen `vmctl` immediately
 stops the migration process.
 
 ```
