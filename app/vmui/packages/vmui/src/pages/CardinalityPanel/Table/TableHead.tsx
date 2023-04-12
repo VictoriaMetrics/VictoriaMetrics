@@ -12,7 +12,7 @@ export function EnhancedTableHead(props: EnhancedHeaderTableProps) {
   };
 
   return (
-    <thead className="vm-table-header">
+    <thead className="vm-table-header vm-cardinality-panel-table__header">
       <tr className="vm-table__row vm-table__row_header">
         {headerCells.map((headCell) => (
           <th

@@ -55,6 +55,7 @@ const Index: FC = () => {
       {isLoading && <Spinner message={spinnerMessage}/>}
       <CardinalityConfigurator
         totalSeries={tsdbStatusData.totalSeries}
+        totalSeriesPrev={tsdbStatusData.totalSeriesPrev}
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
@@ -80,6 +81,7 @@ const Index: FC = () => {
           onActionClick={handleFilterClick(keyName)}
           tabs={defaultState.tabs[keyName as keyof Tabs]}
           chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
+          totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
         />
