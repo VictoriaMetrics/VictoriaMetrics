@@ -10,7 +10,7 @@ import Button from "../../Main/Button/Button";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import { getDurationFromMilliseconds, getSecondsFromDuration } from "../../../utils/time";
+import { getDurationFromMilliseconds, getSecondsFromDuration, getStepFromDuration } from "../../../utils/time";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -32,14 +32,14 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const { isMobile } = useDeviceDetect();
   const { customStep, yaxis } = useGraphState();
   const { period } = useTimeState();
-
   const graphDispatch = useGraphDispatch();
   const timeDispatch = useTimeDispatch();
 
+  const defaultStep = getStepFromDuration(period.end - period.start);
   const stepSeconds = getSecondsFromDuration(customStep);
   const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000).replace(" ", "");
   const [isHeatmap, setIsHeatmap] = useState(false);
-  const step = isHeatmap ? heatmapStep : customStep;
+  const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
 
   const [showAllSeries, setShowAllSeries] = useState(false);
 
