@@ -353,6 +353,13 @@ func Test_buildMatchWithFilter(t *testing.T) {
 			want:       `{__name__="http_request_count_total"}`,
 			wantErr:    false,
 		},
+		{
+			name:       "with many underscores labels",
+			filter:     `{__name__!="", __meta__!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__meta__!="",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

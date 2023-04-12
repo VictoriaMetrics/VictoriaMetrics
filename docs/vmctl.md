@@ -770,10 +770,28 @@ Requests to make: 9 / 9 [██████████████████�
 2023/03/02 09:22:06 Total time: 3.633127625s
 ```
 
+
+`vmctl` uses retries with backoff policy by default.
+
+The benefits of this retry backoff policy include:
+1. Improved success rates:
+   With each retry attempt, the migration process has a higher chance of success.
+   By increasing the delay between retries, the system can avoid overwhelming the service with too many requests at once.
+
+2. Reduced load on the system:
+   By increasing the delay between retries, the system can reduce the load on the service by limiting the number of
+   requests made in a short amount of time.
+3. Can help to migrate a big amount of data
+
+However, there are also some potential penalties associated with using a backoff retry policy, including:
+1. Increased migration process latency:
+`vmctl` need to make additional call to the `api/v1/label/__name__/values` with defined `--vm-native-filter-match` flag, 
+and after process all metric names with additional filters.
+
 In case when retries with backoff policy is unneeded `--vm-native-disable-retries` command line flag can be used.
 When this flag is set to `true`, `vmctl` skips additional call to the `api/v1/label/__name__/values` API and starts
 migration process by making calls to the `/api/v1/export` and `api/v1/import`. If some errors happen `vmctl` immediately
-stops the migration process.
+stops the migration process. 
 
 ```
 ./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \

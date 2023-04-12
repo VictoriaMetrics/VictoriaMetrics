@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -344,7 +345,17 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 		return "", err
 	}
 
-	labels.RemoveLabelsWithDoubleUnderscorePrefix()
+	var idx int
+	for _, label := range labels.Labels {
+		if strings.HasPrefix(label.Name, "__name__") {
+			continue
+		}
+		labels.Labels[idx] = label
+		idx++
+	}
+
+	labels.Labels = labels.Labels[:idx]
+
 	labels.Set("__name__", metricName)
 	labels.SortStable()
 
