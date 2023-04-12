@@ -775,7 +775,7 @@ stops the migration process.
   --vm-native-dst-addr=http://127.0.0.1:8428 \
   --vm-native-filter-match='{__name__!=""}' \
   --vm-native-filter-time-start='2023-04-08T11:30:30Z' \
-  --vm-native-disable-backoff-policy=true  
+  --vm-native-disable-retries=true  
 
 VictoriaMetrics Native import mode
 
