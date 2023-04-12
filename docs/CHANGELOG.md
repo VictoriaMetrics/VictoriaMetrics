@@ -15,6 +15,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): display histogram metrics as a heatmap in the `explore metrics` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4111).
+
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
 Released at 2023-04-06
