@@ -51,7 +51,7 @@ confinement: strict # use 'strict' once you have the right plugs and slots
 parts:
   build:
     plugin: go
-    go-channel: 1.17/stable
+    go-channel: 1.20/stable
     go-importpath: github.com/VictoriaMetrics/VictoriaMetrics
     source: .
     source-type: local
