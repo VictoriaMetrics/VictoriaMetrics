@@ -14,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -340,24 +340,22 @@ func buildMatchWithFilter(filter string, metricName string) (string, error) {
 		return filter, nil
 	}
 
-	labels, err := promutils.NewLabelsFromString(filter)
+	labels, err := searchutils.ParseMetricSelector(filter)
 	if err != nil {
 		return "", err
 	}
 
-	var idx int
-	for _, label := range labels.Labels {
-		if strings.HasPrefix(label.Name, "__name__") {
+	str := make([]string, 0, len(labels))
+	for _, label := range labels {
+		if len(label.Key) == 0 {
 			continue
 		}
-		labels.Labels[idx] = label
-		idx++
+		str = append(str, label.String())
 	}
 
-	labels.Labels = labels.Labels[:idx]
+	nameFilter := fmt.Sprintf("__name__=%q", metricName)
+	str = append(str, nameFilter)
 
-	labels.Set("__name__", metricName)
-	labels.SortStable()
-
-	return labels.String(), nil
+	match := fmt.Sprintf("{%s}", strings.Join(str, ","))
+	return match, nil
 }
