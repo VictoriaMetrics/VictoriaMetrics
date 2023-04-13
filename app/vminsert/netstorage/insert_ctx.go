@@ -204,13 +204,19 @@ func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
 	projectID := uint32(0)
 	tmpLabels := ctx.Labels[:0]
 	for _, label := range ctx.Labels {
-		if string(label.Name) == "vm_account_id" {
+		switch string(label.Name) {
+		case "vm_account_id":
 			accountID = parseUint32(label.Value)
 			continue
-		}
-		if string(label.Name) == "vm_project_id" {
+		case "vm_project_id":
 			projectID = parseUint32(label.Value)
 			continue
+		// do not remove labels from labelSet for backward-compatibility
+		// previous realisation kept it
+		case "VictoriaMetrics_AccountID":
+			accountID = parseUint32(label.Value)
+		case "VictoriaMetrics_ProjectID":
+			projectID = parseUint32(label.Value)
 		}
 		tmpLabels = append(tmpLabels, label)
 	}
