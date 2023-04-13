@@ -204,11 +204,11 @@ func (ctx *InsertCtx) GetLocalAuthToken(at *auth.Token) *auth.Token {
 	projectID := uint32(0)
 	tmpLabels := ctx.Labels[:0]
 	for _, label := range ctx.Labels {
-		if string(label.Name) == "vm_account_id" {
+		if string(label.Name) == "vm_account_id" || string(label.Name) == "VictoriaMetrics_AccountID" {
 			accountID = parseUint32(label.Value)
 			continue
 		}
-		if string(label.Name) == "vm_project_id" {
+		if string(label.Name) == "vm_project_id" || string(label.Name) == "VictoriaMetrics_ProjectID" {
 			projectID = parseUint32(label.Value)
 			continue
 		}
