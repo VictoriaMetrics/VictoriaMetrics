@@ -205,6 +205,23 @@ func TestGetExtraTagFilters(t *testing.T) {
 		},
 		false,
 	)
+	f(t, httpReqWithForm(`extra_label=job=vmagent&extra_label=dc=gce&extra_filters[]={foo="bar"}&extra_filters[]={x=~"y|z",a="b" | c!="d"}`),
+		[]string{
+			`{foo="bar",job="vmagent",dc="gce"}`,
+			`{x=~"y|z",a="b",job="vmagent",dc="gce"}`,
+			`{c!="d",job="vmagent",dc="gce"}`,
+		},
+		false,
+	)
+	f(t, httpReqWithForm(`extra_label=job=vmagent&extra_label=dc=gce&extra_filters[]={foo="bar"|bar="qux"}&extra_filters[]={x=~"y|z",a="b" | c!="d"}`),
+		[]string{
+			`{foo="bar",job="vmagent",dc="gce"}`,
+			`{bar="qux",job="vmagent",dc="gce"}`,
+			`{x=~"y|z",a="b",job="vmagent",dc="gce"}`,
+			`{c!="d",job="vmagent",dc="gce"}`,
+		},
+		false,
+	)
 	f(t, httpReqWithForm("extra_label=bad_filter"),
 		nil,
 		true,
@@ -244,6 +261,12 @@ func TestParseMetricSelectorSuccess(t *testing.T) {
 	f(` foo { bar !~ "^ddd(x+)$", a="ss", __name__="sffd"}  `)
 	f(`(foo)`)
 	f(`\п\р\и\в\е\т{\ы="111"}`)
+	f(`{foo="bar" | bar="buz"}`)
+	f(`{foo="bar" | bar="buz", buz="qux"}`)
+	f(`{foo="bar" | bar="buz", buz="qux" | qux="foo"}`)
+	f(`test{foo="bar" | bar="buz"}`)
+	f(`test{foo="bar" | bar="buz", buz="qux"}`)
+	f(`test{foo="bar" | bar="buz", buz="qux" | qux="foo"}`)
 }
 
 func TestParseMetricSelectorError(t *testing.T) {
@@ -278,77 +301,60 @@ func TestJoinTagFilterss(t *testing.T) {
 		}
 	}
 	// Single tag filter
-	f(t, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, nil, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
-	})
+	f(t, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
+		nil, []string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
+		})
 	// Miltiple tag filters
-	f(t, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, nil, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
-		`{k5=~"v5"}`,
-	})
+	f(t, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4" | k5=~"v5"}`),
+		nil, []string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
+			`{k5=~"v5"}`,
+		})
 	// Single extra filter
-	f(t, nil, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
-	})
+	f(t, nil, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
+		[]string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
+		})
 	// Multiple extra filters
-	f(t, nil, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
-		`{k5=~"v5"}`,
-	})
+	f(t, nil,
+		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4" | k5=~"v5"}`),
+		[]string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`,
+			`{k5=~"v5"}`,
+		})
 	// Single tag filter and a single extra filter
-	f(t, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, [][]storage.TagFilter{
+	f(t, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
 		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
-	})
+		[]string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
+		})
 	// Multiple tag filters and a single extra filter
-	f(t, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, [][]storage.TagFilter{
+	f(t, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4" | k5=~"v5"}`),
 		mustParseMetricSelector(`{k6=~"v6"}`),
-	}, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
-		`{k5=~"v5",k6=~"v6"}`,
-	})
+		[]string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
+			`{k5=~"v5",k6=~"v6"}`,
+		})
 	// Single tag filter and multiple extra filters
-	f(t, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-	}, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k5=~"v5"}`),
-		mustParseMetricSelector(`{k6=~"v6"}`),
-	}, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
-	})
+	f(t, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
+		mustParseMetricSelector(`{k5=~"v5" | k6=~"v6"}`),
+		[]string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k5=~"v5"}`,
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
+		})
 	// Multiple tag filters and multiple extra filters
-	f(t, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4"}`),
-		mustParseMetricSelector(`{k5=~"v5"}`),
-	}, [][]storage.TagFilter{
-		mustParseMetricSelector(`{k6=~"v6"}`),
-		mustParseMetricSelector(`{k7=~"v7"}`),
-	}, []string{
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
-		`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k7=~"v7"}`,
-		`{k5=~"v5",k6=~"v6"}`,
-		`{k5=~"v5",k7=~"v7"}`,
-	})
+	f(t, mustParseMetricSelector(`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4" | k5=~"v5"}`),
+		mustParseMetricSelector(`{k6=~"v6" | k7=~"v7"}`),
+		[]string{
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k6=~"v6"}`,
+			`{k1="v1",k2=~"v2",k3!="v3",k4!~"v4",k7=~"v7"}`,
+			`{k5=~"v5",k6=~"v6"}`,
+			`{k5=~"v5",k7=~"v7"}`,
+		})
 }
 
-func mustParseMetricSelector(s string) []storage.TagFilter {
+func mustParseMetricSelector(s string) [][]storage.TagFilter {
 	tf, err := ParseMetricSelector(s)
 	if err != nil {
 		panic(fmt.Errorf("cannot parse %q: %w", s, err))

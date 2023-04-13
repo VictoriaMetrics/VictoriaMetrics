@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 )
 
 func TestRemoveEmptyValuesAndTimeseries(t *testing.T) {
@@ -228,4 +229,140 @@ func TestGetLatencyOffsetMillisecondsFailure(t *testing.T) {
 		}
 	}
 	f("http://localhost?latency_offset=foobar")
+}
+
+func TestGetTagFilterssFromMatches(t *testing.T) {
+	f := func(matches []string, expectedTagFilters [][]storage.TagFilter) {
+		t.Helper()
+		tagFilters, err := getTagFilterssFromMatches(matches)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if !reflect.DeepEqual(tagFilters, expectedTagFilters) {
+			t.Fatalf("unexpected tagFilters: %+v; want %+v", tagFilters, expectedTagFilters)
+		}
+	}
+	f([]string{`test`}, [][]storage.TagFilter{{
+		{
+			Value: []byte("test"),
+		},
+	}})
+	f([]string{`{foo="bar"}`}, [][]storage.TagFilter{{
+		{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		},
+	}})
+	f([]string{`test{foo="bar"}`}, [][]storage.TagFilter{{
+		{
+			Value: []byte("test"),
+		},
+		{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		},
+	}})
+	f([]string{`{foo="bar", bar="buz"}`}, [][]storage.TagFilter{{
+		{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		},
+		{
+			Key:   []byte("bar"),
+			Value: []byte("buz"),
+		},
+	}})
+	f([]string{`test{foo="bar", bar="buz"}`}, [][]storage.TagFilter{{
+		{
+			Value: []byte("test"),
+		},
+		{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		},
+		{
+			Key:   []byte("bar"),
+			Value: []byte("buz"),
+		},
+	}})
+	f([]string{`{foo="bar" | bar="buz"}`}, [][]storage.TagFilter{
+		{{
+			Key:   []byte("foo"),
+			Value: []byte("bar"),
+		}},
+		{{
+			Key:   []byte("bar"),
+			Value: []byte("buz"),
+		}},
+	})
+	f([]string{`test{foo="bar" | bar="buz"}`}, [][]storage.TagFilter{
+		{
+			{
+				Value: []byte("test"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+		},
+		{
+			{
+				Value: []byte("test"),
+			},
+			{
+				Key:   []byte("bar"),
+				Value: []byte("buz"),
+			},
+		},
+	})
+	f([]string{`{foo="bar" , bar="buz" | buz="qux", qux="foo"}`}, [][]storage.TagFilter{
+		{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("bar"),
+				Value: []byte("buz"),
+			},
+		},
+		{
+			{
+				Key:   []byte("buz"),
+				Value: []byte("qux"),
+			},
+			{
+				Key:   []byte("qux"),
+				Value: []byte("foo"),
+			},
+		},
+	})
+	f([]string{`test{foo="bar" , bar="buz" | buz="qux", qux="foo"}`}, [][]storage.TagFilter{
+		{
+			{
+				Value: []byte("test"),
+			},
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+			{
+				Key:   []byte("bar"),
+				Value: []byte("buz"),
+			},
+		},
+		{
+			{
+				Value: []byte("test"),
+			},
+			{
+				Key:   []byte("buz"),
+				Value: []byte("qux"),
+			},
+			{
+				Key:   []byte("qux"),
+				Value: []byte("foo"),
+			},
+		},
+	})
 }

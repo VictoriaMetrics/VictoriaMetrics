@@ -18,8 +18,12 @@ func TestIfExpressionParseFailure(t *testing.T) {
 		}
 	}
 	f(`{`)
+	f(`|`)
 	f(`{foo`)
 	f(`foo{`)
+	f(`|foo`)
+	f(`foo|`)
+	f(`foo{|`)
 }
 
 func TestIfExpressionParseSuccess(t *testing.T) {
@@ -33,6 +37,9 @@ func TestIfExpressionParseSuccess(t *testing.T) {
 	f(`foo`)
 	f(`{foo="bar"}`)
 	f(`foo{bar=~"baz", x!="y"}`)
+	f(`{foo="bar" | baz=~"qux"}`)
+	f(`test{foo="bar" | baz=~"qux"}`)
+	f(`test{foo="bar", a=~"b" | baz=~"qux", c=~"d"}`)
 }
 
 func TestIfExpressionMarshalUnmarshalJSON(t *testing.T) {
@@ -63,6 +70,7 @@ func TestIfExpressionMarshalUnmarshalJSON(t *testing.T) {
 	}
 	f("foo", `"foo"`)
 	f(`{foo="bar",baz=~"x.*"}`, `"{foo=\"bar\",baz=~\"x.*\"}"`)
+	f(`{foo="bar"|baz=~"x.*"}`, `"{foo=\"bar\"|baz=~\"x.*\"}"`)
 }
 
 func TestIfExpressionUnmarshalFailure(t *testing.T) {
@@ -113,6 +121,7 @@ func TestIfExpressionUnmarshalSuccess(t *testing.T) {
 	f(`foo{bar="baz"}`)
 	f(`'{a="b", c!="d", e=~"g", h!~"d"}'`)
 	f(`foo{bar="zs",a=~"b|c"}`)
+	f(`foo{bar="zs" | a=~"b|c"}`)
 }
 
 func TestIfExpressionMatch(t *testing.T) {
@@ -147,6 +156,18 @@ func TestIfExpressionMatch(t *testing.T) {
 	f(`'{foo=~"bar|"}'`, `abc`)
 	f(`'{foo=~"bar|"}'`, `abc{foo="bar"}`)
 	f(`'{foo!~"bar|"}'`, `abc{foo="baz"}`)
+	f(`'{foo="bar" | buz="qux"}'`, `abc{foo="bar"}`)
+	f(`'{foo="bar" | buz="qux"}'`, `abc{buz="qux"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux"}'`, `abc{foo="bar", bar="buz"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux"}'`, `abc{buz="qux"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux"}'`, `abc{buz="qux", aaa="bbb"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux"}'`, `abc{foo="bar", bar="buz", buz="qux"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux"}'`, `abc{foo="bar", bar="buz", buz="qux"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux", qux="foo"}'`, `abc{foo="bar", bar="buz"}`)
+	f(`'{foo="bar", bar="buz" | buz="qux", qux="foo"}'`, `abc{buz="qux", qux="foo"}`)
+	f(`'test{a="b", b="c", c="d" | d="e", e="f" | f="g"}'`, `test{a="b", b="c", c="d", y="z"}`)
+	f(`'test{a="b", b="c", c="d" | d="e", e="f" | f="g"}'`, `test{d="e", e="f", y="z"}`)
+	f(`'test{a="b", b="c", c="d" | d="e", e="f" | f="g"}'`, `test{f="g", y="z"}`)
 }
 
 func TestIfExpressionMismatch(t *testing.T) {
@@ -177,4 +198,7 @@ func TestIfExpressionMismatch(t *testing.T) {
 	f(`'{foo=~"bar|"}'`, `abc{foo="baz"}`)
 	f(`'{foo!~"bar|"}'`, `abc`)
 	f(`'{foo!~"bar|"}'`, `abc{foo="bar"}`)
+	f(`'{foo="bar" | bar="buz"}'`, `abc`)
+	f(`'{foo="bar" | bar="buz"}'`, `abc{foo="x", bar="y"}`)
+	f(`'abc{foo="bar" | bar="buz"}'`, `def{foo="bar", bar="buz"}`)
 }

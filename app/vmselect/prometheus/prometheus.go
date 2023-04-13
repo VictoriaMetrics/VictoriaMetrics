@@ -1003,11 +1003,11 @@ func getMaxLookback(r *http.Request) (int64, error) {
 func getTagFilterssFromMatches(matches []string) ([][]storage.TagFilter, error) {
 	tagFilterss := make([][]storage.TagFilter, 0, len(matches))
 	for _, match := range matches {
-		tagFilters, err := searchutils.ParseMetricSelector(match)
+		tfs, err := searchutils.ParseMetricSelector(match)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse matches[]=%s: %w", match, err)
 		}
-		tagFilterss = append(tagFilterss, tagFilters)
+		tagFilterss = append(tagFilterss, tfs...)
 	}
 	return tagFilterss, nil
 }

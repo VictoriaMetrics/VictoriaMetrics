@@ -98,6 +98,8 @@ The list of MetricsQL features:
   `WITH (commonPrefix="long_metric_prefix_") {__name__=commonPrefix+"suffix1"} / {__name__=commonPrefix+"suffix2"}`.
 * `keep_metric_names` modifier can be applied to all the [rollup functions](#rollup-functions) and [transform functions](#transform-functions).
   This modifier prevents from dropping metric names in function results. See [these docs](#keep_metric_names).
+* `|` operator for metric selectors. This operator is useful for selecting series by several sets of labels.
+  See [these docs](#or-operator-in-metric-selectors).
 
 ## keep_metric_names
 
@@ -1981,3 +1983,28 @@ VictoriaMetrics performs the following implicit conversions for incoming queries
 * If something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering)
   is passed to [rollup function](#rollup-functions), then a [subquery](#subqueries) with `1i` lookbehind window and `1i` step is automatically formed.
   For example, `rate(sum(up))` is automatically converted to `rate((sum(default_rollup(up[1i])))[1i:1i])`.
+
+
+## Or-operator in metric selectors
+
+Character `,` in metric selectors works as `AND` operator, but sometimes you need `OR` to select time series by several sets of labels.
+In MetricsQL you can use `|` operator for this purpose.
+
+For example, `{pod_name="foo" | job="foo"}` selects time series that have `pod_name="foo"` or `job="foo"`.
+
+This is equivalent to `{pod_name="foo"} or {job="foo"}`
+but `|` syntax allows you to work with lookbehind window as users expect,
+because then `|`-operator in metric selector doesn't create subqueries unlike the `or`-operator.
+See details in [Subqueries section](#subqueries), [Implicit query conversion doc](#implicit-query-conversions)
+and [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3997).
+For instance, `sum_over_time({pod_name="foo" | job="foo"}[1h])` will work correctly.
+
+`,` and `|` in metric selectors work as `AND` and `OR` operators in standard logical expressions: `,` have higher priority than `|`.
+For example, expression `test{a="b", c="d" | e="f", g="h"}` selects:
+
+- time series with name `test` and with labels `a="b"` and `c="d"`
+- **or** time series with name `test` and with labels `e="f"` and `g="h"`.
+
+`|` works as well in body-part of `WITH` templates, but doesn't work in define-part of `WITH` expressions because can be leads ambiguities.
+For instance, `WITH (q={foo="bar"}) q{bar="buz" | buz="qux"}` will be executed as `{foo="bar", bar="buz" | foo="bar", buz="qux"}`,
+but `WITH (q=a{foo="bar" | bar="buz"}) q()` will lead to an error.

@@ -15,7 +15,7 @@ import (
 // The `if` expression can contain arbitrary PromQL-like label filters such as `metric_name{filters...}`
 type IfExpression struct {
 	s   string
-	lfs []*labelFilter
+	lfs [][]*labelFilter
 }
 
 // String returns string representation of ie.
@@ -78,27 +78,38 @@ func (ie *IfExpression) MarshalYAML() (interface{}, error) {
 
 // Match returns true if ie matches the given labels.
 func (ie *IfExpression) Match(labels []prompbmarshal.Label) bool {
-	if ie == nil {
+	if ie == nil || len(ie.lfs) == 0 {
 		return true
 	}
-	for _, lf := range ie.lfs {
-		if !lf.match(labels) {
-			return false
+	for _, lfs := range ie.lfs {
+		match := true
+		for _, lf := range lfs {
+			if !lf.match(labels) {
+				match = false
+				break
+			}
+		}
+		if match {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
-func metricExprToLabelFilters(me *metricsql.MetricExpr) ([]*labelFilter, error) {
-	lfs := make([]*labelFilter, len(me.LabelFilters))
-	for i := range me.LabelFilters {
-		lf, err := newLabelFilter(&me.LabelFilters[i])
-		if err != nil {
-			return nil, fmt.Errorf("cannot parse %s: %w", me.AppendString(nil), err)
+func metricExprToLabelFilters(me *metricsql.MetricExpr) ([][]*labelFilter, error) {
+	lfss := make([][]*labelFilter, len(me.LabelFilters))
+	for i, lfs := range me.LabelFilters {
+		newLfs := make([]*labelFilter, len(lfs))
+		for j := range lfs {
+			lf, err := newLabelFilter(&lfs[j])
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse %s: %w", me.AppendString(nil), err)
+			}
+			newLfs[j] = lf
 		}
-		lfs[i] = lf
+		lfss[i] = newLfs
 	}
-	return lfs, nil
+	return lfss, nil
 }
 
 // labelFilter contains PromQL filter for `{label op "value"}`

@@ -312,12 +312,14 @@ func GetExtraTagFilters(r *http.Request) ([][]storage.TagFilter, error) {
 	}
 	var etfs [][]storage.TagFilter
 	for _, extraFilter := range extraFilters {
-		tfs, err := ParseMetricSelector(extraFilter)
+		tfss, err := ParseMetricSelector(extraFilter)
 		if err != nil {
 			return nil, fmt.Errorf("cannot parse extra_filters=%s: %w", extraFilter, err)
 		}
-		tfs = append(tfs, tagFilters...)
-		etfs = append(etfs, tfs)
+		for _, tfs := range tfss {
+			tfs = append(tfs, tagFilters...)
+			etfs = append(etfs, tfs)
+		}
 	}
 	return etfs, nil
 }
@@ -342,7 +344,7 @@ func JoinTagFilterss(src, etfs [][]storage.TagFilter) [][]storage.TagFilter {
 }
 
 // ParseMetricSelector parses s containing PromQL metric selector and returns the corresponding LabelFilters.
-func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
+func ParseMetricSelector(s string) ([][]storage.TagFilter, error) {
 	expr, err := metricsql.Parse(s)
 	if err != nil {
 		return nil, err
@@ -354,8 +356,8 @@ func ParseMetricSelector(s string) ([]storage.TagFilter, error) {
 	if len(me.LabelFilters) == 0 {
 		return nil, fmt.Errorf("labelFilters cannot be empty")
 	}
-	tfs := ToTagFilters(me.LabelFilters)
-	return tfs, nil
+	tfss := ToTagFilterss(me.LabelFilters)
+	return tfss, nil
 }
 
 // ToTagFilters converts lfs to a slice of storage.TagFilter
@@ -365,6 +367,15 @@ func ToTagFilters(lfs []metricsql.LabelFilter) []storage.TagFilter {
 		toTagFilter(&tfs[i], &lfs[i])
 	}
 	return tfs
+}
+
+// ToTagFilterss converts lfss to a slice of slices of storage.TagFilter
+func ToTagFilterss(lfss [][]metricsql.LabelFilter) [][]storage.TagFilter {
+	tfss := make([][]storage.TagFilter, len(lfss))
+	for i, lfs := range lfss {
+		tfss[i] = ToTagFilters(lfs)
+	}
+	return tfss
 }
 
 func toTagFilter(dst *storage.TagFilter, src *metricsql.LabelFilter) {

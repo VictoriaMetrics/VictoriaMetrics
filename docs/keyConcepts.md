@@ -755,8 +755,15 @@ Filters can also be combined:
 requests_total{code=~"200|204", path="/home"}
 ```
 
-The query above will return all time series with a name `requests_total`, status `code` `200` or `204`and `path="/home"`
-.
+The query above will return all time series with a name `requests_total`, status `code` `200` or `204`and `path="/home"`.
+
+You can use `|` operator to combine different label filters in one query:
+
+```metricsql
+requests_total{pod_name="foo", path="/home" | job="foo", path="/home"}
+```
+
+See [these docs](https://docs.victoriametrics.com/MetricsQL.html#or-operator-in-metric-selectors) for more details about `|` operator.
 
 #### Filtering by name
 

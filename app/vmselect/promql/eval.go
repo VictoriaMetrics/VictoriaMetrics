@@ -1075,8 +1075,8 @@ func evalRollupFuncWithMetricExpr(qt *querytracer.Tracer, ec *EvalConfig, funcNa
 	}
 
 	// Fetch the remaining part of the result.
-	tfs := searchutils.ToTagFilters(me.LabelFilters)
-	tfss := searchutils.JoinTagFilterss([][]storage.TagFilter{tfs}, ec.EnforcedTagFilterss)
+	tfss := searchutils.ToTagFilterss(me.LabelFilters)
+	tfss = searchutils.JoinTagFilterss(tfss, ec.EnforcedTagFilterss)
 	minTimestamp := start - maxSilenceInterval
 	if window > ec.Step {
 		minTimestamp -= window

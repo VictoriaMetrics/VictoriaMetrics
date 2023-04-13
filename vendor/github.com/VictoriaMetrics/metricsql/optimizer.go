@@ -180,11 +180,17 @@ func TrimFiltersByGroupModifier(lfs []LabelFilter, be *BinaryOpExpr) []LabelFilt
 	}
 }
 
-func getLabelFiltersWithoutMetricName(lfs []LabelFilter) []LabelFilter {
-	lfsNew := make([]LabelFilter, 0, len(lfs))
-	for _, lf := range lfs {
-		if lf.Label != "__name__" {
-			lfsNew = append(lfsNew, lf)
+func getLabelFiltersWithoutMetricName(lfss [][]LabelFilter) []LabelFilter {
+	lfeMap := make(map[LabelFilter]int)
+	lfsNew := make([]LabelFilter, 0)
+	for _, lfs := range lfss {
+		for _, lf := range lfs {
+			if lf.Label != "__name__" {
+				lfeMap[lf]++
+				if lfeMap[lf] == len(lfss) {
+					lfsNew = append(lfsNew, lf)
+				}
+			}
 		}
 	}
 	return lfsNew
@@ -213,8 +219,11 @@ func pushdownBinaryOpFiltersInplace(e Expr, lfs []LabelFilter) {
 	}
 	switch t := e.(type) {
 	case *MetricExpr:
-		t.LabelFilters = unionLabelFilters(t.LabelFilters, lfs)
-		sortLabelFilters(t.LabelFilters)
+		for i := range t.LabelFilters {
+			t.LabelFilters[i] = unionLabelFilters(t.LabelFilters[i], lfs)
+			sortLabelFilters(t.LabelFilters[i])
+		}
+		// TODO: Sort OR sections
 	case *RollupExpr:
 		pushdownBinaryOpFiltersInplace(t.Expr, lfs)
 	case *FuncExpr:

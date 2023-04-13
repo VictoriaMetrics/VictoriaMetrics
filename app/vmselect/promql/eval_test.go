@@ -30,7 +30,7 @@ func TestGetCommonLabelFilters(t *testing.T) {
 		}
 		lfs := getCommonLabelFilters(tss)
 		me := &metricsql.MetricExpr{
-			LabelFilters: lfs,
+			LabelFilters: [][]metricsql.LabelFilter{lfs},
 		}
 		lfsMarshaled := me.AppendString(nil)
 		if string(lfsMarshaled) != lfsExpected {

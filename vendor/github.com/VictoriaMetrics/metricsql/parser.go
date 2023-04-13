@@ -335,6 +335,14 @@ func (p *parser) parseWithArgExpr() (*withArgExpr, error) {
 	if err != nil {
 		return nil, fmt.Errorf(`withArgExpr: cannot parse %q: %s`, wa.Name, err)
 	}
+
+	me, ok := e.(*MetricExpr)
+	if ok {
+		if len(me.labelFilters) > 1 || len(me.LabelFilters) > 1 {
+			return nil, fmt.Errorf(`withArgExpr: operator '|' cannot be used in with section`)
+		}
+	}
+
 	wa.Expr = e
 	return &wa, nil
 }
@@ -772,43 +780,51 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		{
 			var me MetricExpr
 			// Populate me.LabelFilters
-			for _, lfe := range t.labelFilters {
-				if lfe.Value == nil {
-					// Expand lfe.Label into []LabelFilter.
-					wa := getWithArgExpr(was, lfe.Label)
-					if wa == nil {
-						return nil, fmt.Errorf("missing %q value inside %q", lfe.Label, t.AppendString(nil))
+			for _, lfs := range t.labelFilters {
+				lfsNew := make([]LabelFilter, 0, len(lfs))
+				for _, lfe := range lfs {
+					if lfe.Value == nil {
+						// Expand lfe.Label into []LabelFilter.
+						wa := getWithArgExpr(was, lfe.Label)
+						if wa == nil {
+							return nil, fmt.Errorf("missing %q value inside %q", lfe.Label, t.AppendString(nil))
+						}
+						eNew, err := expandWithExprExt(was, wa, nil)
+						if err != nil {
+							return nil, err
+						}
+						wme, ok := eNew.(*MetricExpr)
+						if !ok || wme.hasNonEmptyMetricGroup() {
+							return nil, fmt.Errorf("%q must be filters expression inside %q; got %q", lfe.Label, t.AppendString(nil), eNew.AppendString(nil))
+						}
+						if len(wme.labelFilters) > 0 {
+							panic(fmt.Errorf("BUG: wme.labelFilters must be empty; got %s", wme.labelFilters))
+						}
+						if len(wme.LabelFilters) > 0 {
+							lfsNew = append(lfsNew, wme.LabelFilters[0]...)
+						}
+						continue
 					}
-					eNew, err := expandWithExprExt(was, wa, nil)
+
+					// convert lfe to LabelFilter.
+					se, err := expandWithExpr(was, lfe.Value)
 					if err != nil {
 						return nil, err
 					}
-					wme, ok := eNew.(*MetricExpr)
-					if !ok || wme.hasNonEmptyMetricGroup() {
-						return nil, fmt.Errorf("%q must be filters expression inside %q; got %q", lfe.Label, t.AppendString(nil), eNew.AppendString(nil))
+					var lfeNew labelFilterExpr
+					lfeNew.Label = lfe.Label
+					lfeNew.Value = se.(*StringExpr)
+					lfeNew.IsNegative = lfe.IsNegative
+					lfeNew.IsRegexp = lfe.IsRegexp
+					lf, err := lfeNew.toLabelFilter()
+					if err != nil {
+						return nil, err
 					}
-					if len(wme.labelFilters) > 0 {
-						panic(fmt.Errorf("BUG: wme.labelFilters must be empty; got %s", wme.labelFilters))
-					}
-					me.LabelFilters = append(me.LabelFilters, wme.LabelFilters...)
-					continue
+					lfsNew = append(lfsNew, *lf)
 				}
-
-				// convert lfe to LabelFilter.
-				se, err := expandWithExpr(was, lfe.Value)
-				if err != nil {
-					return nil, err
+				if len(lfsNew) > 0 {
+					me.LabelFilters = append(me.LabelFilters, lfsNew)
 				}
-				var lfeNew labelFilterExpr
-				lfeNew.Label = lfe.Label
-				lfeNew.Value = se.(*StringExpr)
-				lfeNew.IsNegative = lfe.IsNegative
-				lfeNew.IsRegexp = lfe.IsRegexp
-				lf, err := lfeNew.toLabelFilter()
-				if err != nil {
-					return nil, err
-				}
-				me.LabelFilters = append(me.LabelFilters, *lf)
 			}
 			me.LabelFilters = removeDuplicateLabelFilters(me.LabelFilters)
 			t = &me
@@ -816,7 +832,7 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		if !t.hasNonEmptyMetricGroup() {
 			return t, nil
 		}
-		k := t.LabelFilters[0].Value
+		k := t.LabelFilters[0][0].Value
 		wa := getWithArgExpr(was, k)
 		if wa == nil {
 			return t, nil
@@ -843,8 +859,14 @@ func expandWithExpr(was []*withArgExpr, e Expr) (Expr, error) {
 		}
 
 		var me MetricExpr
-		me.LabelFilters = append(me.LabelFilters, wme.LabelFilters...)
-		me.LabelFilters = append(me.LabelFilters, t.LabelFilters[1:]...)
+		for i := range t.LabelFilters {
+			lfsNew := make([]LabelFilter, 0)
+			if len(wme.LabelFilters) > 0 {
+				lfsNew = append(lfsNew, wme.LabelFilters[0]...)
+			}
+			lfsNew = append(lfsNew, t.LabelFilters[i][1:]...)
+			me.LabelFilters = append(me.LabelFilters, lfsNew)
+		}
 		me.LabelFilters = removeDuplicateLabelFilters(me.LabelFilters)
 
 		if re == nil {
@@ -892,7 +914,7 @@ func expandModifierArgs(was []*withArgExpr, args []string) ([]string, error) {
 			if !me.isOnlyMetricGroup() {
 				return nil, fmt.Errorf("cannot use %q instead of %q in %s", me.AppendString(nil), arg, args)
 			}
-			dstArg := me.LabelFilters[0].Value
+			dstArg := me.LabelFilters[0][0].Value
 			dstArgs = append(dstArgs, dstArg)
 			continue
 		}
@@ -903,7 +925,7 @@ func expandModifierArgs(was []*withArgExpr, args []string) ([]string, error) {
 				if !ok || !me.isOnlyMetricGroup() {
 					return nil, fmt.Errorf("cannot use %q instead of %q in %s", pe.AppendString(nil), arg, args)
 				}
-				dstArg := me.LabelFilters[0].Value
+				dstArg := me.LabelFilters[0][0].Value
 				dstArgs = append(dstArgs, dstArg)
 			}
 			continue
@@ -949,10 +971,10 @@ func expandWithExprExt(was []*withArgExpr, wa *withArgExpr, args []Expr) (Expr, 
 
 func newMetricExpr(name string) *MetricExpr {
 	return &MetricExpr{
-		LabelFilters: []LabelFilter{{
+		LabelFilters: [][]LabelFilter{{{
 			Label: "__name__",
 			Value: name,
-		}},
+		}}},
 	}
 }
 
@@ -978,20 +1000,26 @@ func extractStringValue(token string) (string, error) {
 	return s, nil
 }
 
-func removeDuplicateLabelFilters(lfs []LabelFilter) []LabelFilter {
-	lfsm := make(map[string]bool, len(lfs))
-	lfsNew := lfs[:0]
-	var buf []byte
-	for i := range lfs {
-		lf := &lfs[i]
-		buf = lf.AppendString(buf[:0])
-		if lfsm[string(buf)] {
-			continue
+func removeDuplicateLabelFilters(lfss [][]LabelFilter) [][]LabelFilter {
+	lfssNew := make([][]LabelFilter, 0, len(lfss))
+	for _, lfs := range lfss {
+		lfsm := make(map[string]bool, len(lfs))
+		lfsNew := lfs[:0]
+		var buf []byte
+		for i := range lfs {
+			lf := &lfs[i]
+			buf = lf.AppendString(buf[:0])
+			if lfsm[string(buf)] {
+				continue
+			}
+			lfsm[string(buf)] = true
+			lfsNew = append(lfsNew, *lf)
 		}
-		lfsm[string(buf)] = true
-		lfsNew = append(lfsNew, *lf)
+		if len(lfsNew) > 0 {
+			lfssNew = append(lfssNew, lfsNew)
+		}
 	}
-	return lfsNew
+	return lfssNew
 }
 
 func (p *parser) parseFuncExpr() (*FuncExpr, error) {
@@ -1130,31 +1158,48 @@ func getWithArgExpr(was []*withArgExpr, name string) *withArgExpr {
 	return nil
 }
 
-func (p *parser) parseLabelFilters() ([]*labelFilterExpr, error) {
+func (p *parser) parseLabelFilters(nameFilter *labelFilterExpr) ([][]*labelFilterExpr, error) {
 	if p.lex.Token != "{" {
 		return nil, fmt.Errorf(`labelFilters: unexpected token %q; want "{"`, p.lex.Token)
 	}
 
-	var lfes []*labelFilterExpr
+	var lfss [][]*labelFilterExpr
+orExprsLoop:
 	for {
-		if err := p.lex.Next(); err != nil {
-			return nil, err
+		var lfes []*labelFilterExpr
+		if nameFilter != nil {
+			lfes = append(lfes, nameFilter.Clone())
 		}
-		if p.lex.Token == "}" {
-			goto closeBracesLabel
-		}
-		lfe, err := p.parseLabelFilterExpr()
-		if err != nil {
-			return nil, err
-		}
-		lfes = append(lfes, lfe)
-		switch p.lex.Token {
-		case ",":
-			continue
-		case "}":
-			goto closeBracesLabel
-		default:
-			return nil, fmt.Errorf(`labelFilters: unexpected token %q; want ",", "}"`, p.lex.Token)
+	andExprsLoop:
+		for {
+			if err := p.lex.Next(); err != nil {
+				return nil, err
+			}
+			if p.lex.Token == "}" {
+				lfss = append(lfss, lfes)
+				goto closeBracesLabel
+			}
+			if p.lex.Token == "|" {
+				lfss = append(lfss, lfes)
+				continue orExprsLoop
+			}
+			lfe, err := p.parseLabelFilterExpr()
+			if err != nil {
+				return nil, err
+			}
+			lfes = append(lfes, lfe)
+			switch p.lex.Token {
+			case ",":
+				continue andExprsLoop
+			case "|":
+				lfss = append(lfss, lfes)
+				continue orExprsLoop
+			case "}":
+				lfss = append(lfss, lfes)
+				goto closeBracesLabel
+			default:
+				return nil, fmt.Errorf(`labelFilters: unexpected token %q; want ",", "}"`, p.lex.Token)
+			}
 		}
 	}
 
@@ -1162,7 +1207,7 @@ closeBracesLabel:
 	if err := p.lex.Next(); err != nil {
 		return nil, err
 	}
-	return lfes, nil
+	return lfss, nil
 }
 
 func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
@@ -1185,7 +1230,7 @@ func (p *parser) parseLabelFilterExpr() (*labelFilterExpr, error) {
 	case "!~":
 		lfe.IsNegative = true
 		lfe.IsRegexp = true
-	case ",", "}":
+	case ",", "|", "}":
 		return &lfe, nil
 	default:
 		return nil, fmt.Errorf(`labelFilterExpr: unexpected token %q; want "=", "!=", "=~", "!~", ",", "}"`, p.lex.Token)
@@ -1235,6 +1280,19 @@ func (lfe *labelFilterExpr) toLabelFilter() (*LabelFilter, error) {
 		return nil, fmt.Errorf("invalid regexp in %s=%q: %s", lf.Label, lf.Value, err)
 	}
 	return &lf, nil
+}
+
+func (lfe *labelFilterExpr) Clone() *labelFilterExpr {
+	if lfe == nil {
+		return nil
+	}
+
+	return &labelFilterExpr{
+		Label:      lfe.Label,
+		Value:      lfe.Value.Clone(),
+		IsRegexp:   lfe.IsRegexp,
+		IsNegative: lfe.IsNegative,
+	}
 }
 
 func (p *parser) parseWindowAndStep() (*DurationExpr, *DurationExpr, bool, error) {
@@ -1411,21 +1469,22 @@ func (p *parser) parseIdentExpr() (Expr, error) {
 
 func (p *parser) parseMetricExpr() (*MetricExpr, error) {
 	var me MetricExpr
+	var lfe *labelFilterExpr
 	if isIdentPrefix(p.lex.Token) {
-		var lfe labelFilterExpr
+		lfe = new(labelFilterExpr)
 		lfe.Label = "__name__"
 		lfe.Value = &StringExpr{
 			tokens: []string{strconv.Quote(unescapeIdent(p.lex.Token))},
 		}
-		me.labelFilters = append(me.labelFilters[:0], &lfe)
 		if err := p.lex.Next(); err != nil {
 			return nil, err
 		}
 		if p.lex.Token != "{" {
+			me.labelFilters = append(me.labelFilters[:0], []*labelFilterExpr{lfe})
 			return &me, nil
 		}
 	}
-	lfes, err := p.parseLabelFilters()
+	lfes, err := p.parseLabelFilters(lfe)
 	if err != nil {
 		return nil, err
 	}
@@ -1488,6 +1547,17 @@ type StringExpr struct {
 // AppendString appends string representation of se to dst and returns the result.
 func (se *StringExpr) AppendString(dst []byte) []byte {
 	return strconv.AppendQuote(dst, se.S)
+}
+
+// Clone returns a copy of string expression.
+func (se *StringExpr) Clone() *StringExpr {
+	if se == nil {
+		return nil
+	}
+	return &StringExpr{
+		S:      se.S,
+		tokens: append(make([]string, 0, len(se.tokens)), se.tokens...),
+	}
 }
 
 // NumberExpr represents number expression.
@@ -1837,34 +1907,43 @@ func (lf *LabelFilter) AppendString(dst []byte) []byte {
 
 // MetricExpr represents MetricsQL metric with optional filters, i.e. `foo{...}`.
 type MetricExpr struct {
-	// LabelFilters contains a list of label filters from curly braces.
-	// Filter or metric name must be the first if present.
-	LabelFilters []LabelFilter
+	// LabelFilters contains list of or-delimited (with operator `|`) groups of label filters from curly braces.
+	// Filter or metric name must be the first in every group if present.
+	LabelFilters [][]LabelFilter
 
 	// labelFilters must be expanded to LabelFilters by expandWithExpr.
-	labelFilters []*labelFilterExpr
+	labelFilters [][]*labelFilterExpr
 }
 
 // AppendString appends string representation of me to dst and returns the result.
 func (me *MetricExpr) AppendString(dst []byte) []byte {
-	lfs := me.LabelFilters
-	if len(lfs) > 0 {
-		lf := &lfs[0]
-		if lf.Label == "__name__" && !lf.IsNegative && !lf.IsRegexp {
-			dst = appendEscapedIdent(dst, lf.Value)
-			lfs = lfs[1:]
+	var lfss [][]LabelFilter
+	if me.hasNonEmptyMetricGroup() {
+		lfss = make([][]LabelFilter, 0, len(me.LabelFilters))
+		dst = appendEscapedIdent(dst, me.LabelFilters[0][0].Value)
+		for _, lfs := range me.LabelFilters {
+			if len(lfs) > 1 {
+				lfss = append(lfss, lfs[1:])
+			}
 		}
+	} else {
+		lfss = me.LabelFilters
 	}
-	if len(lfs) > 0 {
+	if len(lfss) > 0 {
 		dst = append(dst, '{')
-		for i := range lfs {
-			dst = lfs[i].AppendString(dst)
-			if i+1 < len(lfs) {
-				dst = append(dst, ", "...)
+		for i, lfs := range lfss {
+			for i := range lfs {
+				dst = lfs[i].AppendString(dst)
+				if i+1 < len(lfs) {
+					dst = append(dst, ", "...)
+				}
+			}
+			if i+1 < len(lfss) {
+				dst = append(dst, " | "...)
 			}
 		}
 		dst = append(dst, '}')
-	} else if len(me.LabelFilters) == 0 {
+	} else if !me.hasNonEmptyMetricGroup() {
 		dst = append(dst, "{}"...)
 	}
 	return dst
@@ -1872,21 +1951,48 @@ func (me *MetricExpr) AppendString(dst []byte) []byte {
 
 // IsEmpty returns true of me equals to `{}`.
 func (me *MetricExpr) IsEmpty() bool {
-	return len(me.LabelFilters) == 0
+	if len(me.LabelFilters) == 0 {
+		return true
+	}
+	for _, lfs := range me.LabelFilters {
+		if len(lfs) > 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func (me *MetricExpr) isOnlyMetricGroup() bool {
 	if !me.hasNonEmptyMetricGroup() {
 		return false
 	}
-	return len(me.LabelFilters) == 1
+	for _, lfs := range me.LabelFilters {
+		if len(lfs) > 1 {
+			return false
+		}
+	}
+	return true
 }
 
 func (me *MetricExpr) hasNonEmptyMetricGroup() bool {
 	if len(me.LabelFilters) == 0 {
 		return false
 	}
-	return me.LabelFilters[0].isMetricNameFilter()
+	name := ""
+	for _, lfs := range me.LabelFilters {
+		if len(lfs) == 0 {
+			return false
+		}
+		lf := &lfs[0]
+		if !lf.isMetricNameFilter() {
+			return false
+		}
+		if name != "" && name != lf.Value {
+			return false
+		}
+		name = lf.Value
+	}
+	return true
 }
 
 func (lf *LabelFilter) isMetricNameFilter() bool {

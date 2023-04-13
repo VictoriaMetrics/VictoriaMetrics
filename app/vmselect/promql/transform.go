@@ -240,16 +240,18 @@ func getAbsentTimeseries(ec *EvalConfig, arg metricsql.Expr) []*timeseries {
 	if !ok {
 		return rvs
 	}
-	tfs := searchutils.ToTagFilters(me.LabelFilters)
-	for i := range tfs {
-		tf := &tfs[i]
-		if len(tf.Key) == 0 {
-			continue
+	tfss := searchutils.ToTagFilterss(me.LabelFilters)
+	for _, tfs := range tfss {
+		for i := range tfs {
+			tf := &tfs[i]
+			if len(tf.Key) == 0 {
+				continue
+			}
+			if tf.IsRegexp || tf.IsNegative {
+				continue
+			}
+			rv.MetricName.AddTagBytes(tf.Key, tf.Value)
 		}
-		if tf.IsRegexp || tf.IsNegative {
-			continue
-		}
-		rv.MetricName.AddTagBytes(tf.Key, tf.Value)
 	}
 	return rvs
 }
