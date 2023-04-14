@@ -17,12 +17,14 @@ const dontNeedBlockSize = 16 * 1024 * 1024
 
 // ReadCloser is a standard interface for filestream Reader.
 type ReadCloser interface {
+	Path() string
 	Read(p []byte) (int, error)
 	MustClose()
 }
 
 // WriteCloser is a standard interface for filestream Writer.
 type WriteCloser interface {
+	Path() string
 	Write(p []byte) (int, error)
 	MustClose()
 }
@@ -51,6 +53,11 @@ type Reader struct {
 	f  *os.File
 	br *bufio.Reader
 	st streamTracker
+}
+
+// Path returns the path to r
+func (r *Reader) Path() string {
+	return r.f.Name()
 }
 
 // OpenReaderAt opens the file at the given path in nocache mode at the given offset.
@@ -169,6 +176,11 @@ type Writer struct {
 	f  *os.File
 	bw *bufio.Writer
 	st streamTracker
+}
+
+// Path returns the path to r
+func (w *Writer) Path() string {
+	return w.f.Name()
 }
 
 // OpenWriterAt opens the file at path in nocache mode for writing at the given offset.

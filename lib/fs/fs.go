@@ -353,16 +353,16 @@ func ReadFullData(r io.Reader, data []byte) error {
 }
 
 // MustWriteData writes data to w.
-func MustWriteData(w io.Writer, data []byte) {
+func MustWriteData(w filestream.WriteCloser, data []byte) {
 	if len(data) == 0 {
 		return
 	}
 	n, err := w.Write(data)
 	if err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes: %s", len(data), err)
+		logger.Panicf("FATAL: cannot write %d bytes to %s: %s", len(data), w.Path(), err)
 	}
 	if n != len(data) {
-		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes", n, len(data))
+		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes to %s", n, len(data), w.Path())
 	}
 }
 
