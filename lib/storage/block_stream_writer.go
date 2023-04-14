@@ -56,7 +56,6 @@ func (bsw *blockStreamWriter) assertWriteClosers() {
 // Init initializes bsw with the given writers.
 func (bsw *blockStreamWriter) reset() {
 	bsw.compressLevel = 0
-	bsw.path = ""
 
 	bsw.timestampsWriter = nil
 	bsw.valuesWriter = nil
@@ -142,7 +141,6 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	bsw.reset()
 	bsw.compressLevel = compressLevel
-	bsw.path = path
 
 	bsw.timestampsWriter = timestampsFile
 	bsw.valuesWriter = valuesFile
@@ -170,12 +168,6 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.valuesWriter.(filestream.WriteCloser).MustClose()
 	bsw.indexWriter.MustClose()
 	bsw.metaindexWriter.MustClose()
-
-	// Sync bsw.path contents to make sure it doesn't disappear
-	// after system crash or power loss.
-	if bsw.path != "" {
-		fs.MustSyncPath(bsw.path)
-	}
 
 	bsw.reset()
 }

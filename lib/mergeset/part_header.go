@@ -125,7 +125,10 @@ func (ph *partHeader) WriteMetadata(partPath string) error {
 		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
 	metadataPath := filepath.Join(partPath, metadataFilename)
-	if err := fs.WriteFileAtomically(metadataPath, metadata, false); err != nil {
+	// There is no need in calling fs.WriteFileAtomically() here,
+	// since the file is created only once during part creatinng
+	// and the part directory is synced aftewards.
+	if err := fs.WriteFileAndSync(metadataPath, metadata); err != nil {
 		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
 	}
 	return nil
