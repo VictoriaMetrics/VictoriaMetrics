@@ -929,10 +929,8 @@ func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.T
 }
 
 func (tb *Table) startMergeWorkers() {
-	// Start a merge worker per available CPU core.
 	// The actual number of concurrent merges is limited inside mergeWorker() below.
-	workersCount := cgroup.AvailableCPUs()
-	for i := 0; i < workersCount; i++ {
+	for i := 0; i < cap(mergeWorkersLimitCh); i++ {
 		tb.wg.Add(1)
 		go func() {
 			tb.mergeWorker()
@@ -1365,7 +1363,18 @@ func (tb *Table) nextMergeIdx() uint64 {
 	return atomic.AddUint64(&tb.mergeIdx, 1)
 }
 
-var mergeWorkersLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
+var mergeWorkersLimitCh = make(chan struct{}, getWorkersCount())
+
+func getWorkersCount() int {
+	n := cgroup.AvailableCPUs()
+	if n < 4 {
+		// Allow at least 4 merge workers on systems with small CPUs count
+		// in order to guarantee that background merges can be continued
+		// when multiple workers are busy with big merges.
+		n = 4
+	}
+	return n
+}
 
 func openParts(path string) ([]*partWrapper, error) {
 	// The path can be missing after restoring from backup, so create it if needed.
