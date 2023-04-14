@@ -42,10 +42,7 @@ func testWriteRead(t *testing.T, nocache bool, testStr string) {
 	}
 	w.MustClose()
 
-	r, err := Open("./nocache_test.txt", nocache)
-	if err != nil {
-		t.Fatalf("cannot open file: %s", err)
-	}
+	r := MustOpen("./nocache_test.txt", nocache)
 	buf := make([]byte, len(testStr))
 	if _, err := io.ReadFull(r, buf); err != nil {
 		t.Fatalf("unexpected error when reading: %s", err)

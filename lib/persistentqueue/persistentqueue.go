@@ -100,10 +100,7 @@ func (q *queue) mustResetFiles() {
 	q.writer = w
 
 	q.readerPath = q.writerPath
-	r, err := filestream.Open(q.readerPath, true)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open chunk file %q: %s", q.readerPath, err)
-	}
+	r := filestream.MustOpen(q.readerPath, true)
 	q.reader = r
 
 	if err := q.flushMetainfo(); err != nil {
@@ -559,10 +556,7 @@ func (q *queue) nextChunkFileForRead() error {
 	}
 	q.readerLocalOffset = 0
 	q.readerPath = q.chunkFilePath(q.readerOffset)
-	r, err := filestream.Open(q.readerPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open chunk file %q: %w", q.readerPath, err)
-	}
+	r := filestream.MustOpen(q.readerPath, true)
 	q.reader = r
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)

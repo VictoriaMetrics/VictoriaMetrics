@@ -135,41 +135,20 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	}
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	timestampsFile, err := filestream.Open(timestampsPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open timestamps file in stream mode: %w", err)
-	}
+	timestampsFile := filestream.MustOpen(timestampsPath, true)
 
 	valuesPath := filepath.Join(path, valuesFilename)
-	valuesFile, err := filestream.Open(valuesPath, true)
-	if err != nil {
-		timestampsFile.MustClose()
-		return fmt.Errorf("cannot open values file in stream mode: %w", err)
-	}
+	valuesFile := filestream.MustOpen(valuesPath, true)
 
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile, err := filestream.Open(indexPath, true)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		return fmt.Errorf("cannot open index file in stream mode: %w", err)
-	}
+	indexFile := filestream.MustOpen(indexPath, true)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		indexFile.MustClose()
-		return fmt.Errorf("cannot open metaindex file in stream mode: %w", err)
-	}
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	mrs, err := unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
 	metaindexFile.MustClose()
 	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		indexFile.MustClose()
-		return fmt.Errorf("cannot unmarshal metaindex rows from file part %q: %w", metaindexPath, err)
+		logger.Panicf("FATAL: cannot unmarshal metaindex rows from file part %q: %s", metaindexPath, err)
 	}
 
 	bsr.path = path

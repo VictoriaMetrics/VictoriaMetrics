@@ -74,10 +74,7 @@ func openFilePart(path string) (*part, error) {
 	}
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", metaindexPath, err)
-	}
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
 	indexPath := filepath.Join(path, indexFilename)

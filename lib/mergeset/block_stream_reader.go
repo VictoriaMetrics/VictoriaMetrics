@@ -148,36 +148,23 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	}
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open metaindex file in stream mode: %w", err)
-	}
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
+
+	var err error
 	bsr.mrs, err = unmarshalMetaindexRows(bsr.mrs[:0], metaindexFile)
 	metaindexFile.MustClose()
 	if err != nil {
-		return fmt.Errorf("cannot unmarshal metaindex rows from file %q: %w", metaindexPath, err)
+		logger.Panicf("FATAL: cannot unmarshal metaindex rows from file %q: %s", metaindexPath, err)
 	}
 
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile, err := filestream.Open(indexPath, true)
-	if err != nil {
-		return fmt.Errorf("cannot open index file in stream mode: %w", err)
-	}
+	indexFile := filestream.MustOpen(indexPath, true)
 
 	itemsPath := filepath.Join(path, itemsFilename)
-	itemsFile, err := filestream.Open(itemsPath, true)
-	if err != nil {
-		indexFile.MustClose()
-		return fmt.Errorf("cannot open items file in stream mode: %w", err)
-	}
+	itemsFile := filestream.MustOpen(itemsPath, true)
 
 	lensPath := filepath.Join(path, lensFilename)
-	lensFile, err := filestream.Open(lensPath, true)
-	if err != nil {
-		indexFile.MustClose()
-		itemsFile.MustClose()
-		return fmt.Errorf("cannot open lens file in stream mode: %w", err)
-	}
+	lensFile := filestream.MustOpen(lensPath, true)
 
 	bsr.path = path
 	bsr.indexReader = indexFile
