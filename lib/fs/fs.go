@@ -300,11 +300,11 @@ func MustSymlinkRelative(srcPath, dstPath string) {
 	}
 }
 
-// CopyDirectory copies all the files in srcPath to dstPath.
-func CopyDirectory(srcPath, dstPath string) error {
+// MustCopyDirectory copies all the files in srcPath to dstPath.
+func MustCopyDirectory(srcPath, dstPath string) {
 	des, err := os.ReadDir(srcPath)
 	if err != nil {
-		return err
+		logger.Panicf("FATAL: cannot read srcDir: %s", err)
 	}
 	MustMkdirIfNotExist(dstPath)
 	for _, de := range des {
@@ -314,31 +314,27 @@ func CopyDirectory(srcPath, dstPath string) error {
 		}
 		src := filepath.Join(srcPath, de.Name())
 		dst := filepath.Join(dstPath, de.Name())
-		if err := CopyFile(src, dst); err != nil {
-			return err
-		}
+		MustCopyFile(src, dst)
 	}
 	MustSyncPath(dstPath)
-	return nil
 }
 
-// CopyFile copies the file from srcPath to dstPath.
-func CopyFile(srcPath, dstPath string) error {
+// MustCopyFile copies the file from srcPath to dstPath.
+func MustCopyFile(srcPath, dstPath string) {
 	src, err := os.Open(srcPath)
 	if err != nil {
-		return err
+		logger.Panicf("FATAL: cannot open srcPath: %s", err)
 	}
 	defer MustClose(src)
 	dst, err := os.Create(dstPath)
 	if err != nil {
-		return err
+		logger.Panicf("FATAL: cannot create dstPath: %s", err)
 	}
 	defer MustClose(dst)
 	if _, err := io.Copy(dst, src); err != nil {
-		return err
+		logger.Panicf("FATAL: cannot copy %q to %q: %s", srcPath, dstPath, err)
 	}
 	MustSyncPath(dstPath)
-	return nil
 }
 
 // ReadFullData reads len(data) bytes from r.
