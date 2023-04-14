@@ -1143,6 +1143,9 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	if mpNew != nil {
 		// Update partHeader for destination inmemory part after the merge.
 		mpNew.ph = *ph
+	} else {
+		// Make sure the created part directory listing is synced.
+		fs.MustSyncPath(dstPartPath)
 	}
 
 	// Atomically swap the source parts with the newly created part.

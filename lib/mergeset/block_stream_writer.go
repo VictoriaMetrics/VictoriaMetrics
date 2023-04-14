@@ -39,7 +39,6 @@ type blockStreamWriter struct {
 
 func (bsw *blockStreamWriter) reset() {
 	bsw.compressLevel = 0
-	bsw.path = ""
 
 	bsw.metaindexWriter = nil
 	bsw.indexWriter = nil
@@ -124,7 +123,6 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	bsw.reset()
 	bsw.compressLevel = compressLevel
-	bsw.path = path
 
 	bsw.metaindexWriter = metaindexFile
 	bsw.indexWriter = indexFile
@@ -150,12 +148,6 @@ func (bsw *blockStreamWriter) MustClose() {
 	bsw.indexWriter.MustClose()
 	bsw.itemsWriter.MustClose()
 	bsw.lensWriter.MustClose()
-
-	// Sync bsw.path contents to make sure it doesn't disappear
-	// after system crash or power loss.
-	if bsw.path != "" {
-		fs.MustSyncPath(bsw.path)
-	}
 
 	bsw.reset()
 }
