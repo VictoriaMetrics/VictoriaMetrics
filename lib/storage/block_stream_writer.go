@@ -17,7 +17,6 @@ import (
 // blockStreamWriter represents block stream writer.
 type blockStreamWriter struct {
 	compressLevel int
-	path          string
 
 	// Use io.Writer type for timestampsWriter and valuesWriter
 	// in order to remove I2I conversion in WriteExternalBlock
