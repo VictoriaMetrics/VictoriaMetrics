@@ -878,7 +878,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 			continue
 		}
 		bsr := getBlockStreamReader()
-		bsr.InitFromInmemoryBlock(ib)
+		bsr.MustInitFromInmemoryBlock(ib)
 		putInmemoryBlock(ib)
 		bsrs = append(bsrs, bsr)
 	}
@@ -899,7 +899,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 	compressLevel := getCompressLevel(outItemsCount)
 	bsw := getBlockStreamWriter()
 	mpDst := &inmemoryPart{}
-	bsw.InitFromInmemoryPart(mpDst, compressLevel)
+	bsw.MustInitFromInmemoryPart(mpDst, compressLevel)
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
@@ -1093,16 +1093,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	}
 
 	// Prepare BlockStreamReaders for source parts.
-	bsrs, err := openBlockStreamReaders(pws)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open source parts for merging: %s", err)
-	}
-	closeBlockStreamReaders := func() {
-		for _, bsr := range bsrs {
-			putBlockStreamReader(bsr)
-		}
-		bsrs = nil
-	}
+	bsrs := mustOpenBlockStreamReaders(pws)
 
 	// Prepare BlockStreamWriter for destination part.
 	srcSize := uint64(0)
@@ -1118,7 +1109,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	var mpNew *inmemoryPart
 	if dstPartType == partInmemory {
 		mpNew = &inmemoryPart{}
-		bsw.InitFromInmemoryPart(mpNew, compressLevel)
+		bsw.MustInitFromInmemoryPart(mpNew, compressLevel)
 	} else {
 		nocache := srcItemsCount > maxItemsPerCachedPart()
 		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
@@ -1127,7 +1118,9 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	// Merge source parts to destination part.
 	ph, err := tb.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh)
 	putBlockStreamWriter(bsw)
-	closeBlockStreamReaders()
+	for _, bsr := range bsrs {
+		putBlockStreamReader(bsr)
+	}
 	if err != nil {
 		tb.releasePartsToMerge(pws)
 		return err
@@ -1193,23 +1186,18 @@ func getDstPartType(pws []*partWrapper, isFinal bool) partType {
 	return partInmemory
 }
 
-func openBlockStreamReaders(pws []*partWrapper) ([]*blockStreamReader, error) {
+func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 	bsrs := make([]*blockStreamReader, 0, len(pws))
 	for _, pw := range pws {
 		bsr := getBlockStreamReader()
 		if pw.mp != nil {
-			bsr.InitFromInmemoryPart(pw.mp)
+			bsr.MustInitFromInmemoryPart(pw.mp)
 		} else {
-			if err := bsr.InitFromFilePart(pw.p.path); err != nil {
-				for _, bsr := range bsrs {
-					putBlockStreamReader(bsr)
-				}
-				return nil, fmt.Errorf("cannot open source part for merging: %w", err)
-			}
+			bsr.MustInitFromFilePart(pw.p.path)
 		}
 		bsrs = append(bsrs, bsr)
 	}
-	return bsrs, nil
+	return bsrs
 }
 
 func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
@@ -1251,10 +1239,7 @@ func (tb *Table) openCreatedPart(pws []*partWrapper, mpNew *inmemoryPart, dstPar
 		return pwNew
 	}
 	// Open the created part from disk.
-	pNew, err := openFilePart(dstPartPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open the merged part: %s", err)
-	}
+	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
 		p:        pNew,
 		refCount: 1,
@@ -1413,11 +1398,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	var pws []*partWrapper
 	for _, partName := range partNames {
 		partPath := filepath.Join(path, partName)
-		p, err := openFilePart(partPath)
-		if err != nil {
-			mustCloseParts(pws)
-			return nil, fmt.Errorf("cannot open part %q: %w", partPath, err)
-		}
+		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
 			p:        p,
 			refCount: 1,
@@ -1426,15 +1407,6 @@ func openParts(path string) ([]*partWrapper, error) {
 	}
 
 	return pws, nil
-}
-
-func mustCloseParts(pws []*partWrapper) {
-	for _, pw := range pws {
-		if pw.refCount != 1 {
-			logger.Panicf("BUG: unexpected refCount when closing part %q: %d; want 1", pw.p.path, pw.refCount)
-		}
-		pw.p.MustClose()
-	}
 }
 
 // CreateSnapshotAt creates tb snapshot in the given dstDir.

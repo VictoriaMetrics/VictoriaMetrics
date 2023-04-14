@@ -105,8 +105,8 @@ func (bsr *blockStreamReader) String() string {
 	return bsr.ph.String()
 }
 
-// InitFromInmemoryPart initializes bsr from the given mp.
-func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
+// MustInitFromInmemoryPart initializes bsr from the given mp.
+func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 	bsr.reset()
 
 	bsr.ph = mp.ph
@@ -121,18 +121,16 @@ func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
 	}
 }
 
-// InitFromFilePart initializes bsr from a file-based part on the given path.
+// MustInitFromFilePart initializes bsr from a file-based part on the given path.
 //
 // Files in the part are always read without OS cache pollution,
 // since they are usually deleted after the merge.
-func (bsr *blockStreamReader) InitFromFilePart(path string) error {
+func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	bsr.reset()
 
 	path = filepath.Clean(path)
 
-	if err := bsr.ph.ReadMetadata(path); err != nil {
-		return fmt.Errorf("cannot parse path to part: %w", err)
-	}
+	bsr.ph.MustReadMetadata(path)
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
 	timestampsFile := filestream.MustOpen(timestampsPath, true)
@@ -156,8 +154,6 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	bsr.valuesReader = valuesFile
 	bsr.indexReader = indexFile
 	bsr.mrs = mrs
-
-	return nil
 }
 
 // MustClose closes the bsr.

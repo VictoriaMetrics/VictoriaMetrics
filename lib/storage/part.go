@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"path/filepath"
 	"sync"
 	"unsafe"
@@ -9,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
@@ -45,14 +45,12 @@ type part struct {
 	metaindex []metaindexRow
 }
 
-// openFilePart opens file-based part from the given path.
-func openFilePart(path string) (*part, error) {
+// mustOpenFilePart opens file-based part from the given path.
+func mustOpenFilePart(path string) *part {
 	path = filepath.Clean(path)
 
 	var ph partHeader
-	if err := ph.ReadMetadata(path); err != nil {
-		return nil, fmt.Errorf("cannot parse path to part: %w", err)
-	}
+	ph.MustReadMetadata(path)
 
 	timestampsPath := filepath.Join(path, timestampsFilename)
 	timestampsFile := fs.MustOpenReaderAt(timestampsPath)
@@ -78,11 +76,10 @@ func openFilePart(path string) (*part, error) {
 //
 // The returned part calls MustClose on all the files passed to newPart
 // when calling part.MustClose.
-func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, timestampsFile, valuesFile, indexFile fs.MustReadAtCloser) (*part, error) {
-	var errors []error
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, timestampsFile, valuesFile, indexFile fs.MustReadAtCloser) *part {
 	metaindex, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("cannot unmarshal metaindex data: %w", err))
+		logger.Panicf("FATAL: cannot unmarshal metaindex data from %q: %s", path, err)
 	}
 	metaindexReader.MustClose()
 
@@ -95,14 +92,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.indexFile = indexFile
 	p.metaindex = metaindex
 
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		err = fmt.Errorf("cannot initialize part %q: %w", &p, errors[0])
-		p.MustClose()
-		return nil, err
-	}
-
-	return &p, nil
+	return &p
 }
 
 // String returns human-readable representation of p.

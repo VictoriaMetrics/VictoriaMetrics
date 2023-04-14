@@ -60,7 +60,7 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.mrFirstItemCaught = false
 }
 
-func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
+func (bsw *blockStreamWriter) MustInitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
 	bsw.reset()
 
 	bsw.compressLevel = compressLevel

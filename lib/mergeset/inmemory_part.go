@@ -6,7 +6,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type inmemoryPart struct {
@@ -102,10 +101,7 @@ var inmemoryPartBytePool bytesutil.ByteBufferPool
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
 	size := mp.size()
-	p, err := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
-	if err != nil {
-		logger.Panicf("BUG: cannot create a part from inmemoryPart: %s", err)
-	}
+	p := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
 	return p
 }
 
