@@ -22,6 +22,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * BUGFIX: reduce the probability of sudden increase in the number of small parts on systems with small number of CPU cores.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix performance issue when migrating data from VictoriaMetrics according to [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics). Add the ability to speed up the data migration via `--vm-native-disable-retries` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4092).
+* BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): fixes compatibility with Windows OS. For details see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70)
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 

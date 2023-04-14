@@ -9,6 +9,7 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	libfs "github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
@@ -48,7 +49,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	}
 
 	var parts []common.Part
-	dir += "/"
+	dir += string(filepath.Separator)
 	for _, file := range files {
 		if !strings.HasPrefix(file, dir) {
 			logger.Panicf("BUG: unexpected prefix for file %q; want %q", file, dir)
@@ -101,7 +102,8 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	}
 	// Attempt to create hardlink from srcPath to dstPath.
 	if err := os.Link(srcPath, dstPath); err == nil {
-		return fscommon.FsyncFile(dstPath)
+		libfs.MustSyncPath(dstPath)
+		return nil
 	}
 
 	// Cannot create hardlink. Just copy file contents
@@ -115,6 +117,9 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 		return fmt.Errorf("cannot create destination file: %w", err)
 	}
 	n, err := io.Copy(dstFile, srcFile)
+	if err := dstFile.Sync(); err != nil {
+		return fmt.Errorf("cannot fsync dstFile: %q: %w", dstFile.Name(), err)
+	}
 	if err1 := dstFile.Close(); err1 != nil {
 		err = err1
 	}
@@ -128,10 +133,6 @@ func (fs *FS) CopyPart(srcFS common.OriginFS, p common.Part) error {
 	if uint64(n) != p.Size {
 		_ = os.RemoveAll(dstPath)
 		return fmt.Errorf("unexpected number of bytes copied from %q to %q; got %d bytes; want %d bytes", srcPath, dstPath, n, p.Size)
-	}
-	if err := fscommon.FsyncFile(dstPath); err != nil {
-		_ = os.RemoveAll(dstPath)
-		return err
 	}
 	return nil
 }
@@ -167,6 +168,9 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 		return fmt.Errorf("cannot create file %q: %w", path, err)
 	}
 	n, err := io.Copy(w, r)
+	if err := w.Sync(); err != nil {
+		return fmt.Errorf("cannot fsync file: %q: %w", w.Name(), err)
+	}
 	if err1 := w.Close(); err1 != nil && err == nil {
 		err = err1
 	}
@@ -177,10 +181,6 @@ func (fs *FS) UploadPart(p common.Part, r io.Reader) error {
 	if uint64(n) != p.Size {
 		_ = os.RemoveAll(path)
 		return fmt.Errorf("wrong data size uploaded to %q; got %d bytes; want %d bytes", path, n, p.Size)
-	}
-	if err := fscommon.FsyncFile(path); err != nil {
-		_ = os.RemoveAll(path)
-		return err
 	}
 	return nil
 }
@@ -194,7 +194,7 @@ func (fs *FS) mkdirAll(filePath string) error {
 }
 
 func (fs *FS) path(p common.Part) string {
-	return p.RemotePath(fs.Dir)
+	return filepath.Join(fs.Dir, p.Path, fmt.Sprintf("%016X_%016X_%016X", p.FileSize, p.Offset, p.Size))
 }
 
 // DeleteFile deletes filePath at fs.
