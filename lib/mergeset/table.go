@@ -1477,9 +1477,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 		}
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
-		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
-			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
-		}
+		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
 	}
 
 	fs.MustSyncPath(dstDir)

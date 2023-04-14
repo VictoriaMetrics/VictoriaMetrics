@@ -259,13 +259,13 @@ func MustRemoveTemporaryDirs(dir string) {
 	MustSyncPath(dir)
 }
 
-// HardLinkFiles makes hard links for all the files from srcDir in dstDir.
-func HardLinkFiles(srcDir, dstDir string) error {
+// MustHardLinkFiles makes hard links for all the files from srcDir in dstDir.
+func MustHardLinkFiles(srcDir, dstDir string) {
 	mustMkdirSync(dstDir)
 
 	des, err := os.ReadDir(srcDir)
 	if err != nil {
-		return fmt.Errorf("cannot read files in scrDir: %w", err)
+		logger.Panicf("FATAL: cannot read files in scrDir: %s", err)
 	}
 	for _, de := range des {
 		if IsDirOrSymlink(de) {
@@ -276,12 +276,11 @@ func HardLinkFiles(srcDir, dstDir string) error {
 		srcPath := filepath.Join(srcDir, fn)
 		dstPath := filepath.Join(dstDir, fn)
 		if err := os.Link(srcPath, dstPath); err != nil {
-			return err
+			logger.Panicf("FATAL: cannot link files: %s", err)
 		}
 	}
 
 	MustSyncPath(dstDir)
-	return nil
 }
 
 // IsDirOrSymlink returns true if de is directory or symlink.
