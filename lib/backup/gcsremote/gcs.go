@@ -8,12 +8,13 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/googleapis/gax-go/v2"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 // FS represents filesystem for backups in GCS.

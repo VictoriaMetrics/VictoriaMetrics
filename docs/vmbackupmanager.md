@@ -162,8 +162,9 @@ The result on the GCS bucket. We see only 3 daily backups:
 * GET `/api/v1/backups` - returns list of backups in remote storage.
   Example output:
   ```json
-  [{"name":"daily/2022-11-30","size_bytes":26664689,"size":"25.429Mi"},{"name":"daily/2022-12-01","size_bytes":40160965,"size":"38.300Mi"},{"name":"hourly/2022-11-30:12","size_bytes":5846529,"size":"5.576Mi"},{"name":"hourly/2022-11-30:13","size_bytes":17651847,"size":"16.834Mi"},{"name":"hourly/2022-11-30:13:22","size_bytes":8797831,"size":"8.390Mi"},{"name":"hourly/2022-11-30:14","size_bytes":10680454,"size":"10.186Mi"}]
+  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
+  > Note: `created_at` field is in RFC3339 format. 
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
   Example request body:
@@ -215,7 +216,7 @@ It can be changed by using flag:
 `vmbackupmanager backup list` lists backups in remote storage:
 ```console
 $ ./vmbackupmanager backup list
-[{"name":"daily/2022-11-30","size_bytes":26664689,"size":"25.429Mi"},{"name":"daily/2022-12-01","size_bytes":40160965,"size":"38.300Mi"},{"name":"hourly/2022-11-30:12","size_bytes":5846529,"size":"5.576Mi"},{"name":"hourly/2022-11-30:13","size_bytes":17651847,"size":"16.834Mi"},{"name":"hourly/2022-11-30:13:22","size_bytes":8797831,"size":"8.390Mi"},{"name":"hourly/2022-11-30:14","size_bytes":10680454,"size":"10.186Mi"}]
+[{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
 ```
 
 ### Restore commands
@@ -253,16 +254,16 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 1. Run `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
-  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 2. Run `vmbackupmanager restore create` to create restore mark:
    - Use relative path to backup to restore from currently used remote storage:
      ```console
-     $ /vmbackupmanager-prod restore create daily/2022-10-06
+     $ /vmbackupmanager-prod restore create daily/2023-04-07
      ```
    - Use full path to backup to restore from any remote storage:
      ```console
-     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2022-10-06
+     $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
      ```
 3. Stop `vmstorage` or `vmsingle` node
 4. Run `vmbackupmanager restore` to restore backup:
@@ -287,16 +288,16 @@ If restore mark doesn't exist at `storageDataPath`(restore wasn't requested) `vm
 2. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
-  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 3. Use `vmbackupmanager restore create` to create restore mark:
   - Use relative path to backup to restore from currently used remote storage:
     ```console
-    $ /vmbackupmanager-prod restore create daily/2022-10-06
+    $ /vmbackupmanager-prod restore create daily/2023-04-07
     ```
   - Use full path to backup to restore from any remote storage:
     ```console
-    $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2022-10-06
+    $ /vmbackupmanager-prod restore create azblob://test1/vmbackupmanager/daily/2023-04-07
     ```
 4. Restart pod
 
@@ -319,13 +320,13 @@ Clusters here are referred to as `source` and `destination`.
 2. Use `vmbackupmanager backup list` to get list of available backups:
   ```console
   $ /vmbackupmanager-prod backup list
-  ["daily/2022-10-06","daily/2022-10-10","hourly/2022-10-04:13","hourly/2022-10-06:12","hourly/2022-10-06:13","hourly/2022-10-10:14","hourly/2022-10-10:16","monthly/2022-10","weekly/2022-40","weekly/2022-41"]
+  [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
 3. Use `vmbackupmanager restore create` to create restore mark at each pod of the *destination* cluster.
    Each pod in *destination* cluster should be restored from backup of respective pod in *source* cluster.
    For example: `vmstorage-source-0` in *source* cluster should be restored from `vmstorage-destination-0` in *destination* cluster.
   ```console
-  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2022-10-06
+  $ /vmbackupmanager-prod restore create s3://source_cluster/vmstorage-source-0/daily/2023-04-07
   ```
 
 ## Monitoring
