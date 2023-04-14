@@ -171,7 +171,7 @@ func (ph *partHeader) MustWriteMetadata(partPath string) {
 		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
 	metadataPath := filepath.Join(partPath, metadataFilename)
-	// There is no need in calling fs.WriteFileAtomically() here,
+	// There is no need in calling fs.MustWriteAtomic() here,
 	// since the file is created only once during part creatinng
 	// and the part directory is synced aftewards.
 	fs.MustWriteSync(metadataPath, metadata)

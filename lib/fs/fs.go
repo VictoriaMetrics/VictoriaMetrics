@@ -31,7 +31,7 @@ func MustSyncPath(path string) {
 //
 // This function may leave the file at the path in inconsistent state on app crash
 // in the middle of the write.
-// Use WriteFileAtomically if the file at the path must be either written in full
+// Use MustWriteAtomic if the file at the path must be either written in full
 // or not written at all on app crash in the middle of the write.
 func MustWriteSync(path string, data []byte) {
 	f, err := filestream.Create(path, false)
@@ -48,7 +48,7 @@ func MustWriteSync(path string, data []byte) {
 	f.MustClose()
 }
 
-// WriteFileAtomically atomically writes data to the given file path.
+// MustWriteAtomic atomically writes data to the given file path.
 //
 // This function returns only after the file is fully written and synced
 // to the underlying storage.
@@ -58,12 +58,12 @@ func MustWriteSync(path string, data []byte) {
 //
 // If the file at path already exists, then the file is overwritten atomically if canOverwrite is true.
 // Otherwise error is returned.
-func WriteFileAtomically(path string, data []byte, canOverwrite bool) error {
+func MustWriteAtomic(path string, data []byte, canOverwrite bool) {
 	// Check for the existing file. It is expected that
-	// the WriteFileAtomically function cannot be called concurrently
+	// the MustWriteAtomic function cannot be called concurrently
 	// with the same `path`.
 	if IsPathExist(path) && !canOverwrite {
-		return fmt.Errorf("cannot create file %q, since it already exists", path)
+		logger.Panicf("FATAL: cannot create file %q, since it already exists", path)
 	}
 
 	// Write data to a temporary file.
@@ -75,28 +75,26 @@ func WriteFileAtomically(path string, data []byte, canOverwrite bool) error {
 	if err := os.Rename(tmpPath, path); err != nil {
 		// do not call MustRemoveAll(tmpPath) here, so the user could inspect
 		// the file contents during investigation of the issue.
-		return fmt.Errorf("cannot move temporary file %q to %q: %w", tmpPath, path, err)
+		logger.Panicf("FATAL: cannot move temporary file %q to %q: %s", tmpPath, path, err)
 	}
 
 	// Sync the containing directory, so the file is guaranteed to appear in the directory.
 	// See https://www.quora.com/When-should-you-fsync-the-containing-directory-in-addition-to-the-file-itself
 	absPath, err := filepath.Abs(path)
 	if err != nil {
-		return fmt.Errorf("cannot obtain absolute path to %q: %w", path, err)
+		logger.Panicf("FATAL: cannot obtain absolute path to %q: %s", path, err)
 	}
 	parentDirPath := filepath.Dir(absPath)
 	MustSyncPath(parentDirPath)
-
-	return nil
 }
 
 // IsTemporaryFileName returns true if fn matches temporary file name pattern
-// from WriteFileAtomically.
+// from MustWriteAtomic.
 func IsTemporaryFileName(fn string) bool {
 	return tmpFileNameRe.MatchString(fn)
 }
 
-// tmpFileNameRe is regexp for temporary file name - see WriteFileAtomically for details.
+// tmpFileNameRe is regexp for temporary file name - see MustWriteAtomic for details.
 var tmpFileNameRe = regexp.MustCompile(`\.tmp\.\d+$`)
 
 // MustMkdirIfNotExist creates the given path dir if it isn't exist.
@@ -104,9 +102,7 @@ func MustMkdirIfNotExist(path string) {
 	if IsPathExist(path) {
 		return
 	}
-	if err := mkdirSync(path); err != nil {
-		logger.Panicf("FATAL: cannot create directory: %s", err)
-	}
+	mustMkdirSync(path)
 }
 
 // MustMkdirFailIfExist creates the given path dir if it isn't exist.
@@ -116,20 +112,17 @@ func MustMkdirFailIfExist(path string) {
 	if IsPathExist(path) {
 		logger.Panicf("FATAL: the %q already exists", path)
 	}
-	if err := mkdirSync(path); err != nil {
-		logger.Panicf("FATAL: cannot create directory: %s", err)
-	}
+	mustMkdirSync(path)
 }
 
-func mkdirSync(path string) error {
+func mustMkdirSync(path string) {
 	if err := os.MkdirAll(path, 0755); err != nil {
-		return err
+		logger.Panicf("FATAL: cannot create directory: %s", err)
 	}
 	// Sync the parent directory, so the created directory becomes visible
 	// in the fs after power loss.
 	parentDirPath := filepath.Dir(path)
 	MustSyncPath(parentDirPath)
-	return nil
 }
 
 // RemoveDirContents removes all the contents of the given dir if it exists.
@@ -268,9 +261,7 @@ func MustRemoveTemporaryDirs(dir string) {
 
 // HardLinkFiles makes hard links for all the files from srcDir in dstDir.
 func HardLinkFiles(srcDir, dstDir string) error {
-	if err := mkdirSync(dstDir); err != nil {
-		return fmt.Errorf("cannot create dstDir=%q: %w", dstDir, err)
-	}
+	mustMkdirSync(dstDir)
 
 	des, err := os.ReadDir(srcDir)
 	if err != nil {
