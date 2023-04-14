@@ -25,7 +25,7 @@ func MustSyncPath(path string) {
 	mustSyncPath(path)
 }
 
-// WriteFileAndSync writes data to the file at path and then calls fsync on the created file.
+// MustWriteFileAndSync writes data to the file at path and then calls fsync on the created file.
 //
 // The fsync guarantees that the written data survives hardware reset after successful call.
 //
@@ -33,20 +33,19 @@ func MustSyncPath(path string) {
 // in the middle of the write.
 // Use WriteFileAtomically if the file at the path must be either written in full
 // or not written at all on app crash in the middle of the write.
-func WriteFileAndSync(path string, data []byte) error {
+func MustWriteFileAndSync(path string, data []byte) {
 	f, err := filestream.Create(path, false)
 	if err != nil {
-		return err
+		logger.Panicf("FATAL: cannot create file: %s", err)
 	}
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
 		// Do not call MustRemoveAll(path), so the user could inspect
 		// the file contents during investigation of the issue.
-		return fmt.Errorf("cannot write %d bytes to %q: %w", len(data), path, err)
+		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(data), path, err)
 	}
 	// Sync and close the file.
 	f.MustClose()
-	return nil
 }
 
 // WriteFileAtomically atomically writes data to the given file path.
@@ -70,9 +69,7 @@ func WriteFileAtomically(path string, data []byte, canOverwrite bool) error {
 	// Write data to a temporary file.
 	n := atomic.AddUint64(&tmpFileNum, 1)
 	tmpPath := fmt.Sprintf("%s.tmp.%d", path, n)
-	if err := WriteFileAndSync(tmpPath, data); err != nil {
-		return fmt.Errorf("cannot write data to temporary file: %w", err)
-	}
+	MustWriteFileAndSync(tmpPath, data)
 
 	// Atomically move the temporary file from tmpPath to path.
 	if err := os.Rename(tmpPath, path); err != nil {

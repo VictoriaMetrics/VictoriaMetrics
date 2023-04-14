@@ -1465,9 +1465,7 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	}
 	if dstPartPath != "" {
 		ph.MinDedupInterval = GetDedupInterval()
-		if err := ph.WriteMetadata(dstPartPath); err != nil {
-			logger.Panicf("FATAL: cannot store metadata to %s: %s", dstPartPath, err)
-		}
+		ph.MustWriteMetadata(dstPartPath)
 	}
 	return &ph, nil
 }

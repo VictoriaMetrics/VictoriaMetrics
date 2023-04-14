@@ -38,24 +38,19 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
-		return fmt.Errorf("cannot store metaindex: %w", err)
-	}
+	fs.MustWriteFileAndSync(metaindexPath, mp.metaindexData.B)
+
 	indexPath := filepath.Join(path, indexFilename)
-	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
-		return fmt.Errorf("cannot store index: %w", err)
-	}
+	fs.MustWriteFileAndSync(indexPath, mp.indexData.B)
+
 	itemsPath := filepath.Join(path, itemsFilename)
-	if err := fs.WriteFileAndSync(itemsPath, mp.itemsData.B); err != nil {
-		return fmt.Errorf("cannot store items: %w", err)
-	}
+	fs.MustWriteFileAndSync(itemsPath, mp.itemsData.B)
+
 	lensPath := filepath.Join(path, lensFilename)
-	if err := fs.WriteFileAndSync(lensPath, mp.lensData.B); err != nil {
-		return fmt.Errorf("cannot store lens: %w", err)
-	}
-	if err := mp.ph.WriteMetadata(path); err != nil {
-		return fmt.Errorf("cannot store metadata: %w", err)
-	}
+	fs.MustWriteFileAndSync(lensPath, mp.lensData.B)
+
+	mp.ph.MustWriteMetadata(path)
+
 	fs.MustSyncPath(path)
 	// Do not sync parent directory - it must be synced by the caller.
 	return nil

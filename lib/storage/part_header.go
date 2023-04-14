@@ -165,7 +165,7 @@ func (ph *partHeader) ReadMetadata(partPath string) error {
 	return nil
 }
 
-func (ph *partHeader) WriteMetadata(partPath string) error {
+func (ph *partHeader) MustWriteMetadata(partPath string) {
 	metadata, err := json.Marshal(ph)
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
@@ -174,8 +174,5 @@ func (ph *partHeader) WriteMetadata(partPath string) error {
 	// There is no need in calling fs.WriteFileAtomically() here,
 	// since the file is created only once during part creatinng
 	// and the part directory is synced aftewards.
-	if err := fs.WriteFileAndSync(metadataPath, metadata); err != nil {
-		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
-	}
-	return nil
+	fs.MustWriteFileAndSync(metadataPath, metadata)
 }

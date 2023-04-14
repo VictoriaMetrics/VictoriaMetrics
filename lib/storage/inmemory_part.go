@@ -41,24 +41,19 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	if err := fs.WriteFileAndSync(timestampsPath, mp.timestampsData.B); err != nil {
-		return fmt.Errorf("cannot store timestamps: %w", err)
-	}
+	fs.MustWriteFileAndSync(timestampsPath, mp.timestampsData.B)
+
 	valuesPath := filepath.Join(path, valuesFilename)
-	if err := fs.WriteFileAndSync(valuesPath, mp.valuesData.B); err != nil {
-		return fmt.Errorf("cannot store values: %w", err)
-	}
+	fs.MustWriteFileAndSync(valuesPath, mp.valuesData.B)
+
 	indexPath := filepath.Join(path, indexFilename)
-	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
-		return fmt.Errorf("cannot store index: %w", err)
-	}
+	fs.MustWriteFileAndSync(indexPath, mp.indexData.B)
+
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
-		return fmt.Errorf("cannot store metaindex: %w", err)
-	}
-	if err := mp.ph.WriteMetadata(path); err != nil {
-		return fmt.Errorf("cannot store metadata: %w", err)
-	}
+	fs.MustWriteFileAndSync(metaindexPath, mp.metaindexData.B)
+
+	mp.ph.MustWriteMetadata(path)
+
 	fs.MustSyncPath(path)
 	// Do not sync parent directory - it must be synced by the caller.
 	return nil
