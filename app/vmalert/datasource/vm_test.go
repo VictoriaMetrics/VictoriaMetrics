@@ -150,7 +150,7 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Fatalf("unexpected metric %+v want %+v", m, expected)
 	}
 
-	seriesFetched, _, _, err := pq.Query(ctx, query, ts) // 8 - scalar with series fetched
+	seriesFetched, _, _, err := pq.Query(ctx, query, ts) // 8 - result with seriesFetched filed
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}

@@ -55,8 +55,8 @@ type ruleStateEntry struct {
 	samples int
 	// stores the curl command reflecting the HTTP request used during rule.Exec
 	curl string
-	// stores how much series fetched from storage during the query evaluation.
-	// 0 means do not match any series.
+	// stores the number of series fetched during the last evaluation
+	// 0 means no matching series or field is missing with Prometheus or older versions of VM.
 	seriesFetched int64
 }
 
