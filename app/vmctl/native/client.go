@@ -11,34 +11,33 @@ import (
 )
 
 const (
-	nativeTenantsAddr = "admin/tenants"
-	nativeSeriesAddr  = "api/v1/series"
-	nameLabel         = "__name__"
+	nativeTenantsAddr     = "admin/tenants"
+	nativeMetricNamesAddr = "api/v1/label/__name__/values"
 )
 
 // Client is an HTTP client for exporting and importing
 // time series via native protocol.
 type Client struct {
-	AuthCfg              *auth.Config
-	Addr                 string
-	ExtraLabels          []string
-	DisableHTTPKeepAlive bool
+	AuthCfg     *auth.Config
+	Addr        string
+	ExtraLabels []string
+	HTTPClient  *http.Client
 }
 
 // LabelValues represents series from api/v1/series response
 type LabelValues map[string]string
 
-// Response represents response from api/v1/series
+// Response represents response from api/v1/label/__name__/values
 type Response struct {
-	Status string        `json:"status"`
-	Series []LabelValues `json:"data"`
+	Status      string   `json:"status"`
+	MetricNames []string `json:"data"`
 }
 
-// Explore finds series by provided filter from api/v1/series
-func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) (map[string]struct{}, error) {
-	url := fmt.Sprintf("%s/%s", c.Addr, nativeSeriesAddr)
+// Explore finds metric names by provided filter from api/v1/label/__name__/values
+func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) ([]string, error) {
+	url := fmt.Sprintf("%s/%s", c.Addr, nativeMetricNamesAddr)
 	if tenantID != "" {
-		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeSeriesAddr)
+		url = fmt.Sprintf("%s/select/%s/prometheus/%s", c.Addr, tenantID, nativeMetricNamesAddr)
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -68,21 +67,7 @@ func (c *Client) Explore(ctx context.Context, f Filter, tenantID string) (map[st
 	if err := resp.Body.Close(); err != nil {
 		return nil, fmt.Errorf("cannot close series response body: %s", err)
 	}
-	names := make(map[string]struct{})
-	for _, series := range response.Series {
-		// TODO: consider tweaking /api/v1/series API to return metric names only
-		// this could make explore response much lighter.
-		for key, value := range series {
-			if key != nameLabel {
-				continue
-			}
-			if _, ok := names[value]; ok {
-				continue
-			}
-			names[value] = struct{}{}
-		}
-	}
-	return names, nil
+	return response.MetricNames, nil
 }
 
 // ImportPipe uses pipe reader in request to process data
@@ -169,8 +154,8 @@ func (c *Client) do(req *http.Request, expSC int) (*http.Response, error) {
 	if c.AuthCfg != nil {
 		c.AuthCfg.SetHeaders(req, true)
 	}
-	var httpClient = &http.Client{Transport: &http.Transport{DisableKeepAlives: c.DisableHTTPKeepAlive}}
-	resp, err := httpClient.Do(req)
+
+	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("unexpected error when performing request: %w", err)
 	}

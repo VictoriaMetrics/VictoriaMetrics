@@ -13,6 +13,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * [How to build vmauth](https://docs.victoriametrics.com/vmauth.html#how-to-build-from-sources)
 * [How to build vmctl](https://docs.victoriametrics.com/vmctl.html#how-to-build)
 
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix performance issue when using `vmctl vm-native`. Added flag to disable backoff policy `--vm-native-disable-retries`. Changed API call to explore the list of the metric names from `/api/v1/series` to `api/v1/label/__name__/values`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4092).
+
 ## tip
 
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): store backup creation and completion time in `backup_complete.ignore` file of backup contents. This is useful to determine point in time when backup was created and completed.
