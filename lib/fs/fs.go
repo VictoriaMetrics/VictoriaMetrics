@@ -337,19 +337,18 @@ func MustCopyFile(srcPath, dstPath string) {
 	MustSyncPath(dstPath)
 }
 
-// ReadFullData reads len(data) bytes from r.
-func ReadFullData(r io.Reader, data []byte) error {
+// MustReadData reads len(data) bytes from r.
+func MustReadData(r filestream.ReadCloser, data []byte) {
 	n, err := io.ReadFull(r, data)
 	if err != nil {
 		if err == io.EOF {
-			return io.EOF
+			return
 		}
-		return fmt.Errorf("cannot read %d bytes; read only %d bytes; error: %w", len(data), n, err)
+		logger.Panicf("FATAL: cannot read %d bytes from %s; read only %d bytes; error: %s", len(data), r.Path(), n, err)
 	}
 	if n != len(data) {
-		logger.Panicf("BUG: io.ReadFull read only %d bytes; must read %d bytes", n, len(data))
+		logger.Panicf("BUG: io.ReadFull read only %d bytes from %s; must read %d bytes", n, r.Path(), len(data))
 	}
-	return nil
 }
 
 // MustWriteData writes data to w.

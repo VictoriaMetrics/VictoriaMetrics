@@ -30,13 +30,9 @@ type blockStreamReader struct {
 
 	ph partHeader
 
-	// Use io.Reader type for timestampsReader and valuesReader
-	// in order to remove I2I conversion in readBlock
-	// when passing them to fs.ReadFullData
-	timestampsReader io.Reader
-	valuesReader     io.Reader
-
-	indexReader filestream.ReadCloser
+	timestampsReader filestream.ReadCloser
+	valuesReader     filestream.ReadCloser
+	indexReader      filestream.ReadCloser
 
 	mrs []metaindexRow
 
@@ -66,11 +62,6 @@ type blockStreamReader struct {
 	indexCursor []byte
 
 	err error
-}
-
-func (bsr *blockStreamReader) assertWriteClosers() {
-	_ = bsr.timestampsReader.(filestream.ReadCloser)
-	_ = bsr.valuesReader.(filestream.ReadCloser)
 }
 
 func (bsr *blockStreamReader) reset() {
@@ -128,8 +119,6 @@ func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
 	if err != nil {
 		logger.Panicf("BUG: cannot unmarshal metaindex rows from inmemoryPart: %s", err)
 	}
-
-	bsr.assertWriteClosers()
 }
 
 // InitFromFilePart initializes bsr from a file-based part on the given path.
@@ -189,8 +178,6 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	bsr.indexReader = indexFile
 	bsr.mrs = mrs
 
-	bsr.assertWriteClosers()
-
 	return nil
 }
 
@@ -198,8 +185,8 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 //
 // It closes *Reader files passed to Init.
 func (bsr *blockStreamReader) MustClose() {
-	bsr.timestampsReader.(filestream.ReadCloser).MustClose()
-	bsr.valuesReader.(filestream.ReadCloser).MustClose()
+	bsr.timestampsReader.MustClose()
+	bsr.valuesReader.MustClose()
 	bsr.indexReader.MustClose()
 
 	bsr.reset()
@@ -309,18 +296,14 @@ func (bsr *blockStreamReader) readBlock() error {
 		bsr.Block.timestampsData = append(bsr.Block.timestampsData[:0], bsr.prevTimestampsData...)
 	} else {
 		bsr.Block.timestampsData = bytesutil.ResizeNoCopyMayOverallocate(bsr.Block.timestampsData, int(bsr.Block.bh.TimestampsBlockSize))
-		if err := fs.ReadFullData(bsr.timestampsReader, bsr.Block.timestampsData); err != nil {
-			return fmt.Errorf("cannot read timestamps block at offset %d: %w", bsr.timestampsBlockOffset, err)
-		}
+		fs.MustReadData(bsr.timestampsReader, bsr.Block.timestampsData)
 		bsr.prevTimestampsBlockOffset = bsr.timestampsBlockOffset
 		bsr.prevTimestampsData = append(bsr.prevTimestampsData[:0], bsr.Block.timestampsData...)
 	}
 
 	// Read values data.
 	bsr.Block.valuesData = bytesutil.ResizeNoCopyMayOverallocate(bsr.Block.valuesData, int(bsr.Block.bh.ValuesBlockSize))
-	if err := fs.ReadFullData(bsr.valuesReader, bsr.Block.valuesData); err != nil {
-		return fmt.Errorf("cannot read values block at offset %d: %w", bsr.valuesBlockOffset, err)
-	}
+	fs.MustReadData(bsr.valuesReader, bsr.Block.valuesData)
 
 	// Update offsets.
 	if !usePrevTimestamps {
@@ -353,9 +336,7 @@ func (bsr *blockStreamReader) readIndexBlock() error {
 
 	// Read index block.
 	bsr.compressedIndexData = bytesutil.ResizeNoCopyMayOverallocate(bsr.compressedIndexData, int(bsr.mr.IndexBlockSize))
-	if err := fs.ReadFullData(bsr.indexReader, bsr.compressedIndexData); err != nil {
-		return fmt.Errorf("cannot read index block at offset %d: %w", bsr.indexBlockOffset, err)
-	}
+	fs.MustReadData(bsr.indexReader, bsr.compressedIndexData)
 	tmpData, err := encoding.DecompressZSTD(bsr.indexData[:0], bsr.compressedIndexData)
 	if err != nil {
 		return fmt.Errorf("cannot decompress index block at offset %d: %w", bsr.indexBlockOffset, err)
