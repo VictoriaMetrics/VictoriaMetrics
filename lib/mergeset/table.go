@@ -1072,7 +1072,6 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		// Nothing to merge.
 		return errNothingToMerge
 	}
-	defer tb.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1132,6 +1131,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	putBlockStreamWriter(bsw)
 	closeBlockStreamReaders()
 	if err != nil {
+		tb.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {
