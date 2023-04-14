@@ -222,17 +222,7 @@ func IsEmptyDir(path string) bool {
 // If the process crashes after the step 1, then the directory must be removed
 // on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
 func MustRemoveDirAtomic(dir string) {
-	if !IsPathExist(dir) {
-		return
-	}
-	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
-	}
-	MustRemoveAll(tmpDir)
-	parentDir := filepath.Dir(dir)
-	MustSyncPath(parentDir)
+	mustRemoveDirAtomic(dir)
 }
 
 var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
