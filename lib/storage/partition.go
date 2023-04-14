@@ -1250,7 +1250,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		// Nothing to merge.
 		return errNothingToMerge
 	}
-	defer pt.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1311,6 +1310,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	putBlockStreamWriter(bsw)
 	closeBlockStreamReaders()
 	if err != nil {
+		pt.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {
