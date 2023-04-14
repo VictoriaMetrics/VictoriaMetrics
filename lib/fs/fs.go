@@ -154,7 +154,7 @@ func RemoveDirContents(dir string) {
 			// Skip special dirs.
 			continue
 		}
-		fullPath := dir + "/" + name
+		fullPath := filepath.Join(dir, name)
 		MustRemoveAll(fullPath)
 	}
 	MustSyncPath(dir)
@@ -258,7 +258,7 @@ func MustRemoveTemporaryDirs(dir string) {
 		}
 		dirName := de.Name()
 		if IsScheduledForRemoval(dirName) {
-			fullPath := dir + "/" + dirName
+			fullPath := filepath.Join(dir, dirName)
 			MustRemoveAll(fullPath)
 		}
 	}
@@ -281,8 +281,8 @@ func HardLinkFiles(srcDir, dstDir string) error {
 			continue
 		}
 		fn := de.Name()
-		srcPath := srcDir + "/" + fn
-		dstPath := dstDir + "/" + fn
+		srcPath := filepath.Join(srcDir, fn)
+		dstPath := filepath.Join(dstDir, fn)
 		if err := os.Link(srcPath, dstPath); err != nil {
 			return err
 		}
@@ -379,12 +379,15 @@ func MustWriteData(w io.Writer, data []byte) {
 	}
 }
 
-// CreateFlockFile creates flock.lock file in the directory dir
+// CreateFlockFile creates FlockFilename file in the directory dir
 // and returns the handler to the file.
 func CreateFlockFile(dir string) (*os.File, error) {
-	flockFile := dir + "/flock.lock"
+	flockFile := filepath.Join(dir, FlockFilename)
 	return createFlockFile(flockFile)
 }
+
+// FlockFilename is the filename for the file created by CreateFlockFile().
+const FlockFilename = "flock.lock"
 
 // MustGetFreeSpace returns free space for the given directory path.
 func MustGetFreeSpace(path string) uint64 {

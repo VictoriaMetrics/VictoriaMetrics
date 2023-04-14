@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -226,16 +227,16 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 	for _, de := range des {
 		fname := de.Name()
-		filepath := path + "/" + fname
+		filepath := filepath.Join(path, fname)
 		if de.IsDir() {
 			logger.Errorf("skipping unknown directory %q", filepath)
 			continue
 		}
-		if fname == "metainfo.json" {
+		if fname == metainfoFilename {
 			// skip metainfo file
 			continue
 		}
-		if fname == "flock.lock" {
+		if fname == fs.FlockFilename {
 			// skip flock file
 			continue
 		}
@@ -356,11 +357,11 @@ func (q *queue) MustClose() {
 }
 
 func (q *queue) chunkFilePath(offset uint64) string {
-	return fmt.Sprintf("%s/%016X", q.dir, offset)
+	return filepath.Join(q.dir, fmt.Sprintf("%016X", offset))
 }
 
 func (q *queue) metainfoPath() string {
-	return q.dir + "/metainfo.json"
+	return filepath.Join(q.dir, metainfoFilename)
 }
 
 // MustWriteBlock writes block to q.
