@@ -158,11 +158,7 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 
 		smallPath := filepath.Join(dstSmallDir, ptw.pt.name)
 		bigPath := filepath.Join(dstBigDir, ptw.pt.name)
-		if err := ptw.pt.CreateSnapshotAt(smallPath, bigPath); err != nil {
-			fs.MustRemoveAll(dstSmallDir)
-			fs.MustRemoveAll(dstBigDir)
-			return "", "", fmt.Errorf("cannot create snapshot for partition %q in %q: %w", ptw.pt.name, tb.path, err)
-		}
+		ptw.pt.MustCreateSnapshotAt(smallPath, bigPath)
 	}
 
 	fs.MustSyncPath(dstSmallDir)

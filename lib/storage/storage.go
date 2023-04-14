@@ -356,9 +356,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 
 	srcMetadataDir := filepath.Join(srcDir, metadataDirname)
 	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
-	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
-		return "", fmt.Errorf("cannot copy metadata: %w", err)
-	}
+	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
 	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	idb := s.idb()

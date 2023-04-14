@@ -1849,10 +1849,10 @@ func mustCloseParts(pws []*partWrapper) {
 	}
 }
 
-// CreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
+// MustCreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
-func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
+func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
 	logger.Infof("creating partition snapshot of %q and %q...", pt.smallPartsPath, pt.bigPartsPath)
 	startTime := time.Now()
 
@@ -1877,22 +1877,15 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 	// Create a file with part names at smallPath
 	mustWritePartNames(pwsSmall, pwsBig, smallPath)
 
-	if err := pt.createSnapshot(pt.smallPartsPath, smallPath, pwsSmall); err != nil {
-		return fmt.Errorf("cannot create snapshot for %q: %w", pt.smallPartsPath, err)
-	}
-	if err := pt.createSnapshot(pt.bigPartsPath, bigPath, pwsBig); err != nil {
-		return fmt.Errorf("cannot create snapshot for %q: %w", pt.bigPartsPath, err)
-	}
+	pt.mustCreateSnapshot(pt.smallPartsPath, smallPath, pwsSmall)
+	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
 
 	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
 		pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime).Seconds())
-	return nil
 }
 
-// createSnapshot creates a snapshot from srcDir to dstDir.
-//
-// The caller is responsible for deleting dstDir if createSnapshot() returns error.
-func (pt *partition) createSnapshot(srcDir, dstDir string, pws []*partWrapper) error {
+// mustCreateSnapshot creates a snapshot from srcDir to dstDir.
+func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrapper) {
 	// Make hardlinks for pws at dstDir
 	for _, pw := range pws {
 		srcPartPath := pw.p.path
@@ -1907,16 +1900,12 @@ func (pt *partition) createSnapshot(srcDir, dstDir string, pws []*partWrapper) e
 	srcPath := filepath.Join(srcDir, appliedRetentionFilename)
 	if fs.IsPathExist(srcPath) {
 		dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
-		if err := fs.CopyFile(srcPath, dstPath); err != nil {
-			return fmt.Errorf("cannot copy %q to %q: %w", srcPath, dstPath, err)
-		}
+		fs.MustCopyFile(srcPath, dstPath)
 	}
 
 	fs.MustSyncPath(dstDir)
 	parentDir := filepath.Dir(dstDir)
 	fs.MustSyncPath(parentDir)
-
-	return nil
 }
 
 type partNamesJSON struct {
