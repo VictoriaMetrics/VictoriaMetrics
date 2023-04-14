@@ -67,13 +67,7 @@ func openFilePart(path string) (*part, error) {
 	indexSize := fs.MustFileSize(indexPath)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		indexFile.MustClose()
-		return nil, fmt.Errorf("cannot open metaindex file: %w", err)
-	}
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
 	size := timestampsSize + valuesSize + indexSize + metaindexSize
