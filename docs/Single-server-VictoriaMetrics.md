@@ -2134,7 +2134,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 
 ```
   -bigMergeConcurrency int
-     The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+     Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
@@ -2473,7 +2473,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -selfScrapeJob string
      Value for 'job' label, which is added to self-scraped metrics (default "victoria-metrics")
   -smallMergeConcurrency int
-     The maximum number of CPU cores to use for small merges. Default value is used if set to 0
+     The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
   -snapshotsMaxAge value
