@@ -1506,9 +1506,7 @@ func mustWritePartNames(pws []*partWrapper, dstDir string) {
 		logger.Panicf("BUG: cannot marshal partNames to JSON: %s", err)
 	}
 	partNamesPath := filepath.Join(dstDir, partsFilename)
-	if err := fs.WriteFileAtomically(partNamesPath, data, true); err != nil {
-		logger.Panicf("FATAL: cannot update %s: %s", partNamesPath, err)
-	}
+	fs.MustWriteAtomic(partNamesPath, data, true)
 }
 
 func mustReadPartNames(srcDir string) []string {

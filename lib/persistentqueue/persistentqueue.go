@@ -210,9 +210,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 
 		// Create initial chunk file.
 		filepath := q.chunkFilePath(0)
-		if err := fs.WriteFileAtomically(filepath, nil, false); err != nil {
-			return nil, fmt.Errorf("cannot create %q: %w", filepath, err)
-		}
+		fs.MustWriteAtomic(filepath, nil, false)
 	}
 	if mi.Name != q.name {
 		return nil, fmt.Errorf("unexpected queue name; got %q; want %q", mi.Name, q.name)
