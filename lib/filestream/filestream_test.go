@@ -29,10 +29,7 @@ func TestWriteRead(t *testing.T) {
 func testWriteRead(t *testing.T, nocache bool, testStr string) {
 	t.Helper()
 
-	w, err := Create("./nocache_test.txt", nocache)
-	if err != nil {
-		t.Fatalf("cannot create file: %s", err)
-	}
+	w := MustCreate("./nocache_test.txt", nocache)
 	defer func() {
 		_ = os.Remove("./nocache_test.txt")
 	}()

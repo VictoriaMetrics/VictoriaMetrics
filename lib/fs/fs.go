@@ -34,10 +34,7 @@ func MustSyncPath(path string) {
 // Use MustWriteAtomic if the file at the path must be either written in full
 // or not written at all on app crash in the middle of the write.
 func MustWriteSync(path string, data []byte) {
-	f, err := filestream.Create(path, false)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create file: %s", err)
-	}
+	f := filestream.MustCreate(path, false)
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
 		// Do not call MustRemoveAll(path), so the user could inspect

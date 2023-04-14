@@ -93,10 +93,7 @@ func (q *queue) mustResetFiles() {
 	q.readerLocalOffset = 0
 
 	q.writerPath = q.chunkFilePath(q.writerOffset)
-	w, err := filestream.Create(q.writerPath, false)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create chunk file %q: %s", q.writerPath, err)
-	}
+	w := filestream.MustCreate(q.writerPath, false)
 	q.writer = w
 
 	q.readerPath = q.writerPath
@@ -445,10 +442,7 @@ func (q *queue) nextChunkFileForWrite() error {
 	q.writerFlushedOffset = q.writerOffset
 	q.writerLocalOffset = 0
 	q.writerPath = q.chunkFilePath(q.writerOffset)
-	w, err := filestream.Create(q.writerPath, false)
-	if err != nil {
-		return fmt.Errorf("cannot create chunk file %q: %w", q.writerPath, err)
-	}
+	w := filestream.MustCreate(q.writerPath, false)
 	q.writer = w
 	if err := q.flushMetainfo(); err != nil {
 		return fmt.Errorf("cannot flush metainfo: %w", err)
