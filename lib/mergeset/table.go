@@ -1245,9 +1245,7 @@ func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, 
 		return nil, fmt.Errorf("cannot merge %d parts to %s: %w", len(bsrs), dstPartPath, err)
 	}
 	if dstPartPath != "" {
-		if err := ph.WriteMetadata(dstPartPath); err != nil {
-			logger.Panicf("FATAL: cannot write metadata to %s: %s", dstPartPath, err)
-		}
+		ph.MustWriteMetadata(dstPartPath)
 	}
 	return &ph, nil
 }
