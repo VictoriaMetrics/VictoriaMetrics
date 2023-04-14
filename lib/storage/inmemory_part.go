@@ -59,9 +59,8 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 	if err := mp.ph.WriteMetadata(path); err != nil {
 		return fmt.Errorf("cannot store metadata: %w", err)
 	}
-	// Sync parent directory in order to make sure the written files remain visible after hardware reset
-	parentDirPath := filepath.Dir(path)
-	fs.MustSyncPath(parentDirPath)
+	fs.MustSyncPath(path)
+	// Do not sync parent directory - it must be synced by the caller.
 	return nil
 }
 
