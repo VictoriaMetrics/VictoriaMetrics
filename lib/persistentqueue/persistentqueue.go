@@ -183,9 +183,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 		}
 	}
 
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+	fs.MustMkdirIfNotExist(path)
 	q.flockF = mustCreateFlockFile(path)
 	mustCloseFlockF := true
 	defer func() {

@@ -80,9 +80,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 						r.Value++
 					}
 					// Add updated rowsCopy.
-					if err := tb.AddRows(rowsCopy); err != nil {
-						panic(fmt.Errorf("cannot add rows to table %q: %w", tablePath, err))
-					}
+					tb.MustAddRows(rowsCopy)
 				}
 
 				doneCh <- struct{}{}

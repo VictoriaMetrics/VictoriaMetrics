@@ -95,9 +95,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 					r.Timestamp = int64(ts)
 					r.Value = value
 				}
-				if err := tb.AddRows(rows); err != nil {
-					panic(fmt.Errorf("cannot add %d rows: %w", rowsPerInsert, err))
-				}
+				tb.MustAddRows(rows)
 			}
 			wg.Done()
 		}(k)

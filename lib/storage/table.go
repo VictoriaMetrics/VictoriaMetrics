@@ -83,9 +83,7 @@ func openTable(path string, s *Storage) (*table, error) {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory for table %q: %w", path, err)
-	}
+	fs.MustMkdirIfNotExist(path)
 
 	// Protect from concurrent opens.
 	flockF, err := fs.CreateFlockFile(path)
@@ -96,25 +94,19 @@ func openTable(path string, s *Storage) (*table, error) {
 
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := filepath.Join(path, smallDirname)
-	if err := fs.MkdirAllIfNotExist(smallPartitionsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for small partitions %q: %w", smallPartitionsPath, err)
-	}
+	fs.MustMkdirIfNotExist(smallPartitionsPath)
 	fs.MustRemoveTemporaryDirs(smallPartitionsPath)
+
 	smallSnapshotsPath := filepath.Join(smallPartitionsPath, snapshotsDirname)
-	if err := fs.MkdirAllIfNotExist(smallSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", smallSnapshotsPath, err)
-	}
+	fs.MustMkdirIfNotExist(smallSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(smallSnapshotsPath)
 
 	bigPartitionsPath := filepath.Join(path, bigDirname)
-	if err := fs.MkdirAllIfNotExist(bigPartitionsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for big partitions %q: %w", bigPartitionsPath, err)
-	}
+	fs.MustMkdirIfNotExist(bigPartitionsPath)
 	fs.MustRemoveTemporaryDirs(bigPartitionsPath)
+
 	bigSnapshotsPath := filepath.Join(bigPartitionsPath, snapshotsDirname)
-	if err := fs.MkdirAllIfNotExist(bigSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", bigSnapshotsPath, err)
-	}
+	fs.MustMkdirIfNotExist(bigSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	// Open partitions.
@@ -152,14 +144,10 @@ func (tb *table) CreateSnapshot(snapshotName string, deadline uint64) (string, s
 	defer tb.PutPartitions(ptws)
 
 	dstSmallDir := filepath.Join(tb.path, smallDirname, snapshotsDirname, snapshotName)
-	if err := fs.MkdirAllFailIfExist(dstSmallDir); err != nil {
-		return "", "", fmt.Errorf("cannot create dir %q: %w", dstSmallDir, err)
-	}
+	fs.MustMkdirFailIfExist(dstSmallDir)
+
 	dstBigDir := filepath.Join(tb.path, bigDirname, snapshotsDirname, snapshotName)
-	if err := fs.MkdirAllFailIfExist(dstBigDir); err != nil {
-		fs.MustRemoveAll(dstSmallDir)
-		return "", "", fmt.Errorf("cannot create dir %q: %w", dstBigDir, err)
-	}
+	fs.MustMkdirFailIfExist(dstBigDir)
 
 	for _, ptw := range ptws {
 		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
@@ -277,10 +265,10 @@ func (tb *table) ForceMergePartitions(partitionNamePrefix string) error {
 	return nil
 }
 
-// AddRows adds the given rows to the table tb.
-func (tb *table) AddRows(rows []rawRow) error {
+// MustAddRows adds the given rows to the table tb.
+func (tb *table) MustAddRows(rows []rawRow) {
 	if len(rows) == 0 {
-		return nil
+		return
 	}
 
 	// Verify whether all the rows may be added to a single partition.
@@ -317,7 +305,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 		// Fast path - add all the rows into the ptw.
 		ptw.pt.AddRows(rows)
 		tb.PutPartitions(ptws)
-		return nil
+		return
 	}
 
 	// Slower path - split rows into per-partition buckets.
@@ -343,7 +331,7 @@ func (tb *table) AddRows(rows []rawRow) error {
 	}
 	tb.PutPartitions(ptws)
 	if len(missingRows) == 0 {
-		return nil
+		return
 	}
 
 	// The slowest path - there are rows that don't fit any existing partition.
@@ -372,18 +360,11 @@ func (tb *table) AddRows(rows []rawRow) error {
 			continue
 		}
 
-		pt, err := createPartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
-		if err != nil {
-			// Return only the first error, since it has no sense in returning all errors.
-			tb.ptwsLock.Unlock()
-			return fmt.Errorf("errors while adding rows to table %q: %w", tb.path, err)
-		}
+		pt := mustCreatePartition(r.Timestamp, tb.smallPartitionsPath, tb.bigPartitionsPath, tb.s)
 		pt.AddRows(missingRows[i : i+1])
 		tb.addPartitionNolock(pt)
 	}
 	tb.ptwsLock.Unlock()
-
-	return nil
 }
 
 func (tb *table) getMinMaxTimestamps() (int64, int64) {
