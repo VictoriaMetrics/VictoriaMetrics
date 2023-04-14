@@ -202,15 +202,15 @@ func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
 	return newWriter(f, nocache), nil
 }
 
-// Create creates the file for the given path in nocache mode.
+// MustCreate creates the file for the given path in nocache mode.
 //
 // If nocache is set, the writer doesn't pollute OS page cache.
-func Create(path string, nocache bool) (*Writer, error) {
+func MustCreate(path string, nocache bool) *Writer {
 	f, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create file %q: %w", path, err)
+		logger.Panicf("FATAL: cannot create file %q: %s", path, err)
 	}
-	return newWriter(f, nocache), nil
+	return newWriter(f, nocache)
 }
 
 func newWriter(f *os.File, nocache bool) *Writer {

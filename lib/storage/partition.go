@@ -1300,9 +1300,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 			logger.Panicf("BUG: dstPartPath must be non-empty")
 		}
 		nocache := dstPartType == partBig
-		if err := bsw.InitFromFilePart(dstPartPath, nocache, compressLevel); err != nil {
-			logger.Panicf("FATAL: cannot create destination part at %s: %s", dstPartPath, err)
-		}
+		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
 	}
 
 	// Merge source parts to destination part.

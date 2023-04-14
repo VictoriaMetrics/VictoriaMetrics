@@ -2,7 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"fmt"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -78,10 +77,10 @@ func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLev
 	bsw.metaindexWriter = &mp.metaindexData
 }
 
-// InitFromFilePart initializes bsw from a file-based part on the given path.
+// MustInitFromFilePart initializes bsw from a file-based part on the given path.
 //
 // The bsw doesn't pollute OS page cache if nocache is set.
-func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compressLevel int) error {
+func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, compressLevel int) {
 	path = filepath.Clean(path)
 
 	// Create the directory
@@ -89,40 +88,18 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	// Create part files in the directory.
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	timestampsFile, err := filestream.Create(timestampsPath, nocache)
-	if err != nil {
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create timestamps file: %w", err)
-	}
+	timestampsFile := filestream.MustCreate(timestampsPath, nocache)
 
 	valuesPath := filepath.Join(path, valuesFilename)
-	valuesFile, err := filestream.Create(valuesPath, nocache)
-	if err != nil {
-		timestampsFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create values file: %w", err)
-	}
+	valuesFile := filestream.MustCreate(valuesPath, nocache)
 
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile, err := filestream.Create(indexPath, nocache)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create index file: %w", err)
-	}
+	indexFile := filestream.MustCreate(indexPath, nocache)
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Create(metaindexPath, false)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		indexFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create metaindex file: %w", err)
-	}
+	metaindexFile := filestream.MustCreate(metaindexPath, false)
 
 	bsw.reset()
 	bsw.compressLevel = compressLevel
@@ -131,8 +108,6 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	bsw.valuesWriter = valuesFile
 	bsw.indexWriter = indexFile
 	bsw.metaindexWriter = metaindexFile
-
-	return nil
 }
 
 // MustClose closes the bsw.

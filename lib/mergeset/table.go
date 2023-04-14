@@ -1121,9 +1121,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 		bsw.InitFromInmemoryPart(mpNew, compressLevel)
 	} else {
 		nocache := srcItemsCount > maxItemsPerCachedPart()
-		if err := bsw.InitFromFilePart(dstPartPath, nocache, compressLevel); err != nil {
-			logger.Panicf("FATAL: cannot create destination part at %s: %s", dstPartPath, err)
-		}
+		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
 	}
 
 	// Merge source parts to destination part.
