@@ -996,14 +996,14 @@ func hasActiveMerges(pws []*partWrapper) bool {
 	return false
 }
 
-var mergeWorkersLimitCh = make(chan struct{}, adjustMergeWorkersLimit(getDefaultMergeConcurrency(16)))
+var mergeWorkersLimitCh = make(chan struct{}, getDefaultMergeConcurrency(16))
 
 func getDefaultMergeConcurrency(max int) int {
 	v := (cgroup.AvailableCPUs() + 1) / 2
 	if v > max {
 		v = max
 	}
-	return v
+	return adjustMergeWorkersLimit(v)
 }
 
 // SetMergeWorkersCount sets the maximum number of concurrent mergers for parts.
@@ -1019,20 +1019,18 @@ func SetMergeWorkersCount(n int) {
 }
 
 func adjustMergeWorkersLimit(n int) int {
-	if n < 2 {
-		// Allow at least 2 merge workers on systems with a single CPU core
+	if n < 4 {
+		// Allow at least 4 merge workers on systems with small CPUs count
 		// in order to guarantee that background merges can be continued
-		// when a single worker is busy with the long merge of big parts.
-		return 2
+		// when multiple workers are busy with big merges.
+		n = 4
 	}
 	return n
 }
 
 func (pt *partition) startMergeWorkers() {
-	// Start a merge worker per available CPU core.
 	// The actual number of concurrent merges is limited inside mergeWorker() below.
-	workersCount := cgroup.AvailableCPUs()
-	for i := 0; i < workersCount; i++ {
+	for i := 0; i < cap(mergeWorkersLimitCh); i++ {
 		pt.wg.Add(1)
 		go func() {
 			pt.mergeWorker()
