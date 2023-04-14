@@ -1353,9 +1353,9 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 }
 
 func getFlushToDiskDeadline(pws []*partWrapper) time.Time {
-	d := pws[0].flushToDiskDeadline
-	for _, pw := range pws[1:] {
-		if pw.flushToDiskDeadline.Before(d) {
+	d := time.Now().Add(dataFlushInterval)
+	for _, pw := range pws {
+		if pw.mp != nil && pw.flushToDiskDeadline.Before(d) {
 			d = pw.flushToDiskDeadline
 		}
 	}
