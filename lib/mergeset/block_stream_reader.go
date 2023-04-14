@@ -234,16 +234,10 @@ func (bsr *blockStreamReader) Next() bool {
 	bsr.bhIdx++
 
 	bsr.sb.itemsData = bytesutil.ResizeNoCopyMayOverallocate(bsr.sb.itemsData, int(bsr.bh.itemsBlockSize))
-	if err := fs.ReadFullData(bsr.itemsReader, bsr.sb.itemsData); err != nil {
-		bsr.err = fmt.Errorf("cannot read compressed items block with size %d: %w", bsr.bh.itemsBlockSize, err)
-		return false
-	}
+	fs.MustReadData(bsr.itemsReader, bsr.sb.itemsData)
 
 	bsr.sb.lensData = bytesutil.ResizeNoCopyMayOverallocate(bsr.sb.lensData, int(bsr.bh.lensBlockSize))
-	if err := fs.ReadFullData(bsr.lensReader, bsr.sb.lensData); err != nil {
-		bsr.err = fmt.Errorf("cannot read compressed lens block with size %d: %w", bsr.bh.lensBlockSize, err)
-		return false
-	}
+	fs.MustReadData(bsr.lensReader, bsr.sb.lensData)
 
 	if err := bsr.Block.UnmarshalData(&bsr.sb, bsr.bh.firstItem, bsr.bh.commonPrefix, bsr.bh.itemsCount, bsr.bh.marshalType); err != nil {
 		bsr.err = fmt.Errorf("cannot unmarshal inmemoryBlock from storageBlock with firstItem=%X, commonPrefix=%X, itemsCount=%d, marshalType=%d: %w",
@@ -283,9 +277,7 @@ func (bsr *blockStreamReader) readNextBHS() error {
 
 	// Read compressed index block.
 	bsr.packedBuf = bytesutil.ResizeNoCopyMayOverallocate(bsr.packedBuf, int(mr.indexBlockSize))
-	if err := fs.ReadFullData(bsr.indexReader, bsr.packedBuf); err != nil {
-		return fmt.Errorf("cannot read compressed index block with size %d: %w", mr.indexBlockSize, err)
-	}
+	fs.MustReadData(bsr.indexReader, bsr.packedBuf)
 
 	// Unpack the compressed index block.
 	var err error
