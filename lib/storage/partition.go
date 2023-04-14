@@ -1897,9 +1897,7 @@ func (pt *partition) createSnapshot(srcDir, dstDir string, pws []*partWrapper) e
 	for _, pw := range pws {
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
-		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
-			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
-		}
+		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
 	}
 
 	// Copy the appliedRetentionFilename to dstDir.
