@@ -174,5 +174,5 @@ func (ph *partHeader) MustWriteMetadata(partPath string) {
 	// There is no need in calling fs.WriteFileAtomically() here,
 	// since the file is created only once during part creatinng
 	// and the part directory is synced aftewards.
-	fs.MustWriteFileAndSync(metadataPath, metadata)
+	fs.MustWriteSync(metadataPath, metadata)
 }

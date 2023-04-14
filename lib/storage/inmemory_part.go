@@ -41,16 +41,16 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 		return fmt.Errorf("cannot create directory %q: %w", path, err)
 	}
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	fs.MustWriteFileAndSync(timestampsPath, mp.timestampsData.B)
+	fs.MustWriteSync(timestampsPath, mp.timestampsData.B)
 
 	valuesPath := filepath.Join(path, valuesFilename)
-	fs.MustWriteFileAndSync(valuesPath, mp.valuesData.B)
+	fs.MustWriteSync(valuesPath, mp.valuesData.B)
 
 	indexPath := filepath.Join(path, indexFilename)
-	fs.MustWriteFileAndSync(indexPath, mp.indexData.B)
+	fs.MustWriteSync(indexPath, mp.indexData.B)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	fs.MustWriteFileAndSync(metaindexPath, mp.metaindexData.B)
+	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
 
 	mp.ph.MustWriteMetadata(path)
 
