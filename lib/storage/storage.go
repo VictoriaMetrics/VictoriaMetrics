@@ -345,14 +345,13 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 
 	dstDataDir := filepath.Join(dstDir, dataDirname)
 	fs.MustMkdirFailIfExist(dstDataDir)
+
 	dstSmallDir := filepath.Join(dstDataDir, smallDirname)
-	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", smallDir, dstSmallDir, err)
-	}
+	fs.MustSymlinkRelative(smallDir, dstSmallDir)
+
 	dstBigDir := filepath.Join(dstDataDir, bigDirname)
-	if err := fs.SymlinkRelative(bigDir, dstBigDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", bigDir, dstBigDir, err)
-	}
+	fs.MustSymlinkRelative(bigDir, dstBigDir)
+
 	fs.MustSyncPath(dstDataDir)
 
 	srcMetadataDir := filepath.Join(srcDir, metadataDirname)
@@ -377,9 +376,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
 	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
-	if err := fs.SymlinkRelative(idbSnapshot, dstIdbDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
-	}
+	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 
 	fs.MustSyncPath(dstDir)
 

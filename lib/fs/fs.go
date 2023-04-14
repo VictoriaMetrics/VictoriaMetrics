@@ -288,14 +288,16 @@ func IsDirOrSymlink(de os.DirEntry) bool {
 	return de.IsDir() || (de.Type()&os.ModeSymlink == os.ModeSymlink)
 }
 
-// SymlinkRelative creates relative symlink for srcPath in dstPath.
-func SymlinkRelative(srcPath, dstPath string) error {
+// MustSymlinkRelative creates relative symlink for srcPath in dstPath.
+func MustSymlinkRelative(srcPath, dstPath string) {
 	baseDir := filepath.Dir(dstPath)
 	srcPathRel, err := filepath.Rel(baseDir, srcPath)
 	if err != nil {
-		return fmt.Errorf("cannot make relative path for srcPath=%q: %w", srcPath, err)
+		logger.Panicf("FATAL: cannot make relative path for srcPath=%q: %s", srcPath, err)
 	}
-	return os.Symlink(srcPathRel, dstPath)
+	if err := os.Symlink(srcPathRel, dstPath); err != nil {
+		logger.Panicf("FATAL: cannot make a symlink: %s", err)
+	}
 }
 
 // CopyDirectory copies all the files in srcPath to dstPath.
