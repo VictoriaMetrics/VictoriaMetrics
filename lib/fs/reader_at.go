@@ -43,7 +43,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		return
 	}
 	if off < 0 {
-		logger.Panicf("off=%d cannot be negative", off)
+		logger.Panicf("BUG: off=%d cannot be negative", off)
 	}
 	if len(r.mmapData) == 0 {
 		n, err := r.f.ReadAt(p, off)
@@ -51,11 +51,11 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 			logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, r.f.Name(), err)
 		}
 		if n != len(p) {
-			logger.Panicf("FATAL: unexpected number of bytes read; got %d; want %d", n, len(p))
+			logger.Panicf("FATAL: unexpected number of bytes read from file %q; got %d; want %d", r.f.Name(), n, len(p))
 		}
 	} else {
 		if off > int64(len(r.mmapData)-len(p)) {
-			logger.Panicf("off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(r.mmapData)-len(p), len(p))
+			logger.Panicf("BUG: off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(r.mmapData)-len(p), len(p))
 		}
 		src := r.mmapData[off:]
 		// The copy() below may result in thread block as described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d .
