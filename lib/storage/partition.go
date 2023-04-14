@@ -723,10 +723,7 @@ func (pt *partition) createInmemoryPart(rows []rawRow) *partWrapper {
 }
 
 func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.Time) *partWrapper {
-	p, err := mp.NewPart()
-	if err != nil {
-		logger.Panicf("BUG: cannot create part from %q: %s", &mp.ph, err)
-	}
+	p := mp.NewPart()
 	pw := &partWrapper{
 		p:                   p,
 		mp:                  mp,
@@ -1268,16 +1265,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	}
 
 	// Prepare BlockStreamReaders for source parts.
-	bsrs, err := openBlockStreamReaders(pws)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open source parts for merging: %s", err)
-	}
-	closeBlockStreamReaders := func() {
-		for _, bsr := range bsrs {
-			putBlockStreamReader(bsr)
-		}
-		bsrs = nil
-	}
+	bsrs := mustOpenBlockStreamReaders(pws)
 
 	// Prepare BlockStreamWriter for destination part.
 	srcSize := uint64(0)
@@ -1294,7 +1282,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	var mpNew *inmemoryPart
 	if dstPartType == partInmemory {
 		mpNew = getInmemoryPart()
-		bsw.InitFromInmemoryPart(mpNew, compressLevel)
+		bsw.MustInitFromInmemoryPart(mpNew, compressLevel)
 	} else {
 		if dstPartPath == "" {
 			logger.Panicf("BUG: dstPartPath must be non-empty")
@@ -1306,7 +1294,9 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	// Merge source parts to destination part.
 	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh)
 	putBlockStreamWriter(bsw)
-	closeBlockStreamReaders()
+	for _, bsr := range bsrs {
+		putBlockStreamReader(bsr)
+	}
 	if err != nil {
 		pt.releasePartsToMerge(pws)
 		return err
@@ -1401,23 +1391,18 @@ func (pt *partition) getDstPartPath(dstPartType partType, mergeIdx uint64) strin
 	return dstPartPath
 }
 
-func openBlockStreamReaders(pws []*partWrapper) ([]*blockStreamReader, error) {
+func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 	bsrs := make([]*blockStreamReader, 0, len(pws))
 	for _, pw := range pws {
 		bsr := getBlockStreamReader()
 		if pw.mp != nil {
-			bsr.InitFromInmemoryPart(pw.mp)
+			bsr.MustInitFromInmemoryPart(pw.mp)
 		} else {
-			if err := bsr.InitFromFilePart(pw.p.path); err != nil {
-				for _, bsr := range bsrs {
-					putBlockStreamReader(bsr)
-				}
-				return nil, fmt.Errorf("cannot open source part for merging: %w", err)
-			}
+			bsr.MustInitFromFilePart(pw.p.path)
 		}
 		bsrs = append(bsrs, bsr)
 	}
-	return bsrs, nil
+	return bsrs
 }
 
 func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
@@ -1476,10 +1461,7 @@ func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *
 		return pwNew
 	}
 	// Open the created part from disk.
-	pNew, err := openFilePart(dstPartPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open merged part %s: %s", dstPartPath, err)
-	}
+	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
 		p:        pNew,
 		refCount: 1,
@@ -1821,11 +1803,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 	var pws []*partWrapper
 	for _, partName := range partNames {
 		partPath := filepath.Join(path, partName)
-		p, err := openFilePart(partPath)
-		if err != nil {
-			mustCloseParts(pws)
-			return nil, fmt.Errorf("cannot open part %q: %w", partPath, err)
-		}
+		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
 			p:        p,
 			refCount: 1,

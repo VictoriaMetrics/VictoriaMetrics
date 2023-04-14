@@ -66,8 +66,8 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.prevTimestampsBlockOffset = 0
 }
 
-// InitFromInmemoryPart initializes bsw from inmemory part.
-func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
+// MustInitFromInmemoryPart initializes bsw from inmemory part.
+func (bsw *blockStreamWriter) MustInitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
 	bsw.reset()
 
 	bsw.compressLevel = compressLevel

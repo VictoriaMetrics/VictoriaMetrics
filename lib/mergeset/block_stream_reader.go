@@ -17,7 +17,7 @@ type blockStreamReader struct {
 	// Block contains the current block if Next returned true.
 	Block inmemoryBlock
 
-	// isInmemoryBlock is set to true if bsr was initialized with InitFromInmemoryBlock().
+	// isInmemoryBlock is set to true if bsr was initialized with MustInitFromInmemoryBlock().
 	isInmemoryBlock bool
 
 	// The index of the current item in the Block, which is returned from CurrItem()
@@ -103,16 +103,16 @@ func (bsr *blockStreamReader) String() string {
 	return bsr.ph.String()
 }
 
-// InitFromInmemoryBlock initializes bsr from the given ib.
-func (bsr *blockStreamReader) InitFromInmemoryBlock(ib *inmemoryBlock) {
+// MustInitFromInmemoryBlock initializes bsr from the given ib.
+func (bsr *blockStreamReader) MustInitFromInmemoryBlock(ib *inmemoryBlock) {
 	bsr.reset()
 	bsr.Block.CopyFrom(ib)
 	bsr.Block.SortItems()
 	bsr.isInmemoryBlock = true
 }
 
-// InitFromInmemoryPart initializes bsr from the given mp.
-func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
+// MustInitFromInmemoryPart initializes bsr from the given mp.
+func (bsr *blockStreamReader) MustInitFromInmemoryPart(mp *inmemoryPart) {
 	bsr.reset()
 
 	var err error
@@ -134,18 +134,16 @@ func (bsr *blockStreamReader) InitFromInmemoryPart(mp *inmemoryPart) {
 	}
 }
 
-// InitFromFilePart initializes bsr from a file-based part on the given path.
+// MustInitFromFilePart initializes bsr from a file-based part on the given path.
 //
 // Part files are read without OS cache pollution, since the part is usually
 // deleted after the merge.
-func (bsr *blockStreamReader) InitFromFilePart(path string) error {
+func (bsr *blockStreamReader) MustInitFromFilePart(path string) {
 	bsr.reset()
 
 	path = filepath.Clean(path)
 
-	if err := bsr.ph.ReadMetadata(path); err != nil {
-		return fmt.Errorf("cannot read metadata from %q: %w", path, err)
-	}
+	bsr.ph.MustReadMetadata(path)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	metaindexFile := filestream.MustOpen(metaindexPath, true)
@@ -170,8 +168,6 @@ func (bsr *blockStreamReader) InitFromFilePart(path string) error {
 	bsr.indexReader = indexFile
 	bsr.itemsReader = itemsFile
 	bsr.lensReader = lensFile
-
-	return nil
 }
 
 // MustClose closes the bsr.
