@@ -12,7 +12,6 @@ import (
 
 type blockStreamWriter struct {
 	compressLevel int
-	path          string
 
 	metaindexWriter filestream.WriteCloser
 	indexWriter     filestream.WriteCloser
