@@ -1002,25 +1002,12 @@ func hasActiveMerges(pws []*partWrapper) bool {
 
 var mergeWorkersLimitCh = make(chan struct{}, adjustMergeWorkersLimit(getDefaultMergeConcurrency(16)))
 
-var bigMergeWorkersLimitCh = make(chan struct{}, getDefaultMergeConcurrency(4))
-
 func getDefaultMergeConcurrency(max int) int {
 	v := (cgroup.AvailableCPUs() + 1) / 2
 	if v > max {
 		v = max
 	}
 	return v
-}
-
-// SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.
-//
-// The function must be called before opening or creating any storage.
-func SetBigMergeWorkersCount(n int) {
-	if n <= 0 {
-		// Do nothing
-		return
-	}
-	bigMergeWorkersLimitCh = make(chan struct{}, n)
 }
 
 // SetMergeWorkersCount sets the maximum number of concurrent mergers for parts.
@@ -1143,7 +1130,8 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 }
 
 func (pt *partition) getMaxBigPartSize() uint64 {
-	return getMaxOutBytes(pt.bigPartsPath, cap(bigMergeWorkersLimitCh))
+	workersCount := getDefaultMergeConcurrency(4)
+	return getMaxOutBytes(pt.bigPartsPath, workersCount)
 }
 
 func getMaxOutBytes(path string, workersCount int) uint64 {
@@ -1276,13 +1264,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	dstPartType := pt.getDstPartType(pws, isFinal)
 	mergeIdx := pt.nextMergeIdx()
 	dstPartPath := pt.getDstPartPath(dstPartType, mergeIdx)
-
-	if dstPartType == partBig {
-		bigMergeWorkersLimitCh <- struct{}{}
-		defer func() {
-			<-bigMergeWorkersLimitCh
-		}()
-	}
 
 	if !isDedupEnabled() && isFinal && len(pws) == 1 && pws[0].mp != nil {
 		// Fast path: flush a single in-memory part to disk.
