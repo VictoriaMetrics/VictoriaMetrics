@@ -328,9 +328,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	startTime := time.Now()
 
 	// Create a directory for the table if it doesn't exist yet.
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+	fs.MustMkdirIfNotExist(path)
 
 	// Protect from concurrent opens.
 	flockF, err := fs.CreateFlockFile(path)
@@ -1091,9 +1089,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	if isFinal && len(pws) == 1 && pws[0].mp != nil {
 		// Fast path: flush a single in-memory part to disk.
 		mp := pws[0].mp
-		if err := mp.StoreToDisk(dstPartPath); err != nil {
-			logger.Panicf("FATAL: cannot store in-memory part to %s: %s", dstPartPath, err)
-		}
+		mp.MustStoreToDisk(dstPartPath)
 		pwNew := tb.openCreatedPart(pws, nil, dstPartPath)
 		tb.swapSrcWithDstParts(pws, pwNew, dstPartType)
 		return nil
@@ -1373,9 +1369,7 @@ var mergeWorkersLimitCh = make(chan struct{}, cgroup.AvailableCPUs())
 
 func openParts(path string) ([]*partWrapper, error) {
 	// The path can be missing after restoring from backup, so create it if needed.
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, err
-	}
+	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
 	// Remove txn and tmp directories, which may be left after the upgrade
@@ -1464,9 +1458,7 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 	// Flush inmemory items to disk.
 	tb.flushInmemoryItems()
 
-	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %w", dstDir, err)
-	}
+	fs.MustMkdirFailIfExist(dstDir)
 
 	pws := tb.getParts(nil)
 	defer tb.putParts(pws)

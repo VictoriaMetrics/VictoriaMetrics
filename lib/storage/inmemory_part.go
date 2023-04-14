@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -35,11 +34,10 @@ func (mp *inmemoryPart) Reset() {
 	mp.creationTime = 0
 }
 
-// StoreToDisk stores the mp to the given path on disk.
-func (mp *inmemoryPart) StoreToDisk(path string) error {
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+// MustStoreToDisk stores the mp to the given path on disk.
+func (mp *inmemoryPart) MustStoreToDisk(path string) {
+	fs.MustMkdirFailIfExist(path)
+
 	timestampsPath := filepath.Join(path, timestampsFilename)
 	fs.MustWriteSync(timestampsPath, mp.timestampsData.B)
 
@@ -56,7 +54,6 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 
 	fs.MustSyncPath(path)
 	// Do not sync parent directory - it must be synced by the caller.
-	return nil
 }
 
 // InitFromRows initializes mp from the given rows.

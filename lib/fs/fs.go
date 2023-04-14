@@ -99,22 +99,26 @@ func IsTemporaryFileName(fn string) bool {
 // tmpFileNameRe is regexp for temporary file name - see WriteFileAtomically for details.
 var tmpFileNameRe = regexp.MustCompile(`\.tmp\.\d+$`)
 
-// MkdirAllIfNotExist creates the given path dir if it isn't exist.
-func MkdirAllIfNotExist(path string) error {
+// MustMkdirIfNotExist creates the given path dir if it isn't exist.
+func MustMkdirIfNotExist(path string) {
 	if IsPathExist(path) {
-		return nil
+		return
 	}
-	return mkdirSync(path)
+	if err := mkdirSync(path); err != nil {
+		logger.Panicf("FATAL: cannot create directory: %s", err)
+	}
 }
 
-// MkdirAllFailIfExist creates the given path dir if it isn't exist.
+// MustMkdirFailIfExist creates the given path dir if it isn't exist.
 //
-// Returns error if path already exists.
-func MkdirAllFailIfExist(path string) error {
+// If the directory at the given path already exists, then the function logs the error and exits.
+func MustMkdirFailIfExist(path string) {
 	if IsPathExist(path) {
-		return fmt.Errorf("the %q already exists", path)
+		logger.Panicf("FATAL: the %q already exists", path)
 	}
-	return mkdirSync(path)
+	if err := mkdirSync(path); err != nil {
+		logger.Panicf("FATAL: cannot create directory: %s", err)
+	}
 }
 
 func mkdirSync(path string) error {
@@ -310,9 +314,7 @@ func CopyDirectory(srcPath, dstPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := MkdirAllIfNotExist(dstPath); err != nil {
-		return err
-	}
+	MustMkdirIfNotExist(dstPath)
 	for _, de := range des {
 		if !de.Type().IsRegular() {
 			// Skip non-files

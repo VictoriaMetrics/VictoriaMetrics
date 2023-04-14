@@ -163,9 +163,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 		retentionMsecs: retentionMsecs,
 		stop:           make(chan struct{}),
 	}
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
-	}
+	fs.MustMkdirIfNotExist(path)
 
 	// Check whether the cache directory must be removed
 	// It is removed if it contains resetCacheOnStartupFilename.
@@ -195,9 +193,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Pre-create snapshots directory if it is missing.
 	snapshotsPath := filepath.Join(path, snapshotsDirname)
-	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
-	}
+	fs.MustMkdirIfNotExist(snapshotsPath)
 	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
@@ -231,17 +227,13 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// Load metadata
 	metadataDir := filepath.Join(path, metadataDirname)
 	isEmptyDB := !fs.IsPathExist(filepath.Join(path, indexdbDirname))
-	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
-	}
+	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	// Load indexdb
 	idbPath := filepath.Join(path, indexdbDirname)
 	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
-	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
-	}
+	fs.MustMkdirIfNotExist(idbSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
 	idbCurr, idbPrev, err := s.openIndexDBTables(idbPath)
 	if err != nil {
@@ -342,9 +334,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	snapshotName := snapshot.NewName()
 	srcDir := s.path
 	dstDir := filepath.Join(srcDir, snapshotsDirname, snapshotName)
-	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
-		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
-	}
+	fs.MustMkdirFailIfExist(dstDir)
 	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
 
 	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
@@ -354,9 +344,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
 
 	dstDataDir := filepath.Join(dstDir, dataDirname)
-	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
-		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
-	}
+	fs.MustMkdirFailIfExist(dstDataDir)
 	dstSmallDir := filepath.Join(dstDataDir, smallDirname)
 	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
 		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", smallDir, dstSmallDir, err)
@@ -1896,10 +1884,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	if err != nil {
 		err = fmt.Errorf("cannot update per-date data: %w", err)
 	} else {
-		err = s.tb.AddRows(rows)
-		if err != nil {
-			err = fmt.Errorf("cannot add rows to table: %w", err)
-		}
+		s.tb.MustAddRows(rows)
 	}
 	if err != nil {
 		return fmt.Errorf("error occurred during rows addition: %w", err)
@@ -2507,9 +2492,7 @@ func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 }
 
 func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error) {
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
 	// Search for the two most recent tables - the last one is active,

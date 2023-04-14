@@ -212,20 +212,16 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
-// createPartition creates new partition for the given timestamp and the given paths
+// mustCreatePartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) (*partition, error) {
+func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) *partition {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
 	bigPartsPath := filepath.Join(filepath.Clean(bigPartitionsPath), name)
 	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q", name, smallPartsPath, bigPartsPath)
 
-	if err := fs.MkdirAllFailIfExist(smallPartsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for small parts %q: %w", smallPartsPath, err)
-	}
-	if err := fs.MkdirAllFailIfExist(bigPartsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for big parts %q: %w", bigPartsPath, err)
-	}
+	fs.MustMkdirFailIfExist(smallPartsPath)
+	fs.MustMkdirFailIfExist(bigPartsPath)
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.tr.fromPartitionTimestamp(timestamp)
@@ -233,7 +229,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 
 	logger.Infof("partition %q has been created", name)
 
-	return pt, nil
+	return pt
 }
 
 func (pt *partition) startBackgroundWorkers() {
@@ -1268,9 +1264,7 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	if !isDedupEnabled() && isFinal && len(pws) == 1 && pws[0].mp != nil {
 		// Fast path: flush a single in-memory part to disk.
 		mp := pws[0].mp
-		if err := mp.StoreToDisk(dstPartPath); err != nil {
-			logger.Panicf("FATAL: cannot store in-memory part to %s: %s", dstPartPath, err)
-		}
+		mp.MustStoreToDisk(dstPartPath)
 		pwNew := pt.openCreatedPart(&mp.ph, pws, nil, dstPartPath)
 		pt.swapSrcWithDstParts(pws, pwNew, dstPartType)
 		return nil
@@ -1796,9 +1790,7 @@ func getPartsSize(pws []*partWrapper) uint64 {
 
 func openParts(path string, partNames []string) ([]*partWrapper, error) {
 	// The path can be missing after restoring from backup, so create it if needed.
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, err
-	}
+	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
 	// Remove txn and tmp directories, which may be left after the upgrade
@@ -1879,12 +1871,8 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 		pt.PutParts(pwsBig)
 	}()
 
-	if err := fs.MkdirAllFailIfExist(smallPath); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %w", smallPath, err)
-	}
-	if err := fs.MkdirAllFailIfExist(bigPath); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %w", bigPath, err)
-	}
+	fs.MustMkdirFailIfExist(smallPath)
+	fs.MustMkdirFailIfExist(bigPath)
 
 	// Create a file with part names at smallPath
 	mustWritePartNames(pwsSmall, pwsBig, smallPath)

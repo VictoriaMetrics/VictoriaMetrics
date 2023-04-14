@@ -194,9 +194,7 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 		}
 	}()
 	for _, rows := range rowss {
-		if err := tb.AddRows(rows); err != nil {
-			t.Fatalf("cannot add rows to table: %s", err)
-		}
+		tb.MustAddRows(rows)
 
 		// Flush rows to parts.
 		tb.flushPendingRows()

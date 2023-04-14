@@ -97,9 +97,7 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	path = filepath.Clean(path)
 
 	// Create the directory
-	if err := fs.MkdirAllFailIfExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+	fs.MustMkdirFailIfExist(path)
 
 	// Create part files in the directory.
 	timestampsPath := filepath.Join(path, timestampsFilename)

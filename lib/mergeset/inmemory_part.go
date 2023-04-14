@@ -1,7 +1,6 @@
 package mergeset
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -32,11 +31,10 @@ func (mp *inmemoryPart) Reset() {
 	mp.lensData.Reset()
 }
 
-// StoreToDisk stores mp to the given path on disk.
-func (mp *inmemoryPart) StoreToDisk(path string) error {
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+// MustStoreToDisk stores mp to the given path on disk.
+func (mp *inmemoryPart) MustStoreToDisk(path string) {
+	fs.MustMkdirFailIfExist(path)
+
 	metaindexPath := filepath.Join(path, metaindexFilename)
 	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
 
@@ -53,7 +51,6 @@ func (mp *inmemoryPart) StoreToDisk(path string) error {
 
 	fs.MustSyncPath(path)
 	// Do not sync parent directory - it must be synced by the caller.
-	return nil
 }
 
 // Init initializes mp from ib.
