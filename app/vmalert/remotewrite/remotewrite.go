@@ -189,6 +189,10 @@ var (
 // it to remote write endpoint. Flush performs limited amount of retries
 // if request fails.
 func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
+	const (
+		retryCount   = 5
+		retryBackoff = time.Second
+	)
 	if len(wr.Timeseries) < 1 {
 		return
 	}
@@ -201,20 +205,25 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		return
 	}
 
-	const attempts = 5
 	b := snappy.Encode(nil, data)
-	for i := 0; i < attempts; i++ {
+
+	attempts := 0
+	for ; attempts < retryCount; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
 			sentBytes.Add(len(b))
 			return
 		}
+		logger.Warnf("attempt %d to send request failed: %s", attempts+1, err)
 
-		logger.Warnf("attempt %d to send request failed: %s", i+1, err)
-		// sleeping to avoid remote db hammering
-		time.Sleep(time.Second)
-		continue
+		if _, ok := err.(*retriableError); ok {
+			// sleeping to avoid remote db hammering
+			time.Sleep(retryBackoff)
+			continue
+		} else {
+			break
+		}
 	}
 
 	droppedRows.Add(len(wr.Timeseries))
@@ -249,10 +258,23 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
+	switch resp.StatusCode / 100 {
+	case 2:
+		return nil
+	case 5:
+		return &retriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
+			resp.StatusCode, req.URL.Redacted(), body)}
+	default:
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
-	return nil
+}
+
+type retriableError struct {
+	err error
+}
+
+func (e *retriableError) Error() string {
+	return e.Error()
 }
