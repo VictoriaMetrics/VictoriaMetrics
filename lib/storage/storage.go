@@ -230,10 +230,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(idbSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
-	idbCurr, idbPrev, err := s.openIndexDBTables(idbPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
-	}
+	idbCurr, idbPrev := s.mustOpenIndexDBTables(idbPath)
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
 
@@ -722,10 +719,7 @@ func (s *Storage) mustRotateIndexDB() {
 	newTableName := nextIndexDBTableName()
 	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
 	rotationTimestamp := fasttime.UnixTimestamp()
-	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
-	}
+	idbNew := mustOpenIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
 
 	// Drop extDB
 	idbCurr := s.idb()
@@ -2478,16 +2472,13 @@ func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error) {
+func (s *Storage) mustOpenIndexDBTables(path string) (curr, prev *indexDB) {
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
 	// Search for the two most recent tables - the last one is active,
 	// the previous one contains backup data.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read directory: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	var tableNames []string
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {
@@ -2530,18 +2521,11 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	// Open the last two tables.
 	currPath := filepath.Join(path, tableNames[len(tableNames)-1])
 
-	curr, err = openIndexDB(currPath, s, 0, &s.isReadOnly)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
-	}
+	curr = mustOpenIndexDB(currPath, s, 0, &s.isReadOnly)
 	prevPath := filepath.Join(path, tableNames[len(tableNames)-2])
-	prev, err = openIndexDB(prevPath, s, 0, &s.isReadOnly)
-	if err != nil {
-		curr.MustClose()
-		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
-	}
+	prev = mustOpenIndexDB(prevPath, s, 0, &s.isReadOnly)
 
-	return curr, prev, nil
+	return curr, prev
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")

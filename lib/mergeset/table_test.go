@@ -21,20 +21,14 @@ func TestTableOpenClose(t *testing.T) {
 
 	// Create a new table
 	var isReadOnly uint32
-	tb, err := OpenTable(path, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot create new table: %s", err)
-	}
+	tb := MustOpenTable(path, nil, nil, &isReadOnly)
 
 	// Close it
 	tb.MustClose()
 
 	// Re-open created table multiple times.
 	for i := 0; i < 4; i++ {
-		tb, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open created table: %s", err)
-		}
+		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		tb.MustClose()
 	}
 }
@@ -54,10 +48,7 @@ func TestTableAddItemsSerial(t *testing.T) {
 		atomic.AddUint64(&flushes, 1)
 	}
 	var isReadOnly uint32
-	tb, err := OpenTable(path, flushCallback, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb := MustOpenTable(path, flushCallback, nil, &isReadOnly)
 
 	const itemsCount = 10e3
 	testAddItemsSerial(r, tb, itemsCount)
@@ -80,10 +71,7 @@ func TestTableAddItemsSerial(t *testing.T) {
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
-	tb, err = OpenTable(path, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb = MustOpenTable(path, nil, nil, &isReadOnly)
 	const moreItemsCount = itemsCount * 3
 	testAddItemsSerial(r, tb, moreItemsCount)
 	tb.MustClose()
@@ -112,10 +100,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	}()
 
 	var isReadOnly uint32
-	tb, err := OpenTable(path, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb := MustOpenTable(path, nil, nil, &isReadOnly)
 	defer tb.MustClose()
 
 	// Write a lot of items into the table, so background merges would start.
@@ -141,16 +126,10 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	}()
 
 	// Verify snapshots contain all the data.
-	tb1, err := OpenTable(snapshot1, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb1 := MustOpenTable(snapshot1, nil, nil, &isReadOnly)
 	defer tb1.MustClose()
 
-	tb2, err := OpenTable(snapshot2, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb2 := MustOpenTable(snapshot2, nil, nil, &isReadOnly)
 	defer tb2.MustClose()
 
 	var ts, ts1, ts2 TableSearch
@@ -199,10 +178,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 		return data, items
 	}
 	var isReadOnly uint32
-	tb, err := OpenTable(path, flushCallback, prepareBlock, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb := MustOpenTable(path, flushCallback, prepareBlock, &isReadOnly)
 
 	const itemsCount = 10e3
 	testAddItemsConcurrent(tb, itemsCount)
@@ -225,10 +201,7 @@ func TestTableAddItemsConcurrent(t *testing.T) {
 	testReopenTable(t, path, itemsCount)
 
 	// Add more items in order to verify merge between inmemory parts and file-based parts.
-	tb, err = OpenTable(path, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open %q: %s", path, err)
-	}
+	tb = MustOpenTable(path, nil, nil, &isReadOnly)
 	const moreItemsCount = itemsCount * 3
 	testAddItemsConcurrent(tb, moreItemsCount)
 	tb.MustClose()
@@ -267,10 +240,7 @@ func testReopenTable(t *testing.T, path string, itemsCount int) {
 
 	for i := 0; i < 10; i++ {
 		var isReadOnly uint32
-		tb, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot re-open %q: %s", path, err)
-		}
+		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
 		if n := m.TotalItemsCount(); n != uint64(itemsCount) {

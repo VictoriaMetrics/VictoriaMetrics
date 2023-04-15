@@ -203,10 +203,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 
 	// Locate reader and writer chunks in the path.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read contents of the directory %q: %w", path, err)
-	}
+	des := fs.MustReadDir(path)
 	for _, de := range des {
 		fname := de.Name()
 		filepath := filepath.Join(path, fname)

@@ -486,12 +486,8 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
-	if err := populatePartitionNames(smallPartitionsPath, ptNames); err != nil {
-		return nil, err
-	}
-	if err := populatePartitionNames(bigPartitionsPath, ptNames); err != nil {
-		return nil, err
-	}
+	mustPopulatePartitionNames(smallPartitionsPath, ptNames)
+	mustPopulatePartitionNames(bigPartitionsPath, ptNames)
 	var pts []*partition
 	for ptName := range ptNames {
 		smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
@@ -506,11 +502,8 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 	return pts, nil
 }
 
-func populatePartitionNames(partitionsPath string, ptNames map[string]bool) error {
-	des, err := os.ReadDir(partitionsPath)
-	if err != nil {
-		return fmt.Errorf("cannot read directory with partitions: %w", err)
-	}
+func mustPopulatePartitionNames(partitionsPath string, ptNames map[string]bool) {
+	des := fs.MustReadDir(partitionsPath)
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories
@@ -523,7 +516,6 @@ func populatePartitionNames(partitionsPath string, ptNames map[string]bool) erro
 		}
 		ptNames[ptName] = true
 	}
-	return nil
 }
 
 func mustClosePartitions(pts []*partition) {

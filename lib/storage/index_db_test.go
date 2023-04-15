@@ -512,10 +512,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
 		var isReadOnly uint32
-		db, err := openIndexDB(tableName, s, 0, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open indexDB: %s", err)
-		}
+		db := mustOpenIndexDB(tableName, s, 0, &isReadOnly)
 		db.MustClose()
 	}
 	if err := os.RemoveAll(tableName); err != nil {
@@ -534,10 +531,7 @@ func TestIndexDB(t *testing.T) {
 
 		dbName := nextIndexDBTableName()
 		var isReadOnly uint32
-		db, err := openIndexDB(dbName, s, 0, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open indexDB: %s", err)
-		}
+		db := mustOpenIndexDB(dbName, s, 0, &isReadOnly)
 		defer func() {
 			db.MustClose()
 			if err := os.RemoveAll(dbName); err != nil {
@@ -555,10 +549,7 @@ func TestIndexDB(t *testing.T) {
 
 		// Re-open the db and verify it works as expected.
 		db.MustClose()
-		db, err = openIndexDB(dbName, s, 0, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open indexDB: %s", err)
-		}
+		db = mustOpenIndexDB(dbName, s, 0, &isReadOnly)
 		if err := testIndexDBCheckTSIDByName(db, mns, tsids, tenants, false); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -570,10 +561,7 @@ func TestIndexDB(t *testing.T) {
 
 		dbName := nextIndexDBTableName()
 		var isReadOnly uint32
-		db, err := openIndexDB(dbName, s, 0, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open indexDB: %s", err)
-		}
+		db := mustOpenIndexDB(dbName, s, 0, &isReadOnly)
 		defer func() {
 			db.MustClose()
 			if err := os.RemoveAll(dbName); err != nil {
@@ -1672,10 +1660,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 	dbName := nextIndexDBTableName()
 	var isReadOnly uint32
-	db, err := openIndexDB(dbName, s, 0, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open indexDB: %s", err)
-	}
+	db := mustOpenIndexDB(dbName, s, 0, &isReadOnly)
 	defer func() {
 		db.MustClose()
 		if err := os.RemoveAll(dbName); err != nil {

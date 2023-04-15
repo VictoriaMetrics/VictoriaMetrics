@@ -234,14 +234,20 @@ func MustRemoveDirAtomic(dir string) {
 
 var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
 
+// MustReadDir reads directory entries at the given dir.
+func MustReadDir(dir string) []os.DirEntry {
+	des, err := os.ReadDir(dir)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read directory contents: %s", err)
+	}
+	return des
+}
+
 // MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
 //
 // Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
 func MustRemoveTemporaryDirs(dir string) {
-	des, err := os.ReadDir(dir)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read dir: %s", err)
-	}
+	des := MustReadDir(dir)
 	for _, de := range des {
 		if !IsDirOrSymlink(de) {
 			// Skip non-directories
@@ -260,10 +266,7 @@ func MustRemoveTemporaryDirs(dir string) {
 func MustHardLinkFiles(srcDir, dstDir string) {
 	mustMkdirSync(dstDir)
 
-	des, err := os.ReadDir(srcDir)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read files in scrDir: %s", err)
-	}
+	des := MustReadDir(srcDir)
 	for _, de := range des {
 		if IsDirOrSymlink(de) {
 			// Skip directories.
@@ -299,10 +302,7 @@ func MustSymlinkRelative(srcPath, dstPath string) {
 
 // MustCopyDirectory copies all the files in srcPath to dstPath.
 func MustCopyDirectory(srcPath, dstPath string) {
-	des, err := os.ReadDir(srcPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read srcDir: %s", err)
-	}
+	des := MustReadDir(srcPath)
 	MustMkdirIfNotExist(dstPath)
 	for _, de := range des {
 		if !de.Type().IsRegular() {

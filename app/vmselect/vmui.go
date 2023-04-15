@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 var (
@@ -76,18 +75,11 @@ func collectDashboardsSettings(path string) ([]byte, error) {
 	if !fs.IsPathExist(path) {
 		return nil, fmt.Errorf("cannot find folder %q", path)
 	}
-	files, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read folder %q", path)
-	}
+	files := fs.MustReadDir(path)
 
 	var dss []dashboardSettings
 	for _, file := range files {
 		filename := file.Name()
-		if err != nil {
-			logger.Errorf("skipping %q at -vmui.customDashboardsPath=%q, since the info for this file cannot be obtained: %s", filename, path, err)
-			continue
-		}
 		if filepath.Ext(filename) != ".json" {
 			continue
 		}
