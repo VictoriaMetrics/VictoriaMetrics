@@ -202,9 +202,8 @@ func (tb *table) MustClose() {
 	}
 
 	// Release exclusive lock on the table.
-	if err := tb.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot release lock on %q: %s", tb.flockF.Name(), err)
-	}
+	fs.MustClose(tb.flockF)
+	tb.flockF = nil
 }
 
 // flushPendingRows flushes all the pending raw rows, so they become visible to search.

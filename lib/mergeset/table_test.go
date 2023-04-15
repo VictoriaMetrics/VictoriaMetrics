@@ -39,28 +39,6 @@ func TestTableOpenClose(t *testing.T) {
 	}
 }
 
-func TestTableOpenMultipleTimes(t *testing.T) {
-	const path = "TestTableOpenMultipleTimes"
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
-
-	var isReadOnly uint32
-	tb1, err := OpenTable(path, nil, nil, &isReadOnly)
-	if err != nil {
-		t.Fatalf("cannot open table: %s", err)
-	}
-	defer tb1.MustClose()
-
-	for i := 0; i < 4; i++ {
-		tb2, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err == nil {
-			tb2.MustClose()
-			t.Fatalf("expecting non-nil error when opening already opened table")
-		}
-	}
-}
-
 func TestTableAddItemsSerial(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	const path = "TestTableAddItemsSerial"

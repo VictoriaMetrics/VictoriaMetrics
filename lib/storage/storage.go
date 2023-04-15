@@ -799,9 +799,8 @@ func (s *Storage) MustClose() {
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	// Release lock file.
-	if err := s.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close lock file %q: %s", s.flockF.Name(), err)
-	}
+	fs.MustClose(s.flockF)
+	s.flockF = nil
 
 	// Stop series limiters.
 	if sl := s.hourlySeriesLimiter; sl != nil {
