@@ -362,14 +362,18 @@ func MustWriteData(w filestream.WriteCloser, data []byte) {
 	}
 }
 
-// CreateFlockFile creates FlockFilename file in the directory dir
+// MustCreateFlockFile creates FlockFilename file in the directory dir
 // and returns the handler to the file.
-func CreateFlockFile(dir string) (*os.File, error) {
-	flockFile := filepath.Join(dir, FlockFilename)
-	return createFlockFile(flockFile)
+func MustCreateFlockFile(dir string) *os.File {
+	flockFilepath := filepath.Join(dir, FlockFilename)
+	f, err := createFlockFile(flockFilepath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot create lock file: %s; make sure a single process has exclusive access to %q", err, dir)
+	}
+	return f
 }
 
-// FlockFilename is the filename for the file created by CreateFlockFile().
+// FlockFilename is the filename for the file created by MustCreateFlockFile().
 const FlockFilename = "flock.lock"
 
 // MustGetFreeSpace returns free space for the given directory path.

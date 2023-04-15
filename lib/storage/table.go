@@ -86,11 +86,7 @@ func openTable(path string, s *Storage) (*table, error) {
 	fs.MustMkdirIfNotExist(path)
 
 	// Protect from concurrent opens.
-	flockF, err := fs.CreateFlockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file in %q; "+
-			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
-	}
+	flockF := fs.MustCreateFlockFile(path)
 
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := filepath.Join(path, smallDirname)

@@ -46,10 +46,7 @@ func (r *Restore) Run() error {
 
 	// Make sure VictoriaMetrics doesn't run during the restore process.
 	fs.MustMkdirIfNotExist(r.Dst.Dir)
-	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
-	if err != nil {
-		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %w", r.Dst.Dir, err)
-	}
+	flockF := fs.MustCreateFlockFile(r.Dst.Dir)
 	defer fs.MustClose(flockF)
 
 	if err := createRestoreLock(r.Dst.Dir); err != nil {
