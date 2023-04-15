@@ -174,7 +174,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	mustCloseFlockF := true
 	defer func() {
 		if mustCloseFlockF {
-			_ = q.flockF.Close()
+			fs.MustClose(q.flockF)
 		}
 	}()
 
@@ -332,9 +332,7 @@ func (q *queue) MustClose() {
 	}
 
 	// Close flockF
-	if err := q.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close flock file: %s", err)
-	}
+	fs.MustClose(q.flockF)
 	q.flockF = nil
 }
 

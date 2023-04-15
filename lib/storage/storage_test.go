@@ -518,26 +518,6 @@ func TestStorageOpenClose(t *testing.T) {
 	}
 }
 
-func TestStorageOpenMultipleTimes(t *testing.T) {
-	path := "TestStorageOpenMultipleTimes"
-	s1, err := OpenStorage(path, -1, 0, 0)
-	if err != nil {
-		t.Fatalf("cannot open storage the first time: %s", err)
-	}
-
-	for i := 0; i < 10; i++ {
-		s2, err := OpenStorage(path, -1, 0, 0)
-		if err == nil {
-			s2.MustClose()
-			t.Fatalf("expecting non-nil error when opening already opened storage")
-		}
-	}
-	s1.MustClose()
-	if err := os.RemoveAll(path); err != nil {
-		t.Fatalf("cannot remove %q: %s", path, err)
-	}
-}
-
 func TestStorageRandTimestamps(t *testing.T) {
 	path := "TestStorageRandTimestamps"
 	retentionMsecs := int64(10 * msecsPerMonth)

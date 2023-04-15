@@ -426,9 +426,8 @@ func (tb *Table) MustClose() {
 	}
 
 	// Release flockF
-	if err := tb.flockF.Close(); err != nil {
-		logger.Panicf("FATAL:cannot close %q: %s", tb.flockF.Name(), err)
-	}
+	fs.MustClose(tb.flockF)
+	tb.flockF = nil
 }
 
 // Path returns the path to tb on the filesystem.
