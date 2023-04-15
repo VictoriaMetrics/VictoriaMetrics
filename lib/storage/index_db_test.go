@@ -1446,10 +1446,7 @@ func TestMatchTagFilters(t *testing.T) {
 func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	path := "TestIndexRepopulateAfterRotation"
-	s, err := OpenStorage(path, msecsPerMonth, 1e5, 1e5)
-	if err != nil {
-		t.Fatalf("cannot open storage: %s", err)
-	}
+	s := MustOpenStorage(path, msecsPerMonth, 1e5, 1e5)
 	defer func() {
 		s.MustClose()
 		if err := os.RemoveAll(path); err != nil {

@@ -191,11 +191,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	var err error
-	pt, err = openPartition(smallPartsPath, bigPartsPath, strg)
-	if err != nil {
-		t.Fatalf("cannot open partition: %s", err)
-	}
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
 }

@@ -76,10 +76,10 @@ func (ptw *partitionWrapper) scheduleToDrop() {
 	atomic.AddUint64(&ptw.mustDrop, 1)
 }
 
-// openTable opens a table on the given path.
+// mustOpenTable opens a table on the given path.
 //
 // The table is created if it doesn't exist.
-func openTable(path string, s *Storage) (*table, error) {
+func mustOpenTable(path string, s *Storage) *table {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
@@ -106,10 +106,7 @@ func openTable(path string, s *Storage) (*table, error) {
 	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	// Open partitions.
-	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, s)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open partitions in the table %q: %w", path, err)
-	}
+	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
 
 	tb := &table{
 		path:                path,
@@ -126,7 +123,7 @@ func openTable(path string, s *Storage) (*table, error) {
 	}
 	tb.startRetentionWatcher()
 	tb.startFinalDedupWatcher()
-	return tb, nil
+	return tb
 }
 
 // CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
@@ -482,7 +479,7 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) ([]*partition, error) {
+func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) []*partition {
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
@@ -492,14 +489,10 @@ func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) (
 	for ptName := range ptNames {
 		smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
 		bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
-		pt, err := openPartition(smallPartsPath, bigPartsPath, s)
-		if err != nil {
-			mustClosePartitions(pts)
-			return nil, fmt.Errorf("cannot open partition %q: %w", ptName, err)
-		}
+		pt := mustOpenPartition(smallPartsPath, bigPartsPath, s)
 		pts = append(pts, pt)
 	}
-	return pts, nil
+	return pts
 }
 
 func mustPopulatePartitionNames(partitionsPath string, ptNames map[string]bool) {
@@ -515,12 +508,6 @@ func mustPopulatePartitionNames(partitionsPath string, ptNames map[string]bool) 
 			continue
 		}
 		ptNames[ptName] = true
-	}
-}
-
-func mustClosePartitions(pts []*partition) {
-	for _, pt := range pts {
-		pt.MustClose()
 	}
 }
 
