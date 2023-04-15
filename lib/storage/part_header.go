@@ -135,19 +135,20 @@ func (ph *partHeader) MustReadMetadata(partPath string) {
 	ph.Reset()
 
 	metadataPath := filepath.Join(partPath, metadataFilename)
-	metadata, err := os.ReadFile(metadataPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// This is a part created before v1.90.0.
-			// Fall back to reading the metadata from the partPath itsel
-			if err := ph.ParseFromPath(partPath); err != nil {
-				logger.Panicf("FATAL: cannot parse metadata from %q: %s", partPath, err)
-			}
+	if !fs.IsPathExist(metadataPath) {
+		// This is a part created before v1.90.0.
+		// Fall back to reading the metadata from the partPath itsel
+		if err := ph.ParseFromPath(partPath); err != nil {
+			logger.Panicf("FATAL: cannot parse metadata from %q: %s", partPath, err)
 		}
-		logger.Panicf("FATAL: cannot read %q: %s", metadataPath, err)
-	}
-	if err := json.Unmarshal(metadata, ph); err != nil {
-		logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
+	} else {
+		metadata, err := os.ReadFile(metadataPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %q: %s", metadataPath, err)
+		}
+		if err := json.Unmarshal(metadata, ph); err != nil {
+			logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
+		}
 	}
 
 	// Perform various checks
