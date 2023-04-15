@@ -313,7 +313,7 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
-// OpenTable opens a table on the given path.
+// MustOpenTable opens a table on the given path.
 //
 // Optional flushCallback is called every time new data batch is flushed
 // to the underlying storage and becomes visible to search.
@@ -322,7 +322,7 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) (*Table, error) {
+func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) *Table {
 	path = filepath.Clean(path)
 	logger.Infof("opening table %q...", path)
 	startTime := time.Now()
@@ -334,10 +334,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	flockF := fs.MustCreateFlockFile(path)
 
 	// Open table parts.
-	pws, err := openParts(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open table parts at %q: %w", path, err)
-	}
+	pws := mustOpenParts(path)
 
 	tb := &Table{
 		path:          path,
@@ -382,7 +379,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		}()
 	}
 
-	return tb, nil
+	return tb
 }
 
 func (tb *Table) startBackgroundWorkers() {
@@ -1354,7 +1351,7 @@ func getWorkersCount() int {
 	return n
 }
 
-func openParts(path string) ([]*partWrapper, error) {
+func mustOpenParts(path string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
@@ -1368,10 +1365,7 @@ func openParts(path string) ([]*partWrapper, error) {
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read mergetree table dir: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	m := make(map[string]struct{}, len(partNames))
 	for _, partName := range partNames {
 		m[partName] = struct{}{}
@@ -1401,7 +1395,7 @@ func openParts(path string) ([]*partWrapper, error) {
 		pws = append(pws, pw)
 	}
 
-	return pws, nil
+	return pws
 }
 
 // CreateSnapshotAt creates tb snapshot in the given dstDir.
@@ -1496,10 +1490,7 @@ func mustReadPartNames(srcDir string) []string {
 	}
 	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from directories under srcDir
-	des, err := os.ReadDir(srcDir)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read mergeset table dir: %s", err)
-	}
+	des := fs.MustReadDir(srcDir)
 	var partNames []string
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {

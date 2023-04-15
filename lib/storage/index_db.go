@@ -125,14 +125,14 @@ func getTagFiltersCacheSize() int {
 	return maxTagFiltersCacheSize
 }
 
-// openIndexDB opens index db from the given path.
+// mustOpenIndexDB opens index db from the given path.
 //
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
 //
-// The rotationTimestamp must be set to the current unix timestamp when openIndexDB
+// The rotationTimestamp must be set to the current unix timestamp when mustOpenIndexDB
 // is called when creating new indexdb during indexdb rotation.
-func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *uint32) (*indexDB, error) {
+func mustOpenIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *uint32) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
@@ -140,13 +140,10 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *
 	name := filepath.Base(path)
 	gen, err := strconv.ParseUint(name, 16, 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse indexdb path %q: %w", path, err)
+		logger.Panicf("FATAL: cannot parse indexdb path %q: %s", path, err)
 	}
 
-	tb, err := mergeset.OpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open indexDB %q: %w", path, err)
-	}
+	tb := mergeset.MustOpenTable(path, invalidateTagFiltersCache, mergeTagToMetricIDsRows, isReadOnly)
 
 	// Do not persist tagFiltersToMetricIDsCache in files, since it is very volatile.
 	mem := memory.Allowed()
@@ -163,7 +160,7 @@ func openIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
 	}
-	return db, nil
+	return db
 }
 
 const noDeadline = 1<<64 - 1
@@ -599,7 +596,7 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName, metricNameRaw []b
 	is.createPerDayIndexes(date, dst.MetricID, mn)
 
 	// There is no need in invalidating tag cache, since it is invalidated
-	// on db.tb flush via invalidateTagFiltersCache flushCallback passed to OpenTable.
+	// on db.tb flush via invalidateTagFiltersCache flushCallback passed to mergeset.MustOpenTable.
 
 	if created {
 		// Increase the newTimeseriesCreated counter only if tsid wasn't found in indexDB

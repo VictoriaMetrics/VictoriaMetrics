@@ -262,15 +262,8 @@ func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition,
 
 	partNamesSmall, partNamesBig := mustReadPartNames(smallPartsPath, bigPartsPath)
 
-	smallParts, err := openParts(smallPartsPath, partNamesSmall)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open small parts from %q: %w", smallPartsPath, err)
-	}
-	bigParts, err := openParts(bigPartsPath, partNamesBig)
-	if err != nil {
-		mustCloseParts(smallParts)
-		return nil, fmt.Errorf("cannot open big parts from %q: %w", bigPartsPath, err)
-	}
+	smallParts := mustOpenParts(smallPartsPath, partNamesSmall)
+	bigParts := mustOpenParts(bigPartsPath, partNamesBig)
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.smallParts = smallParts
@@ -1770,7 +1763,7 @@ func getPartsSize(pws []*partWrapper) uint64 {
 	return n
 }
 
-func openParts(path string, partNames []string) ([]*partWrapper, error) {
+func mustOpenParts(path string, partNames []string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
@@ -1782,10 +1775,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read partition dir: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	m := make(map[string]struct{}, len(partNames))
 	for _, partName := range partNames {
 		m[partName] = struct{}{}
@@ -1815,16 +1805,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 		pws = append(pws, pw)
 	}
 
-	return pws, nil
-}
-
-func mustCloseParts(pws []*partWrapper) {
-	for _, pw := range pws {
-		if pw.refCount != 1 {
-			logger.Panicf("BUG: unexpected refCount when closing part %q: %d; want 1", &pw.p.ph, pw.refCount)
-		}
-		pw.p.MustClose()
-	}
+	return pws
 }
 
 // MustCreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
@@ -1941,13 +1922,10 @@ func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string)
 }
 
 func mustReadPartNamesFromDir(srcDir string) []string {
-	des, err := os.ReadDir(srcDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		logger.Panicf("FATAL: cannot read partition dir: %s", err)
+	if !fs.IsPathExist(srcDir) {
+		return nil
 	}
+	des := fs.MustReadDir(srcDir)
 	var partNames []string
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {
