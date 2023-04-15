@@ -167,12 +167,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 
 	// Protect from concurrent opens.
-	flockF, err := fs.CreateFlockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file in %q; "+
-			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
-	}
-	s.flockF = flockF
+	s.flockF = fs.MustCreateFlockFile(path)
 
 	// Check whether restore process finished successfully
 	restoreLockF := filepath.Join(path, backupnames.RestoreInProgressFilename)

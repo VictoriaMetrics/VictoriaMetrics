@@ -144,14 +144,6 @@ func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPending
 	return q
 }
 
-func mustCreateFlockFile(path string) *os.File {
-	f, err := fs.CreateFlockFile(path)
-	if err != nil {
-		logger.Panicf("FATAL: %s", err)
-	}
-	return f
-}
-
 func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) (*queue, error) {
 	// Protect from concurrent opens.
 	var q queue
@@ -178,7 +170,7 @@ func tryOpeningQueue(path, name string, chunkFileSize, maxBlockSize, maxPendingB
 	}
 
 	fs.MustMkdirIfNotExist(path)
-	q.flockF = mustCreateFlockFile(path)
+	q.flockF = fs.MustCreateFlockFile(path)
 	mustCloseFlockF := true
 	defer func() {
 		if mustCloseFlockF {
