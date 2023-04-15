@@ -1477,16 +1477,16 @@ func mustWritePartNames(pws []*partWrapper, dstDir string) {
 
 func mustReadPartNames(srcDir string) []string {
 	partNamesPath := filepath.Join(srcDir, partsFilename)
-	data, err := os.ReadFile(partNamesPath)
-	if err == nil {
+	if fs.IsPathExist(partNamesPath) {
+		data, err := os.ReadFile(partNamesPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
+		}
 		var partNames []string
 		if err := json.Unmarshal(data, &partNames); err != nil {
 			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
 		}
 		return partNames
-	}
-	if !os.IsNotExist(err) {
-		logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
 	}
 	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from directories under srcDir

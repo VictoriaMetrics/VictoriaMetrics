@@ -1903,16 +1903,16 @@ func getPartNames(pws []*partWrapper) []string {
 
 func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string) {
 	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
-	data, err := os.ReadFile(partNamesPath)
-	if err == nil {
+	if fs.IsPathExist(partNamesPath) {
+		data, err := os.ReadFile(partNamesPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
+		}
 		var partNames partNamesJSON
 		if err := json.Unmarshal(data, &partNames); err != nil {
 			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
 		}
 		return partNames.Small, partNames.Big
-	}
-	if !os.IsNotExist(err) {
-		logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
 	}
 	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from smallPartsPath and bigPartsPath directories
