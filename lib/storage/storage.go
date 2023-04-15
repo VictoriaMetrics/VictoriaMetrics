@@ -145,11 +145,11 @@ type accountProjectKey struct {
 	ProjectID uint32
 }
 
-// OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
+// MustOpenStorage opens storage on the given path with the given retentionMsecs.
+func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
+		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
 	if retentionMsecs <= 0 {
 		retentionMsecs = maxRetentionMsecs
@@ -183,7 +183,7 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// Check whether restore process finished successfully
 	restoreLockF := filepath.Join(path, backupnames.RestoreInProgressFilename)
 	if fs.IsPathExist(restoreLockF) {
-		return nil, fmt.Errorf("restore lock file exists, incomplete vmrestore run. Run vmrestore again or remove lock file %q", restoreLockF)
+		logger.Panicf("FATAL: incomplete vmrestore run; run vmrestore again or remove lock file %q", restoreLockF)
 	}
 
 	// Pre-create snapshots directory if it is missing.
@@ -237,11 +237,11 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	// Load deleted metricIDs from idbCurr and idbPrev
 	dmisCurr, err := idbCurr.loadDeletedMetricIDs()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load deleted metricIDs for the current indexDB: %w", err)
+		logger.Panicf("FATAL: cannot load deleted metricIDs for the current indexDB at %q: %s", path, err)
 	}
 	dmisPrev, err := idbPrev.loadDeletedMetricIDs()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load deleted metricIDs for the previous indexDB: %w", err)
+		logger.Panicf("FATAL: cannot load deleted metricIDs for the previous indexDB at %q: %s", path, err)
 	}
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
@@ -252,18 +252,14 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load data
 	tablePath := filepath.Join(path, dataDirname)
-	tb, err := openTable(tablePath, s)
-	if err != nil {
-		s.idb().MustClose()
-		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
-	}
+	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
 
-	return s, nil
+	return s
 }
 
 // RetentionMsecs returns retentionMsecs for s.

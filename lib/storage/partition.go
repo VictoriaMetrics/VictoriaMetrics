@@ -250,14 +250,14 @@ func (pt *partition) Drop() {
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
-// openPartition opens the existing partition from the given paths.
-func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition, error) {
+// mustOpenPartition opens the existing partition from the given paths.
+func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partition {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
 	name := filepath.Base(smallPartsPath)
 	if !strings.HasSuffix(bigPartsPath, name) {
-		return nil, fmt.Errorf("patititon name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
+		logger.Panicf("FATAL: patititon name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
 
 	partNamesSmall, partNamesBig := mustReadPartNames(smallPartsPath, bigPartsPath)
@@ -269,14 +269,14 @@ func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition,
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 	if err := pt.tr.fromPartitionName(name); err != nil {
-		return nil, fmt.Errorf("cannot obtain partition time range from smallPartsPath %q: %w", smallPartsPath, err)
+		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
 	}
 	pt.startBackgroundWorkers()
 
 	// Wake up a single background merger, so it could start merging parts if needed.
 	pt.notifyBackgroundMergers()
 
-	return pt, nil
+	return pt
 }
 
 func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
