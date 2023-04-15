@@ -14,6 +14,7 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	isDebug = true
 	n := m.Run()
 	if err := os.RemoveAll("benchmarkTableSearch"); err != nil {
 		panic(fmt.Errorf("cannot remove benchmark tables: %w", err))
