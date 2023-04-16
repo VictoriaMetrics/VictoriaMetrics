@@ -17,12 +17,14 @@ const dontNeedBlockSize = 16 * 1024 * 1024
 
 // ReadCloser is a standard interface for filestream Reader.
 type ReadCloser interface {
+	Path() string
 	Read(p []byte) (int, error)
 	MustClose()
 }
 
 // WriteCloser is a standard interface for filestream Writer.
 type WriteCloser interface {
+	Path() string
 	Write(p []byte) (int, error)
 	MustClose()
 }
@@ -53,14 +55,16 @@ type Reader struct {
 	st streamTracker
 }
 
+// Path returns the path to r
+func (r *Reader) Path() string {
+	return r.f.Name()
+}
+
 // OpenReaderAt opens the file at the given path in nocache mode at the given offset.
 //
 // If nocache is set, then the reader doesn't pollute OS page cache.
 func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
-	r, err := Open(path, nocache)
-	if err != nil {
-		return nil, err
-	}
+	r := MustOpen(path, nocache)
 	n, err := r.f.Seek(offset, io.SeekStart)
 	if err != nil {
 		r.MustClose()
@@ -73,13 +77,13 @@ func OpenReaderAt(path string, offset int64, nocache bool) (*Reader, error) {
 	return r, nil
 }
 
-// Open opens the file from the given path in nocache mode.
+// MustOpen opens the file from the given path in nocache mode.
 //
 // If nocache is set, then the reader doesn't pollute OS page cache.
-func Open(path string, nocache bool) (*Reader, error) {
+func MustOpen(path string, nocache bool) *Reader {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		logger.Panicf("FATAL: cannot open file: %s", err)
 	}
 	r := &Reader{
 		f:  f,
@@ -89,10 +93,10 @@ func Open(path string, nocache bool) (*Reader, error) {
 		r.st.fd = f.Fd()
 	}
 	readersCount.Inc()
-	return r, nil
+	return r
 }
 
-// MustClose closes the underlying file passed to Open.
+// MustClose closes the underlying file passed to MustOpen.
 func (r *Reader) MustClose() {
 	if err := r.st.close(); err != nil {
 		logger.Panicf("FATAL: cannot close streamTracker for file %q: %s", r.f.Name(), err)
@@ -171,6 +175,11 @@ type Writer struct {
 	st streamTracker
 }
 
+// Path returns the path to r
+func (w *Writer) Path() string {
+	return w.f.Name()
+}
+
 // OpenWriterAt opens the file at path in nocache mode for writing at the given offset.
 //
 // The file at path is created if it is missing.
@@ -193,15 +202,15 @@ func OpenWriterAt(path string, offset int64, nocache bool) (*Writer, error) {
 	return newWriter(f, nocache), nil
 }
 
-// Create creates the file for the given path in nocache mode.
+// MustCreate creates the file for the given path in nocache mode.
 //
 // If nocache is set, the writer doesn't pollute OS page cache.
-func Create(path string, nocache bool) (*Writer, error) {
+func MustCreate(path string, nocache bool) *Writer {
 	f, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot create file %q: %w", path, err)
+		logger.Panicf("FATAL: cannot create file %q: %s", path, err)
 	}
-	return newWriter(f, nocache), nil
+	return newWriter(f, nocache)
 }
 
 func newWriter(f *os.File, nocache bool) *Writer {

@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -265,10 +264,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		}
 
 		queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
-		files, err := os.ReadDir(queuesDir)
-		if err != nil {
-			logger.Fatalf("cannot read queues dir %q: %s", queuesDir, err)
-		}
+		files := fs.MustReadDir(queuesDir)
 		removed := 0
 		for _, f := range files {
 			dirname := f.Name()
