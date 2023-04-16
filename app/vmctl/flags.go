@@ -326,6 +326,7 @@ const (
 	vmNativeStepInterval    = "vm-native-step-interval"
 
 	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
+	vmNativeDisableRetries       = "vm-native-disable-retries"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -442,6 +443,11 @@ var (
 			Name:  vmConcurrency,
 			Usage: "Number of workers concurrently performing import requests to VM",
 			Value: 2,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisableRetries,
+			Usage: "Defines whether to disable retries with backoff policy for migration process",
+			Value: false,
 		},
 	}
 )
