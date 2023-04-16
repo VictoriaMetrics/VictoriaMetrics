@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -13,8 +14,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 	"github.com/cheggaaa/pb/v3"
 )
 
@@ -25,16 +26,18 @@ type vmNativeProcessor struct {
 	src     *native.Client
 	backoff *backoff.Backoff
 
-	s            *stats
-	rateLimit    int64
-	interCluster bool
-	cc           int
+	s              *stats
+	rateLimit      int64
+	interCluster   bool
+	cc             int
+	disableRetries bool
 }
 
 const (
-	nativeExportAddr = "api/v1/export/native"
-	nativeImportAddr = "api/v1/import/native"
-	nativeBarTpl     = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
+	nativeExportAddr       = "api/v1/export/native"
+	nativeImportAddr       = "api/v1/import/native"
+	nativeWithBackoffTpl   = `{{ blue "%s:" }} {{ counters . }} {{ bar . "[" "█" (cycle . "█") "▒" "]" }} {{ percent . }}`
+	nativeSingleProcessTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
 func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
@@ -94,9 +97,9 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 	return nil
 }
 
-func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
+func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
 
-	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL) }
+	retryableFunc := func() error { return p.runSingle(ctx, f, srcURL, dstURL, bar) }
 	attempts, err := p.backoff.Retry(ctx, retryableFunc)
 	p.s.Lock()
 	p.s.retries += attempts
@@ -108,11 +111,16 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 	return nil
 }
 
-func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string) error {
+func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
 
-	exportReader, err := p.src.ExportPipe(ctx, srcURL, f)
+	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
+	}
+
+	if p.disableRetries && bar != nil {
+		fmt.Printf("Continue import process with filter %s:\n", f.String())
+		reader = bar.NewProxyReader(reader)
 	}
 
 	pr, pw := io.Pipe()
@@ -131,7 +139,7 @@ func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcU
 		w = limiter.NewWriteLimiter(pw, rl)
 	}
 
-	written, err := io.Copy(w, exportReader)
+	written, err := io.Copy(w, reader)
 	if err != nil {
 		return fmt.Errorf("failed to write into %q: %s", p.dst.Addr, err)
 	}
@@ -176,17 +184,22 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 	fmt.Println("") // extra line for better output formatting
 	log.Printf(initMessage, initParams...)
 
-	log.Printf("Exploring metrics...")
-	metrics, err := p.src.Explore(ctx, p.filter, tenantID)
-	if err != nil {
-		return fmt.Errorf("cannot get metrics from source %s: %w", p.src.Addr, err)
+	var foundSeriesMsg string
+
+	metrics := []string{p.filter.Match}
+	if !p.disableRetries {
+		log.Printf("Exploring metrics...")
+		metrics, err = p.src.Explore(ctx, p.filter, tenantID)
+		if err != nil {
+			return fmt.Errorf("cannot get metrics from source %s: %w", p.src.Addr, err)
+		}
+
+		if len(metrics) == 0 {
+			return fmt.Errorf("no metrics found")
+		}
+		foundSeriesMsg = fmt.Sprintf("Found %d metrics to import", len(metrics))
 	}
 
-	if len(metrics) == 0 {
-		return fmt.Errorf("no metrics found")
-	}
-
-	foundSeriesMsg := fmt.Sprintf("Found %d metrics to import", len(metrics))
 	if !p.interCluster {
 		// do not prompt for intercluster because there could be many tenants,
 		// and we don't want to interrupt the process when moving to the next tenant.
@@ -206,7 +219,10 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeBarTpl, barPrefix)).New(len(metrics) * len(ranges))
+		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeWithBackoffTpl, barPrefix)).New(len(metrics) * len(ranges))
+		if p.disableRetries {
+			bar = pb.ProgressBarTemplate(nativeSingleProcessTpl).New(0)
+		}
 		bar.Start()
 		defer bar.Finish()
 	}
@@ -220,19 +236,26 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 		go func() {
 			defer wg.Done()
 			for f := range filterCh {
-				if err := p.do(ctx, f, srcURL, dstURL); err != nil {
-					errCh <- err
-					return
-				}
-				if bar != nil {
-					bar.Increment()
+				if !p.disableRetries {
+					if err := p.do(ctx, f, srcURL, dstURL, nil); err != nil {
+						errCh <- err
+						return
+					}
+					if bar != nil {
+						bar.Increment()
+					}
+				} else {
+					if err := p.runSingle(ctx, f, srcURL, dstURL, bar); err != nil {
+						errCh <- err
+						return
+					}
 				}
 			}
 		}()
 	}
 
 	// any error breaks the import
-	for s := range metrics {
+	for _, s := range metrics {
 
 		match, err := buildMatchWithFilter(p.filter.Match, s)
 		if err != nil {
@@ -313,11 +336,26 @@ func byteCountSI(b int64) string {
 }
 
 func buildMatchWithFilter(filter string, metricName string) (string, error) {
-	labels, err := promutils.NewLabelsFromString(filter)
+	if filter == metricName {
+		return filter, nil
+	}
+
+	labels, err := searchutils.ParseMetricSelector(filter)
 	if err != nil {
 		return "", err
 	}
-	labels.Set("__name__", metricName)
 
-	return labels.String(), nil
+	str := make([]string, 0, len(labels))
+	for _, label := range labels {
+		if len(label.Key) == 0 {
+			continue
+		}
+		str = append(str, label.String())
+	}
+
+	nameFilter := fmt.Sprintf("__name__=%q", metricName)
+	str = append(str, nameFilter)
+
+	match := fmt.Sprintf("{%s}", strings.Join(str, ","))
+	return match, nil
 }

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -191,7 +192,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				t.Fatalf("Error parse end time: %s", err)
 			}
 
-			tt.fields.filter.Match = fmt.Sprintf("%s=%q", tt.fields.matchName, tt.fields.matchValue)
+			tt.fields.filter.Match = fmt.Sprintf("{%s=~%q}", tt.fields.matchName, tt.fields.matchValue)
 			tt.fields.filter.TimeStart = tt.start
 			tt.fields.filter.TimeEnd = tt.end
 
@@ -205,16 +206,16 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			}
 
 			tt.fields.src = &native.Client{
-				AuthCfg:              nil,
-				Addr:                 src.URL(),
-				ExtraLabels:          []string{},
-				DisableHTTPKeepAlive: false,
+				AuthCfg:     nil,
+				Addr:        src.URL(),
+				ExtraLabels: []string{},
+				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 			tt.fields.dst = &native.Client{
-				AuthCfg:              nil,
-				Addr:                 dst.URL(),
-				ExtraLabels:          []string{},
-				DisableHTTPKeepAlive: false,
+				AuthCfg:     nil,
+				Addr:        dst.URL(),
+				ExtraLabels: []string{},
+				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 
 			p := &vmNativeProcessor{
@@ -307,43 +308,71 @@ func Test_buildMatchWithFilter(t *testing.T) {
 			name:       "parsed metric with label",
 			filter:     `{__name__="http_request_count_total",cluster="kube1"}`,
 			metricName: "http_request_count_total",
-			want:       `{__name__="http_request_count_total",cluster="kube1"}`,
+			want:       `{cluster="kube1",__name__="http_request_count_total"}`,
 			wantErr:    false,
 		},
 		{
 			name:       "metric name with label",
 			filter:     `http_request_count_total{cluster="kube1"}`,
 			metricName: "http_request_count_total",
-			want:       `{__name__="http_request_count_total",cluster="kube1"}`,
+			want:       `{cluster="kube1",__name__="http_request_count_total"}`,
 			wantErr:    false,
 		},
 		{
 			name:       "parsed metric with regexp value",
-			filter:     `{__name__="http_request_count_total",cluster~="kube.*"}`,
+			filter:     `{__name__="http_request_count_total",cluster=~"kube.*"}`,
 			metricName: "http_request_count_total",
-			want:       `{__name__="http_request_count_total",cluster~="kube.*"}`,
+			want:       `{cluster=~"kube.*",__name__="http_request_count_total"}`,
 			wantErr:    false,
 		},
 		{
 			name:       "only label with regexp",
-			filter:     `{cluster~=".*"}`,
+			filter:     `{cluster=~".*"}`,
 			metricName: "http_request_count_total",
-			want:       `{cluster~=".*",__name__="http_request_count_total"}`,
+			want:       `{cluster=~".*",__name__="http_request_count_total"}`,
 			wantErr:    false,
 		},
 		{
 			name:       "many labels in filter with regexp",
-			filter:     `{cluster~=".*",job!=""}`,
+			filter:     `{cluster=~".*",job!=""}`,
 			metricName: "http_request_count_total",
-			want:       `{cluster~=".*",job!="",__name__="http_request_count_total"}`,
+			want:       `{cluster=~".*",job!="",__name__="http_request_count_total"}`,
 			wantErr:    false,
 		},
 		{
 			name:       "match with error",
-			filter:     `{cluster=~".*"}`,
+			filter:     `{cluster~=".*"}`,
 			metricName: "http_request_count_total",
 			want:       ``,
 			wantErr:    true,
+		},
+		{
+			name:       "all names",
+			filter:     `{__name__!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "with many underscores labels",
+			filter:     `{__name__!="", __meta__!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__meta__!="",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "metric name has regexp",
+			filter:     `{__name__=~".*"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "metric name has negative regexp",
+			filter:     `{__name__!~".*"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
 		},
 	}
 	for _, tt := range tests {

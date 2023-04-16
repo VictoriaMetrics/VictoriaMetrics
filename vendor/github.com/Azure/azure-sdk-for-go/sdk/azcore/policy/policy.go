@@ -113,6 +113,15 @@ type RetryOptions struct {
 	// Specifying values will replace the default values.
 	// Specifying an empty slice will disable retries for HTTP status codes.
 	StatusCodes []int
+
+	// ShouldRetry evaluates if the retry policy should retry the request.
+	// When specified, the function overrides comparison against the list of
+	// HTTP status codes and error checking within the retry policy. Context
+	// and NonRetriable errors remain evaluated before calling ShouldRetry.
+	// The *http.Response and error parameters are mutually exclusive, i.e.
+	// if one is nil, the other is not nil.
+	// A return value of true means the retry policy should retry.
+	ShouldRetry func(*http.Response, error) bool
 }
 
 // TelemetryOptions configures the telemetry policy's behavior.
