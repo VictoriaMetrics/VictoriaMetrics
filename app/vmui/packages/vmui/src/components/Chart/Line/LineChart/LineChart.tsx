@@ -13,7 +13,6 @@ import { getAxes, getMinMaxBuffer } from "../../../../utils/uplot/axes";
 import { MetricResult } from "../../../../api/types";
 import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
 import throttle from "lodash.throttle";
-import useResize from "../../../../hooks/useResize";
 import { TimeParams } from "../../../../types";
 import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
@@ -23,6 +22,7 @@ import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
 import { useAppState } from "../../../../state/common/StateContext";
 import { SeriesItem } from "../../../../utils/uplot/series";
+import { ElementSize } from "../../../../hooks/useElementSize";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -32,7 +32,7 @@ export interface LineChartProps {
   series: uPlotSeries[];
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null;
+  layoutSize: ElementSize;
   height?: number;
 }
 
@@ -46,7 +46,7 @@ const LineChart: FC<LineChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container,
+  layoutSize,
   height
 }) => {
   const { isDarkTheme } = useAppState();
@@ -57,7 +57,6 @@ const LineChart: FC<LineChartProps> = ({
   const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const [startTouchDistance, setStartTouchDistance] = useState(0);
-  const layoutSize = useResize(container);
 
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipIdx, setTooltipIdx] = useState({ seriesIdx: -1, dataIdx: -1 });

@@ -11,8 +11,8 @@ import { useSnack } from "../../../contexts/Snackbar";
 import { getNameForMetric } from "../../../utils/metric";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import "./style.scss";
-import useResize from "../../../hooks/useResize";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -24,7 +24,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
   const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const tableRef = useRef<HTMLTableElement>(null);
   const [tableTop, setTableTop] = useState(0);
   const [headTop, setHeadTop] = useState(0);

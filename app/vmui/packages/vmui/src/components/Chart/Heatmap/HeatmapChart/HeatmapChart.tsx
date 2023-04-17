@@ -10,7 +10,6 @@ import { getAxes } from "../../../../utils/uplot/axes";
 import { MetricResult } from "../../../../api/types";
 import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
 import throttle from "lodash.throttle";
-import useResize from "../../../../hooks/useResize";
 import { TimeParams } from "../../../../types";
 import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
@@ -23,6 +22,7 @@ import ChartTooltipHeatmap, {
   ChartTooltipHeatmapProps,
   TooltipHeatmapProps
 } from "../ChartTooltipHeatmap/ChartTooltipHeatmap";
+import { ElementSize } from "../../../../hooks/useElementSize";
 
 export interface HeatmapChartProps {
   metrics: MetricResult[];
@@ -31,7 +31,7 @@ export interface HeatmapChartProps {
   yaxis: YaxisState;
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null;
+  layoutSize: ElementSize,
   height?: number;
   onChangeLegend: (val: TooltipHeatmapProps) => void;
 }
@@ -45,7 +45,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container,
+  layoutSize,
   height,
   onChangeLegend,
 }) => {
@@ -56,7 +56,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const [startTouchDistance, setStartTouchDistance] = useState(0);
-  const layoutSize = useResize(container);
 
   const [tooltipProps, setTooltipProps] = useState<TooltipHeatmapProps | null>(null);
   const [tooltipOffset, setTooltipOffset] = useState({ left: 0, top: 0 });

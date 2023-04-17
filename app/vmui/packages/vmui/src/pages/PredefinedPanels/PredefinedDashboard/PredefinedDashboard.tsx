@@ -2,11 +2,11 @@ import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { MouseEvent as ReactMouseEvent } from "react";
 import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";
-import useResize from "../../../hooks/useResize";
 import Accordion from "../../../components/Main/Accordion/Accordion";
 import "./style.scss";
 import classNames from "classnames";
 import Alert from "../../../components/Main/Alert/Alert";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 export interface PredefinedDashboardProps extends DashboardRow {
   filename: string;
@@ -20,7 +20,7 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
   filename
 }) => {
 
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const sizeSection = useMemo(() => {
     return windowSize.width / 12;
   }, [windowSize]);

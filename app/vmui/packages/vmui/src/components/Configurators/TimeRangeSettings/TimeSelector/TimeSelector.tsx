@@ -9,7 +9,6 @@ import Button from "../../../Main/Button/Button";
 import Popper from "../../../Main/Popper/Popper";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import { DATE_TIME_FORMAT } from "../../../../constants/date";
-import useResize from "../../../../hooks/useResize";
 import "./style.scss";
 import useClickOutside from "../../../../hooks/useClickOutside";
 import classNames from "classnames";
@@ -17,13 +16,14 @@ import { useAppState } from "../../../../state/common/StateContext";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import DateTimeInput from "../../../Main/DatePicker/DateTimeInput/DateTimeInput";
 import useBoolean from "../../../../hooks/useBoolean";
+import useWindowSize from "../../../../hooks/useWindowSize";
 
 export const TimeSelector: FC = () => {
   const { isMobile } = useDeviceDetect();
   const { isDarkTheme } = useAppState();
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const documentSize = useResize(document.body);
-  const displayFullDate = useMemo(() => documentSize.width > 1280, [documentSize]);
+  const documentSize = useWindowSize();
+  const displayFullDate = useMemo(() => documentSize.width > 1120, [documentSize]);
 
   const [until, setUntil] = useState<string>();
   const [from, setFrom] = useState<string>();
