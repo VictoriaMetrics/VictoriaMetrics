@@ -30,8 +30,7 @@ func (c *Client) ListAccountRoles(ctx context.Context, params *ListAccountRolesI
 type ListAccountRolesInput struct {
 
 	// The token issued by the CreateToken API call. For more information, see
-	// CreateToken
-	// (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html)
+	// CreateToken (https://docs.aws.amazon.com/singlesignon/latest/OIDCAPIReference/API_CreateToken.html)
 	// in the IAM Identity Center OIDC API Reference Guide.
 	//
 	// This member is required.

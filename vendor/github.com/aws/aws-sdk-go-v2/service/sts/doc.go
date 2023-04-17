@@ -7,6 +7,6 @@
 // temporary, limited-privilege credentials for Identity and Access Management
 // (IAM) users or for users that you authenticate (federated users). This guide
 // provides descriptions of the STS API. For more information about using this
-// service, see Temporary Security Credentials
-// (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html).
+// service, see Temporary Security Credentials (https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_temp.html)
+// .
 package sts
