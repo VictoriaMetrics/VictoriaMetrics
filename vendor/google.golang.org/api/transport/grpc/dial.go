@@ -9,7 +9,6 @@ package grpc
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"log"
 	"net"
@@ -22,7 +21,6 @@ import (
 	"google.golang.org/api/internal"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 	grpcgoogle "google.golang.org/grpc/credentials/google"
 	grpcinsecure "google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/credentials/oauth"
@@ -122,18 +120,13 @@ func dial(ctx context.Context, insecure bool, o *internal.DialSettings) (*grpc.C
 	if o.GRPCConn != nil {
 		return o.GRPCConn, nil
 	}
-	clientCertSource, endpoint, err := internal.GetClientCertificateSourceAndEndpoint(o)
+	transportCreds, endpoint, err := internal.GetGRPCTransportConfigAndEndpoint(o)
 	if err != nil {
 		return nil, err
 	}
 
-	var transportCreds credentials.TransportCredentials
 	if insecure {
 		transportCreds = grpcinsecure.NewCredentials()
-	} else {
-		transportCreds = credentials.NewTLS(&tls.Config{
-			GetClientCertificate: clientCertSource,
-		})
 	}
 
 	// Initialize gRPC dial options with transport-level security options.
