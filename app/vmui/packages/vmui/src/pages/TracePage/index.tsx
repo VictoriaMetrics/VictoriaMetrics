@@ -12,21 +12,19 @@ import { ErrorTypes } from "../../types";
 import { useSearchParams } from "react-router-dom";
 import useDropzone from "../../hooks/useDropzone";
 import TraceUploadButtons from "./TraceUploadButtons/TraceUploadButtons";
+import useBoolean from "../../hooks/useBoolean";
 
 const TracePage: FC = () => {
-  const [openModal, setOpenModal] = useState(false);
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [errors, setErrors] = useState<{filename: string, text: string}[]>([]);
   const hasTraces = useMemo(() => !!tracesState.length, [tracesState]);
   const [, setSearchParams] = useSearchParams();
 
-  const handleOpenModal = () => {
-    setOpenModal(true);
-  };
-
-  const handleCloseModal = () => {
-    setOpenModal(false);
-  };
+  const {
+    value: openModal,
+    setTrue: handleOpenModal,
+    setFalse: handleCloseModal,
+  } = useBoolean(false);
 
   const handleError = (e: Error, filename = "") => {
     setErrors(prev => [{ filename, text: `: ${e.message}` }, ...prev]);

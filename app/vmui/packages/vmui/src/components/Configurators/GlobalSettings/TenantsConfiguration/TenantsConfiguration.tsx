@@ -11,6 +11,7 @@ import { getAppModeEnable } from "../../../../utils/app-mode";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import TextField from "../../../Main/TextField/TextField";
+import useBoolean from "../../../../hooks/useBoolean";
 
 const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const appModeEnable = getAppModeEnable();
@@ -21,8 +22,13 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const timeDispatch = useTimeDispatch();
 
   const [search, setSearch] = useState("");
-  const [openOptions, setOpenOptions] = useState(false);
   const optionsButtonRef = useRef<HTMLDivElement>(null);
+
+  const {
+    value: openOptions,
+    toggle: toggleOpenOptions,
+    setFalse: handleCloseOptions,
+  } = useBoolean(false);
 
   const accountIdsFiltered = useMemo(() => {
     if (!search) return accountIds;
@@ -44,14 +50,6 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     const id = true; //getTenantIdFromUrl(serverUrl);
     return accountIds.length > 1 && id;
   }, [accountIds, serverUrl]);
-
-  const toggleOpenOptions = () => {
-    setOpenOptions(prev => !prev);
-  };
-
-  const handleCloseOptions = () => {
-    setOpenOptions(false);
-  };
 
   const createHandlerChange = (value: string) => () => {
     const tenant = value;

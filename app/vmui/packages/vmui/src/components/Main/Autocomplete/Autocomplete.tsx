@@ -4,6 +4,7 @@ import Popper from "../Popper/Popper";
 import "./style.scss";
 import { DoneIcon } from "../Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useBoolean from "../../../hooks/useBoolean";
 
 interface AutocompleteProps {
   value: string
@@ -39,8 +40,13 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const { isMobile } = useDeviceDetect();
   const wrapperEl = useRef<HTMLDivElement>(null);
 
-  const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const [focusOption, setFocusOption] = useState(-1);
+
+  const {
+    value: openAutocomplete,
+    setValue: setOpenAutocomplete,
+    setFalse: handleCloseAutocomplete,
+  } = useBoolean(false);
 
   const foundOptions = useMemo(() => {
     if (!openAutocomplete) return [];
@@ -56,10 +62,6 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const displayNoOptionsText = useMemo(() => {
     return noOptionsText && !foundOptions.length;
   }, [noOptionsText,foundOptions]);
-
-  const handleCloseAutocomplete = () => {
-    setOpenAutocomplete(false);
-  };
 
   const createHandlerSelect = (item: string) => () => {
     if (disabled) return;

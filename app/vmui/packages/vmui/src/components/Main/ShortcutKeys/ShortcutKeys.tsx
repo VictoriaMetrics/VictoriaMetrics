@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import React, { FC, useEffect } from "preact/compat";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";
@@ -7,22 +7,20 @@ import "./style.scss";
 import Tooltip from "../Tooltip/Tooltip";
 import keyList from "./constants/keyList";
 import { isMacOs } from "../../../utils/detect-device";
+import useBoolean from "../../../hooks/useBoolean";
 
 const title = "Shortcut keys";
 const isMac = isMacOs();
 const keyOpenHelp = isMac ? "Cmd + /" : "F1";
 
 const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
-  const [openList, setOpenList] = useState(false);
   const appModeEnable = getAppModeEnable();
 
-  const handleOpen = () => {
-    setOpenList(true);
-  };
-
-  const handleClose = () => {
-    setOpenList(false);
-  };
+  const {
+    value: openList,
+    setTrue: handleOpen,
+    setFalse: handleClose,
+  } = useBoolean(false);
 
   const handleKeyDown = (e: KeyboardEvent) => {
     const openOnMac = isMac && e.key === "/" && e.metaKey;

@@ -24,6 +24,7 @@ import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import GraphTips from "../../components/Chart/GraphTips/GraphTips";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
+import useBoolean from "../../hooks/useBoolean";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -36,8 +37,13 @@ const CustomPanel: FC = () => {
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
-  const [showAllSeries, setShowAllSeries] = useState(false);
   const [hideError, setHideError] = useState(!query[0]);
+
+  const {
+    value: showAllSeries,
+    setTrue: handleShowAll,
+    setFalse: handleHideSeries,
+  } = useBoolean(false);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
@@ -64,10 +70,6 @@ const CustomPanel: FC = () => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
-  const handleShowAll = () => {
-    setShowAllSeries(true);
-  };
-
   const handleTraceDelete = (trace: Trace) => {
     const updatedTraces = tracesState.filter((data) => data.idValue !== trace.idValue);
     setTracesState([...updatedTraces]);
@@ -91,9 +93,7 @@ const CustomPanel: FC = () => {
     setTracesState([]);
   }, [displayType]);
 
-  useEffect(() => {
-    setShowAllSeries(false);
-  }, [query]);
+  useEffect(handleHideSeries, [query]);
 
   useEffect(() => {
     graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });

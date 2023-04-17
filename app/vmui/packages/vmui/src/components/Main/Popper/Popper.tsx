@@ -7,6 +7,7 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import useBoolean from "../../../hooks/useBoolean";
 
 interface PopperProps {
   children: ReactNode
@@ -37,20 +38,21 @@ const Popper: FC<PopperProps> = ({
   const { isMobile } = useDeviceDetect();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
+
+  const {
+    value: isOpen,
+    setValue: setIsOpen,
+    setFalse: handleClose,
+  } = useBoolean(false);
 
   const popperRef = useRef<HTMLDivElement>(null);
 
-  const onScrollWindow = () => {
-    setIsOpen(false);
-  };
-
   useEffect(() => {
-    window.addEventListener("scroll", onScrollWindow);
+    window.addEventListener("scroll", handleClose);
 
     return () => {
-      window.removeEventListener("scroll", onScrollWindow);
+      window.removeEventListener("scroll", handleClose);
     };
   }, []);
 

@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import React, { FC, useMemo } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import GraphView from "../../Views/GraphView/GraphView";
@@ -10,6 +10,7 @@ import Button from "../../Main/Button/Button";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useBoolean from "../../../hooks/useBoolean";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -35,7 +36,10 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const graphDispatch = useGraphDispatch();
   const timeDispatch = useTimeDispatch();
 
-  const [showAllSeries, setShowAllSeries] = useState(false);
+  const {
+    value: showAllSeries,
+    setTrue: handleShowAll,
+  } = useBoolean(false);
 
   const query = useMemo(() => {
     const params = Object.entries({ job, instance })
@@ -88,10 +92,6 @@ with (q = ${queryBase}) (
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
-  };
-
-  const handleShowAll = () => {
-    setShowAllSeries(true);
   };
 
   return (
