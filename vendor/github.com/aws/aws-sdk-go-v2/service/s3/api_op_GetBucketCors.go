@@ -17,16 +17,10 @@ import (
 // s3:GetBucketCORS action. By default, the bucket owner has this permission and
 // can grant it to others. To use this API against an access point, provide the
 // alias of the access point in place of the bucket name. For more information
-// about CORS, see  Enabling Cross-Origin Resource Sharing
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html). The following
-// operations are related to GetBucketCors:
-//
-// * PutBucketCors
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
-//
-// *
-// DeleteBucketCors
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)
+// about CORS, see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
+// . The following operations are related to GetBucketCors :
+//   - PutBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
+//   - DeleteBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)
 func (c *Client) GetBucketCors(ctx context.Context, params *GetBucketCorsInput, optFns ...func(*Options)) (*GetBucketCorsOutput, error) {
 	if params == nil {
 		params = &GetBucketCorsInput{}

@@ -17,27 +17,25 @@ import (
 	"time"
 )
 
-// This action is useful to determine if a bucket exists and you have permission to
-// access it. The action returns a 200 OK if the bucket exists and you have
+// This action is useful to determine if a bucket exists and you have permission
+// to access it. The action returns a 200 OK if the bucket exists and you have
 // permission to access it. If the bucket does not exist or you do not have
-// permission to access it, the HEAD request returns a generic 400 Bad Request, 403
-// Forbidden or 404 Not Found code. A message body is not included, so you cannot
-// determine the exception beyond these error codes. To use this operation, you
-// must have permissions to perform the s3:ListBucket action. The bucket owner has
-// this permission by default and can grant this permission to others. For more
+// permission to access it, the HEAD request returns a generic 400 Bad Request ,
+// 403 Forbidden or 404 Not Found code. A message body is not included, so you
+// cannot determine the exception beyond these error codes. To use this operation,
+// you must have permissions to perform the s3:ListBucket action. The bucket owner
+// has this permission by default and can grant this permission to others. For more
 // information about permissions, see Permissions Related to Bucket Subresource
-// Operations
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
-// To use this API against an access point, you must provide the alias of the
+// Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+// . To use this API against an access point, you must provide the alias of the
 // access point in place of the bucket name or specify the access point ARN. When
 // using the access point ARN, you must direct requests to the access point
 // hostname. The access point hostname takes the form
 // AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using the
 // Amazon Web Services SDKs, you provide the ARN in place of the bucket name. For
-// more information see, Using access points
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html).
+// more information see, Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+// .
 func (c *Client) HeadBucket(ctx context.Context, params *HeadBucketInput, optFns ...func(*Options)) (*HeadBucketOutput, error) {
 	if params == nil {
 		params = &HeadBucketInput{}
@@ -60,17 +58,15 @@ type HeadBucketInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
 	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
 	// Outposts hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
@@ -185,9 +181,9 @@ type BucketExistsWaiterOptions struct {
 	// MinDelay must resolve to a value lesser than or equal to the MaxDelay.
 	MinDelay time.Duration
 
-	// MaxDelay is the maximum amount of time to delay between retries. If unset or set
-	// to zero, BucketExistsWaiter will use default max delay of 120 seconds. Note that
-	// MaxDelay must resolve to value greater than or equal to the MinDelay.
+	// MaxDelay is the maximum amount of time to delay between retries. If unset or
+	// set to zero, BucketExistsWaiter will use default max delay of 120 seconds. Note
+	// that MaxDelay must resolve to value greater than or equal to the MinDelay.
 	MaxDelay time.Duration
 
 	// LogWaitAttempts is used to enable logging for waiter retry attempts
@@ -338,9 +334,9 @@ type BucketNotExistsWaiterOptions struct {
 	// MinDelay must resolve to a value lesser than or equal to the MaxDelay.
 	MinDelay time.Duration
 
-	// MaxDelay is the maximum amount of time to delay between retries. If unset or set
-	// to zero, BucketNotExistsWaiter will use default max delay of 120 seconds. Note
-	// that MaxDelay must resolve to value greater than or equal to the MinDelay.
+	// MaxDelay is the maximum amount of time to delay between retries. If unset or
+	// set to zero, BucketNotExistsWaiter will use default max delay of 120 seconds.
+	// Note that MaxDelay must resolve to value greater than or equal to the MinDelay.
 	MaxDelay time.Duration
 
 	// LogWaitAttempts is used to enable logging for waiter retry attempts
@@ -380,9 +376,9 @@ func NewBucketNotExistsWaiter(client HeadBucketAPIClient, optFns ...func(*Bucket
 	}
 }
 
-// Wait calls the waiter function for BucketNotExists waiter. The maxWaitDur is the
-// maximum wait duration the waiter will wait. The maxWaitDur is required and must
-// be greater than zero.
+// Wait calls the waiter function for BucketNotExists waiter. The maxWaitDur is
+// the maximum wait duration the waiter will wait. The maxWaitDur is required and
+// must be greater than zero.
 func (w *BucketNotExistsWaiter) Wait(ctx context.Context, params *HeadBucketInput, maxWaitDur time.Duration, optFns ...func(*BucketNotExistsWaiterOptions)) error {
 	_, err := w.WaitForOutput(ctx, params, maxWaitDur, optFns...)
 	return err
@@ -484,8 +480,9 @@ func newServiceMetadataMiddleware_opHeadBucket(region string) *awsmiddleware.Reg
 	}
 }
 
-// getHeadBucketBucketMember returns a pointer to string denoting a provided bucket
-// member valueand a boolean indicating if the input has a modeled bucket name,
+// getHeadBucketBucketMember returns a pointer to string denoting a provided
+// bucket member valueand a boolean indicating if the input has a modeled bucket
+// name,
 func getHeadBucketBucketMember(input interface{}) (*string, bool) {
 	in := input.(*HeadBucketInput)
 	if in.Bucket == nil {

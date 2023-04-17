@@ -24,86 +24,64 @@ import (
 // values. Amazon S3 is a distributed system. If it receives multiple write
 // requests for the same object simultaneously, it overwrites all but the last
 // object written. To prevent objects from being deleted or overwritten, you can
-// use Amazon S3 Object Lock
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html). To
-// ensure that data is not corrupted traversing the network, use the Content-MD5
-// header. When you use this header, Amazon S3 checks the object against the
-// provided MD5 value and, if they do not match, returns an error. Additionally,
-// you can calculate the MD5 while putting an object to Amazon S3 and compare the
-// returned ETag to the calculated MD5 value.
+// use Amazon S3 Object Lock (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lock.html)
+// . To ensure that data is not corrupted traversing the network, use the
+// Content-MD5 header. When you use this header, Amazon S3 checks the object
+// against the provided MD5 value and, if they do not match, returns an error.
+// Additionally, you can calculate the MD5 while putting an object to Amazon S3 and
+// compare the returned ETag to the calculated MD5 value.
+//   - To successfully complete the PutObject request, you must have the
+//     s3:PutObject in your IAM permissions.
+//   - To successfully change the objects acl of your PutObject request, you must
+//     have the s3:PutObjectAcl in your IAM permissions.
+//   - To successfully set the tag-set with your PutObject request, you must have
+//     the s3:PutObjectTagging in your IAM permissions.
+//   - The Content-MD5 header is required for any request to upload an object with
+//     a retention period configured using Amazon S3 Object Lock. For more information
+//     about Amazon S3 Object Lock, see Amazon S3 Object Lock Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock-overview.html)
+//     in the Amazon S3 User Guide.
 //
-// * To successfully complete the
-// PutObject request, you must have the s3:PutObject in your IAM permissions.
-//
-// * To
-// successfully change the objects acl of your PutObject request, you must have the
-// s3:PutObjectAcl in your IAM permissions.
-//
-// * To successfully set the tag-set with
-// your PutObject request, you must have the s3:PutObjectTagging in your IAM
-// permissions.
-//
-// * The Content-MD5 header is required for any request to upload an
-// object with a retention period configured using Amazon S3 Object Lock. For more
-// information about Amazon S3 Object Lock, see Amazon S3 Object Lock Overview
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock-overview.html) in
-// the Amazon S3 User Guide.
-//
-// You have three mutually exclusive options to protect
-// data using server-side encryption in Amazon S3, depending on how you choose to
-// manage the encryption keys. Specifically, the encryption key options are Amazon
-// S3 managed keys (SSE-S3), Amazon Web Services KMS keys (SSE-KMS), and
-// customer-provided keys (SSE-C). Amazon S3 encrypts data with server-side
-// encryption by using Amazon S3 managed keys (SSE-S3) by default. You can
-// optionally tell Amazon S3 to encrypt data at by rest using server-side
-// encryption with other key options. For more information, see Using Server-Side
-// Encryption
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html).
-// When adding a new object, you can use headers to grant ACL-based permissions to
-// individual Amazon Web Services accounts or to predefined groups defined by
+// You have three mutually exclusive options to protect data using server-side
+// encryption in Amazon S3, depending on how you choose to manage the encryption
+// keys. Specifically, the encryption key options are Amazon S3 managed keys
+// (SSE-S3), Amazon Web Services KMS keys (SSE-KMS), and customer-provided keys
+// (SSE-C). Amazon S3 encrypts data with server-side encryption by using Amazon S3
+// managed keys (SSE-S3) by default. You can optionally tell Amazon S3 to encrypt
+// data at by rest using server-side encryption with other key options. For more
+// information, see Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
+// . When adding a new object, you can use headers to grant ACL-based permissions
+// to individual Amazon Web Services accounts or to predefined groups defined by
 // Amazon S3. These permissions are then added to the ACL on the object. By
 // default, all objects are private. Only the owner has full access control. For
-// more information, see Access Control List (ACL) Overview
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html) and Managing
-// ACLs Using the REST API
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html). If
-// the bucket that you're uploading objects to uses the bucket owner enforced
+// more information, see Access Control List (ACL) Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html)
+// and Managing ACLs Using the REST API (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-using-rest-api.html)
+// . If the bucket that you're uploading objects to uses the bucket owner enforced
 // setting for S3 Object Ownership, ACLs are disabled and no longer affect
 // permissions. Buckets that use this setting only accept PUT requests that don't
 // specify an ACL or PUT requests that specify bucket owner full control ACLs, such
 // as the bucket-owner-full-control canned ACL or an equivalent form of this ACL
 // expressed in the XML format. PUT requests that contain other ACLs (for example,
 // custom grants to certain Amazon Web Services accounts) fail and return a 400
-// error with the error code AccessControlListNotSupported. For more information,
-// see  Controlling ownership of objects and disabling ACLs
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// error with the error code AccessControlListNotSupported . For more information,
+// see Controlling ownership of objects and disabling ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide. If your bucket uses the bucket owner enforced
 // setting for Object Ownership, all objects written to the bucket by any account
 // will be owned by the bucket owner. By default, Amazon S3 uses the STANDARD
 // Storage Class to store newly created objects. The STANDARD storage class
 // provides high durability and high availability. Depending on performance needs,
 // you can specify a different Storage Class. Amazon S3 on Outposts only uses the
-// OUTPOSTS Storage Class. For more information, see Storage Classes
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html) in
-// the Amazon S3 User Guide. If you enable versioning for a bucket, Amazon S3
+// OUTPOSTS Storage Class. For more information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
+// in the Amazon S3 User Guide. If you enable versioning for a bucket, Amazon S3
 // automatically generates a unique version ID for the object being stored. Amazon
 // S3 returns this ID in the response. When you enable versioning for a bucket, if
 // Amazon S3 receives multiple write requests for the same object simultaneously,
 // it stores all of the objects. For more information about versioning, see Adding
-// Objects to Versioning Enabled Buckets
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/AddingObjectstoVersioningEnabledBuckets.html).
-// For information about returning the versioning state of a bucket, see
-// GetBucketVersioning
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html).
-// For more information about related Amazon S3 APIs, see the following:
-//
-// *
-// CopyObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
-//
-// *
-// DeleteObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+// Objects to Versioning Enabled Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/AddingObjectstoVersioningEnabledBuckets.html)
+// . For information about returning the versioning state of a bucket, see
+// GetBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html)
+// . For more information about related Amazon S3 APIs, see the following:
+//   - CopyObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
+//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
 func (c *Client) PutObject(ctx context.Context, params *PutObjectInput, optFns ...func(*Options)) (*PutObjectOutput, error) {
 	if params == nil {
 		params = &PutObjectInput{}
@@ -127,17 +105,15 @@ type PutObjectInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
 	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
 	// Outposts hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When you
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
@@ -147,9 +123,8 @@ type PutObjectInput struct {
 	// This member is required.
 	Key *string
 
-	// The canned ACL to apply to the object. For more information, see Canned ACL
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL).
-	// This action is not supported by Amazon S3 on Outposts.
+	// The canned ACL to apply to the object. For more information, see Canned ACL (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL)
+	// . This action is not supported by Amazon S3 on Outposts.
 	ACL types.ObjectCannedACL
 
 	// Object data.
@@ -163,17 +138,16 @@ type PutObjectInput struct {
 	BucketKeyEnabled bool
 
 	// Can be used to specify caching behavior along the request/reply chain. For more
-	// information, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9
-	// (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9).
+	// information, see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9 (http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.9)
+	// .
 	CacheControl *string
 
 	// Indicates the algorithm used to create the checksum for the object when using
 	// the SDK. This header will not provide any additional functionality if not using
 	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
 	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request. For more information, see Checking object
-	// integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// HTTP status code 400 Bad Request . For more information, see Checking object
+	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -181,45 +155,41 @@ type PutObjectInput struct {
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 32-bit CRC32C checksum of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 160-bit SHA-1 digest of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 256-bit SHA-256 digest of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
 	// Specifies presentational information for the object. For more information, see
-	// https://www.rfc-editor.org/rfc/rfc6266#section-4
-	// (https://www.rfc-editor.org/rfc/rfc6266#section-4).
+	// https://www.rfc-editor.org/rfc/rfc6266#section-4 (https://www.rfc-editor.org/rfc/rfc6266#section-4)
+	// .
 	ContentDisposition *string
 
 	// Specifies what content encodings have been applied to the object and thus what
 	// decoding mechanisms must be applied to obtain the media-type referenced by the
 	// Content-Type header field. For more information, see
-	// https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding
-	// (https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding).
+	// https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding (https://www.rfc-editor.org/rfc/rfc9110.html#field.content-encoding)
+	// .
 	ContentEncoding *string
 
 	// The language the content is in.
@@ -227,8 +197,8 @@ type PutObjectInput struct {
 
 	// Size of the body in bytes. This parameter is useful when the size of the body
 	// cannot be determined automatically. For more information, see
-	// https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length
-	// (https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length).
+	// https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length (https://www.rfc-editor.org/rfc/rfc9110.html#name-content-length)
+	// .
 	ContentLength int64
 
 	// The base64-encoded 128-bit MD5 digest of the message (without the headers)
@@ -236,13 +206,13 @@ type PutObjectInput struct {
 	// verify that the data is the same data that was originally sent. Although it is
 	// optional, we recommend using the Content-MD5 mechanism as an end-to-end
 	// integrity check. For more information about REST request authentication, see
-	// REST Authentication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html).
+	// REST Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html)
+	// .
 	ContentMD5 *string
 
 	// A standard MIME type describing the format of the contents. For more
-	// information, see https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type
-	// (https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type).
+	// information, see https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type (https://www.rfc-editor.org/rfc/rfc9110.html#name-content-type)
+	// .
 	ContentType *string
 
 	// The account ID of the expected bucket owner. If the bucket is owned by a
@@ -251,8 +221,8 @@ type PutObjectInput struct {
 	ExpectedBucketOwner *string
 
 	// The date and time at which the object is no longer cacheable. For more
-	// information, see https://www.rfc-editor.org/rfc/rfc7234#section-5.3
-	// (https://www.rfc-editor.org/rfc/rfc7234#section-5.3).
+	// information, see https://www.rfc-editor.org/rfc/rfc7234#section-5.3 (https://www.rfc-editor.org/rfc/rfc7234#section-5.3)
+	// .
 	Expires *time.Time
 
 	// Gives the grantee READ, READ_ACP, and WRITE_ACP permissions on the object. This
@@ -263,8 +233,8 @@ type PutObjectInput struct {
 	// supported by Amazon S3 on Outposts.
 	GrantRead *string
 
-	// Allows grantee to read the object ACL. This action is not supported by Amazon S3
-	// on Outposts.
+	// Allows grantee to read the object ACL. This action is not supported by Amazon
+	// S3 on Outposts.
 	GrantReadACP *string
 
 	// Allows grantee to write the ACL for the applicable object. This action is not
@@ -275,8 +245,8 @@ type PutObjectInput struct {
 	Metadata map[string]string
 
 	// Specifies whether a legal hold will be applied to this object. For more
-	// information about S3 Object Lock, see Object Lock
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html).
+	// information about S3 Object Lock, see Object Lock (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
+	// .
 	ObjectLockLegalHoldStatus types.ObjectLockLegalHoldStatus
 
 	// The Object Lock mode that you want to apply to this object.
@@ -289,8 +259,7 @@ type PutObjectInput struct {
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -317,46 +286,43 @@ type PutObjectInput struct {
 	// GetObject or CopyObject operations on this object.
 	SSEKMSEncryptionContext *string
 
-	// If x-amz-server-side-encryption has a valid value of aws:kms, this header
+	// If x-amz-server-side-encryption has a valid value of aws:kms , this header
 	// specifies the ID of the Amazon Web Services Key Management Service (Amazon Web
 	// Services KMS) symmetric encryption customer managed key that was used for the
-	// object. If you specify x-amz-server-side-encryption:aws:kms, but do not provide
-	// x-amz-server-side-encryption-aws-kms-key-id, Amazon S3 uses the Amazon Web
+	// object. If you specify x-amz-server-side-encryption:aws:kms , but do not provide
+	// x-amz-server-side-encryption-aws-kms-key-id , Amazon S3 uses the Amazon Web
 	// Services managed key to protect the data. If the KMS key does not exist in the
 	// same account issuing the command, you must use the full ARN and not just the ID.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms).
+	// (for example, AES256, aws:kms ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// By default, Amazon S3 uses the STANDARD Storage Class to store newly created
 	// objects. The STANDARD storage class provides high durability and high
 	// availability. Depending on performance needs, you can specify a different
 	// Storage Class. Amazon S3 on Outposts only uses the OUTPOSTS Storage Class. For
-	// more information, see Storage Classes
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html) in
-	// the Amazon S3 User Guide.
+	// more information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
+	// in the Amazon S3 User Guide.
 	StorageClass types.StorageClass
 
-	// The tag-set for the object. The tag-set must be encoded as URL Query parameters.
-	// (For example, "Key1=Value1")
+	// The tag-set for the object. The tag-set must be encoded as URL Query
+	// parameters. (For example, "Key1=Value1")
 	Tagging *string
 
 	// If the bucket is configured as a website, redirects requests for this object to
 	// another object in the same bucket or to an external URL. Amazon S3 stores the
 	// value of this header in the object metadata. For information about object
-	// metadata, see Object Key and Metadata
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html). In the
-	// following example, the request header sets the redirect to an object
+	// metadata, see Object Key and Metadata (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html)
+	// . In the following example, the request header sets the redirect to an object
 	// (anotherPage.html) in the same bucket: x-amz-website-redirect-location:
 	// /anotherPage.html In the following example, the request header sets the object
 	// redirect to another website: x-amz-website-redirect-location:
 	// http://www.example.com/ For more information about website hosting in Amazon S3,
-	// see Hosting Websites on Amazon S3
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html) and How to
-	// Configure Website Page Redirects
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html).
+	// see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
+	// and How to Configure Website Page Redirects (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html)
+	// .
 	WebsiteRedirectLocation *string
 
 	noSmithyDocumentSerde
@@ -371,32 +337,28 @@ type PutObjectOutput struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -404,9 +366,8 @@ type PutObjectOutput struct {
 	ETag *string
 
 	// If the expiration is configured for the object (see
-	// PutBucketLifecycleConfiguration
-	// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html)),
-	// the response includes this header. It includes the expiry-date and rule-id
+	// PutBucketLifecycleConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html)
+	// ), the response includes this header. It includes the expiry-date and rule-id
 	// key-value pairs that provide information about object expiration. The value of
 	// the rule-id is URL-encoded.
 	Expiration *string
@@ -415,13 +376,14 @@ type PutObjectOutput struct {
 	// request.
 	RequestCharged types.RequestCharged
 
-	// If server-side encryption with a customer-provided encryption key was requested,
-	// the response will include this header confirming the encryption algorithm used.
+	// If server-side encryption with a customer-provided encryption key was
+	// requested, the response will include this header confirming the encryption
+	// algorithm used.
 	SSECustomerAlgorithm *string
 
-	// If server-side encryption with a customer-provided encryption key was requested,
-	// the response will include this header to provide round-trip message integrity
-	// verification of the customer-provided encryption key.
+	// If server-side encryption with a customer-provided encryption key was
+	// requested, the response will include this header to provide round-trip message
+	// integrity verification of the customer-provided encryption key.
 	SSECustomerKeyMD5 *string
 
 	// If present, specifies the Amazon Web Services KMS Encryption Context to use for
@@ -431,14 +393,14 @@ type PutObjectOutput struct {
 	// for future GetObject or CopyObject operations on this object.
 	SSEKMSEncryptionContext *string
 
-	// If x-amz-server-side-encryption is has a valid value of aws:kms, this header
+	// If x-amz-server-side-encryption is has a valid value of aws:kms , this header
 	// specifies the ID of the Amazon Web Services Key Management Service (Amazon Web
 	// Services KMS) symmetric encryption customer managed key that was used for the
 	// object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms).
+	// (for example, AES256, aws:kms ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Version of the object.
