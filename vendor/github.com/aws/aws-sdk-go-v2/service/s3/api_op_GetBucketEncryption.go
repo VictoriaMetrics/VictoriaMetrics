@@ -16,25 +16,16 @@ import (
 // default, all buckets have a default encryption configuration that uses
 // server-side encryption with Amazon S3 managed keys (SSE-S3). For information
 // about the bucket default encryption feature, see Amazon S3 Bucket Default
-// Encryption
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html) in the
-// Amazon S3 User Guide. To use this operation, you must have permission to perform
-// the s3:GetEncryptionConfiguration action. The bucket owner has this permission
-// by default. The bucket owner can grant this permission to others. For more
-// information about permissions, see Permissions Related to Bucket Subresource
-// Operations
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
-// The following operations are related to GetBucketEncryption:
-//
-// *
-// PutBucketEncryption
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html)
-//
-// *
-// DeleteBucketEncryption
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html)
+// Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
+// in the Amazon S3 User Guide. To use this operation, you must have permission to
+// perform the s3:GetEncryptionConfiguration action. The bucket owner has this
+// permission by default. The bucket owner can grant this permission to others. For
+// more information about permissions, see Permissions Related to Bucket
+// Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+// . The following operations are related to GetBucketEncryption :
+//   - PutBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html)
+//   - DeleteBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketEncryption.html)
 func (c *Client) GetBucketEncryption(ctx context.Context, params *GetBucketEncryptionInput, optFns ...func(*Options)) (*GetBucketEncryptionOutput, error) {
 	if params == nil {
 		params = &GetBucketEncryptionInput{}

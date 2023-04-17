@@ -23,16 +23,10 @@ import (
 // Services account that owns a bucket can always use this operation, even if the
 // policy explicitly denies the root user the ability to perform this action. For
 // more information about bucket policies, see Using Bucket Policies and
-// UserPolicies
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html). The
-// following operations are related to DeleteBucketPolicy
-//
-// * CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//
-// *
-// DeleteObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+// UserPolicies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html)
+// . The following operations are related to DeleteBucketPolicy
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
 func (c *Client) DeleteBucketPolicy(ctx context.Context, params *DeleteBucketPolicyInput, optFns ...func(*Options)) (*DeleteBucketPolicyOutput, error) {
 	if params == nil {
 		params = &DeleteBucketPolicyInput{}

@@ -21,22 +21,15 @@ import (
 
 // Returns the Region the bucket resides in. You set the bucket's Region using the
 // LocationConstraint request parameter in a CreateBucket request. For more
-// information, see CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html). To use
-// this implementation of the operation, you must be the bucket owner. To use this
-// API against an access point, provide the alias of the access point in place of
-// the bucket name. For requests made using Amazon Web Services Signature Version 4
-// (SigV4), we recommend that you use HeadBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html) to return
-// the bucket Region instead of GetBucketLocation. The following operations are
-// related to GetBucketLocation:
-//
-// * GetObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//
-// *
-// CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+// information, see CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+// . To use this implementation of the operation, you must be the bucket owner. To
+// use this API against an access point, provide the alias of the access point in
+// place of the bucket name. For requests made using Amazon Web Services Signature
+// Version 4 (SigV4), we recommend that you use HeadBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html)
+// to return the bucket Region instead of GetBucketLocation. The following
+// operations are related to GetBucketLocation :
+//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 func (c *Client) GetBucketLocation(ctx context.Context, params *GetBucketLocationInput, optFns ...func(*Options)) (*GetBucketLocationOutput, error) {
 	if params == nil {
 		params = &GetBucketLocationInput{}
@@ -70,9 +63,8 @@ type GetBucketLocationInput struct {
 type GetBucketLocationOutput struct {
 
 	// Specifies the Region where the bucket resides. For a list of all the Amazon S3
-	// supported location constraints by Region, see Regions and Endpoints
-	// (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region). Buckets in
-	// Region us-east-1 have a LocationConstraint of null.
+	// supported location constraints by Region, see Regions and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
+	// . Buckets in Region us-east-1 have a LocationConstraint of null .
 	LocationConstraint types.BucketLocationConstraint
 
 	// Metadata pertaining to the operation's result.
@@ -224,9 +216,9 @@ func newServiceMetadataMiddleware_opGetBucketLocation(region string) *awsmiddlew
 	}
 }
 
-// getGetBucketLocationBucketMember returns a pointer to string denoting a provided
-// bucket member valueand a boolean indicating if the input has a modeled bucket
-// name,
+// getGetBucketLocationBucketMember returns a pointer to string denoting a
+// provided bucket member valueand a boolean indicating if the input has a modeled
+// bucket name,
 func getGetBucketLocationBucketMember(input interface{}) (*string, bool) {
 	in := input.(*GetBucketLocationInput)
 	if in.Bucket == nil {
