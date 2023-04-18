@@ -16,6 +16,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* SECURITY: serve `/robots.txt` content to disallow indexing of the exposed instances by search engines. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128) for details.
+
 * FEATURE: open source [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage). This API allows using VictoriaMetrics as a drop-in replacement for Graphite at both data ingestion and querying sides and reducing infrastructure costs by up to 10x comparing to Graphite. See [this case study](https://docs.victoriametrics.com/CaseStudies.html#grammarly) as an example.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): store backup creation and completion time in `backup_complete.ignore` file of backup contents. This is useful to determine point in time when backup was created and completed.
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): add `created_at` field to the output of `/api/v1/backups` API and `vmbackupmanager backup list` command. See this [doc](https://docs.victoriametrics.com/vmbackupmanager.html#api-methods) for data format details.
