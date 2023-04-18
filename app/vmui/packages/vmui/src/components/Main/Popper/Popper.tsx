@@ -8,6 +8,8 @@ import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
 import useBoolean from "../../../hooks/useBoolean";
+import useEventListener from "../../../hooks/useEventListener";
+import { useCallback } from "preact/compat";
 
 interface PopperProps {
   children: ReactNode
@@ -47,14 +49,6 @@ const Popper: FC<PopperProps> = ({
   } = useBoolean(false);
 
   const popperRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleClose);
-
-    return () => {
-      window.removeEventListener("scroll", handleClose);
-    };
-  }, []);
 
   useEffect(() => {
     setIsOpen(open);
@@ -139,32 +133,25 @@ const Popper: FC<PopperProps> = ({
     }
   }, [isOpen, popperRef]);
 
-  const handlePopstate = () => {
+  const handlePopstate = useCallback(() => {
     if (isOpen && isMobile && !disabledFullScreen) {
       navigate(location, { replace: true });
       onClose();
     }
-  };
+  }, [isOpen, isMobile, disabledFullScreen, location, onClose]);
 
-  useEffect(() => {
-    window.addEventListener("popstate", handlePopstate);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopstate);
-    };
-  }, [isOpen, isMobile, disabledFullScreen, location]);
-
-  const popperClasses = classNames({
-    "vm-popper": true,
-    "vm-popper_mobile": isMobile && !disabledFullScreen,
-    "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
-  });
+  useEventListener("scroll", handleClose);
+  useEventListener("popstate", handlePopstate);
 
   return (
     <>
       {(isOpen || !popperSize.width) && ReactDOM.createPortal((
         <div
-          className={popperClasses}
+          className={classNames({
+            "vm-popper": true,
+            "vm-popper_mobile": isMobile && !disabledFullScreen,
+            "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
+          })}
           ref={popperRef}
           style={(isMobile && !disabledFullScreen) ? {} : popperStyle}
         >

@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo, useState } from "preact/compat";
-import { MouseEvent as ReactMouseEvent } from "react";
+import { MouseEvent as ReactMouseEvent, useCallback } from "react";
 import { DashboardRow } from "../../../types";
 import PredefinedPanel from "../PredefinedPanel/PredefinedPanel";
 import Accordion from "../../../components/Main/Accordion/Accordion";
@@ -7,6 +7,7 @@ import "./style.scss";
 import classNames from "classnames";
 import Alert from "../../../components/Main/Alert/Alert";
 import useWindowSize from "../../../hooks/useWindowSize";
+import useEventListener from "../../../hooks/useEventListener";
 
 export interface PredefinedDashboardProps extends DashboardRow {
   filename: string;
@@ -34,16 +35,14 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
 
   const [resize, setResize] = useState({ start: 0, target: 0, enable: false });
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!resize.enable) return;
     const { start } = resize;
     const sectionCount = Math.ceil((start - e.clientX)/sizeSection);
     if (Math.abs(sectionCount) >= 12) return;
-    const width = panelsWidth.map((p, i) => {
-      return p - (i === resize.target ? sectionCount : 0);
-    });
+    const width = panelsWidth.map((p, i) => p - (i === resize.target ? sectionCount : 0));
     setPanelsWidth(width);
-  };
+  }, [resize, sizeSection]);
 
   const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>, i: number) => {
     setResize({
@@ -52,12 +51,13 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
       enable: true,
     });
   };
-  const handleMouseUp = () => {
+
+  const handleMouseUp = useCallback(() => {
     setResize({
       ...resize,
       enable: false
     });
-  };
+  }, [resize]);
 
   const handleChangeExpanded = (val: boolean) => setExpanded(val);
 
@@ -65,14 +65,8 @@ const PredefinedDashboard: FC<PredefinedDashboardProps> = ({
     handleMouseDown(e, index);
   };
 
-  useEffect(() => {
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [resize]);
+  useEventListener("mousemove", handleMouseMove);
+  useEventListener("mouseup", handleMouseUp);
 
   const HeaderAccordion = () => (
     <div

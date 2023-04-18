@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { InstantMetricResult } from "../../../api/types";
 import { InstantDataSeries } from "../../../types";
 import { useSortedCategories } from "../../../hooks/useSortedCategories";
@@ -13,6 +13,7 @@ import { useCustomPanelState } from "../../../state/customPanel/CustomPanelState
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useWindowSize from "../../../hooks/useWindowSize";
+import useEventListener from "../../../hooks/useEventListener";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -87,19 +88,13 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     copyHandler(copyValue);
   };
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!tableRef.current) return;
     const { top } = tableRef.current.getBoundingClientRect();
     setHeadTop(top < 0 ? window.scrollY - tableTop : 0);
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
   }, [tableRef, tableTop, windowSize]);
+
+  useEventListener("scroll", handleScroll);
 
   useEffect(() => {
     if (!tableRef.current) return;

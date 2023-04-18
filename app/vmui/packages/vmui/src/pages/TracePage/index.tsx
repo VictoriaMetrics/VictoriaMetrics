@@ -82,7 +82,7 @@ const TracePage: FC = () => {
   }, []);
 
 
-  const { files, dragging } = useDropzone(document.body);
+  const { files, dragging } = useDropzone();
 
   useEffect(() => {
     handleReadFiles(files);
