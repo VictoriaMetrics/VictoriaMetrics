@@ -7,7 +7,7 @@ import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Button from "../../Main/Button/Button";
-import { useSnack } from "../../../contexts/Snackbar";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { getNameForMetric } from "../../../utils/metric";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import "./style.scss";
@@ -21,7 +21,7 @@ export interface GraphViewProps {
 }
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
-  const { showInfoMessage } = useSnack();
+  const copyToClipboard = useCopyToClipboard();
   const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
@@ -75,17 +75,12 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     setOrderBy(key);
   };
 
-  const copyHandler = async (copyValue: string) => {
-    await navigator.clipboard.writeText(copyValue);
-    showInfoMessage({ text: "Row has been copied", type: "success" });
-  };
-
   const createSortHandler = (key: string) => () => {
     sortHandler(key);
   };
 
-  const createCopyHandler = (copyValue: string) => () => {
-    copyHandler(copyValue);
+  const createCopyHandler = (copyValue: string) => async () => {
+    await copyToClipboard(copyValue, "Row has been copied");
   };
 
   const handleScroll = useCallback(() => {
