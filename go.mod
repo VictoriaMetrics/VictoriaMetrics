@@ -39,6 +39,8 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
+require github.com/bmatcuk/doublestar/v4 v4.6.0
+
 require (
 	cloud.google.com/go v0.110.0 // indirect
 	cloud.google.com/go/compute v1.19.0 // indirect
