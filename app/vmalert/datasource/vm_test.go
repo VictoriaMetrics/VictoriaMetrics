@@ -101,11 +101,11 @@ func TestVMInstantQuery(t *testing.T) {
 		}
 	}
 
-	expErr("invalid response status error") // 0
-	expErr("response body error")           // 1
-	expErr("error status")                  // 2
-	expErr("unknown status")                // 3
-	expErr("non-vector resultType error")   // 4
+	expErr("500")                              // 0
+	expErr("error parsing prometheus metrics") // 1
+	expErr("response error")                   // 2
+	expErr("unknown status")                   // 3
+	expErr("unexpected end of JSON input")     // 4
 
 	m, _, err := pq.Query(ctx, query, ts) // 6 - vector
 	if err != nil {
