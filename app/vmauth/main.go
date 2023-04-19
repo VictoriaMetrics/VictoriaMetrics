@@ -135,15 +135,30 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headers, err := ui.getURLPrefixAndHeaders(u)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
-		return
+	up, headers := ui.getURLPrefixAndHeaders(u)
+	isDefault := false
+	if up == nil {
+		missingRouteRequests.Inc()
+		if ui.DefaultURL == nil {
+			httpserver.Errorf(w, r, "missing route for %q", u.String())
+			return
+		}
+		up, headers = ui.DefaultURL, ui.Headers
+		isDefault = true
 	}
+
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getLeastLoadedBackendURL()
-		targetURL := mergeURLs(bu.url, u)
+		targetURL := bu.url
+		// Don't change path and add request_path query param for default route.
+		if isDefault {
+			query := targetURL.Query()
+			query.Set("request_path", u.Path)
+			targetURL.RawQuery = query.Encode()
+		} else { // Update path for regular routes.
+			targetURL = mergeURLs(targetURL, u)
+		}
 		ok := tryProcessingRequest(w, r, targetURL, headers)
 		bu.put()
 		if ok {
@@ -151,7 +166,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		}
 		bu.setBroken()
 	}
-	err = &httpserver.ErrorWithStatusCode{
+	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
 	}
