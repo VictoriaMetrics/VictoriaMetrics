@@ -169,6 +169,10 @@ func (w *GzipResponseWriter) Write(b []byte) (int, error) {
 	return len(b), nil
 }
 
+func (w *GzipResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
 var castagnoliTable = crc32.MakeTable(crc32.Castagnoli)
 
 // startGzip initializes a GZIP writer and writes the buffer.
@@ -919,6 +923,10 @@ func atoi(s string) (int, bool) {
 	return int(i64), err == nil
 }
 
+type unwrapper interface {
+	Unwrap() http.ResponseWriter
+}
+
 // newNoGzipResponseWriter will return a response writer that
 // cleans up compression artifacts.
 // Depending on whether http.Hijacker is supported the returned will as well.
@@ -929,10 +937,12 @@ func newNoGzipResponseWriter(w http.ResponseWriter) http.ResponseWriter {
 			http.ResponseWriter
 			http.Hijacker
 			http.Flusher
+			unwrapper
 		}{
 			ResponseWriter: n,
 			Hijacker:       hj,
 			Flusher:        n,
+			unwrapper:      n,
 		}
 		return x
 	}
@@ -981,4 +991,8 @@ func (n *NoGzipResponseWriter) WriteHeader(statusCode int) {
 		n.hdrCleaned = true
 	}
 	n.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (n *NoGzipResponseWriter) Unwrap() http.ResponseWriter {
+	return n.ResponseWriter
 }

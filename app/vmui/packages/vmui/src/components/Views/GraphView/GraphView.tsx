@@ -1,10 +1,10 @@
 import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
-import LineChart from "../../Chart/LineChart/LineChart";
+import LineChart from "../../Chart/Line/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
-import Legend from "../../Chart/Legend/Legend";
-import LegendHeatmap from "../../Chart/LegendHeatmap/LegendHeatmap";
-import { getHideSeries, getLegendItem, getSeriesItemContext } from "../../../utils/uplot/series";
+import Legend from "../../Chart/Line/Legend/Legend";
+import LegendHeatmap from "../../Chart/Heatmap/LegendHeatmap/LegendHeatmap";
+import { getHideSeries, getLegendItem, getSeriesItemContext, SeriesItem } from "../../../utils/uplot/series";
 import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
 import { LegendItemType } from "../../../utils/uplot/types";
 import { TimeParams } from "../../../types";
@@ -12,11 +12,12 @@ import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
 import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
-import HeatmapChart from "../../Chart/HeatmapChart/HeatmapChart";
+import HeatmapChart from "../../Chart/Heatmap/HeatmapChart/HeatmapChart";
 import "./style.scss";
 import { promValueToNumber } from "../../../utils/metric";
 import { normalizeData } from "../../../utils/uplot/heatmap";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { TooltipHeatmapProps } from "../../Chart/Heatmap/ChartTooltipHeatmap/ChartTooltipHeatmap";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -60,7 +61,7 @@ const GraphView: FC<GraphViewProps> = ({
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItemType[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
-  const [legendValue, setLegendValue] = useState(0);
+  const [legendValue, setLegendValue] = useState<TooltipHeatmapProps | null>(null);
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
     const limits = getLimitsYAxis(values, !isHistogram);
@@ -71,7 +72,7 @@ const GraphView: FC<GraphViewProps> = ({
     setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
   };
 
-  const handleChangeLegend = (val: number) => {
+  const handleChangeLegend = (val: TooltipHeatmapProps) => {
     setLegendValue(val);
   };
 
@@ -209,9 +210,10 @@ const GraphView: FC<GraphViewProps> = ({
       )}
       {isHistogram && showLegend && (
         <LegendHeatmap
+          series={series as SeriesItem[]}
           min={yaxis.limits.range[1][0] || 0}
           max={yaxis.limits.range[1][1] || 0}
-          value={legendValue}
+          legendValue={legendValue}
         />
       )}
     </div>

@@ -3,7 +3,7 @@ GOARCH ?= $(shell go env GOARCH)
 GOOS_GOARCH := $(GOOS)_$(GOARCH)
 GOOS_GOARCH_NATIVE := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 LIBZSTD_NAME := libzstd_$(GOOS_GOARCH).a
-ZSTD_VERSION ?= v1.5.4
+ZSTD_VERSION ?= v1.5.5
 MUSL_BUILDER_IMAGE=golang:1.20.1-alpine
 BUILDER_IMAGE := local/builder_musl:2.0.0-$(shell echo $(MUSL_BUILDER_IMAGE) | tr : _)-1
 

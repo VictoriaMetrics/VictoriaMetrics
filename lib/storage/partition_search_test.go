@@ -169,10 +169,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	// Create partition from rowss and test search on it.
 	strg := newTestStorage()
 	strg.retentionMsecs = timestampFromTime(time.Now()) - ptr.MinTimestamp + 3600*1000
-	pt, err := createPartition(ptt, "small-table", "big-table", strg)
-	if err != nil {
-		t.Fatalf("cannot create partition: %s", err)
-	}
+	pt := mustCreatePartition(ptt, "small-table", "big-table", strg)
 	smallPartsPath := pt.smallPartsPath
 	bigPartsPath := pt.bigPartsPath
 	defer func() {
@@ -194,10 +191,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt.MustClose()
 
 	// Open the created partition and test search on it.
-	pt, err = openPartition(smallPartsPath, bigPartsPath, strg)
-	if err != nil {
-		t.Fatalf("cannot open partition: %s", err)
-	}
+	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
 }

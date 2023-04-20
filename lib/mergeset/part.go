@@ -1,7 +1,6 @@
 package mergeset
 
 import (
-	"fmt"
 	"path/filepath"
 	"sync"
 	"unsafe"
@@ -9,6 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/blockcache"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/filestream"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 )
 
@@ -67,17 +67,12 @@ type part struct {
 	lensFile  fs.MustReadAtCloser
 }
 
-func openFilePart(path string) (*part, error) {
+func mustOpenFilePart(path string) *part {
 	var ph partHeader
-	if err := ph.ReadMetadata(path); err != nil {
-		return nil, fmt.Errorf("cannot read part metadata: %w", err)
-	}
+	ph.MustReadMetadata(path)
 
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Open(metaindexPath, true)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open %q: %w", metaindexPath, err)
-	}
+	metaindexFile := filestream.MustOpen(metaindexPath, true)
 	metaindexSize := fs.MustFileSize(metaindexPath)
 
 	indexPath := filepath.Join(path, indexFilename)
@@ -96,11 +91,10 @@ func openFilePart(path string) (*part, error) {
 	return newPart(&ph, path, size, metaindexFile, indexFile, itemsFile, lensFile)
 }
 
-func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.MustReadAtCloser) (*part, error) {
-	var errors []error
+func newPart(ph *partHeader, path string, size uint64, metaindexReader filestream.ReadCloser, indexFile, itemsFile, lensFile fs.MustReadAtCloser) *part {
 	mrs, err := unmarshalMetaindexRows(nil, metaindexReader)
 	if err != nil {
-		errors = append(errors, fmt.Errorf("cannot unmarshal metaindexRows: %w", err))
+		logger.Panicf("FATAL: cannot unmarshal metaindexRows from %q: %s", path, err)
 	}
 	metaindexReader.MustClose()
 
@@ -114,13 +108,7 @@ func newPart(ph *partHeader, path string, size uint64, metaindexReader filestrea
 	p.lensFile = lensFile
 
 	p.ph.CopyFrom(ph)
-	if len(errors) > 0 {
-		// Return only the first error, since it has no sense in returning all errors.
-		err := fmt.Errorf("error opening part %s: %w", p.path, errors[0])
-		p.MustClose()
-		return nil, err
-	}
-	return &p, nil
+	return &p
 }
 
 func (p *part) MustClose() {
