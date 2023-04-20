@@ -31,7 +31,8 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users []UserInfo `yaml:"users,omitempty"`
+	Users            []UserInfo `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
 }
 
 // UserInfo is user information read from authConfigPath
@@ -373,6 +374,18 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	var ac AuthConfig
 	if err = yaml.UnmarshalStrict(data, &ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
+	}
+	ui := ac.UnauthorizedUser
+	if ui != nil {
+		ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_unauthorized_user_requests_total`))
+		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`))
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_unauthorized_user_concurrent_requests_capacity`), func() float64 {
+			return float64(cap(ui.concurrencyLimitCh))
+		})
+		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_unauthorized_user_concurrent_requests_current`), func() float64 {
+			return float64(len(ui.concurrencyLimitCh))
+		})
 	}
 	return &ac, nil
 }
