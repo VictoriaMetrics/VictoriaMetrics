@@ -377,13 +377,13 @@ func parseAuthConfig(data []byte) (*AuthConfig, error) {
 	}
 	ui := ac.UnauthorizedUser
 	if ui != nil {
-		ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_unauthorized_user_requests_total`))
+		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
 		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
-		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`))
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_unauthorized_user_concurrent_requests_capacity`), func() float64 {
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`)
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`, func() float64 {
 			return float64(cap(ui.concurrencyLimitCh))
 		})
-		_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmauth_unauthorized_user_concurrent_requests_current`), func() float64 {
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`, func() float64 {
 			return float64(len(ui.concurrencyLimitCh))
 		})
 	}
