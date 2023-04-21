@@ -94,7 +94,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		authToken = strings.Replace(authToken, "Token", "Bearer", 1)
 	}
 
-	ac := authConfig.Load().(map[string]*UserInfo)
+	ac := *authUsers.Load()
 	ui := ac[authToken]
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
