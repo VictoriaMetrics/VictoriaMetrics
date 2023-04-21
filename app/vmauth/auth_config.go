@@ -289,11 +289,11 @@ func initAuthConfig() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	m, err := readAuthConfig(*authConfigPath)
+	err := loadAuthConfig()
 	if err != nil {
 		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
 	}
-	authConfig.Store(m)
+
 	stopCh = make(chan struct{})
 	authConfigWG.Add(1)
 	go func() {
@@ -324,44 +324,60 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 			procutil.SelfSIGHUP()
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
-			m, err := readAuthConfig(*authConfigPath)
+			err := loadAuthConfig()
 			if err != nil {
 				logger.Errorf("failed to load -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
 				continue
 			}
-			authConfig.Store(m)
 			logger.Infof("Successfully reloaded -auth.config=%q", *authConfigPath)
 		}
 	}
 }
 
-var authConfig atomic.Value
+var authConfig atomic.Pointer[AuthConfig]
+var authUsers atomic.Pointer[map[string]*UserInfo]
 var authConfigWG sync.WaitGroup
 var stopCh chan struct{}
 
-func readAuthConfig(path string) (map[string]*UserInfo, error) {
+func loadAuthConfig() error {
+	ac, err := readAuthConfig(*authConfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to load `-auth.config=%q`: %s", *authConfigPath, err)
+	}
+
+	m, err := parseAuthConfigUsers(ac)
+	if err != nil {
+		return fmt.Errorf("failed to parse users from `-auth.config=%q`: %s", *authConfigPath, err)
+	}
+	logger.Infof("Loaded information about %d users from %q", len(m), *authConfigPath)
+
+	authConfig.Store(ac)
+	authUsers.Store(&m)
+
+	return nil
+}
+
+func readAuthConfig(path string) (*AuthConfig, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, err
 	}
-	m, err := parseAuthConfig(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %w", path, err)
-	}
-	logger.Infof("Loaded information about %d users from %q", len(m), path)
-	return m, nil
+	return parseAuthConfig(data)
 }
 
-func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
-	var err error
-	data, err = envtemplate.ReplaceBytes(data)
+func parseAuthConfig(data []byte) (*AuthConfig, error) {
+	data, err := envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 	var ac AuthConfig
-	if err := yaml.UnmarshalStrict(data, &ac); err != nil {
+	if err = yaml.UnmarshalStrict(data, &ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
+	return &ac, nil
+}
+
+func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
 	if len(uis) == 0 {
 		return nil, fmt.Errorf("`users` section cannot be empty in AuthConfig")
