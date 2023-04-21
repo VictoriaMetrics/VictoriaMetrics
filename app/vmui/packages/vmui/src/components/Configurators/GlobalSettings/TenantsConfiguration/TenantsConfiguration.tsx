@@ -4,13 +4,13 @@ import { useTimeDispatch } from "../../../../state/time/TimeStateContext";
 import { ArrowDownIcon, StorageIcon } from "../../../Main/Icons";
 import Button from "../../../Main/Button/Button";
 import "./style.scss";
-import { replaceTenantId } from "../../../../utils/default-server-url";
 import classNames from "classnames";
 import Popper from "../../../Main/Popper/Popper";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import TextField from "../../../Main/TextField/TextField";
+import { getTenantIdFromUrl, replaceTenantId } from "../../../../utils/tenants";
 
 const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
   const appModeEnable = getAppModeEnable();
@@ -35,15 +35,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     }
   }, [search, accountIds]);
 
-  const getTenantIdFromUrl = (url: string) => {
-    const regexp = /(\/select\/)(\d+|\d.+)(\/)(.+)/;
-    return (url.match(regexp) || [])[2];
-  };
-
-  const showTenantSelector = useMemo(() => {
-    const id = true; //getTenantIdFromUrl(serverUrl);
-    return accountIds.length > 1 && id;
-  }, [accountIds, serverUrl]);
+  const showTenantSelector = useMemo(() => accountIds.length > 1, [accountIds]);
 
   const toggleOpenOptions = () => {
     setOpenOptions(prev => !prev);
