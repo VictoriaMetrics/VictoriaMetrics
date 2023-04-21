@@ -35,10 +35,7 @@ const TenantsConfiguration: FC<{accountIds: string[]}> = ({ accountIds }) => {
     }
   }, [search, accountIds]);
 
-  const showTenantSelector = useMemo(() => {
-    const id = true; //getTenantIdFromUrl(serverUrl);
-    return accountIds.length > 1 && id;
-  }, [accountIds, serverUrl]);
+  const showTenantSelector = useMemo(() => accountIds.length > 1, [accountIds]);
 
   const toggleOpenOptions = () => {
     setOpenOptions(prev => !prev);
