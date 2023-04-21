@@ -28,6 +28,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): fix a panic when the duration in the query contains uppercase `M` suffix. Such a suffix isn't allowed to use in durations, since it clashes with `a million` suffix, e.g. it isn't clear whether `rate(metric[5M])` means rate over 5 minutes, 5 months or 5 million seconds. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3589) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4120) issues.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): retry failed read request on the closed connection one more time. This improves rules execution reliability when connection between vmalert and datasource closes unexpectedly.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the tenant selector. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4160).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix issue where vmui would freeze when adding a query that returned regular rows alongside a heatmap query.
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
