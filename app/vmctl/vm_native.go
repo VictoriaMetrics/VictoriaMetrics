@@ -13,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/vm"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -48,18 +49,16 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 		startTime: time.Now(),
 	}
 
-	start, err := time.Parse(time.RFC3339, p.filter.TimeStart)
+	start, err := utils.GetTime(p.filter.TimeStart)
 	if err != nil {
-		return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %w",
-			vmNativeFilterTimeStart, p.filter.TimeStart, time.RFC3339, err)
+		return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeStart, p.filter.TimeStart, err)
 	}
 
 	end := time.Now().In(start.Location())
 	if p.filter.TimeEnd != "" {
-		end, err = time.Parse(time.RFC3339, p.filter.TimeEnd)
+		end, err = utils.GetTime(p.filter.TimeEnd)
 		if err != nil {
-			return fmt.Errorf("failed to parse %s, provided: %s, expected format: %s, error: %w",
-				vmNativeFilterTimeEnd, p.filter.TimeEnd, time.RFC3339, err)
+			return fmt.Errorf("failed to parse %s, provided: %s, error: %w", vmNativeFilterTimeEnd, p.filter.TimeEnd, err)
 		}
 	}
 
