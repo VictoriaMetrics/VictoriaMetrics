@@ -84,6 +84,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	authToken := r.Header.Get("Authorization")
 	if authToken == "" {
+		// Process requests for unauthorized users
+		ui := authConfig.Load().UnauthorizedUser
+		if ui != nil {
+			processUserRequest(w, r, ui)
+			return true
+		}
+
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 		return true
@@ -110,6 +117,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
+
+	processUserRequest(w, r, ui)
+	return true
+}
+
+func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	ui.requests.Inc()
 
 	// Limit the concurrency of requests to backends
@@ -119,18 +132,17 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err := ui.beginConcurrencyLimit(); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
-			return true
+			return
 		}
 	default:
 		concurrentRequestsLimitReached.Inc()
 		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
 		handleConcurrencyLimitError(w, r, err)
-		return true
+		return
 	}
 	processRequest(w, r, ui)
 	ui.endConcurrencyLimit()
 	<-concurrencyLimitCh
-	return true
 }
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {

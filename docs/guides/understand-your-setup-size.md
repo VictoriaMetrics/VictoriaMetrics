@@ -18,11 +18,11 @@ Time series exported by your applications during the last 1h are considered as A
 
 If you already use Prometheus, you can get the number of Active Time Series by running the following query:
 
-**sum(max_over_time(prometheus_tsdb_head_series[24h]))**
+**`sum(max_over_time(prometheus_tsdb_head_series[24h]))`**
 
 For VictoriaMetrics, the query will be the following:
 
-**sum(max_over_time(vm_cache_entries{type="storage/hour_metric_ids"}[24h]))**
+**`sum(max_over_time(vm_cache_entries{type="storage/hour_metric_ids"}[24h]))`**
 
 _Note: if you have more than one Prometheus, you need to run this query across all of them and summarise the results._
 
@@ -39,7 +39,7 @@ The high Churn Rate is commonly a result of using high-volatile labels, such as 
 
 To track the Churn Rate in VictoriaMetrics, use the following query:
 
-**sum(rate(vm_new_timeseries_created_total))**
+**`sum(rate(vm_new_timeseries_created_total))`**
 
 
 ### Ingestion Rate
@@ -47,16 +47,22 @@ To track the Churn Rate in VictoriaMetrics, use the following query:
 Ingestion rate is how many time series are pulled (scraped) or pushed per second into the database. For example, if you scrape a service that exposes 1000 time series with an interval of 15s, the Ingestion Rate would be 1000/15 = 66 [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) per second. The more services you scrape or the lower is scrape interval the higher would be the Ingestion Rate.
 For Ingestion Rate calculation, you need to know how many time series you pull or push and how often you save them into VictoriaMetrics. To be more specific, the formula is the Number Of Active Time Series / Metrics Collection Interval.
 
-
 If you run the Prometheus, you can get the Ingestion Rate by running the following query:
 
-**sum(rate(prometheus_tsdb_head_samples_appended_total[24h]))**
+**`sum(rate(prometheus_tsdb_head_samples_appended_total[24h]))`**
+
+_Note: if you have more than one Prometheus, you need to run this query across all of them and summarise the results._
 
 For the VictoriaMetrics, use the following query:
 
-**sum(rate(vm_rows_inserted_total[24h])) > 0**
+**`sum(rate(vm_rows_inserted_total[24h])) > 0`**
 
-_Note: if you have more than one Prometheus, you need to run this query across all of them and summarise the results._
+This query shows how many datapoints are inserted into vminsert, i.e. this metric does not take into account the increase in data due to replication.
+If you want to know ingestion rate including replication factor, use the following query:
+
+**`sum(rate(vm_vminsert_metrics_read_total[24h])) > 0`**
+
+This query shows how many datapoints are read by vmstorage from vminsert.
 
 
 ### Queries per Second
@@ -78,11 +84,11 @@ The Retention Cycle is one day or one month. If the retention period is higher t
 
 The typical data point size requires less or around 1 byte of disk space. Keep at least 20% of free space for VictoriaMetrics to remain efficient with compression and read performance..
 
-**Calculation Example**
+### Calculation Example
 
 You have a Kubernetes environment that produces 5k time series per second with 1-year of the retention period and Replication Factor 2 in VictoriaMetrics:
 
-(RF2 * 1 byte/sample * 5000 time series * 34128000 seconds) * 1.2 ) / 2^30 = 381 GB
+`(RF2 * 1 byte/sample * 5000 time series * 34128000 seconds) * 1.2 ) / 2^30 = 381 GB`
 
 VictoriaMetrics requires additional disk space for the index. The lower Churn Rate means lower disk space usage for the index because of better compression.
 Usually, the index takes about 20% of the disk space for storing data. High cardinality setups may use >50% of datapoints storage size for index.
