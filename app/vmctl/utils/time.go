@@ -87,6 +87,7 @@ func parseTime(s string) (float64, error) {
 	return float64(t.UnixNano()) / 1e9, nil
 }
 
+// GetTime  returns time from the given string.
 func GetTime(s string) (time.Time, error) {
 	secs, err := parseTime(s)
 	if err != nil {
