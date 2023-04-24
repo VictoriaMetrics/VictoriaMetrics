@@ -105,7 +105,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ui := ac[authToken]
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
-		err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
+		err := fmt.Errorf("Incorrect username or password")
 		if *logInvalidAuthTokens {
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        err,
