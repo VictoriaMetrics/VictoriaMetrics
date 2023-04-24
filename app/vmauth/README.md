@@ -62,6 +62,10 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 - `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
 - `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for the given `username`.
+- `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
 
 ## Auth config
@@ -152,6 +156,18 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+
+# This requests will be executed for requests without Authorization header.
+# For instance, http://vmauth:8427/api/v1/query will be proxied to http://vmselect1:8481/select/0/prometheus/api/v1/query
+unauthorized_user:
+  url_map:
+    - src_paths:
+        - /health
+        - /api/v1/query/
+        - /api/v1/query_range
+      url_prefix:
+        - http://vmselect1:8481/select/0/prometheus
+        - http://vmselect2:8481/select/0/prometheus
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -193,6 +209,8 @@ users:
   name: "foobar"
   # other config options here
 ```
+
+For unauthorized users `vmauth` exports `vmauth_unauthorized_user_requests_total` metric without label (if `unauthorized_user` section of config is used).
 
 ## How to build from sources
 
