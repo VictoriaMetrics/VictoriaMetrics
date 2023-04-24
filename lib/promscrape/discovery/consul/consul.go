@@ -32,7 +32,7 @@ type SDConfig struct {
 	Services          []string                   `yaml:"services,omitempty"`
 	// Deprecated: use Filter instead
 	Tags []string `yaml:"tags,omitempty"`
-	// Deprecated: use NodeFilter instead
+	// Deprecated: use Filter instead
 	NodeMeta     map[string]string `yaml:"node_meta,omitempty"`
 	TagSeparator *string           `yaml:"tag_separator,omitempty"`
 	AllowStale   *bool             `yaml:"allow_stale,omitempty"`
