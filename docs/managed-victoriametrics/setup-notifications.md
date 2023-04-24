@@ -9,9 +9,9 @@ menu:
 ---
 # Notifications in Managed VictoriaMetrics
 
-This section add ability to setup channels for sending alerting notifications.
+The guide covers how to enable email and Slack notifications.
 
-The document covers the following topics
+Table of content:
 1. [Setup slack channels](#setup-slack-channels)
 2. [Setup emails](#setup-emails)
 3. [Send test notification](#send-test-notification)
