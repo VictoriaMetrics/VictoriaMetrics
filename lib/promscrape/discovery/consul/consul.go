@@ -30,10 +30,16 @@ type SDConfig struct {
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	Services          []string                   `yaml:"services,omitempty"`
-	Tags              []string                   `yaml:"tags,omitempty"`
-	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`
-	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
-	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
+	// Deprecated: use Filter instead
+	Tags []string `yaml:"tags,omitempty"`
+	// Deprecated: use NodeFilter instead
+	NodeMeta     map[string]string `yaml:"node_meta,omitempty"`
+	TagSeparator *string           `yaml:"tag_separator,omitempty"`
+	AllowStale   *bool             `yaml:"allow_stale,omitempty"`
+	// See https://developer.hashicorp.com/consul/api-docs/features/filtering
+	// list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+	Filter string `yaml:"filter,omitempty"`
+
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.consulSDCheckInterval` command-line option.
 }
