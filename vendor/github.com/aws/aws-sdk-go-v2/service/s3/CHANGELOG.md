@@ -1,3 +1,11 @@
+# v1.32.0 (2023-04-19)
+
+* **Feature**: Provides support for "Snow" Storage class.
+
+# v1.31.3 (2023-04-10)
+
+* No change notes available for this release.
+
 # v1.31.2 (2023-04-07)
 
 * **Dependency Update**: Updated to the latest SDK module versions
