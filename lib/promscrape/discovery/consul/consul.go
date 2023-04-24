@@ -30,12 +30,10 @@ type SDConfig struct {
 	ProxyURL          *proxy.URL                 `yaml:"proxy_url,omitempty"`
 	ProxyClientConfig promauth.ProxyClientConfig `yaml:",inline"`
 	Services          []string                   `yaml:"services,omitempty"`
-	// Deprecated: use Filter instead
-	Tags []string `yaml:"tags,omitempty"`
-	// Deprecated: use Filter instead
-	NodeMeta     map[string]string `yaml:"node_meta,omitempty"`
-	TagSeparator *string           `yaml:"tag_separator,omitempty"`
-	AllowStale   *bool             `yaml:"allow_stale,omitempty"`
+	Tags              []string                   `yaml:"tags,omitempty"`
+	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`
+	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
+	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
 	// See https://developer.hashicorp.com/consul/api-docs/features/filtering
 	// list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
 	Filter string `yaml:"filter,omitempty"`
