@@ -37,7 +37,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
 
   const defaultStep = getStepFromDuration(period.end - period.start);
   const stepSeconds = getSecondsFromDuration(customStep);
-  const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000).replace(" ", "");
+  const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000);
   const [isHeatmap, setIsHeatmap] = useState(false);
   const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
 
