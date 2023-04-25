@@ -12,29 +12,29 @@ menu:
 The guide covers how to enable email and Slack notifications.
 
 Table of content:
-1. [Setup slack channels](#setup-slack-channels)
-2. [Setup emails](#setup-emails)
+1. [Setup Slack notifications](#setup-slack-notifications)
+2. [Setup emails notifications](#setup-emails-notifications)
 3. [Send test notification](#send-test-notification)
 
-When you entered to the notification section you will be able to fill in the channels in which you 
+When you enter the notification section, you will be able to fill in the channels in which you
 want to receive notifications
 
 <p>
   <img src="notifications-start.png" width="800">
 </p>
 
-## Setup slack channels
+## Setup Slack notifications
 
-To send alerts to Slack, it is required to set up a webhook. How to do this is indicated on the following 
-link <a href="https://api.slack.com/messaging/webhooks" target="_blank">https://api.slack.com/messaging/webhooks</a>
-
-When webhook enabled correctly the next step is fill channels and webhook fields in the managed-victoriametrics.
+1. Setup Slack webhook
+How to do this is indicated on the following link https://api.slack.com/messaging/webhooks
 
 <p>
   <img src="notifications-slack-channels-webhook.png" width="800">
 </p>
 
-If you want to set slack channels just enter one or more channels into input and press enter or choose it after each input.
+2. Specify Slack channels
+
+Enter one or more channels into input and press enter or choose it after each input.
 
 <p>
   <img src="notifications-slack-channel.png" width="800">
@@ -44,16 +44,10 @@ If you want to set slack channels just enter one or more channels into input and
   <img src="notifications-slack-channels.png" width="800">
 </p>
 
-If you want to delete it simply press cross on entered element.
+## Setup emails notifications
 
-<p>
-  <img src="notifications-slack-channels-delete.png" width="800">
-</p>
-
-## Setup emails
-
-If you want to set emails just enter one or more email into input and press enter or choose it after each input. 
-By default, account holder will be present in the email field. 
+You can specify one or multiple emails for notifications in the input field. By default, 
+email notifications are enabled for the account owner
 
 <p>
   <img src="notifications-emails.png" width="800">
@@ -63,17 +57,13 @@ By default, account holder will be present in the email field.
   <img src="notifications-emails-filled.png" width="800">
 </p>
 
-If you want to delete it simply press cross on entered element.
-
-<p>
-  <img src="notifications-emails-delete.png" width="800">
-</p>
-
 ## Send test notification
 
-When all fields are filled in correctly, all entered information should be saved.
+To test your notification settings, press Save and Test.
 
-Press Save or Save and Test button.
+If only Slack channels and webhook are specified correctly, you will receive the notification in the Slack channels.
+If only the emails are specified сщккуседн, you will receive notifications to those emails.
+When both notifications are specified, all notifications will be sent to Slack channels and emails.
 
 <p>
   <img src="notifications-buttons.png" width="800">
@@ -92,7 +82,7 @@ and test notifications will be sent to the entered channels
   <img src="notifications-save-and-test.png" width="800">
 </p>
 
-All test notifications will be sent to the defined channels.
+Examples of the test notification messages:
 
 <p>
   <img src="notifications-slack-test.png" width="800">
