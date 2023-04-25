@@ -44,7 +44,14 @@ const CustomPanel: FC = () => {
 
   const { queryOptions } = useFetchQueryOptions();
   const {
-    isLoading, liveData, graphData, error, queryErrors, warning, traces, isHistogram
+    isLoading,
+    liveData,
+    graphData,
+    error,
+    queryErrors,
+    warning,
+    traces,
+    isHistogram
   } = useFetchQuery({
     visible: true,
     customStep,
@@ -97,7 +104,7 @@ const CustomPanel: FC = () => {
 
   useEffect(() => {
     graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
-  }, [isHistogram]);
+  }, [graphData]);
 
   return (
     <div

@@ -137,7 +137,7 @@ export const convertPrometheusToVictoriaMetrics = (buckets: MetricResult[]): Met
 };
 
 const getUpperBound = (bucket: MetricResult) => {
-  const values = (bucket.metric.vmrange || bucket.metric.le).split("...");
+  const values = (bucket.metric.vmrange || bucket.metric.le || "").split("...");
   return promValueToNumber(values[values.length - 1]);
 };
 
