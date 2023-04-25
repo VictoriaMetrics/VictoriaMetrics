@@ -10,12 +10,14 @@ import "./style.scss";
 export interface CardinalityTotalsProps {
   totalSeries: number;
   totalSeriesAll: number;
+  totalSeriesPrev: number;
   totalLabelValuePairs: number;
   seriesCountByMetricName: TopHeapEntry[];
 }
 
 const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   totalSeries,
+  totalSeriesPrev,
   totalSeriesAll,
   seriesCountByMetricName
 }) => {
@@ -27,11 +29,14 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
   const isMetric = /__name__/.test(match || "");
 
   const progress = seriesCountByMetricName[0]?.value / totalSeriesAll * 100;
+  const diff = totalSeries - totalSeriesPrev;
+  const dynamic = Math.abs(diff) / totalSeriesPrev * 100;
 
   const totals = [
     {
       title: "Total series",
       value: totalSeries.toLocaleString("en-US"),
+      dynamic: !totalSeries || !totalSeriesPrev ? "" : `${dynamic.toFixed(2)}%`,
       display: !focusLabel,
       info: `The total number of active time series. 
              A time series is uniquely identified by its name plus a set of its labels. 
@@ -57,20 +62,33 @@ const CardinalityTotals: FC<CardinalityTotalsProps> = ({
         "vm-cardinality-totals_mobile": isMobile
       })}
     >
-      {totals.map(({ title, value, info }) => (
+      {totals.map(({ title, value, info, dynamic }) => (
         <div
           className="vm-cardinality-totals-card"
           key={title}
         >
-          <div className="vm-cardinality-totals-card-header">
+          <h4 className="vm-cardinality-totals-card__title">
+            {title}
             {info && (
-              <Tooltip title={<p className="vm-cardinality-totals-card-header__tooltip">{info}</p>}>
-                <div className="vm-cardinality-totals-card-header__info-icon"><InfoIcon/></div>
+              <Tooltip title={<p className="vm-cardinality-totals-card__tooltip">{info}</p>}>
+                <div className="vm-cardinality-totals-card__info-icon"><InfoIcon/></div>
               </Tooltip>
             )}
-            <h4 className="vm-cardinality-totals-card-header__title">{title}</h4>
-          </div>
+          </h4>
           <span className="vm-cardinality-totals-card__value">{value}</span>
+          {!!dynamic && (
+            <Tooltip title={`in relation to the previous day: ${totalSeriesPrev.toLocaleString("en-US")}`}>
+              <span
+                className={classNames({
+                  "vm-dynamic-number": true,
+                  "vm-dynamic-number_positive vm-dynamic-number_down": diff < 0,
+                  "vm-dynamic-number_negative vm-dynamic-number_up": diff > 0,
+                })}
+              >
+                {dynamic}
+              </span>
+            </Tooltip>
+          )}
         </div>
       ))}
     </div>

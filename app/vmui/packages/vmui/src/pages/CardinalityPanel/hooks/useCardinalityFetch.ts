@@ -33,23 +33,50 @@ export const useFetchQuery = (): {
     setIsLoading(true);
     setTSDBStatus(appConfigurator.defaultTSDBStatus);
 
-    const defaultParams = { date: requestParams.date, topN: 0, match: "", focusLabel: "" } as CardinalityRequestsParams;
-    const url = getCardinalityInfo(serverUrl, requestParams);
-    const urlDefault = getCardinalityInfo(serverUrl, defaultParams);
+    const totalParams = {
+      date: requestParams.date,
+      topN: 0,
+      match: "",
+      focusLabel: ""
+    } as CardinalityRequestsParams;
+
+    const prevDayParams = {
+      ...requestParams,
+      date: dayjs(requestParams.date).subtract(1, "day").tz().format(DATE_FORMAT),
+    } as CardinalityRequestsParams;
+
+
+    const urlBase = getCardinalityInfo(serverUrl, requestParams);
+    const urlPrev = getCardinalityInfo(serverUrl, prevDayParams);
+    const uslTotal = getCardinalityInfo(serverUrl, totalParams);
+    const urls = [urlBase, urlPrev, uslTotal];
 
     try {
-      const response = await fetch(url);
-      const resp = await response.json();
-      const responseTotal = await fetch(urlDefault);
-      const respTotals = await responseTotal.json();
-      if (response.ok) {
-        const { data } = resp;
-        const { totalSeries } = respTotals.data;
-        const result = { ...data } as TSDBStatus;
-        result.totalSeriesByAll = totalSeries;
+      const responses = await Promise.all(urls.map(url => fetch(url)));
+      const [resp, respPrev, respTotals] = await Promise.all(responses.map(resp => resp.json()));
+      if (responses[0].ok) {
+        const { data: dataTotal } = respTotals;
+        const prevResult = { ...respPrev.data } as TSDBStatus;
+        const result = { ...resp.data } as TSDBStatus;
+        result.totalSeriesByAll = dataTotal?.totalSeries;
+        result.totalSeriesPrev = prevResult?.totalSeries;
 
         const name = match?.replace(/[{}"]/g, "");
         result.seriesCountByLabelValuePair = result.seriesCountByLabelValuePair.filter(s => s.name !== name);
+
+        Object.keys(result).forEach(k => {
+          const key = k as keyof TSDBStatus;
+          const entries = result[key];
+          const prevEntries = prevResult[key];
+
+          if (Array.isArray(entries) && Array.isArray(prevEntries)) {
+            entries.forEach((entry) => {
+              const valuePrev = prevEntries.find(prevEntry => prevEntry.name === entry.name)?.value;
+              entry.diff = valuePrev ? entry.value - valuePrev : 0;
+              entry.valuePrev = valuePrev || 0;
+            });
+          }
+        });
 
         setTSDBStatus(result);
         setIsLoading(false);
