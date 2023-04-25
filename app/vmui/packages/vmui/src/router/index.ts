@@ -5,7 +5,8 @@ const router = {
   cardinality: "/cardinality",
   topQueries: "/top-queries",
   trace: "/trace",
-  icons: "/icons"
+  withTemplate: "/expand-with-exprs",
+  icons: "/icons" // for dev
 };
 
 export interface RouterOptionsHeader {
@@ -64,6 +65,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.dashboards]: {
     title: "Dashboards",
     ...routerOptionsDefault,
+  },
+  [router.withTemplate]: {
+    title: "WITH templates",
+    header: {}
   },
   [router.icons]: {
     title: "Icons",
