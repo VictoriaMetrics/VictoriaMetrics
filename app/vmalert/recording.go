@@ -99,13 +99,13 @@ func (rr *RecordingRule) Close() {
 // It doesn't update internal states of the Rule and meant to be used just
 // to get time series for backfilling.
 func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
-	series, err := rr.q.QueryRange(ctx, rr.Expr, start, end)
+	res, err := rr.q.QueryRange(ctx, rr.Expr, start, end)
 	if err != nil {
 		return nil, err
 	}
-	duplicates := make(map[string]struct{}, len(series))
+	duplicates := make(map[string]struct{}, len(res.Data))
 	var tss []prompbmarshal.TimeSeries
-	for _, s := range series {
+	for _, s := range res.Data {
 		ts := rr.toTimeSeries(s)
 		key := stringifyLabels(ts)
 		if _, ok := duplicates[key]; ok {
@@ -120,13 +120,14 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 // Exec executes RecordingRule expression via the given Querier.
 func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
-	qMetrics, req, err := rr.q.Query(ctx, rr.Expr, ts)
+	res, req, err := rr.q.Query(ctx, rr.Expr, ts)
 	curState := ruleStateEntry{
-		time:     start,
-		at:       ts,
-		duration: time.Since(start),
-		samples:  len(qMetrics),
-		curl:     requestToCurl(req),
+		time:          start,
+		at:            ts,
+		duration:      time.Since(start),
+		samples:       len(res.Data),
+		seriesFetched: res.SeriesFetched,
+		curl:          requestToCurl(req),
 	}
 
 	defer func() {
@@ -138,6 +139,7 @@ func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]p
 		return nil, curState.err
 	}
 
+	qMetrics := res.Data
 	numSeries := len(qMetrics)
 	if limit > 0 && numSeries > limit {
 		curState.err = fmt.Errorf("exec exceeded limit of %d with %d series", limit, numSeries)
@@ -208,17 +210,18 @@ func (rr *RecordingRule) UpdateWith(r Rule) error {
 func (rr *RecordingRule) ToAPI() APIRule {
 	lastState := rr.state.getLast()
 	r := APIRule{
-		Type:           "recording",
-		DatasourceType: rr.Type.String(),
-		Name:           rr.Name,
-		Query:          rr.Expr,
-		Labels:         rr.Labels,
-		LastEvaluation: lastState.time,
-		EvaluationTime: lastState.duration.Seconds(),
-		Health:         "ok",
-		LastSamples:    lastState.samples,
-		MaxUpdates:     rr.state.size(),
-		Updates:        rr.state.getAll(),
+		Type:              "recording",
+		DatasourceType:    rr.Type.String(),
+		Name:              rr.Name,
+		Query:             rr.Expr,
+		Labels:            rr.Labels,
+		LastEvaluation:    lastState.time,
+		EvaluationTime:    lastState.duration.Seconds(),
+		Health:            "ok",
+		LastSamples:       lastState.samples,
+		LastSeriesFetched: lastState.seriesFetched,
+		MaxUpdates:        rr.state.size(),
+		Updates:           rr.state.getAll(),
 
 		// encode as strings to avoid rounding
 		ID:      fmt.Sprintf("%d", rr.ID()),

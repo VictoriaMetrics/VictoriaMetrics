@@ -40,6 +40,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to proxy requests for unauthorized users. See [this doc](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4083).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to specify default route (`default_url`) for processing non-matched requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4084). 
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): support configuring of custom HTTP headers sent to notifiers on the Group level. See  [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3260).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): detect alerting rules which don't match any series. See this [issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039) for details.
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): add `-s3StorageClass` command-line flag for setting the storage class for AWS S3 backups. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4164). Thanks to @justcompile for the [pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4166).
 
 * BUGFIX: reduce the probability of sudden increase in the number of small parts on systems with small number of CPU cores.

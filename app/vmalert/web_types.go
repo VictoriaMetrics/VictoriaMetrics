@@ -117,7 +117,12 @@ type APIRule struct {
 
 	// DatasourceType of the rule: prometheus or graphite
 	DatasourceType string `json:"datasourceType"`
-	LastSamples    int    `json:"lastSamples"`
+	// LastSamples stores the amount of data samples received on last evaluation
+	LastSamples int `json:"lastSamples"`
+	// LastSeriesFetched stores the amount of time series fetched by datasource
+	// during the last evaluation
+	LastSeriesFetched *int `json:"lastSeriesFetched,omitempty"`
+
 	// ID is a unique Alert's ID within a group
 	ID string `json:"id"`
 	// GroupID is an unique Group's ID
