@@ -641,6 +641,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	case "prometheus/expand-with-exprs", "expand-with-exprs":
 		expandWithExprsRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		prometheus.ExpandWithExprs(w, r)
 		return true
 	case "prometheus/api/v1/rules", "prometheus/rules":
