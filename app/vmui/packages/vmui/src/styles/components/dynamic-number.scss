@@ -1,0 +1,26 @@
+@use "src/styles/variables" as *;
+
+.vm-dynamic-number {
+  font-size: $font-size-small;
+  color: $color-text-disabled;
+
+  &_positive {
+    color: $color-success;
+  }
+
+  &_negative {
+    color: $color-error;
+  }
+
+  &_down {
+    &:before {
+      content: "↓";
+    }
+  }
+
+  &_up {
+    &:before {
+      content: "↑";
+    }
+  }
+}

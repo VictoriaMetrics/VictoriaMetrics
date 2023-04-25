@@ -18,6 +18,7 @@ interface MetricsProperties {
   tabs: string[];
   chartContainer: MutableRef<HTMLDivElement> | undefined;
   totalSeries: number,
+  totalSeriesPrev: number,
   sectionTitle: string;
   tip?: string;
   tableHeaderCells: HeadCell[];
@@ -28,6 +29,7 @@ const MetricsContent: FC<MetricsProperties> = ({
   tabs: tabsProps = [],
   chartContainer,
   totalSeries,
+  totalSeriesPrev,
   onActionClick,
   sectionTitle,
   tip,
@@ -40,6 +42,7 @@ const MetricsContent: FC<MetricsProperties> = ({
     <TableCells
       row={row}
       totalSeries={totalSeries}
+      totalSeriesPrev={totalSeriesPrev}
       onActionClick={onActionClick}
     />
   );
