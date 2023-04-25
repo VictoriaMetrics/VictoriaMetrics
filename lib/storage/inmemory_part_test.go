@@ -78,7 +78,7 @@ func testInmemoryPartInitFromRows(t *testing.T, rows []rawRow, blocksCount int) 
 	}
 
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(&mp)
+	bsr.MustInitFromInmemoryPart(&mp)
 
 	rowsCount := 0
 	blockNum := 0

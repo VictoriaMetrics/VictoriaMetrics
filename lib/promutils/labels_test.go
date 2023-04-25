@@ -172,6 +172,25 @@ func TestLabelsRemoveLabelsWithDoubleUnderscorePrefix(t *testing.T) {
 	}
 	f(`{}`, `{}`)
 	f(`{foo="bar"}`, `{foo="bar"}`)
-	f(`{__meta_foo="bar",a="b",__name__="foo",__vm_filepath="aa"}`, `{a="b",__vm_filepath="aa"}`)
+	f(`{__meta_foo="bar",a="b",__name__="foo",__vm_filepath="aa"}`, `{a="b"}`)
 	f(`{__meta_foo="bdffr",foo="bar",__meta_xxx="basd"}`, `{foo="bar"}`)
+}
+
+func TestLabels_Set(t *testing.T) {
+	f := func(metric, name, value, resultExpected string) {
+		t.Helper()
+		labels := MustNewLabelsFromString(metric)
+		labels.Set(name, value)
+		result := labels.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result of RemoveLabelsWithDoubleUnderscorePrefix;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+	f(`{}`, ``, ``, `{}`)
+	f(`{foo="bar"}`, `bar`, `baz`, `{foo="bar",bar="baz"}`)
+	f(`{__meta_foo="bar",a="b",__name__="foo",__vm_filepath="aa"}`, `__name__`, `bar`, `{__meta_foo="bar",a="b",__name__="bar",__vm_filepath="aa"}`)
+	f(`{__meta_foo="bdffr",foo="bar",__meta_xxx="basd"}`, `__name__`, `baz`, `{__meta_foo="bdffr",foo="bar",__meta_xxx="basd",__name__="baz"}`)
+	f(`http_request_total{a="b"}`, `__name__`, `metric`, `{__name__="metric",a="b"}`)
+	f(`http_request_total{a="b"}`, `a`, `c`, `{__name__="http_request_total",a="c"}`)
+	f(`http_request_total{a="b"}`, `ip`, `127.0.0.1`, `{__name__="http_request_total",a="b",ip="127.0.0.1"}`)
 }

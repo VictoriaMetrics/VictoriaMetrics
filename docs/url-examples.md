@@ -226,6 +226,7 @@ Single-node VictoriaMetrics:
 ```console
 curl -X POST http://localhost:8428/api/v1/import/native -T filename.bin
 ```
+</div>
 
 Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -251,6 +252,8 @@ Single-node VictoriaMetrics:
 ```console
 curl -d 'metric_name{foo="bar"} 123' -X POST http://localhost:8428/api/v1/import/prometheus
 ```
+
+</div>
 
 Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
@@ -288,7 +291,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
-By default VictoriaMetrics returns labels seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
+By default VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -317,7 +321,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 
 </div>
 
-By default VictoriaMetrics returns label values seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
+By default VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
@@ -402,7 +407,8 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_htt
 
 </div>
 
-By default VictoriaMetrics returns time series seen during the last 5 minutes. An arbitrary time range can be set via `start` and `end` query args.
+By default VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
 * [Prometheus querying API usage](https://docs.victoriametrics.com/#prometheus-querying-api-usage)

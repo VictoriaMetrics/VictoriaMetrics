@@ -104,7 +104,7 @@ additionally to pull-based Prometheus-compatible targets' scraping:
 
 `vmagent` should be restarted in order to update config options set via command-line args.
 `vmagent` supports multiple approaches for reloading configs from updated config files such as
-`-promscrape.config`, `-remoteWrite.relabelConfig` and `-remoteWrite.urlRelabelConfig`:
+`-promscrape.config`, `-remoteWrite.relabelConfig`, `-remoteWrite.urlRelabelConfig` and `-remoteWrite.streamAggr.config`:
 
 * Sending `SIGHUP` signal to `vmagent` process:
 
@@ -1186,7 +1186,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -dryRun
-     Whether to check only config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
+     Whether to check config files without running vmagent. The following files are checked: -promscrape.config, -remoteWrite.relabelConfig, -remoteWrite.urlRelabelConfig, -remoteWrite.streamAggr.config . Unknown config entries aren't allowed in -promscrape.config by default. This can be changed by passing -promscrape.config.strictParse=false command-line flag
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -1211,6 +1211,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
+  -http.maxConcurrentRequests int
+     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
   -http.maxGracefulShutdownDuration duration
      The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
@@ -1518,6 +1520,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
+  -remoteWrite.keepDanglingQueues
+     Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.

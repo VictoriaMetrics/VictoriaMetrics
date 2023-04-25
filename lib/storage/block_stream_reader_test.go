@@ -106,7 +106,7 @@ func TestBlockStreamReaderReadConcurrent(t *testing.T) {
 
 func testBlockStreamReaderReadRows(mp *inmemoryPart, rows []rawRow) error {
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(mp)
+	bsr.MustInitFromInmemoryPart(mp)
 	rowsCount := 0
 	for bsr.NextBlock() {
 		if err := bsr.Block.UnmarshalData(); err != nil {
@@ -155,6 +155,6 @@ func newTestBlockStreamReader(t *testing.T, rows []rawRow) *blockStreamReader {
 	var mp inmemoryPart
 	mp.InitFromRows(rows)
 	var bsr blockStreamReader
-	bsr.InitFromInmemoryPart(&mp)
+	bsr.MustInitFromInmemoryPart(&mp)
 	return &bsr
 }

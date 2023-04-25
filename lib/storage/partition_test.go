@@ -60,9 +60,6 @@ func TestAppendPartsToMergeManyParts(t *testing.T) {
 	r := rand.New(rand.NewSource(1))
 	for i := 0; i < 1024; i++ {
 		n := uint64(uint32(r.NormFloat64() * 1e9))
-		if n < 0 {
-			n = -n
-		}
 		n++
 		maxOutSize += n
 		sizes = append(sizes, n)

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -191,7 +192,7 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				t.Fatalf("Error parse end time: %s", err)
 			}
 
-			tt.fields.filter.Match = fmt.Sprintf("%s=%q", tt.fields.matchName, tt.fields.matchValue)
+			tt.fields.filter.Match = fmt.Sprintf("{%s=~%q}", tt.fields.matchName, tt.fields.matchValue)
 			tt.fields.filter.TimeStart = tt.start
 			tt.fields.filter.TimeEnd = tt.end
 
@@ -205,16 +206,16 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 			}
 
 			tt.fields.src = &native.Client{
-				AuthCfg:              nil,
-				Addr:                 src.URL(),
-				ExtraLabels:          []string{},
-				DisableHTTPKeepAlive: false,
+				AuthCfg:     nil,
+				Addr:        src.URL(),
+				ExtraLabels: []string{},
+				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 			tt.fields.dst = &native.Client{
-				AuthCfg:              nil,
-				Addr:                 dst.URL(),
-				ExtraLabels:          []string{},
-				DisableHTTPKeepAlive: false,
+				AuthCfg:     nil,
+				Addr:        dst.URL(),
+				ExtraLabels: []string{},
+				HTTPClient:  &http.Client{Transport: &http.Transport{DisableKeepAlives: false}},
 			}
 
 			p := &vmNativeProcessor{
@@ -293,4 +294,97 @@ func deleteSeries(name, value string) (int, error) {
 		return 0, fmt.Errorf("unexpected error in TagFilters.Add: %w", err)
 	}
 	return vmstorage.DeleteSeries(nil, []*storage.TagFilters{tfs})
+}
+
+func Test_buildMatchWithFilter(t *testing.T) {
+	tests := []struct {
+		name       string
+		filter     string
+		metricName string
+		want       string
+		wantErr    bool
+	}{
+		{
+			name:       "parsed metric with label",
+			filter:     `{__name__="http_request_count_total",cluster="kube1"}`,
+			metricName: "http_request_count_total",
+			want:       `{cluster="kube1",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "metric name with label",
+			filter:     `http_request_count_total{cluster="kube1"}`,
+			metricName: "http_request_count_total",
+			want:       `{cluster="kube1",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "parsed metric with regexp value",
+			filter:     `{__name__="http_request_count_total",cluster=~"kube.*"}`,
+			metricName: "http_request_count_total",
+			want:       `{cluster=~"kube.*",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "only label with regexp",
+			filter:     `{cluster=~".*"}`,
+			metricName: "http_request_count_total",
+			want:       `{cluster=~".*",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "many labels in filter with regexp",
+			filter:     `{cluster=~".*",job!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{cluster=~".*",job!="",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "match with error",
+			filter:     `{cluster~=".*"}`,
+			metricName: "http_request_count_total",
+			want:       ``,
+			wantErr:    true,
+		},
+		{
+			name:       "all names",
+			filter:     `{__name__!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "with many underscores labels",
+			filter:     `{__name__!="", __meta__!=""}`,
+			metricName: "http_request_count_total",
+			want:       `{__meta__!="",__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "metric name has regexp",
+			filter:     `{__name__=~".*"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+		{
+			name:       "metric name has negative regexp",
+			filter:     `{__name__!~".*"}`,
+			metricName: "http_request_count_total",
+			want:       `{__name__="http_request_count_total"}`,
+			wantErr:    false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildMatchWithFilter(tt.filter, tt.metricName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("buildMatchWithFilter() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("buildMatchWithFilter() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

@@ -326,6 +326,7 @@ const (
 	vmNativeStepInterval    = "vm-native-step-interval"
 
 	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
+	vmNativeDisableRetries       = "vm-native-disable-retries"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -351,12 +352,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     vmNativeFilterTimeStart,
-			Usage:    "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeStepInterval,
@@ -442,6 +443,11 @@ var (
 			Name:  vmConcurrency,
 			Usage: "Number of workers concurrently performing import requests to VM",
 			Value: 2,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisableRetries,
+			Usage: "Defines whether to disable retries with backoff policy for migration process",
+			Value: false,
 		},
 	}
 )

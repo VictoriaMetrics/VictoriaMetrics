@@ -3,6 +3,7 @@ package netstorage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -20,11 +21,9 @@ func InitTmpBlocksDir(tmpDirPath string) {
 	if len(tmpDirPath) == 0 {
 		tmpDirPath = os.TempDir()
 	}
-	tmpBlocksDir = tmpDirPath + "/searchResults"
+	tmpBlocksDir = filepath.Join(tmpDirPath, "searchResults")
 	fs.MustRemoveAll(tmpBlocksDir)
-	if err := fs.MkdirAllIfNotExist(tmpBlocksDir); err != nil {
-		logger.Panicf("FATAL: cannot create %q: %s", tmpBlocksDir, err)
-	}
+	fs.MustMkdirIfNotExist(tmpBlocksDir)
 }
 
 var tmpBlocksDir string
@@ -179,14 +178,12 @@ func (tbf *tmpBlocksFile) MustClose() {
 	}
 	fname := tbf.f.Name()
 
-	// Remove the file at first, then close it.
-	// This way the OS shouldn't try to flush file contents to storage
-	// on close.
-	if err := os.Remove(fname); err != nil {
-		logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
-	}
 	if err := tbf.f.Close(); err != nil {
 		logger.Panicf("FATAL: cannot close %q: %s", fname, err)
+	}
+	// We cannot remove unclosed at non-posix filesystems, like windows
+	if err := os.Remove(fname); err != nil {
+		logger.Panicf("FATAL: cannot remove %q: %s", fname, err)
 	}
 	tbf.f = nil
 }

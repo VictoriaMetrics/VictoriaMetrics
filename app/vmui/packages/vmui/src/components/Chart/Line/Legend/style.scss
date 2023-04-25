@@ -1,0 +1,30 @@
+@use "src/styles/variables" as *;
+
+.vm-legend {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  cursor: default;
+
+  &-group {
+    min-width: 23%;
+    width: 100%;
+    margin: 0 $padding-global $padding-global 0;
+
+    &-title {
+      display: flex;
+      align-items: center;
+      padding: $padding-small;
+      margin-bottom: 1px;
+      border-bottom: $border-divider;
+
+      &__count {
+        font-weight: bold;
+        margin-right: $padding-small;
+      }
+
+      &__query {
+      }
+    }
+  }
+}

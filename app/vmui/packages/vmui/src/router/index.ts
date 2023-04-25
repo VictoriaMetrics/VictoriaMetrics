@@ -5,6 +5,7 @@ const router = {
   cardinality: "/cardinality",
   topQueries: "/top-queries",
   trace: "/trace",
+  withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
   icons: "/icons"
 };
@@ -65,6 +66,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   [router.dashboards]: {
     title: "Dashboards",
     ...routerOptionsDefault,
+  },
+  [router.withTemplate]: {
+    title: "WITH templates",
+    header: {}
   },
   [router.relabel]: {
     title: "Metric relabel debug",

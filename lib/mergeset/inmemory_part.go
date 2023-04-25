@@ -1,13 +1,11 @@
 package mergeset
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type inmemoryPart struct {
@@ -32,34 +30,26 @@ func (mp *inmemoryPart) Reset() {
 	mp.lensData.Reset()
 }
 
-// StoreToDisk stores mp to the given path on disk.
-func (mp *inmemoryPart) StoreToDisk(path string) error {
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+// MustStoreToDisk stores mp to the given path on disk.
+func (mp *inmemoryPart) MustStoreToDisk(path string) {
+	fs.MustMkdirFailIfExist(path)
+
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	if err := fs.WriteFileAndSync(metaindexPath, mp.metaindexData.B); err != nil {
-		return fmt.Errorf("cannot store metaindex: %w", err)
-	}
+	fs.MustWriteSync(metaindexPath, mp.metaindexData.B)
+
 	indexPath := filepath.Join(path, indexFilename)
-	if err := fs.WriteFileAndSync(indexPath, mp.indexData.B); err != nil {
-		return fmt.Errorf("cannot store index: %w", err)
-	}
+	fs.MustWriteSync(indexPath, mp.indexData.B)
+
 	itemsPath := filepath.Join(path, itemsFilename)
-	if err := fs.WriteFileAndSync(itemsPath, mp.itemsData.B); err != nil {
-		return fmt.Errorf("cannot store items: %w", err)
-	}
+	fs.MustWriteSync(itemsPath, mp.itemsData.B)
+
 	lensPath := filepath.Join(path, lensFilename)
-	if err := fs.WriteFileAndSync(lensPath, mp.lensData.B); err != nil {
-		return fmt.Errorf("cannot store lens: %w", err)
-	}
-	if err := mp.ph.WriteMetadata(path); err != nil {
-		return fmt.Errorf("cannot store metadata: %w", err)
-	}
-	// Sync parent directory in order to make sure the written files remain visible after hardware reset
-	parentDirPath := filepath.Dir(path)
-	fs.MustSyncPath(parentDirPath)
-	return nil
+	fs.MustWriteSync(lensPath, mp.lensData.B)
+
+	mp.ph.MustWriteMetadata(path)
+
+	fs.MustSyncPath(path)
+	// Do not sync parent directory - it must be synced by the caller.
 }
 
 // Init initializes mp from ib.
@@ -111,10 +101,7 @@ var inmemoryPartBytePool bytesutil.ByteBufferPool
 // It is unsafe re-using mp while the returned part is in use.
 func (mp *inmemoryPart) NewPart() *part {
 	size := mp.size()
-	p, err := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
-	if err != nil {
-		logger.Panicf("BUG: cannot create a part from inmemoryPart: %s", err)
-	}
+	p := newPart(&mp.ph, "", size, mp.metaindexData.NewReader(), &mp.indexData, &mp.itemsData, &mp.lensData)
 	return p
 }
 

@@ -916,7 +916,7 @@ The shortlist of configuration flags is the following:
   -evaluationInterval duration
      How often to evaluate the rules (default 1m0s)
   -external.alert.source string
-     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left=["now-1h","now","VictoriaMetrics",{"expr":{{$expr|jsonEscape|queryEscape}} },{"mode":"Metrics"},{"ui":[true,true,true,"none"]}]'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
+     External Alert Source allows to override the Source link for alerts sent to AlertManager for cases where you want to build a custom link to Grafana, Prometheus or any other service. Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . For example, link to Grafana: -external.alert.source='explore?orgId=1&left={"datasource":"VictoriaMetrics","queries":[{"expr":{{$expr|jsonEscape|queryEscape}},"refId":"A"}],"range":{"from":"now-1h","to":"now"}}'. Link to VMUI: -external.alert.source='vmui/#/?g0.expr={{.Expr|queryEscape}}'. If empty 'vmalert/alert?group_id={{.GroupID}}&alert_id={{.AlertID}}' is used.
   -external.label array
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
@@ -932,6 +932,8 @@ The shortlist of configuration flags is the following:
      Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
+  -http.maxConcurrentRequests int
+     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
   -http.maxGracefulShutdownDuration duration
      The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string

@@ -369,7 +369,7 @@ func TestMergeForciblyStop(t *testing.T) {
 
 	var mp inmemoryPart
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&mp, -5)
+	bsw.MustInitFromInmemoryPart(&mp, -5)
 	ch := make(chan struct{})
 	var rowsMerged, rowsDeleted uint64
 	close(ch)
@@ -392,7 +392,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	var mp inmemoryPart
 
 	var bsw blockStreamWriter
-	bsw.InitFromInmemoryPart(&mp, -5)
+	bsw.MustInitFromInmemoryPart(&mp, -5)
 
 	strg := newTestStorage()
 	var rowsMerged, rowsDeleted uint64
@@ -418,7 +418,7 @@ func testMergeBlockStreams(t *testing.T, bsrs []*blockStreamReader, expectedBloc
 	}
 
 	var bsr1 blockStreamReader
-	bsr1.InitFromInmemoryPart(&mp)
+	bsr1.MustInitFromInmemoryPart(&mp)
 	blocksCount := 0
 	rowsCount := 0
 	var prevTSID TSID

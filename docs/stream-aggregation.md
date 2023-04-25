@@ -355,6 +355,20 @@ For example, see below time series produced by config with aggregation interval 
 
 <img alt="total aggregation" src="stream-aggregation-check-total.png">
 
+`total` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) - 
+it continues to increase monotonically with respect to the previous value.
+The counters are most often reset when the application is restarted.
+
+For example: 
+
+<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
+
+The same behavior will occur when creating or deleting new series in an aggregation group -
+`total` will increase monotonically considering the values of the series set. 
+
+An example of changing a set of series can be restarting a pod in the Kubernetes.
+This changes a label with pod's name in the series, but `total` account for such a scenario and do not reset the state of aggregated metric.
+
 ### increase
 
 `increase` returns the increase of input [counters](https://docs.victoriametrics.com/keyConcepts.html#counter).
@@ -509,7 +523,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # match is an optional filter for incoming samples to aggregate.
   # It can contain arbitrary Prometheus series selector
   # according to https://docs.victoriametrics.com/keyConcepts.html#filtering .
-  # If match is missing, then all the incoming samples are aggregated.
+  # If match isn't set, then all the incoming samples are aggregated.
 - match: 'http_request_duration_seconds_bucket{env=~"prod|staging"}'
 
   # interval is the interval for the aggregation.
@@ -545,3 +559,16 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
 
 The file can contain multiple aggregation configs. The aggregation is performed independently
 per each specified config entry.
+
+### Configuration update
+
+[vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
+support the following approaches for hot reloading stream aggregation configs from `-remoteWrite.streamAggr.config` and `-streamAggr.config`:
+
+* By sending `SIGHUP` signal to `vmagent` or `victoria-metrics` process:
+
+  ```console
+  kill -SIGHUP `pidof vmagent`
+  ```
+
+* By sending HTTP request to `/-/reload` endpoint (e.g. `http://vmagent:8429/-/reload` or `http://victoria-metrics:8428/-/reload).

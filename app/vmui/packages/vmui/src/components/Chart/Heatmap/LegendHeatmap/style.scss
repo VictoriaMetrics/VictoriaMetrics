@@ -1,0 +1,67 @@
+@use "src/styles/variables" as *;
+
+.vm-legend-heatmap {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+
+  &__wrapper {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: $padding-global;
+    flex-wrap: wrap;
+  }
+
+  &__value {
+    color: $color-text;
+    font-size: $font-size-small;
+
+    &:last-child {
+      text-align: right;
+    }
+  }
+
+  &-gradient {
+    $gradient-height: $font-size-small;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    grid-column: 1/-1;
+    height: $gradient-height;
+    width: 200px;
+
+    &__value {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: -2px;
+      border-radius: 50%;
+      border: 2px solid $color-text;
+      width: calc($gradient-height + 4px);
+      height: calc($gradient-height + 4px);
+
+      transform: translateX(calc(($gradient-height/-2) - 2px));
+      transition: left 100ms ease;
+
+      span {
+        position: absolute;
+        top: calc($gradient-height + 6px);
+        left: auto;
+        padding: 4px 8px;
+        color: $color-text;
+        font-size: $font-size-small;
+        background-color: $color-background-block;
+        box-shadow: $box-shadow;
+      }
+    }
+  }
+
+  &__labels {
+    word-break: break-all;
+  }
+}

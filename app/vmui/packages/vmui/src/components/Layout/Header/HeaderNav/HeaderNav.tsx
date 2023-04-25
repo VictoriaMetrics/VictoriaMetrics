@@ -52,6 +52,10 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
           value: router.trace,
         },
         {
+          label: routerOptions[router.withTemplate].title,
+          value: router.withTemplate,
+        },
+        {
           label: routerOptions[router.relabel].title,
           value: router.relabel,
         },

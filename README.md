@@ -40,7 +40,8 @@ VictoriaMetrics has the following prominent features:
 * It can be used as long-term storage for Prometheus. See [these docs](#prometheus-setup) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports [Prometheus querying API](#prometheus-querying-api-usage).
 * It can be used as a drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
-* It features easy setup and operation:
+  VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite - see [this case study](https://docs.victoriametrics.com/CaseStudies.html#grammarly).
+* It is easy to setup and operate:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d)
     without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
@@ -302,13 +303,17 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables.
-It also provides the following features:
+The UI allows exploring query results via graphs and tables. It also provides the following features:
 
 - [metrics explorer](#metrics-explorer)
 - [cardinality explorer](#cardinality-explorer)
 - [query tracer](#query-tracing)
 - [top queries explorer](#top-queries)
+
+VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
+(both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
+and [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) are supported).
+Try, for example, [this query](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vm_promscrape_scrape_duration_seconds_bucket%29%29+by+%28vmrange%29&g0.range_input=24h&g0.end_input=2023-04-10T17%3A46%3A12&g0.relative_time=last_24_hours&g0.step_input=31m).
 
 Graphs in `vmui` support scrolling and zooming:
 
@@ -320,9 +325,12 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling) or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results), it may be useful disabling response cache by clicking `Disable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling)
+or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results),
+it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
+The step value can be customized by changing `Step value` input.
 
 VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
 enter an additional query in the newly appeared input field and press `Enter`.
@@ -627,7 +635,6 @@ The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `
 
 VictoriaMetrics also supports Graphite query language - see [these docs](#graphite-render-api-usage).
 
-
 ## How to send data from OpenTSDB-compatible agents
 
 VictoriaMetrics supports [telnet put protocol](http://opentsdb.net/docs/build/html/api_telnet/put.html)
@@ -742,20 +749,45 @@ All the Prometheus querying API handlers can be prepended with `/prometheus` pre
 
 ### Prometheus querying API enhancements
 
-VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
-`/api/v1/query_range?extra_label=user_id=123&extra_label=group_id=456&query=<query>` would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used
+for enforcing additional label filters for queries. For example, `/api/v1/query_range?extra_label=user_id=123&extra_label=group_id=456&query=<query>`
+would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`.
+This functionality can be used for limiting the scope of time series visible to the given tenant.
+It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics.
+See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
-VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries. For example,
-`/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries.
+For example, `/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically
+add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting
+the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically
+set by auth proxy sitting in front of VictoriaMetrics.
+See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
 VictoriaMetrics accepts multiple formats for `time`, `start` and `end` query args - see [these docs](#timestamp-formats).
 
-VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v1/query_range` handlers. It can be used for rounding response values to the given number of digits after the decimal point. For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+and [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) handlers. It can be used for rounding response values
+to the given number of digits after the decimal point.
+For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
-VictoriaMetrics accepts `limit` query arg for `/api/v1/labels` and `/api/v1/label/<labelName>/values` handlers for limiting the number of returned entries. For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels. If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values, then limits specified in the command-line flags are used.
+VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels)
+and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues) handlers for limiting the number of returned entries.
+For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels.
+If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values,
+then limits specified in the command-line flags are used.
 
-By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, `/api/v1/labels` and `/api/v1/label/<labelName>/values` while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
-VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
+By default, VictoriaMetrics returns time series for the last day starting at 00:00 UTC
+from [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series),
+[/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels) and
+[`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues),
+while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
+VictoriaMetrics rounds the specified `start..end` time range to day granularity because of performance optimization concerns.
+If you need the exact set of label names and label values on the given time range, then send queries
+to [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query) or to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+
+VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series)
+for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
+If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 Additionally, VictoriaMetrics provides the following handlers:
 
@@ -804,10 +836,10 @@ VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series w
 
 ### Graphite Render API usage
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+VictoriaMetrics supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
-When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points
+stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
 
 ### Graphite Metrics API usage
 
@@ -2144,7 +2176,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 
 ```
   -bigMergeConcurrency int
-     The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+     Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
@@ -2168,7 +2200,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
-     Whether to check only -promscrape.config and then exit. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
+     Whether to check config files without running VictoriaMetrics. The following config files are checked: -promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
   -enableTCP6
      Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
   -envflag.enable
@@ -2199,6 +2231,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
+  -http.maxConcurrentRequests int
+     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
+  -http.maxConcurrentRequests int
+     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
   -http.maxGracefulShutdownDuration duration
      The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
@@ -2413,9 +2449,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.disableCache
      Whether to disable response caching. This may be useful during data backfilling
   -search.graphiteMaxPointsPerSeries int
-     The maximum number of points per series Graphite render API can return. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
+     The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logQueryMemoryUsage size
@@ -2432,7 +2468,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxMemoryPerQuery size
@@ -2494,7 +2530,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -selfScrapeJob string
      Value for 'job' label, which is added to self-scraped metrics (default "victoria-metrics")
   -smallMergeConcurrency int
-     The maximum number of CPU cores to use for small merges. Default value is used if set to 0
+     The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
   -snapshotCreateTimeout duration

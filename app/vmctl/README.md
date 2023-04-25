@@ -738,7 +738,7 @@ or higher.
 See `./vmctl vm-native --help` for details and full list of flags.
 
 Migration in `vm-native` mode takes two steps:
-1. Explore the list of the metrics to migrate via `/api/v1/series` API;
+1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
 2. Migrate explored metrics one-by-one.
 
 ```
@@ -765,6 +765,57 @@ Requests to make: 9 / 9 [██████████████████�
   requests retries: 0;
 2023/03/02 09:22:06 Total time: 3.633127625s
 ```
+`vmctl` uses retries with backoff policy by default.
+
+The benefits of this retry backoff policy include:
+1. Improved success rates:
+   With each retry attempt, the migration process has a higher chance of success.
+   By increasing the delay between retries, the system can avoid overwhelming the service with too many requests at once.
+
+2. Reduced load on the system:
+   By increasing the delay between retries, the system can reduce the load on the service by limiting the number of
+   requests made in a short amount of time.
+3. Can help to migrate a big amount of data
+
+However, there are also some potential penalties associated with using a backoff retry policy, including:
+1. Increased migration process latency:
+   `vmctl` need to make additional call to the `api/v1/label/__name__/values` with defined `--vm-native-filter-match` flag,
+   and after process all metric names with additional filters.
+
+In case when retries with backoff policy is unneeded `--vm-native-disable-retries` command line flag can be used.
+When this flag is set to `true`, `vmctl` skips additional call to the `api/v1/label/__name__/values` API and starts
+migration process by making calls to the `/api/v1/export` and `api/v1/import`. If some errors happen `vmctl` immediately
+stops the migration process.
+
+```
+./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \
+  --vm-native-dst-addr=http://127.0.0.1:8428 \
+  --vm-native-filter-match='{__name__!=""}' \
+  --vm-native-filter-time-start='2023-04-08T11:30:30Z' \
+  --vm-native-disable-retries=true  
+
+VictoriaMetrics Native import mode
+
+2023/04/11 10:17:14 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
+        filter: match[]={__name__!=""}
+        start: 2023-04-08T11:30:30Z
+. Continue? [Y/n] 
+2023/04/11 10:17:15 Requests to make: 1
+2023/04/11 10:17:15 number of workers decreased to 1, because vmctl calculated requests to make 1
+Total: 0 ↙ Speed: ? p/s                                                                                                                                                                              Continue import process with filter 
+        filter: match[]={__name__!=""}
+        start: 2023-04-08T11:30:30Z
+        end: 2023-04-11T07:17:14Z:
+Total: 1.64 GiB ↖ Speed: 11.20 MiB p/s                                                                                                                                                               
+2023/04/11 10:19:45 Import finished!
+2023/04/11 10:19:45 VictoriaMetrics importer stats:
+  time spent while importing: 2m30.813841541s;
+  total bytes: 1.8 GB;
+  bytes/s: 11.7 MB;
+  requests: 1;
+  requests retries: 0;
+2023/04/11 10:19:45 Total time: 2m30.814721125s
+```
 
 Importing tips:
 
@@ -781,7 +832,25 @@ To avoid such situation try to filter out VM process metrics via `--vm-native-fi
 4. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
 5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
-and specify `accountID` param.
+and specify `accountID` param. Example formats:
+
+```console
+# Migrating from cluster to single
+--vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+--vm-native-dst-addr=http://<dst-vmsingle>:8428
+
+ # Migrating from single to cluster
+--vm-native-src-addr=http://<src-vmsingle>:8428
+--vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+
+# Migrating single to single
+--vm-native-src-addr=http://<src-vmsingle>:8428
+--vm-native-dst-addr=http://<dst-vmsingle>:8428
+
+# Migrating cluster to cluster
+--vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+--vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+```
 6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
 7. `vmctl` supports `--vm-concurrency` which controls the number of concurrent workers that process the input from source query results.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according

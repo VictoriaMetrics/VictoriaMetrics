@@ -1,6 +1,7 @@
 import uPlot from "uplot";
 import { generateGradient } from "../color";
 import { MetricResult } from "../../api/types";
+import { promValueToNumber } from "../metric";
 
 // 16-color gradient from "rgb(246, 226, 219)" to "rgb(127, 39, 4)"
 export const gradMetal16 = generateGradient([246, 226, 219], [127, 39, 4], 16);
@@ -115,11 +116,11 @@ export const convertPrometheusToVictoriaMetrics = (buckets: MetricResult[]): Met
 
   const sortedBuckets = buckets.sort((a,b) => parseFloat(a.metric.le) - parseFloat(b.metric.le));
   const group = buckets[0]?.group || 1;
-  let prevBucket: MetricResult = { metric: { le: "0" }, values: [], group };
+  let prevBucket: MetricResult = { metric: { le: "" }, values: [], group };
   const result: MetricResult[] = [];
 
   for (const bucket of sortedBuckets) {
-    const vmrange = `${prevBucket.metric.le}..${bucket.metric.le}`;
+    const vmrange = [prevBucket.metric.le, bucket.metric.le].filter(n => n).join("...");
     const values: [number, string][] = [];
 
     for (const [timestamp, value] of bucket.values) {
@@ -135,17 +136,30 @@ export const convertPrometheusToVictoriaMetrics = (buckets: MetricResult[]): Met
   return result;
 };
 
+const getUpperBound = (bucket: MetricResult) => {
+  const values = (bucket.metric.vmrange || bucket.metric.le || "").split("...");
+  return promValueToNumber(values[values.length - 1]);
+};
+
+const sortBucketsByValues = (a: MetricResult, b: MetricResult) => getUpperBound(a) - getUpperBound(b);
+
 export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): MetricResult[] => {
   if (!isHistogram) return buckets;
-  const vmBuckets = convertPrometheusToVictoriaMetrics(buckets);
+  const sortedBuckets = buckets.sort(sortBucketsByValues);
+  const vmBuckets = convertPrometheusToVictoriaMetrics(sortedBuckets);
   const allValues = vmBuckets.map(b => b.values).flat();
 
-  return vmBuckets.map(bucket => {
+  const result = vmBuckets.map(bucket => {
     const values = bucket.values.map((v) => {
-      const totalHits = allValues.filter(av => av[0] === v[0]).reduce((bucketSum, v) => bucketSum + +v[1], 0);
+      const totalHits = allValues
+        .filter(av => av[0] === v[0])
+        .reduce((bucketSum, v) => bucketSum + +v[1], 0);
+
       return [v[0], `${Math.round((+v[1] / totalHits) * 100)}`];
     });
 
     return { ...bucket, values };
   }) as MetricResult[];
+
+  return result.filter(r => !r.values.every(v => v[1] === "0"));
 };
