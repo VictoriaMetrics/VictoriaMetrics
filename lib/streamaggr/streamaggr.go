@@ -10,15 +10,19 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"gopkg.in/yaml.v2"
 )
 
 var supportedOutputs = []string{
@@ -210,6 +214,9 @@ type aggregator struct {
 	without             []string
 	aggregateOnlyByTime bool
 
+	// interval is the interval for aggregating input samples
+	interval time.Duration
+
 	// dedupAggr is set to non-nil if input samples must be de-duplicated according
 	// to the dedupInterval passed to newAggregator().
 	dedupAggr *lastAggrState
@@ -228,6 +235,10 @@ type aggregator struct {
 
 	wg     sync.WaitGroup
 	stopCh chan struct{}
+
+	// tooOldSamplesDroppedTotal is the total number of dropped samples due to being too old.
+	// stored in the aggregator in order to avoid creating a metric if aggregation is not used.
+	tooOldSamplesDroppedTotal *metrics.Counter
 }
 
 type aggrState interface {
@@ -362,6 +373,7 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		by:                  by,
 		without:             without,
 		aggregateOnlyByTime: aggregateOnlyByTime,
+		interval:            interval,
 
 		dedupAggr:  dedupAggr,
 		aggrStates: aggrStates,
@@ -370,6 +382,8 @@ func newAggregator(cfg *Config, pushFunc PushFunc, dedupInterval time.Duration) 
 		suffix: suffix,
 
 		stopCh: make(chan struct{}),
+
+		tooOldSamplesDroppedTotal: metrics.GetOrCreateCounter(`vmagent_streamaggr_samples_dropped_total{reason="too_old"}`),
 	}
 
 	if dedupAggr != nil {
@@ -507,6 +521,7 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
+	minAllowedTimestamp := int64(float64(fasttime.UnixTimestamp())-a.interval.Seconds()) * 1000
 	for _, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
@@ -535,6 +550,11 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
 		}
 
 		for _, sample := range ts.Samples {
+			if sample.Timestamp < minAllowedTimestamp {
+				// Skip too old samples.
+				trackDroppedSample(&ts, sample.Timestamp, minAllowedTimestamp, a.tooOldSamplesDroppedTotal)
+				continue
+			}
 			a.pushSample(inputKey, outputKey, sample.Value)
 		}
 	}
@@ -542,6 +562,21 @@ func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
 	promutils.PutLabels(tmpLabels)
 	promutils.PutLabels(labels)
 }
+
+func trackDroppedSample(ts *prompbmarshal.TimeSeries, actualTs, minTs int64, m *metrics.Counter) {
+	select {
+	case <-droppedSamplesLogTicker.C:
+		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
+		// because LabelsToString() will be called with each trackDroppedSample call.
+		lbs := promrelabel.LabelsToString(ts.Labels)
+		logger.Warnf("dropping a sample for metric %s with too old timestamp: %d; minimal accepted timestamp: %d", lbs, actualTs, minTs)
+	default:
+	}
+
+	m.Inc()
+}
+
+var droppedSamplesLogTicker = time.NewTicker(5 * time.Second)
 
 var bbPool bytesutil.ByteBufferPool
 
