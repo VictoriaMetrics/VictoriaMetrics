@@ -27,6 +27,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): integrate WITH template playground. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3811).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add a comparison of data from the previous day with data from the current day to the `Cardinality Explorer`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3967).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): display histogram metrics as a heatmap in the `explore metrics` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4111).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to specify default route (`default_url`) for processing non-matched requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4084). 
 
 * BUGFIX: reduce the probability of sudden increase in the number of small parts on systems with small number of CPU cores.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix performance issue when migrating data from VictoriaMetrics according to [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics). Add the ability to speed up the data migration via `--vm-native-disable-retries` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4092).
