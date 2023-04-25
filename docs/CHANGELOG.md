@@ -26,6 +26,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add support for the different time formats for `--vm-native-filter-time-start` and `--vm-native-filter-time-end` flags if the native binary protocol is used for migration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4091).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): integrate WITH template playground. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3811).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add a comparison of data from the previous day with data from the current day to the `Cardinality Explorer`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3967).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): display histogram metrics as a heatmap in the `explore metrics` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4111).
 * FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to filter incoming requests by IP. See [these docs](https://docs.victoriametrics.com/vmauth.html#ip-filters) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3491).
 
 * BUGFIX: reduce the probability of sudden increase in the number of small parts on systems with small number of CPU cores.
