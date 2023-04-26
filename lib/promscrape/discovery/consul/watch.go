@@ -62,10 +62,18 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 	for k, v := range sdc.NodeMeta {
 		baseQueryArgs += "&node-meta=" + url.QueryEscape(k+":"+v)
 	}
+
 	serviceNodesQueryArgs := baseQueryArgs
 	for _, tag := range sdc.Tags {
 		serviceNodesQueryArgs += "&tag=" + url.QueryEscape(tag)
 	}
+
+	// filter could be added only for baseQuery requests for /v1/catalog/services
+	// serviceNodesQueryArgs doesn't support it
+	if len(sdc.Filter) > 0 {
+		baseQueryArgs += "&filter=" + url.QueryEscape(sdc.Filter)
+	}
+
 	cw := &consulWatcher{
 		client:                client,
 		serviceNamesQueryArgs: baseQueryArgs,

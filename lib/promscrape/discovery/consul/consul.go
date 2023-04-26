@@ -34,6 +34,10 @@ type SDConfig struct {
 	NodeMeta          map[string]string          `yaml:"node_meta,omitempty"`
 	TagSeparator      *string                    `yaml:"tag_separator,omitempty"`
 	AllowStale        *bool                      `yaml:"allow_stale,omitempty"`
+	// See https://developer.hashicorp.com/consul/api-docs/features/filtering
+	// list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+	Filter string `yaml:"filter,omitempty"`
+
 	// RefreshInterval time.Duration `yaml:"refresh_interval"`
 	// refresh_interval is obtained from `-promscrape.consulSDCheckInterval` command-line option.
 }
