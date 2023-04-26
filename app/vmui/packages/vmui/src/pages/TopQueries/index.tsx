@@ -19,9 +19,8 @@ import classNames from "classnames";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
-const Index: FC = () => {
+const TopQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
-
   const { data, error, loading } = useFetchTopQueries();
   const { topN, maxLifetime } = useTopQueriesState();
   const topQueriesDispatch = useTopQueriesDispatch();
@@ -180,4 +179,4 @@ const Index: FC = () => {
   );
 };
 
-export default Index;
+export default TopQueries;

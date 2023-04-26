@@ -62,6 +62,10 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 - `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
 - `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for the given `username`.
+- `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
 
 ## Auth config
@@ -152,6 +156,46 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+
+  # A single user for querying and inserting data:
+  # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
+  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
+  #     - http://vmselect1:8481/select/42/prometheus
+  #     - http://vmselect2:8481/select/42/prometheus
+  #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
+  #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
+  # The requests which do not match `src_paths` from the `url_map` will be proxied to the urls rom `default_url` 
+  # in a round-robin manner (with request path in `request_path` query param).
+  # For example, request to http://vmauth:8427/non/existing/path will be proxied:
+  #  - to http://default1:8888/process?request_path=/non/existing/path
+  #  - or http://default2:8888/process?request_path=/non/existing/path
+- username: "foobar"
+  url_map:
+    - src_paths:
+        - "/api/v1/query"
+        - "/api/v1/query_range"
+        - "/api/v1/label/[^/]+/values"
+      url_prefix:
+        - "http://vmselect1:8481/select/42/prometheus"
+        - "http://vmselect2:8481/select/42/prometheus"
+    - src_paths: ["/api/v1/write"]
+      url_prefix: "http://vminsert:8480/insert/42/prometheus"
+  default_url: 
+    - "http://default1:8888/process"
+    - "http://default2:8888/process"
+
+# This requests will be executed for requests without Authorization header.
+# For instance, http://vmauth:8427/api/v1/query will be proxied to http://vmselect1:8481/select/0/prometheus/api/v1/query
+unauthorized_user:
+  url_map:
+    - src_paths:
+        - /health
+        - /api/v1/query/
+        - /api/v1/query_range
+      url_prefix:
+        - http://vmselect1:8481/select/0/prometheus
+        - http://vmselect2:8481/select/0/prometheus
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -193,6 +237,8 @@ users:
   name: "foobar"
   # other config options here
 ```
+
+For unauthorized users `vmauth` exports `vmauth_unauthorized_user_requests_total` metric without label (if `unauthorized_user` section of config is used).
 
 ## How to build from sources
 
@@ -285,6 +331,8 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
      Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
+  -http.maxConcurrentRequests int
+     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
   -http.maxGracefulShutdownDuration duration
      The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string

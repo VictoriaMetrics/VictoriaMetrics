@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/url"
 	"path"
 	"strings"
@@ -30,19 +29,18 @@ func mergeURLs(uiURL, requestURI *url.URL) *url.URL {
 	return &targetURL
 }
 
-func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header, error) {
+func (ui *UserInfo) getURLPrefixAndHeaders(u *url.URL) (*URLPrefix, []Header) {
 	for _, e := range ui.URLMaps {
 		for _, sp := range e.SrcPaths {
 			if sp.match(u.Path) {
-				return e.URLPrefix, e.Headers, nil
+				return e.URLPrefix, e.Headers
 			}
 		}
 	}
 	if ui.URLPrefix != nil {
-		return ui.URLPrefix, ui.Headers, nil
+		return ui.URLPrefix, ui.Headers
 	}
-	missingRouteRequests.Inc()
-	return nil, nil, fmt.Errorf("missing route for %q", u.String())
+	return nil, nil
 }
 
 func normalizeURL(uOrig *url.URL) *url.URL {
