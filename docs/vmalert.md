@@ -1160,7 +1160,8 @@ The shortlist of configuration flags is the following:
      Supports hierarchical patterns and regexpes.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules
-      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
+      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
+      -rule="dir/**/*.yaml". Includes to all .yaml files in "dir" folder and it's subfolders recursively. 
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
      
      Enterprise version of vmalert supports S3 and GCS paths to rules.
@@ -1183,6 +1184,7 @@ The shortlist of configuration flags is the following:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
+      -rule.templates="dir/**/*.tpl". Includes to all .tpl files in "dir" folder and it's subfolders recursively.
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.updateEntriesLimit int
      Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overriden per rule via update_entries_limit param. (default 20)
