@@ -62,7 +62,7 @@ email notifications are enabled for the account owner
 To test your notification settings, press Save and Test.
 
 If only Slack channels and webhook are specified correctly, you will receive the notification in the Slack channels.
-If only the emails are specified сщккуседн, you will receive notifications to those emails.
+If only the emails are specified, you will receive notifications to those emails.
 When both notifications are specified, all notifications will be sent to Slack channels and emails.
 
 <p>
