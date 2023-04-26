@@ -22,7 +22,8 @@ import (
 // MaxBlockSize is the maximum size of the block persistent queue can work with.
 const MaxBlockSize = 32 * 1024 * 1024
 
-const defaultChunkFileSize = (MaxBlockSize + 8) * 16
+// DefaultChunkFileSize represents default chunk file size
+const DefaultChunkFileSize = (MaxBlockSize + 8) * 16
 
 var chunkFileNameRegex = regexp.MustCompile("^[0-9A-F]{16}$")
 
@@ -122,7 +123,7 @@ func mustOpen(path, name string, maxPendingBytes int64) *queue {
 	if maxPendingBytes < 0 {
 		maxPendingBytes = 0
 	}
-	return mustOpenInternal(path, name, defaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
+	return mustOpenInternal(path, name, DefaultChunkFileSize, MaxBlockSize, uint64(maxPendingBytes))
 }
 
 func mustOpenInternal(path, name string, chunkFileSize, maxBlockSize, maxPendingBytes uint64) *queue {
