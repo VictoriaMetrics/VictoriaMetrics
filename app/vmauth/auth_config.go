@@ -45,6 +45,7 @@ type UserInfo struct {
 	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
 	Headers               []Header   `yaml:"headers,omitempty"`
 	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
+	DefaultURL            *URLPrefix `yaml:"default_url,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
@@ -413,6 +414,11 @@ func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 		}
 		if ui.URLPrefix != nil {
 			if err := ui.URLPrefix.sanitize(); err != nil {
+				return nil, err
+			}
+		}
+		if ui.DefaultURL != nil {
+			if err := ui.DefaultURL.sanitize(); err != nil {
 				return nil, err
 			}
 		}
