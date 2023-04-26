@@ -141,9 +141,11 @@ scrape_configs:
 
     # tags is an optional list of tags used to filter nodes for a given service.
     # Services must contain all tags in the list.
+    # Deprecated: use filter instead with ServiceTags selector.
     # tags: ["...", "..."]
 
     # node_meta is an optional node metadata key/value pairs to filter nodes for a given service.
+    # Deprecated: use filter instead with NodeMeta selector.
     # node_meta:
     #   "...": "..."
 
@@ -151,6 +153,13 @@ scrape_configs:
     # By default "," is used as a tag separator.
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
     # tag_separator: "..."
+
+    # filter is optional filter for service nodes discovery request. 
+    # Replaces tags and node_metadata options.
+    # consul supports it since 1.14 version
+    # list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+    # syntax examples https://developer.hashicorp.com/consul/api-docs/features/filtering
+    # filter: "..." 
 
     # allow_stale is an optional config, which allows stale Consul results.
     # See https://www.consul.io/api/features/consistency.html
