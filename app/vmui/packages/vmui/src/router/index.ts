@@ -6,7 +6,8 @@ const router = {
   topQueries: "/top-queries",
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
-  icons: "/icons" // for dev
+  relabel: "/relabeling",
+  icons: "/icons"
 };
 
 export interface RouterOptionsHeader {
@@ -68,6 +69,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   },
   [router.withTemplate]: {
     title: "WITH templates",
+    header: {}
+  },
+  [router.relabel]: {
+    title: "Metric relabel debug",
     header: {}
   },
   [router.icons]: {

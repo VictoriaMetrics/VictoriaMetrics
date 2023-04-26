@@ -12,6 +12,7 @@ import TracePage from "./pages/TracePage";
 import ExploreMetrics from "./pages/ExploreMetrics";
 import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
+import Relabel from "./pages/Relabel";
 
 const App: FC = () => {
 
@@ -55,6 +56,10 @@ const App: FC = () => {
                 <Route
                   path={router.withTemplate}
                   element={<WithTemplate/>}
+                />
+                <Route
+                  path={router.relabel}
+                  element={<Relabel/>}
                 />
                 <Route
                   path={router.icons}
