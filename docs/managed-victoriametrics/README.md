@@ -14,6 +14,7 @@ Guides:
 * [Quick Start](/managed-victoriametrics/quickstart.html)
 * [Kubernetes Monitoring with Managed VictoriaMetrics](/managed-victoriametrics/how-to-monitor-k8s.html)
 * [Understand Your Setup Size](/guides/understand-your-setup-size.html)
+* [Setup Notifications](/managed-victoriametrics/setup-notifications.html)
 
 
 See more about Managed VictoriaMetrics in the following articles:

@@ -183,6 +183,10 @@ func Get() (*textTpl.Template, error) {
 func FuncsWithQuery(query QueryFn) textTpl.FuncMap {
 	return textTpl.FuncMap{
 		"query": func(q string) ([]metric, error) {
+			if query == nil {
+				return nil, fmt.Errorf("cannot execute query %q: query is not available in this context", q)
+			}
+
 			result, err := query(q)
 			if err != nil {
 				return nil, err

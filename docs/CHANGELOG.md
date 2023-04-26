@@ -22,13 +22,16 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): store backup creation and completion time in `backup_complete.ignore` file of backup contents. This is useful to determine point in time when backup was created and completed.
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): add `created_at` field to the output of `/api/v1/backups` API and `vmbackupmanager backup list` command. See this [doc](https://docs.victoriametrics.com/vmbackupmanager.html#api-methods) for data format details.
 * FEATURE: deprecate `-bigMergeConcurrency` command-line flag, since improper configuration for this flag frequently led to uncontrolled growth of unmerged parts, which, in turn, could lead to queries slowdown and increased CPU usage. The concurrency for [background merges](https://docs.victoriametrics.com/#storage) can be controlled via `-smallMergeConcurrency` command-line flag, though it isn't recommended to do in general case.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): support new filtering options `filter` and `node_filter` for [consul service discovery](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4183) for details.
 * FEATURE: introduce `-http.maxConcurrentRequests` command-line flag to protect VM components from resource exhaustion during unexpected spikes of HTTP requests. By default, the new flag's value is set to 0 which means no limits are applied.
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add support for the different time formats for `--vm-native-filter-time-start` and `--vm-native-filter-time-end` flags if the native binary protocol is used for migration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4091).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): integrate WITH template playground. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3811).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add a comparison of data from the previous day with data from the current day to the `Cardinality Explorer`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3967).
 * FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): display histogram metrics as a heatmap in the `explore metrics` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4111).
 * FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support of recursive globs for `-rule` and `-rule.templates` by using `**` in the glob pattern. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4041).
-
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the metric relabel playground feature to the vmui. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3807).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to proxy requests for unauthorized users. See [this doc](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4083).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to specify default route (`default_url`) for processing non-matched requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4084). 
 
 * BUGFIX: reduce the probability of sudden increase in the number of small parts on systems with small number of CPU cores.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix performance issue when migrating data from VictoriaMetrics according to [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics). Add the ability to speed up the data migration via `--vm-native-disable-retries` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4092).
@@ -36,6 +39,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): retry failed read request on the closed connection one more time. This improves rules execution reliability when connection between vmalert and datasource closes unexpectedly.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the tenant selector. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4160).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix issue where vmui would freeze when adding a query that returned regular rows alongside a heatmap query.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly display an error when using `query` function for templating value of `-external.alert.source` flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4181).
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
