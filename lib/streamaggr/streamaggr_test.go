@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/prometheus"
@@ -717,6 +718,72 @@ foo-1m-without-abc-sum-samples{new_label="must_keep_metric_name"} 12.5
 `, "1111")
 }
 
+func TestDiscardsSamplesWithOldTimestamps(t *testing.T) {
+	f := func(interval string, inputTs int64, mustMatch bool) {
+		t.Helper()
+
+		config := fmt.Sprintf(`
+- interval: %s
+  outputs: ["avg"]
+`, interval)
+		input := `
+cpu_usage{cpu="1"} 1
+`
+		expected := fmt.Sprintf(`cpu_usage:%s_avg{cpu="1"} 1
+`, interval)
+		if !mustMatch {
+			expected = ""
+		}
+
+		// Initialize Aggregators
+		var tssOutput []prompbmarshal.TimeSeries
+		var tssOutputLock sync.Mutex
+		pushFunc := func(tss []prompbmarshal.TimeSeries) {
+			tssOutputLock.Lock()
+			for _, ts := range tss {
+				labelsCopy := append([]prompbmarshal.Label{}, ts.Labels...)
+				samplesCopy := append([]prompbmarshal.Sample{}, ts.Samples...)
+				tssOutput = append(tssOutput, prompbmarshal.TimeSeries{
+					Labels:  labelsCopy,
+					Samples: samplesCopy,
+				})
+			}
+			tssOutputLock.Unlock()
+		}
+		a, err := NewAggregatorsFromData([]byte(config), pushFunc, 0)
+		if err != nil {
+			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+
+		// Push the inputMetrics to Aggregators
+		tssInput := mustParsePromMetricsSetTS(input, inputTs)
+		a.Push(tssInput)
+		a.MustStop()
+
+		// Verify the tssOutput contains the expected metrics
+		tsStrings := make([]string, len(tssOutput))
+		for i, ts := range tssOutput {
+			tsStrings[i] = timeSeriesToString(ts)
+		}
+		sort.Strings(tsStrings)
+		outputMetrics := strings.Join(tsStrings, "")
+		if outputMetrics != expected {
+			t.Fatalf("unexpected output metrics;\ngot\n%s\nwant\n%s", outputMetrics, expected)
+		}
+	}
+	currentTs := func() int64 {
+		return int64(fasttime.UnixTimestamp() * 1000)
+	}
+
+	f("1m", currentTs(), true)
+	f("1h", currentTs()-120*1000, true)
+	f("24h", currentTs()-60*60*1000, true)
+
+	f("1m", currentTs()-120*1000, false)
+	f("1h", currentTs()-2*60*60*1000*1000, false)
+	f("24h", currentTs()-25*60*60*1000, false)
+}
+
 func TestAggregatorsWithDedupInterval(t *testing.T) {
 	f := func(config, inputMetrics, outputMetricsExpected, matchIdxsStrExpected string) {
 		t.Helper()
@@ -812,6 +879,10 @@ func timeSeriesToString(ts prompbmarshal.TimeSeries) string {
 }
 
 func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
+	return mustParsePromMetricsSetTS(s, int64(fasttime.UnixTimestamp()*1000))
+}
+
+func mustParsePromMetricsSetTS(s string, timestamp int64) []prompbmarshal.TimeSeries {
 	var rows prometheus.Rows
 	errLogger := func(s string) {
 		panic(fmt.Errorf("unexpected error when parsing Prometheus metrics: %s", s))
@@ -820,6 +891,10 @@ func mustParsePromMetrics(s string) []prompbmarshal.TimeSeries {
 	var tss []prompbmarshal.TimeSeries
 	samples := make([]prompbmarshal.Sample, 0, len(rows.Rows))
 	for _, row := range rows.Rows {
+		if row.Timestamp == 0 && timestamp != 0 {
+			row.Timestamp = timestamp
+		}
+
 		labels := make([]prompbmarshal.Label, 0, len(row.Tags)+1)
 		labels = append(labels, prompbmarshal.Label{
 			Name:  "__name__",
