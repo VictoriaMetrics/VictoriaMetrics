@@ -33,7 +33,7 @@ var (
 func Parse(req *http.Request, callback func(rows []opentsdbhttp.Row) error) error {
 	wcr := writeconcurrencylimiter.GetReader(req.Body)
 	defer writeconcurrencylimiter.PutReader(wcr)
-	r := io.Reader(req.Body)
+	r := io.Reader(wcr)
 
 	readCalls.Inc()
 	if req.Header.Get("Content-Encoding") == "gzip" {
