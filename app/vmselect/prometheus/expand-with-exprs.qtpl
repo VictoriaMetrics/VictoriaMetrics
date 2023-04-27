@@ -1,4 +1,5 @@
 {% import (
+    "fmt"
 	"github.com/VictoriaMetrics/metricsql"
 ) %}
 
@@ -243,3 +244,31 @@ WITH (
 </pre>
 
 {% endfunc %}
+
+{% stripspace %}
+{% func ExpandWithExprsJSONResponse(q string) %}
+    {%= expandWithExprsJSON(q) %}
+{% endfunc %}
+
+{% func expandWithExprsJSON(q string) %}
+    {% if len(q) == 0 %}
+        {
+            "status": "error",
+            "error": "query string cannot be empty"
+        }
+        {% return %}
+    {% endif %}
+
+{
+    {% code	expr, err := metricsql.Parse(q) %}
+        {% if err != nil %}
+                "status": "error",
+                "error": {%q= fmt.Sprintf("Cannot parse query: %s", err) %}
+        {% else %}
+        {% code expr = metricsql.Optimize(expr) %}
+                "status": "success",
+                "expr": {%q= string(expr.AppendString(nil)) %}
+        {% endif %}
+}
+{% endfunc %}
+{% endstripspace %}

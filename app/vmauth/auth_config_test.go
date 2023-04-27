@@ -360,6 +360,83 @@ users:
 			URLPrefix: mustParseURL("https://bar/x"),
 		},
 	})
+	// with default url
+	f(`
+users:
+- bearer_token: foo
+  url_map:
+  - src_paths: ["/api/v1/query","/api/v1/query_range","/api/v1/label/[^./]+/.+"]
+    url_prefix: http://vmselect/select/0/prometheus
+  - src_paths: ["/api/v1/write"]
+    url_prefix: ["http://vminsert1/insert/0/prometheus","http://vminsert2/insert/0/prometheus"]
+    headers:
+    - "foo: bar"
+    - "xxx: y"
+  default_url: 
+  - http://default1/select/0/prometheus
+  - http://default2/select/0/prometheus
+`, map[string]*UserInfo{
+		getAuthToken("foo", "", ""): {
+			BearerToken: "foo",
+			URLMaps: []URLMap{
+				{
+					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
+				},
+				{
+					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					URLPrefix: mustParseURLs([]string{
+						"http://vminsert1/insert/0/prometheus",
+						"http://vminsert2/insert/0/prometheus",
+					}),
+					Headers: []Header{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+						{
+							Name:  "xxx",
+							Value: "y",
+						},
+					},
+				},
+			},
+			DefaultURL: mustParseURLs([]string{
+				"http://default1/select/0/prometheus",
+				"http://default2/select/0/prometheus",
+			}),
+		},
+		getAuthToken("", "foo", ""): {
+			BearerToken: "foo",
+			URLMaps: []URLMap{
+				{
+					SrcPaths:  getSrcPaths([]string{"/api/v1/query", "/api/v1/query_range", "/api/v1/label/[^./]+/.+"}),
+					URLPrefix: mustParseURL("http://vmselect/select/0/prometheus"),
+				},
+				{
+					SrcPaths: getSrcPaths([]string{"/api/v1/write"}),
+					URLPrefix: mustParseURLs([]string{
+						"http://vminsert1/insert/0/prometheus",
+						"http://vminsert2/insert/0/prometheus",
+					}),
+					Headers: []Header{
+						{
+							Name:  "foo",
+							Value: "bar",
+						},
+						{
+							Name:  "xxx",
+							Value: "y",
+						},
+					},
+				},
+			},
+			DefaultURL: mustParseURLs([]string{
+				"http://default1/select/0/prometheus",
+				"http://default2/select/0/prometheus",
+			}),
+		},
+	})
 
 }
 

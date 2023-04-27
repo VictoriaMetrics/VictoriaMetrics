@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from "preact/compat";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { useFetchQuery } from "../../../hooks/useFetchQuery";
 import { useGraphDispatch, useGraphState } from "../../../state/graph/GraphStateContext";
 import GraphView from "../../Views/GraphView/GraphView";
@@ -10,6 +10,7 @@ import Button from "../../Main/Button/Button";
 import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { getDurationFromMilliseconds, getSecondsFromDuration, getStepFromDuration } from "../../../utils/time";
 import useBoolean from "../../../hooks/useBoolean";
 
 interface ExploreMetricItemGraphProps {
@@ -27,14 +28,19 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   instance,
   rateEnabled,
   isBucket,
-  height
+  height,
 }) => {
   const { isMobile } = useDeviceDetect();
   const { customStep, yaxis } = useGraphState();
   const { period } = useTimeState();
-
   const graphDispatch = useGraphDispatch();
   const timeDispatch = useTimeDispatch();
+
+  const defaultStep = getStepFromDuration(period.end - period.start);
+  const stepSeconds = getSecondsFromDuration(customStep);
+  const heatmapStep = getDurationFromMilliseconds(stepSeconds * 10 * 1000);
+  const [isHeatmap, setIsHeatmap] = useState(false);
+  const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
 
   const {
     value: showAllSeries,
@@ -53,22 +59,7 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
 
     const base = `{${params.join(",")}}`;
     if (isBucket) {
-      if (instance) {
-        return `
-label_map(
-  histogram_quantiles("__name__", 0.5, 0.95, 0.99, sum(rate(${base})) by (vmrange, le)),
-  "__name__",
-  "0.5", "q50",
-  "0.95", "q95",
-  "0.99", "q99",
-)`;
-      }
-      return `
-with (q = histogram_quantile(0.95, sum(rate(${base})) by (instance, vmrange, le))) (
-  alias(min(q), "q95min"),
-  alias(max(q), "q95max"),
-  alias(avg(q), "q95avg"),
-)`;
+      return `sum(rate(${base})) by (vmrange, le)`;
     }
     const queryBase = rateEnabled ? `rollup_rate(${base})` : `rollup(${base})`;
     return `
@@ -79,10 +70,10 @@ with (q = ${queryBase}) (
 )`;
   }, [name, job, instance, rateEnabled, isBucket]);
 
-  const { isLoading, graphData, error, warning } = useFetchQuery({
+  const { isLoading, graphData, error, warning, isHistogram } = useFetchQuery({
     predefinedQuery: [query],
     visible: true,
-    customStep,
+    customStep: step,
     showAllSeries
   });
 
@@ -93,6 +84,10 @@ with (q = ${queryBase}) (
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
+
+  useEffect(() => {
+    setIsHeatmap(isHistogram);
+  }, [isHistogram]);
 
   return (
     <div
@@ -119,13 +114,14 @@ with (q = ${queryBase}) (
         <GraphView
           data={graphData}
           period={period}
-          customStep={customStep}
+          customStep={step}
           query={[query]}
           yaxis={yaxis}
           setYaxisLimits={setYaxisLimits}
           setPeriod={setPeriod}
           showLegend={false}
           height={height}
+          isHistogram={isHistogram}
         />
       )}
     </div>

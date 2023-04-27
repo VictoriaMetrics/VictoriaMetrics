@@ -14,9 +14,9 @@ func TestCreateTargetURLSuccess(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, headers, err := ui.getURLPrefixAndHeaders(u)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
+		up, headers := ui.getURLPrefixAndHeaders(u)
+		if up == nil {
+			t.Fatalf("cannot determie backend: %s", err)
 		}
 		bu := up.getLeastLoadedBackendURL()
 		target := mergeURLs(bu.url, u)
@@ -124,10 +124,7 @@ func TestCreateTargetURLFailure(t *testing.T) {
 			t.Fatalf("cannot parse %q: %s", requestURI, err)
 		}
 		u = normalizeURL(u)
-		up, headers, err := ui.getURLPrefixAndHeaders(u)
-		if err == nil {
-			t.Fatalf("expecting non-nil error")
-		}
+		up, headers := ui.getURLPrefixAndHeaders(u)
 		if up != nil {
 			t.Fatalf("unexpected non-empty up=%#v", up)
 		}
