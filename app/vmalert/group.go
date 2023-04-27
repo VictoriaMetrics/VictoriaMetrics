@@ -139,15 +139,15 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 			r.Labels = mergeLabels(g.Name, r.Name(), extraLabels, r.Labels)
 		}
 
-		rules[i] = g.newRule(qb, r, g.NotifierHeaders)
+		rules[i] = g.newRule(qb, r)
 	}
 	g.Rules = rules
 	return g
 }
 
-func (g *Group) newRule(qb datasource.QuerierBuilder, rule config.Rule, notifierHeaders map[string]string) Rule {
+func (g *Group) newRule(qb datasource.QuerierBuilder, rule config.Rule) Rule {
 	if rule.Alert != "" {
-		return newAlertingRule(qb, g, rule, notifierHeaders)
+		return newAlertingRule(qb, g, rule)
 	}
 	return newRecordingRule(qb, g, rule)
 }
@@ -281,6 +281,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 		rw:                       rw,
 		notifiers:                nts,
 		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+
+		notifierHeaders: g.NotifierHeaders,
 	}
 
 	evalTS := time.Now()
@@ -399,6 +401,8 @@ type executor struct {
 	// where `ruleID` is ID of the Rule within a Group
 	// and `ruleLabels` is []prompb.Label marshalled to a string
 	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
+
+	notifierHeaders map[string]string
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int) chan error {
@@ -491,7 +495,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 	for _, nt := range e.notifiers() {
 		wg.Add(1)
 		go func(nt notifier.Notifier) {
-			if err := nt.Send(ctx, alerts, ar.notifierHeaders); err != nil {
+			if err := nt.Send(ctx, alerts, e.notifierHeaders); err != nil {
 				errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
 			}
 			wg.Done()

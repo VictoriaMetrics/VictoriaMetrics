@@ -119,13 +119,13 @@ func TestUpdateWith(t *testing.T) {
 			qb := &fakeQuerier{}
 			for _, r := range tc.currentRules {
 				r.ID = config.HashRule(r)
-				g.Rules = append(g.Rules, g.newRule(qb, r, nil))
+				g.Rules = append(g.Rules, g.newRule(qb, r))
 			}
 
 			ng := &Group{Name: "test"}
 			for _, r := range tc.newRules {
 				r.ID = config.HashRule(r)
-				ng.Rules = append(ng.Rules, ng.newRule(qb, r, nil))
+				ng.Rules = append(ng.Rules, ng.newRule(qb, r))
 			}
 
 			err := g.updateWith(ng)
