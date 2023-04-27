@@ -10,10 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/yaml.v2"
-
-	"github.com/VictoriaMetrics/metrics"
-
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -23,6 +19,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
+	"github.com/VictoriaMetrics/metrics"
+	"gopkg.in/yaml.v2"
 )
 
 var supportedOutputs = []string{
@@ -569,7 +567,7 @@ func trackDroppedSample(ts *prompbmarshal.TimeSeries, actualTs, minTs int64, m *
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
 		// because LabelsToString() will be called with each trackDroppedSample call.
 		lbs := promrelabel.LabelsToString(ts.Labels)
-		logger.Warnf("dropping a sample for metric %s with too old timestamp: %d; minimal accepted timestamp: %d", lbs, actualTs, minTs)
+		logger.Warnf("skipping a sample for metric %s at streaming aggregation: timestamp too old: %d; minimal accepted timestamp: %d", lbs, actualTs, minTs)
 	default:
 	}
 
