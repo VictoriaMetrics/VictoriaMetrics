@@ -2,6 +2,9 @@ package config
 
 import (
 	"fmt"
+	"io"
+	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -31,18 +34,39 @@ var (
 	fsRegistry   = make(map[string]FS)
 )
 
-// readFromFS parses the given path list and inits FS for each item.
-// Once inited, readFromFS will try to read and return files from each FS.
-// readFromFS returns an error if at least one FS failed to init.
+// readFromFSOrHTTP reads path either from filesystem or from http if path starts with http or https.
+// when reading from filesystem, parses the given path list and inits FS for each item.
+// Once initialed, readFromFSOrHTTP will try to read and return files from each FS.
+// readFromFSOrHTTP returns an error if at least one FS failed to init.
 // The function can be called multiple times but each unique path
-// will be inited only once.
+// will be initialed only once.
 //
-// It is allowed to mix different FS types in path list.
-func readFromFS(paths []string) (map[string][]byte, error) {
-	var err error
+// It is allowed to mix different FS types and url in path list.
+func readFromFSOrHTTP(paths []string) (map[string][]byte, error) {
 	result := make(map[string][]byte)
 	for _, path := range paths {
+		if isHTTPURL(path) {
+			// reads remote file via http or https, if url is given
+			resp, err := http.Get(path)
+			if err != nil {
+				return nil, fmt.Errorf("cannot fetch %q: %w", path, err)
+			}
+			data, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				if len(data) > 4*1024 {
+					data = data[:4*1024]
+				}
+				return nil, fmt.Errorf("unexpected status code when fetching %q: %d, expecting %d; response: %q", path, resp.StatusCode, http.StatusOK, data)
+			}
+			if err != nil {
+				return nil, fmt.Errorf("cannot read %q: %s", path, err)
+			}
+			result[path] = data
+			continue
+		}
 
+		var err error
 		fsRegistryMu.Lock()
 		fs, ok := fsRegistry[path]
 		if !ok {
@@ -84,6 +108,7 @@ func readFromFS(paths []string) (map[string][]byte, error) {
 			result[k] = v
 		}
 	}
+
 	return result, nil
 }
 
@@ -105,4 +130,10 @@ func newFS(path string) (FS, error) {
 	default:
 		return nil, fmt.Errorf("unsupported scheme %q", scheme)
 	}
+}
+
+// isHTTPURL checks if a given targetURL is valid and contains a valid http scheme
+func isHTTPURL(targetURL string) bool {
+	parsed, err := url.Parse(targetURL)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }

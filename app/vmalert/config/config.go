@@ -208,8 +208,7 @@ var cLogger = &log.Logger{}
 func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	cLogger.Suppress(true)
 	defer cLogger.Suppress(false)
-
-	files, err := readFromFS(pathPatterns)
+	files, err := readFromFSOrHTTP(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
@@ -218,7 +217,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	files, err := readFromFS(pathPatterns)
+	files, err := readFromFSOrHTTP(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}

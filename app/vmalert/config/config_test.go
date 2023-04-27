@@ -64,6 +64,10 @@ func TestParseBad(t *testing.T) {
 			[]string{"testdata/dir/rules6-bad.rules"},
 			"missing ':' in header",
 		},
+		{
+			[]string{"http://unreachable-url"},
+			"dial tcp: lookup unreachable-url: no such host",
+		},
 	}
 	for _, tc := range testCases {
 		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
@@ -102,7 +106,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "group name must be set",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Record: "record",
@@ -113,7 +118,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Record: "record",
@@ -125,7 +131,8 @@ func TestGroup_Validate(t *testing.T) {
 			validateExpressions: true,
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -139,7 +146,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -156,7 +164,8 @@ func TestGroup_Validate(t *testing.T) {
 			validateAnnotations: true,
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -171,7 +180,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -184,7 +194,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Record: "record", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -197,7 +208,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -210,7 +222,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Record: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -223,7 +236,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test thanos",
+			group: &Group{
+				Name: "test thanos",
 				Type: NewRawType("thanos"),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -235,7 +249,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "unknown datasource type",
 		},
 		{
-			group: &Group{Name: "test graphite",
+			group: &Group{
+				Name: "test graphite",
 				Type: NewGraphiteType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -247,7 +262,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "",
 		},
 		{
-			group: &Group{Name: "test prometheus",
+			group: &Group{
+				Name: "test prometheus",
 				Type: NewPrometheusType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
