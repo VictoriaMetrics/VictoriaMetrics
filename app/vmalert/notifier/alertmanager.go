@@ -51,16 +51,16 @@ func (am *AlertManager) Close() {
 func (am AlertManager) Addr() string { return am.addr }
 
 // Send an alert or resolve message
-func (am *AlertManager) Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) error {
+func (am *AlertManager) Send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
-	err := am.send(ctx, alerts, notifierHeaders)
+	err := am.send(ctx, alerts, headers)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}
 	return err
 }
 
-func (am *AlertManager) send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) error {
+func (am *AlertManager) send(ctx context.Context, alerts []Alert, headers map[string]string) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
 
@@ -69,7 +69,7 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert, notifierHeader
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	for key, value := range notifierHeaders {
+	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
 
