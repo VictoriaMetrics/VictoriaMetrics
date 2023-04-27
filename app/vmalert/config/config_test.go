@@ -538,6 +538,24 @@ rules:
 `)
 	})
 
+	t.Run("`notifier_headers` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+notifier_headers:
+  - "TenantID: foo"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+notifier_headers:
+  - "TenantID: bar"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`)
+	})
+
 	t.Run("`debug` change", func(t *testing.T) {
 		f(t, `
 name: TestGroup
