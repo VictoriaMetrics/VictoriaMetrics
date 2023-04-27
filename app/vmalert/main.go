@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -24,7 +26,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -33,6 +34,7 @@ Supports hierarchical patterns and regexpes.
 Examples:
  -rule="/path/to/file". Path to a single file with alerting rules
  -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
+ -rule="dir/**/*.yaml". Includes to all .yaml files in "dir" folder and it's subfolders recursively. 
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
 
 Enterprise version of vmalert supports S3 and GCS paths to rules.
@@ -47,7 +49,9 @@ See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-stor
 Examples:
  -rule.templates="/path/to/file". Path to a single file with go templates
  -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
-absolute path to all .tpl files in root.`)
+absolute path to all .tpl files in root.
+ -rule.templates="dir/**/*.tpl". Includes to all .tpl files in "dir" folder and it's subfolders recursively.
+`)
 
 	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
