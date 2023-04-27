@@ -8,7 +8,7 @@ import (
 func TestParseAgentFailure(t *testing.T) {
 	f := func(s string) {
 		t.Helper()
-		a, err := parseAgent([]byte(s))
+		a, err := ParseAgent([]byte(s))
 		if err == nil {
 			t.Fatalf("expecting non-nil error")
 		}
@@ -66,7 +66,7 @@ func TestParseAgentSuccess(t *testing.T) {
   }
 }
 `
-	a, err := parseAgent([]byte(data))
+	a, err := ParseAgent([]byte(data))
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

@@ -265,7 +265,7 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 			// Nothing changed.
 			return
 		}
-		sns, err := parseServiceNodes(data)
+		sns, err := ParseServiceNodes(data)
 		if err != nil {
 			logger.Errorf("cannot parse Consul serviceNodes response for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
 			return
