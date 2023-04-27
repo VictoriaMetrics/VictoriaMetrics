@@ -932,8 +932,6 @@ The shortlist of configuration flags is the following:
      Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
-  -http.maxConcurrentRequests int
-     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
   -http.maxGracefulShutdownDuration duration
      The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string
