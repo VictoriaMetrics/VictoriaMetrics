@@ -51,16 +51,16 @@ func (am *AlertManager) Close() {
 func (am AlertManager) Addr() string { return am.addr }
 
 // Send an alert or resolve message
-func (am *AlertManager) Send(ctx context.Context, alerts []Alert) error {
+func (am *AlertManager) Send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) error {
 	am.metrics.alertsSent.Add(len(alerts))
-	err := am.send(ctx, alerts)
+	err := am.send(ctx, alerts, notifierHeaders)
 	if err != nil {
 		am.metrics.alertsSendErrors.Add(len(alerts))
 	}
 	return err
 }
 
-func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
+func (am *AlertManager) send(ctx context.Context, alerts []Alert, notifierHeaders map[string]string) error {
 	b := &bytes.Buffer{}
 	writeamRequest(b, alerts, am.argFunc, am.relabelConfigs)
 
@@ -69,6 +69,9 @@ func (am *AlertManager) send(ctx context.Context, alerts []Alert) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	for key, value := range notifierHeaders {
+		req.Header.Set(key, value)
+	}
 
 	if am.timeout > 0 {
 		var cancel context.CancelFunc
@@ -105,7 +108,8 @@ const alertManagerPath = "/api/v2/alerts"
 
 // NewAlertManager is a constructor for AlertManager
 func NewAlertManager(alertManagerURL string, fn AlertURLGenerator, authCfg promauth.HTTPClientConfig,
-	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration) (*AlertManager, error) {
+	relabelCfg *promrelabel.ParsedConfigs, timeout time.Duration,
+) (*AlertManager, error) {
 	tls := &promauth.TLSConfig{}
 	if authCfg.TLSConfig != nil {
 		tls = authCfg.TLSConfig

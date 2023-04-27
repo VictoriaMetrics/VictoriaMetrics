@@ -90,10 +90,10 @@ func TestAlertManager_Send(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
-	if err := am.Send(context.Background(), []Alert{{}, {}}); err == nil {
+	if err := am.Send(context.Background(), []Alert{{}, {}}, nil); err == nil {
 		t.Error("expected connection error got nil")
 	}
-	if err := am.Send(context.Background(), []Alert{}); err == nil {
+	if err := am.Send(context.Background(), []Alert{}, nil); err == nil {
 		t.Error("expected wrong http code error got nil")
 	}
 	if err := am.Send(context.Background(), []Alert{{
@@ -102,7 +102,7 @@ func TestAlertManager_Send(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
-	}}); err != nil {
+	}}, nil); err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if c != 2 {
