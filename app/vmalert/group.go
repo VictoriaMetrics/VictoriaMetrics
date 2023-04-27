@@ -300,9 +300,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	e := &executor{
 		rw:                       rw,
 		notifiers:                nts,
+		notifierHeaders:          g.NotifierHeaders,
 		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
-
-		notifierHeaders: g.NotifierHeaders,
 	}
 
 	evalTS := time.Now()
@@ -379,6 +378,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			// ensure that staleness is tracked or existing rules only
 			e.purgeStaleSeries(g.Rules)
 
+			e.notifierHeaders = g.NotifierHeaders
+
 			if g.Interval != ng.Interval {
 				g.Interval = ng.Interval
 				t.Stop()
@@ -412,8 +413,10 @@ func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Du
 }
 
 type executor struct {
-	notifiers func() []notifier.Notifier
-	rw        *remotewrite.Client
+	notifiers       func() []notifier.Notifier
+	notifierHeaders map[string]string
+
+	rw *remotewrite.Client
 
 	previouslySentSeriesToRWMu sync.Mutex
 	// previouslySentSeriesToRW stores series sent to RW on previous iteration
@@ -421,8 +424,6 @@ type executor struct {
 	// where `ruleID` is ID of the Rule within a Group
 	// and `ruleLabels` is []prompb.Label marshalled to a string
 	previouslySentSeriesToRW map[uint64]map[string][]prompbmarshal.Label
-
-	notifierHeaders map[string]string
 }
 
 func (e *executor) execConcurrently(ctx context.Context, rules []Rule, ts time.Time, concurrency int, resolveDuration time.Duration, limit int) chan error {
