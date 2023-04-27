@@ -28,19 +28,6 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 	data := `
 [
   {
-    "Node": {
-      "ID": "40e4a748-2192-161a-0510-9bf59fe950b5",
-      "Node": "foobar",
-      "Address": "10.1.10.12",
-      "Datacenter": "dc1",
-      "TaggedAddresses": {
-        "lan": "10.1.10.12",
-        "wan": "10.1.10.12"
-      },
-      "Meta": {
-        "instance_type": "t2.medium"
-      }
-    },
     "Service": {
       "ID": "redis",
       "Service": "redis",
@@ -112,7 +99,7 @@ func TestParseServiceNodesSuccess(t *testing.T) {
   },
   "Config": {
     "Datacenter": "dc1",
-    "NodeName": "foobar",
+    "NodeName": "foobar"
   },
   "Meta": {
     "instance_type": "t2.medium"
@@ -136,14 +123,13 @@ func TestParseServiceNodesSuccess(t *testing.T) {
 			"__meta_consulagent_metadata_instance_type":         "t2.medium",
 			"__meta_consulagent_namespace":                      "ns-dev",
 			"__meta_consulagent_node":                           "foobar",
-			"__meta_consulagent_partition":                      "part-foobar",
 			"__meta_consulagent_service":                        "redis",
 			"__meta_consulagent_service_address":                "10.1.10.12",
 			"__meta_consulagent_service_id":                     "redis",
 			"__meta_consulagent_service_metadata_redis_version": "4.0",
 			"__meta_consulagent_service_port":                   "8000",
-			"__meta_consulagent_tagged_address_lan":             "10.1.10.12",
-			"__meta_consulagent_tagged_address_wan":             "10.1.10.12",
+			"__meta_consulagent_tagged_address_lan":             "10.1.10.12:8000",
+			"__meta_consulagent_tagged_address_wan":             "198.18.1.2:80",
 			"__meta_consulagent_tag_foo":                        "bar",
 			"__meta_consulagent_tag_primary":                    "",
 			"__meta_consulagent_tagpresent_foo":                 "true",

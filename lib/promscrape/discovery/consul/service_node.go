@@ -133,10 +133,6 @@ func (sn *ServiceNode) appendTargetLabels(ms []*promutils.Labels, serviceName, t
 	for k, v := range sn.Node.TaggedAddresses {
 		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_tagged_address_"+k), v)
 	}
-	for k, v := range sn.Service.TaggedAddresses {
-		address := fmt.Sprintf("%s:%d", v.Address, v.Port)
-		m.Add(discoveryutils.SanitizeLabelName("__meta_consul_tagged_address_"+k), address)
-	}
 	ms = append(ms, m)
 	return ms
 }
