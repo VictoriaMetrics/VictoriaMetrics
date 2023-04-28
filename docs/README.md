@@ -573,7 +573,8 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 
 Note that InfluxDB line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
-while VictoriaMetrics stores them with *milliseconds* precision.
+while VictoriaMetrics stores them with *milliseconds* precision. It is allowed to ingest timestamps with seconds,
+microseconds or nanoseconds precision - VictoriaMetrics will automatically convert them to milliseconds.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
