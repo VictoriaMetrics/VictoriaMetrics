@@ -40,6 +40,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the tenant selector. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4160).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix issue where vmui would freeze when adding a query that returned regular rows alongside a heatmap query.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly display an error when using `query` function for templating value of `-external.alert.source` flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4181).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return empty slices instead of nil for `/api/v1/rules` and `/api/v1/alerts` API handlers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221). 
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
