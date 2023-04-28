@@ -115,6 +115,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
 			defer func() { <-concurrencyLimitCh }()
+		case <-r.Context().Done():
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
+			logger.Infof("client has cancelled the request: remoteAddr=%s, requestURI: %q",
+				remoteAddr, requestURI)
+			return true
 		case <-t.C:
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
