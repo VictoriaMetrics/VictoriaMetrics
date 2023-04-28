@@ -497,7 +497,7 @@
                     <span class="badge bg-primary rounded-pill me-3" title="Updated at">{%s u.time.Format(time.RFC3339) %}</span>
                  </td>
                  <td class="text-center">{%d u.samples %}</td>
-                 {% if u.seriesFetched != nil %}<td class="text-center">{%d *u.seriesFetched %}</td>{% endif %}
+                 {% if seriesFetchedEnabled %}<td class="text-center">{% if u.seriesFetched != nil %}{%d *u.seriesFetched %}{% endif %}</td>{% endif %}
                  <td class="text-center">{%f.3 u.duration.Seconds() %}s</td>
                  <td class="text-center">{%s u.at.Format(time.RFC3339) %}</td>
                  <td>
@@ -507,7 +507,7 @@
           </li>
           {% if u.err != nil %}
              <tr{% if u.err != nil %} class="alert-danger"{% endif %}>
-               <td colspan="5">
+               <td colspan="{% if seriesFetchedEnabled %}6{%else%}5{%endif%}">
                    <span class="alert-danger">{%v u.err %}</span>
                </td>
              </tr>

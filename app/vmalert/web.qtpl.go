@@ -1452,11 +1452,15 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 		qw422016.N().S(`</td>
                  `)
 //line app/vmalert/web.qtpl:500
-		if u.seriesFetched != nil {
+		if seriesFetchedEnabled {
 //line app/vmalert/web.qtpl:500
 			qw422016.N().S(`<td class="text-center">`)
 //line app/vmalert/web.qtpl:500
-			qw422016.N().D(*u.seriesFetched)
+			if u.seriesFetched != nil {
+//line app/vmalert/web.qtpl:500
+				qw422016.N().D(*u.seriesFetched)
+//line app/vmalert/web.qtpl:500
+			}
 //line app/vmalert/web.qtpl:500
 			qw422016.N().S(`</td>`)
 //line app/vmalert/web.qtpl:500
@@ -1496,7 +1500,19 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 			}
 //line app/vmalert/web.qtpl:509
 			qw422016.N().S(`>
-               <td colspan="5">
+               <td colspan="`)
+//line app/vmalert/web.qtpl:510
+			if seriesFetchedEnabled {
+//line app/vmalert/web.qtpl:510
+				qw422016.N().S(`6`)
+//line app/vmalert/web.qtpl:510
+			} else {
+//line app/vmalert/web.qtpl:510
+				qw422016.N().S(`5`)
+//line app/vmalert/web.qtpl:510
+			}
+//line app/vmalert/web.qtpl:510
+			qw422016.N().S(`">
                    <span class="alert-danger">`)
 //line app/vmalert/web.qtpl:511
 			qw422016.E().V(u.err)

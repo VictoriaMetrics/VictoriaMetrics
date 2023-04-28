@@ -37,15 +37,10 @@
               if (group.length > 0) {
                 group.click();
               }
-
-
             });
 
             $(document).ready(function() {
-              var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-              var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                return new bootstrap.Tooltip(tooltipTriggerEl)
-              })
+                $('[data-bs-toggle="tooltip"]').tooltip();
             });
         </script>
     </body>
