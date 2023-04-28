@@ -197,7 +197,7 @@ func (rh *requestHandler) groups() []APIGroup {
 	rh.m.groupsMu.RLock()
 	defer rh.m.groupsMu.RUnlock()
 
-	var groups []APIGroup
+	groups := make([]APIGroup, 0)
 	for _, g := range rh.m.groups {
 		groups = append(groups, g.toAPI())
 	}
@@ -259,6 +259,7 @@ func (rh *requestHandler) listAlerts() ([]byte, error) {
 	defer rh.m.groupsMu.RUnlock()
 
 	lr := listAlertsResponse{Status: "success"}
+	lr.Data.Alerts = make([]*APIAlert, 0)
 	for _, g := range rh.m.groups {
 		for _, r := range g.Rules {
 			a, ok := r.(*AlertingRule)
