@@ -1,5 +1,13 @@
 ---
 sort: 98
+weight: 98
+title: streaming aggregation
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 98
+aliases:
+- /stream-aggregation.html
 ---
 
 # streaming aggregation

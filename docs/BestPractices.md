@@ -1,5 +1,13 @@
 ---
 sort: 20
+weight: 20
+title: VictoriaMetrics best practices
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 20
+aliases:
+- /BestPractices.html
 ---
 
 # VictoriaMetrics best practices

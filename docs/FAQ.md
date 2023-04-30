@@ -1,5 +1,13 @@
 ---
 sort: 15
+weight: 15
+title: FAQ
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 15
+aliases:
+- /FAQ.html
 ---
 
 # FAQ

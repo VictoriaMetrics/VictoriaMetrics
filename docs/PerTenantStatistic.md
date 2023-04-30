@@ -1,5 +1,13 @@
 ---
 sort: 19
+weight: 19
+title: VictoriaMetrics Cluster Per Tenant Statistic
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 19
+aliases:
+- /PerTenantStatistic.html
 ---
 
 # VictoriaMetrics Cluster Per Tenant Statistic
