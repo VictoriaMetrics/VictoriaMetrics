@@ -1,5 +1,11 @@
 ---
 sort: 21
+weight: 21
+title: VictoriaMetrics API examples
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 21
 ---
 
 # VictoriaMetrics API examples

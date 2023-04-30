@@ -1,5 +1,13 @@
 ---
 sort: 2
+weight: 2
+title: Cluster version
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 2
+aliases:
+  - /Cluster-VictoriaMetrics.html
 ---
 
 # Cluster version

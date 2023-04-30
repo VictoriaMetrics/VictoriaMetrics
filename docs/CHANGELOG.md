@@ -1,5 +1,13 @@
 ---
 sort: 16
+weight: 16
+title: CHANGELOG
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 16
+aliases:
+- /CHANGELOG.html
 ---
 
 # CHANGELOG
