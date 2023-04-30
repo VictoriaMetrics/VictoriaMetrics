@@ -1,5 +1,13 @@
 ---
 sort: 99
+weight: 99
+title: VictoriaMetrics Enterprise
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 99
+aliases:
+- /enterprise.html
 ---
 
 # VictoriaMetrics enterprise

@@ -1,5 +1,6 @@
 ---
 sort: 100
+weight: 100
 ---
 
 # MetricsQL old page

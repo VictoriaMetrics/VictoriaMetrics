@@ -1,5 +1,12 @@
 ---
 sort: 23
+title: Troubleshooting
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 23
+aliases:
+- /Troubleshooting.html
 ---
 
 # Troubleshooting
