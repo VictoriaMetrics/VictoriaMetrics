@@ -1,5 +1,6 @@
 ---
 sort: 23
+weight: 23
 title: Troubleshooting
 menu:
   docs:
