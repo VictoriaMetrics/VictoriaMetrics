@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "managed"
     weight: 5
+aliases:
+- /managed-victoriametrics/user-managment.html
 ---
 # User Management in Managed VictoriaMetrics 
 
