@@ -21,16 +21,10 @@ import (
 // bucket owners can grant other users permission to delete the website
 // configuration by writing a bucket policy granting them the
 // S3:DeleteBucketWebsite permission. For more information about hosting websites,
-// see Hosting Websites on Amazon S3
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html). The
-// following operations are related to DeleteBucketWebsite:
-//
-// * GetBucketWebsite
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html)
-//
-// *
-// PutBucketWebsite
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)
+// see Hosting Websites on Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/WebsiteHosting.html)
+// . The following operations are related to DeleteBucketWebsite :
+//   - GetBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketWebsite.html)
+//   - PutBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketWebsite.html)
 func (c *Client) DeleteBucketWebsite(ctx context.Context, params *DeleteBucketWebsiteInput, optFns ...func(*Options)) (*DeleteBucketWebsiteOutput, error) {
 	if params == nil {
 		params = &DeleteBucketWebsiteInput{}
@@ -123,6 +117,9 @@ func (c *Client) addOperationDeleteBucketWebsiteMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addDeleteBucketWebsiteUpdateEndpoint(stack, options); err != nil {
