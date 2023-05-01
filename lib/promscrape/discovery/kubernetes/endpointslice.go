@@ -83,6 +83,7 @@ func (eps *EndpointSlice) getTargetLabels(gw *groupWatcher) []*promutils.Labels 
 				m.Add("__address__", addr)
 				p.appendCommonLabels(m, gw)
 				p.appendContainerLabels(m, c, &cp)
+				p.appendEndpointSliceLabels(m, eps)
 				if svc != nil {
 					svc.appendCommonLabels(m)
 				}
