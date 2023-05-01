@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "managed"
     weight: 2
+aliases:
+- /managed-victoriametrics/quickstart.html
 ---
 # Quick Start in Managed VictoriaMetrics
 

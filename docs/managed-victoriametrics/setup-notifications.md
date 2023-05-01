@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "managed"
     weight: 6
+aliases:
+- /managed-victoriametrics/setup-notifications.html
 ---
 # Notifications in Managed VictoriaMetrics
 

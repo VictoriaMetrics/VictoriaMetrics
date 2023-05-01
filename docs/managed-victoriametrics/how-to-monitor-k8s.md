@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "managed"
     weight: 3
+aliases:
+- /managed-victoriametrics/how-to-monitor-k8s.html
 ---
 # Kubernetes Monitoring with Managed VictoriaMetrics
 

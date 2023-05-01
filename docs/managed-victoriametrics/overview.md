@@ -6,6 +6,9 @@ menu:
   docs:
     parent: "managed"
     weight: 1
+aliases:
+- /managed-victoriametrics/overview.html
+- 
 ---
 
 # Overview of Managed VictoriaMetrics 
