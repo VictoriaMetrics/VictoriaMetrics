@@ -1,3 +1,13 @@
+---
+weight: 5
+title: How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
+menu:
+  docs:
+    parent: "guides"
+    weight: 5
+aliases:
+- /guides/grafana-vmgateway-openid-configuration.html
+---
 # How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
 
 Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway.html) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) access to your metrics.
