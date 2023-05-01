@@ -15,16 +15,11 @@ import (
 
 // Creates or modifies OwnershipControls for an Amazon S3 bucket. To use this
 // operation, you must have the s3:PutBucketOwnershipControls permission. For more
-// information about Amazon S3 permissions, see Specifying permissions in a policy
-// (https://docs.aws.amazon.com/AmazonS3/latest/user-guide/using-with-s3-actions.html).
-// For information about Amazon S3 Object Ownership, see Using object ownership
-// (https://docs.aws.amazon.com/AmazonS3/latest/user-guide/about-object-ownership.html).
-// The following operations are related to PutBucketOwnershipControls:
-//
-// *
-// GetBucketOwnershipControls
-//
-// * DeleteBucketOwnershipControls
+// information about Amazon S3 permissions, see Specifying permissions in a policy (https://docs.aws.amazon.com/AmazonS3/latest/user-guide/using-with-s3-actions.html)
+// . For information about Amazon S3 Object Ownership, see Using object ownership (https://docs.aws.amazon.com/AmazonS3/latest/user-guide/about-object-ownership.html)
+// . The following operations are related to PutBucketOwnershipControls :
+//   - GetBucketOwnershipControls
+//   - DeleteBucketOwnershipControls
 func (c *Client) PutBucketOwnershipControls(ctx context.Context, params *PutBucketOwnershipControlsInput, optFns ...func(*Options)) (*PutBucketOwnershipControlsOutput, error) {
 	if params == nil {
 		params = &PutBucketOwnershipControlsInput{}
@@ -130,6 +125,9 @@ func (c *Client) addOperationPutBucketOwnershipControlsMiddlewares(stack *middle
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addPutBucketOwnershipControlsInputChecksumMiddlewares(stack, options); err != nil {
 		return err
 	}
@@ -170,9 +168,9 @@ func addPutBucketOwnershipControlsInputChecksumMiddlewares(stack *middleware.Sta
 	})
 }
 
-// getPutBucketOwnershipControlsBucketMember returns a pointer to string denoting a
-// provided bucket member valueand a boolean indicating if the input has a modeled
-// bucket name,
+// getPutBucketOwnershipControlsBucketMember returns a pointer to string denoting
+// a provided bucket member valueand a boolean indicating if the input has a
+// modeled bucket name,
 func getPutBucketOwnershipControlsBucketMember(input interface{}) (*string, bool) {
 	in := input.(*PutBucketOwnershipControlsInput)
 	if in.Bucket == nil {

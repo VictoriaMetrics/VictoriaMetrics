@@ -16,17 +16,13 @@ import (
 // access control list (ACL) of a bucket. To use GET to return the ACL of the
 // bucket, you must have READ_ACP access to the bucket. If READ_ACP permission is
 // granted to the anonymous user, you can return the ACL of the bucket without
-// using an authorization header. To use this API against an access point, provide
-// the alias of the access point in place of the bucket name. If your bucket uses
-// the bucket owner enforced setting for S3 Object Ownership, requests to read ACLs
-// are still supported and return the bucket-owner-full-control ACL with the owner
-// being the account that created the bucket. For more information, see
-// Controlling object ownership and disabling ACLs
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// using an authorization header. If your bucket uses the bucket owner enforced
+// setting for S3 Object Ownership, requests to read ACLs are still supported and
+// return the bucket-owner-full-control ACL with the owner being the account that
+// created the bucket. For more information, see Controlling object ownership and
+// disabling ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide. Related Resources
-//
-// * ListObjects
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)
+//   - ListObjects (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)
 func (c *Client) GetBucketAcl(ctx context.Context, params *GetBucketAclInput, optFns ...func(*Options)) (*GetBucketAclOutput, error) {
 	if params == nil {
 		params = &GetBucketAclInput{}
@@ -126,6 +122,9 @@ func (c *Client) addOperationGetBucketAclMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketAclUpdateEndpoint(stack, options); err != nil {

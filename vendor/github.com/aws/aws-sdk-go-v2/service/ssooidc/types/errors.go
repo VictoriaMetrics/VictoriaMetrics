@@ -36,8 +36,8 @@ func (e *AccessDeniedException) ErrorCode() string {
 }
 func (e *AccessDeniedException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
-// Indicates that a request to authorize a client with an access user session token
-// is pending.
+// Indicates that a request to authorize a client with an access user session
+// token is pending.
 type AuthorizationPendingException struct {
 	Message *string
 
@@ -128,7 +128,7 @@ func (e *InternalServerException) ErrorFault() smithy.ErrorFault { return smithy
 
 // Indicates that the clientId or clientSecret in the request is invalid. For
 // example, this can occur when a client sends an incorrect clientId or an expired
-// clientSecret.
+// clientSecret .
 type InvalidClientException struct {
 	Message *string
 
@@ -157,8 +157,8 @@ func (e *InvalidClientException) ErrorCode() string {
 }
 func (e *InvalidClientException) ErrorFault() smithy.ErrorFault { return smithy.FaultClient }
 
-// Indicates that the client information sent in the request during registration is
-// invalid.
+// Indicates that the client information sent in the request during registration
+// is invalid.
 type InvalidClientMetadataException struct {
 	Message *string
 
