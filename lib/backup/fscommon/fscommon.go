@@ -10,36 +10,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
-// FsyncFile fsyncs path contents and the parent directory contents.
-func FsyncFile(path string) error {
-	if err := fsync(path); err != nil {
-		_ = os.RemoveAll(path)
-		return fmt.Errorf("cannot fsync file %q: %w", path, err)
-	}
-	dir := filepath.Dir(path)
-	if err := fsync(dir); err != nil {
-		return fmt.Errorf("cannot fsync dir %q: %w", dir, err)
-	}
-	return nil
-}
-
-// FsyncDir fsyncs dir contents.
-func FsyncDir(dir string) error {
-	return fsync(dir)
-}
-
-func fsync(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
-}
-
 // AppendFiles appends all the files from dir to dst.
 //
 // All the appended files will have dir prefix.
@@ -77,7 +47,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			// Do not take into account special files.
 			continue
 		}
-		path := dir + "/" + name
+		path := filepath.Join(dir, name)
 		if fi.IsDir() {
 			// Process directory
 			dst, err = AppendFiles(dst, path)
@@ -112,13 +82,13 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot list files at %q from symlink %q: %w", pathReal, path, err)
 			}
-			pathReal += "/"
+			pathReal += string(filepath.Separator)
 			for i := len(dst); i < len(dstNew); i++ {
 				x := dstNew[i]
 				if !strings.HasPrefix(x, pathReal) {
 					return nil, fmt.Errorf("unexpected prefix for path %q; want %q", x, pathReal)
 				}
-				dstNew[i] = path + "/" + x[len(pathReal):]
+				dstNew[i] = filepath.Join(path, x[len(pathReal):])
 			}
 			dst = dstNew
 			continue
@@ -182,7 +152,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		if name == "." || name == ".." {
 			continue
 		}
-		path := dir + "/" + name
+		path := filepath.Join(dir, name)
 		if fi.IsDir() {
 			// Process directory
 			ok, err := removeEmptyDirs(path)

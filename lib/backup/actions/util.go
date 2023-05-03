@@ -3,6 +3,7 @@ package actions
 import (
 	"flag"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -190,7 +191,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 	dir := path[n+len("://"):]
 	switch scheme {
 	case "fs":
-		if !strings.HasPrefix(dir, "/") {
+		if !filepath.IsAbs(dir) {
 			return nil, fmt.Errorf("dir must be absolute; got %q", dir)
 		}
 		fs := &fsremote.FS{

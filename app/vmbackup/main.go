@@ -155,7 +155,7 @@ See the docs at https://docs.victoriametrics.com/vmbackup.html .
 }
 
 func newSrcFS() (*fslocal.FS, error) {
-	snapshotPath := *storageDataPath + "/snapshots/" + *snapshotName
+	snapshotPath := filepath.Join(*storageDataPath, "snapshots", *snapshotName)
 
 	// Verify the snapshot exists.
 	f, err := os.Open(snapshotPath)
