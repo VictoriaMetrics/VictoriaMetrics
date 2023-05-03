@@ -3,7 +3,6 @@ package consulagent
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discoveryutils"
@@ -24,8 +23,10 @@ func getServiceNodesLabels(cfg *apiConfig) []*promutils.Labels {
 
 func appendTargetLabels(sn consul.ServiceNode, ms []*promutils.Labels, serviceName, tagSeparator string, agent *consul.Agent) []*promutils.Labels {
 	const metaPrefix = "__meta_consulagent_"
-
 	var addr string
+
+	// If the service address is not empty it should be used instead of the node address
+	// since the service may be registered remotely through a different node.
 	if sn.Service.Address != "" {
 		addr = discoveryutils.JoinHostPort(sn.Service.Address, sn.Service.Port)
 	} else {
@@ -43,27 +44,8 @@ func appendTargetLabels(sn consul.ServiceNode, ms []*promutils.Labels, serviceNa
 	m.Add(metaPrefix+"service_address", sn.Service.Address)
 	m.Add(metaPrefix+"service_id", sn.Service.ID)
 	m.Add(metaPrefix+"service_port", strconv.Itoa(sn.Service.Port))
-	// We surround the separated list with the separator as well. This way regular expressions
-	// in relabeling rules don't have to consider tag positions.
-	m.Add(metaPrefix+"tags", tagSeparator+strings.Join(sn.Service.Tags, tagSeparator)+tagSeparator)
 
-	// Expose individual tags via __meta_consul_tag_* labels, so users could move all the tags
-	// into the discovered scrape target with the following relabeling rule in the way similar to kubernetes_sd_configs:
-	//
-	// - action: labelmap
-	//   regex: __meta_consulagent_tag_(.+)
-	//
-	// This solves https://stackoverflow.com/questions/44339461/relabeling-in-prometheus
-	for _, tag := range sn.Service.Tags {
-		k := tag
-		v := ""
-		if n := strings.IndexByte(tag, '='); n >= 0 {
-			k = tag[:n]
-			v = tag[n+1:]
-		}
-		m.Add(discoveryutils.SanitizeLabelName(metaPrefix+"tag_"+k), v)
-		m.Add(discoveryutils.SanitizeLabelName(metaPrefix+"tagpresent_"+k), "true")
-	}
+	discoveryutils.AddTagsToLabels(m, sn.Service.Tags, metaPrefix, tagSeparator)
 
 	for k, v := range agent.Meta {
 		m.Add(discoveryutils.SanitizeLabelName(metaPrefix+"metadata_"+k), v)

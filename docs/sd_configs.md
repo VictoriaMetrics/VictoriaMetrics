@@ -196,11 +196,14 @@ The following meta labels are available on discovered targets during [relabeling
 
 The list of discovered Consul targets is refreshed at the interval, which can be configured via `-promscrape.consulSDCheckInterval` command-line flag.
 
+If you have performance issues with consul_sd_configs on a large cluster, then consider using [consulagent_sd_configs](#consulagent_sd_configs) instead.
+
 ## consulagent_sd_configs
 
 Consul Agent SD configuration allows retrieving scrape targets from [Consul's Agent API](https://developer.hashicorp.com/consul/api-docs/agent/service).
 When using the Agent API, each running vmagent will only get services registered in the local Consul Agent running on the same node when discovering new targets. 
-It's suitable for huge clusters for which using the Catalog API would be too slow or resource intensive.
+It's suitable for huge clusters for which using the [Catalog API](https://developer.hashicorp.com/consul/api-docs/catalog#list-services) would be too slow or resource intensive, 
+in other cases we recommend to use [consul_sd_configs](#consul_sd_configs).
 
 Configuration example:
 

@@ -235,7 +235,7 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 	}
 	serviceNames := make([]string, 0, len(m))
 	for serviceName, tags := range m {
-		if !shouldCollectServiceByName(cw.watchServices, serviceName) {
+		if !ShouldCollectServiceByName(cw.watchServices, serviceName) {
 			continue
 		}
 		if !shouldCollectServiceByTags(cw.watchTags, tags) {
@@ -307,7 +307,8 @@ func (cw *consulWatcher) getServiceNodesSnapshot() map[string][]ServiceNode {
 	return sns
 }
 
-func shouldCollectServiceByName(filterServices []string, serviceName string) bool {
+// ShouldCollectServiceByName returns true if the given serviceName must be collected (present in filterServices).
+func ShouldCollectServiceByName(filterServices []string, serviceName string) bool {
 	if len(filterServices) == 0 {
 		return true
 	}

@@ -7,7 +7,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"strings"
 	"sync"
 	"time"
 
@@ -202,9 +201,6 @@ func (cw *consulAgentWatcher) getServiceNames() ([]string, error) {
 		return nil, fmt.Errorf("cannot perform Consul Agent API request at %q: %w", path, err)
 	}
 
-	if err != nil {
-		return nil, err
-	}
 	var m map[string]consul.Service
 	if err := json.Unmarshal(data, &m); err != nil {
 		return nil, fmt.Errorf("cannot parse response from %q: %w; data=%q", path, err, data)
@@ -214,7 +210,7 @@ func (cw *consulAgentWatcher) getServiceNames() ([]string, error) {
 		if service.Datacenter != cw.watchDatacenter {
 			continue
 		}
-		if !shouldCollectServiceByName(cw.watchServices, serviceName) {
+		if !consul.ShouldCollectServiceByName(cw.watchServices, serviceName) {
 			continue
 		}
 		serviceNames = append(serviceNames, serviceName)
@@ -273,19 +269,6 @@ func (cw *consulAgentWatcher) getServiceNodesSnapshot() map[string][]consul.Serv
 	}
 	cw.servicesLock.Unlock()
 	return sns
-}
-
-func shouldCollectServiceByName(filterServices []string, serviceName string) bool {
-	if len(filterServices) == 0 {
-		return true
-	}
-	for _, filterService := range filterServices {
-		// Use case-insensitive comparison for service names according to https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1422
-		if strings.EqualFold(filterService, serviceName) {
-			return true
-		}
-	}
-	return false
 }
 
 func getCheckInterval() time.Duration {
