@@ -1,5 +1,13 @@
 ---
 sort: 16
+weight: 16
+title: CHANGELOG
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 16
+aliases:
+- /CHANGELOG.html
 ---
 
 # CHANGELOG
@@ -16,13 +24,32 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* SECURITY: serve `/robots.txt` content to disallow indexing of the exposed instances by search engines. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128) for details.
+
 * FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): store backup creation and completion time in `backup_complete.ignore` file of backup contents. This is useful to determine point in time when backup was created and completed.
 * FEATURE: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): add `created_at` field to the output of `/api/v1/backups` API and `vmbackupmanager backup list` command. See this [doc](https://docs.victoriametrics.com/vmbackupmanager.html#api-methods) for data format details.
 * FEATURE: deprecate `-bigMergeConcurrency` command-line flag, since improper configuration for this flag frequently led to uncontrolled growth of unmerged parts, which, in turn, could lead to queries slowdown and increased CPU usage. The concurrency for [background merges](https://docs.victoriametrics.com/#storage) can be controlled via `-smallMergeConcurrency` command-line flag, though it isn't recommended to do in general case.
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): support new filtering options `filter` and `node_filter` for [consul service discovery](https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4183) for details.
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add support for the different time formats for `--vm-native-filter-time-start` and `--vm-native-filter-time-end` flags if the native binary protocol is used for migration. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4091).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): integrate WITH template playground. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3811).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add a comparison of data from the previous day with data from the current day to the `Cardinality Explorer`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3967).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): display histogram metrics as a heatmap in the `explore metrics` tab. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4111).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): add support of recursive globs for `-rule` and `-rule.templates` by using `**` in the glob pattern. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4041).
+* FEATURE: [vmui](https://docs.victoriametrics.com/#vmui): add the metric relabel playground feature to the vmui. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3807).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to proxy requests for unauthorized users. See [this doc](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4083).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): add ability to specify default route (`default_url`) for processing non-matched requests. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4084). 
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): support configuring of custom HTTP headers sent to notifiers on the Group level. See  [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3260).
 
 * BUGFIX: reduce the probability of sudden increase in the number of small parts on systems with small number of CPU cores.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix performance issue when migrating data from VictoriaMetrics according to [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics). Add the ability to speed up the data migration via `--vm-native-disable-retries` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4092).
 * BUGFIX: do not panic at windows during snapshot deletion. Note, at windows process restart required for complete snapshot delete. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70#issuecomment-1491529183) for details.
+* BUGFIX: [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html): fix a panic when the duration in the query contains uppercase `M` suffix. Such a suffix isn't allowed to use in durations, since it clashes with `a million` suffix, e.g. it isn't clear whether `rate(metric[5M])` means rate over 5 minutes, 5 months or 5 million seconds. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3589) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4120) issues.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): retry failed read request on the closed connection one more time. This improves rules execution reliability when connection between vmalert and datasource closes unexpectedly.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix the display of the tenant selector. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4160).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix issue where vmui would freeze when adding a query that returned regular rows alongside a heatmap query.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly display an error when using `query` function for templating value of `-external.alert.source` flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4181).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return empty slices instead of nil for `/api/v1/rules` and `/api/v1/alerts` API handlers. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `__meta_kubernetes_endpoints_name` label for all ports discovered from endpoint. Previously, ports not matched by `Service` did not have this label. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154) for details.
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
@@ -35,6 +62,7 @@ created by v1.90.0 or newer versions. The solution is to upgrade to v1.90.0 or n
 * SECURITY: upgrade base docker image (alpine) from 3.17.2 to 3.17.3. See [alpine 3.17.3 release notes](https://alpinelinux.org/posts/Alpine-3.17.3-released.html).
 * SECURITY: upgrade Go builder from Go1.20.2 to Go1.20.3. See [the list of issues addressed in Go1.20.3](https://github.com/golang/go/issues?q=milestone%3AGo1.20.3+label%3ACherryPickApproved).
 
+* FEATURE: open source [Graphite Render API](https://docs.victoriametrics.com/#graphite-render-api-usage). This API allows using VictoriaMetrics as a drop-in replacement for Graphite at both data ingestion and querying sides and reducing infrastructure costs by up to 10x comparing to Graphite. See [this case study](https://docs.victoriametrics.com/CaseStudies.html#grammarly) as an example.
 * FEATURE: release Windows binaries for [single-node VictoriaMetrics](https://docs.victoriametrics.com/), [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html), [vmbackup](https://docs.victoriametrics.com/vmbackup.html) and [vmrestore](https://docs.victoriametrics.com/vmrestore.html). See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3236), [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3821) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70) issues. This release of VictoriaMetrics for Windows cannot delete [snapshots](https://docs.victoriametrics.com/#how-to-work-with-snapshots) due to Windows constraints. See [this comment](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70#issuecomment-1491529183) for details. This issue should be resolved in future releases.
 * FEATURE: log metrics with truncated labels if the length of label value in the ingested metric exceeds `-maxLabelValueLen`. This should simplify debugging for this case.
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): show target URL when debugging [target relabeling](https://docs.victoriametrics.com/vmagent.html#relabel-debug). This should simplify target relabel debugging a bit. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/3882).

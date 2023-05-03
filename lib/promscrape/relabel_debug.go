@@ -12,7 +12,12 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	targetID := r.FormValue("id")
 	metric := r.FormValue("metric")
 	relabelConfigs := r.FormValue("relabel_configs")
+	format := r.FormValue("format")
 	var err error
+
+	if format == "json" {
+		w.Header().Set("Content-Type", "application/json")
+	}
 
 	if metric == "" && relabelConfigs == "" && targetID != "" {
 		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
@@ -24,7 +29,7 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			relabelConfigs = pcs.String()
 		}
 	}
-	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, err)
+	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, format, err)
 }
 
 // WriteTargetRelabelDebug generates response for /target-relabel-debug page
@@ -32,6 +37,7 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	targetID := r.FormValue("id")
 	metric := r.FormValue("metric")
 	relabelConfigs := r.FormValue("relabel_configs")
+	format := r.FormValue("format")
 	var err error
 
 	if metric == "" && relabelConfigs == "" && targetID != "" {
@@ -44,5 +50,5 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			relabelConfigs = pcs.String()
 		}
 	}
-	promrelabel.WriteTargetRelabelDebug(w, targetID, metric, relabelConfigs, err)
+	promrelabel.WriteTargetRelabelDebug(w, targetID, metric, relabelConfigs, format, err)
 }

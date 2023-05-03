@@ -26,7 +26,7 @@ const EnhancedTable: FC<TableProps> = ({
   const sortedData = stableSort(rows, getComparator(order, orderBy));
 
   return (
-    <table className="vm-table">
+    <table className="vm-table vm-cardinality-panel-table">
       <EnhancedTableHead
         order={order}
         orderBy={orderBy}

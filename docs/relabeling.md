@@ -1,5 +1,13 @@
 ---
 sort: 25
+weight: 25
+title: Relabeling cookbook
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 25
+aliases:
+- /relabeling.html
 ---
 
 # Relabeling cookbook

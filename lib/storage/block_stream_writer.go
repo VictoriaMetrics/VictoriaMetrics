@@ -2,8 +2,6 @@ package storage
 
 import (
 	"bytes"
-	"fmt"
-	"io"
 	"path/filepath"
 	"sync"
 	"sync/atomic"
@@ -18,14 +16,10 @@ import (
 type blockStreamWriter struct {
 	compressLevel int
 
-	// Use io.Writer type for timestampsWriter and valuesWriter
-	// in order to remove I2I conversion in WriteExternalBlock
-	// when passing them to fs.MustWriteData
-	timestampsWriter io.Writer
-	valuesWriter     io.Writer
-
-	indexWriter     filestream.WriteCloser
-	metaindexWriter filestream.WriteCloser
+	timestampsWriter filestream.WriteCloser
+	valuesWriter     filestream.WriteCloser
+	indexWriter      filestream.WriteCloser
+	metaindexWriter  filestream.WriteCloser
 
 	mr metaindexRow
 
@@ -45,11 +39,6 @@ type blockStreamWriter struct {
 	// since such metrics have identical timestamps.
 	prevTimestampsData        []byte
 	prevTimestampsBlockOffset uint64
-}
-
-func (bsw *blockStreamWriter) assertWriteClosers() {
-	_ = bsw.timestampsWriter.(filestream.WriteCloser)
-	_ = bsw.valuesWriter.(filestream.WriteCloser)
 }
 
 // Init initializes bsw with the given writers.
@@ -77,8 +66,8 @@ func (bsw *blockStreamWriter) reset() {
 	bsw.prevTimestampsBlockOffset = 0
 }
 
-// InitFromInmemoryPart initializes bsw from inmemory part.
-func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
+// MustInitFromInmemoryPart initializes bsw from inmemory part.
+func (bsw *blockStreamWriter) MustInitFromInmemoryPart(mp *inmemoryPart, compressLevel int) {
 	bsw.reset()
 
 	bsw.compressLevel = compressLevel
@@ -86,14 +75,12 @@ func (bsw *blockStreamWriter) InitFromInmemoryPart(mp *inmemoryPart, compressLev
 	bsw.valuesWriter = &mp.valuesData
 	bsw.indexWriter = &mp.indexData
 	bsw.metaindexWriter = &mp.metaindexData
-
-	bsw.assertWriteClosers()
 }
 
-// InitFromFilePart initializes bsw from a file-based part on the given path.
+// MustInitFromFilePart initializes bsw from a file-based part on the given path.
 //
 // The bsw doesn't pollute OS page cache if nocache is set.
-func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compressLevel int) error {
+func (bsw *blockStreamWriter) MustInitFromFilePart(path string, nocache bool, compressLevel int) {
 	path = filepath.Clean(path)
 
 	// Create the directory
@@ -101,40 +88,18 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 
 	// Create part files in the directory.
 	timestampsPath := filepath.Join(path, timestampsFilename)
-	timestampsFile, err := filestream.Create(timestampsPath, nocache)
-	if err != nil {
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create timestamps file: %w", err)
-	}
+	timestampsFile := filestream.MustCreate(timestampsPath, nocache)
 
 	valuesPath := filepath.Join(path, valuesFilename)
-	valuesFile, err := filestream.Create(valuesPath, nocache)
-	if err != nil {
-		timestampsFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create values file: %w", err)
-	}
+	valuesFile := filestream.MustCreate(valuesPath, nocache)
 
 	indexPath := filepath.Join(path, indexFilename)
-	indexFile, err := filestream.Create(indexPath, nocache)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create index file: %w", err)
-	}
+	indexFile := filestream.MustCreate(indexPath, nocache)
 
 	// Always cache metaindex file in OS page cache, since it is immediately
 	// read after the merge.
 	metaindexPath := filepath.Join(path, metaindexFilename)
-	metaindexFile, err := filestream.Create(metaindexPath, false)
-	if err != nil {
-		timestampsFile.MustClose()
-		valuesFile.MustClose()
-		indexFile.MustClose()
-		fs.MustRemoveDirAtomic(path)
-		return fmt.Errorf("cannot create metaindex file: %w", err)
-	}
+	metaindexFile := filestream.MustCreate(metaindexPath, false)
 
 	bsw.reset()
 	bsw.compressLevel = compressLevel
@@ -143,10 +108,6 @@ func (bsw *blockStreamWriter) InitFromFilePart(path string, nocache bool, compre
 	bsw.valuesWriter = valuesFile
 	bsw.indexWriter = indexFile
 	bsw.metaindexWriter = metaindexFile
-
-	bsw.assertWriteClosers()
-
-	return nil
 }
 
 // MustClose closes the bsw.
@@ -161,8 +122,8 @@ func (bsw *blockStreamWriter) MustClose() {
 	fs.MustWriteData(bsw.metaindexWriter, bsw.compressedMetaindexData)
 
 	// Close writers.
-	bsw.timestampsWriter.(filestream.WriteCloser).MustClose()
-	bsw.valuesWriter.(filestream.WriteCloser).MustClose()
+	bsw.timestampsWriter.MustClose()
+	bsw.valuesWriter.MustClose()
 	bsw.indexWriter.MustClose()
 	bsw.metaindexWriter.MustClose()
 

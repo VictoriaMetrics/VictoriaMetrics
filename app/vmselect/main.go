@@ -115,6 +115,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
 			defer func() { <-concurrencyLimitCh }()
+		case <-r.Context().Done():
+			timerpool.Put(t)
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
+			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+				d.Seconds(), remoteAddr, requestURI)
+			return true
 		case <-t.C:
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
@@ -461,6 +468,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		promscrape.WriteMetricRelabelDebug(w, r)
 		return true
 	case "/target-relabel-debug":
@@ -469,6 +477,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/expand-with-exprs":
 		expandWithExprsRequests.Inc()
+		httpserver.EnableCORS(w, r)
 		prometheus.ExpandWithExprs(w, r)
 		return true
 	case "/api/v1/rules", "/rules":

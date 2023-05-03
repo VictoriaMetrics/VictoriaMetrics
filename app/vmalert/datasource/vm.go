@@ -2,6 +2,7 @@ package datasource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -162,6 +163,11 @@ func (s *VMStorage) do(ctx context.Context, req *http.Request) (*http.Response, 
 		logger.Infof("DEBUG datasource request: executing %s request with params %q", req.Method, req.URL.RawQuery)
 	}
 	resp, err := s.c.Do(req.WithContext(ctx))
+	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
+		// something in the middle between client and datasource might be closing
+		// the connection. So we do a one more attempt in hope request will succeed.
+		resp, err = s.c.Do(req.WithContext(ctx))
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error getting response from %s: %w", req.URL.Redacted(), err)
 	}

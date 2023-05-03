@@ -8,39 +8,39 @@ import (
 )
 
 // WriteMetricRelabelDebug writes /metric-relabel-debug page to w with the corresponding args.
-func WriteMetricRelabelDebug(w io.Writer, targetID, metric, relabelConfigs string, err error) {
-	writeRelabelDebug(w, false, targetID, metric, relabelConfigs, err)
+func WriteMetricRelabelDebug(w io.Writer, targetID, metric, relabelConfigs, format string, err error) {
+	writeRelabelDebug(w, false, targetID, metric, relabelConfigs, format, err)
 }
 
 // WriteTargetRelabelDebug writes /target-relabel-debug page to w with the corresponding args.
-func WriteTargetRelabelDebug(w io.Writer, targetID, metric, relabelConfigs string, err error) {
-	writeRelabelDebug(w, true, targetID, metric, relabelConfigs, err)
+func WriteTargetRelabelDebug(w io.Writer, targetID, metric, relabelConfigs, format string, err error) {
+	writeRelabelDebug(w, true, targetID, metric, relabelConfigs, format, err)
 }
 
-func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, relabelConfigs string, err error) {
+func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, relabelConfigs, format string, err error) {
 	if metric == "" {
 		metric = "{}"
 	}
 	targetURL := ""
 	if err != nil {
-		WriteRelabelDebugSteps(w, targetURL, targetID, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
 	labels, err := promutils.NewLabelsFromString(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %s", err)
-		WriteRelabelDebugSteps(w, targetURL, targetID, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
 	pcs, err := ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
 		err = fmt.Errorf("cannot parse relabel configs: %s", err)
-		WriteRelabelDebugSteps(w, targetURL, targetID, nil, metric, relabelConfigs, err)
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
 
 	dss, targetURL := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
-	WriteRelabelDebugSteps(w, targetURL, targetID, dss, metric, relabelConfigs, nil)
+	WriteRelabelDebugSteps(w, targetURL, targetID, format, dss, metric, relabelConfigs, nil)
 }
 
 func newDebugRelabelSteps(pcs *ParsedConfigs, labels *promutils.Labels, isTargetRelabel bool) ([]DebugStep, string) {

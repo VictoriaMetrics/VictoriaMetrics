@@ -134,11 +134,11 @@ type Storage struct {
 	isReadOnly uint32
 }
 
-// OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
+// MustOpenStorage opens storage on the given path with the given retentionMsecs.
+func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
+		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
 	if retentionMsecs <= 0 {
 		retentionMsecs = maxRetentionMsecs
@@ -167,17 +167,12 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 
 	// Protect from concurrent opens.
-	flockF, err := fs.CreateFlockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file in %q; "+
-			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
-	}
-	s.flockF = flockF
+	s.flockF = fs.MustCreateFlockFile(path)
 
 	// Check whether restore process finished successfully
 	restoreLockF := filepath.Join(path, backupnames.RestoreInProgressFilename)
 	if fs.IsPathExist(restoreLockF) {
-		return nil, fmt.Errorf("restore lock file exists, incomplete vmrestore run. Run vmrestore again or remove lock file %q", restoreLockF)
+		logger.Panicf("FATAL: incomplete vmrestore run; run vmrestore again or remove lock file %q", restoreLockF)
 	}
 
 	// Pre-create snapshots directory if it is missing.
@@ -225,21 +220,18 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
 	fs.MustMkdirIfNotExist(idbSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
-	idbCurr, idbPrev, err := s.openIndexDBTables(idbPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
-	}
+	idbCurr, idbPrev := s.mustOpenIndexDBTables(idbPath)
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
 
 	// Load deleted metricIDs from idbCurr and idbPrev
 	dmisCurr, err := idbCurr.loadDeletedMetricIDs()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load deleted metricIDs for the current indexDB: %w", err)
+		logger.Panicf("FATAL: cannot load deleted metricIDs for the current indexDB at %q: %s", path, err)
 	}
 	dmisPrev, err := idbPrev.loadDeletedMetricIDs()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load deleted metricIDs for the previous indexDB: %w", err)
+		logger.Panicf("FATAL: cannot load deleted metricIDs for the previous indexDB at %q: %s", path, err)
 	}
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
@@ -250,18 +242,14 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load data
 	tablePath := filepath.Join(path, dataDirname)
-	tb, err := openTable(tablePath, s)
-	if err != nil {
-		s.idb().MustClose()
-		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
-	}
+	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
 
-	return s, nil
+	return s
 }
 
 var maxTSIDCacheSize int
@@ -712,10 +700,7 @@ func (s *Storage) mustRotateIndexDB() {
 	newTableName := nextIndexDBTableName()
 	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
 	rotationTimestamp := fasttime.UnixTimestamp()
-	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
-	}
+	idbNew := mustOpenIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
 
 	// Drop extDB
 	idbCurr := s.idb()
@@ -804,9 +789,8 @@ func (s *Storage) MustClose() {
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	// Release lock file.
-	if err := s.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close lock file %q: %s", s.flockF.Name(), err)
-	}
+	fs.MustClose(s.flockF)
+	s.flockF = nil
 
 	// Stop series limiters.
 	if sl := s.hourlySeriesLimiter; sl != nil {
@@ -2326,16 +2310,13 @@ func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error) {
+func (s *Storage) mustOpenIndexDBTables(path string) (curr, prev *indexDB) {
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
 	// Search for the two most recent tables - the last one is active,
 	// the previous one contains backup data.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read directory: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	var tableNames []string
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {
@@ -2378,18 +2359,11 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	// Open the last two tables.
 	currPath := filepath.Join(path, tableNames[len(tableNames)-1])
 
-	curr, err = openIndexDB(currPath, s, 0, &s.isReadOnly)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
-	}
+	curr = mustOpenIndexDB(currPath, s, 0, &s.isReadOnly)
 	prevPath := filepath.Join(path, tableNames[len(tableNames)-2])
-	prev, err = openIndexDB(prevPath, s, 0, &s.isReadOnly)
-	if err != nil {
-		curr.MustClose()
-		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
-	}
+	prev = mustOpenIndexDB(prevPath, s, 0, &s.isReadOnly)
 
-	return curr, prev, nil
+	return curr, prev
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")

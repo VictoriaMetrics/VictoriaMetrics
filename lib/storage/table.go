@@ -76,21 +76,17 @@ func (ptw *partitionWrapper) scheduleToDrop() {
 	atomic.AddUint64(&ptw.mustDrop, 1)
 }
 
-// openTable opens a table on the given path.
+// mustOpenTable opens a table on the given path.
 //
 // The table is created if it doesn't exist.
-func openTable(path string, s *Storage) (*table, error) {
+func mustOpenTable(path string, s *Storage) *table {
 	path = filepath.Clean(path)
 
 	// Create a directory for the table if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
 
 	// Protect from concurrent opens.
-	flockF, err := fs.CreateFlockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file in %q; "+
-			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
-	}
+	flockF := fs.MustCreateFlockFile(path)
 
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := filepath.Join(path, smallDirname)
@@ -110,10 +106,7 @@ func openTable(path string, s *Storage) (*table, error) {
 	fs.MustRemoveTemporaryDirs(bigSnapshotsPath)
 
 	// Open partitions.
-	pts, err := openPartitions(smallPartitionsPath, bigPartitionsPath, s)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open partitions in the table %q: %w", path, err)
-	}
+	pts := mustOpenPartitions(smallPartitionsPath, bigPartitionsPath, s)
 
 	tb := &table{
 		path:                path,
@@ -130,7 +123,7 @@ func openTable(path string, s *Storage) (*table, error) {
 	}
 	tb.startRetentionWatcher()
 	tb.startFinalDedupWatcher()
-	return tb, nil
+	return tb
 }
 
 // CreateSnapshot creates tb snapshot and returns paths to small and big parts of it.
@@ -206,9 +199,8 @@ func (tb *table) MustClose() {
 	}
 
 	// Release exclusive lock on the table.
-	if err := tb.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot release lock on %q: %s", tb.flockF.Name(), err)
-	}
+	fs.MustClose(tb.flockF)
+	tb.flockF = nil
 }
 
 // flushPendingRows flushes all the pending raw rows, so they become visible to search.
@@ -487,35 +479,24 @@ func (tb *table) PutPartitions(ptws []*partitionWrapper) {
 	}
 }
 
-func openPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) ([]*partition, error) {
+func mustOpenPartitions(smallPartitionsPath, bigPartitionsPath string, s *Storage) []*partition {
 	// Certain partition directories in either `big` or `small` dir may be missing
 	// after restoring from backup. So populate partition names from both dirs.
 	ptNames := make(map[string]bool)
-	if err := populatePartitionNames(smallPartitionsPath, ptNames); err != nil {
-		return nil, err
-	}
-	if err := populatePartitionNames(bigPartitionsPath, ptNames); err != nil {
-		return nil, err
-	}
+	mustPopulatePartitionNames(smallPartitionsPath, ptNames)
+	mustPopulatePartitionNames(bigPartitionsPath, ptNames)
 	var pts []*partition
 	for ptName := range ptNames {
 		smallPartsPath := filepath.Join(smallPartitionsPath, ptName)
 		bigPartsPath := filepath.Join(bigPartitionsPath, ptName)
-		pt, err := openPartition(smallPartsPath, bigPartsPath, s)
-		if err != nil {
-			mustClosePartitions(pts)
-			return nil, fmt.Errorf("cannot open partition %q: %w", ptName, err)
-		}
+		pt := mustOpenPartition(smallPartsPath, bigPartsPath, s)
 		pts = append(pts, pt)
 	}
-	return pts, nil
+	return pts
 }
 
-func populatePartitionNames(partitionsPath string, ptNames map[string]bool) error {
-	des, err := os.ReadDir(partitionsPath)
-	if err != nil {
-		return fmt.Errorf("cannot read directory with partitions: %w", err)
-	}
+func mustPopulatePartitionNames(partitionsPath string, ptNames map[string]bool) {
+	des := fs.MustReadDir(partitionsPath)
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories
@@ -527,13 +508,6 @@ func populatePartitionNames(partitionsPath string, ptNames map[string]bool) erro
 			continue
 		}
 		ptNames[ptName] = true
-	}
-	return nil
-}
-
-func mustClosePartitions(pts []*partition) {
-	for _, pt := range pts {
-		pt.MustClose()
 	}
 }
 

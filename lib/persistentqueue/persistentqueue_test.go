@@ -53,7 +53,7 @@ func TestQueueOpen(t *testing.T) {
 		path := "queue-open-too-new-chunk"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
-		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 100*uint64(defaultChunkFileSize))), "asdf")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 100*uint64(DefaultChunkFileSize))), "asdf")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -63,8 +63,8 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mi := &metainfo{
 			Name:         "foobar",
-			ReaderOffset: defaultChunkFileSize,
-			WriterOffset: defaultChunkFileSize,
+			ReaderOffset: DefaultChunkFileSize,
+			WriterOffset: DefaultChunkFileSize,
 		}
 		if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -79,7 +79,7 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mi := &metainfo{
 			Name:         "foobar",
-			ReaderOffset: defaultChunkFileSize + 123,
+			ReaderOffset: DefaultChunkFileSize + 123,
 		}
 		if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 			t.Fatalf("unexpected error: %s", err)
