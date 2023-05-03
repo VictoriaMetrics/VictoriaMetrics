@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "managed"
     weight: 4
+aliases:
+- /managed-victoriametrics/alerting-vmalert-managed-victoria-metrics.html
 ---
 # Alerting with vmalert and Managed VictoriaMetrics
 

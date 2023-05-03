@@ -4,6 +4,7 @@ export interface TSDBStatus {
   totalSeries: number;
   totalLabelValuePairs: number;
   totalSeriesByAll: number,
+  totalSeriesPrev: number,
   seriesCountByMetricName: TopHeapEntry[];
   seriesCountByLabelName: TopHeapEntry[];
   seriesCountByFocusLabelValue: TopHeapEntry[];
@@ -14,6 +15,8 @@ export interface TSDBStatus {
 export interface TopHeapEntry {
   name:  string;
   value: number;
+  diff: number;
+  valuePrev: number;
 }
 
 interface QueryUpdaterArgs {

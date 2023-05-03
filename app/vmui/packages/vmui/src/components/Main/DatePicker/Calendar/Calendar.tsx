@@ -8,6 +8,7 @@ import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import classNames from "classnames";
 import MonthsList from "./MonthsList/MonthsList";
+import Button from "../../Button/Button";
 
 interface DatePickerProps {
   date: Date | Dayjs
@@ -29,6 +30,9 @@ const Calendar: FC<DatePickerProps> = ({
   const [viewType, setViewType] = useState<CalendarTypeView>(CalendarTypeView.days);
   const [viewDate, setViewDate] = useState(dayjs.tz(date));
   const [selectDate, setSelectDate] = useState(dayjs.tz(date));
+
+  const today = dayjs().startOf("day").tz();
+  const viewDateIsToday = today.format() === viewDate.format();
   const { isMobile } = useDeviceDetect();
 
   const toggleDisplayYears = () => {
@@ -42,6 +46,10 @@ const Calendar: FC<DatePickerProps> = ({
 
   const handleChangeSelectDate = (date: Dayjs) => {
     setSelectDate(date);
+  };
+
+  const handleToday = () => {
+    setViewDate(today);
   };
 
   useEffect(() => {
@@ -87,6 +95,17 @@ const Calendar: FC<DatePickerProps> = ({
           viewDate={viewDate}
           onChangeViewDate={handleChangeViewDate}
         />
+      )}
+      {!viewDateIsToday && (viewType === CalendarTypeView.days) && (
+        <div className="vm-calendar-footer">
+          <Button
+            variant="text"
+            size="small"
+            onClick={handleToday}
+          >
+              show today
+          </Button>
+        </div>
       )}
     </div>
   );

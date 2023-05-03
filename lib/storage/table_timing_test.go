@@ -48,10 +48,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 	tablePath := "benchmarkTableAddRows"
 	strg := newTestStorage()
 	for i := 0; i < b.N; i++ {
-		tb, err := openTable(tablePath, strg)
-		if err != nil {
-			b.Fatalf("cannot open table %q: %s", tablePath, err)
-		}
+		tb := mustOpenTable(tablePath, strg)
 
 		workCh := make(chan struct{}, insertsCount)
 		for j := 0; j < insertsCount; j++ {
@@ -94,10 +91,7 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 		tb.MustClose()
 
 		// Open the table from files and verify the rows count on it
-		tb, err = openTable(tablePath, strg)
-		if err != nil {
-			b.Fatalf("cannot open table %q: %s", tablePath, err)
-		}
+		tb = mustOpenTable(tablePath, strg)
 		var m TableMetrics
 		tb.UpdateMetrics(&m)
 		if rowsCount := m.TotalRowsCount(); rowsCount != uint64(rowsCountExpected) {

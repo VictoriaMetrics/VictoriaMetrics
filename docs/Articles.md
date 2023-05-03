@@ -1,5 +1,13 @@
 ---
 sort: 17
+weight: 17
+title: Articles
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 17
+aliases:
+- /Articles.html
 ---
 
 # Articles
@@ -60,7 +68,6 @@ See also [case studies](https://docs.victoriametrics.com/CaseStudies.html).
 * [How we tried using VictoriaMetrics and Thanos at the same time](https://medium.com/@uburro/how-we-tried-using-victoriametrics-and-thanos-at-the-same-time-48803d2a638b)
 * [Prometheus, Grafana, and Kubernetes, Oh My!](https://www.groundcover.com/blog/prometheus-grafana-kubernetes)
 * [Explaining modern server monitoring stacks for self-hosting](https://dataswamp.org/~solene/2022-09-11-exploring-monitoring-stacks.html)
-* [How do We Keep Metrics for a Long Time in VictoriaMetrics](https://www.youtube.com/watch?v=SGZjY7xgDwE)
 * [Brewblox: InfluxDB to Victoria Metrics](https://www.brewblox.com/dev/decisions/20210718_victoria_metrics.html)
 * [VictoriaMetrics static scraper](https://blog.differentpla.net/blog/2022/10/16/victoria-metrics-static-scraper/)
 * [VictoriaMetrics and Open Cosmos boldly takes edge computing to the edge of space](https://www.iot-now.com/2022/07/19/122423-victoriametrics-and-open-cosmos-boldly-takes-edge-computing-to-the-edge-of-space/)

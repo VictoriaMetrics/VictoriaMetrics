@@ -28,8 +28,9 @@ export default class AppConfigurator {
   get defaultTSDBStatus(): TSDBStatus {
     return {
       totalSeries: 0,
-      totalLabelValuePairs: 0,
+      totalSeriesPrev: 0,
       totalSeriesByAll: 0,
+      totalLabelValuePairs: 0,
       seriesCountByMetricName: [],
       seriesCountByLabelName: [],
       seriesCountByFocusLabelValue: [],
@@ -142,11 +143,11 @@ export default class AppConfigurator {
     };
   }
 
-  totalSeries(keyName: string): number {
+  totalSeries(keyName: string, prev = false): number {
     if (keyName === "labelValueCountByLabelName") {
       return -1;
     }
-    return this.tsdbStatus.totalSeries;
+    return prev ? this.tsdbStatus.totalSeriesPrev : this.tsdbStatus.totalSeries;
   }
 }
 

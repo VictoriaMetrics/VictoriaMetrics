@@ -36,9 +36,10 @@ type Group struct {
 	Checksum       string
 	LastEvaluation time.Time
 
-	Labels  map[string]string
-	Params  url.Values
-	Headers map[string]string
+	Labels          map[string]string
+	Params          url.Values
+	Headers         map[string]string
+	NotifierHeaders map[string]string
 
 	doneCh     chan struct{}
 	finishedCh chan struct{}
@@ -93,16 +94,17 @@ func mergeLabels(groupName, ruleName string, set1, set2 map[string]string) map[s
 
 func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval time.Duration, labels map[string]string) *Group {
 	g := &Group{
-		Type:        cfg.Type,
-		Name:        cfg.Name,
-		File:        cfg.File,
-		Interval:    cfg.Interval.Duration(),
-		Limit:       cfg.Limit,
-		Concurrency: cfg.Concurrency,
-		Checksum:    cfg.Checksum,
-		Params:      cfg.Params,
-		Headers:     make(map[string]string),
-		Labels:      cfg.Labels,
+		Type:            cfg.Type,
+		Name:            cfg.Name,
+		File:            cfg.File,
+		Interval:        cfg.Interval.Duration(),
+		Limit:           cfg.Limit,
+		Concurrency:     cfg.Concurrency,
+		Checksum:        cfg.Checksum,
+		Params:          cfg.Params,
+		Headers:         make(map[string]string),
+		NotifierHeaders: make(map[string]string),
+		Labels:          cfg.Labels,
 
 		doneCh:     make(chan struct{}),
 		finishedCh: make(chan struct{}),
@@ -116,6 +118,9 @@ func newGroup(cfg config.Group, qb datasource.QuerierBuilder, defaultInterval ti
 	}
 	for _, h := range cfg.Headers {
 		g.Headers[h.Key] = h.Value
+	}
+	for _, h := range cfg.NotifierHeaders {
+		g.NotifierHeaders[h.Key] = h.Value
 	}
 	g.metrics = newGroupMetrics(g)
 	rules := make([]Rule, len(cfg.Rules))
@@ -230,6 +235,7 @@ func (g *Group) updateWith(newGroup *Group) error {
 	g.Concurrency = newGroup.Concurrency
 	g.Params = newGroup.Params
 	g.Headers = newGroup.Headers
+	g.NotifierHeaders = newGroup.NotifierHeaders
 	g.Labels = newGroup.Labels
 	g.Limit = newGroup.Limit
 	g.Checksum = newGroup.Checksum
@@ -294,7 +300,9 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 	e := &executor{
 		rw:                       rw,
 		notifiers:                nts,
-		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label)}
+		notifierHeaders:          g.NotifierHeaders,
+		previouslySentSeriesToRW: make(map[uint64]map[string][]prompbmarshal.Label),
+	}
 
 	evalTS := time.Now()
 
@@ -370,6 +378,8 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			// ensure that staleness is tracked or existing rules only
 			e.purgeStaleSeries(g.Rules)
 
+			e.notifierHeaders = g.NotifierHeaders
+
 			if g.Interval != ng.Interval {
 				g.Interval = ng.Interval
 				t.Stop()
@@ -403,8 +413,10 @@ func getResolveDuration(groupInterval, delta, maxDuration time.Duration) time.Du
 }
 
 type executor struct {
-	notifiers func() []notifier.Notifier
-	rw        *remotewrite.Client
+	notifiers       func() []notifier.Notifier
+	notifierHeaders map[string]string
+
+	rw *remotewrite.Client
 
 	previouslySentSeriesToRWMu sync.Mutex
 	// previouslySentSeriesToRW stores series sent to RW on previous iteration
@@ -504,7 +516,7 @@ func (e *executor) exec(ctx context.Context, rule Rule, ts time.Time, resolveDur
 	for _, nt := range e.notifiers() {
 		wg.Add(1)
 		go func(nt notifier.Notifier) {
-			if err := nt.Send(ctx, alerts); err != nil {
+			if err := nt.Send(ctx, alerts, e.notifierHeaders); err != nil {
 				errGr.Add(fmt.Errorf("rule %q: failed to send alerts to addr %q: %w", rule, nt.Addr(), err))
 			}
 			wg.Done()

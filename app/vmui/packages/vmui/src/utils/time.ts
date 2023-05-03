@@ -125,7 +125,7 @@ export const getDurationFromMilliseconds = (ms: number): string => {
   const days = Math.floor(ms / (1000 * 60 * 60 * 24));
   const durs: UnitTypeShort[] = ["d", "h", "m", "s", "ms"];
   const values = [days, hours, minutes, seconds, milliseconds].map((t, i) => t ? `${t}${durs[i]}` : "");
-  return values.filter(t => t).join(" ");
+  return values.filter(t => t).join("");
 };
 
 export const getDurationFromPeriod = (p: TimePeriod): string => {

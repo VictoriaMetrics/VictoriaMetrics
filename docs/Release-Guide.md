@@ -1,5 +1,13 @@
 ---
 sort: 18
+weight: 18
+title: Release process guidance
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 18
+aliases:
+- /Release-Guide.html
 ---
 
 # Release process guidance

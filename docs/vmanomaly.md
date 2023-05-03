@@ -1,5 +1,13 @@
 ---
 sort: 11
+weight: 11
+title: vmanomaly
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 11
+aliases:
+- /vmanomaly.html
 ---
 
 # vmanomaly

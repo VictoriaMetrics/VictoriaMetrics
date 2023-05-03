@@ -293,6 +293,7 @@ func TestGetEndpointsLabels(t *testing.T) {
 			}),
 			promutils.NewLabelsFromMap(map[string]string{
 				"__address__":                                    "192.168.15.1:8428",
+				"__meta_kubernetes_endpoints_name":               "test-eps",
 				"__meta_kubernetes_namespace":                    "default",
 				"__meta_kubernetes_node_label_node_label":        "xyz",
 				"__meta_kubernetes_node_labelpresent_node_label": "true",

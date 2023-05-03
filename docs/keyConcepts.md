@@ -1,5 +1,13 @@
 ---
 sort: 22
+weight: 22
+title: Key concepts
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 22
+aliases:
+- /keyConcepts.html
 ---
 
 # Key concepts

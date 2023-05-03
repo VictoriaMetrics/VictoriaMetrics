@@ -34,10 +34,7 @@ func MustSyncPath(path string) {
 // Use MustWriteAtomic if the file at the path must be either written in full
 // or not written at all on app crash in the middle of the write.
 func MustWriteSync(path string, data []byte) {
-	f, err := filestream.Create(path, false)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create file: %s", err)
-	}
+	f := filestream.MustCreate(path, false)
 	if _, err := f.Write(data); err != nil {
 		f.MustClose()
 		// Do not call MustRemoveAll(path), so the user could inspect
@@ -222,29 +219,25 @@ func IsEmptyDir(path string) bool {
 // If the process crashes after the step 1, then the directory must be removed
 // on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
 func MustRemoveDirAtomic(dir string) {
-	if !IsPathExist(dir) {
-		return
-	}
-	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
-	}
-	MustRemoveAll(tmpDir)
-	parentDir := filepath.Dir(dir)
-	MustSyncPath(parentDir)
+	mustRemoveDirAtomic(dir)
 }
 
 var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
+
+// MustReadDir reads directory entries at the given dir.
+func MustReadDir(dir string) []os.DirEntry {
+	des, err := os.ReadDir(dir)
+	if err != nil {
+		logger.Panicf("FATAL: cannot read directory contents: %s", err)
+	}
+	return des
+}
 
 // MustRemoveTemporaryDirs removes all the subdirectories with ".must-remove.<XYZ>" suffix.
 //
 // Such directories may be left on unclean shutdown during MustRemoveDirAtomic call.
 func MustRemoveTemporaryDirs(dir string) {
-	des, err := os.ReadDir(dir)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read dir: %s", err)
-	}
+	des := MustReadDir(dir)
 	for _, de := range des {
 		if !IsDirOrSymlink(de) {
 			// Skip non-directories
@@ -263,10 +256,7 @@ func MustRemoveTemporaryDirs(dir string) {
 func MustHardLinkFiles(srcDir, dstDir string) {
 	mustMkdirSync(dstDir)
 
-	des, err := os.ReadDir(srcDir)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read files in scrDir: %s", err)
-	}
+	des := MustReadDir(srcDir)
 	for _, de := range des {
 		if IsDirOrSymlink(de) {
 			// Skip directories.
@@ -302,10 +292,7 @@ func MustSymlinkRelative(srcPath, dstPath string) {
 
 // MustCopyDirectory copies all the files in srcPath to dstPath.
 func MustCopyDirectory(srcPath, dstPath string) {
-	des, err := os.ReadDir(srcPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read srcDir: %s", err)
-	}
+	des := MustReadDir(srcPath)
 	MustMkdirIfNotExist(dstPath)
 	for _, de := range des {
 		if !de.Type().IsRegular() {
@@ -337,43 +324,46 @@ func MustCopyFile(srcPath, dstPath string) {
 	MustSyncPath(dstPath)
 }
 
-// ReadFullData reads len(data) bytes from r.
-func ReadFullData(r io.Reader, data []byte) error {
+// MustReadData reads len(data) bytes from r.
+func MustReadData(r filestream.ReadCloser, data []byte) {
 	n, err := io.ReadFull(r, data)
 	if err != nil {
 		if err == io.EOF {
-			return io.EOF
+			return
 		}
-		return fmt.Errorf("cannot read %d bytes; read only %d bytes; error: %w", len(data), n, err)
+		logger.Panicf("FATAL: cannot read %d bytes from %s; read only %d bytes; error: %s", len(data), r.Path(), n, err)
 	}
 	if n != len(data) {
-		logger.Panicf("BUG: io.ReadFull read only %d bytes; must read %d bytes", n, len(data))
+		logger.Panicf("BUG: io.ReadFull read only %d bytes from %s; must read %d bytes", n, r.Path(), len(data))
 	}
-	return nil
 }
 
 // MustWriteData writes data to w.
-func MustWriteData(w io.Writer, data []byte) {
+func MustWriteData(w filestream.WriteCloser, data []byte) {
 	if len(data) == 0 {
 		return
 	}
 	n, err := w.Write(data)
 	if err != nil {
-		logger.Panicf("FATAL: cannot write %d bytes: %s", len(data), err)
+		logger.Panicf("FATAL: cannot write %d bytes to %s: %s", len(data), w.Path(), err)
 	}
 	if n != len(data) {
-		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes", n, len(data))
+		logger.Panicf("BUG: writer wrote %d bytes instead of %d bytes to %s", n, len(data), w.Path())
 	}
 }
 
-// CreateFlockFile creates FlockFilename file in the directory dir
+// MustCreateFlockFile creates FlockFilename file in the directory dir
 // and returns the handler to the file.
-func CreateFlockFile(dir string) (*os.File, error) {
-	flockFile := filepath.Join(dir, FlockFilename)
-	return createFlockFile(flockFile)
+func MustCreateFlockFile(dir string) *os.File {
+	flockFilepath := filepath.Join(dir, FlockFilename)
+	f, err := createFlockFile(flockFilepath)
+	if err != nil {
+		logger.Panicf("FATAL: cannot create lock file: %s; make sure a single process has exclusive access to %q", err, dir)
+	}
+	return f
 }
 
-// FlockFilename is the filename for the file created by CreateFlockFile().
+// FlockFilename is the filename for the file created by MustCreateFlockFile().
 const FlockFilename = "flock.lock"
 
 // MustGetFreeSpace returns free space for the given directory path.

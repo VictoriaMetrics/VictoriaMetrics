@@ -1,5 +1,13 @@
 ---
 sort: 12
+weight: 12
+title: Case studies and talks
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 12
+aliases:
+- /CaseStudies.html
 ---
 
 # Case studies and talks

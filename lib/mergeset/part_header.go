@@ -78,39 +78,37 @@ func (ph *partHeader) CopyFrom(src *partHeader) {
 	ph.lastItem = append(ph.lastItem[:0], src.lastItem...)
 }
 
-func (ph *partHeader) ReadMetadata(partPath string) error {
+func (ph *partHeader) MustReadMetadata(partPath string) {
 	ph.Reset()
 
 	// Read ph fields from metadata.
 	metadataPath := filepath.Join(partPath, metadataFilename)
 	metadata, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return fmt.Errorf("cannot read %q: %w", metadataPath, err)
+		logger.Panicf("FATAL: cannot read %q: %s", metadataPath, err)
 	}
 
 	var phj partHeaderJSON
 	if err := json.Unmarshal(metadata, &phj); err != nil {
-		return fmt.Errorf("cannot parse %q: %w", metadataPath, err)
+		logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
 	}
 
 	if phj.ItemsCount <= 0 {
-		return fmt.Errorf("part %q cannot contain zero items", partPath)
+		logger.Panicf("FATAL: part %q cannot contain zero items", partPath)
 	}
 	ph.itemsCount = phj.ItemsCount
 
 	if phj.BlocksCount <= 0 {
-		return fmt.Errorf("part %q cannot contain zero blocks", partPath)
+		logger.Panicf("FATAL: part %q cannot contain zero blocks", partPath)
 	}
 	if phj.BlocksCount > phj.ItemsCount {
-		return fmt.Errorf("the number of blocks cannot exceed the number of items in the part %q; got blocksCount=%d, itemsCount=%d",
+		logger.Panicf("FATAL: the number of blocks cannot exceed the number of items in the part %q; got blocksCount=%d, itemsCount=%d",
 			partPath, phj.BlocksCount, phj.ItemsCount)
 	}
 	ph.blocksCount = phj.BlocksCount
 
 	ph.firstItem = append(ph.firstItem[:0], phj.FirstItem...)
 	ph.lastItem = append(ph.lastItem[:0], phj.LastItem...)
-
-	return nil
 }
 
 func (ph *partHeader) MustWriteMetadata(partPath string) {

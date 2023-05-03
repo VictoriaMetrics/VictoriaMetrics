@@ -313,7 +313,7 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
-// OpenTable opens a table on the given path.
+// MustOpenTable opens a table on the given path.
 //
 // Optional flushCallback is called every time new data batch is flushed
 // to the underlying storage and becomes visible to search.
@@ -322,7 +322,7 @@ func (pw *partWrapper) decRef() {
 // to persistent storage.
 //
 // The table is created if it doesn't exist yet.
-func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) (*Table, error) {
+func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) *Table {
 	path = filepath.Clean(path)
 	logger.Infof("opening table %q...", path)
 	startTime := time.Now()
@@ -331,17 +331,10 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 	fs.MustMkdirIfNotExist(path)
 
 	// Protect from concurrent opens.
-	flockF, err := fs.CreateFlockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file in %q; "+
-			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
-	}
+	flockF := fs.MustCreateFlockFile(path)
 
 	// Open table parts.
-	pws, err := openParts(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open table parts at %q: %w", path, err)
-	}
+	pws := mustOpenParts(path)
 
 	tb := &Table{
 		path:          path,
@@ -386,7 +379,7 @@ func OpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallb
 		}()
 	}
 
-	return tb, nil
+	return tb
 }
 
 func (tb *Table) startBackgroundWorkers() {
@@ -430,9 +423,8 @@ func (tb *Table) MustClose() {
 	}
 
 	// Release flockF
-	if err := tb.flockF.Close(); err != nil {
-		logger.Panicf("FATAL:cannot close %q: %s", tb.flockF.Name(), err)
-	}
+	fs.MustClose(tb.flockF)
+	tb.flockF = nil
 }
 
 // Path returns the path to tb on the filesystem.
@@ -878,7 +870,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 			continue
 		}
 		bsr := getBlockStreamReader()
-		bsr.InitFromInmemoryBlock(ib)
+		bsr.MustInitFromInmemoryBlock(ib)
 		putInmemoryBlock(ib)
 		bsrs = append(bsrs, bsr)
 	}
@@ -899,7 +891,7 @@ func (tb *Table) createInmemoryPart(ibs []*inmemoryBlock) *partWrapper {
 	compressLevel := getCompressLevel(outItemsCount)
 	bsw := getBlockStreamWriter()
 	mpDst := &inmemoryPart{}
-	bsw.InitFromInmemoryPart(mpDst, compressLevel)
+	bsw.MustInitFromInmemoryPart(mpDst, compressLevel)
 
 	// Merge parts.
 	// The merge shouldn't be interrupted by stopCh,
@@ -1093,16 +1085,7 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	}
 
 	// Prepare BlockStreamReaders for source parts.
-	bsrs, err := openBlockStreamReaders(pws)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open source parts for merging: %s", err)
-	}
-	closeBlockStreamReaders := func() {
-		for _, bsr := range bsrs {
-			putBlockStreamReader(bsr)
-		}
-		bsrs = nil
-	}
+	bsrs := mustOpenBlockStreamReaders(pws)
 
 	// Prepare BlockStreamWriter for destination part.
 	srcSize := uint64(0)
@@ -1118,18 +1101,18 @@ func (tb *Table) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFinal 
 	var mpNew *inmemoryPart
 	if dstPartType == partInmemory {
 		mpNew = &inmemoryPart{}
-		bsw.InitFromInmemoryPart(mpNew, compressLevel)
+		bsw.MustInitFromInmemoryPart(mpNew, compressLevel)
 	} else {
 		nocache := srcItemsCount > maxItemsPerCachedPart()
-		if err := bsw.InitFromFilePart(dstPartPath, nocache, compressLevel); err != nil {
-			logger.Panicf("FATAL: cannot create destination part at %s: %s", dstPartPath, err)
-		}
+		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
 	}
 
 	// Merge source parts to destination part.
 	ph, err := tb.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh)
 	putBlockStreamWriter(bsw)
-	closeBlockStreamReaders()
+	for _, bsr := range bsrs {
+		putBlockStreamReader(bsr)
+	}
 	if err != nil {
 		tb.releasePartsToMerge(pws)
 		return err
@@ -1195,23 +1178,18 @@ func getDstPartType(pws []*partWrapper, isFinal bool) partType {
 	return partInmemory
 }
 
-func openBlockStreamReaders(pws []*partWrapper) ([]*blockStreamReader, error) {
+func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 	bsrs := make([]*blockStreamReader, 0, len(pws))
 	for _, pw := range pws {
 		bsr := getBlockStreamReader()
 		if pw.mp != nil {
-			bsr.InitFromInmemoryPart(pw.mp)
+			bsr.MustInitFromInmemoryPart(pw.mp)
 		} else {
-			if err := bsr.InitFromFilePart(pw.p.path); err != nil {
-				for _, bsr := range bsrs {
-					putBlockStreamReader(bsr)
-				}
-				return nil, fmt.Errorf("cannot open source part for merging: %w", err)
-			}
+			bsr.MustInitFromFilePart(pw.p.path)
 		}
 		bsrs = append(bsrs, bsr)
 	}
-	return bsrs, nil
+	return bsrs
 }
 
 func (tb *Table) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
@@ -1253,10 +1231,7 @@ func (tb *Table) openCreatedPart(pws []*partWrapper, mpNew *inmemoryPart, dstPar
 		return pwNew
 	}
 	// Open the created part from disk.
-	pNew, err := openFilePart(dstPartPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open the merged part: %s", err)
-	}
+	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
 		p:        pNew,
 		refCount: 1,
@@ -1376,7 +1351,7 @@ func getWorkersCount() int {
 	return n
 }
 
-func openParts(path string) ([]*partWrapper, error) {
+func mustOpenParts(path string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
 	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
@@ -1390,10 +1365,7 @@ func openParts(path string) ([]*partWrapper, error) {
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read mergetree table dir: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	m := make(map[string]struct{}, len(partNames))
 	for _, partName := range partNames {
 		m[partName] = struct{}{}
@@ -1415,11 +1387,7 @@ func openParts(path string) ([]*partWrapper, error) {
 	var pws []*partWrapper
 	for _, partName := range partNames {
 		partPath := filepath.Join(path, partName)
-		p, err := openFilePart(partPath)
-		if err != nil {
-			mustCloseParts(pws)
-			return nil, fmt.Errorf("cannot open part %q: %w", partPath, err)
-		}
+		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
 			p:        p,
 			refCount: 1,
@@ -1427,16 +1395,7 @@ func openParts(path string) ([]*partWrapper, error) {
 		pws = append(pws, pw)
 	}
 
-	return pws, nil
-}
-
-func mustCloseParts(pws []*partWrapper) {
-	for _, pw := range pws {
-		if pw.refCount != 1 {
-			logger.Panicf("BUG: unexpected refCount when closing part %q: %d; want 1", pw.p.path, pw.refCount)
-		}
-		pw.p.MustClose()
-	}
+	return pws
 }
 
 // CreateSnapshotAt creates tb snapshot in the given dstDir.
@@ -1518,23 +1477,20 @@ func mustWritePartNames(pws []*partWrapper, dstDir string) {
 
 func mustReadPartNames(srcDir string) []string {
 	partNamesPath := filepath.Join(srcDir, partsFilename)
-	data, err := os.ReadFile(partNamesPath)
-	if err == nil {
+	if fs.IsPathExist(partNamesPath) {
+		data, err := os.ReadFile(partNamesPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
+		}
 		var partNames []string
 		if err := json.Unmarshal(data, &partNames); err != nil {
 			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
 		}
 		return partNames
 	}
-	if !os.IsNotExist(err) {
-		logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
-	}
 	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from directories under srcDir
-	des, err := os.ReadDir(srcDir)
-	if err != nil {
-		logger.Panicf("FATAL: cannot read mergeset table dir: %s", err)
-	}
+	des := fs.MustReadDir(srcDir)
 	var partNames []string
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {
