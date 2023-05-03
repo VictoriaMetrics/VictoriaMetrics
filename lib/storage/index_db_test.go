@@ -592,6 +592,8 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
 
+	date := uint64(timestampFromTime(time.Now())) / msecPerDay
+
 	var metricNameBuf []byte
 	var metricNameRawBuf []byte
 	for i := 0; i < 4e2+1; i++ {
@@ -613,7 +615,7 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 
 		// Create tsid for the metricName.
 		var tsid TSID
-		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, metricNameRawBuf, 0); err != nil {
+		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, metricNameRawBuf, date); err != nil {
 			return nil, nil, fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %w", &mn, err)
 		}
 
@@ -622,10 +624,9 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	}
 
 	// fill Date -> MetricID cache
-	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 	for i := range tsids {
 		tsid := &tsids[i]
-		is.createPerDayIndexes(date, tsid.MetricID, &mns[i])
+		is.createPerDayIndexes(date, tsid, &mns[i])
 	}
 
 	// Flush index to disk, so it becomes visible for search
@@ -644,6 +645,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		return false
 	}
 
+	currentTime := timestampFromTime(time.Now())
 	timeseriesCounters := make(map[uint64]bool)
 	var tsidCopy TSID
 	var metricNameCopy []byte
@@ -658,7 +660,7 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		mn.sortTags()
 		metricName := mn.Marshal(nil)
 
-		if err := db.getTSIDByNameNoCreate(&tsidCopy, metricName); err != nil {
+		if err := db.getTSIDByNameNoCreate(&tsidCopy, metricName, uint64(currentTime)/msecPerDay); err != nil {
 			return fmt.Errorf("cannot obtain tsid #%d for mn %s: %w", i, mn, err)
 		}
 		if isConcurrent {
@@ -738,7 +740,6 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 	}
 
 	// Try tag filters.
-	currentTime := timestampFromTime(time.Now())
 	tr := TimeRange{
 		MinTimestamp: currentTime - msecPerDay,
 		MaxTimestamp: currentTime + msecPerDay,
@@ -1615,7 +1616,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for i := range tsids {
 			tsid := &tsids[i]
 			metricIDs.Add(tsid.MetricID)
-			is.createPerDayIndexes(date, tsid.MetricID, &mns[i])
+			is.createPerDayIndexes(date, tsid, &mns[i])
 		}
 		allMetricIDs.Union(&metricIDs)
 		perDayMetricIDs[date] = &metricIDs
