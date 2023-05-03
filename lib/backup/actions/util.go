@@ -24,6 +24,9 @@ var (
 		"or if both not set, DefaultSharedConfigProfile is used")
 	customS3Endpoint = flag.String("customS3Endpoint", "", "Custom S3 endpoint for use with S3-compatible storages (e.g. MinIO). S3 is used if not set")
 	s3ForcePathStyle = flag.Bool("s3ForcePathStyle", true, "Prefixing endpoint with bucket name when set false, true by default.")
+	s3StorageClass   = flag.String("s3StorageClass", "", "The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, "+
+		"DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.\n"+
+		"See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/")
 )
 
 func runParallel(concurrency int, parts []common.Part, f func(p common.Part) error, progress func(elapsed time.Duration)) error {
@@ -240,6 +243,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			CredsFilePath:    *credsFilePath,
 			ConfigFilePath:   *configFilePath,
 			CustomEndpoint:   *customS3Endpoint,
+			StorageClass:     s3remote.StringToS3StorageClass(*s3StorageClass),
 			S3ForcePathStyle: *s3ForcePathStyle,
 			ProfileName:      *configProfile,
 			Bucket:           bucket,
