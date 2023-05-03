@@ -5,6 +5,7 @@ import (
 	"os"
 	"reflect"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -21,6 +22,21 @@ var (
 // at windows only files could be synced
 // Sync for directories is not supported.
 func mustSyncPath(path string) {
+}
+
+func mustRemoveDirAtomic(dir string) {
+	if !IsPathExist(dir) {
+		return
+	}
+	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
+	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
+	if err := os.Rename(dir, tmpDir); err != nil {
+		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
+	}
+	err := os.RemoveAll(tmpDir)
+	if err != nil {
+		logger.Warnf("cannot remove dir: %q: %s, restart VictoriaMetrics process to complete file deletion", tmpDir, err)
+	}
 }
 
 const (
