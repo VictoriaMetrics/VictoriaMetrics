@@ -66,7 +66,7 @@ func TestParseBad(t *testing.T) {
 		},
 		{
 			[]string{"http://unreachable-url"},
-			"dial tcp: lookup unreachable-url: no such host",
+			"failed to read from the config: cannot fetch \"http://unreachable-url\"",
 		},
 	}
 	for _, tc := range testCases {
