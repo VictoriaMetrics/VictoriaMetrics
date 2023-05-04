@@ -235,7 +235,7 @@ func (cw *consulWatcher) getBlockingServiceNames(index int64) ([]string, int64, 
 	}
 	serviceNames := make([]string, 0, len(m))
 	for serviceName, tags := range m {
-		if !shouldCollectServiceByName(cw.watchServices, serviceName) {
+		if !ShouldCollectServiceByName(cw.watchServices, serviceName) {
 			continue
 		}
 		if !shouldCollectServiceByTags(cw.watchTags, tags) {
@@ -265,7 +265,7 @@ func (sw *serviceWatcher) watchForServiceNodesUpdates(cw *consulWatcher, initWG 
 			// Nothing changed.
 			return
 		}
-		sns, err := parseServiceNodes(data)
+		sns, err := ParseServiceNodes(data)
 		if err != nil {
 			logger.Errorf("cannot parse Consul serviceNodes response for serviceName=%q from %q: %s", sw.serviceName, apiServer, err)
 			return
@@ -307,7 +307,8 @@ func (cw *consulWatcher) getServiceNodesSnapshot() map[string][]ServiceNode {
 	return sns
 }
 
-func shouldCollectServiceByName(filterServices []string, serviceName string) bool {
+// ShouldCollectServiceByName returns true if the given serviceName must be collected (present in filterServices).
+func ShouldCollectServiceByName(filterServices []string, serviceName string) bool {
 	if len(filterServices) == 0 {
 		return true
 	}

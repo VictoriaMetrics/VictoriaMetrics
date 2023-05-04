@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/azure"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consulagent"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
@@ -255,6 +256,7 @@ type ScrapeConfig struct {
 
 	AzureSDConfigs        []azure.SDConfig        `yaml:"azure_sd_configs,omitempty"`
 	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
+	ConsulAgentSDConfigs  []consulagent.SDConfig  `yaml:"consulagent_sd_configs,omitempty"`
 	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
 	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
 	DockerSDConfigs       []docker.SDConfig       `yaml:"docker_sd_configs,omitempty"`
@@ -306,6 +308,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.ConsulSDConfigs {
 		sc.ConsulSDConfigs[i].MustStop()
+	}
+	for i := range sc.ConsulAgentSDConfigs {
+		sc.ConsulAgentSDConfigs[i].MustStop()
 	}
 	for i := range sc.DigitaloceanSDConfigs {
 		sc.DigitaloceanSDConfigs[i].MustStop()
@@ -541,6 +546,33 @@ func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 		swsPrev := swsPrevByJob[sc.swc.jobName]
 		if len(swsPrev) > 0 {
 			logger.Errorf("there were errors when discovering consul targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
+// getConsulAgentSDScrapeWork returns `consulagent_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getConsulAgentSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for _, sc := range cfg.ScrapeConfigs {
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.ConsulAgentSDConfigs {
+			sdc := &sc.ConsulAgentSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consulagent_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering consulagent targets for job %q, so preserving the previous targets", sc.swc.jobName)
 			dst = append(dst[:dstLen], swsPrev...)
 		}
 	}
