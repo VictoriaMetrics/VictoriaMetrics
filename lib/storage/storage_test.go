@@ -493,12 +493,38 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 }
 
 func TestNextRetentionDuration(t *testing.T) {
-	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
-		d := nextRetentionDuration(int64(retentionMonths * msecsPerMonth))
+	validateRetention := func(now time.Time, retention float64) {
+		t.Helper()
+
+		nowMsecs := now.UnixMilli()
+		d := nextRetentionDurationAt(nowMsecs, int64(retention*msecsPerMonth))
 		if d <= 0 {
-			currTime := time.Now().UTC()
-			nextTime := time.Now().UTC().Add(d)
-			t.Fatalf("unexpected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retentionMonths, nextTime, currTime, retentionMonths)
+			nextTime := now.Add(d)
+			t.Fatalf("unexpected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retention, nextTime, now, retention)
+		}
+	}
+
+	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
+		// UTC offsets are in range [-12 hours, +14 hours].
+		// Verify that any legit combination of retention timezone and local time
+		// will return valid retention duration.
+		// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4207
+		for retentionOffset := -12; retentionOffset <= 14; retentionOffset++ {
+			for localTimeOffset := -12; localTimeOffset <= 14; localTimeOffset++ {
+				SetRetentionTimezoneOffset(time.Duration(retentionOffset) * time.Hour)
+				tz := time.FixedZone("", -1*localTimeOffset*60*60)
+				now := time.Now().In(tz)
+				validateRetention(now, retentionMonths)
+
+				now = time.Date(2023, 4, 27, 3, 58, 0, 0, tz)
+				validateRetention(now, retentionMonths)
+
+				now = time.Date(2023, 4, 27, 4, 1, 0, 0, tz)
+				validateRetention(now, retentionMonths)
+
+				now = time.Date(2023, 4, 27, 6, 0, 0, 0, tz)
+				validateRetention(now, retentionMonths)
+			}
 		}
 	}
 }
