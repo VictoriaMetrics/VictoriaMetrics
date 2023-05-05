@@ -818,9 +818,15 @@ and vmalert will start printing additional log messages:
 vmalert can detect if alert's expression doesn't match any time series in runtime. This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
-vmalert's UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. 
-See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
+vmalert's UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric's value will
+show how many time series were matched before the filtering by rule's expression. If metric's value is `-1`, then
+this feature is not supported by the datasource (old versions of VictoriaMetrics). The following expression can be
+used to detect rules matching no series:
+```
+max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) == 0
+```
 
+See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
 
