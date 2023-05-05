@@ -231,6 +231,34 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 	return groups, nil
 }
 
+// readFromFSOrHTTP reads path either from filesystem or from http if path starts with http or https.
+func readFromFSOrHTTP(paths []string) (map[string][]byte, error) {
+	var httpPaths []string
+	var fsPaths []string
+	for _, path := range paths {
+		if isHTTPURL(path) {
+			httpPaths = append(httpPaths, path)
+			continue
+		}
+		fsPaths = append(fsPaths, path)
+	}
+	result, err := readFromFS(fsPaths)
+	if err != nil {
+		return nil, err
+	}
+	httpResult, err := readFromHTTP(httpPaths)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range httpResult {
+		if _, ok := result[k]; ok {
+			return nil, fmt.Errorf("duplicate found for config name %q: config names must be unique", k)
+		}
+		result[k] = v
+	}
+	return result, nil
+}
+
 func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	errGroup := new(utils.ErrGroup)
 	var groups []Group
