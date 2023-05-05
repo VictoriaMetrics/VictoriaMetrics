@@ -353,7 +353,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		a, err := ar.newAlert(m, ls, start, qFn)
 		if err != nil {
-			logger.Errorf("failed to create alert: %w", err)
+			logger.Errorf("failed to create alert: %s", err)
 			curState.err = fmt.Errorf("failed to create alert: %w", err)
 			return nil, curState.err
 		}
