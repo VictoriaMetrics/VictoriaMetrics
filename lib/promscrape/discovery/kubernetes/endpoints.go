@@ -114,10 +114,6 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 		logger.Warnf(`the number of targets for "role: endpoints" %q exceeds 1000 and will be truncated in the next k8s releases; please use "role: endpointslice" instead`, eps.Metadata.key())
 	}
 
-	// Prometheus sets endpoints_name and namespace labels for all endpoints
-	// Even if port is not matching service port.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
-	commonEpLabels := eps.getCommonLabels()
 	// Append labels for skipped ports on seen pods.
 	portSeen := func(port int, ports []int) bool {
 		for _, p := range ports {
@@ -138,7 +134,11 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 				m.Add("__address__", addr)
 				p.appendCommonLabels(m, gw)
 				p.appendContainerLabels(m, c, &cp)
-				m.AddFrom(commonEpLabels)
+
+				// Prometheus sets endpoints_name and namespace labels for all endpoints
+				// Even if port is not matching service port.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154
+				p.appendEndpointLabels(m, eps)
 				if svc != nil {
 					svc.appendCommonLabels(m)
 				}
@@ -149,13 +149,6 @@ func (eps *Endpoints) getTargetLabels(gw *groupWatcher) []*promutils.Labels {
 		}
 	}
 	return ms
-}
-
-func (eps *Endpoints) getCommonLabels() *promutils.Labels {
-	m := promutils.GetLabels()
-	m.Add("__meta_kubernetes_namespace", eps.Metadata.Namespace)
-	m.Add("__meta_kubernetes_endpoints_name", eps.Metadata.Name)
-	return m
 }
 
 func appendEndpointLabelsForAddresses(ms []*promutils.Labels, gw *groupWatcher, podPortsSeen map[*Pod][]int, eps *Endpoints,
