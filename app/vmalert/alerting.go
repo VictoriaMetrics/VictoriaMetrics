@@ -245,6 +245,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 	for _, s := range series {
 		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
 		if err != nil {
+		    logger.Errorf("failed to create alert: %s", err)
 			return nil, fmt.Errorf("failed to create alert: %s", err)
 		}
 		if ar.For == 0 { // if alert is instant
@@ -352,6 +353,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 		}
 		a, err := ar.newAlert(m, ls, start, qFn)
 		if err != nil {
+		    logger.Errorf("failed to create alert: %w", err)
 			curState.err = fmt.Errorf("failed to create alert: %w", err)
 			return nil, curState.err
 		}
