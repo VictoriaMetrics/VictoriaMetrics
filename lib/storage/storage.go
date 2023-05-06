@@ -2178,10 +2178,14 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		}
 		v = v.Clone()
 		v.Union(&e.v)
-		byDateMutable.m[date] = &byDateMetricIDEntry{
+		dme := &byDateMetricIDEntry{
 			date: date,
 			v:    *v,
 		}
+		if date == byDateMutable.hotEntry.Load().(*byDateMetricIDEntry).date {
+			byDateMutable.hotEntry.Store(dme)
+		}
+		byDateMutable.m[date] = dme
 	}
 	for date, e := range byDate.m {
 		v := byDateMutable.get(date)
