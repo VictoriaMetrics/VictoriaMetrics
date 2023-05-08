@@ -274,18 +274,19 @@ which can be used as faster and less resource-hungry alternative to Prometheus.
 
 ## Grafana setup
 
+Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following url:
+
+```url
+http://<victoriametrics-addr>:8428
+```
+
+Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
+
+Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
+or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+
 VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) enables you to query,
 visualize and explore your metrics.
-It was created specifically for VictoriaMetrics and includes different benefits of usage this plugin:
-
-1. Plugin fixes [label names validation](https://github.com/grafana/grafana/issues/42615) issue;
-2. [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions support;
-3. Allows redirecting query execution from Grafana to [vmui](https://docs.victoriametrics.com/#vmui);
-4. Supports [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) in Explore mode or right in panel's expressions.
-
-We will continue to improve the usability and will add new features.
-
-All instructions how to install plugin you can find in the provided [link](https://github.com/VictoriaMetrics/grafana-datasource).
 
 ## How to upgrade VictoriaMetrics
 
