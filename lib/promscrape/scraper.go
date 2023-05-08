@@ -163,6 +163,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 				goto waitForChans
 			}
 			if bytes.Equal(data, dataNew) {
+				configSuccess.Set(1)
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
@@ -180,6 +181,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 				goto waitForChans
 			}
 			if bytes.Equal(data, dataNew) {
+				configSuccess.Set(1)
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
 			}
