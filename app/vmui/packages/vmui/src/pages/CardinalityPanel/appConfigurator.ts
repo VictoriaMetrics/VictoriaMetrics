@@ -120,7 +120,11 @@ export default class AppConfigurator {
        <p>
           Use this table to identify label values that are storing per each selected series.
        </p>`,
-      labelValueCountByLabelName: "",
+      labelValueCountByLabelName: `
+       <p>
+          This table returns a list of labels with the highest number of the unique values.
+       </p>
+      `,
       seriesCountByLabelValuePair: `
         <p>
           This table returns a list of the label values pairs with the highest number of series.
