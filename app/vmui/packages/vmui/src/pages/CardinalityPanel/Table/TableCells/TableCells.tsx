@@ -25,27 +25,9 @@ const TableCells: FC<CardinalityTableCells> = ({
 
   const diffPercent = progress - progressPrev;
   const relationPrevDay = hasProgresses ? "" : `${diffPercent.toFixed(2)}%`;
-  const hasActions = !!onActionClick;
 
   const handleActionClick = () => {
-    if (hasActions) {
-      onActionClick(row.name);
-    }
-  };
-
-  const actionButton = () => {
-    if (hasActions) {
-      return (<Tooltip title={`Filter by ${row.name}`}>
-        <Button
-          variant="text"
-          size="small"
-          onClick={handleActionClick}
-        >
-          <PlayCircleOutlineIcon/>
-        </Button>
-      </Tooltip>);
-    }
-    return null;
+    onActionClick && onActionClick(row.name);
   };
 
   return <>
@@ -108,7 +90,15 @@ const TableCells: FC<CardinalityTableCells> = ({
       key={"action"}
     >
       <div className="vm-table-cell__content">
-        {actionButton()}
+        {onActionClick && <Tooltip title={`Filter by ${row.name}`}>
+          <Button
+            variant="text"
+            size="small"
+            onClick={handleActionClick}
+          >
+            <PlayCircleOutlineIcon/>
+          </Button>
+        </Tooltip>}
       </div>
     </td>
   </>;
