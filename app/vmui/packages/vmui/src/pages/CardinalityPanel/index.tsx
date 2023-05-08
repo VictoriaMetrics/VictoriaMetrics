@@ -89,7 +89,6 @@ const CardinalityPanel: FC = () => {
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
-          sectionName={keyName}
         />;
       })}
     </div>

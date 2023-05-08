@@ -22,7 +22,6 @@ interface MetricsProperties {
   sectionTitle: string;
   tip?: string;
   tableHeaderCells: HeadCell[];
-  sectionName: string;
 }
 
 const MetricsContent: FC<MetricsProperties> = ({
@@ -35,11 +34,9 @@ const MetricsContent: FC<MetricsProperties> = ({
   sectionTitle,
   tip,
   tableHeaderCells,
-  sectionName,
 }) => {
   const { isMobile } = useDeviceDetect();
   const [activeTab, setActiveTab] = useState("table");
-  // const tableCEllAction = sectionName != "labelValueCountByLabelName" ? onActionClick: null;
 
   const tableCells = (row: Data) => (
     <TableCells
