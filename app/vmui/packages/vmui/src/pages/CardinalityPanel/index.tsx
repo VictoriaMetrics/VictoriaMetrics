@@ -32,7 +32,6 @@ const CardinalityPanel: FC = () => {
   const { isLoading, appConfigurator, error } = useFetchQuery();
   const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
   const defaultState = getDefaultState(match, focusLabel);
-  console.log("FOCUS =>", focusLabel, "MATCH =>", match);
 
   const handleFilterClick = (key: string) => (query: string) => {
     const value = queryUpdater[key]({ query, focusLabel, match });
