@@ -16,7 +16,7 @@
     padding: $padding-global $padding-small;
     color: inherit;
     text-decoration: none;
-    text-transform: uppercase;
+    text-transform: capitalize;
     font-size: inherit;
     font-weight: inherit;
     opacity: 0.6;
@@ -33,7 +33,7 @@
 
     &__icon {
       display: grid;
-      width: 15px;
+      width: 16px;
       margin-right: $padding-small;
 
       &_single {

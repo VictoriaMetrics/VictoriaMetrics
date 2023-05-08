@@ -5,12 +5,11 @@
     position: relative;
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 5px 0 5px $padding-global;
+    padding: 8px 0 8px $padding-global;
     cursor: pointer;
     border: $border-divider;
     border-radius: $border-radius-small;
-    min-height: 36px;
+    min-height: 40px;
 
     &-content {
       display: flex;
@@ -18,8 +17,8 @@
       justify-content: flex-start;
       flex-wrap: wrap;
       gap: $padding-small;
-      width: 100%;
-      max-width: calc(100% - ($padding-global + 61px));
+      flex-grow: 1;
+      //max-width: calc(100% - ($padding-global + 61px));
 
       &_mobile {
         flex-wrap: nowrap;
