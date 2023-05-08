@@ -67,11 +67,11 @@ textarea { margin: 1em }
     {% code expr, err := metricsql.Parse(q) %}
     {% if err != nil %}
         "status": "error",
-        "error": {%q fmt.Sprintf("Cannot parse query: %s", err) %}
+        "error": {%q= fmt.Sprintf("Cannot parse query: %s", err) %}
     {% else %}
         {% code expr = metricsql.Optimize(expr) %}
         "status": "success",
-        "expr": {%qz expr.AppendString(nil) %}
+        "expr": {%qz= expr.AppendString(nil) %}
     {% endif %}
 }
 {% endfunc %}
