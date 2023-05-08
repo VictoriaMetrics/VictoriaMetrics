@@ -29,7 +29,7 @@ Use this feature for the following cases:
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight and without extra dependencies.
 * Supports [reusable templates](#reusable-templates) for annotations;
-* Load of recording and alerting rules from local filesystem, GCS and S3;
+* Load of recording and alerting rules from local filesystem, URL, GCS and S3;
 * Detect alerting rules which [don't match any series](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 
 ## Limitations
@@ -1179,7 +1179,8 @@ The shortlist of configuration flags is the following:
      Path to the files with alerting and/or recording rules.
      Supports hierarchical patterns and regexpes.
      Examples:
-      -rule="/path/to/file". Path to a single file with alerting rules
+      -rule="/path/to/file". Path to a single file with alerting rules.
+      -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
       -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
       -rule="dir/**/*.yaml". Includes to all .yaml files in "dir" folder and it's subfolders recursively. 
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
