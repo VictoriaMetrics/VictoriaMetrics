@@ -372,7 +372,7 @@ users:
     headers:
     - "foo: bar"
     - "xxx: y"
-  default_url: 
+  default_url:
   - http://default1/select/0/prometheus
   - http://default2/select/0/prometheus
 `, map[string]*UserInfo{
