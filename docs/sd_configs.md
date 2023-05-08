@@ -163,12 +163,12 @@ scrape_configs:
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
     # tag_separator: "..."
 
-    # filter is optional filter for service nodes discovery request. 
-    # Replaces tags and node_metadata options.
-    # consul supports it since 1.14 version
-    # list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
-    # syntax examples https://developer.hashicorp.com/consul/api-docs/features/filtering
-    # filter: "..." 
+    # filter is an optional filter for service discovery.
+    # Replaces tags and node_meta options.
+    # Consul supports it since 1.14 version.
+    # See the list of supported filters at https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+    # See filter examples at https://developer.hashicorp.com/consul/api-docs/features/filtering
+    # filter: "..."
 
     # allow_stale is an optional config, which allows stale Consul results.
     # See https://www.consul.io/api/features/consistency.html
