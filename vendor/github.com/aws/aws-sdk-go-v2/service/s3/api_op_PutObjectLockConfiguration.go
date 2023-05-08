@@ -15,19 +15,13 @@ import (
 
 // Places an Object Lock configuration on the specified bucket. The rule specified
 // in the Object Lock configuration will be applied by default to every new object
-// placed in the specified bucket. For more information, see Locking Objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html).
-//
-// * The
-// DefaultRetention settings require both a mode and a period.
-//
-// * The
-// DefaultRetention period can be either Days or Years but you must select one. You
-// cannot specify Days and Years at the same time.
-//
-// * You can only enable Object
-// Lock for new buckets. If you want to turn on Object Lock for an existing bucket,
-// contact Amazon Web Services Support.
+// placed in the specified bucket. For more information, see Locking Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock.html)
+// .
+//   - The DefaultRetention settings require both a mode and a period.
+//   - The DefaultRetention period can be either Days or Years but you must select
+//     one. You cannot specify Days and Years at the same time.
+//   - You can only enable Object Lock for new buckets. If you want to turn on
+//     Object Lock for an existing bucket, contact Amazon Web Services Support.
 func (c *Client) PutObjectLockConfiguration(ctx context.Context, params *PutObjectLockConfigurationInput, optFns ...func(*Options)) (*PutObjectLockConfigurationOutput, error) {
 	if params == nil {
 		params = &PutObjectLockConfigurationInput{}
@@ -54,9 +48,8 @@ type PutObjectLockConfigurationInput struct {
 	// the SDK. This header will not provide any additional functionality if not using
 	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
 	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request. For more information, see Checking object
-	// integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// HTTP status code 400 Bad Request . For more information, see Checking object
+	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -77,8 +70,7 @@ type PutObjectLockConfigurationInput struct {
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -157,6 +149,9 @@ func (c *Client) addOperationPutObjectLockConfigurationMiddlewares(stack *middle
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
 		return err
 	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addPutObjectLockConfigurationInputChecksumMiddlewares(stack, options); err != nil {
 		return err
 	}
@@ -207,9 +202,9 @@ func addPutObjectLockConfigurationInputChecksumMiddlewares(stack *middleware.Sta
 	})
 }
 
-// getPutObjectLockConfigurationBucketMember returns a pointer to string denoting a
-// provided bucket member valueand a boolean indicating if the input has a modeled
-// bucket name,
+// getPutObjectLockConfigurationBucketMember returns a pointer to string denoting
+// a provided bucket member valueand a boolean indicating if the input has a
+// modeled bucket name,
 func getPutObjectLockConfigurationBucketMember(input interface{}) (*string, bool) {
 	in := input.(*PutObjectLockConfigurationInput)
 	if in.Bucket == nil {
