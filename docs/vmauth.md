@@ -72,6 +72,34 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
   because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
 
+## IP filters
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+
+For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
+
+```yml
+users:
+# User configs here
+
+ip_filters:
+  allow_list:
+  - 10.0.0.0/24
+  - 1.2.3.4
+  deny_list: [10.0.0.42]
+```
+
+The following config allows requests for the user 'foobar' only from the ip `127.0.0.1`:
+
+```yml
+users:
+- username: "foobar"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  ip_filters:
+    allow_list: [127.0.0.1]
+```
+
 ## Auth config
 
 `-auth.config` is represented in the following simple `yml` format:
