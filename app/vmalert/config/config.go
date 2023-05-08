@@ -209,8 +209,7 @@ var cLogger = &log.Logger{}
 func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
 	cLogger.Suppress(true)
 	defer cLogger.Suppress(false)
-
-	files, err := readFromFS(pathPatterns)
+	files, err := readFromFSOrHTTP(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
@@ -219,7 +218,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	files, err := readFromFS(pathPatterns)
+	files, err := readFromFSOrHTTP(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
@@ -231,6 +230,34 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
 	}
 	return groups, nil
+}
+
+// readFromFSOrHTTP reads path either from filesystem or from http if path starts with http or https.
+func readFromFSOrHTTP(paths []string) (map[string][]byte, error) {
+	var httpPaths []string
+	var fsPaths []string
+	for _, path := range paths {
+		if isHTTPURL(path) {
+			httpPaths = append(httpPaths, path)
+			continue
+		}
+		fsPaths = append(fsPaths, path)
+	}
+	result, err := readFromFS(fsPaths)
+	if err != nil {
+		return nil, err
+	}
+	httpResult, err := readFromHTTP(httpPaths)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range httpResult {
+		if _, ok := result[k]; ok {
+			return nil, fmt.Errorf("duplicate found for config name %q: config names must be unique", k)
+		}
+		result[k] = v
+	}
+	return result, nil
 }
 
 func parse(files map[string][]byte, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
