@@ -188,6 +188,8 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    ip_filters:
+      deny_list: [127.0.0.1]
 
   # A single user for querying and inserting data:
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
@@ -197,37 +199,42 @@ users:
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
-  # The requests which do not match `src_paths` from the `url_map` will be proxied to the urls rom `default_url` 
+  # The requests which do not match `src_paths` from the `url_map` will be proxied to the urls rom `default_url`
   # in a round-robin manner (with request path in `request_path` query param).
   # For example, request to http://vmauth:8427/non/existing/path will be proxied:
   #  - to http://default1:8888/process?request_path=/non/existing/path
   #  - or http://default2:8888/process?request_path=/non/existing/path
 - username: "foobar"
   url_map:
-    - src_paths:
-        - "/api/v1/query"
-        - "/api/v1/query_range"
-        - "/api/v1/label/[^/]+/values"
-      url_prefix:
-        - "http://vmselect1:8481/select/42/prometheus"
-        - "http://vmselect2:8481/select/42/prometheus"
-    - src_paths: ["/api/v1/write"]
-      url_prefix: "http://vminsert:8480/insert/42/prometheus"
-  default_url: 
-    - "http://default1:8888/process"
-    - "http://default2:8888/process"
+  - src_paths:
+    - "/api/v1/query"
+    - "/api/v1/query_range"
+    - "/api/v1/label/[^/]+/values"
+    url_prefix:
+    - "http://vmselect1:8481/select/42/prometheus"
+    - "http://vmselect2:8481/select/42/prometheus"
+  - src_paths: ["/api/v1/write"]
+    url_prefix: "http://vminsert:8480/insert/42/prometheus"
+  default_url:
+  - "http://default1:8888/process"
+  - "http://default2:8888/process"
 
-# This requests will be executed for requests without Authorization header.
-# For instance, http://vmauth:8427/api/v1/query will be proxied to http://vmselect1:8481/select/0/prometheus/api/v1/query
+# Requests without Authorization header are routed according to `unauthorized_user` section.
 unauthorized_user:
   url_map:
-    - src_paths:
-        - /health
-        - /api/v1/query/
-        - /api/v1/query_range
-      url_prefix:
-        - http://vmselect1:8481/select/0/prometheus
-        - http://vmselect2:8481/select/0/prometheus
+  - src_paths:
+    - /api/v1/query
+    - /api/v1/query_range
+    url_prefix:
+    - http://vmselect1:8481/select/0/prometheus
+    - http://vmselect2:8481/select/0/prometheus
+    ip_filters:
+      allow_list: [8.8.8.8]
+
+ip_filters:
+  allow_list: ["1.2.3.0/24", "127.0.0.1"]
+  deny_list:
+  - 10.1.0.1
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
