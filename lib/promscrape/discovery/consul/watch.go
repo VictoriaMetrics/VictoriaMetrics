@@ -64,19 +64,20 @@ func newConsulWatcher(client *discoveryutils.Client, sdc *SDConfig, datacenter, 
 	}
 
 	serviceNodesQueryArgs := baseQueryArgs
+	// tag is supported only by /v1/health/service/... and isn't supported by /v1/catalog/services
 	for _, tag := range sdc.Tags {
 		serviceNodesQueryArgs += "&tag=" + url.QueryEscape(tag)
 	}
 
-	// filter could be added only for baseQuery requests for /v1/catalog/services
-	// serviceNodesQueryArgs doesn't support it
+	serviceNamesQueryArgs := baseQueryArgs
+	// filter is supported only by /v1/catalog/services and isn't supported by /v1/health/service/...
 	if len(sdc.Filter) > 0 {
-		baseQueryArgs += "&filter=" + url.QueryEscape(sdc.Filter)
+		serviceNamesQueryArgs += "&filter=" + url.QueryEscape(sdc.Filter)
 	}
 
 	cw := &consulWatcher{
 		client:                client,
-		serviceNamesQueryArgs: baseQueryArgs,
+		serviceNamesQueryArgs: serviceNamesQueryArgs,
 		serviceNodesQueryArgs: serviceNodesQueryArgs,
 		watchServices:         sdc.Services,
 		watchTags:             sdc.Tags,
