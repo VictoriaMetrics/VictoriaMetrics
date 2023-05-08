@@ -33,7 +33,8 @@ Use this feature for the following cases:
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
 * Lightweight and without extra dependencies.
 * Supports [reusable templates](#reusable-templates) for annotations;
-* Load of recording and alerting rules from local filesystem, GCS and S3.
+* Load of recording and alerting rules from local filesystem, GCS and S3;
+* Detect alerting rules which [don't match any series](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 
 ## Limitations
 
@@ -815,6 +816,22 @@ and vmalert will start printing additional log messages:
 ...
 2022-09-15T13:36:56.153Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:36:56+02:00: alert 10705778000901301787 {alertgroup="TestGroup",alertname="Conns",cluster="east-1",instance="localhost:8429",replica="a"} PENDING => FIRING: 1m0s since becoming active at 2022-09-15 15:35:56.126006 +0200 CEST m=+39.384575417
 ```
+
+### Never-firing alerts
+
+vmalert can detect if alert's expression doesn't match any time series in runtime. This problem usually happens
+when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
+or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
+vmalert's UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric's value will
+show how many time series were matched before the filtering by rule's expression. If metric's value is `-1`, then
+this feature is not supported by the datasource (old versions of VictoriaMetrics). The following expression can be
+used to detect rules matching no series:
+```
+max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) == 0
+```
+
+See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
+This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
 
 
 ## Profiling

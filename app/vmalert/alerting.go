@@ -47,10 +47,11 @@ type AlertingRule struct {
 }
 
 type alertingRuleMetrics struct {
-	errors  *utils.Gauge
-	pending *utils.Gauge
-	active  *utils.Gauge
-	samples *utils.Gauge
+	errors        *utils.Gauge
+	pending       *utils.Gauge
+	active        *utils.Gauge
+	samples       *utils.Gauge
+	seriesFetched *utils.Gauge
 }
 
 func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule) *AlertingRule {
@@ -121,6 +122,15 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 			e := ar.state.getLast()
 			return float64(e.samples)
 		})
+	ar.metrics.seriesFetched = utils.GetOrCreateGauge(fmt.Sprintf(`vmalert_alerting_rules_last_evaluation_series_fetched{%s}`, labels),
+		func() float64 {
+			e := ar.state.getLast()
+			if e.seriesFetched == nil {
+				// means seriesFetched is unsupported
+				return -1
+			}
+			return float64(*e.seriesFetched)
+		})
 	return ar
 }
 
@@ -130,6 +140,7 @@ func (ar *AlertingRule) Close() {
 	ar.metrics.pending.Unregister()
 	ar.metrics.errors.Unregister()
 	ar.metrics.samples.Unregister()
+	ar.metrics.seriesFetched.Unregister()
 }
 
 // String implements Stringer interface
@@ -234,7 +245,7 @@ func (ar *AlertingRule) toLabels(m datasource.Metric, qFn templates.QueryFn) (*l
 // to get time series for backfilling.
 // It returns ALERT and ALERT_FOR_STATE time series as result.
 func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]prompbmarshal.TimeSeries, error) {
-	series, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
+	res, err := ar.q.QueryRange(ctx, ar.Expr, start, end)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +253,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 	qFn := func(query string) ([]datasource.Metric, error) {
 		return nil, fmt.Errorf("`query` template isn't supported in replay mode")
 	}
-	for _, s := range series {
+	for _, s := range res.Data {
 		a, err := ar.newAlert(s, nil, time.Time{}, qFn) // initial alert
 		if err != nil {
 			return nil, fmt.Errorf("failed to create alert: %s", err)
@@ -282,14 +293,15 @@ const resolvedRetention = 15 * time.Minute
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
-	qMetrics, req, err := ar.q.Query(ctx, ar.Expr, ts)
+	res, req, err := ar.q.Query(ctx, ar.Expr, ts)
 	curState := ruleStateEntry{
-		time:     start,
-		at:       ts,
-		duration: time.Since(start),
-		samples:  len(qMetrics),
-		err:      err,
-		curl:     requestToCurl(req),
+		time:          start,
+		at:            ts,
+		duration:      time.Since(start),
+		samples:       len(res.Data),
+		seriesFetched: res.SeriesFetched,
+		err:           err,
+		curl:          requestToCurl(req),
 	}
 
 	defer func() {
@@ -315,11 +327,11 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	qFn := func(query string) ([]datasource.Metric, error) {
 		res, _, err := ar.q.Query(ctx, query, ts)
-		return res, err
+		return res.Data, err
 	}
 	updated := make(map[uint64]struct{})
 	// update list of active alerts
-	for _, m := range qMetrics {
+	for _, m := range res.Data {
 		ls, err := ar.toLabels(m, qFn)
 		if err != nil {
 			curState.err = fmt.Errorf("failed to expand labels: %s", err)
@@ -485,22 +497,23 @@ func (ar *AlertingRule) AlertAPI(id uint64) *APIAlert {
 func (ar *AlertingRule) ToAPI() APIRule {
 	lastState := ar.state.getLast()
 	r := APIRule{
-		Type:           "alerting",
-		DatasourceType: ar.Type.String(),
-		Name:           ar.Name,
-		Query:          ar.Expr,
-		Duration:       ar.For.Seconds(),
-		Labels:         ar.Labels,
-		Annotations:    ar.Annotations,
-		LastEvaluation: lastState.time,
-		EvaluationTime: lastState.duration.Seconds(),
-		Health:         "ok",
-		State:          "inactive",
-		Alerts:         ar.AlertsToAPI(),
-		LastSamples:    lastState.samples,
-		MaxUpdates:     ar.state.size(),
-		Updates:        ar.state.getAll(),
-		Debug:          ar.Debug,
+		Type:              "alerting",
+		DatasourceType:    ar.Type.String(),
+		Name:              ar.Name,
+		Query:             ar.Expr,
+		Duration:          ar.For.Seconds(),
+		Labels:            ar.Labels,
+		Annotations:       ar.Annotations,
+		LastEvaluation:    lastState.time,
+		EvaluationTime:    lastState.duration.Seconds(),
+		Health:            "ok",
+		State:             "inactive",
+		Alerts:            ar.AlertsToAPI(),
+		LastSamples:       lastState.samples,
+		LastSeriesFetched: lastState.seriesFetched,
+		MaxUpdates:        ar.state.size(),
+		Updates:           ar.state.getAll(),
+		Debug:             ar.Debug,
 
 		// encode as strings to avoid rounding in JSON
 		ID:      fmt.Sprintf("%d", ar.ID()),
@@ -637,11 +650,12 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, ts ti
 
 		ar.logDebugf(ts, nil, "restoring alert state via query %q", expr)
 
-		qMetrics, _, err := q.Query(ctx, expr, ts)
+		res, _, err := q.Query(ctx, expr, ts)
 		if err != nil {
 			return err
 		}
 
+		qMetrics := res.Data
 		if len(qMetrics) < 1 {
 			ar.logDebugf(ts, nil, "no response was received from restore query")
 			continue
