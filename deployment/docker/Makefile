@@ -1,6 +1,6 @@
 # All these commands must run from repository root.
 
-DOCKER_NAMESPACE := victoriametrics
+DOCKER_NAMESPACE ?= victoriametrics
 
 ROOT_IMAGE ?= alpine:3.17.3
 CERTS_IMAGE := alpine:3.17.3
