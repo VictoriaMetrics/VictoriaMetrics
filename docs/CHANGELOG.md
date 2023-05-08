@@ -57,7 +57,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): add `__meta_kubernetes_endpoints_name` label for all ports discovered from endpoint. Previously, ports not matched by `Service` did not have this label. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4154) for details. Thanks to @thunderbird86 for discovering and [fixing](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4253) the issue.
 * BUGFIX: fix indexdb rotation getting in infinite loop when using `retentionTimezoneOffset` and local timezone is not UTC. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4207) for details. Thanks to @faceair for the fix.
 * BUGFIX: max value for `memory.allowedPercent` changed from 200 to 100. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4171).
-* BUGFIX: [alerts-health](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml): update threshold for TooHighMemoryUsage from 90% to 80%. 
+* BUGFIX: [alerts-health](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml): update threshold for TooHighMemoryUsage from 90% to 80%.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fixed `vm_promscrape_config_last_reload_successful` metric value recovery after successful reloading with unchanged content. For details see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4260).
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
