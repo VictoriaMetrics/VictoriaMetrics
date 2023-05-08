@@ -145,7 +145,7 @@ func StreamExpandWithExprsJSONResponse(qw422016 *qt422016.Writer, q string) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:68
 		qw422016.N().S(`"status": "error","error":`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:70
-		qw422016.E().Q(fmt.Sprintf("Cannot parse query: %s", err))
+		qw422016.N().Q(fmt.Sprintf("Cannot parse query: %s", err))
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:71
 	} else {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:72
@@ -154,7 +154,7 @@ func StreamExpandWithExprsJSONResponse(qw422016 *qt422016.Writer, q string) {
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:72
 		qw422016.N().S(`"status": "success","expr":`)
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:74
-		qw422016.E().QZ(expr.AppendString(nil))
+		qw422016.N().QZ(expr.AppendString(nil))
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:75
 	}
 //line app/vmselect/prometheus/expand-with-exprs.qtpl:75

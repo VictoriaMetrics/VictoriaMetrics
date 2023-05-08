@@ -468,7 +468,6 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		return true
 	case "/metric-relabel-debug":
 		promscrapeMetricRelabelDebugRequests.Inc()
-		httpserver.EnableCORS(w, r)
 		promscrape.WriteMetricRelabelDebug(w, r)
 		return true
 	case "/target-relabel-debug":
