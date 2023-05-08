@@ -49,6 +49,7 @@ $button-radius: 6px;
     display: grid;
     align-items: center;
     justify-content: center;
+    transform: translateZ(1px);
 
     svg {
       width: 15px;
