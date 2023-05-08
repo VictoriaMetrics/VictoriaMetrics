@@ -65,6 +65,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [alerts-health](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts-health.yml): update threshold for TooHighMemoryUsage from 90% to 80%.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fixed `vm_promscrape_config_last_reload_successful` metric value recovery after successful reloading with unchanged content. For details see [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4260).
 * BUGFIX: [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html): prevent from possible panic when the number of vmstorage nodes increases when [automatic vmstorage discovery](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) is enabled.
+* BUGFIX: properly limit the number of [OpenTSDB HTTP](https://docs.victoriametrics.com/#sending-opentsdb-data-via-http-apiput-requests) concurrent requests specified via `-maxConcurrentInserts` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4204). Thanks to @zouxiang1993 for [the fix](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4208).
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
