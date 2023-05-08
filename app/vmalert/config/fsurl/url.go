@@ -7,15 +7,13 @@ import (
 	"net/url"
 )
 
-// FS represents a local file system
+// FS represents a struct which can read content from URL Path
 type FS struct {
-	// Pattern is used for matching one or multiple files.
-	// The pattern may describe hierarchical names such as
-	// /usr/*/bin/ed (assuming the Separator is '/').
+	// Path defines the URL to read the data from
 	Path string
 }
 
-// Init verifies that configured Pattern is correct
+// Init verifies that configured Path is correct
 func (fs *FS) Init() error {
 	_, err := url.Parse(fs.Path)
 	return err
@@ -27,6 +25,7 @@ func (fs *FS) String() string {
 }
 
 // List returns the list of file names which will be read via Read fn
+// List isn't supported by FS and reads from Path only
 func (fs *FS) List() ([]string, error) {
 	return []string{fs.Path}, nil
 }
