@@ -52,7 +52,7 @@ export default class AppConfigurator {
     } else if (isLabel) {
       keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName");
     } else {
-      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName", "seriesCountByLabelValuePair");
+      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName", "seriesCountByLabelValuePair", "labelValueCountByLabelName");
     }
     return keys;
   }

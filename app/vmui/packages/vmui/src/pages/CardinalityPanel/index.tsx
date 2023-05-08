@@ -32,6 +32,7 @@ const CardinalityPanel: FC = () => {
   const { isLoading, appConfigurator, error } = useFetchQuery();
   const { tsdbStatusData, getDefaultState, tablesHeaders, sectionsTips } = appConfigurator;
   const defaultState = getDefaultState(match, focusLabel);
+  console.log("FOCUS =>", focusLabel, "MATCH =>", match);
 
   const handleFilterClick = (key: string) => (query: string) => {
     const value = queryUpdater[key]({ query, focusLabel, match });
@@ -72,20 +73,26 @@ const CardinalityPanel: FC = () => {
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {appConfigurator.keys(match, focusLabel).map((keyName) => (
-        <MetricsContent
+      {appConfigurator.keys(match, focusLabel).map((keyName) => {
+        // do not use actions for 'labelValueCountByLabelName' when all filters are disabled
+        const hasSetFields = !focusLabel && !match;
+        const useActionForLabelValues = hasSetFields && keyName === "labelValueCountByLabelName";
+        const action = !useActionForLabelValues ? handleFilterClick(keyName) : null;
+
+        return <MetricsContent
           key={keyName}
           sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}
           tip={sectionsTips[keyName]}
           rows={tsdbStatusData[keyName as keyof TSDBStatus] as unknown as Data[]}
-          onActionClick={handleFilterClick(keyName)}
+          onActionClick={action}
           tabs={defaultState.tabs[keyName as keyof Tabs]}
           chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
-        />
-      ))}
+          sectionName={keyName}
+        />;
+      })}
     </div>
   );
 };
