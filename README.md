@@ -272,17 +272,110 @@ Take a look also at [vmagent](https://docs.victoriametrics.com/vmagent.html)
 and [vmalert](https://docs.victoriametrics.com/vmalert.html),
 which can be used as faster and less resource-hungry alternative to Prometheus.
 
-## Grafana setup
+## Setup VictoriaMetrics datasource plugin for Grafana
 
-Create [Prometheus datasource](http://docs.grafana.org/features/datasources/prometheus/) in Grafana with the following url:
+VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) enables you to query, 
+visualize and explore your metrics.
+It was created specifically for VictoriaMetrics and includes different benefits of usage this plugin:
 
-```url
-http://<victoriametrics-addr>:8428
+1. Plugin fixes [label names validation](https://github.com/grafana/grafana/issues/42615) issue;
+2. [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) functions support;
+3. Allows redirecting query execution from Grafana to [vmui](https://docs.victoriametrics.com/#vmui);
+4. Supports [query tracing](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#query-tracing) in Explore mode or right in panel's expressions.
+
+We will continue to improve the usability and will add new features.
+
+### How to install plugin
+
+If you want to use VictoriaMetrics datasource plugin you should follow the next steps:
+
+1. Go to the grafana folder and change `grafana.ini` config to allow loading unsigned plugins:
+
+```
+[plugins]
+allow_loading_unsigned_plugins = victoriametrics-datasource
+```
+2. Download plugin build and move contents into grafana plugins directory:
+
+```
+ver=$(curl -s https://api.github.com/repos/VictoriaMetrics/grafana-datasource/releases/latest | grep -oE 'v\d+\.\d+\.\d+' | head -1)
+curl -L https://github.com/VictoriaMetrics/grafana-datasource/releases/download/$ver/victoriametrics-datasource-$ver.tar.gz -o /var/lib/grafana/plugins/plugin.tar.gz
+tar -xf /var/lib/grafana/plugins/plugin.tar.gz -C /var/lib/grafana/plugins/
+rm /var/lib/grafana/plugins/plugin.tar.gz
+```
+3. Run or restart your grafana server
+
+### How to configure the Datasource with Provisioning
+
+1. Create folder `./provisioning/datasource` in the folder where is grafana was installed
+2. Create datasource config file as an example below:
+
+```yaml
+apiVersion: 1
+
+# List of data sources to insert/update depending on what's
+# available in the database.
+datasources:
+  # <string, required> Name of the VictoriaMetrics datasource 
+  # displayed in grafana panels and queries.
+  - name: VictoriaMetrics
+    # <string, required> Sets the data source type.
+    type: victoriametrics-datasource
+            # <string, required> Sets the access mode, either
+            # proxy or direct (Server or Browser in the UI).
+            # Some data sources are incompatible with any setting
+    # but proxy (Server).
+    access: proxy
+    # <string> Sets default URL of the single node version of VictoriaMetrics
+    url: http://victoriametrics:8428
+    # <string> Sets the pre-selected datasource for new panels. 
+    # You can set only one default data source per organization.
+    isDefault: true
+
+    # <string, required> Name of the VictoriaMetrics datasource 
+    # displayed in grafana panels and queries.
+  - name: VictoriaMetrics - cluster
+    # <string, required> Sets the data source type.
+    type: victoriametrics-datasource
+    # <string, required> Sets the access mode, either
+    # proxy or direct (Server or Browser in the UI).
+    # Some data sources are incompatible with any setting
+    # but proxy (Server).
+    access: proxy
+    # <string> Sets default URL of the cluster version of VictoriaMetrics
+    url: http://vmselect:8481/select/0/prometheus
+    # <string> Sets the pre-selected datasource for new panels. 
+    # You can set only one default data source per organization.
+    isDefault: false
 ```
 
-Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
+3. Download latest release of the VictoriaMetrics datasource plugin
+4. Create docker-compose file:
 
-Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+```yaml
+  version: '3.0'
+
+  services:
+
+    grafana:
+      container_name: 'grafana-datasource'
+      build:
+        context: ./.config
+        args:
+          grafana_version: ${GRAFANA_VERSION:-9.1.2}
+      ports:
+        - 3000:3000/tcp
+      volumes:
+        - ./victoriametrics-datasource:/var/lib/grafana/plugins/grafana-datasource
+        - ./provisioning:/etc/grafana/provisioning
+```
+
+5. Run docker-compose file
+
+```
+docker-compose -f docker-compose.yaml up
+```
+If grafana starts successfully VictoriaMetrics datasources should be present on the datasources tab. 
 
 ## How to upgrade VictoriaMetrics
 

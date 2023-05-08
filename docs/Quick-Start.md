@@ -36,7 +36,7 @@ Single-server-VictoriaMetrics VictoriaMetrics is available as:
 Just download VictoriaMetrics and follow
 [these instructions](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-start-victoriametrics).
 Then read [Prometheus setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup)
-and [Grafana setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#grafana-setup) docs.
+and [Grafana setup](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#setup-victoriametrics-datasource-plugin-for-grafana) docs.
 
 VictoriaMetrics is developed at a fast pace, so it is recommended periodically checking the [CHANGELOG](https://docs.victoriametrics.com/CHANGELOG.html) and performing [regular upgrades](https://docs.victoriametrics.com/#how-to-upgrade-victoriametrics).
 
