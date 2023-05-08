@@ -293,7 +293,7 @@ func initAuthConfig() {
 
 	err := loadAuthConfig()
 	if err != nil {
-		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
+		logger.Fatalf("cannot load auth config: %s", err)
 	}
 
 	stopCh = make(chan struct{})
@@ -328,10 +328,9 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
 			err := loadAuthConfig()
 			if err != nil {
-				logger.Errorf("failed to load -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
+				logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
 				continue
 			}
-			logger.Infof("Successfully reloaded -auth.config=%q", *authConfigPath)
 		}
 	}
 }
@@ -344,14 +343,14 @@ var stopCh chan struct{}
 func loadAuthConfig() error {
 	ac, err := readAuthConfig(*authConfigPath)
 	if err != nil {
-		return fmt.Errorf("failed to load `-auth.config=%q`: %s", *authConfigPath, err)
+		return fmt.Errorf("failed to load -auth.config=%q: %s", *authConfigPath, err)
 	}
 
 	m, err := parseAuthConfigUsers(ac)
 	if err != nil {
-		return fmt.Errorf("failed to parse users from `-auth.config=%q`: %s", *authConfigPath, err)
+		return fmt.Errorf("failed to parse users from -auth.config=%q: %s", *authConfigPath, err)
 	}
-	logger.Infof("Loaded information about %d users from %q", len(m), *authConfigPath)
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
 
 	authConfig.Store(ac)
 	authUsers.Store(&m)
