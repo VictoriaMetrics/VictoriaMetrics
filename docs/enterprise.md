@@ -18,7 +18,7 @@ and [enterprise edition](https://victoriametrics.com/products/enterprise/).
 VictoriaMetrics community components are open source and are free to use - see [the source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
 and [the license](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
 
-The use of VictoriaMetrics enteprise components is permitted in the following cases:
+The use of VictoriaMetrics enterprise components is permitted in the following cases:
 
 - Evaluation use in non-production setups. Just download and run enterprise binaries or packages of VictoriaMetrics
   components from usual places - [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and [docker hub](https://hub.docker.com/u/victoriametrics).

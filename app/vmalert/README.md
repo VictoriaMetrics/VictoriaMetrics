@@ -14,7 +14,7 @@ or [cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.ht
 of VictoriaMetrics are capable of proxying requests to vmalert via `-vmalert.proxyURL` command-line flag. 
 Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing vmalert's UI through VictoriaMetrics Web interface.
+* for accessing vmalerts UI through VictoriaMetrics Web interface.
 
 ## Features
 
@@ -23,7 +23,7 @@ Use this feature for the following cases:
   support and expressions validation;
 * Prometheus [alerting rules definition format](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/#defining-alerting-rules)
   support;
-* Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-aplha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
+* Integration with [Alertmanager](https://github.com/prometheus/alertmanager) starting from [Alertmanager v0.16.0-alpha](https://github.com/prometheus/alertmanager/releases/tag/v0.16.0-alpha.0);
 * Keeps the alerts [state on restarts](#alerts-state-on-restarts);
 * Graphite datasource can be used for alerting and recording rules. See [these docs](#graphite);
 * Recording and Alerting rules backfilling (aka `replay`). See [these docs](#rules-backfilling);
@@ -271,7 +271,7 @@ Additionally, `vmalert` provides some extra templating functions listed [here](#
   query at `-datasource.url` and returns the first result.
 - `queryEscape` - escapes the input string, so it can be safely put inside [query arg](https://en.wikipedia.org/wiki/Percent-encoding) part of URL.
 - `quotesEscape` - escapes the input string, so it can be safely embedded into JSON string.
-- `reReplaceAll regex repl` - replaces all the occurences of the `regex` in input string with the `repl`.
+- `reReplaceAll regex repl` - replaces all the occurrences of the `regex` in input string with the `repl`.
 - `safeHtml` - marks the input string as safe to use in HTML context without the need to html-escape it.
 - `sortByLabel name` - sorts the input query results by the label with the given `name`.
 - `stripDomain` - leaves the first part of the domain. For example, `foo.bar.baz` is converted to `foo`.
@@ -483,7 +483,7 @@ Cluster mode could have multiple `vminsert` and `vmselect` components.
 <img alt="vmalert cluster" src="vmalert_cluster.png">
 
 In case when you want to spread the load on these components - add balancers before them and configure
-`vmalert` with balancer's addresses. Please, see more about VM's cluster architecture
+`vmalert` with balancer addresses. Please, see more about VM's cluster architecture
 [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#architecture-overview).
 
 #### HA vmalert
@@ -508,7 +508,7 @@ Alertmanagers.
 
 To avoid recording rules results and alerts state duplication in VictoriaMetrics server
 don't forget to configure [deduplication](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#deduplication).
-The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert's `evaluation_interval`.
+The recommended value for `-dedup.minScrapeInterval` must be greater or equal to vmalert `evaluation_interval`.
 If you observe inconsistent or "jumping" values in series produced by vmalert, try disabling `-datasource.queryTimeAlignment`
 command line flag. Because of alignment, two or more vmalert HA pairs will produce results with the same timestamps.
 But due of backfilling (data delivered to the datasource with some delay) values of such results may differ,
@@ -518,7 +518,7 @@ Alertmanager will automatically deduplicate alerts with identical labels, so ens
 all `vmalert`s are having the same config.
 
 Don't forget to configure [cluster mode](https://prometheus.io/docs/alerting/latest/alertmanager/)
-for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert's `-notifier.url` 
+for Alertmanagers for better reliability. List all Alertmanager URLs in vmalert `-notifier.url`
 to ensure [high availability](https://github.com/prometheus/alertmanager#high-availability).
 
 This example uses single-node VM server for the sake of simplicity.
@@ -610,7 +610,7 @@ or time series modification via [relabeling](https://docs.victoriametrics.com/vm
 
 `vmalert` web UI can be accessed from [single-node version of VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
 and from [cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
-This may be used for better integraion with Grafana unified alerting system. See the following docs for details:
+This may be used for better integration with Grafana unified alerting system. See the following docs for details:
 
 * [How to query vmalert from single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmalert)
 * [How to query vmalert from VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#vmalert)
@@ -762,11 +762,11 @@ Try the following recommendations to reduce the chance of hitting the data delay
 [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution). For example,
 if expression is `rate(my_metric[2m]) > 0` then ensure that `my_metric` resolution is at least `1m` or better `30s`. 
 If you use VictoriaMetrics as datasource, `[duration]` can be omitted and VictoriaMetrics will adjust it automatically.
-* If you know in advance, that data in datasource is delayed - try changing vmalert's `-datasource.lookback`
+* If you know in advance, that data in datasource is delayed - try changing vmalerts `-datasource.lookback`
 command-line flag to add a time shift for evaluations. Or extend `[duration]` to tolerate the delay.
 For example, `max_over_time(errors_total[10m]) > 0` will be active even if there is no data in datasource for last `9m`.
 * If [time series resolution](https://docs.victoriametrics.com/keyConcepts.html#time-series-resolution)
-in datasource is inconsistent or `>=5min` - try changing vmalert's `-datasource.queryStep` command-line flag to specify 
+in datasource is inconsistent or `>=5min` - try changing vmalerts `-datasource.queryStep` command-line flag to specify
 how far search query can lookback for the recent datapoint. The recommendation is to have the step 
 at least two times bigger than the resolution.
 
@@ -818,8 +818,8 @@ and vmalert will start printing additional log messages:
 vmalert can detect if alert's expression doesn't match any time series in runtime. This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
-vmalert's UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric's value will
-show how many time series were matched before the filtering by rule's expression. If metric's value is `-1`, then
+vmalerts UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric value will
+show how many time series were matched before the filtering by rule's expression. If metric value is `-1`, then
 this feature is not supported by the datasource (old versions of VictoriaMetrics). The following expression can be
 used to detect rules matching no series:
 ```
@@ -872,7 +872,7 @@ The shortlist of configuration flags is the following:
   -clusterMode
      If clusterMode is enabled, then vmalert automatically adds the tenant specified in config groups to -datasource.url, -remoteWrite.url and -remoteRead.url. See https://docs.victoriametrics.com/vmalert.html#multitenancy . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
   -configCheckInterval duration
-     Interval for checking for changes in '-rule' or '-notifier.config' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes.
+     Interval for checking for changes in '-rule' or '-notifier.config' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes.
   -datasource.appendTypePrefix
      Whether to add type prefix to -datasource.url based on the query type. Set to true if sending different query types to the vmselect URL.
   -datasource.basicAuth.password string
@@ -906,7 +906,7 @@ The shortlist of configuration flags is the following:
   -datasource.queryStep duration
      How far a value can fallback to when evaluating queries. For example, if -datasource.queryStep=15s then param "step" with value "15s" will be added to every query. If set to 0, rule's evaluation interval will be used instead. (default 5m0s)
   -datasource.queryTimeAlignment
-     Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite of number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
+     Whether to align "time" parameter with evaluation interval.Alignment supposed to produce deterministic results despite number of vmalert replicas or time they were started. See more details here https://github.com/VictoriaMetrics/VictoriaMetrics/pull/1257 (default true)
   -datasource.roundDigits int
      Adds "round_digits" GET param to datasource requests. In VM "round_digits" limits the number of digits after the decimal point in response values.
   -datasource.showURL
@@ -932,7 +932,7 @@ The shortlist of configuration flags is the following:
   -dryRun
      Whether to check only config files without running vmalert. The rules file are validated. The -rule flag must be specified.
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
   -envflag.enable
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
@@ -951,11 +951,11 @@ The shortlist of configuration flags is the following:
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -1036,7 +1036,7 @@ The shortlist of configuration flags is the following:
   -notifier.suppressDuplicateTargetErrors
      Whether to suppress 'duplicate target' errors during discovery
   -notifier.tlsCAFile array
-     Optional path to TLS CA file to use for verifying connections to -notifier.url. By default system CA is used
+     Optional path to TLS CA file to use for verifying connections to -notifier.url. By default, system CA is used
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsCertFile array
      Optional path to client-side TLS certificate file to use when connecting to -notifier.url
@@ -1048,7 +1048,7 @@ The shortlist of configuration flags is the following:
      Optional path to client-side TLS certificate key to use when connecting to -notifier.url
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.tlsServerName array
-     Optional TLS server name to use for connections to -notifier.url. By default the server name from -notifier.url is used
+     Optional TLS server name to use for connections to -notifier.url. By default, the server name from -notifier.url is used
      Supports an array of values separated by comma or specified via multiple flags.
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
@@ -1071,7 +1071,7 @@ The shortlist of configuration flags is the following:
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -remoteRead.basicAuth.password string
      Optional basic auth password for -remoteRead.url
@@ -1104,7 +1104,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.showURL
      Whether to show -remoteRead.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteRead.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default system CA is used
+     Optional path to TLS CA file to use for verifying connections to -remoteRead.url. By default, system CA is used
   -remoteRead.tlsCertFile string
      Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url
   -remoteRead.tlsInsecureSkipVerify
@@ -1112,7 +1112,7 @@ The shortlist of configuration flags is the following:
   -remoteRead.tlsKeyFile string
      Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url
   -remoteRead.tlsServerName string
-     Optional TLS server name to use for connections to -remoteRead.url. By default the server name from -remoteRead.url is used
+     Optional TLS server name to use for connections to -remoteRead.url. By default, the server name from -remoteRead.url is used
   -remoteRead.url vmalert
      Optional URL to datasource compatible with Prometheus HTTP API. It can be single node VictoriaMetrics or vmselect.Remote read is used to restore alerts state.This configuration makes sense only if vmalert was configured with `remoteWrite.url` before and has been successfully persisted its state. E.g. http://127.0.0.1:8428. See also '-remoteRead.disablePathAppend', '-remoteRead.showURL'.
   -remoteWrite.basicAuth.password string
@@ -1134,7 +1134,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.headers string
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
   -remoteWrite.maxBatchSize int
-     Defines defines max number of timeseries to be flushed at once (default 1000)
+     Defines max number of timeseries to be flushed at once (default 1000)
   -remoteWrite.maxQueueSize int
      Defines the max number of pending datapoints to remote write endpoint (default 100000)
   -remoteWrite.oauth2.clientID string
@@ -1152,7 +1152,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.showURL
      Whether to show -remoteWrite.url in the exported metrics. It is hidden by default, since it can contain sensitive info such as auth key
   -remoteWrite.tlsCAFile string
-     Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default system CA is used
+     Optional path to TLS CA file to use for verifying connections to -remoteWrite.url. By default, system CA is used
   -remoteWrite.tlsCertFile string
      Optional path to client-side TLS certificate file to use when connecting to -remoteWrite.url
   -remoteWrite.tlsInsecureSkipVerify
@@ -1160,7 +1160,7 @@ The shortlist of configuration flags is the following:
   -remoteWrite.tlsKeyFile string
      Optional path to client-side TLS certificate key to use when connecting to -remoteWrite.url
   -remoteWrite.tlsServerName string
-     Optional TLS server name to use for connections to -remoteWrite.url. By default the server name from -remoteWrite.url is used
+     Optional TLS server name to use for connections to -remoteWrite.url. By default, the server name from -remoteWrite.url is used
   -remoteWrite.url string
      Optional URL to VictoriaMetrics or vminsert where to persist alerts state and recording rules results in form of timeseries. For example, if -remoteWrite.url=http://127.0.0.1:8428 is specified, then the alerts state will be written to http://127.0.0.1:8428/api/v1/write . See also -remoteWrite.disablePathAppend, '-remoteWrite.showURL'.
   -replay.disableProgressBar
@@ -1170,7 +1170,7 @@ The shortlist of configuration flags is the following:
   -replay.ruleRetryAttempts int
      Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
-     Delay between rules evaluation within the group. Could be important if there are chained rules inside of the groupand processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
+     Delay between rules evaluation within the group. Could be important if there are chained rules inside the groupand processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
   -replay.timeFrom string
      The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
   -replay.timeTo string
@@ -1193,7 +1193,7 @@ The shortlist of configuration flags is the following:
      
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.configCheckInterval duration
-     Interval for checking for changes in '-rule' files. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
+     Interval for checking for changes in '-rule' files. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead
   -rule.maxResolveDuration duration
      Limits the maximum duration for automatic alert expiration, which by default is 4 times evaluationInterval of the parent group.
   -rule.resendDelay duration
@@ -1208,7 +1208,7 @@ The shortlist of configuration flags is the following:
       -rule.templates="dir/**/*.tpl". Includes to all .tpl files in "dir" folder and it's subfolders recursively.
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.updateEntriesLimit int
-     Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overriden per rule via update_entries_limit param. (default 20)
+     Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param. (default 20)
   -rule.validateExpressions
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
