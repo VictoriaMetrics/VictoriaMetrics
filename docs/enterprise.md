@@ -41,6 +41,7 @@ plus the following additional features:
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from object storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
+- [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
 - [Anomaly Detection Service](https://docs.victoriametrics.com/vmanomaly.html).
 
 On top of this, enterprise package of VictoriaMetrics includes the following important Enterprise features:
