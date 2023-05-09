@@ -158,6 +158,8 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, headers = ui.DefaultURL, ui.Headers
 		isDefault = true
 	}
+	rtb := &readTrackingBody{ioc: r.Body}
+	r.Body = rtb
 
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
@@ -178,6 +180,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		}
 		bu.setBroken()
 	}
+	rtb.mustClose()
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
@@ -192,12 +195,14 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	for _, h := range headers {
 		req.Header.Set(h.Name, h.Value)
 	}
+	rtb := req.Body.(*readTrackingBody)
 	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	if err != nil {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		if r.Method == http.MethodPost || r.Method == http.MethodPut {
+		// NOTE: do not use httpserver.GetRequestURI
+		// it explicitly reads request body and fail retries
+		if (r.Method == http.MethodPost || r.Method == http.MethodPut) && !rtb.couldReuseBody() {
 			// It is impossible to retry POST and PUT requests,
 			// since we already proxied the request body to the backend.
 			err = &httpserver.ErrorWithStatusCode{
@@ -207,7 +212,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying the request to %q: %s", remoteAddr, requestURI, targetURL, err)
+		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying the request to %q: %s", remoteAddr, req.URL, targetURL, err)
 		return false
 	}
 	removeHopHeaders(res.Header)
@@ -218,7 +223,7 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
 	_, err = io.CopyBuffer(w, res.Body, copyBuf.B)
 	copyBufPool.Put(copyBuf)
-	_ = res.Body.Close()
+	rtb.mustClose()
 	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
@@ -349,4 +354,44 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 		StatusCode: http.StatusTooManyRequests,
 	}
 	httpserver.Errorf(w, r, "%s", err)
+}
+
+type readTrackingBody struct {
+	ioc       io.ReadCloser
+	wasClosed bool
+	wasRead   bool
+}
+
+// Read implements io.Reader interface
+// tracks body reading requests
+func (rtb *readTrackingBody) Read(p []byte) (int, error) {
+	if rtb.wasClosed {
+		return 0, io.EOF
+	}
+	rtb.wasRead = true
+	return rtb.ioc.Read(p)
+}
+
+// Close implements interface.
+// Closes body only if Read call was performed.
+// http.Roundtrip performs body.Close call even without any Read calls
+// so this hack allows us to reuse request body
+func (rtb *readTrackingBody) Close() error {
+	if rtb.wasRead {
+		err := rtb.ioc.Close()
+		rtb.wasClosed = true
+		return err
+	}
+	return nil
+}
+
+// body could be reused only if read operation wasn't called
+func (rtb *readTrackingBody) couldReuseBody() bool {
+	return !rtb.wasRead
+}
+
+// mustClose explicitly closes body
+func (rtb *readTrackingBody) mustClose() {
+	rtb.wasClosed = true
+	rtb.ioc.Close()
 }
