@@ -144,7 +144,7 @@ func getDatacenter(client *discoveryutils.Client, dc string) (string, error) {
 	}
 	agent, err := GetAgentInfo(client)
 	if err != nil {
-		return "", fmt.Errorf("cannot query consul agent info: %w", err)
+		return "", err
 	}
 	return agent.Config.Datacenter, nil
 }
