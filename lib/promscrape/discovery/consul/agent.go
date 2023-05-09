@@ -29,7 +29,7 @@ type AgentMember struct {
 	Addr string
 }
 
-// ParseAgent parses Consul agent information from bytes.
+// ParseAgent parses Consul agent information from data.
 func ParseAgent(data []byte) (*Agent, error) {
 	var a Agent
 	if err := json.Unmarshal(data, &a); err != nil {

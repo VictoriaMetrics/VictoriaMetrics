@@ -22,7 +22,7 @@ When you enter the notification section, you will be able to fill in the channel
 want to receive notifications
 
 <p>
-  <img src="notifications-start.png" width="800">
+  <img src="setup-notifications-start.png" width="800">
 </p>
 
 ## Setup Slack notifications
@@ -31,7 +31,7 @@ want to receive notifications
 How to do this is indicated on the following link https://api.slack.com/messaging/webhooks
 
 <p>
-  <img src="notifications-slack-channels-webhook.png" width="800">
+  <img src="setup-notifications-slack-channels-webhook.png" width="800">
 </p>
 
 2. Specify Slack channels
@@ -39,11 +39,11 @@ How to do this is indicated on the following link https://api.slack.com/messagin
 Enter one or more channels into input and press enter or choose it after each input.
 
 <p>
-  <img src="notifications-slack-channel.png" width="800">
+  <img src="setup-notifications-slack-channel.png" width="800">
 </p>
 
 <p>
-  <img src="notifications-slack-channels.png" width="800">
+  <img src="setup-notifications-slack-channels.png" width="800">
 </p>
 
 ## Setup emails notifications
@@ -52,11 +52,11 @@ You can specify one or multiple emails for notifications in the input field. By 
 email notifications are enabled for the account owner
 
 <p>
-  <img src="notifications-emails.png" width="800">
+  <img src="setup-notifications-emails.png" width="800">
 </p>
 
 <p>
-  <img src="notifications-emails-filled.png" width="800">
+  <img src="setup-notifications-emails-filled.png" width="800">
 </p>
 
 ## Send test notification
@@ -68,29 +68,29 @@ If only the emails are specified, you will receive notifications to those emails
 When both notifications are specified, all notifications will be sent to Slack channels and emails.
 
 <p>
-  <img src="notifications-buttons.png" width="800">
+  <img src="setup-notifications-buttons.png" width="800">
 </p>
 
 If the Save button is pressed, then entered channels will be only saved, and you get a success message.
 
 <p>
-  <img src="notifications-saved-successfully.png" width="800">
+  <img src="setup-notifications-saved-successfully.png" width="800">
 </p>
 
 If the Save and Test button is pressed, then all entered information will be saved, 
 and test notifications will be sent to the entered channels
 
 <p>
-  <img src="notifications-save-and-test.png" width="800">
+  <img src="setup-notifications-save-and-test.png" width="800">
 </p>
 
 Examples of the test notification messages:
 
 <p>
-  <img src="notifications-slack-test.png" width="800">
+  <img src="setup-notifications-slack-test.png" width="800">
 </p>
 
 <p>
-  <img src="notifications-email-test.png" width="800">
+  <img src="setup-notifications-email-test.png" width="800">
 </p>
 
