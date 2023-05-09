@@ -1170,7 +1170,7 @@ The shortlist of configuration flags is the following:
   -replay.ruleRetryAttempts int
      Defines how many retries to make before giving up on rule if request for it returns an error. (default 5)
   -replay.rulesDelay duration
-     Delay between rules evaluation within the group. Could be important if there are chained rules inside the groupand processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
+     Delay between rules evaluation within the group. Could be important if there are chained rules inside the group and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule.Keep it equal or bigger than -remoteWrite.flushInterval. (default 1s)
   -replay.timeFrom string
      The time filter in RFC3339 format to select time series with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'
   -replay.timeTo string
