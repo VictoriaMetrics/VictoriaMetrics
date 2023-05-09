@@ -99,6 +99,7 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 	ctx.skipStreamAggr = true
 	for _, ts := range tss {
 		labels := ts.Labels
+		ctx.Labels = ctx.Labels[:0]
 		for _, label := range labels {
 			name := label.Name
 			if name == "__name__" {
