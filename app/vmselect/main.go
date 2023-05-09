@@ -631,13 +631,15 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		promrelabelMetricRelabelDebugRequests.Inc()
 		metric := r.FormValue("metric")
 		relabelConfigs := r.FormValue("relabel_configs")
-		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, nil)
+		format := r.FormValue("format")
+		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, format, nil)
 		return true
 	case "prometheus/target-relabel-debug", "target-relabel-debug":
 		promrelabelTargetRelabelDebugRequests.Inc()
 		metric := r.FormValue("metric")
 		relabelConfigs := r.FormValue("relabel_configs")
-		promrelabel.WriteTargetRelabelDebug(w, "", metric, relabelConfigs, nil)
+		format := r.FormValue("format")
+		promrelabel.WriteTargetRelabelDebug(w, "", metric, relabelConfigs, format, nil)
 		return true
 	case "prometheus/expand-with-exprs", "expand-with-exprs":
 		expandWithExprsRequests.Inc()
