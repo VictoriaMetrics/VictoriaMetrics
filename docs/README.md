@@ -285,8 +285,8 @@ Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaM
 Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
 or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
 
-VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) enables you to query,
-visualize and explore your metrics.
+Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) with support of extra features. 
+See more in [description](https://github.com/VictoriaMetrics/grafana-datasource#victoriametrics-data-source-for-grafana).
 
 ## How to upgrade VictoriaMetrics
 
