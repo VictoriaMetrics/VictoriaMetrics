@@ -14,7 +14,7 @@ import SimpleBarChart from "../../../components/Chart/SimpleBarChart/SimpleBarCh
 
 interface MetricsProperties {
   rows: Data[];
-  onActionClick: ((name: string) => void) | null;
+  onActionClick: (name: string) => void;
   tabs: string[];
   chartContainer: MutableRef<HTMLDivElement> | undefined;
   totalSeries: number,

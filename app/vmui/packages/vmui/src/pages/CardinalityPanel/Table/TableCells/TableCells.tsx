@@ -10,7 +10,7 @@ interface CardinalityTableCells {
   row: Data,
   totalSeries: number;
   totalSeriesPrev: number;
-  onActionClick: ((name: string) => void) | null;
+  onActionClick: (name: string) => void;
 }
 
 const TableCells: FC<CardinalityTableCells> = ({
@@ -27,7 +27,7 @@ const TableCells: FC<CardinalityTableCells> = ({
   const relationPrevDay = hasProgresses ? "" : `${diffPercent.toFixed(2)}%`;
 
   const handleActionClick = () => {
-    onActionClick && onActionClick(row.name);
+    onActionClick(row.name);
   };
 
   return <>
@@ -36,7 +36,7 @@ const TableCells: FC<CardinalityTableCells> = ({
       key={row.name}
     >
       <span
-        className={ onActionClick ? "vm-link vm-link_colored" : ""}
+        className={"vm-link vm-link_colored"}
         onClick={handleActionClick}
       >
         {row.name}
@@ -90,7 +90,7 @@ const TableCells: FC<CardinalityTableCells> = ({
       key={"action"}
     >
       <div className="vm-table-cell__content">
-        {onActionClick && <Tooltip title={`Filter by ${row.name}`}>
+        <Tooltip title={`Filter by ${row.name}`}>
           <Button
             variant="text"
             size="small"
@@ -98,7 +98,7 @@ const TableCells: FC<CardinalityTableCells> = ({
           >
             <PlayCircleOutlineIcon/>
           </Button>
-        </Tooltip>}
+        </Tooltip>
       </div>
     </td>
   </>;

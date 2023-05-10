@@ -73,17 +73,12 @@ const CardinalityPanel: FC = () => {
       {error && <Alert variant="error">{error}</Alert>}
 
       {appConfigurator.keys(match, focusLabel).map((keyName) => {
-        // do not use actions for 'labelValueCountByLabelName' when all filters are disabled
-        const hasSetFields = !focusLabel && !match;
-        const useActionForLabelValues = hasSetFields && keyName === "labelValueCountByLabelName";
-        const action = !useActionForLabelValues ? handleFilterClick(keyName) : null;
-
         return <MetricsContent
           key={keyName}
           sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}
           tip={sectionsTips[keyName]}
           rows={tsdbStatusData[keyName as keyof TSDBStatus] as unknown as Data[]}
-          onActionClick={action}
+          onActionClick={handleFilterClick(keyName)}
           tabs={defaultState.tabs[keyName as keyof Tabs]}
           chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
