@@ -59,8 +59,12 @@ const QueryEditor: FC<QueryEditorProps> = ({
       onArrowDown();
     }
 
+    if (enter && openAutocomplete) {
+      e.preventDefault();
+    }
+
     // execute query
-    if (enter && !shiftKey && !openAutocomplete) {
+    if (enter && (shiftKey || ctrlMetaKey) && !openAutocomplete) {
       onEnter();
     }
   };

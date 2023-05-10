@@ -17,6 +17,7 @@ interface TextFieldProps {
   autofocus?: boolean
   helperText?: string
   inputmode?: "search" | "text" | "email" | "tel" | "url" | "none" | "numeric" | "decimal"
+  showControlsInfo?: boolean
   onChange?: (value: string) => void
   onEnter?: () => void
   onKeyDown?: (e: KeyboardEvent) => void
@@ -36,6 +37,7 @@ const TextField: FC<TextFieldProps> = ({
   autofocus = false,
   helperText,
   inputmode = "text",
+  showControlsInfo = false,
   onChange,
   onEnter,
   onKeyDown,
@@ -59,7 +61,10 @@ const TextField: FC<TextFieldProps> = ({
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     onKeyDown && onKeyDown(e);
-    if (e.key === "Enter" && !e.shiftKey) {
+    const { key, shiftKey, ctrlKey, metaKey } = e;
+    const hasModifiers = shiftKey || ctrlKey || metaKey;
+    const isEnter = key === "Enter";
+    if (isEnter && hasModifiers) {
       e.preventDefault();
       onEnter && onEnter();
     }
@@ -139,7 +144,13 @@ const TextField: FC<TextFieldProps> = ({
         {helperText}
       </span>
     )}
-  </label>;
+    {showControlsInfo && (
+      <p className="vm-text-field__controls-info">
+        Use &#8220;Enter&#8221; to create a new line. Use &#8220;Shift + Enter&#8221; to execute a request.
+      </p>
+    )}
+  </label>
+  ;
 };
 
 export default TextField;
