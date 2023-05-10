@@ -219,6 +219,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | extraArgs | ExtraArgs that will be passed to  VMAlertmanager pod for example log.level: debug | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAlertmanager pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | disableNamespaceMatcher | DisableNamespaceMatcher disables namespace label matcher for VMAlertmanagerConfig It may be useful if alert doesn&#39;t have namespace label for some reason | bool | false |
+| disableRouteContinueEnforce | DisableRouteContinueEnforce cancel the behavior for VMAlertmanagerConfig that always enforce first-level route continue to true | bool | false |
 | rollingUpdateStrategy | RollingUpdateStrategy defines strategy for application updates Default is OnDelete, in this case operator handles update process Can be changed for RollingUpdate | [appsv1.StatefulSetUpdateStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#statefulsetupdatestrategy-v1-apps) | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
@@ -434,8 +435,8 @@ Route defines a node in the routing tree.
 | group_interval | How long to wait before sending an updated notification. | string | false |
 | repeat_interval | How long to wait before repeating the last notification. | string | false |
 | matchers | List of matchers that the alert’s labels should match. For the first level route, the operator adds a namespace: \&#34;CRD_NS\&#34; matcher. https://prometheus.io/docs/alerting/latest/configuration/#matcher | []string | false |
-| continue | Continue indicating whether an alert should continue matching subsequent sibling nodes. It will always be true for the first-level route. | bool | false |
-| routes | RawRoutes alertmanager nested routes https://prometheus.io/docs/alerting/latest/configuration/#route | []apiextensionsv1.JSON | false |
+| continue | Continue indicating whether an alert should continue matching subsequent sibling nodes. It will always be true for the first-level route if disableRouteContinueEnforce for vmalertmanager not set. | bool | false |
+| routes | Child routes. https://prometheus.io/docs/alerting/latest/configuration/#route | []apiextensionsv1.JSON | false |
 | mute_time_intervals | MuteTimeIntervals for alerts | []string | false |
 | active_time_intervals | ActiveTimeIntervals Times when the route should be active These must match the name at time_intervals | []string | false |
 
@@ -1751,6 +1752,7 @@ VMClusterStatus defines the observed state of VMCluster
 | extraArgs |  | map[string]string | false |
 | insertPorts | InsertPorts - additional listen ports for data ingestion. | *[InsertPorts](#insertports) | false |
 | port | Port listen port | string | false |
+| clusterNativeListenPort | ClusterNativePort for multi-level cluster setup. More details: https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup | string | false |
 | schedulerName | SchedulerName - defines kubernetes scheduler name | string | false |
 | runtimeClassName | RuntimeClassName - defines runtime class for kubernetes pod. https://kubernetes.io/docs/concepts/containers/runtime-class/ | *string | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
@@ -1822,6 +1824,7 @@ VMClusterStatus defines the observed state of VMCluster
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | extraArgs |  | map[string]string | false |
 | port | Port listen port | string | false |
+| clusterNativeListenPort | ClusterNativePort for multi-level cluster setup. More details: https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup | string | false |
 | schedulerName | SchedulerName - defines kubernetes scheduler name | string | false |
 | runtimeClassName | RuntimeClassName - defines runtime class for kubernetes pod. https://kubernetes.io/docs/concepts/containers/runtime-class/ | *string | false |
 | serviceSpec | ServiceSpec that will be added to vmselect service spec | *[ServiceSpec](#servicespec) | false |

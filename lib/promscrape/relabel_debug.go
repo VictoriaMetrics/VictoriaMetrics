@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 )
 
@@ -15,10 +16,6 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 	format := r.FormValue("format")
 	var err error
 
-	if format == "json" {
-		w.Header().Set("Content-Type", "application/json")
-	}
-
 	if metric == "" && relabelConfigs == "" && targetID != "" {
 		pcs, labels, ok := getMetricRelabelContextByTargetID(targetID)
 		if !ok {
@@ -28,6 +25,10 @@ func WriteMetricRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			metric = labels.String()
 			relabelConfigs = pcs.String()
 		}
+	}
+	if format == "json" {
+		httpserver.EnableCORS(w, r)
+		w.Header().Set("Content-Type", "application/json")
 	}
 	promrelabel.WriteMetricRelabelDebug(w, targetID, metric, relabelConfigs, format, err)
 }
@@ -49,6 +50,10 @@ func WriteTargetRelabelDebug(w http.ResponseWriter, r *http.Request) {
 			metric = labels.String()
 			relabelConfigs = pcs.String()
 		}
+	}
+	if format == "json" {
+		httpserver.EnableCORS(w, r)
+		w.Header().Set("Content-Type", "application/json")
 	}
 	promrelabel.WriteTargetRelabelDebug(w, targetID, metric, relabelConfigs, format, err)
 }

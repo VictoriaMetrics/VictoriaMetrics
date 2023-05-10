@@ -1,6 +1,8 @@
 package config
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -24,6 +26,40 @@ func TestMain(m *testing.M) {
 func TestParseGood(t *testing.T) {
 	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
 		t.Errorf("error parsing files %s", err)
+	}
+}
+
+func TestParseFromURL(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/bad", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("foo bar"))
+	})
+	mux.HandleFunc("/good-alert", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: TestGroup
+    rules:
+      - alert: Conns
+        expr: vm_tcplistener_conns > 0`))
+	})
+	mux.HandleFunc("/good-rr", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: TestGroup
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
+		t.Errorf("error parsing URLs %s", err)
+	}
+
+	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
+		t.Errorf("expected parsing error: %s", err)
 	}
 }
 
@@ -66,7 +102,7 @@ func TestParseBad(t *testing.T) {
 		},
 		{
 			[]string{"http://unreachable-url"},
-			"failed to read from the config: cannot fetch \"http://unreachable-url\"",
+			"no such host",
 		},
 	}
 	for _, tc := range testCases {

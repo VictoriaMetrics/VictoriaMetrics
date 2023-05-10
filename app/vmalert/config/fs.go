@@ -2,12 +2,12 @@ package config
 
 import (
 	"fmt"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fsurl"
 )
 
 // FS represent a file system abstract for reading files.
@@ -89,8 +89,9 @@ func readFromFS(paths []string) (map[string][]byte, error) {
 
 // newFS creates FS based on the give path.
 // Supported file systems are: fs
-func newFS(path string) (FS, error) {
+func newFS(originPath string) (FS, error) {
 	scheme := "fs"
+	path := originPath
 	n := strings.Index(path, "://")
 	if n >= 0 {
 		scheme = path[:n]
@@ -102,13 +103,9 @@ func newFS(path string) (FS, error) {
 	switch scheme {
 	case "fs":
 		return &fslocal.FS{Pattern: path}, nil
+	case "http", "https":
+		return &fsurl.FS{Path: originPath}, nil
 	default:
 		return nil, fmt.Errorf("unsupported scheme %q", scheme)
 	}
-}
-
-// isHTTPURL checks if a given targetURL is valid and contains a valid http scheme
-func isHTTPURL(targetURL string) bool {
-	parsed, err := url.Parse(targetURL)
-	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }

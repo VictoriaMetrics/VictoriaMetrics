@@ -14,21 +14,12 @@ import (
 
 // Returns the versioning state of a bucket. To retrieve the versioning state of a
 // bucket, you must be the bucket owner. This implementation also returns the MFA
-// Delete status of the versioning state. If the MFA Delete status is enabled, the
+// Delete status of the versioning state. If the MFA Delete status is enabled , the
 // bucket owner must use an authentication device to change the versioning state of
-// the bucket. The following operations are related to GetBucketVersioning:
-//
-// *
-// GetObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//
-// *
-// PutObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
-//
-// *
-// DeleteObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+// the bucket. The following operations are related to GetBucketVersioning :
+//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
+//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
 func (c *Client) GetBucketVersioning(ctx context.Context, params *GetBucketVersioningInput, optFns ...func(*Options)) (*GetBucketVersioningOutput, error) {
 	if params == nil {
 		params = &GetBucketVersioningInput{}
@@ -130,6 +121,9 @@ func (c *Client) addOperationGetBucketVersioningMiddlewares(stack *middleware.St
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketVersioningUpdateEndpoint(stack, options); err != nil {

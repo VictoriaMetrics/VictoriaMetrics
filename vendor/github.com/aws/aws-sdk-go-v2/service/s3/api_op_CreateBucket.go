@@ -16,121 +16,81 @@ import (
 // and have a valid Amazon Web Services Access Key ID to authenticate requests.
 // Anonymous requests are never allowed to create buckets. By creating the bucket,
 // you become the bucket owner. Not every string is an acceptable bucket name. For
-// information about bucket naming restrictions, see Bucket naming rules
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html).
-// If you want to create an Amazon S3 on Outposts bucket, see Create Bucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_CreateBucket.html).
-// By default, the bucket is created in the US East (N. Virginia) Region. You can
+// information about bucket naming restrictions, see Bucket naming rules (https://docs.aws.amazon.com/AmazonS3/latest/userguide/bucketnamingrules.html)
+// . If you want to create an Amazon S3 on Outposts bucket, see Create Bucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_control_CreateBucket.html)
+// . By default, the bucket is created in the US East (N. Virginia) Region. You can
 // optionally specify a Region in the request body. You might choose a Region to
 // optimize latency, minimize costs, or address regulatory requirements. For
 // example, if you reside in Europe, you will probably find it advantageous to
 // create buckets in the Europe (Ireland) Region. For more information, see
-// Accessing a bucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro).
-// If you send your create bucket request to the s3.amazonaws.com endpoint, the
+// Accessing a bucket (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
+// . If you send your create bucket request to the s3.amazonaws.com endpoint, the
 // request goes to the us-east-1 Region. Accordingly, the signature calculations in
 // Signature Version 4 must use us-east-1 as the Region, even if the location
 // constraint in the request specifies another Region where the bucket is to be
 // created. If you create a bucket in a Region other than US East (N. Virginia),
 // your application must be able to handle 307 redirect. For more information, see
-// Virtual hosting of buckets
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html). Access
-// control lists (ACLs) When creating a bucket using this operation, you can
-// optionally configure the bucket ACL to specify the accounts or groups that
+// Virtual hosting of buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html)
+// . Access control lists (ACLs) When creating a bucket using this operation, you
+// can optionally configure the bucket ACL to specify the accounts or groups that
 // should be granted specific permissions on the bucket. If your CreateBucket
 // request sets bucket owner enforced for S3 Object Ownership and specifies a
 // bucket ACL that provides access to an external Amazon Web Services account, your
 // request fails with a 400 error and returns the
 // InvalidBucketAclWithObjectOwnership error code. For more information, see
-// Controlling object ownership
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// Controlling object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide. There are two ways to grant the appropriate
 // permissions using the request headers.
+//   - Specify a canned ACL using the x-amz-acl request header. Amazon S3 supports
+//     a set of predefined ACLs, known as canned ACLs. Each canned ACL has a predefined
+//     set of grantees and permissions. For more information, see Canned ACL (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL)
+//     .
+//   - Specify access permissions explicitly using the x-amz-grant-read ,
+//     x-amz-grant-write , x-amz-grant-read-acp , x-amz-grant-write-acp , and
+//     x-amz-grant-full-control headers. These headers map to the set of permissions
+//     Amazon S3 supports in an ACL. For more information, see Access control list
+//     (ACL) overview (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html)
+//     . You specify each grantee as a type=value pair, where the type is one of the
+//     following:
+//   - id – if the value specified is the canonical user ID of an Amazon Web
+//     Services account
+//   - uri – if you are granting permissions to a predefined group
+//   - emailAddress – if the value specified is the email address of an Amazon Web
+//     Services account Using email addresses to specify a grantee is only supported in
+//     the following Amazon Web Services Regions:
+//   - US East (N. Virginia)
+//   - US West (N. California)
+//   - US West (Oregon)
+//   - Asia Pacific (Singapore)
+//   - Asia Pacific (Sydney)
+//   - Asia Pacific (Tokyo)
+//   - Europe (Ireland)
+//   - South America (São Paulo) For a list of all the Amazon S3 supported Regions
+//     and endpoints, see Regions and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
+//     in the Amazon Web Services General Reference. For example, the following
+//     x-amz-grant-read header grants the Amazon Web Services accounts identified by
+//     account IDs permissions to read object data and its metadata:
+//     x-amz-grant-read: id="11112222333", id="444455556666"
 //
-// * Specify a canned ACL using the
-// x-amz-acl request header. Amazon S3 supports a set of predefined ACLs, known as
-// canned ACLs. Each canned ACL has a predefined set of grantees and permissions.
-// For more information, see Canned ACL
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/acl-overview.html#CannedACL).
+// You can use either a canned ACL or specify access permissions explicitly. You
+// cannot do both. Permissions In addition to s3:CreateBucket , the following
+// permissions are required when your CreateBucket includes specific headers:
+//   - ACLs - If your CreateBucket request specifies ACL permissions and the ACL is
+//     public-read, public-read-write, authenticated-read, or if you specify access
+//     permissions explicitly through any other ACL, both s3:CreateBucket and
+//     s3:PutBucketAcl permissions are needed. If the ACL the CreateBucket request is
+//     private or doesn't specify any ACLs, only s3:CreateBucket permission is
+//     needed.
+//   - Object Lock - If ObjectLockEnabledForBucket is set to true in your
+//     CreateBucket request, s3:PutBucketObjectLockConfiguration and
+//     s3:PutBucketVersioning permissions are required.
+//   - S3 Object Ownership - If your CreateBucket request includes the
+//     x-amz-object-ownership header, s3:PutBucketOwnershipControls permission is
+//     required.
 //
-// *
-// Specify access permissions explicitly using the x-amz-grant-read,
-// x-amz-grant-write, x-amz-grant-read-acp, x-amz-grant-write-acp, and
-// x-amz-grant-full-control headers. These headers map to the set of permissions
-// Amazon S3 supports in an ACL. For more information, see Access control list
-// (ACL) overview
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html). You
-// specify each grantee as a type=value pair, where the type is one of the
-// following:
-//
-// * id – if the value specified is the canonical user ID of an Amazon
-// Web Services account
-//
-// * uri – if you are granting permissions to a predefined
-// group
-//
-// * emailAddress – if the value specified is the email address of an Amazon
-// Web Services account Using email addresses to specify a grantee is only
-// supported in the following Amazon Web Services Regions:
-//
-// * US East (N.
-// Virginia)
-//
-// * US West (N. California)
-//
-// * US West (Oregon)
-//
-// * Asia Pacific
-// (Singapore)
-//
-// * Asia Pacific (Sydney)
-//
-// * Asia Pacific (Tokyo)
-//
-// * Europe
-// (Ireland)
-//
-// * South America (São Paulo)
-//
-// For a list of all the Amazon S3
-// supported Regions and endpoints, see Regions and Endpoints
-// (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region) in the
-// Amazon Web Services General Reference.
-//
-// For example, the following
-// x-amz-grant-read header grants the Amazon Web Services accounts identified by
-// account IDs permissions to read object data and its metadata: x-amz-grant-read:
-// id="11112222333", id="444455556666"
-//
-// You can use either a canned ACL or specify
-// access permissions explicitly. You cannot do both. Permissions In addition to
-// s3:CreateBucket, the following permissions are required when your CreateBucket
-// includes specific headers:
-//
-// * ACLs - If your CreateBucket request specifies ACL
-// permissions and the ACL is public-read, public-read-write, authenticated-read,
-// or if you specify access permissions explicitly through any other ACL, both
-// s3:CreateBucket and s3:PutBucketAcl permissions are needed. If the ACL the
-// CreateBucket request is private or doesn't specify any ACLs, only
-// s3:CreateBucket permission is needed.
-//
-// * Object Lock - If
-// ObjectLockEnabledForBucket is set to true in your CreateBucket request,
-// s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning permissions are
-// required.
-//
-// * S3 Object Ownership - If your CreateBucket request includes the the
-// x-amz-object-ownership header, s3:PutBucketOwnershipControls permission is
-// required.
-//
-// The following operations are related to CreateBucket:
-//
-// * PutObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
-//
-// *
-// DeleteBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
+// The following operations are related to CreateBucket :
+//   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
+//   - DeleteBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
 func (c *Client) CreateBucket(ctx context.Context, params *CreateBucketInput, optFns ...func(*Options)) (*CreateBucketOutput, error) {
 	if params == nil {
 		params = &CreateBucketInput{}
@@ -262,6 +222,9 @@ func (c *Client) addOperationCreateBucketMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addCreateBucketUpdateEndpoint(stack, options); err != nil {

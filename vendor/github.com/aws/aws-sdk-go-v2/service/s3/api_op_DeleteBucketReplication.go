@@ -15,22 +15,14 @@ import (
 // you must have permissions to perform the s3:PutReplicationConfiguration action.
 // The bucket owner has these permissions by default and can grant it to others.
 // For more information about permissions, see Permissions Related to Bucket
-// Subresource Operations
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
-// It can take a while for the deletion of a replication configuration to fully
-// propagate. For information about replication configuration, see Replication
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html) in the Amazon
-// S3 User Guide. The following operations are related to
-// DeleteBucketReplication:
-//
-// * PutBucketReplication
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketReplication.html)
-//
-// *
-// GetBucketReplication
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketReplication.html)
+// Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+// . It can take a while for the deletion of a replication configuration to fully
+// propagate. For information about replication configuration, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html)
+// in the Amazon S3 User Guide. The following operations are related to
+// DeleteBucketReplication :
+//   - PutBucketReplication (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketReplication.html)
+//   - GetBucketReplication (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketReplication.html)
 func (c *Client) DeleteBucketReplication(ctx context.Context, params *DeleteBucketReplicationInput, optFns ...func(*Options)) (*DeleteBucketReplicationOutput, error) {
 	if params == nil {
 		params = &DeleteBucketReplicationInput{}
@@ -123,6 +115,9 @@ func (c *Client) addOperationDeleteBucketReplicationMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addDeleteBucketReplicationUpdateEndpoint(stack, options); err != nil {

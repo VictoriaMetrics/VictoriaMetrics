@@ -219,7 +219,12 @@ func IsEmptyDir(path string) bool {
 // If the process crashes after the step 1, then the directory must be removed
 // on the next process start by calling MustRemoveTemporaryDirs on the parent directory.
 func MustRemoveDirAtomic(dir string) {
+	if !IsPathExist(dir) {
+		return
+	}
 	mustRemoveDirAtomic(dir)
+	parentDir := filepath.Dir(dir)
+	MustSyncPath(parentDir)
 }
 
 var atomicDirRemoveCounter = uint64(time.Now().UnixNano())
