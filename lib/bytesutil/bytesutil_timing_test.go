@@ -9,7 +9,7 @@ func BenchmarkToUnsafeString(b *testing.B) {
 	buf := []byte("foobarbaz abcde fafdsfds")
 	b.ReportAllocs()
 	b.SetBytes(int64(len(buf)))
-	b.RunParallel(func (pb *testing.PB) {
+	b.RunParallel(func(pb *testing.PB) {
 		n := 0
 		for pb.Next() {
 			for i := range buf {
@@ -25,7 +25,7 @@ func BenchmarkToUnsafeBytes(b *testing.B) {
 	s := "foobarbaz abcde fafdsfds"
 	b.ReportAllocs()
 	b.SetBytes(int64(len(s)))
-	b.RunParallel(func (pb *testing.PB) {
+	b.RunParallel(func(pb *testing.PB) {
 		n := 0
 		for pb.Next() {
 			for i := range s {
