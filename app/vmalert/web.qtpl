@@ -267,9 +267,9 @@ btn-primary
            {%code typeK, ns := keys[i], targets[notifier.TargetType(keys[i])]
                 count := len(ns)
             %}
-           <div class="group-heading data-bs-target="rules-{%s typeK %}">
-             <span class="anchor" id="notifiers-{%s typeK %}"></span>
-             <a href="#notifiers-{%s typeK %}">{%s typeK %} ({%d count %})</a>
+           <div class="group-heading" data-bs-target="notifiers-{%s typeK %}">
+             <span class="anchor" id="group-{%s typeK %}"></span>
+             <a href="#group-{%s typeK %}">{%s typeK %} ({%d count %})</a>
          </div>
          <div class="collapse show" id="notifiers-{%s typeK %}">
              <table class="table table-striped table-hover table-sm">

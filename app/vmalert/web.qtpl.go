@@ -919,17 +919,17 @@ func StreamListTargets(qw422016 *qt422016.Writer, r *http.Request, targets map[n
 
 //line app/vmalert/web.qtpl:269
 			qw422016.N().S(`
-           <div class="group-heading data-bs-target="rules-`)
+           <div class="group-heading" data-bs-target="notifiers-`)
 //line app/vmalert/web.qtpl:270
 			qw422016.E().S(typeK)
 //line app/vmalert/web.qtpl:270
 			qw422016.N().S(`">
-             <span class="anchor" id="notifiers-`)
+             <span class="anchor" id="group-`)
 //line app/vmalert/web.qtpl:271
 			qw422016.E().S(typeK)
 //line app/vmalert/web.qtpl:271
 			qw422016.N().S(`"></span>
-             <a href="#notifiers-`)
+             <a href="#group-`)
 //line app/vmalert/web.qtpl:272
 			qw422016.E().S(typeK)
 //line app/vmalert/web.qtpl:272
