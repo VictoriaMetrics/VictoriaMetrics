@@ -66,7 +66,39 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 - `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
 - `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for the given `username`.
+- `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
+
+## IP filters
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+
+For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
+
+```yml
+users:
+# User configs here
+
+ip_filters:
+  allow_list:
+  - 10.0.0.0/24
+  - 1.2.3.4
+  deny_list: [10.0.0.42]
+```
+
+The following config allows requests for the user 'foobar' only from the ip `127.0.0.1`:
+
+```yml
+users:
+- username: "foobar"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  ip_filters:
+    allow_list: [127.0.0.1]
+```
 
 ## Auth config
 
@@ -135,14 +167,22 @@ users:
   - "http://vminsert2:8480/insert/42/prometheus"
 
   # A single user for querying and inserting data:
+  #
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
   #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
   #     - http://vmselect1:8481/select/42/prometheus
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #
+  # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
+  # in a round-robin manner. The original request path is passed in `request_path` query arg.
+  # For example, request to http://vmauth:8427/non/existing/path are proxied:
+  #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
+  #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
 - username: "foobar"
   url_map:
   - src_paths:
@@ -156,6 +196,28 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    ip_filters:
+      deny_list: [127.0.0.1]
+  default_url:
+  - "http://default1:8888/unsupported_url_handler"
+  - "http://default2:8888/unsupported_url_handler"
+
+# Requests without Authorization header are routed according to `unauthorized_user` section.
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - /api/v1/query
+    - /api/v1/query_range
+    url_prefix:
+    - http://vmselect1:8481/select/0/prometheus
+    - http://vmselect2:8481/select/0/prometheus
+    ip_filters:
+      allow_list: [8.8.8.8]
+
+ip_filters:
+  allow_list: ["1.2.3.0/24", "127.0.0.1"]
+  deny_list:
+  - 10.1.0.1
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -178,11 +240,13 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-It is recommended protecting  following endpoints with authKeys:
+It is recommended protecting the following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 * `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
 * `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
 * `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
+
+`vmauth` also supports the ability to restict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Monitoring
 
@@ -197,6 +261,8 @@ users:
   name: "foobar"
   # other config options here
 ```
+
+For unauthorized users `vmauth` exports `vmauth_unauthorized_user_requests_total` metric without label (if `unauthorized_user` section of config is used).
 
 ## How to build from sources
 

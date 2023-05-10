@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -48,7 +47,7 @@ var (
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
-		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. "+
+		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
 	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", "The number of significant figures to leave in metric values before writing them "+
 		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
@@ -265,10 +264,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		}
 
 		queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
-		files, err := os.ReadDir(queuesDir)
-		if err != nil {
-			logger.Fatalf("cannot read queues dir %q: %s", queuesDir, err)
-		}
+		files := fs.MustReadDir(queuesDir)
 		removed := 0
 		for _, f := range files {
 			dirname := f.Name()
@@ -527,6 +523,11 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	h := xxhash.Sum64([]byte(pqURL.String()))
 	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
 	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArgOrDefault(argIdx, 0)
+	if maxPendingBytes != 0 && maxPendingBytes < persistentqueue.DefaultChunkFileSize {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4195
+		logger.Warnf("rounding the -remoteWrite.maxDiskUsagePerURL=%d to the minimum supported value: %d", maxPendingBytes, persistentqueue.DefaultChunkFileSize)
+		maxPendingBytes = persistentqueue.DefaultChunkFileSize
+	}
 	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())

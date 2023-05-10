@@ -14,28 +14,23 @@ import (
 
 // This implementation of the GET action uses the accelerate subresource to return
 // the Transfer Acceleration state of a bucket, which is either Enabled or
-// Suspended. Amazon S3 Transfer Acceleration is a bucket-level feature that
+// Suspended . Amazon S3 Transfer Acceleration is a bucket-level feature that
 // enables you to perform faster data transfers to and from Amazon S3. To use this
 // operation, you must have permission to perform the s3:GetAccelerateConfiguration
 // action. The bucket owner has this permission by default. The bucket owner can
 // grant this permission to others. For more information about permissions, see
-// Permissions Related to Bucket Subresource Operations
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to your Amazon S3 Resources
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+// Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// and Managing Access Permissions to your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // in the Amazon S3 User Guide. You set the Transfer Acceleration state of an
 // existing bucket to Enabled or Suspended by using the
-// PutBucketAccelerateConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAccelerateConfiguration.html)
+// PutBucketAccelerateConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAccelerateConfiguration.html)
 // operation. A GET accelerate request does not return a state value for a bucket
 // that has no transfer acceleration state. A bucket has no Transfer Acceleration
 // state if a state has never been set on the bucket. For more information about
-// transfer acceleration, see Transfer Acceleration
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html) in
-// the Amazon S3 User Guide. Related Resources
-//
-// * PutBucketAccelerateConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAccelerateConfiguration.html)
+// transfer acceleration, see Transfer Acceleration (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
+// in the Amazon S3 User Guide. The following operations are related to
+// GetBucketAccelerateConfiguration :
+//   - PutBucketAccelerateConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAccelerateConfiguration.html)
 func (c *Client) GetBucketAccelerateConfiguration(ctx context.Context, params *GetBucketAccelerateConfigurationInput, optFns ...func(*Options)) (*GetBucketAccelerateConfigurationOutput, error) {
 	if params == nil {
 		params = &GetBucketAccelerateConfigurationInput{}
@@ -132,6 +127,9 @@ func (c *Client) addOperationGetBucketAccelerateConfigurationMiddlewares(stack *
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketAccelerateConfigurationUpdateEndpoint(stack, options); err != nil {

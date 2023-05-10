@@ -1,8 +1,10 @@
 package actions
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -46,6 +49,13 @@ type Backup struct {
 	Origin common.OriginFS
 }
 
+// BackupMetadata contains metadata about the backup.
+// Note that CreatedAt and CompletedAt are in RFC3339 format.
+type BackupMetadata struct {
+	CreatedAt   string `json:"created_at"`
+	CompletedAt string `json:"completed_at"`
+}
+
 // Run runs b with the provided settings.
 func (b *Backup) Run() error {
 	concurrency := b.Concurrency
@@ -66,9 +76,33 @@ func (b *Backup) Run() error {
 	if err := runBackup(src, dst, origin, concurrency); err != nil {
 		return err
 	}
-	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte("ok")); err != nil {
+	if err := storeMetadata(src, dst); err != nil {
+		return fmt.Errorf("cannot store backup metadata: %w", err)
+	}
+	return nil
+}
+
+func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
+	snapshotName := filepath.Base(src.Dir)
+	snapshotTime, err := snapshot.Time(snapshotName)
+	if err != nil {
+		return fmt.Errorf("cannot decode snapshot name %q: %w", snapshotName, err)
+	}
+
+	d := BackupMetadata{
+		CreatedAt:   snapshotTime.Format(time.RFC3339),
+		CompletedAt: time.Now().Format(time.RFC3339),
+	}
+
+	metadata, err := json.Marshal(d)
+	if err != nil {
+		return fmt.Errorf("cannot marshal metadata: %w", err)
+	}
+
+	if err := dst.CreateFile(fscommon.BackupCompleteFilename, metadata); err != nil {
 		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
+
 	return nil
 }
 

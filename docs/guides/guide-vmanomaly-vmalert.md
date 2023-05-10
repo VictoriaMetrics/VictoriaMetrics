@@ -1,3 +1,13 @@
+---
+weight: 6
+title: Getting started with vmanomaly
+menu:
+  docs:
+    parent: "guides"
+    weight: 6
+aliases:
+- /guides/guide-vmanomaly-vmalert.html
+---
 # Getting started with vmanomaly
 
 **Prerequisites**

@@ -42,10 +42,7 @@ func TestTableSearchSerial(t *testing.T) {
 	func() {
 		// Re-open the table and verify the search works.
 		var isReadOnly uint32
-		tb, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open table: %s", err)
-		}
+		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchSerial(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -79,10 +76,7 @@ func TestTableSearchConcurrent(t *testing.T) {
 	// Re-open the table and verify the search works.
 	func() {
 		var isReadOnly uint32
-		tb, err := OpenTable(path, nil, nil, &isReadOnly)
-		if err != nil {
-			t.Fatalf("cannot open table: %s", err)
-		}
+		tb := MustOpenTable(path, nil, nil, &isReadOnly)
 		defer tb.MustClose()
 		if err := testTableSearchConcurrent(tb, items); err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -156,10 +150,7 @@ func newTestTable(r *rand.Rand, path string, itemsCount int) (*Table, []string, 
 		atomic.AddUint64(&flushes, 1)
 	}
 	var isReadOnly uint32
-	tb, err := OpenTable(path, flushCallback, nil, &isReadOnly)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open table: %w", err)
-	}
+	tb := MustOpenTable(path, flushCallback, nil, &isReadOnly)
 	items := make([]string, itemsCount)
 	for i := 0; i < itemsCount; i++ {
 		item := fmt.Sprintf("%d:%d", r.Intn(1e9), i)

@@ -21,7 +21,7 @@ import {
 const spinnerMessage = `Please wait while cardinality stats is calculated. 
                         This may take some time if the db contains big number of time series.`;
 
-const Index: FC = () => {
+const CardinalityPanel: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const [searchParams, setSearchParams] = useSearchParams();
@@ -55,6 +55,7 @@ const Index: FC = () => {
       {isLoading && <Spinner message={spinnerMessage}/>}
       <CardinalityConfigurator
         totalSeries={tsdbStatusData.totalSeries}
+        totalSeriesPrev={tsdbStatusData.totalSeriesPrev}
         totalSeriesAll={tsdbStatusData.totalSeriesByAll}
         totalLabelValuePairs={tsdbStatusData.totalLabelValuePairs}
         seriesCountByMetricName={tsdbStatusData.seriesCountByMetricName}
@@ -80,6 +81,7 @@ const Index: FC = () => {
           onActionClick={handleFilterClick(keyName)}
           tabs={defaultState.tabs[keyName as keyof Tabs]}
           chartContainer={defaultState.containerRefs[keyName as keyof Containers<HTMLDivElement>]}
+          totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
         />
@@ -88,4 +90,4 @@ const Index: FC = () => {
   );
 };
 
-export default Index;
+export default CardinalityPanel;

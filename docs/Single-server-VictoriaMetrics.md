@@ -307,13 +307,17 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables.
-It also provides the following features:
+The UI allows exploring query results via graphs and tables. It also provides the following features:
 
 - [metrics explorer](#metrics-explorer)
 - [cardinality explorer](#cardinality-explorer)
 - [query tracer](#query-tracing)
 - [top queries explorer](#top-queries)
+
+VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
+(both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
+and [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) are supported).
+Try, for example, [this query](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vm_promscrape_scrape_duration_seconds_bucket%29%29+by+%28vmrange%29&g0.range_input=24h&g0.end_input=2023-04-10T17%3A46%3A12&g0.relative_time=last_24_hours&g0.step_input=31m).
 
 Graphs in `vmui` support scrolling and zooming:
 
@@ -325,9 +329,12 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling) or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results), it may be useful disabling response cache by clicking `Disable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling)
+or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results),
+it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
+The step value can be customized by changing `Step value` input.
 
 VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
 enter an additional query in the newly appeared input field and press `Enter`.
@@ -569,7 +576,8 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 
 Note that InfluxDB line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
-while VictoriaMetrics stores them with *milliseconds* precision.
+while VictoriaMetrics stores them with *milliseconds* precision. It is allowed to ingest timestamps with seconds,
+microseconds or nanoseconds precision - VictoriaMetrics will automatically convert them to milliseconds.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
@@ -2173,7 +2181,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 
 ```
   -bigMergeConcurrency int
-     The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+     Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
@@ -2523,7 +2531,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -selfScrapeJob string
      Value for 'job' label, which is added to self-scraped metrics (default "victoria-metrics")
   -smallMergeConcurrency int
-     The maximum number of CPU cores to use for small merges. Default value is used if set to 0
+     The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
   -snapshotCreateTimeout duration

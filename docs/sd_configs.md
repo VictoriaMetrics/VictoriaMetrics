@@ -1,5 +1,13 @@
 ---
 sort: 24
+weight: 24
+title: Prometheus service discovery
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 24
+aliases:
+- /sd_configs.html
 ---
 
 # Prometheus service discovery
@@ -10,6 +18,7 @@ sort: 24
 
 * `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs).
 * `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs).
+* `consulagent_sd_configs` is for discovering and scraping targets registered in [Consul Agent](https://developer.hashicorp.com/consul/api-docs/agent/service). See [these docs](#consulagent_sd_configs).
 * `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [these docs](#digitalocean_sd_configs).
 * `dns_sd_configs` is for discovering and scraping targets from [DNS](https://it.wikipedia.org/wiki/Domain_Name_System) records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
 * `docker_sd_configs` is for discovering and scraping [Docker](https://www.docker.com/) targets. See [these docs](#docker_sd_configs).
@@ -141,9 +150,11 @@ scrape_configs:
 
     # tags is an optional list of tags used to filter nodes for a given service.
     # Services must contain all tags in the list.
+    # Deprecated: use filter instead with ServiceTags selector.
     # tags: ["...", "..."]
 
     # node_meta is an optional node metadata key/value pairs to filter nodes for a given service.
+    # Deprecated: use filter instead with NodeMeta selector.
     # node_meta:
     #   "...": "..."
 
@@ -151,6 +162,13 @@ scrape_configs:
     # By default "," is used as a tag separator.
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
     # tag_separator: "..."
+
+    # filter is an optional filter for service discovery.
+    # Replaces tags and node_meta options.
+    # Consul supports it since 1.14 version.
+    # See the list of supported filters at https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+    # See filter examples at https://developer.hashicorp.com/consul/api-docs/features/filtering
+    # filter: "..."
 
     # allow_stale is an optional config, which allows stale Consul results.
     # See https://www.consul.io/api/features/consistency.html
@@ -185,6 +203,89 @@ The following meta labels are available on discovered targets during [relabeling
 * `__meta_consul_tags`: the list of tags of the target joined by the `tag_separator`
 
 The list of discovered Consul targets is refreshed at the interval, which can be configured via `-promscrape.consulSDCheckInterval` command-line flag.
+
+If you have performance issues with `consul_sd_configs` on a large cluster, then consider using [consulagent_sd_configs](#consulagent_sd_configs) instead.
+
+## consulagent_sd_configs
+
+Consul Agent SD configuration allows retrieving scrape targets from [Consul Agent API](https://developer.hashicorp.com/consul/api-docs/agent/service).
+When using the Agent API, only services registered in the locally running Consul Agent are discovered.
+It is suitable for huge clusters for which using the [Catalog API](https://developer.hashicorp.com/consul/api-docs/catalog#list-services) would be too slow or resource intensive,
+in other cases it is recommended to use [consul_sd_configs](#consul_sd_configs).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: consulagent
+  consulagent_sd_configs:
+
+    # server is an optional Consul Agent to connect to. By default localhost:8500 is used
+  - server: "localhost:8500"
+
+    # token is an optional Consul API token.
+    # If the token isn't specified, then it is read from a file pointed by CONSUL_HTTP_TOKEN_FILE
+    # environment var or from the CONSUL_HTTP_TOKEN environment var.
+    # token: "..."
+
+    # datacenter is an optional Consul API datacenter.
+    # If the datacenter isn't specified, then it is read from Consul server.
+    # See https://www.consul.io/api-docs/agent#read-configuration
+    # datacenter: "..."
+
+    # namespace is an optional Consul namespace.
+    # See https://developer.hashicorp.com/consul/docs/enterprise/namespaces
+    # If the namespace isn't specified, then it is read from CONSUL_NAMESPACE environment var.
+    # namespace: "..."
+
+    # scheme is an optional scheme (http or https) to use for connecting to Consul server.
+    # By default http scheme is used.
+    # scheme: "..."
+
+    # services is an optional list of services for which targets are retrieved.
+    # If omitted, all services are scraped.
+    # See https://www.consul.io/api-docs/catalog#list-nodes-for-service .
+    # services: ["...", "..."]
+
+    # tag_separator is an optional string by which Consul tags are joined into the __meta_consul_tags label.
+    # By default "," is used as a tag separator.
+    # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
+    # tag_separator: "..."
+
+    # filter is optional filter for service nodes discovery request.
+    # Replaces tags and node_metadata options.
+    # consul supports it since 1.14 version
+    # list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+    # syntax examples https://developer.hashicorp.com/consul/api-docs/features/filtering
+    # filter: "..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+to `<service_or_node_addr>:<service_port>`, where `<service_or_node_addr>` is the service address. If the service address is empty,
+then the node address is used instead. The `<service_port>` is the service port.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_consulagent_address`: the address of the target
+* `__meta_consulagent_dc`: the datacenter name for the target
+* `__meta_consulagent_health`: the health status of the service
+* `__meta_consulagent_metadata_<key>`: each node metadata key value of the target
+* `__meta_consulagent_namespace`: namespace of the service - see [namespace docs](https://developer.hashicorp.com/consul/docs/enterprise/namespaces)
+* `__meta_consulagent_node`: the node name defined for the target
+* `__meta_consulagent_service_address`: the service address of the target
+* `__meta_consulagent_service_id`: the service ID of the target
+* `__meta_consulagent_service_metadata_<key>`: each service metadata key value of the target
+* `__meta_consulagent_service_port`: the service port of the target
+* `__meta_consulagent_service`: the name of the service the target belongs to
+* `__meta_consulagent_tagged_address_<key>`: each node tagged address key value of the target
+* `__meta_consulagent_tag_<tagname>`: the value for the given <tagname> tag of the target
+* `__meta_consulagent_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
+* `__meta_consulagent_tags`: the list of tags of the target joined by the `tag_separator`
+
+The list of discovered Consul Agent targets is refreshed at the interval, which can be configured via `-promscrape.consulagentSDCheckInterval` command-line flag.
 
 ## digitalocean_sd_configs
 

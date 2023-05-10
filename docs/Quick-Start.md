@@ -1,5 +1,13 @@
 ---
 sort: 13
+weight: 13
+title: Quick start
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 13
+aliases:
+- /Quick-Start.html
 ---
 
 # Quick start

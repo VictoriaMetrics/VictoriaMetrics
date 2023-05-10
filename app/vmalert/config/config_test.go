@@ -1,6 +1,8 @@
 package config
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -24,6 +26,40 @@ func TestMain(m *testing.M) {
 func TestParseGood(t *testing.T) {
 	if _, err := Parse([]string{"testdata/rules/*good.rules", "testdata/dir/*good.*"}, notifier.ValidateTemplates, true); err != nil {
 		t.Errorf("error parsing files %s", err)
+	}
+}
+
+func TestParseFromURL(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/bad", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte("foo bar"))
+	})
+	mux.HandleFunc("/good-alert", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: TestGroup
+    rules:
+      - alert: Conns
+        expr: vm_tcplistener_conns > 0`))
+	})
+	mux.HandleFunc("/good-rr", func(w http.ResponseWriter, _ *http.Request) {
+		w.Write([]byte(`
+groups:
+  - name: TestGroup
+    rules:
+      - record: conns
+        expr: max(vm_tcplistener_conns)`))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	if _, err := Parse([]string{srv.URL + "/good-alert", srv.URL + "/good-rr"}, notifier.ValidateTemplates, true); err != nil {
+		t.Errorf("error parsing URLs %s", err)
+	}
+
+	if _, err := Parse([]string{srv.URL + "/bad"}, notifier.ValidateTemplates, true); err == nil {
+		t.Errorf("expected parsing error: %s", err)
 	}
 }
 
@@ -64,6 +100,10 @@ func TestParseBad(t *testing.T) {
 			[]string{"testdata/dir/rules6-bad.rules"},
 			"missing ':' in header",
 		},
+		{
+			[]string{"http://unreachable-url"},
+			"no such host",
+		},
 	}
 	for _, tc := range testCases {
 		_, err := Parse(tc.path, notifier.ValidateTemplates, true)
@@ -102,7 +142,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "group name must be set",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Record: "record",
@@ -113,7 +154,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Record: "record",
@@ -125,7 +167,8 @@ func TestGroup_Validate(t *testing.T) {
 			validateExpressions: true,
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -139,7 +182,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -156,7 +200,8 @@ func TestGroup_Validate(t *testing.T) {
 			validateAnnotations: true,
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{
 						Alert: "alert",
@@ -171,7 +216,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -184,7 +230,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Record: "record", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -197,7 +244,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "duplicate",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -210,7 +258,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test",
+			group: &Group{
+				Name: "test",
 				Rules: []Rule{
 					{Record: "alert", Expr: "up == 1", Labels: map[string]string{
 						"summary": "{{ value|query }}",
@@ -223,7 +272,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr: "",
 		},
 		{
-			group: &Group{Name: "test thanos",
+			group: &Group{
+				Name: "test thanos",
 				Type: NewRawType("thanos"),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -235,7 +285,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "unknown datasource type",
 		},
 		{
-			group: &Group{Name: "test graphite",
+			group: &Group{
+				Name: "test graphite",
 				Type: NewGraphiteType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -247,7 +298,8 @@ func TestGroup_Validate(t *testing.T) {
 			expErr:              "",
 		},
 		{
-			group: &Group{Name: "test prometheus",
+			group: &Group{
+				Name: "test prometheus",
 				Type: NewPrometheusType(),
 				Rules: []Rule{
 					{Alert: "alert", Expr: "up == 1", Labels: map[string]string{
@@ -531,6 +583,24 @@ rules:
 `, `
 name: TestGroup
 headers:
+  - "TenantID: bar"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`)
+	})
+
+	t.Run("`notifier_headers` change", func(t *testing.T) {
+		f(t, `
+name: TestGroup
+notifier_headers:
+  - "TenantID: foo"
+rules:
+  - alert: foo
+    expr: sum by(job) (up == 1)
+`, `
+name: TestGroup
+notifier_headers:
   - "TenantID: bar"
 rules:
   - alert: foo

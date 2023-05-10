@@ -3,7 +3,8 @@ package fslocal
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+
+	"github.com/bmatcuk/doublestar/v4"
 )
 
 // FS represents a local file system
@@ -16,7 +17,7 @@ type FS struct {
 
 // Init verifies that configured Pattern is correct
 func (fs *FS) Init() error {
-	_, err := filepath.Glob(fs.Pattern)
+	_, err := doublestar.FilepathGlob(fs.Pattern)
 	return err
 }
 
@@ -27,7 +28,7 @@ func (fs *FS) String() string {
 
 // List returns the list of file names which will be read via Read fn
 func (fs *FS) List() ([]string, error) {
-	matches, err := filepath.Glob(fs.Pattern)
+	matches, err := doublestar.FilepathGlob(fs.Pattern)
 	if err != nil {
 		return nil, fmt.Errorf("error while matching files via pattern %s: %w", fs.Pattern, err)
 	}

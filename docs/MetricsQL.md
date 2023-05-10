@@ -1,5 +1,14 @@
 ---
 sort: 14
+weight: 14
+title: MetricsQL
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 14
+aliases:
+- /ExtendedPromQL.html
+- /MetricsQL.html
 ---
 
 # MetricsQL

@@ -14,16 +14,11 @@ import (
 // Deletes the cors configuration information set for the bucket. To use this
 // operation, you must have permission to perform the s3:PutBucketCORS action. The
 // bucket owner has this permission by default and can grant this permission to
-// others. For information about cors, see Enabling Cross-Origin Resource Sharing
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html) in the Amazon S3
-// User Guide. Related Resources:
-//
-// * PutBucketCors
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
-//
-// *
-// RESTOPTIONSobject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTOPTIONSobject.html)
+// others. For information about cors , see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
+// in the Amazon S3 User Guide. The following operations are related to
+// DeleteBucketCors :
+//   - PutBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
+//   - RESTOPTIONSobject (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTOPTIONSobject.html)
 func (c *Client) DeleteBucketCors(ctx context.Context, params *DeleteBucketCorsInput, optFns ...func(*Options)) (*DeleteBucketCorsOutput, error) {
 	if params == nil {
 		params = &DeleteBucketCorsInput{}
@@ -116,6 +111,9 @@ func (c *Client) addOperationDeleteBucketCorsMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addDeleteBucketCorsUpdateEndpoint(stack, options); err != nil {

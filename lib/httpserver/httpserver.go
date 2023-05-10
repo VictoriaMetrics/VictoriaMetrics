@@ -323,6 +323,11 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1833
 		fmt.Fprintf(w, "VictoriaMetrics is Ready.\n")
 		return
+	case "/robots.txt":
+		// This prevents search engines from indexing contents
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128
+		fmt.Fprintf(w, "User-agent: *\nDisallow: /\n")
+		return
 	default:
 		if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
 			pprofRequests.Inc()

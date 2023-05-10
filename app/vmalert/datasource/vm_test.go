@@ -35,13 +35,6 @@ func TestVMInstantQuery(t *testing.T) {
 		t.Errorf("should not be called")
 	})
 	c := -1
-	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
-		c++
-		switch c {
-		case 8:
-			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
-		}
-	})
 	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
 		c++
 		if r.Method != http.MethodPost {
@@ -62,22 +55,28 @@ func TestVMInstantQuery(t *testing.T) {
 		}
 		switch c {
 		case 0:
-			conn, _, _ := w.(http.Hijacker).Hijack()
-			_ = conn.Close()
-		case 1:
 			w.WriteHeader(500)
-		case 2:
+		case 1:
 			w.Write([]byte("[]"))
-		case 3:
+		case 2:
 			w.Write([]byte(`{"status":"error", "errorType":"type:", "error":"some error msg"}`))
-		case 4:
+		case 3:
 			w.Write([]byte(`{"status":"unknown"}`))
-		case 5:
+		case 4:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"matrix"}}`))
-		case 6:
+		case 5:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"vector","result":[{"metric":{"__name__":"vm_rows","foo":"bar"},"value":[1583786142,"13763"]},{"metric":{"__name__":"vm_requests","foo":"baz"},"value":[1583786140,"2000"]}]}}`))
-		case 7:
+		case 6:
 			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
+		case 7:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]},"stats":{"seriesFetched": "42"}}`))
+		}
+	})
+	mux.HandleFunc("/render", func(w http.ResponseWriter, request *http.Request) {
+		c++
+		switch c {
+		case 8:
+			w.Write([]byte(`[{"target":"constantLine(10)","tags":{"name":"constantLine(10)"},"datapoints":[[10,1611758343],[10,1611758373],[10,1611758403]]}]`))
 		}
 	})
 
@@ -95,24 +94,27 @@ func TestVMInstantQuery(t *testing.T) {
 	ts := time.Now()
 
 	expErr := func(err string) {
-		if _, _, err := pq.Query(ctx, query, ts); err == nil {
+		_, _, gotErr := pq.Query(ctx, query, ts)
+		if gotErr == nil {
 			t.Fatalf("expected %q got nil", err)
+		}
+		if !strings.Contains(gotErr.Error(), err) {
+			t.Fatalf("expected err %q; got %q", err, gotErr)
 		}
 	}
 
-	expErr("connection error")              // 0
-	expErr("invalid response status error") // 1
-	expErr("response body error")           // 2
-	expErr("error status")                  // 3
-	expErr("unknown status")                // 4
-	expErr("non-vector resultType error")   // 5
+	expErr("500")                              // 0
+	expErr("error parsing prometheus metrics") // 1
+	expErr("response error")                   // 2
+	expErr("unknown status")                   // 3
+	expErr("unexpected end of JSON input")     // 4
 
-	m, _, err := pq.Query(ctx, query, ts) // 6 - vector
+	res, _, err := pq.Query(ctx, query, ts) // 5 - vector
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
-	if len(m) != 2 {
-		t.Fatalf("expected 2 metrics got %d in %+v", len(m), m)
+	if len(res.Data) != 2 {
+		t.Fatalf("expected 2 metrics got %d in %+v", len(res.Data), res.Data)
 	}
 	expected := []Metric{
 		{
@@ -126,17 +128,17 @@ func TestVMInstantQuery(t *testing.T) {
 			Values:     []float64{2000},
 		},
 	}
-	metricsEqual(t, m, expected)
+	metricsEqual(t, res.Data, expected)
 
-	m, req, err := pq.Query(ctx, query, ts) // 7 - scalar
+	res, req, err := pq.Query(ctx, query, ts) // 6 - scalar
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
 	if req == nil {
 		t.Fatalf("expected request to be non-nil")
 	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 metrics got %d in %+v", len(m), m)
+	if len(res.Data) != 1 {
+		t.Fatalf("expected 1 metrics got %d in %+v", len(res.Data), res.Data)
 	}
 	expected = []Metric{
 		{
@@ -144,18 +146,44 @@ func TestVMInstantQuery(t *testing.T) {
 			Values:     []float64{1},
 		},
 	}
-	if !reflect.DeepEqual(m, expected) {
-		t.Fatalf("unexpected metric %+v want %+v", m, expected)
+	if !reflect.DeepEqual(res.Data, expected) {
+		t.Fatalf("unexpected metric %+v want %+v", res.Data, expected)
+	}
+
+	if res.SeriesFetched != nil {
+		t.Fatalf("expected `seriesFetched` field to be nil when it is missing in datasource response; got %v instead",
+			res.SeriesFetched)
+	}
+
+	res, _, err = pq.Query(ctx, query, ts) // 7 - scalar with stats
+	if err != nil {
+		t.Fatalf("unexpected %s", err)
+	}
+	if len(res.Data) != 1 {
+		t.Fatalf("expected 1 metrics got %d in %+v", len(res.Data), res)
+	}
+	expected = []Metric{
+		{
+			Timestamps: []int64{1583786142},
+			Values:     []float64{1},
+		},
+	}
+	if !reflect.DeepEqual(res.Data, expected) {
+		t.Fatalf("unexpected metric %+v want %+v", res.Data, expected)
+	}
+	if *res.SeriesFetched != 42 {
+		t.Fatalf("expected `seriesFetched` field to be 42; got %d instead",
+			*res.SeriesFetched)
 	}
 
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
-	m, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
+	res, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
-	if len(m) != 1 {
-		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
+	if len(res.Data) != 1 {
+		t.Fatalf("expected 1 metric  got %d in %+v", len(res.Data), res.Data)
 	}
 	exp := []Metric{
 		{
@@ -164,7 +192,77 @@ func TestVMInstantQuery(t *testing.T) {
 			Values:     []float64{10},
 		},
 	}
-	metricsEqual(t, m, exp)
+	metricsEqual(t, res.Data, exp)
+
+}
+
+func TestVMInstantQueryWithRetry(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
+		t.Errorf("should not be called")
+	})
+	c := -1
+	mux.HandleFunc("/api/v1/query", func(w http.ResponseWriter, r *http.Request) {
+		c++
+		if r.URL.Query().Get("query") != query {
+			t.Errorf("expected %s in query param, got %s", query, r.URL.Query().Get("query"))
+		}
+		switch c {
+		case 0:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "1"]}}`))
+		case 1:
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		case 2:
+			w.Write([]byte(`{"status":"success","data":{"resultType":"scalar","result":[1583786142, "2"]}}`))
+		case 3:
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		case 4:
+			conn, _, _ := w.(http.Hijacker).Hijack()
+			_ = conn.Close()
+		}
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	s := NewVMStorage(srv.URL, nil, time.Minute, 0, false, srv.Client())
+	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus)})
+
+	expErr := func(err string) {
+		_, _, gotErr := pq.Query(ctx, query, time.Now())
+		if gotErr == nil {
+			t.Fatalf("expected %q got nil", err)
+		}
+		if !strings.Contains(gotErr.Error(), err) {
+			t.Fatalf("expected err %q; got %q", err, gotErr)
+		}
+	}
+
+	expValue := func(v float64) {
+		res, _, err := pq.Query(ctx, query, time.Now())
+		if err != nil {
+			t.Fatalf("unexpected %s", err)
+		}
+		m := res.Data
+		if len(m) != 1 {
+			t.Fatalf("expected 1 metrics got %d in %+v", len(m), m)
+		}
+		expected := []Metric{
+			{
+				Timestamps: []int64{1583786142},
+				Values:     []float64{v},
+			},
+		}
+		if !reflect.DeepEqual(m, expected) {
+			t.Fatalf("unexpected metric %+v want %+v", m, expected)
+		}
+	}
+
+	expValue(1)   // 0
+	expValue(2)   // 1 - fail, 2 - retry
+	expErr("EOF") // 3, 4 - retries
 }
 
 func metricsEqual(t *testing.T, gotM, expectedM []Metric) {
@@ -250,10 +348,11 @@ func TestVMRangeQuery(t *testing.T) {
 
 	start, end := time.Now().Add(-time.Minute), time.Now()
 
-	m, err := pq.QueryRange(ctx, query, start, end)
+	res, err := pq.QueryRange(ctx, query, start, end)
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
+	m := res.Data
 	if len(m) != 1 {
 		t.Fatalf("expected 1 metric  got %d in %+v", len(m), m)
 	}

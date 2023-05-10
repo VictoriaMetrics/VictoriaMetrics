@@ -1,5 +1,13 @@
 ---
 sort: 98
+weight: 98
+title: streaming aggregation
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 98
+aliases:
+- /stream-aggregation.html
 ---
 
 # streaming aggregation
@@ -354,6 +362,20 @@ The results of `total` is equal to the `sum(some_counter)` query.
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
 <img alt="total aggregation" src="stream-aggregation-check-total.png">
+
+`total` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) - 
+it continues to increase monotonically with respect to the previous value.
+The counters are most often reset when the application is restarted.
+
+For example: 
+
+<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
+
+The same behavior will occur when creating or deleting new series in an aggregation group -
+`total` will increase monotonically considering the values of the series set. 
+
+An example of changing a set of series can be restarting a pod in the Kubernetes.
+This changes a label with pod's name in the series, but `total` account for such a scenario and do not reset the state of aggregated metric.
 
 ### increase
 

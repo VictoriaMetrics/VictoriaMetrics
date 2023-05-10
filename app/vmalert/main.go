@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/metrics"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/datasource"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
@@ -24,15 +26,16 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/procutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/pushmetrics"
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
-	rulePath = flagutil.NewArrayString("rule", `Path to the files with alerting and/or recording rules.
+	rulePath = flagutil.NewArrayString("rule", `Path to the files or http url with alerting and/or recording rules.
 Supports hierarchical patterns and regexpes.
 Examples:
- -rule="/path/to/file". Path to a single file with alerting rules
+ -rule="/path/to/file". Path to a single file with alerting rules.
+ -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
  -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
+ -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
 Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
 
 Enterprise version of vmalert supports S3 and GCS paths to rules.
@@ -47,7 +50,9 @@ See https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-stor
 Examples:
  -rule.templates="/path/to/file". Path to a single file with go templates
  -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
-absolute path to all .tpl files in root.`)
+absolute path to all .tpl files in root.
+ -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
+`)
 
 	rulesCheckInterval = flag.Duration("rule.configCheckInterval", 0, "Interval for checking for changes in '-rule' files. "+
 		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes. DEPRECATED - see '-configCheckInterval' instead")
@@ -282,7 +287,10 @@ func getAlertURLGenerator(externalURL *url.URL, externalAlertSource string, vali
 		"tpl": externalAlertSource,
 	}
 	return func(alert notifier.Alert) string {
-		templated, err := alert.ExecTemplate(nil, alert.Labels, m)
+		qFn := func(query string) ([]datasource.Metric, error) {
+			return nil, fmt.Errorf("`query` template isn't supported for alert source template")
+		}
+		templated, err := alert.ExecTemplate(qFn, alert.Labels, m)
 		if err != nil {
 			logger.Errorf("can not exec source template %s", err)
 		}

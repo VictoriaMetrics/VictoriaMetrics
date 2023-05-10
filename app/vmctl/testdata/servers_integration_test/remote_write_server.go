@@ -29,6 +29,11 @@ type Response struct {
 	Series []LabelValues `json:"data"`
 }
 
+type MetricNamesResponse struct {
+	Status string   `json:"status"`
+	Data   []string `json:"data"`
+}
+
 // RemoteWriteServer represents fake remote write server with database
 type RemoteWriteServer struct {
 	server         *httptest.Server
@@ -44,6 +49,7 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	mux.Handle("/api/v1/import", rws.getWriteHandler(t))
 	mux.Handle("/health", rws.handlePing())
 	mux.Handle("/api/v1/series", rws.seriesHandler())
+	mux.Handle("/api/v1/label/__name__/values", rws.valuesHandler())
 	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
 	rws.server = httptest.NewServer(mux)
@@ -142,6 +148,36 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
+	})
+}
+
+func (rws *RemoteWriteServer) valuesHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		labelNames := make(map[string]struct{})
+		for _, ser := range rws.series {
+			if ser.Name != "" {
+				labelNames[ser.Name] = struct{}{}
+			}
+		}
+
+		metricNames := make([]string, 0, len(labelNames))
+		for k := range labelNames {
+			metricNames = append(metricNames, k)
+		}
+		resp := MetricNamesResponse{
+			Status: "success",
+			Data:   metricNames,
+		}
+
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
+			log.Printf("error send series: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusNoContent)
+		return
 	})
 }
 

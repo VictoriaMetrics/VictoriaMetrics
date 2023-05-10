@@ -125,3 +125,16 @@ export enum Theme {
   light = "light",
   dark = "dark",
 }
+
+export interface RelabelStep {
+  rule: string;
+  inLabels: string;
+  outLabels: string;
+}
+
+export interface RelabelData {
+  status: string;
+  originalLabels?: string;
+  resultingLabels?: string;
+  steps: RelabelStep[];
+}

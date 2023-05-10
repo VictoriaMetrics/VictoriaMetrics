@@ -3,6 +3,7 @@ package persistentqueue
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 )
@@ -24,7 +25,7 @@ func TestQueueOpen(t *testing.T) {
 	t.Run("invalid-metainfo", func(t *testing.T) {
 		path := "queue-open-invalid-metainfo"
 		mustCreateDir(path)
-		mustCreateFile(path+"/metainfo.json", "foobarbaz")
+		mustCreateFile(filepath.Join(path, metainfoFilename), "foobarbaz")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -33,8 +34,8 @@ func TestQueueOpen(t *testing.T) {
 		path := "queue-open-junk-files-and-dir"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
-		mustCreateFile(path+"/junk-file", "foobar")
-		mustCreateDir(path + "/junk-dir")
+		mustCreateFile(filepath.Join(path, "junk-file"), "foobar")
+		mustCreateDir(filepath.Join(path, "junk-dir"))
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -43,7 +44,7 @@ func TestQueueOpen(t *testing.T) {
 		path := "queue-open-invalid-chunk-offset"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
-		mustCreateFile(fmt.Sprintf("%s/%016X", path, 1234), "qwere")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 1234)), "qwere")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -52,7 +53,7 @@ func TestQueueOpen(t *testing.T) {
 		path := "queue-open-too-new-chunk"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
-		mustCreateFile(fmt.Sprintf("%s/%016X", path, 100*uint64(defaultChunkFileSize)), "asdf")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 100*uint64(DefaultChunkFileSize))), "asdf")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -62,13 +63,13 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mi := &metainfo{
 			Name:         "foobar",
-			ReaderOffset: defaultChunkFileSize,
-			WriterOffset: defaultChunkFileSize,
+			ReaderOffset: DefaultChunkFileSize,
+			WriterOffset: DefaultChunkFileSize,
 		}
-		if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
+		if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "adfsfd")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "adfsfd")
 		q := mustOpen(path, mi.Name, 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -78,9 +79,9 @@ func TestQueueOpen(t *testing.T) {
 		mustCreateDir(path)
 		mi := &metainfo{
 			Name:         "foobar",
-			ReaderOffset: defaultChunkFileSize + 123,
+			ReaderOffset: DefaultChunkFileSize + 123,
 		}
-		if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
+		if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		q := mustOpen(path, mi.Name, 0)
@@ -90,7 +91,7 @@ func TestQueueOpen(t *testing.T) {
 	t.Run("metainfo-dir", func(t *testing.T) {
 		path := "queue-open-metainfo-dir"
 		mustCreateDir(path)
-		mustCreateDir(path + "/metainfo.json")
+		mustCreateDir(filepath.Join(path, metainfoFilename))
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -103,10 +104,10 @@ func TestQueueOpen(t *testing.T) {
 			ReaderOffset: 123,
 			WriterOffset: 123,
 		}
-		if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
+		if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "sdf")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "sdf")
 		q := mustOpen(path, mi.Name, 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -115,7 +116,7 @@ func TestQueueOpen(t *testing.T) {
 		path := "too-small-reader-file"
 		mustCreateDir(path)
 		mustCreateEmptyMetainfo(path, "foobar")
-		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "sdfdsf")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "sdfdsf")
 		q := mustOpen(path, "foobar", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -126,10 +127,10 @@ func TestQueueOpen(t *testing.T) {
 		mi := &metainfo{
 			Name: "foobar",
 		}
-		if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
+		if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		mustCreateFile(fmt.Sprintf("%s/%016X", path, 0), "sdf")
+		mustCreateFile(filepath.Join(path, fmt.Sprintf("%016X", 0)), "sdf")
 		q := mustOpen(path, "baz", 0)
 		q.MustClose()
 		mustDeleteDir(path)
@@ -391,7 +392,7 @@ func mustDeleteDir(path string) {
 func mustCreateEmptyMetainfo(path, name string) {
 	var mi metainfo
 	mi.Name = name
-	if err := mi.WriteToFile(path + "/metainfo.json"); err != nil {
+	if err := mi.WriteToFile(filepath.Join(path, metainfoFilename)); err != nil {
 		panic(fmt.Errorf("cannot create metainfo: %w", err))
 	}
 }

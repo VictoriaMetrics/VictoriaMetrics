@@ -131,48 +131,49 @@ func (ph *partHeader) ParseFromPath(path string) error {
 	return nil
 }
 
-func (ph *partHeader) ReadMetadata(partPath string) error {
+func (ph *partHeader) MustReadMetadata(partPath string) {
 	ph.Reset()
 
 	metadataPath := filepath.Join(partPath, metadataFilename)
-	metadata, err := os.ReadFile(metadataPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			// This is a part created before v1.90.0.
-			// Fall back to reading the metadata from the partPath itsel
-			return ph.ParseFromPath(partPath)
+	if !fs.IsPathExist(metadataPath) {
+		// This is a part created before v1.90.0.
+		// Fall back to reading the metadata from the partPath itsel
+		if err := ph.ParseFromPath(partPath); err != nil {
+			logger.Panicf("FATAL: cannot parse metadata from %q: %s", partPath, err)
 		}
-		return fmt.Errorf("cannot read %q: %w", metadataPath, err)
-	}
-	if err := json.Unmarshal(metadata, ph); err != nil {
-		return fmt.Errorf("cannot parse %q: %w", metadataPath, err)
+	} else {
+		metadata, err := os.ReadFile(metadataPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %q: %s", metadataPath, err)
+		}
+		if err := json.Unmarshal(metadata, ph); err != nil {
+			logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
+		}
 	}
 
 	// Perform various checks
 	if ph.MinTimestamp > ph.MaxTimestamp {
-		return fmt.Errorf("minTimestamp cannot exceed maxTimestamp; got %d vs %d", ph.MinTimestamp, ph.MaxTimestamp)
+		logger.Panicf("FATAL: minTimestamp cannot exceed maxTimestamp at %q; got %d vs %d", metadataPath, ph.MinTimestamp, ph.MaxTimestamp)
 	}
 	if ph.RowsCount <= 0 {
-		return fmt.Errorf("rowsCount must be greater than 0; got %d", ph.RowsCount)
+		logger.Panicf("FATAL: rowsCount must be greater than 0 at %q; got %d", metadataPath, ph.RowsCount)
 	}
 	if ph.BlocksCount <= 0 {
-		return fmt.Errorf("blocksCount must be greater than 0; got %d", ph.BlocksCount)
+		logger.Panicf("FATAL: blocksCount must be greater than 0 at %q; got %d", metadataPath, ph.BlocksCount)
 	}
 	if ph.BlocksCount > ph.RowsCount {
-		return fmt.Errorf("blocksCount cannot be bigger than rowsCount; got blocksCount=%d, rowsCount=%d", ph.BlocksCount, ph.RowsCount)
+		logger.Panicf("FATAL: blocksCount cannot be bigger than rowsCount at %q; got blocksCount=%d, rowsCount=%d", metadataPath, ph.BlocksCount, ph.RowsCount)
 	}
-
-	return nil
 }
 
-func (ph *partHeader) WriteMetadata(partPath string) error {
+func (ph *partHeader) MustWriteMetadata(partPath string) {
 	metadata, err := json.Marshal(ph)
 	if err != nil {
 		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
 	metadataPath := filepath.Join(partPath, metadataFilename)
-	if err := fs.WriteFileAtomically(metadataPath, metadata, false); err != nil {
-		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
-	}
-	return nil
+	// There is no need in calling fs.MustWriteAtomic() here,
+	// since the file is created only once during part creatinng
+	// and the part directory is synced aftewards.
+	fs.MustWriteSync(metadataPath, metadata)
 }

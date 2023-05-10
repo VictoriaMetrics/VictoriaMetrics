@@ -1,3 +1,13 @@
+---
+weight: 7
+title: How to delete or replace metrics in VictoriaMetrics
+menu:
+  docs:
+    parent: "guides"
+    weight: 7
+aliases:
+- /guides/guide-delete-or-replace-metrics.html
+---
 # How to delete or replace metrics in VictoriaMetrics 
 
 Data deletion is an operation people expect a database to have. [VictoriaMetrics](https://victoriametrics.com) supports 

@@ -73,35 +73,39 @@ func StreamFooter(qw422016 *qt422016.Writer, r *http.Request) {
                 group.click();
               }
             });
+
+            $(document).ready(function() {
+                $('[data-bs-toggle="tooltip"]').tooltip();
+            });
         </script>
     </body>
 </html>
 `)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 }
 
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 func WriteFooter(qq422016 qtio422016.Writer, r *http.Request) {
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	StreamFooter(qw422016, r)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 }
 
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 func Footer(r *http.Request) string {
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	WriteFooter(qb422016, r)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 	return qs422016
-//line app/vmalert/tpl/footer.qtpl:44
+//line app/vmalert/tpl/footer.qtpl:48
 }

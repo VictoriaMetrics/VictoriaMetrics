@@ -84,6 +84,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	}
 	authToken := r.Header.Get("Authorization")
 	if authToken == "" {
+		// Process requests for unauthorized users
+		ui := authConfig.Load().UnauthorizedUser
+		if ui != nil {
+			processUserRequest(w, r, ui)
+			return true
+		}
+
 		w.Header().Set("WWW-Authenticate", `Basic realm="Restricted"`)
 		http.Error(w, "missing `Authorization` request header", http.StatusUnauthorized)
 		return true
@@ -94,7 +101,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		authToken = strings.Replace(authToken, "Token", "Bearer", 1)
 	}
 
-	ac := authConfig.Load().(map[string]*UserInfo)
+	ac := *authUsers.Load()
 	ui := ac[authToken]
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
@@ -110,6 +117,12 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		return true
 	}
+
+	processUserRequest(w, r, ui)
+	return true
+}
+
+func processUserRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	ui.requests.Inc()
 
 	// Limit the concurrency of requests to backends
@@ -119,31 +132,45 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if err := ui.beginConcurrencyLimit(); err != nil {
 			handleConcurrencyLimitError(w, r, err)
 			<-concurrencyLimitCh
-			return true
+			return
 		}
 	default:
 		concurrentRequestsLimitReached.Inc()
 		err := fmt.Errorf("cannot serve more than -maxConcurrentRequests=%d concurrent requests", cap(concurrencyLimitCh))
 		handleConcurrencyLimitError(w, r, err)
-		return true
+		return
 	}
 	processRequest(w, r, ui)
 	ui.endConcurrencyLimit()
 	<-concurrencyLimitCh
-	return true
 }
 
 func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 	u := normalizeURL(r.URL)
-	up, headers, err := ui.getURLPrefixAndHeaders(u)
-	if err != nil {
-		httpserver.Errorf(w, r, "cannot determine targetURL: %s", err)
-		return
+	up, headers := ui.getURLPrefixAndHeaders(u)
+	isDefault := false
+	if up == nil {
+		missingRouteRequests.Inc()
+		if ui.DefaultURL == nil {
+			httpserver.Errorf(w, r, "missing route for %q", u.String())
+			return
+		}
+		up, headers = ui.DefaultURL, ui.Headers
+		isDefault = true
 	}
+
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
 		bu := up.getLeastLoadedBackendURL()
-		targetURL := mergeURLs(bu.url, u)
+		targetURL := bu.url
+		// Don't change path and add request_path query param for default route.
+		if isDefault {
+			query := targetURL.Query()
+			query.Set("request_path", u.Path)
+			targetURL.RawQuery = query.Encode()
+		} else { // Update path for regular routes.
+			targetURL = mergeURLs(targetURL, u)
+		}
 		ok := tryProcessingRequest(w, r, targetURL, headers)
 		bu.put()
 		if ok {
@@ -151,7 +178,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		}
 		bu.setBroken()
 	}
-	err = &httpserver.ErrorWithStatusCode{
+	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
 		StatusCode: http.StatusServiceUnavailable,
 	}
