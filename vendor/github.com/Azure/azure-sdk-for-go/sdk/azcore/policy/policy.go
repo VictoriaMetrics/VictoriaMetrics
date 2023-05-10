@@ -99,7 +99,7 @@ type RetryOptions struct {
 
 	// MaxRetryDelay specifies the maximum delay allowed before retrying an operation.
 	// Typically the value is greater than or equal to the value specified in RetryDelay.
-	// The default Value is 120 seconds.  A value less than zero means there is no cap.
+	// The default Value is 60 seconds.  A value less than zero means there is no cap.
 	MaxRetryDelay time.Duration
 
 	// StatusCodes specifies the HTTP status codes that indicate the operation should be retried.

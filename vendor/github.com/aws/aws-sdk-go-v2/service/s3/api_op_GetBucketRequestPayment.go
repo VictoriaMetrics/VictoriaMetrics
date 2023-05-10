@@ -13,13 +13,10 @@ import (
 )
 
 // Returns the request payment configuration of a bucket. To use this version of
-// the operation, you must be the bucket owner. For more information, see Requester
-// Pays Buckets
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/RequesterPaysBuckets.html). The
-// following operations are related to GetBucketRequestPayment:
-//
-// * ListObjects
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)
+// the operation, you must be the bucket owner. For more information, see
+// Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/RequesterPaysBuckets.html)
+// . The following operations are related to GetBucketRequestPayment :
+//   - ListObjects (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)
 func (c *Client) GetBucketRequestPayment(ctx context.Context, params *GetBucketRequestPaymentInput, optFns ...func(*Options)) (*GetBucketRequestPaymentOutput, error) {
 	if params == nil {
 		params = &GetBucketRequestPaymentInput{}
@@ -116,6 +113,9 @@ func (c *Client) addOperationGetBucketRequestPaymentMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketRequestPaymentUpdateEndpoint(stack, options); err != nil {

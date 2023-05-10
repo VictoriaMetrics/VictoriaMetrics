@@ -15,28 +15,14 @@ import (
 // Retrieves the policy status for an Amazon S3 bucket, indicating whether the
 // bucket is public. In order to use this operation, you must have the
 // s3:GetBucketPolicyStatus permission. For more information about Amazon S3
-// permissions, see Specifying Permissions in a Policy
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
-// For more information about when Amazon S3 considers a bucket public, see The
-// Meaning of "Public"
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status).
-// The following operations are related to GetBucketPolicyStatus:
-//
-// * Using Amazon
-// S3 Block Public Access
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html)
-//
-// *
-// GetPublicAccessBlock
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetPublicAccessBlock.html)
-//
-// *
-// PutPublicAccessBlock
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutPublicAccessBlock.html)
-//
-// *
-// DeletePublicAccessBlock
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeletePublicAccessBlock.html)
+// permissions, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
+// . For more information about when Amazon S3 considers a bucket public, see The
+// Meaning of "Public" (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status)
+// . The following operations are related to GetBucketPolicyStatus :
+//   - Using Amazon S3 Block Public Access (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html)
+//   - GetPublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetPublicAccessBlock.html)
+//   - PutPublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutPublicAccessBlock.html)
+//   - DeletePublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeletePublicAccessBlock.html)
 func (c *Client) GetBucketPolicyStatus(ctx context.Context, params *GetBucketPolicyStatusInput, optFns ...func(*Options)) (*GetBucketPolicyStatusOutput, error) {
 	if params == nil {
 		params = &GetBucketPolicyStatusInput{}
@@ -133,6 +119,9 @@ func (c *Client) addOperationGetBucketPolicyStatusMiddlewares(stack *middleware.
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketPolicyStatusUpdateEndpoint(stack, options); err != nil {
