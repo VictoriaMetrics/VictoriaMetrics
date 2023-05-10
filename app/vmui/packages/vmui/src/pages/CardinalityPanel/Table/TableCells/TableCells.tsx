@@ -36,7 +36,7 @@ const TableCells: FC<CardinalityTableCells> = ({
       key={row.name}
     >
       <span
-        className="vm-link vm-link_colored"
+        className={ onActionClick ? "vm-link vm-link_colored" : ""}
         onClick={handleActionClick}
       >
         {row.name}
