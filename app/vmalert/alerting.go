@@ -129,7 +129,13 @@ func newAlertingRule(qb datasource.QuerierBuilder, group *Group, cfg config.Rule
 				// means seriesFetched is unsupported
 				return -1
 			}
-			return float64(*e.seriesFetched)
+			seriesFetched := float64(*e.seriesFetched)
+			if seriesFetched == 0 && e.samples > 0 {
+				// `alert: 0.95` will fetch no series
+				// but will get one time series in response.
+				seriesFetched = float64(e.samples)
+			}
+			return seriesFetched
 		})
 	return ar
 }
