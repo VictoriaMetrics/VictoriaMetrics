@@ -22,7 +22,7 @@ var (
 	replayTo = flag.String("replay.timeTo", "",
 		"The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'")
 	replayRulesDelay = flag.Duration("replay.rulesDelay", time.Second,
-		"Delay between rules evaluation within the group. Could be important if there are chained rules inside of the group"+
+		"Delay between rules evaluation within the group. Could be important if there are chained rules inside the group "+
 			"and processing need to wait for previous rule results to be persisted by remote storage before evaluating the next rule."+
 			"Keep it equal or bigger than -remoteWrite.flushInterval.")
 	replayMaxDatapoints = flag.Int("replay.maxDatapointsPerQuery", 1e3,

@@ -108,7 +108,7 @@ After the merge is complete, the data will be permanently deleted from the disk.
 By default, VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a workaround, take the following actions:
 
 - [export time series to a file](https://docs.victoriametrics.com/url-examples.html#apiv1export);
-- change the values of time serie in the file and save it;
+- change the values of time series in the file and save it;
 - [delete time series from a database](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series);
 - [import saved file to VictoriaMetrics](https://docs.victoriametrics.com/url-examples.html#apiv1import).
 
