@@ -102,7 +102,7 @@ func TestParseBad(t *testing.T) {
 		},
 		{
 			[]string{"http://unreachable-url"},
-			"no such host",
+			"failed to read",
 		},
 	}
 	for _, tc := range testCases {
