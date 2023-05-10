@@ -93,9 +93,9 @@ name = keycloak
 client_id = {CLIENT_ID_FROM_IDENTITY_PROVIDER}
 client_secret = {SECRET_FROM_IDENTITY_PROVIDER}
 scopes = openid profile email
-auth_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/auth
-token_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/token
-api_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/userinfo
+auth_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth
+token_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token
+api_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo
 ```
 
 After restarting Grafana with the new config you should be able to log in using your identity provider.

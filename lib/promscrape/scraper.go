@@ -37,7 +37,7 @@ import (
 
 var (
 	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
-		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes")
 	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress 'duplicate scrape target' errors; "+
 		"see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
