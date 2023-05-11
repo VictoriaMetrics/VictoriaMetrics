@@ -12,6 +12,7 @@ const useMonacoTheme = (monaco: Monaco | null) => {
       inherit: true,
       rules: [],
       colors: {
+        // #00000000 - for transparent
         "editor.background": "#00000000",
         "editor.lineHighlightBackground": "#00000000",
         "editor.lineHighlightBorder": "#00000000"
