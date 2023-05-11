@@ -4,6 +4,9 @@ import { ErrorTypes } from "../../../types";
 import TextField from "../../Main/TextField/TextField";
 import Autocomplete from "../../Main/Autocomplete/Autocomplete";
 import "./style.scss";
+import { QueryStats } from "../../../api/types";
+import Tooltip from "../../Main/Tooltip/Tooltip";
+import { WarningIcon } from "../../Main/Icons";
 
 export interface QueryEditorProps {
   onChange: (query: string) => void;
@@ -14,6 +17,7 @@ export interface QueryEditorProps {
   oneLiner?: boolean;
   autocomplete: boolean;
   error?: ErrorTypes | string;
+  stats: QueryStats;
   options: string[];
   label: string;
   disabled?: boolean
@@ -27,6 +31,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
   onArrowDown,
   autocomplete,
   error,
+  stats,
   options,
   label,
   disabled = false
@@ -34,6 +39,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
+  const showSeriesFetchedWarning = stats.seriesFetched === "0";
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -89,6 +95,22 @@ const QueryEditor: FC<QueryEditorProps> = ({
         onSelect={handleSelect}
         onOpenAutocomplete={setOpenAutocomplete}
       />
+    )}
+    {showSeriesFetchedWarning && (
+      <div className="vm-query-editor-warning">
+        <Tooltip
+          placement="bottom-right"
+          title={(
+            <span className="vm-query-editor-warning__tooltip">
+              {`Your query does not match any available time series.
+              Please check the correctness of your query
+              and ensure it refers to existing metrics and time series.`}
+            </span>
+          )}
+        >
+          <WarningIcon/>
+        </Tooltip>
+      </div>
     )}
   </div>;
 };

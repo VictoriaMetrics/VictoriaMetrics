@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "preact/compat";
 import { getQueryRangeUrl, getQueryUrl } from "../api/query-range";
 import { useAppState } from "../state/common/StateContext";
-import { InstantMetricResult, MetricBase, MetricResult } from "../api/types";
+import { InstantMetricResult, MetricBase, MetricResult, QueryStats } from "../api/types";
 import { isValidHttpUrl } from "../utils/url";
 import { ErrorTypes, SeriesLimits } from "../types";
 import debounce from "lodash.debounce";
@@ -28,9 +28,10 @@ interface FetchQueryReturn {
   liveData?: InstantMetricResult[],
   error?: ErrorTypes | string,
   queryErrors: (ErrorTypes | string)[],
+  queryStats: QueryStats[],
   warning?: string,
   traces?: Trace[],
-  isHistogram: boolean,
+  isHistogram: boolean
 }
 
 interface FetchDataParams {
@@ -62,6 +63,7 @@ export const useFetchQuery = ({
   const [traces, setTraces] = useState<Trace[]>();
   const [error, setError] = useState<ErrorTypes | string>();
   const [queryErrors, setQueryErrors] = useState<(ErrorTypes | string)[]>([]);
+  const [queryStats, setQueryStats] = useState<QueryStats[]>([]);
   const [warning, setWarning] = useState<string>();
   const [fetchQueue, setFetchQueue] = useState<AbortController[]>([]);
   const [isHistogram, setIsHistogram] = useState(false);
@@ -98,6 +100,7 @@ export const useFetchQuery = ({
         const resp = await response.json();
 
         if (response.ok) {
+          setQueryStats(prev => [...prev, resp?.stats || {}]);
           setQueryErrors(prev => [...prev, ""]);
 
           if (resp.trace) {
@@ -184,5 +187,5 @@ export const useFetchQuery = ({
     setFetchQueue(fetchQueue.filter(f => !f.signal.aborted));
   }, [fetchQueue]);
 
-  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, warning, traces, isHistogram };
+  return { fetchUrl, isLoading, graphData, liveData, error, queryErrors, queryStats, warning, traces, isHistogram };
 };
