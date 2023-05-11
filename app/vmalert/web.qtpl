@@ -73,8 +73,8 @@ btn-primary
          <a class="btn {%= buttonActive(filter, "") %}" role="button" onclick="window.location = window.location.pathname">All</a>
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
-         <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'">Unhealthy</a>
-         <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'">NoMatch</a>
+         <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
+         <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
         {%  if len(groups) > 0 %}
             {% for _, g := range groups  %}
                   <div
