@@ -15,7 +15,7 @@ var (
 		"See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration")
 	disableCache = flag.Bool("internStringDisableCache", false, "Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. "+
 		"See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen")
-	cacheExpireDuration = flag.Duration("internStringCacheExpireDuration", 6*time.Minute, "The expire duration for caches for interned strings. "+
+	cacheExpireDuration = flag.Duration("internStringCacheExpireDuration", 6*time.Minute, "The expiry duration for caches for interned strings. "+
 		"See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache")
 )
 

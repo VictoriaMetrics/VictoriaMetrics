@@ -97,7 +97,7 @@ OpenTSDB migration works like so:
 
 - e.g. `curl -Ss "http://opentsdb:4242/api/search/lookup?m=system.load5&limit=1000000"`
 
-Here `results` return field should not be empty. Otherwise it means that meta tables are absent and needs to be turned on previously.
+Here `results` return field should not be empty. Otherwise, it means that meta tables are absent and needs to be turned on previously.
 
 3. Download data for each series in chunks defined in the CLI switches
 
@@ -150,7 +150,7 @@ Retention strings essentially define the two levels of aggregation for our colle
 
 First-order aggregation addresses how to aggregate any un-mentioned tags.
 
-This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values assocaited with that tag will be aggregated.
+This is, conceptually, directly opposite to how PromQL deals with tags. In OpenTSDB, if a tag isn't explicitly mentioned, all values associated with that tag will be aggregated.
 
 It is recommended to use `sum` for the first aggregation because it is relatively quick and should not cause any changes to the incoming data (because we collect each individual series).
 
@@ -158,9 +158,9 @@ It is recommended to use `sum` for the first aggregation because it is relativel
 
 Second-order aggregation (`1m-avg` in our example) defines any windowing that should occur before returning the data
 
-It is recommended to match the stat collection interval so we again avoid transforming incoming data.
+It is recommended to match the stat collection interval, so we again avoid transforming incoming data.
 
-We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggreagtion, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
+We do not allow for defining the "null value" portion of the rollup window (e.g. in the aggregation, `1m-avg-none`, the user cannot change `none`), as the goal of this tool is to avoid modifying incoming data.
 
 #### Windows
 
@@ -177,9 +177,9 @@ The window `1h` means that each individual query to OpenTSDB should only span 1 
 
 It is important to ensure this window somewhat matches the row size in HBase to help improve query times.
 
-For example, if the query is hitting a rollup table with a 4 hour row size, we should set a chunk size of a multiple of 4 hours (e.g. `4h`, `8h`, etc.) to avoid requesting data across row boundaries. Landing on row boundaries allows for more consistent request times to HBase.
+For example, if the query is hitting a rollup table with a 4-hour row size, we should set a chunk size of a multiple of 4 hours (e.g. `4h`, `8h`, etc.) to avoid requesting data across row boundaries. Landing on row boundaries allows for more consistent request times to HBase.
 
-The default table created in HBase for OpenTSDB has a 1 hour row size, so if you aren't sure on a correct row size to use, `1h` is a reasonable choice.
+The default table created in HBase for OpenTSDB has a 1-hour row size, so if you aren't sure on a correct row size to use, `1h` is a reasonable choice.
 
 ##### Time range
 
@@ -201,7 +201,7 @@ Chunking the data like this means each individual query returns faster, so we ca
 
 ### Restarting OpenTSDB migrations
 
-One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timstamp we started collecting data from at thebeginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
+One important note for OpenTSDB migration: Queries/HBase scans can "get stuck" within OpenTSDB itself. This can cause instability and performance issues within an OpenTSDB cluster, so stopping the migrator to deal with it may be necessary. Because of this, we provide the timestamp we started collecting data from at the beginning of the run. You can stop and restart the importer using this "hard timestamp" to ensure you collect data from the same time range over multiple runs.
 
 ## Migrating data from InfluxDB (1.x)
 
@@ -380,7 +380,7 @@ The configuration flags should contain self-explanatory descriptions.
 The filtering consists of three parts: by timeseries and time.
 
 Filtering by time may be configured via flags `--prom-filter-time-start` and `--prom-filter-time-end`
-in in RFC3339 format. This filter applied twice: to drop blocks out of range and to filter timeseries in blocks with
+in RFC3339 format. This filter applied twice: to drop blocks out of range and to filter timeseries in blocks with
 overlapping time range.
 
 Example of applying time filter:
@@ -407,7 +407,7 @@ since this is heavy operation and will be done during import process.
 Filtering by timeseries is configured with following flags:
 
 - `--prom-filter-label` - the label name, e.g. `__name__` or `instance`;
-- `--prom-filter-label-value` - the regular expression to filter the label value. By default matches all `.*`
+- `--prom-filter-label-value` - the regular expression to filter the label value. By default, matches all `.*`
 
 For example:
 
@@ -663,7 +663,7 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from Mimir
 
-Mimir has similar implemintation as Cortex and also support of the Prometheus remote read protocol. That means
+Mimir has similar implementation as Cortex and also support of the Prometheus remote read protocol. That means
 `vmctl` in mode `remote-read` may also be used for Mimir historical data migration.
 These instructions may vary based on the details of your Mimir configuration.
 Please read carefully and verify as you go.
@@ -999,7 +999,7 @@ to number of free CPU cores.
 
 The flag `--vm-concurrency` controls the number of concurrent workers that process the input from InfluxDB query results.
 Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
-to allocated CPU resources of your VictoriMetrics installation.
+to allocated CPU resources of your VictoriaMetrics installation.
 
 The flag `--vm-batch-size` controls max amount of samples collected before sending the import request.
 For example, if  `--influx-chunk-size=500` and `--vm-batch-size=2000` then importer will process not more
@@ -1044,7 +1044,7 @@ according to [information theory](https://en.wikipedia.org/wiki/Information_theo
 `vmctl` provides the following flags for improving data compression:
 
 - `--vm-round-digits` flag for rounding processed values to the given number of decimal digits after the point.
-  For example, `--vm-round-digits=2` would round `1.2345` to `1.23`. By default the rounding is disabled.
+  For example, `--vm-round-digits=2` would round `1.2345` to `1.23`. By default, the rounding is disabled.
 
 - `--vm-significant-figures` flag for limiting the number of significant figures in processed values. It takes no effect if set
   to 0 (by default), but set `--vm-significant-figures=5` and `102.342305` will be rounded to `102.34`.
@@ -1054,7 +1054,7 @@ results such as `average`, `rate`, etc.
 
 ### Adding extra labels
 
- `vmctl` allows to add extra labels to all imported series. It can be achived with flag `--vm-extra-label label=value`.
+ `vmctl` allows to add extra labels to all imported series. It can be achieved with flag `--vm-extra-label label=value`.
  If multiple labels needs to be added, set flag for each label, for example, `--vm-extra-label label1=value1 --vm-extra-label label2=value2`.
  If timeseries already have label, that must be added with `--vm-extra-label` flag, flag has priority and will override label value from timeseries.
 

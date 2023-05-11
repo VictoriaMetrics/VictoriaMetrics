@@ -37,7 +37,7 @@ spec:
  
 ## Configmap example
 
- Quick tour how to to create `Confimap` with relabeling configuration
+ Quick tour how to create `ConfigMap` with relabeling configuration
  
  ```yaml
 cat << EOF | kubectl apply -f -
@@ -135,7 +135,7 @@ EOF
 
 ##  Combined example
 
- Its also possible to use both features in combination.
+ It's also possible to use both features in combination.
 
  First will be added relabeling configs from  `inlineRelabelConfig`, then `relabelConfig` from configmap.
 

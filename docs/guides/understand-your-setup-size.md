@@ -112,7 +112,7 @@ You can significantly reduce the amount of disk usage by specifying [Downsamplin
 
 Every deployment (Single-Node or Cluster) contains the expected load in Ingestion Rate and Active Time Series. We assume that the Churn Rate is no more than 30%. You may need to choose a more extensive deployment if you have a higher Churn Rate.
 
-**  Example**
+#### Example
 
 Deployment type: **s.medium ~100k samples/s Ingestion Rate, ~2.5M of Active Time Series**
 

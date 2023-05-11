@@ -25,21 +25,11 @@ import (
 // monitored and not eligible for auto-tiering. Smaller objects can be stored, but
 // they are always charged at the Frequent Access tier rates in the S3
 // Intelligent-Tiering storage class. For more information, see Storage class for
-// automatically optimizing frequently and infrequently accessed objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
-// Operations related to GetBucketIntelligentTieringConfiguration include:
-//
-// *
-// DeleteBucketIntelligentTieringConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketIntelligentTieringConfiguration.html)
-//
-// *
-// PutBucketIntelligentTieringConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketIntelligentTieringConfiguration.html)
-//
-// *
-// ListBucketIntelligentTieringConfigurations
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketIntelligentTieringConfigurations.html)
+// automatically optimizing frequently and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access)
+// . Operations related to GetBucketIntelligentTieringConfiguration include:
+//   - DeleteBucketIntelligentTieringConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketIntelligentTieringConfiguration.html)
+//   - PutBucketIntelligentTieringConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketIntelligentTieringConfiguration.html)
+//   - ListBucketIntelligentTieringConfigurations (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketIntelligentTieringConfigurations.html)
 func (c *Client) GetBucketIntelligentTieringConfiguration(ctx context.Context, params *GetBucketIntelligentTieringConfigurationInput, optFns ...func(*Options)) (*GetBucketIntelligentTieringConfigurationOutput, error) {
 	if params == nil {
 		params = &GetBucketIntelligentTieringConfigurationInput{}
@@ -137,6 +127,9 @@ func (c *Client) addOperationGetBucketIntelligentTieringConfigurationMiddlewares
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketIntelligentTieringConfigurationUpdateEndpoint(stack, options); err != nil {

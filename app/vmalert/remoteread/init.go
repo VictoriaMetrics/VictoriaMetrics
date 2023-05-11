@@ -34,9 +34,9 @@ var (
 	tlsCertFile           = flag.String("remoteRead.tlsCertFile", "", "Optional path to client-side TLS certificate file to use when connecting to -remoteRead.url")
 	tlsKeyFile            = flag.String("remoteRead.tlsKeyFile", "", "Optional path to client-side TLS certificate key to use when connecting to -remoteRead.url")
 	tlsCAFile             = flag.String("remoteRead.tlsCAFile", "", "Optional path to TLS CA file to use for verifying connections to -remoteRead.url. "+
-		"By default system CA is used")
+		"By default, system CA is used")
 	tlsServerName = flag.String("remoteRead.tlsServerName", "", "Optional TLS server name to use for connections to -remoteRead.url. "+
-		"By default the server name from -remoteRead.url is used")
+		"By default, the server name from -remoteRead.url is used")
 
 	oauth2ClientID         = flag.String("remoteRead.oauth2.clientID", "", "Optional OAuth2 clientID to use for -remoteRead.url.")
 	oauth2ClientSecret     = flag.String("remoteRead.oauth2.clientSecret", "", "Optional OAuth2 clientSecret to use for -remoteRead.url.")
