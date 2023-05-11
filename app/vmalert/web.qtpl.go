@@ -253,12 +253,12 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups [
 //line app/vmalert/web.qtpl:76
 	streambuttonActive(qw422016, filter, "unhealthy")
 //line app/vmalert/web.qtpl:76
-	qw422016.N().S(`" role="button" onclick="location.href='?filter=unhealthy'">Unhealthy</a>
+	qw422016.N().S(`" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
          <a class="btn `)
 //line app/vmalert/web.qtpl:77
 	streambuttonActive(qw422016, filter, "noMatch")
 //line app/vmalert/web.qtpl:77
-	qw422016.N().S(`" role="button" onclick="location.href='?filter=noMatch'">NoMatch</a>
+	qw422016.N().S(`" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
         `)
 //line app/vmalert/web.qtpl:78
 	if len(groups) > 0 {
