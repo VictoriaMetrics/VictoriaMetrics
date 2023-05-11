@@ -11,6 +11,7 @@
   cursor: pointer;
   transition: 0.2s ease;
   margin-bottom: $padding-small;
+  font-size: $font-size-small;
 
   &:hover {
     background-color: rgba(0, 0, 0, 0.1);
