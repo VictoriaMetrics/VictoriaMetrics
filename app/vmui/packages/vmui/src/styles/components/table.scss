@@ -31,6 +31,7 @@
     height: 40px;
     vertical-align: top;
     line-height: 1.5;
+    overflow-wrap: anywhere;
 
     &__content {
       display: flex;
@@ -67,6 +68,10 @@
 
     &_no-wrap {
       white-space: nowrap;
+    }
+
+    &_no-padding {
+      padding: 0;
     }
   }
 
