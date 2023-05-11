@@ -7,6 +7,7 @@ scrape_configs:
     honor_labels: true
     honor_timestamps: false
     follow_redirects: false
+    enable_http2: true
     static_configs:
       - targets: ["foo.bar", "aaa"]
         labels:
@@ -21,6 +22,7 @@ scrape_configs:
       - role: endpoints
         api_server: "https://localhost:1234"
         follow_redirects: true
+        enable_http2: true
         tls_config:
           cert_file: valid_cert_file
           key_file: valid_key_file

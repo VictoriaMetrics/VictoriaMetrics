@@ -66,6 +66,9 @@ type ScrapeWork struct {
 	// Whether to deny redirects during requests to scrape config.
 	DenyRedirects bool
 
+	// Whether to configure HTTP2.
+	EnableHTTP2 bool
+
 	// OriginalLabels contains original labels before relabeling.
 	//
 	// These labels are needed for relabeling troubleshooting at /targets page.
