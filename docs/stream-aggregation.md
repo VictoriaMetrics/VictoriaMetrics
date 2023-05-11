@@ -26,7 +26,7 @@ The stream aggregation is configured via the following command-line flags:
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 
-By default only the aggregated data is written to the storage. If the original incoming samples must be written to the storage too,
+By default, only the aggregated data is written to the storage. If the original incoming samples must be written to the storage too,
 then the following command-line flags must be specified:
 
 - `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
@@ -37,7 +37,7 @@ then the following command-line flags must be specified:
 Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 It expects that the ingested samples have timestamps close to the current time.
 
-By default all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
+By default, all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
 For example, if the samples are received from replicated sources.
 The following command-line flag can be used for enabling the [de-duplication](https://docs.victoriametrics.com/#deduplication)
 before aggregation in this case:
@@ -320,7 +320,7 @@ Output metric names for stream aggregation are constructed according to the foll
   If the `by` list is missing in the config, then the `_by_<by_labels>` part isn't included in the output metric name.
 - `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](#stream-aggregation-config).
   If the `without` list is missing in the config, then the `_without_<without_labels>` part isn't included in the output metric name.
-- `<output>` is the aggregate used for constucting the output metric. The aggregate name is taken from the `outputs` list
+- `<output>` is the aggregate used for constructing the output metric. The aggregate name is taken from the `outputs` list
   at the corresponding [stream aggregation config](#stream-aggregation-config).
 
 Both input and output metric names can be modified if needed via relabeling according to [these docs](#relabeling).
@@ -542,7 +542,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   without: [instance]
 
-  # by is an optioanl list of labels, which must be preserved in the output aggregation.
+  # by is an optional list of labels, which must be preserved in the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   # by: [job, vmrange]
 

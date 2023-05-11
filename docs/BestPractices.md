@@ -28,7 +28,7 @@ mkfs.ext4 ... -O 64bit,huge_file,extent -T huge
 
 VictoriaMetrics should work OK with other filesystems too.
 
-## Operation System
+## Operating System
 
 VictoriaMetrics is production-ready for the following operating systems:
 
@@ -70,7 +70,7 @@ VictoriaMetrics supports backups via [vmbackup](https://docs.victoriametrics.com
 
 There are the following channels for providing technical support for VictoriaMetrics:
 
-* [Github issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
+* [GitHub issues](https://github.com/VictoriaMetrics/VictoriaMetrics/issues)
 * [Slack channel](https://slack.victoriametrics.com/)
 * [Telegram channel](https://t.me/VictoriaMetrics_en)
 

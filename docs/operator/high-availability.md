@@ -12,7 +12,7 @@ aliases:
 
 # High Availability
 
-High availability is not only important for customer-facing software but if the monitoring infrastructure is not highly available, then there is a risk that operations people are not notified of alerts. Therefore high availability must be just as thought through for the monitoring stack, as for anything else.
+High availability is not only important for customer-facing software but if the monitoring infrastructure is not highly available, then there is a risk that operations people are not notified of alerts. Therefore, high availability must be just as thought through for the monitoring stack, as for anything else.
 
 ## VMAgent
 
@@ -107,7 +107,7 @@ are not deployed on the same node. You can use another `topologyKey` for availab
 
 In `StatefulMode` `VMAgent` doesn't lose state of the PersistentQueue (file-based buffer size for unsent data) on pod restarts.
 
-Operator creates `StatefulSet` and, with provided `PersistenVolumeClaimTemplate` at `StatefulStorage` configuration param, metrics queue is stored on disk.
+Operator creates `StatefulSet` and, with provided `PersistentVolumeClaimTemplate` at `StatefulStorage` configuration param, metrics queue is stored on disk.
 
 Example of configuration:
 

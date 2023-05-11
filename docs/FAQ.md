@@ -68,7 +68,7 @@ and send data to multiple remote storage systems, vmagent has the following addi
 
 ## What is the difference between vmagent and Prometheus agent?
 
-Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose – to efficently scrape Prometheus-compatible targets at the edge. They have the following differences:
+Both [vmagent](https://docs.victoriametrics.com/vmagent.html) and [Prometheus agent](https://prometheus.io/blog/2021/11/16/agent/) serve the same purpose – to efficiently scrape Prometheus-compatible targets at the edge. They have the following differences:
 
 * vmagent usually requires lower amounts of CPU, RAM and disk IO compared to the Prometheus agent.
 * Prometheus agent supports only pull-based data collection (e.g. it can scrape Prometheus-compatible targets), while vmagent supports both pull and push data collection – it can accept data via many popular data ingestion protocols such as InfluxDB line protocol, Graphite protocol, OpenTSDB protocol, DataDog protocol, Prometheus protocol, CSV and JSON – see [these docs](https://docs.victoriametrics.com/vmagent.html#features).

@@ -100,7 +100,7 @@ The `vm_account_id` and `vm_project_id` labels are extracted after applying the 
 set via `-relabelConfig` command-line flag, so these labels can be set at this stage.
 
 **Security considerations:** it is recommended restricting access to `multitenant` endpoints only to trusted sources,
-since untrusted source may break per-tenant data by writing unwanted samples to aribtrary tenants.
+since untrusted source may break per-tenant data by writing unwanted samples to arbitrary tenants.
 
 
 ## Binaries
@@ -156,7 +156,7 @@ Run `make package`. It will build the following docker images locally:
 `<PKG_TAG>` is auto-generated image tag, which depends on source code in [the repository](https://github.com/VictoriaMetrics/VictoriaMetrics).
 The `<PKG_TAG>` may be manually set via `PKG_TAG=foobar make package`.
 
-By default images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
+By default, images are built on top of [alpine](https://hub.docker.com/_/scratch) image in order to improve debuggability.
 It is possible to build an image on top of any other base image by setting it via `<ROOT_IMAGE>` environment variable.
 For example, the following command builds images on top of [scratch](https://hub.docker.com/_/scratch) image:
 
@@ -174,7 +174,7 @@ A minimal cluster must contain the following nodes:
 - a single `vminsert` node with `-storageNode=<vmstorage_host>`
 - a single `vmselect` node with `-storageNode=<vmstorage_host>`
 
-[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports automatic discoverying and updating of `vmstorage` nodes.
+[Enterprise version of VictoriaMetrics](https://docs.victoriametrics.com/enterprise.html) supports automatic discovering and updating of `vmstorage` nodes.
 See [these docs](#automatic-vmstorage-discovery) for details.
 
 It is recommended to run at least two nodes for each service for high availability purposes. In this case the cluster continues working when a single node is temporarily unavailable and the remaining nodes can handle the increased workload. The node may be temporarily unavailable when the underlying hardware breaks, during software upgrades, migration or other maintenance tasks.
@@ -196,7 +196,7 @@ The following tools can simplify cluster setup:
 - [Helm charts for VictoriaMetrics](https://github.com/VictoriaMetrics/helm-charts)
 - [Kubernetes operator for VictoriaMetrics](https://github.com/VictoriaMetrics/operator)
 
-It is possible manualy setting up a toy cluster on a single host. In this case every cluster component - `vminsert`, `vmselect` and `vmstorage` - must have distinct values for `-httpListenAddr` command-line flag. This flag specifies http address for accepting http requests for [monitoring](#monitoring) and [profiling](#profiling). `vmstorage` node must have distinct values for the following additional command-line flags in order to prevent resource usage clash:
+It is possible manually setting up a toy cluster on a single host. In this case every cluster component - `vminsert`, `vmselect` and `vmstorage` - must have distinct values for `-httpListenAddr` command-line flag. This flag specifies http address for accepting http requests for [monitoring](#monitoring) and [profiling](#profiling). `vmstorage` node must have distinct values for the following additional command-line flags in order to prevent resource usage clash:
 - `-storageDataPath` - every `vmstorage` node must have a dedicated data storage.
 - `-vminsertAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting data from `vminsert` nodes.
 - `-vmselectAddr` - every `vmstorage` node must listen for a distinct tcp address for accepting requests from `vmselect` nodes.
@@ -272,7 +272,7 @@ By default `vminsert` and `vmselect` nodes use unencrypted connections to `vmsto
 The following optional command-line flags related to mTLS are supported:
 
 - `-cluster.tlsInsecureSkipVerify` can be set at `vminsert`, `vmselect` and `vmstorage` in order to disable peer certificate verification. Note that this breaks security.
-- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default system-wide certificate authority is used for peer certificate verification.
+- `-cluster.tlsCAFile` can be set at `vminsert`, `vmselect` and `vmstorage` for verifying peer certificates issued with custom [certificate authority](https://en.wikipedia.org/wiki/Certificate_authority). By default, system-wide certificate authority is used for peer certificate verification.
 - `-cluster.tlsCipherSuites` can be set to the list of supported TLS cipher suites at `vmstorage`. See [the list of supported TLS cipher suites](https://pkg.go.dev/crypto/tls#pkg-constants).
 
 When `vmselect` runs with `-clusternativeListenAddr` command-line option, then it can be configured with `-clusternative.tls*` options similar to `-cluster.tls*` for accepting `mTLS` connections from top-level `vmselect` nodes in [multi-level cluster setup](#multi-level-cluster-setup).
@@ -284,7 +284,7 @@ See [these docs](https://gist.github.com/f41gh7/76ed8e5fb1ebb9737fe746bae9175ee6
 ## Monitoring
 
 All the cluster components expose various metrics in Prometheus-compatible format at `/metrics` page on the TCP port set in `-httpListenAddr` command-line flag.
-By default the following TCP ports are used:
+By default, the following TCP ports are used:
 
 - `vminsert` - 8480
 - `vmselect` - 8481
@@ -391,7 +391,7 @@ Check practical examples of VictoriaMetrics API [here](https://docs.victoriametr
 - URL for listing [tenants](#multitenancy) with the ingested data on the given time range: `http://<vmselect>:8481/admin/tenants?start=...&end=...` .
 The `start` and `end` query args are optional. If they are missing, then all the tenants with at least one sample stored in VictoriaMetrics are returned.
 
-- URL for accessing [vmalert's](https://docs.victoriametrics.com/vmalert.html) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
+- URL for accessing [vmalerts](https://docs.victoriametrics.com/vmalert.html) UI: `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/`.
   This URL works only when `-vmalert.proxyURL` flag is set. See more about vmalert [here](#vmalert). 
 
 - `vmstorage` nodes provide the following HTTP endpoints on `8482` port:
@@ -399,7 +399,7 @@ The `start` and `end` query args are optional. If they are missing, then all the
   - `/snapshot/create` - create [instant snapshot](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282),
     which can be used for backups in background. Snapshots are created in `<storageDataPath>/snapshots` folder, where `<storageDataPath>` is the corresponding
     command-line flag value.
-  - `/snapshot/list` - list available snasphots.
+  - `/snapshot/list` - list available snapshots.
   - `/snapshot/delete?snapshot=<id>` - delete the given snapshot.
   - `/snapshot/delete_all` - delete all the snapshots.
 
@@ -448,7 +448,7 @@ It is recommended restarting the nodes in the following order:
 This strategy allows upgrading the cluster without downtime if the following conditions are met:
 
 - The cluster has at least a pair of nodes of each type - `vminsert`, `vmselect` and `vmstorage`,
-  so it can continue accept new data and serve incoming requests when a single node is temporary unavailable
+  so it can continue to accept new data and serve incoming requests when a single node is temporary unavailable
   during its restart. See [cluster availability docs](#cluster-availability) for details.
 - The cluster has enough compute resources (CPU, RAM, network bandwidth, disk IO) for processing
   the current workload when a single node of any type (`vminsert`, `vmselect` or `vmstorage`)
@@ -467,14 +467,14 @@ This strategy allows upgrading the cluster without downtime if the following con
 
 The cluster is unavailable for data ingestion and querying when performing the steps above.
 The downtime is minimized by restarting cluster nodes in parallel at every step above.
-The `minimum downtime` strategy has the following benefits comparing to `no downtime` startegy:
+The `minimum downtime` strategy has the following benefits comparing to `no downtime` strategy:
 
 - It allows performing config update / version upgrade with minimum disruption
   when the previous config / version is incompatible with the new config / version.
-- It allows perorming config update / version upgrade with minimum disruption
+- It allows performing config update / version upgrade with minimum disruption
   when the cluster has no enough compute resources (CPU, RAM, disk IO, network bandwidth)
   for rolling upgrade.
-- It allows minimizing the duration of config update / version ugprade for clusters with big number of nodes
+- It allows minimizing the duration of config update / version upgrade for clusters with big number of nodes
   of for clusters with big `vmstorage` nodes, which may take long time for graceful restart.
 
 ## Cluster availability
@@ -533,7 +533,7 @@ Data replication can be used for increasing storage durability. See [these docs]
 
 VictoriaMetrics uses lower amounts of CPU, RAM and storage space on production workloads compared to competing solutions (Prometheus, Thanos, Cortex, TimescaleDB, InfluxDB, QuestDB, M3DB) according to [our case studies](https://docs.victoriametrics.com/CaseStudies.html).
 
-Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps determining bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
+Each node type - `vminsert`, `vmselect` and `vmstorage` - can run on the most suitable hardware. Cluster capacity scales linearly with the available resources. The needed amounts of CPU and RAM per each node type highly depends on the workload - the number of [active time series](https://docs.victoriametrics.com/FAQ.html#what-is-an-active-time-series), [series churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate), query types, query qps, etc. It is recommended setting up a test VictoriaMetrics cluster for your production workload and iteratively scaling per-node resources and the number of nodes per node type until the cluster becomes stable. It is recommended setting up [monitoring for the cluster](#monitoring). It helps to determine bottlenecks in cluster setup. It is also recommended following [the troubleshooting docs](https://docs.victoriametrics.com/#troubleshooting).
 
 The needed storage space for the given retention (the retention is set via `-retentionPeriod` command-line flag at `vmstorage`) can be extrapolated from disk space usage in a test run. For example, if the storage space usage is 10GB after a day-long test run on a production workload, then it will need at least `10GB*100=1TB` of disk space for `-retentionPeriod=100d` (100-days retention period). Storage space usage can be monitored with [the official Grafana dashboard for VictoriaMetrics cluster](#monitoring).
 
@@ -557,7 +557,7 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 ## Resource usage limits
 
-By default cluster components of VictoriaMetrics are tuned for an optimal resource usage under typical workloads.
+By default, cluster components of VictoriaMetrics are tuned for an optimal resource usage under typical workloads.
 Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
 
 - `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory, which may be used for various internal caches
@@ -626,7 +626,7 @@ This improves cluster performance and availability. It isn't recommended spreadi
 across multiple availability zones, since cross-AZ network usually has lower bandwidth, higher latency and higher
 error rates comparing the network inside a single AZ.
 
-If you need multi-AZ setup, then it is recommended running independed clusters in each AZ and setting up
+If you need multi-AZ setup, then it is recommended running independent clusters in each AZ and setting up
 [vmagent](https://docs.victoriametrics.com/vmagent.html) in front of these clusters, so it could replicate incoming data
 into all the cluster - see [these docs](https://docs.victoriametrics.com/vmagent.html#multitenancy) for details.
 Then an additional `vmselect` nodes can be configured for reading the data from multiple clusters according to [these docs](#multi-level-cluster-setup).
@@ -641,7 +641,7 @@ Then an additional `vmselect` nodes can be configured for reading the data from 
 The multi-level cluster setup for `vminsert` nodes has the following shortcomings because of synchronous replication and data sharding:
 
 * Data ingestion speed is limited by the slowest link to AZ.
-* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporariliy unavailable. This results in data gaps at AZs which were temporarily unavailable.
+* `vminsert` nodes at top level re-route incoming data to the remaining AZs when some AZs are temporarily unavailable. This results in data gaps at AZs which were temporarily unavailable.
 
 These issues are addressed by [vmagent](https://docs.victoriametrics.com/vmagent.html) when it runs in [multitenancy mode](https://docs.victoriametrics.com/vmagent.html#multitenancy). `vmagent` buffers data, which must be sent to a particular AZ, when this AZ is temporarily unavailable. The buffer is stored on disk. The buffered data is sent to AZ as soon as it becomes available.
 
@@ -657,7 +657,7 @@ It is available in the [helm-charts](https://github.com/VictoriaMetrics/helm-cha
 
 ## Replication and data safety
 
-By default VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs), which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
+By default, VictoriaMetrics offloads replication to the underlying storage pointed by `-storageDataPath` such as [Google compute persistent disk](https://cloud.google.com/compute/docs/disks#pdspecs), which guarantees data durability. VictoriaMetrics supports application-level replication if replicated durable persistent disks cannot be used for some reason.
 
 The replication can be enabled by passing `-replicationFactor=N` command-line flag to `vminsert`. This instructs `vminsert` to store `N` copies for every ingested sample on `N` distinct `vmstorage` nodes. This guarantees that all the stored data remains available for querying if up to `N-1` `vmstorage` nodes are unavailable.
 
@@ -673,7 +673,7 @@ Note that the replication increases resource usage - CPU, RAM, disk space, netwo
 
 Cluster version of VictoriaMetrics supports data deduplication in the same way as single-node version do. See [these docs](https://docs.victoriametrics.com/#deduplication) for details. The only difference is that the same `-dedup.minScrapeInterval` command-line flag value must be passed to both `vmselect` and `vmstorage` nodes because of the following aspects:
 
-By default `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
+By default, `vminsert` tries to route all the samples for a single time series to a single `vmstorage` node. But samples for a single time series can be spread among multiple `vmstorage` nodes under certain conditions:
 * when adding/removing `vmstorage` nodes. Then new samples for a part of time series will be routed to another `vmstorage` nodes;
 * when `vmstorage` nodes are temporarily unavailable (for instance, during their restart). Then new samples are re-routed to the remaining available `vmstorage` nodes;
 * when `vmstorage` node has no enough capacity for processing incoming data stream. Then `vminsert` re-routes new samples to other `vmstorage` nodes.
@@ -708,7 +708,7 @@ Additionally, enterprise version of VictoriaMetrics cluster supports multiple re
 by specifying filters on `vm_account_id` and/or `vm_project_id` pseudo-labels in `-retentionFilter` command-line flag.
 If the tenant doesn't match specified `-retentionFilter` options, then the global `-retentionPeriod` is used for it.
 
-For example, the following config sets retention to 1 day for [tenants](#multitenancy) with `accountID` starting from '42',
+For example, the following config sets retention to 1 day for [tenants](#multitenancy) with `accountID` starting from `42`,
 then sets retention to 3 days for time series with label `env="dev"` or `env="prod"` from any tenant,
 while the rest of tenants will have 4 weeks retention:
 
@@ -768,9 +768,9 @@ It is safe sharing the collected profiles from security point of view, since the
 vmselect is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert.html)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing vmalert's UI through vmselect's Web interface.
+* for accessing vmalerts UI through vmselects Web interface.
 
-For accessing vmalert's UI through vmselect configure `-vmalert.proxyURL` flag and visit
+For accessing vmalerts UI through vmselect configure `-vmalert.proxyURL` flag and visit
 `http://<vmselect>:8481/select/<accountID>/prometheus/vmalert/` link.
 
 
@@ -817,7 +817,7 @@ Below is the output for `/path/to/vminsert -help`:
   -cluster.tls
      Whether to use TLS for connections to -storageNode. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection .This flag is available only in enterprise version of VictoriaMetrics
   -cluster.tlsCAFile string
-     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection .This flag is available only in enterprise version of VictoriaMetrics
+     Path to TLS CA file to use for verifying certificates provided by -storageNode if -cluster.tls flag is set. By default, system CA is used. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection .This flag is available only in enterprise version of VictoriaMetrics
   -cluster.tlsCertFile string
      Path to client-side TLS certificate file to use when connecting to -storageNode if -cluster.tls flag is set. See https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#mtls-protection . This flag is available only in enterprise version of VictoriaMetrics
   -cluster.tlsInsecureSkipVerify
@@ -840,7 +840,7 @@ Below is the output for `/path/to/vminsert -help`:
   -dropSamplesOnOverload
      Whether to drop incoming samples if the destination vmstorage node is overloaded and/or unavailable. This prioritizes cluster availability over consistency, e.g. the cluster continues accepting all the ingested samples, but some of them may be dropped if vmstorage nodes are temporarily unavailable and/or overloaded
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
   -envflag.enable
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
@@ -850,7 +850,7 @@ Below is the output for `/path/to/vminsert -help`:
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -860,7 +860,7 @@ Below is the output for `/path/to/vminsert -help`:
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
