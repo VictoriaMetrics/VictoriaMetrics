@@ -194,7 +194,7 @@ func NewRemoteFS(path string) (common.RemoteFS, error) {
 			return nil, fmt.Errorf("dir must be absolute; got %q", dir)
 		}
 		fs := &fsremote.FS{
-			Dir: dir,
+			Dir: filepath.Clean(dir),
 		}
 		return fs, nil
 	case "gcs", "gs":
