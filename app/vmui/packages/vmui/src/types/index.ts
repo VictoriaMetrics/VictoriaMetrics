@@ -86,7 +86,7 @@ export interface TopQuery {
   query: string
   timeRangeSeconds: number
   sumDurationSeconds: number
-  timeRangeHours: number
+  timeRange: string
 }
 
 export interface TopQueryStats {

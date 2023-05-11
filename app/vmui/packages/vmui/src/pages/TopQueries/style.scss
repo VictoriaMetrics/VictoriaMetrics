@@ -51,5 +51,14 @@
   &-panels {
     display: grid;
     gap: $padding-medium;
+
+    &__table-actions {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: $padding-small;
+      height: 100%;
+      padding: 0 $padding-small;
+    }
   }
 }
