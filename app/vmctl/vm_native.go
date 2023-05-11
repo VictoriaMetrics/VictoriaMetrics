@@ -104,7 +104,7 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 	p.s.retries += attempts
 	p.s.Unlock()
 	if err != nil {
-		return fmt.Errorf("failed to migrate from %s to %s (retry attempts: %d): %w\nwith fileter %s", srcURL, dstURL, attempts, err, f)
+		return fmt.Errorf("failed to migrate from %s to %s (retry attempts: %d): %w\nwith filter %s", srcURL, dstURL, attempts, err, f)
 	}
 
 	return nil
