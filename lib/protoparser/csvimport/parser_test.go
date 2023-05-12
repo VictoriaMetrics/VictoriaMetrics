@@ -30,6 +30,8 @@ func TestRowsUnmarshalFailure(t *testing.T) {
 
 	// Missing columns
 	f("3:metric:aaa", "123,456")
+	f("1:metric:foo,2:label:bar", "123")
+	f("1:label:foo,2:metric:bar", "aaa")
 
 	// Invalid value
 	f("1:metric:foo", "12foobar")
@@ -187,6 +189,35 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 		{
 			Metric: "quux",
 			Value:  2,
+		},
+	})
+	// last metric with empty value
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4048
+	f("1:metric:foo,2:metric:bar", `123,`, []Row{
+		{
+			Metric: "foo",
+			Value:  123,
+		},
+	})
+	// all the metrics with empty values
+	f(`1:metric:foo,2:metric:bar,3:label:xx`, `,,abc`, nil)
+	// labels with empty value
+	f("1:metric:foo,2:label:bar,3:label:baz,4:label:xxx", "123,x,,", []Row{
+		{
+			Metric: "foo",
+			Tags: []Tag{
+				{
+					Key:   "bar",
+					Value: "x",
+				},
+			},
+			Value: 123,
+		},
+	})
+	f("1:metric:foo,2:label:bar,3:label:baz,4:label:xxx", "123,,,", []Row{
+		{
+			Metric: "foo",
+			Value:  123,
 		},
 	})
 	// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3540
