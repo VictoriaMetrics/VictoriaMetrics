@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -18,20 +19,33 @@ func WriteTargetRelabelDebug(w io.Writer, targetID, metric, relabelConfigs, form
 }
 
 func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, relabelConfigs, format string, err error) {
-	if metric == "" {
-		metric = "{}"
-	}
 	targetURL := ""
+	if metric == "" {
+		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
+		return
+	}
 	if err != nil {
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
-	labels, err := promutils.NewLabelsFromString(metric)
+	selectors, err := searchutils.ParseMetricSelector(metric)
 	if err != nil {
 		err = fmt.Errorf("cannot parse metric: %s", err)
 		WriteRelabelDebugSteps(w, targetURL, targetID, format, nil, metric, relabelConfigs, err)
 		return
 	}
+
+	var labels promutils.Labels
+	for _, selector := range selectors {
+		key := string(selector.Key)
+		value := string(selector.Value)
+		if key == "" {
+			labels.Add("__name__", value)
+			continue
+		}
+		labels.Add(key, value)
+	}
+
 	pcs, err := ParseRelabelConfigsData([]byte(relabelConfigs))
 	if err != nil {
 		err = fmt.Errorf("cannot parse relabel configs: %s", err)
@@ -39,7 +53,7 @@ func writeRelabelDebug(w io.Writer, isTargetRelabel bool, targetID, metric, rela
 		return
 	}
 
-	dss, targetURL := newDebugRelabelSteps(pcs, labels, isTargetRelabel)
+	dss, targetURL := newDebugRelabelSteps(pcs, &labels, isTargetRelabel)
 	WriteRelabelDebugSteps(w, targetURL, targetID, format, dss, metric, relabelConfigs, nil)
 }
 
