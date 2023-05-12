@@ -22,5 +22,6 @@ export interface TracingData {
 }
 
 export interface QueryStats {
-  seriesFetched: string;
+  seriesFetched?: string;
+  resultLength?: number;
 }

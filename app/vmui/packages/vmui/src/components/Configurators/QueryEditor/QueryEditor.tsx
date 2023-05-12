@@ -17,7 +17,7 @@ export interface QueryEditorProps {
   oneLiner?: boolean;
   autocomplete: boolean;
   error?: ErrorTypes | string;
-  stats: QueryStats;
+  stats?: QueryStats;
   options: string[];
   label: string;
   disabled?: boolean
@@ -39,7 +39,7 @@ const QueryEditor: FC<QueryEditorProps> = ({
 
   const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const autocompleteAnchorEl = useRef<HTMLDivElement>(null);
-  const showSeriesFetchedWarning = stats.seriesFetched === "0";
+  const showSeriesFetchedWarning = stats?.seriesFetched === "0" && !stats.resultLength;
 
   const handleSelect = (val: string) => {
     onChange(val);
@@ -102,9 +102,10 @@ const QueryEditor: FC<QueryEditorProps> = ({
           placement="bottom-right"
           title={(
             <span className="vm-query-editor-warning__tooltip">
-              {`Your query does not match any available time series.
-              Please check the correctness of your query
-              and ensure it refers to existing metrics and time series.`}
+              {`No match! 
+              This query hasn't selected any time series from database.
+              Either the requested metrics are missing in the database, 
+              or there is a typo in series selector.`}
             </span>
           )}
         >

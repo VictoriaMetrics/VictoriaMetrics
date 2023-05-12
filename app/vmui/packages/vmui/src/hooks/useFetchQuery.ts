@@ -92,6 +92,7 @@ export const useFetchQuery = ({
         const isHideQuery = hideQuery?.includes(counter - 1);
         if (isHideQuery) {
           setQueryErrors(prev => [...prev, ""]);
+          setQueryStats(prev => [...prev, {}]);
           counter++;
           continue;
         }
@@ -100,7 +101,10 @@ export const useFetchQuery = ({
         const resp = await response.json();
 
         if (response.ok) {
-          setQueryStats(prev => [...prev, resp?.stats || {}]);
+          setQueryStats(prev => [...prev, {
+            ...resp?.stats,
+            resultLength: resp.data.result.length,
+          }]);
           setQueryErrors(prev => [...prev, ""]);
 
           if (resp.trace) {
@@ -142,6 +146,7 @@ export const useFetchQuery = ({
   const fetchUrl = useMemo(() => {
     setError("");
     setQueryErrors([]);
+    setQueryStats([]);
     const expr = predefinedQuery ?? query;
     const displayChart = (display || displayType) === "chart";
     if (!period) return;
