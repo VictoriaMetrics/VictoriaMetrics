@@ -55,6 +55,42 @@ func TestRowsUnmarshalSuccess(t *testing.T) {
 			t.Fatalf("unexpected rows on the second unmarshal;\ngot\n%v\nwant\n%v", rs.Rows, rowsExpected)
 		}
 	}
+	f("1:label:mytest,2:time:unix_ns,3:metric:metric_1,4:metric:metric_2", "test,1677632461449998000,,", nil)
+	f("1:time:unix_ns,2:metric:metric_1,3:metric:metric_2", "1677632461449998000,,", nil)
+	f("1:time:unix_ns,2:metric:metric_1,3:metric:metric_2", "1677632461449998000,1,", []Row{
+		{
+			Metric:    "metric_1",
+			Value:     1,
+			Timestamp: 1677632461449,
+		},
+	})
+	f("1:time:unix_ns,2:metric:metric_1,3:metric:metric_2",
+		`
+1677632461449998000,1,1
+1677633061449998000,1,
+1677633661449998000,,1`, []Row{
+			{
+				Metric:    "metric_1",
+				Value:     1,
+				Timestamp: 1677632461449,
+			},
+			{
+				Metric:    "metric_2",
+				Value:     1,
+				Timestamp: 1677632461449,
+			},
+			{
+				Metric:    "metric_1",
+				Value:     1,
+				Timestamp: 1677633061449,
+			},
+			{
+				Metric:    "metric_2",
+				Value:     1,
+				Timestamp: 1677633661449,
+			},
+		})
+
 	f("1:metric:foo", "", nil)
 	f("1:metric:foo", `123`, []Row{
 		{

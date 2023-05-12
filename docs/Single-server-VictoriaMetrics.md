@@ -313,10 +313,14 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
 The UI allows exploring query results via graphs and tables. It also provides the following features:
 
-- [metrics explorer](#metrics-explorer)
-- [cardinality explorer](#cardinality-explorer)
-- [query tracer](#query-tracing)
-- [top queries explorer](#top-queries)
+- Explore:
+  - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
+  - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
+  - [Top queries](#top-queries) - shows most frequently executed queries;
+- Tools:
+  - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
+  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
+  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
 
 VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
 (both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
@@ -821,9 +825,11 @@ in [query APIs](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 - Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
-- [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, '2022-03-29T01:02:03Z`.
-- Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`.
-- Relative duration comparing to the current time. For example, `1h5m` means `one hour and five minutes ago`.
+- [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, `2022-03-29T01:02:03Z` or `2022-03-29T01:02:03+02:30`.
+- Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`, `2022-03-29T01:02:03`.
+  The partial RFC3339 time is in UTC timezone by default. It is possible to specify timezone there by adding `+hh:mm` or `-hh:mm` suffix to partial time.
+  For example, `2022-03-01+06:30` is `2022-03-01` at `06:30` timezone.
+- Relative duration comparing to the current time. For example, `1h5m`, `-1h5m` or `now-1h5m` means `one hour and five minutes ago`, while `now` means `now`.
 
 
 ## Graphite API usage
@@ -1352,7 +1358,8 @@ Example contents for `-relabelConfig` file:
 VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling.
 See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
 
-The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page.
+The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
+or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
 See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug) for more details.
 
 

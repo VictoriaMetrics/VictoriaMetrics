@@ -5,7 +5,7 @@
   gap: $padding-large;
 
   &__title {
-    font-size: $font-size-large;
+    font-size: $font-size-medium;
     font-weight: bold;
   }
 
@@ -14,7 +14,7 @@
     gap: $padding-global;
 
     &__text {
-      font-size: $font-size-medium;
+      font-size: $font-size;
       line-height: 130%;
       max-width: 720px;
     }
