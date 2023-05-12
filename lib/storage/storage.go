@@ -1043,6 +1043,7 @@ func nextRetentionDurationAt(atMsecs int64, retentionMsecs int64) time.Duration 
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
 	deadline += int64(4 * 3600 * 1000)
+	deadline -= retentionTimezoneOffsetMsecs
 	return time.Duration(deadline-atMsecs) * time.Millisecond
 }
 
