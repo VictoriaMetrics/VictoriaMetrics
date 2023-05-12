@@ -28,6 +28,10 @@ type ColumnDescriptor struct {
 	MetricName string
 }
 
+func (cd *ColumnDescriptor) isEmpty() bool {
+	return cd.ParseTimestamp == nil && cd.TagName == "" && cd.MetricName == ""
+}
+
 const maxColumnsPerRow = 64 * 1024
 
 // ParseColumnDescriptors parses column descriptors from s.
