@@ -73,6 +73,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): fix compatibility with Windows OS. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/70).
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix performance issue when migrating data from VictoriaMetrics according to [these docs](https://docs.victoriametrics.com/vmctl.html#migrating-data-from-victoriametrics). Add the ability to speed up the data migration via `--vm-native-disable-retries` command-line flag. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4092).
 * BUGFIX: [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html): fix bug with duplicated labels during stream aggregation via single-node VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4277).
+* BUGFIX: [relabeling](https://docs.victoriametrics.com/relabeling.html): show an error message if the user tries to use labels in relabeling the playground, which does not represent Prometheus exposition format. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4284).
 
 ## [v1.90.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.90.0)
 
