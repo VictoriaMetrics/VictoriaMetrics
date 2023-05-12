@@ -316,7 +316,7 @@ The UI allows exploring query results via graphs and tables. It also provides th
 - Tools:
   - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
   - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
-  - [Metric relabel debugger](#relabeling) - playground for [relabeling](https://docs.victoriametrics.com/#relabeling) configs.
+  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
 
 VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
 (both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
@@ -1354,7 +1354,8 @@ Example contents for `-relabelConfig` file:
 VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling.
 See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
 
-The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page.
+The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
+or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
 See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug) for more details.
 
 
