@@ -118,14 +118,16 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 				Value: value,
 			})
 		}
-
-		if col < uint(len(cds)) && sc.Error == nil && len(metrics) == 0 {
+		if col < uint(len(cds)) && sc.Error == nil {
 			sc.Error = fmt.Errorf("missing columns in the csv line %q; got %d columns; want at least %d columns", line, col, len(cds))
 		}
 		if sc.Error != nil {
 			logger.Errorf("error when parsing csv line %q: %s; skipping this line", line, sc.Error)
 			invalidLines.Inc()
 			continue
+		}
+		if len(metrics) == 0 {
+			logger.Panicf("BUG: expecting at least a single metric in columnDescriptors=%#v", cds)
 		}
 		r.Metric = metrics[0].Name
 		r.Tags = tags[tagsLen:]
