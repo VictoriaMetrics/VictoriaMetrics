@@ -309,10 +309,14 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
 The UI allows exploring query results via graphs and tables. It also provides the following features:
 
-- [metrics explorer](#metrics-explorer)
-- [cardinality explorer](#cardinality-explorer)
-- [query tracer](#query-tracing)
-- [top queries explorer](#top-queries)
+- Explore:
+  - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
+  - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
+  - [Top queries](#top-queries) - shows most frequently executed queries;
+- Tools:
+  - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
+  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
+  - [Metric relabel debugger](#relabeling) - playground for [relabeling](https://docs.victoriametrics.com/#relabeling) configs.
 
 VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
 (both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
