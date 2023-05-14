@@ -1,3 +1,13 @@
+---
+weight: 4
+title: Getting started with VM Operator
+menu:
+  docs:
+    parent: "guides"
+    weight: 4
+aliases:
+- /guides/getting-started-with-vm-operator.html
+---
 # Getting started with VM Operator
 
 **The guide covers:**
@@ -199,7 +209,7 @@ The expected output is:
 vmagent-example-vmagent-7996844b5f-b5rzs                 2/2     Running   0          9s
 ```
 
-> There are two containers for VMagent: the first one is a VMagent and the second one is a sidecard with a secret. VMagent use a secret with configuration wich is mounted to the special sidecar. It observes the changes with configuration and send a signal to reload configuration for the VMagent.
+> There are two containers for VMagent: the first one is a VMagent and the second one is a sidecar with a secret. VMagent use a secret with configuration which is mounted to the special sidecar. It observes the changes with configuration and send a signal to reload configuration for the VMagent.
 
 Run the following command to make `VMAgent`'s port accessible from the local machine:
 

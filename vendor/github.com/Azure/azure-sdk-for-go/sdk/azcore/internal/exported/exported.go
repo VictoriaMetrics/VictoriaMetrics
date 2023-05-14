@@ -53,6 +53,10 @@ type AccessToken struct {
 type TokenRequestOptions struct {
 	// Scopes contains the list of permission scopes required for the token.
 	Scopes []string
+
+	// TenantID identifies the tenant from which to request the token. azidentity credentials authenticate in
+	// their configured default tenants when this field isn't set.
+	TenantID string
 }
 
 // TokenCredential represents a credential capable of providing an OAuth token.

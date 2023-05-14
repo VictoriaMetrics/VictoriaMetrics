@@ -354,11 +354,11 @@ func StreamRelabelDebugStepsJSON(qw422016 *qt422016.Writer, targetURL, targetID 
 //line lib/promrelabel/debug.qtpl:147
 			qw422016.N().S(`"originalLabels":`)
 //line lib/promrelabel/debug.qtpl:148
-			qw422016.N().Q(string(mustFormatLabels(dss[0].In)))
+			qw422016.N().Q(mustFormatLabels(dss[0].In))
 //line lib/promrelabel/debug.qtpl:148
 			qw422016.N().S(`,"resultingLabels":`)
 //line lib/promrelabel/debug.qtpl:149
-			qw422016.N().Q(string(mustFormatLabels(dss[len(dss)-1].Out)))
+			qw422016.N().Q(mustFormatLabels(dss[len(dss)-1].Out))
 //line lib/promrelabel/debug.qtpl:149
 			qw422016.N().S(`,`)
 //line lib/promrelabel/debug.qtpl:150

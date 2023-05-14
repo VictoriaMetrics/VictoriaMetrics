@@ -13,11 +13,22 @@ type Querier interface {
 	// It returns list of Metric in response, the http.Request used for sending query
 	// and error if any. Returned http.Request can't be reused and its body is already read.
 	// Query should stop once ctx is cancelled.
-	Query(ctx context.Context, query string, ts time.Time) ([]Metric, *http.Request, error)
+	Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error)
 	// QueryRange executes range request with the given query on the given time range.
 	// It returns list of Metric in response and error if any.
 	// QueryRange should stop once ctx is cancelled.
-	QueryRange(ctx context.Context, query string, from, to time.Time) ([]Metric, error)
+	QueryRange(ctx context.Context, query string, from, to time.Time) (Result, error)
+}
+
+// Result represents expected response from the datasource
+type Result struct {
+	// Data contains list of received Metric
+	Data []Metric
+	// SeriesFetched contains amount of time series processed by datasource
+	// during query evaluation.
+	// If nil, then this feature is not supported by the datasource.
+	// SeriesFetched is supported by VictoriaMetrics since v1.90.
+	SeriesFetched *int
 }
 
 // QuerierBuilder builds Querier with given params.

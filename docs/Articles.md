@@ -1,5 +1,13 @@
 ---
 sort: 17
+weight: 17
+title: Articles
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 17
+aliases:
+- /Articles.html
 ---
 
 # Articles

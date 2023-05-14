@@ -1,5 +1,11 @@
 ---
 sort: 21
+weight: 21
+title: VictoriaMetrics API examples
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 21
 ---
 
 # VictoriaMetrics API examples
@@ -291,7 +297,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
-By default VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -321,7 +327,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 
 </div>
 
-By default VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -407,7 +413,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_htt
 
 </div>
 
-By default VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:

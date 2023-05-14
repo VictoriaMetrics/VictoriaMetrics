@@ -1,3 +1,13 @@
+---
+weight: 9
+title: HA monitoring setup in Kubernetes via VictoriaMetrics Cluster
+menu:
+  docs:
+    parent: "guides"
+    weight: 9
+aliases:
+- /guides/k8s-ha-monitoring-via-vm-cluster.html
+---
 # HA monitoring setup in Kubernetes via VictoriaMetrics Cluster
 
 
@@ -56,7 +66,7 @@ EOF
 </div>
 
 * The `Helm install vmcluster vm/victoria-metrics-cluster` command installs [VictoriaMetrics cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) to the default [namespace](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/).
-* `dedup.minScrapeInterval: 1ms` configures [de-deplication](https://docs.victoriametrics.com/#deduplication) for the cluster that de-duplicates data points in the same time series if they fall within the same discrete 1s bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept.
+* `dedup.minScrapeInterval: 1ms` configures [de-duplication](https://docs.victoriametrics.com/#deduplication) for the cluster that de-duplicates data points in the same time series if they fall within the same discrete 1s bucket. The earliest data point will be kept. In the case of equal timestamps, an arbitrary data point will be kept.
 * `replicationFactor: 2` Replication factor for the ingested data, i.e. how many copies should be made among distinct `-storageNode` instances. If the replication factor is greater than one, the deduplication must be enabled on the remote storage side.
 * `podAnnotations: prometheus.io/scrape: "true"` enables the scraping of metrics from the vmselect, vminsert and vmstorage pods.
 * `podAnnotations:prometheus.io/port: "some_port" ` enables the scraping of metrics from the vmselect, vminsert and vmstorage pods from corresponding ports.
@@ -253,7 +263,7 @@ The expected output is:
 vmagent-victoria-metrics-agent-57ddbdc55d-h4ljb                1/1     Running   0          13s
 ```
 
-## 4. Verifying HA of VictoraMetrics Cluster
+## 4. Verifying HA of VictoriaMetrics Cluster
 
 Run the following command to check that VictoriaMetrics services are up and running:
 <div class="with-copy" markdown="1">
@@ -294,7 +304,7 @@ The expected output:
 vmcluster-victoria-metrics-cluster-vmselect    ClusterIP   10.88.2.69    <none>        8481/TCP                     1m
 ```
 
-Run the following command to make `vmselect`'s port accessable from the local machine:
+Run the following command to make `vmselect`'s port accessible from the local machine:
 
 <div class="with-copy" markdown="1">
 

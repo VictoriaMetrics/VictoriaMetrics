@@ -72,6 +72,34 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
   because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
 
+## IP filters
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+
+For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
+
+```yml
+users:
+# User configs here
+
+ip_filters:
+  allow_list:
+  - 10.0.0.0/24
+  - 1.2.3.4
+  deny_list: [10.0.0.42]
+```
+
+The following config allows requests for the user 'foobar' only from the ip `127.0.0.1`:
+
+```yml
+users:
+- username: "foobar"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  ip_filters:
+    allow_list: [127.0.0.1]
+```
+
 ## Auth config
 
 `-auth.config` is represented in the following simple `yml` format:
@@ -139,14 +167,22 @@ users:
   - "http://vminsert2:8480/insert/42/prometheus"
 
   # A single user for querying and inserting data:
+  #
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
   #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
   #     - http://vmselect1:8481/select/42/prometheus
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #
+  # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
+  # in a round-robin manner. The original request path is passed in `request_path` query arg.
+  # For example, request to http://vmauth:8427/non/existing/path are proxied:
+  #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
+  #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
 - username: "foobar"
   url_map:
   - src_paths:
@@ -160,46 +196,28 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    ip_filters:
+      deny_list: [127.0.0.1]
+  default_url:
+  - "http://default1:8888/unsupported_url_handler"
+  - "http://default2:8888/unsupported_url_handler"
 
-  # A single user for querying and inserting data:
-  # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
-  #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
-  #     - http://vmselect1:8481/select/42/prometheus
-  #     - http://vmselect2:8481/select/42/prometheus
-  #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
-  #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
-  # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
-  # The requests which do not match `src_paths` from the `url_map` will be proxied to the urls rom `default_url` 
-  # in a round-robin manner (with request path in `request_path` query param).
-  # For example, request to http://vmauth:8427/non/existing/path will be proxied:
-  #  - to http://default1:8888/process?request_path=/non/existing/path
-  #  - or http://default2:8888/process?request_path=/non/existing/path
-- username: "foobar"
-  url_map:
-    - src_paths:
-        - "/api/v1/query"
-        - "/api/v1/query_range"
-        - "/api/v1/label/[^/]+/values"
-      url_prefix:
-        - "http://vmselect1:8481/select/42/prometheus"
-        - "http://vmselect2:8481/select/42/prometheus"
-    - src_paths: ["/api/v1/write"]
-      url_prefix: "http://vminsert:8480/insert/42/prometheus"
-  default_url: 
-    - "http://default1:8888/process"
-    - "http://default2:8888/process"
-
-# This requests will be executed for requests without Authorization header.
-# For instance, http://vmauth:8427/api/v1/query will be proxied to http://vmselect1:8481/select/0/prometheus/api/v1/query
+# Requests without Authorization header are routed according to `unauthorized_user` section.
 unauthorized_user:
   url_map:
-    - src_paths:
-        - /health
-        - /api/v1/query/
-        - /api/v1/query_range
-      url_prefix:
-        - http://vmselect1:8481/select/0/prometheus
-        - http://vmselect2:8481/select/0/prometheus
+  - src_paths:
+    - /api/v1/query
+    - /api/v1/query_range
+    url_prefix:
+    - http://vmselect1:8481/select/0/prometheus
+    - http://vmselect2:8481/select/0/prometheus
+    ip_filters:
+      allow_list: [8.8.8.8]
+
+ip_filters:
+  allow_list: ["1.2.3.0/24", "127.0.0.1"]
+  deny_list:
+  - 10.1.0.1
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -222,11 +240,13 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-It is recommended protecting  following endpoints with authKeys:
+It is recommended protecting the following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 * `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
 * `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
 * `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
+
+`vmauth` also supports the ability to restict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Monitoring
 
@@ -318,7 +338,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -configCheckInterval duration
      Interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
   -envflag.enable
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
@@ -328,15 +348,13 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
-  -http.maxConcurrentRequests int
-     The maximum number of concurrent HTTP requests. Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem.Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served.If set to zero - no limits are applied.
   -http.maxGracefulShutdownDuration duration
      The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
   -http.pathPrefix string

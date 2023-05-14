@@ -17,6 +17,9 @@ type scanner struct {
 	// It is cleared on NextLine call.
 	Error error
 
+	// isLastColumn is set to true when the last column at the given Line is processed
+	isLastColumn bool
+
 	s string
 }
 
@@ -25,6 +28,7 @@ func (sc *scanner) Init(s string) {
 	sc.Line = ""
 	sc.Column = ""
 	sc.Error = nil
+	sc.isLastColumn = false
 	sc.s = s
 }
 
@@ -35,23 +39,26 @@ func (sc *scanner) Init(s string) {
 // false is returned if no more lines left in sc.s
 func (sc *scanner) NextLine() bool {
 	s := sc.s
+	sc.Line = ""
 	sc.Error = nil
+	sc.isLastColumn = false
 	for len(s) > 0 {
 		n := strings.IndexByte(s, '\n')
 		var line string
 		if n >= 0 {
-			line = trimTrailingSpace(s[:n])
+			line = trimTrailingCR(s[:n])
 			s = s[n+1:]
 		} else {
-			line = trimTrailingSpace(s)
+			line = trimTrailingCR(s)
 			s = ""
 		}
-		sc.Line = line
-		sc.s = s
 		if len(line) > 0 {
+			sc.Line = line
+			sc.s = s
 			return true
 		}
 	}
+	sc.s = ""
 	return false
 }
 
@@ -60,16 +67,28 @@ func (sc *scanner) NextLine() bool {
 // false is returned if no more columns left in sc.Line or if any error occurs.
 // sc.Error is set to error in the case of error.
 func (sc *scanner) NextColumn() bool {
+	if sc.isLastColumn || sc.Error != nil {
+		return false
+	}
 	s := sc.Line
-	if len(s) == 0 {
-		return false
-	}
-	if sc.Error != nil {
-		return false
-	}
-	if s[0] == '"' {
-		sc.Column, sc.Line, sc.Error = readQuotedField(s)
-		return sc.Error == nil
+	if strings.HasPrefix(s, `"`) || strings.HasPrefix(s, "'") {
+		field, tail, err := readQuotedField(s)
+		if err != nil {
+			sc.Error = err
+			return false
+		}
+		sc.Column = field
+		if len(tail) == 0 {
+			sc.isLastColumn = true
+		} else {
+			if tail[0] != ',' {
+				sc.Error = fmt.Errorf("missing comma after quoted field in %q", s)
+				return false
+			}
+			tail = tail[1:]
+		}
+		sc.Line = tail
+		return true
 	}
 	n := strings.IndexByte(s, ',')
 	if n >= 0 {
@@ -78,11 +97,12 @@ func (sc *scanner) NextColumn() bool {
 	} else {
 		sc.Column = s
 		sc.Line = ""
+		sc.isLastColumn = true
 	}
 	return true
 }
 
-func trimTrailingSpace(s string) string {
+func trimTrailingCR(s string) string {
 	if len(s) > 0 && s[len(s)-1] == '\r' {
 		return s[:len(s)-1]
 	}
@@ -90,38 +110,32 @@ func trimTrailingSpace(s string) string {
 }
 
 func readQuotedField(s string) (string, string, error) {
-	sOrig := s
-	if len(s) == 0 || s[0] != '"' {
-		return "", sOrig, fmt.Errorf("missing opening quote for %q", sOrig)
+	quote := s[0]
+	offset := 1
+	n := strings.IndexByte(s[offset:], quote)
+	if n < 0 {
+		return "", s, fmt.Errorf("missing closing quote for %q", s)
 	}
-	s = s[1:]
-	hasEscapedQuote := false
+	offset += n + 1
+	if offset >= len(s) || s[offset] != quote {
+		// Fast path - the quoted string doesn't contain escaped quotes
+		return s[1 : offset-1], s[offset:], nil
+	}
+	// Slow path - the quoted string contains escaped quote
+	buf := make([]byte, 0, len(s)-2)
+	buf = append(buf, s[1:offset]...)
 	for {
-		n := strings.IndexByte(s, '"')
+		offset++
+		n := strings.IndexByte(s[offset:], quote)
 		if n < 0 {
-			return "", sOrig, fmt.Errorf("missing closing quote for %q", sOrig)
+			return "", s, fmt.Errorf("missing closing quote for %q", s)
 		}
-		s = s[n+1:]
-		if len(s) == 0 {
-			// The end of string found
-			return unquote(sOrig[1:len(sOrig)-1], hasEscapedQuote), "", nil
-		}
-		if s[0] == '"' {
-			// Take into account escaped quote
-			s = s[1:]
-			hasEscapedQuote = true
+		buf = append(buf, s[offset:offset+n]...)
+		offset += n + 1
+		if offset < len(s) && s[offset] == quote {
+			buf = append(buf, quote)
 			continue
 		}
-		if s[0] != ',' {
-			return "", sOrig, fmt.Errorf("missing comma after quoted field in %q", sOrig)
-		}
-		return unquote(sOrig[1:len(sOrig)-len(s)-1], hasEscapedQuote), s[1:], nil
+		return string(buf), s[offset:], nil
 	}
-}
-
-func unquote(s string, hasEscapedQuote bool) string {
-	if !hasEscapedQuote {
-		return s
-	}
-	return strings.ReplaceAll(s, `""`, `"`)
 }

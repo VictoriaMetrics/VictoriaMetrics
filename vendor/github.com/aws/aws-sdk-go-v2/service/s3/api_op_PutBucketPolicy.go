@@ -17,22 +17,20 @@ import (
 // identity other than the root user of the Amazon Web Services account that owns
 // the bucket, the calling identity must have the PutBucketPolicy permissions on
 // the specified bucket and belong to the bucket owner's account in order to use
-// this operation. If you don't have PutBucketPolicy permissions, Amazon S3 returns
-// a 403 Access Denied error. If you have the correct permissions, but you're not
-// using an identity that belongs to the bucket owner's account, Amazon S3 returns
-// a 405 Method Not Allowed error. As a security precaution, the root user of the
-// Amazon Web Services account that owns a bucket can always use this operation,
-// even if the policy explicitly denies the root user the ability to perform this
-// action. For more information, see Bucket policy examples
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html).
-// The following operations are related to PutBucketPolicy:
-//
-// * CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//
-// *
-// DeleteBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
+// this operation. If you don't have PutBucketPolicy permissions, Amazon S3
+// returns a 403 Access Denied error. If you have the correct permissions, but
+// you're not using an identity that belongs to the bucket owner's account, Amazon
+// S3 returns a 405 Method Not Allowed error. To ensure that bucket owners don't
+// inadvertently lock themselves out of their own buckets, the root principal in a
+// bucket owner's Amazon Web Services account can perform the GetBucketPolicy ,
+// PutBucketPolicy , and DeleteBucketPolicy API actions, even if their bucket
+// policy explicitly denies the root principal's access. Bucket owner root
+// principals can only be blocked from performing these API actions by VPC endpoint
+// policies and Amazon Web Services Organizations policies. For more information,
+// see Bucket policy examples (https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html)
+// . The following operations are related to PutBucketPolicy :
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+//   - DeleteBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html)
 func (c *Client) PutBucketPolicy(ctx context.Context, params *PutBucketPolicyInput, optFns ...func(*Options)) (*PutBucketPolicyOutput, error) {
 	if params == nil {
 		params = &PutBucketPolicyInput{}
@@ -64,9 +62,8 @@ type PutBucketPolicyInput struct {
 	// the SDK. This header will not provide any additional functionality if not using
 	// the SDK. When sending this header, there must be a corresponding x-amz-checksum
 	// or x-amz-trailer header sent. Otherwise, Amazon S3 fails the request with the
-	// HTTP status code 400 Bad Request. For more information, see Checking object
-	// integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// HTTP status code 400 Bad Request . For more information, see Checking object
+	// integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide. If you provide an individual checksum, Amazon S3
 	// ignores any provided ChecksumAlgorithm parameter.
 	ChecksumAlgorithm types.ChecksumAlgorithm
@@ -150,6 +147,9 @@ func (c *Client) addOperationPutBucketPolicyMiddlewares(stack *middleware.Stack,
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addPutBucketPolicyInputChecksumMiddlewares(stack, options); err != nil {

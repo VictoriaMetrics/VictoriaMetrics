@@ -46,15 +46,11 @@ var (
 	flagsAuthKey     = flag.String("flagsAuthKey", "", "Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 	pprofAuthKey     = flag.String("pprofAuthKey", "", "Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings")
 
-	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth")
+	disableResponseCompression  = flag.Bool("http.disableResponseCompression", false, "Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth")
 	maxGracefulShutdownDuration = flag.Duration("http.maxGracefulShutdownDuration", 7*time.Second, `The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown`)
 	shutdownDelay               = flag.Duration("http.shutdownDelay", 0, `Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers`)
 	idleConnTimeout             = flag.Duration("http.idleConnTimeout", time.Minute, "Timeout for incoming idle http connections")
 	connTimeout                 = flag.Duration("http.connTimeout", 2*time.Minute, `Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem`)
-	maxConcurrentRequests       = flag.Int("http.maxConcurrentRequests", 0, "The maximum number of concurrent HTTP requests. "+
-		"Use this flag as a safety measure to prevent from overloading during attacks or thundering herd problem."+
-		"Value should depend on the amount of free memory and number of free file descriptors. The more memory/descriptors is available, the more concurrent requests can be served."+
-		"If set to zero - no limits are applied.")
 )
 
 var (
@@ -64,7 +60,6 @@ var (
 
 type server struct {
 	shutdownDelayDeadline int64
-	concurrencyLimiter    chan struct{}
 	s                     *http.Server
 }
 
@@ -76,9 +71,9 @@ type server struct {
 // In such cases the caller must serve the request.
 type RequestHandler func(w http.ResponseWriter, r *http.Request) bool
 
-// Serve starts a http server on the given addr with the given optional rh.
+// Serve starts an http server on the given addr with the given optional rh.
 //
-// By default, all the responses are transparently compressed, since egress traffic is usually expensive.
+// By default all the responses are transparently compressed, since egress traffic is usually expensive.
 //
 // The compression is also disabled if -http.disableResponseCompression flag is set.
 //
@@ -141,7 +136,6 @@ func serveWithListener(addr string, ln net.Listener, rh RequestHandler) {
 			return context.WithValue(ctx, connDeadlineTimeKey, &deadline)
 		},
 	}
-	s.concurrencyLimiter = make(chan struct{}, *maxConcurrentRequests)
 	serversLock.Lock()
 	servers[addr] = &s
 	serversLock.Unlock()
@@ -347,19 +341,6 @@ func handlerWrapper(s *server, w http.ResponseWriter, r *http.Request, rh Reques
 		if !CheckBasicAuth(w, r) {
 			return
 		}
-
-		if *maxConcurrentRequests > 0 {
-			select {
-			case s.concurrencyLimiter <- struct{}{}:
-			default:
-				Errorf(w, r, "couldn't start processing the request at path %q, "+
-					"since -http.maxConcurrentRequests=%d concurrent requests are executed.", r.URL.Path, *maxConcurrentRequests)
-				limitReachedRequestErrors.Inc()
-				return
-			}
-			defer func() { <-s.concurrencyLimiter }()
-		}
-
 		if rh(w, r) {
 			return
 		}
@@ -448,8 +429,7 @@ var (
 	pprofDefaultRequests = metrics.NewCounter(`vm_http_requests_total{path="/debug/pprof/default"}`)
 	faviconRequests      = metrics.NewCounter(`vm_http_requests_total{path="/favicon.ico"}`)
 
-	unsupportedRequestErrors  = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="unsupported"}`)
-	limitReachedRequestErrors = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="concurrency limit"}`)
+	unsupportedRequestErrors = metrics.NewCounter(`vm_http_request_errors_total{path="*", reason="unsupported"}`)
 
 	requestsTotal = metrics.NewCounter(`vm_http_requests_all_total`)
 )

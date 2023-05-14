@@ -44,21 +44,21 @@ func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Qu
 	return fq
 }
 
-func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
+func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) (datasource.Result, error) {
 	req, _, err := fq.Query(ctx, q, time.Now())
 	return req, err
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) ([]datasource.Metric, *http.Request, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) (datasource.Result, *http.Request, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {
-		return nil, nil, fq.err
+		return datasource.Result{}, nil, fq.err
 	}
 	cp := make([]datasource.Metric, len(fq.metrics))
 	copy(cp, fq.metrics)
 	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
-	return cp, req, nil
+	return datasource.Result{Data: cp}, req, nil
 }
 
 type fakeQuerierWithRegistry struct {
@@ -85,23 +85,23 @@ func (fqr *fakeQuerierWithRegistry) BuildWithParams(_ datasource.QuerierParams) 
 	return fqr
 }
 
-func (fqr *fakeQuerierWithRegistry) QueryRange(ctx context.Context, q string, _, _ time.Time) ([]datasource.Metric, error) {
+func (fqr *fakeQuerierWithRegistry) QueryRange(ctx context.Context, q string, _, _ time.Time) (datasource.Result, error) {
 	req, _, err := fqr.Query(ctx, q, time.Now())
 	return req, err
 }
 
-func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) ([]datasource.Metric, *http.Request, error) {
+func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) (datasource.Result, *http.Request, error) {
 	fqr.Lock()
 	defer fqr.Unlock()
 
 	req, _ := http.NewRequest(http.MethodPost, "foo.com", nil)
 	metrics, ok := fqr.registry[expr]
 	if !ok {
-		return nil, req, nil
+		return datasource.Result{}, req, nil
 	}
 	cp := make([]datasource.Metric, len(metrics))
 	copy(cp, metrics)
-	return cp, req, nil
+	return datasource.Result{Data: cp}, req, nil
 }
 
 type fakeQuerierWithDelay struct {
@@ -109,7 +109,7 @@ type fakeQuerierWithDelay struct {
 	delay time.Duration
 }
 
-func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) ([]datasource.Metric, *http.Request, error) {
+func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) (datasource.Result, *http.Request, error) {
 	timer := time.NewTimer(fqd.delay)
 	select {
 	case <-ctx.Done():
@@ -131,7 +131,7 @@ type fakeNotifier struct {
 
 func (*fakeNotifier) Close()       {}
 func (*fakeNotifier) Addr() string { return "" }
-func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert) error {
+func (fn *fakeNotifier) Send(_ context.Context, alerts []notifier.Alert, _ map[string]string) error {
 	fn.Lock()
 	defer fn.Unlock()
 	fn.counter += len(alerts)
@@ -155,7 +155,7 @@ type faultyNotifier struct {
 	fakeNotifier
 }
 
-func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert) error {
+func (fn *faultyNotifier) Send(ctx context.Context, _ []notifier.Alert, _ map[string]string) error {
 	d, ok := ctx.Deadline()
 	if ok {
 		time.Sleep(time.Until(d))

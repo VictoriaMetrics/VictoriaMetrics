@@ -72,8 +72,8 @@ const CardinalityPanel: FC = () => {
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      {appConfigurator.keys(match, focusLabel).map((keyName) => (
-        <MetricsContent
+      {appConfigurator.keys(match, focusLabel).map((keyName) => {
+        return <MetricsContent
           key={keyName}
           sectionTitle={appConfigurator.sectionsTitles(focusLabel)[keyName]}
           tip={sectionsTips[keyName]}
@@ -84,8 +84,8 @@ const CardinalityPanel: FC = () => {
           totalSeriesPrev={appConfigurator.totalSeries(keyName, true)}
           totalSeries={appConfigurator.totalSeries(keyName)}
           tableHeaderCells={tablesHeaders[keyName]}
-        />
-      ))}
+        />;
+      })}
     </div>
   );
 };
