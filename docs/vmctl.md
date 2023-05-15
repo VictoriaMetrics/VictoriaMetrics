@@ -731,35 +731,31 @@ requires an Authentication header like `X-Scope-OrgID`. You can define it via th
 
 ## Migrating data from VictoriaMetrics
 
-### Native protocol
-
-The [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
-was introduced in [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0)
-and provides the most efficient way to migrate data between VM instances: single to single, cluster to cluster,
-single to cluster and vice versa. Please note that both instances (source and destination) should be of v1.42.0
-or higher.
+vmctl uses [native binary protocol](https://docs.victoriametrics.com/#how-to-export-data-in-native-format)
+(available since [1.42.0 release](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.42.0))
+o migrate data between VM instances: single to single, cluster to cluster, single to cluster and vice versa.
 
 See `./vmctl vm-native --help` for details and full list of flags.
 
 Migration in `vm-native` mode takes two steps:
 1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
 2. Migrate explored metrics one-by-one.
-
 ```
 ./vmctl vm-native \
-    --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ 
-    --vm-native-dst-addr=http://localhost:8428 \
-    --vm-native-filter-time-start='2022-11-20T00:00:00Z' \
-    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'    
+    --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from
+    --vm-native-dst-addr=http://localhost:8428 \                     # migrate to
+    --vm-native-filter-time-start='2022-11-20T00:00:00Z' \           # starting from
+    --vm-native-filter-match='{__name__=~"vm_cache_.*"}'             # only metrics matching the selector
 VictoriaMetrics Native import mode
 
-2023/03/02 09:22:02 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
+2023/03/02 09:22:02 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" 
+                    to "http://localhost:8428/api/v1/import/native" with filter 
         filter: match[]={__name__=~"vm_cache_.*"}
         start: 2022-11-20T00:00:00Z
 2023/03/02 09:22:02 Exploring metrics...
 Found 9 metrics to import. Continue? [Y/n] 
 2023/03/02 09:22:04 Requests to make: 9
-Requests to make: 9 / 9 [███████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████████] 100.00%
+Requests to make: 9 / 9 [█████████████████████████████████████████████████████████████████████████████] 100.00%
 2023/03/02 09:22:06 Import finished!
 2023/03/02 09:22:06 VictoriaMetrics importer stats:
   time spent while importing: 3.632638875s;
@@ -769,109 +765,59 @@ Requests to make: 9 / 9 [██████████████████�
   requests retries: 0;
 2023/03/02 09:22:06 Total time: 3.633127625s
 ```
-`vmctl` uses retries with backoff policy by default.
 
-The benefits of this retry backoff policy include:
-1. Improved success rates:
-   With each retry attempt, the migration process has a higher chance of success.
-   By increasing the delay between retries, the system can avoid overwhelming the service with too many requests at once.
-
-2. Reduced load on the system:
-   By increasing the delay between retries, the system can reduce the load on the service by limiting the number of
-   requests made in a short amount of time.
-3. Can help to migrate a big amount of data
-
-However, there are also some potential penalties associated with using a backoff retry policy, including:
-1. Increased migration process latency:
-   `vmctl` need to make additional call to the `api/v1/label/__name__/values` with defined `--vm-native-filter-match` flag,
-   and after process all metric names with additional filters.
-
-In case when retries with backoff policy is unneeded `--vm-native-disable-retries` command line flag can be used.
-When this flag is set to `true`, `vmctl` skips additional call to the `api/v1/label/__name__/values` API and starts
-migration process by making calls to the `/api/v1/export` and `api/v1/import`. If some errors happen `vmctl` immediately
-stops the migration process.
-
-```
-./vmctl vm-native --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \
-  --vm-native-dst-addr=http://127.0.0.1:8428 \
-  --vm-native-filter-match='{__name__!=""}' \
-  --vm-native-filter-time-start='2023-04-08T11:30:30Z' \
-  --vm-native-disable-retries=true  
-
-VictoriaMetrics Native import mode
-
-2023/04/11 10:17:14 Initing import process from "http://127.0.0.1:8481/select/0/prometheus/api/v1/export/native" to "http://localhost:8428/api/v1/import/native" with filter 
-        filter: match[]={__name__!=""}
-        start: 2023-04-08T11:30:30Z
-. Continue? [Y/n] 
-2023/04/11 10:17:15 Requests to make: 1
-2023/04/11 10:17:15 number of workers decreased to 1, because vmctl calculated requests to make 1
-Total: 0 ↙ Speed: ? p/s                                                                                                                                                                              Continue import process with filter 
-        filter: match[]={__name__!=""}
-        start: 2023-04-08T11:30:30Z
-        end: 2023-04-11T07:17:14Z:
-Total: 1.64 GiB ↖ Speed: 11.20 MiB p/s                                                                                                                                                               
-2023/04/11 10:19:45 Import finished!
-2023/04/11 10:19:45 VictoriaMetrics importer stats:
-  time spent while importing: 2m30.813841541s;
-  total bytes: 1.8 GB;
-  bytes/s: 11.7 MB;
-  requests: 1;
-  requests retries: 0;
-2023/04/11 10:19:45 Total time: 2m30.814721125s
-```
+_To disable explore phase and switch to the old way of data migration via single connection use 
+`--vm-native-disable-retries` cmd-line flag. Please note, in this mode vmctl won't be able to retry failed requests._
 
 Importing tips:
 
 1. Migrating big volumes of data may result in reaching the safety limits on `src` side.
 Please verify that `-search.maxExportDuration` and `-search.maxExportSeries` were set with
-proper values for `src`. If hitting the limits, follow the recommendations [here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
-If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or update `-search.maxSeries` command-line flag on vmselect/vmsingle;
+proper values for `src`. If hitting the limits, follow the recommendations 
+[here](https://docs.victoriametrics.com/#how-to-export-data-in-native-format).
+If hitting `the number of matching timeseries exceeds...` error, adjust filters to match less time series or 
+update `-search.maxSeries` command-line flag on vmselect/vmsingle;
 2. Migrating all the metrics from one VM to another may collide with existing application metrics
 (prefixed with `vm_`) at destination and lead to confusion when using
 [official Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards).
-To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match` flag.
-3. Migration is a backfilling process, so it is recommended to read
+To avoid such situation try to filter out VM process metrics via `--vm-native-filter-match='{__name__!~"vm_.*"}'` flag.
+3. Migrating data with overlapping time range or via unstable network can produce duplicates series at destination.
+To avoid duplicates set `-dedup.minScrapeInterval=1ms` for `vmselect`/`vmstorage` at the destination.
+This will instruct `vmselect`/`vmstorage` to ignore duplicates with identical timestamps.
+4. When migrating large volumes of data use `--vm-native-step-interval` flag to split migration [into steps](#using-time-based-chunking-of-migration).
+5. When migrating data from one VM cluster to another, consider using [cluster-to-cluster mode](#cluster-to-cluster-migration-mode).
+Or manually specify addresses according to [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format):
+    ```console
+    # Migrating from cluster specific tenantID to single
+    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+    --vm-native-dst-addr=http://<dst-vmsingle>:8428
+    
+     # Migrating from single to cluster specific tenantID
+    --vm-native-src-addr=http://<src-vmsingle>:8428
+    --vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+    
+    # Migrating single to single
+    --vm-native-src-addr=http://<src-vmsingle>:8428
+    --vm-native-dst-addr=http://<dst-vmsingle>:8428
+    
+    # Migrating cluster to cluster for specific tenant ID
+    --vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
+    --vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
+    ```
+6. Migration speed can be adjusted via `--vm-concurrency` cmd-line flag, which controls the number of concurrent 
+workers busy with processing. Please note, that each worker can load up to a single vCPU core on VictoriaMetrics. 
+So try to set it according to allocated CPU resources of your VictoriaMetrics destination installation.
+7. Migration is a backfilling process, so it is recommended to read
 [Backfilling tips](https://github.com/VictoriaMetrics/VictoriaMetrics#backfilling) section.
-4. `vmctl` doesn't provide relabeling or other types of labels management in this mode.
+8. `vmctl` doesn't provide relabeling or other types of labels management.
 Instead, use [relabeling in VictoriaMetrics](https://github.com/VictoriaMetrics/vmctl/issues/4#issuecomment-683424375).
-5. When importing in or from cluster version remember to use correct [URL format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
-and specify `accountID` param. Example formats:
-
-```console
-# Migrating from cluster to single
---vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
---vm-native-dst-addr=http://<dst-vmsingle>:8428
-
- # Migrating from single to cluster
---vm-native-src-addr=http://<src-vmsingle>:8428
---vm-native-src-addr=http://<dst-vminsert>:8480/insert/0/prometheus
-
-# Migrating single to single
---vm-native-src-addr=http://<src-vmsingle>:8428
---vm-native-dst-addr=http://<dst-vmsingle>:8428
-
-# Migrating cluster to cluster
---vm-native-src-addr=http://<src-vmselect>:8481/select/0/prometheus
---vm-native-dst-addr=http://<dst-vminsert>:8480/insert/0/prometheus
-```
-6. When migrating large volumes of data it might be useful to use `--vm-native-step-interval` flag to split single process into smaller steps.
-7. `vmctl` supports `--vm-concurrency` which controls the number of concurrent workers that process the input from source query results.
-Please note that each import request can load up to a single vCPU core on VictoriaMetrics. So try to set it according
-to allocated CPU resources of your VictoriaMetrics installation.
-8. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` which defines headers to send with each request
+9. `vmctl` supports `--vm-native-src-headers` and `--vm-native-dst-headers` to define headers sent with each request
 to the corresponding source address.
-9. `vmctl` supports `--vm-native-disable-http-keep-alive` to allow `vmctl` to use non-persistent HTTP connections to avoid
+10. `vmctl` supports `--vm-native-disable-http-keep-alive` to allow `vmctl` to use non-persistent HTTP connections to avoid
 error `use of closed network connection` when run a longer export.
-10. Migrating data with overlapping time range for destination data can produce duplicates series at destination.
-To avoid duplicates on the destination set `-dedup.minScrapeInterval=1ms` for `vmselect` and `vmstorage`.
-This will instruct `vmselect` and `vmstorage` to ignore duplicates with match timestamps.
 
-In this mode `vmctl` acts as a proxy between two VM instances, where time series filtering is done by "source" (`src`)
-and processing is done by "destination" (`dst`). So no extra memory or CPU resources required on `vmctl` side. Only
-`src` and `dst` resource matter.
 
-#### Using time-based chunking of migration
+### Using time-based chunking of migration
 
 It is possible split migration process into set of smaller batches based on time. This is especially useful when 
 migrating large volumes of data as this adds indication of progress and ability to restore process from certain point 
@@ -916,7 +862,7 @@ Requests to make: 45 / 45 [█████████████████�
 2023/03/02 09:18:12 Total time: 7.112405875s
 ```
 
-#### Cluster-to-cluster migration mode
+### Cluster-to-cluster migration mode
 
 Using cluster-to-cluster migration mode helps to migrate all tenants data in a single `vmctl` run.
 
@@ -964,7 +910,9 @@ Requests to make for tenant 1:0: 28 / 28 [████████████�
 
 ## Verifying exported blocks from VictoriaMetrics
 
-In this mode, `vmctl` allows verifying correctness and integrity of data exported via [native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format) from VictoriaMetrics.
+In this mode, `vmctl` allows verifying correctness and integrity of data exported via 
+[native format](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-export-data-in-native-format)
+from VictoriaMetrics.
 You can verify exported data at disk before uploading it by `vmctl verify-block` command:
 
 ```console
