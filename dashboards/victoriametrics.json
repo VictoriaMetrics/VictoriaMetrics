@@ -5256,7 +5256,7 @@
         },
         "definition": "label_values(vm_app_version{job=~\"$job\"}, instance)",
         "hide": 0,
-        "includeAll": false,
+        "includeAll": true,
         "multi": false,
         "name": "instance",
         "options": [],
