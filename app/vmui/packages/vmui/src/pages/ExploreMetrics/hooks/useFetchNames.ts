@@ -21,7 +21,6 @@ export const useFetchNames = (job: string, instance: string): FetchNamesReturn =
   const fetchUrl = useMemo(() => getNamesUrl(serverUrl, period, job, instance), [serverUrl, period, job, instance]);
 
   useEffect(() => {
-    if (!job) return;
     const fetchData = async () => {
       setIsLoading(true);
       try {

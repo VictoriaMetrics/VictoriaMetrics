@@ -13,6 +13,6 @@ export const getNamesUrl = (server: string, period: TimeParams, job: string, ins
     .filter(val => val[1])
     .map(([key, val]) => `${key}=${JSON.stringify(val)}`)
     .join(",");
-  const match = `{${filters}}`;
-  return `${server}/api/v1/label/__name__/values?match[]=${encodeURIComponent(match)}&start=${period.start}&end=${period.end}`;
+  const match = filters ? `match[]=${encodeURIComponent(`{${filters}}`)}&` : "";
+  return `${server}/api/v1/label/__name__/values?${match}start=${period.start}&end=${period.end}`;
 };
