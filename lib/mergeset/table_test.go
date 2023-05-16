@@ -129,16 +129,12 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	if err := os.RemoveAll(path); err != nil {
 		t.Fatalf("cannot remove %q: %s", path, err)
 	}
-	defer func() {
-		_ = os.RemoveAll(path)
-	}()
 
 	var isReadOnly uint32
 	tb, err := OpenTable(path, nil, nil, &isReadOnly)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
-	defer tb.MustClose()
 
 	// Write a lot of items into the table, so background merges would start.
 	const itemsCount = 3e5
@@ -146,7 +142,14 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 		item := []byte(fmt.Sprintf("item %d", i))
 		tb.AddItems([][]byte{item})
 	}
-	tb.DebugFlush()
+
+	// Close and open the table in order to flush all the data to disk before creating snapshots.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4272#issuecomment-1550221840
+	tb.MustClose()
+	tb, err = OpenTable(path, nil, nil, &isReadOnly)
+	if err != nil {
+		t.Fatalf("cannot open %q: %s", path, err)
+	}
 
 	// Create multiple snapshots.
 	snapshot1 := path + "-test-snapshot1"
@@ -157,30 +160,22 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	if err := tb.CreateSnapshotAt(snapshot2); err != nil {
 		t.Fatalf("cannot create snapshot2: %s", err)
 	}
-	defer func() {
-		_ = os.RemoveAll(snapshot1)
-		_ = os.RemoveAll(snapshot2)
-	}()
 
 	// Verify snapshots contain all the data.
 	tb1, err := OpenTable(snapshot1, nil, nil, &isReadOnly)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
-	defer tb1.MustClose()
 
 	tb2, err := OpenTable(snapshot2, nil, nil, &isReadOnly)
 	if err != nil {
 		t.Fatalf("cannot open %q: %s", path, err)
 	}
-	defer tb2.MustClose()
 
 	var ts, ts1, ts2 TableSearch
 	ts.Init(tb)
 	ts1.Init(tb1)
-	defer ts1.MustClose()
 	ts2.Init(tb2)
-	defer ts2.MustClose()
 	for i := 0; i < itemsCount; i++ {
 		key := []byte(fmt.Sprintf("item %d", i))
 		if err := ts.FirstItemWithPrefix(key); err != nil {
@@ -202,6 +197,17 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 			t.Fatalf("unexpected item found for key=%q in snapshot2; got %q", key, ts2.Item)
 		}
 	}
+	ts1.MustClose()
+	ts2.MustClose()
+
+	// Close and remove tables.
+	tb2.MustClose()
+	tb1.MustClose()
+	tb.MustClose()
+
+	_ = os.RemoveAll(snapshot2)
+	_ = os.RemoveAll(snapshot1)
+	_ = os.RemoveAll(path)
 }
 
 func TestTableAddItemsConcurrent(t *testing.T) {
