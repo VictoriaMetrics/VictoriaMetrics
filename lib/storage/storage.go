@@ -1032,17 +1032,18 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 }
 
 func nextRetentionDurationAt(atMsecs int64, retentionMsecs int64) time.Duration {
-	// Schedule the deadline to +4 hours from the next retention period start.
-	// This should prevent from possible double deletion of indexdb
-	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
-	retentionOffsetMsecs := retentionTimezoneOffsetMsecs - int64(4*3600*1000)
-
 	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected
-	deadline := ((atMsecs + retentionMsecs + retentionOffsetMsecs - 1) / retentionMsecs) * retentionMsecs
+	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
 
 	// The effect of time zone on retention period is moved out.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2574
-	deadline -= retentionOffsetMsecs
+	deadline := ((atMsecs + retentionMsecs + retentionTimezoneOffsetMsecs - 1) / retentionMsecs) * retentionMsecs
+
+	// Schedule the deadline to +4 hours from the next retention period start.
+	// This should prevent from possible double deletion of indexdb
+	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
+	deadline += int64(4 * 3600 * 1000)
+	deadline -= retentionTimezoneOffsetMsecs
 	return time.Duration(deadline-atMsecs) * time.Millisecond
 }
 
