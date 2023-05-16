@@ -298,7 +298,14 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	s.deletedMetricIDsUpdateLock.Unlock()
 }
 
-// DebugFlush flushes recently added storage data, so it becomes visible to search.
+// DebugFlush makes sure all the recently added data is visible to search.
+//
+// Note: this function doesn't store all the in-memory data to disk - it just converts
+// recently added items to searchable parts, which can be stored either in memory
+// (if they are quite small) or to persistent disk.
+//
+// This function is for debugging and testing purposes only,
+// since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.flushPendingRows()
 	s.idb().tb.DebugFlush()
