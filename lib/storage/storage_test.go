@@ -494,39 +494,43 @@ func TestMetricRowMarshalUnmarshal(t *testing.T) {
 }
 
 func TestNextRetentionDuration(t *testing.T) {
-	validateRetention := func(now time.Time, retention float64) {
+	validateRetention := func(retention int64) {
 		t.Helper()
-
-		nowMsecs := now.UnixMilli()
-		d := nextRetentionDurationAt(nowMsecs, int64(retention*msecsPerMonth))
-		if d <= 0 {
-			nextTime := now.Add(d)
-			t.Fatalf("unexpected retention duration for retentionMonths=%f; got %s; must be %s + %f months", retention, nextTime, now, retention)
+		validateRetentionAt := func(now time.Time, retention int64) {
+			nowMsecs := now.UnixMilli()
+			d := nextRetentionDurationAt(nowMsecs, retention)
+			if d <= 0 {
+				nextTime := now.Add(d)
+				retentionHuman := time.Duration(retention) * time.Millisecond
+				t.Errorf("unexpected retention duration for retention=%s; got %s(%s); must be %s + %s; offset: %s", retentionHuman, nextTime, d, now, retentionHuman, time.Duration(retentionTimezoneOffsetMsecs)*time.Millisecond)
+			}
 		}
-	}
 
-	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
 		// UTC offsets are in range [-12 hours, +14 hours].
 		// Verify that any legit combination of retention timezone and local time
 		// will return valid retention duration.
 		// See: https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4207
 		for retentionOffset := -12; retentionOffset <= 14; retentionOffset++ {
-			for localTimeOffset := -12; localTimeOffset <= 14; localTimeOffset++ {
-				SetRetentionTimezoneOffset(time.Duration(retentionOffset) * time.Hour)
-				tz := time.FixedZone("", -1*localTimeOffset*60*60)
-				now := time.Now().In(tz)
-				validateRetention(now, retentionMonths)
+			SetRetentionTimezoneOffset(time.Duration(retentionOffset) * time.Hour)
+			validateRetentionAt(time.Now().UTC(), retention)
 
-				now = time.Date(2023, 4, 27, 3, 58, 0, 0, tz)
-				validateRetention(now, retentionMonths)
+			now := time.Date(2023, 4, 27, 23, 58, 0, 0, time.UTC)
+			validateRetentionAt(now, retention)
 
-				now = time.Date(2023, 4, 27, 4, 1, 0, 0, tz)
-				validateRetention(now, retentionMonths)
+			now = time.Date(2023, 4, 27, 0, 1, 0, 0, time.UTC)
+			validateRetentionAt(now, retention)
 
-				now = time.Date(2023, 4, 27, 6, 0, 0, 0, tz)
-				validateRetention(now, retentionMonths)
-			}
+			now = time.Date(2023, 4, 27, 0, 0, 0, 0, time.UTC)
+			validateRetentionAt(now, retention)
 		}
+	}
+
+	for retentionDays := 0.3; retentionDays < 3; retentionDays += 0.3 {
+		validateRetention(int64(retentionDays * msecPerDay))
+	}
+
+	for retentionMonths := float64(0.1); retentionMonths < 120; retentionMonths += 0.3 {
+		validateRetention(int64(retentionMonths * msecsPerMonth))
 	}
 }
 
