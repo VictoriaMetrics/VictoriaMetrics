@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import { InstantMetricResult } from "../../../api/types";
 import { InstantDataSeries } from "../../../types";
 import { useSortedCategories } from "../../../hooks/useSortedCategories";
@@ -7,12 +7,13 @@ import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon } from "../../Main/Icons";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import Button from "../../Main/Button/Button";
-import { useSnack } from "../../../contexts/Snackbar";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import { getNameForMetric } from "../../../utils/metric";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import "./style.scss";
-import useResize from "../../../hooks/useResize";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useWindowSize from "../../../hooks/useWindowSize";
+import useEventListener from "../../../hooks/useEventListener";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -20,11 +21,11 @@ export interface GraphViewProps {
 }
 
 const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
-  const { showInfoMessage } = useSnack();
+  const copyToClipboard = useCopyToClipboard();
   const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const tableRef = useRef<HTMLTableElement>(null);
   const [tableTop, setTableTop] = useState(0);
   const [headTop, setHeadTop] = useState(0);
@@ -74,32 +75,21 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     setOrderBy(key);
   };
 
-  const copyHandler = async (copyValue: string) => {
-    await navigator.clipboard.writeText(copyValue);
-    showInfoMessage({ text: "Row has been copied", type: "success" });
-  };
-
   const createSortHandler = (key: string) => () => {
     sortHandler(key);
   };
 
-  const createCopyHandler = (copyValue: string) => () => {
-    copyHandler(copyValue);
+  const createCopyHandler = (copyValue: string) => async () => {
+    await copyToClipboard(copyValue, "Row has been copied");
   };
 
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (!tableRef.current) return;
     const { top } = tableRef.current.getBoundingClientRect();
     setHeadTop(top < 0 ? window.scrollY - tableTop : 0);
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
   }, [tableRef, tableTop, windowSize]);
+
+  useEventListener("scroll", handleScroll);
 
   useEffect(() => {
     if (!tableRef.current) return;

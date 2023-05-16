@@ -5,6 +5,7 @@ import { ArrowDropDownIcon } from "../../../Main/Icons";
 import Popper from "../../../Main/Popper/Popper";
 import NavItem from "./NavItem";
 import { useEffect } from "react";
+import useBoolean from "../../../../hooks/useBoolean";
 
 interface NavItemProps {
   activeMenu: string,
@@ -25,17 +26,18 @@ const NavSubItem: FC<NavItemProps> = ({
 }) => {
   const { pathname } = useLocation();
 
-  const [openSubmenu, setOpenSubmenu] = useState(false);
   const [menuTimeout, setMenuTimeout] = useState<NodeJS.Timeout | null>(null);
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const handleOpenSubmenu = () => {
-    setOpenSubmenu(true);
-    if (menuTimeout) clearTimeout(menuTimeout);
-  };
+  const {
+    value: openSubmenu,
+    setFalse: handleCloseSubmenu,
+    setTrue: setOpenSubmenu,
+  } = useBoolean(false);
 
-  const handleCloseSubmenu = () => {
-    setOpenSubmenu(false);
+  const handleOpenSubmenu = () => {
+    setOpenSubmenu();
+    if (menuTimeout) clearTimeout(menuTimeout);
   };
 
   const handleMouseLeave = () => {

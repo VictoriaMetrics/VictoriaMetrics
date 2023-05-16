@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
 import LineChart from "../../Chart/Line/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
@@ -18,6 +18,7 @@ import { promValueToNumber } from "../../../utils/metric";
 import { normalizeData } from "../../../utils/uplot/heatmap";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { TooltipHeatmapProps } from "../../Chart/Heatmap/ChartTooltipHeatmap/ChartTooltipHeatmap";
+import useElementSize from "../../../hooks/useElementSize";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -164,7 +165,7 @@ const GraphView: FC<GraphViewProps> = ({
     setLegend(tempLegend);
   }, [hideSeries]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerRef, containerSize] = useElementSize();
 
   return (
     <div
@@ -175,7 +176,7 @@ const GraphView: FC<GraphViewProps> = ({
       })}
       ref={containerRef}
     >
-      {containerRef?.current && !isHistogram && (
+      {!isHistogram && (
         <LineChart
           data={dataChart}
           series={series}
@@ -184,11 +185,11 @@ const GraphView: FC<GraphViewProps> = ({
           yaxis={yaxis}
           unit={unit}
           setPeriod={setPeriod}
-          container={containerRef?.current}
+          layoutSize={containerSize}
           height={height}
         />
       )}
-      {containerRef?.current && isHistogram && (
+      {isHistogram && (
         <HeatmapChart
           data={dataChart}
           metrics={data}
@@ -196,7 +197,7 @@ const GraphView: FC<GraphViewProps> = ({
           yaxis={yaxis}
           unit={unit}
           setPeriod={setPeriod}
-          container={containerRef?.current}
+          layoutSize={containerSize}
           height={height}
           onChangeLegend={handleChangeLegend}
         />

@@ -1,7 +1,8 @@
 import { AlignedData as uPlotData, Options as uPlotOptions } from "uplot";
+import { ElementSize } from "../../../hooks/useElementSize";
 
 export interface BarChartProps {
   data: uPlotData;
-  container: HTMLDivElement | null,
+  layoutSize: ElementSize,
   configs: uPlotOptions,
 }
