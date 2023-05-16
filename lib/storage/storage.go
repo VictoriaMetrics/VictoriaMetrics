@@ -1983,11 +1983,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
 	pMin := (float64(ts%(3600*24)) / 3600) - 23
 	type pendingDateMetricID struct {
-		date      uint64
-		metricID  uint64
-		accountID uint32
-		projectID uint32
-		mr        *MetricRow
+		date uint64
+		tsid *TSID
+		mr   *MetricRow
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
@@ -2020,11 +2018,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 					p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
 					if p < pMin && !nextDayMetricIDs.Has(metricID) {
 						pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-							date:      date + 1,
-							metricID:  metricID,
-							accountID: r.TSID.AccountID,
-							projectID: r.TSID.ProjectID,
-							mr:        mrs[i],
+							date: date + 1,
+							tsid: &r.TSID,
+							mr:   mrs[i],
 						})
 						pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 					}
@@ -2049,11 +2045,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		}
 		// Slow path: store the (date, metricID) entry in the indexDB.
 		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-			date:      date,
-			metricID:  metricID,
-			accountID: r.TSID.AccountID,
-			projectID: r.TSID.ProjectID,
-			mr:        mrs[i],
+			date: date,
+			tsid: &r.TSID,
+			mr:   mrs[i],
 		})
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
@@ -2078,16 +2072,16 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	sort.Slice(pendingDateMetricIDs, func(i, j int) bool {
 		a := pendingDateMetricIDs[i]
 		b := pendingDateMetricIDs[j]
-		if a.accountID != b.accountID {
-			return a.accountID < b.accountID
+		if a.tsid.AccountID != b.tsid.AccountID {
+			return a.tsid.AccountID < b.tsid.AccountID
 		}
-		if a.projectID != b.projectID {
-			return a.projectID < b.projectID
+		if a.tsid.ProjectID != b.tsid.ProjectID {
+			return a.tsid.ProjectID < b.tsid.ProjectID
 		}
 		if a.date != b.date {
 			return a.date < b.date
 		}
-		return a.metricID < b.metricID
+		return a.tsid.MetricID < b.tsid.MetricID
 	})
 	idb := s.idb()
 	is := idb.getIndexSearch(0, 0, noDeadline)
@@ -2097,12 +2091,12 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	mn := GetMetricName()
 	for _, dmid := range pendingDateMetricIDs {
 		date := dmid.date
-		metricID := dmid.metricID
-		ok, err := is.hasDateMetricID(date, metricID, dmid.accountID, dmid.projectID)
+		metricID := dmid.tsid.MetricID
+		ok, err := is.hasDateMetricID(date, metricID, dmid.tsid.AccountID, dmid.tsid.ProjectID)
 		if err != nil {
 			if firstError == nil {
 				firstError = fmt.Errorf("error when locating (date=%s, metricID=%d, accountID=%d, projectID=%d) in database: %w",
-					dateToString(date), metricID, dmid.accountID, dmid.projectID, err)
+					dateToString(date), metricID, dmid.tsid.AccountID, dmid.tsid.ProjectID, err)
 			}
 			continue
 		}
@@ -2117,7 +2111,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				continue
 			}
 			mn.sortTags()
-			is.createPerDayIndexes(date, metricID, mn)
+			is.createPerDayIndexes(date, dmid.tsid, mn)
 		}
 		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
 			date:     date,
