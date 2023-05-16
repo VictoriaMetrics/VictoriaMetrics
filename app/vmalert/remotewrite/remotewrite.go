@@ -186,13 +186,9 @@ var (
 )
 
 // flush is a blocking function that marshals WriteRequest and sends
-// it to remote write endpoint. Flush performs limited amount of retries
+// it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
 func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
-	const (
-		retryCount   = 5
-		retryBackoff = time.Second
-	)
 	if len(wr.Timeseries) < 1 {
 		return
 	}
@@ -207,29 +203,42 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 
 	b := snappy.Encode(nil, data)
 
-	attempts := 0
-	for ; attempts < retryCount; attempts++ {
+	const (
+		retryCount   = 5
+		retryBackoff = time.Second
+	)
+
+	for attempts := 0; attempts < retryCount; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
 			sentBytes.Add(len(b))
 			return
 		}
-		logger.Warnf("attempt %d to send request failed: %s", attempts+1, err)
 
-		if _, ok := err.(*retriableError); ok {
-			// sleeping to avoid remote db hammering
-			time.Sleep(retryBackoff)
-			continue
-		} else {
+		_, isRetriable := err.(*retriableError)
+		logger.Warnf("attempt %d to send request failed: %s (retriable: %v)", attempts+1, err, isRetriable)
+
+		if !isRetriable {
+			// exit fast if error isn't retriable
 			break
 		}
+
+		// check if request has been cancelled before backoff
+		select {
+		case <-ctx.Done():
+			break
+		default:
+		}
+
+		// sleeping to avoid remote db hammering
+		time.Sleep(retryBackoff)
 	}
 
 	droppedRows.Add(len(wr.Timeseries))
 	droppedBytes.Add(len(b))
-	logger.Errorf("all %d attempts to send request failed - dropping %d time series",
-		attempts, len(wr.Timeseries))
+	logger.Errorf("attempts to send remote-write request failed - dropping %d time series",
+		len(wr.Timeseries))
 }
 
 func (c *Client) send(ctx context.Context, data []byte) error {
@@ -258,14 +267,22 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 			req.URL.Redacted(), err, len(data), r.Size())
 	}
 	defer func() { _ = resp.Body.Close() }()
+
 	body, _ := io.ReadAll(resp.Body)
+
+	// according to https://prometheus.io/docs/concepts/remote_write_spec/
+	// Prometheus remote Write compatible receivers MUST
 	switch resp.StatusCode / 100 {
 	case 2:
+		// respond with a HTTP 2xx status code when the write is successful.
 		return nil
 	case 5:
+		// respond with HTTP status code 5xx when the write fails and SHOULD be retried.
 		return &retriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)}
 	default:
+		// respond with HTTP status code 4xx when the request is invalid, will never be able to succeed
+		// and should not be retried.
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
@@ -276,5 +293,5 @@ type retriableError struct {
 }
 
 func (e *retriableError) Error() string {
-	return e.Error()
+	return e.err.Error()
 }
