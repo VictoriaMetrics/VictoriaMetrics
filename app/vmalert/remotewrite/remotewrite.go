@@ -207,8 +207,8 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		retryCount   = 5
 		retryBackoff = time.Second
 	)
-	attempts := 0
-	for ; attempts < retryCount; attempts++ {
+
+	for attempts := 0; attempts < retryCount; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
@@ -223,14 +223,21 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 			// exit fast if error isn't retriable
 			break
 		}
+
+		// check if request has been cancelled before backoff
+		select {
+		case <-ctx.Done():
+			break
+		}
+
 		// sleeping to avoid remote db hammering
 		time.Sleep(retryBackoff)
 	}
 
 	droppedRows.Add(len(wr.Timeseries))
 	droppedBytes.Add(len(b))
-	logger.Errorf("all %d attempts to send request failed - dropping %d time series",
-		attempts, len(wr.Timeseries))
+	logger.Errorf("attempts to send remote-write request failed - dropping %d time series",
+		len(wr.Timeseries))
 }
 
 func (c *Client) send(ctx context.Context, data []byte) error {
