@@ -109,7 +109,13 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 		item := []byte(fmt.Sprintf("item %d", i))
 		tb.AddItems([][]byte{item})
 	}
-	tb.DebugFlush()
+
+	tb.flushPendingItems(nil, true)
+	// Wait for background flushers to finish.
+	tb.rawItemsPendingFlushesWG.Wait()
+	// call this function with true param initiate release parts
+	// to merge and flush a single in-memory part to disk.
+	tb.flushInmemoryParts(true)
 
 	var m TableMetrics
 	tb.UpdateMetrics(&m)

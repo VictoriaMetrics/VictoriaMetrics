@@ -602,7 +602,6 @@ func (tb *Table) DebugFlush() {
 
 	// Wait for background flushers to finish.
 	tb.rawItemsPendingFlushesWG.Wait()
-	tb.flushInmemoryParts(true)
 }
 
 func (tb *Table) startInmemoryPartsFlusher() {
