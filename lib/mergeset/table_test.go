@@ -111,6 +111,12 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	}
 	tb.DebugFlush()
 
+	var m TableMetrics
+	tb.UpdateMetrics(&m)
+	if n := m.TotalItemsCount(); n != itemsCount {
+		t.Fatalf("unexpected itemsCount; got %d; want %v", n, itemsCount)
+	}
+
 	// Create multiple snapshots.
 	snapshot1 := path + "-test-snapshot1"
 	if err := tb.CreateSnapshotAt(snapshot1, 0); err != nil {
@@ -134,6 +140,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 
 	var ts, ts1, ts2 TableSearch
 	ts.Init(tb)
+	defer ts.MustClose()
 	ts1.Init(tb1)
 	defer ts1.MustClose()
 	ts2.Init(tb2)
