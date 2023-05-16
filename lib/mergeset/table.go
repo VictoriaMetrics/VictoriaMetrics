@@ -1435,10 +1435,10 @@ func (tb *Table) CreateSnapshotAt(dstDir string, deadline uint64) error {
 
 	// Make hardlinks for pws at dstDir
 	for _, pw := range pws {
-		if pw.mp != nil {
-			// Skip in-memory parts
-			continue
-		}
+		// if pw.mp != nil {
+		// 	// Skip in-memory parts
+		// 	continue
+		// }
 		if deadline > 0 && fasttime.UnixTimestamp() > deadline {
 			return fmt.Errorf("cannot create snapshot for %q: timeout exceeded", tb.path)
 		}
