@@ -228,6 +228,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		select {
 		case <-ctx.Done():
 			break
+		default:
 		}
 
 		// sleeping to avoid remote db hammering
