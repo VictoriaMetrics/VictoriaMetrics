@@ -31,7 +31,11 @@ import (
 
 const (
 	// Prefix for MetricName->TSID entries.
-	nsPrefixMetricNameToTSID = 0
+	// This index was substituted with nsPrefixDateMetricNameToTSID
+	// for resource efficiency sake. The intention is to speed up
+	// index lookups on busy installations. Looking up in per-day
+	// index supposed to be much more efficient comparing to global index.
+	// nsPrefixMetricNameToTSID = 0
 
 	// Prefix for Tag->MetricID entries.
 	nsPrefixTagToMetricIDs = 1
@@ -50,6 +54,9 @@ const (
 
 	// Prefix for (Date,Tag)->MetricID entries.
 	nsPrefixDateTagToMetricIDs = 6
+
+	// Prefix for (Date,MetricName)->TSID entries.
+	nsPrefixDateMetricNameToTSID = 7
 )
 
 // indexDB represents an index db.
@@ -398,7 +405,7 @@ func (is *indexSearch) maybeCreateIndexes(tsid *TSID, metricNameRaw []byte, date
 	}
 	mn.sortTags()
 	is.createGlobalIndexes(tsid, mn)
-	is.createPerDayIndexes(date, tsid.MetricID, mn)
+	is.createPerDayIndexes(date, tsid, mn)
 	PutMetricName(mn)
 	atomic.AddUint64(&is.db.timeseriesRepopulated, 1)
 	return true, nil
@@ -476,9 +483,9 @@ func unmarshalMetricIDs(dst []uint64, src []byte) ([]uint64, error) {
 // getTSIDByNameNoCreate fills the dst with TSID for the given metricName.
 //
 // It returns io.EOF if the given mn isn't found locally.
-func (db *indexDB) getTSIDByNameNoCreate(dst *TSID, metricName []byte) error {
+func (db *indexDB) getTSIDByNameNoCreate(dst *TSID, metricName []byte, date uint64) error {
 	is := db.getIndexSearch(noDeadline)
-	err := is.getTSIDByMetricName(dst, metricName)
+	err := is.getTSIDByMetricName(dst, metricName, date)
 	db.putIndexSearch(is)
 	if err == nil {
 		return nil
@@ -518,7 +525,7 @@ func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName, metricNameRa
 	// This should improve insertion performance for big batches
 	// of new time series.
 	if is.tsidByNameMisses < 100 {
-		err := is.getTSIDByMetricName(dst, metricName)
+		err := is.getTSIDByMetricName(dst, metricName, date)
 		if err == nil {
 			// Fast path - the TSID for the given metricName has been found in the index.
 			is.tsidByNameMisses = 0
@@ -585,7 +592,7 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName, metricNameRaw []b
 		return fmt.Errorf("cannot unmarshal metricName %q: %w", metricName, err)
 	}
 
-	created, err := is.db.getOrCreateTSID(dst, metricName, mn)
+	created, err := is.db.getOrCreateTSID(dst, metricName, mn, date)
 	if err != nil {
 		return fmt.Errorf("cannot generate TSID: %w", err)
 	}
@@ -593,7 +600,7 @@ func (is *indexSearch) createTSIDByName(dst *TSID, metricName, metricNameRaw []b
 		return err
 	}
 	is.createGlobalIndexes(dst, mn)
-	is.createPerDayIndexes(date, dst.MetricID, mn)
+	is.createPerDayIndexes(date, dst, mn)
 
 	// There is no need in invalidating tag cache, since it is invalidated
 	// on db.tb flush via invalidateTagFiltersCache flushCallback passed to mergeset.MustOpenTable.
@@ -620,12 +627,12 @@ var logNewSeries = false
 // getOrCreateTSID looks for existing TSID for the given metricName in db.extDB or creates a new TSID if nothing was found.
 //
 // Returns true if TSID was created or false if TSID was in extDB
-func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName) (bool, error) {
+func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName, date uint64) (bool, error) {
 	// Search the TSID in the external storage.
 	// This is usually the db from the previous period.
 	var err error
 	if db.doExtDB(func(extDB *indexDB) {
-		err = extDB.getTSIDByNameNoCreate(dst, metricName)
+		err = extDB.getTSIDByNameNoCreate(dst, metricName, date)
 	}) {
 		if err == nil {
 			// The TSID has been found in the external storage.
@@ -663,13 +670,6 @@ func (is *indexSearch) createGlobalIndexes(tsid *TSID, mn *MetricName) {
 
 	ii := getIndexItems()
 	defer putIndexItems(ii)
-
-	// Create MetricName -> TSID index.
-	ii.B = append(ii.B, nsPrefixMetricNameToTSID)
-	ii.B = mn.Marshal(ii.B)
-	ii.B = append(ii.B, kvSeparatorChar)
-	ii.B = tsid.Marshal(ii.B)
-	ii.Next()
 
 	// Create MetricID -> MetricName index.
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName)
@@ -1935,11 +1935,12 @@ func (db *indexDB) getTSIDsFromMetricIDs(qt *querytracer.Tracer, metricIDs []uin
 
 var tagFiltersKeyBufPool bytesutil.ByteBufferPool
 
-func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte) error {
+func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte, date uint64) error {
 	dmis := is.db.s.getDeletedMetricIDs()
 	ts := &is.ts
 	kb := &is.kb
-	kb.B = append(kb.B[:0], nsPrefixMetricNameToTSID)
+	kb.B = append(kb.B[:0], nsPrefixDateMetricNameToTSID)
+	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = append(kb.B, metricName...)
 	kb.B = append(kb.B, kvSeparatorChar)
 	ts.Seek(kb.B)
@@ -2821,13 +2822,21 @@ const (
 	int64Max = int64((1 << 63) - 1)
 )
 
-func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName) {
+func (is *indexSearch) createPerDayIndexes(date uint64, tsid *TSID, mn *MetricName) {
 	ii := getIndexItems()
 	defer putIndexItems(ii)
 
 	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateToMetricID)
 	ii.B = encoding.MarshalUint64(ii.B, date)
-	ii.B = encoding.MarshalUint64(ii.B, metricID)
+	ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)
+	ii.Next()
+
+	// Create per-day inverted index entries for TSID.
+	ii.B = marshalCommonPrefix(ii.B, nsPrefixDateMetricNameToTSID)
+	ii.B = encoding.MarshalUint64(ii.B, date)
+	ii.B = mn.Marshal(ii.B)
+	ii.B = append(ii.B, kvSeparatorChar)
+	ii.B = tsid.Marshal(ii.B)
 	ii.Next()
 
 	// Create per-day inverted index entries for metricID.
@@ -2835,9 +2844,9 @@ func (is *indexSearch) createPerDayIndexes(date, metricID uint64, mn *MetricName
 	defer kbPool.Put(kb)
 	kb.B = marshalCommonPrefix(kb.B[:0], nsPrefixDateTagToMetricIDs)
 	kb.B = encoding.MarshalUint64(kb.B, date)
-	ii.registerTagIndexes(kb.B, mn, metricID)
+	ii.registerTagIndexes(kb.B, mn, tsid.MetricID)
 	is.db.tb.AddItems(ii.Items)
-	is.db.s.dateMetricIDCache.Set(date, metricID)
+	is.db.s.dateMetricIDCache.Set(date, tsid.MetricID)
 }
 
 func (ii *indexItems) registerTagIndexes(prefix []byte, mn *MetricName, metricID uint64) {

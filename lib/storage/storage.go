@@ -1875,9 +1875,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	// pMin linearly increases from 0 to 1 during the last hour of the day.
 	pMin := (float64(ts%(3600*24)) / 3600) - 23
 	type pendingDateMetricID struct {
-		date     uint64
-		metricID uint64
-		mr       *MetricRow
+		date uint64
+		tsid *TSID
+		mr   *MetricRow
 	}
 	var pendingDateMetricIDs []pendingDateMetricID
 	var pendingNextDayMetricIDs []uint64
@@ -1910,9 +1910,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 					p := float64(uint32(fastHashUint64(metricID))) / (1 << 32)
 					if p < pMin && !nextDayMetricIDs.Has(metricID) {
 						pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-							date:     date + 1,
-							metricID: metricID,
-							mr:       mrs[i],
+							date: date + 1,
+							tsid: &r.TSID,
+							mr:   mrs[i],
 						})
 						pendingNextDayMetricIDs = append(pendingNextDayMetricIDs, metricID)
 					}
@@ -1932,9 +1932,9 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		}
 		// Slow path: store the (date, metricID) entry in the indexDB.
 		pendingDateMetricIDs = append(pendingDateMetricIDs, pendingDateMetricID{
-			date:     date,
-			metricID: metricID,
-			mr:       mrs[i],
+			date: date,
+			tsid: &r.TSID,
+			mr:   mrs[i],
 		})
 	}
 	if len(pendingNextDayMetricIDs) > 0 {
@@ -1962,7 +1962,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 		if a.date != b.date {
 			return a.date < b.date
 		}
-		return a.metricID < b.metricID
+		return a.tsid.MetricID < b.tsid.MetricID
 	})
 	idb := s.idb()
 	is := idb.getIndexSearch(noDeadline)
@@ -1972,7 +1972,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	mn := GetMetricName()
 	for _, dmid := range pendingDateMetricIDs {
 		date := dmid.date
-		metricID := dmid.metricID
+		metricID := dmid.tsid.MetricID
 		ok, err := is.hasDateMetricID(date, metricID)
 		if err != nil {
 			if firstError == nil {
@@ -1991,7 +1991,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 				continue
 			}
 			mn.sortTags()
-			is.createPerDayIndexes(date, metricID, mn)
+			is.createPerDayIndexes(date, dmid.tsid, mn)
 		}
 		dateMetricIDsForCache = append(dateMetricIDsForCache, dateMetricID{
 			date:     date,
