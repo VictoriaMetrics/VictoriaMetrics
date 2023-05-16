@@ -79,6 +79,10 @@ func (b *Backup) Run() error {
 	if err := storeMetadata(src, dst); err != nil {
 		return fmt.Errorf("cannot store backup metadata: %w", err)
 	}
+	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte{}); err != nil {
+		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
+	}
+
 	return nil
 }
 
@@ -99,7 +103,7 @@ func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
 		return fmt.Errorf("cannot marshal metadata: %w", err)
 	}
 
-	if err := dst.CreateFile(fscommon.BackupCompleteFilename, metadata); err != nil {
+	if err := dst.CreateFile(fscommon.BackupMetadataFilename, metadata); err != nil {
 		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
 
