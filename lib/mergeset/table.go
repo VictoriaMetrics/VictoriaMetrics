@@ -598,7 +598,7 @@ func (tb *Table) mergePartsOptimal(pws []*partWrapper) error {
 //
 // This function is only for debugging and testing.
 func (tb *Table) DebugFlush() {
-	tb.flushInmemoryItems()
+	tb.flushPendingItems(nil, true)
 	// Wait for background flushers to finish.
 	tb.rawItemsPendingFlushesWG.Wait()
 }
