@@ -27,6 +27,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * SECURITY: upgrade Go builder from Go1.20.3 to Go1.20.4. See [the list of issues addressed in Go1.20.4](https://github.com/golang/go/issues?q=milestone%3AGo1.20.4+label%3ACherryPickApproved).
 * SECURITY: serve `/robots.txt` content to disallow indexing of the exposed instances by search engines. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4128) for details.
 
+* FEATURE: update docker compose commands from V1 to V2 regarding deprecation compose V1 from June 2023. See [Migrate to Compose V2](https://docs.docker.com/compose/migrate/).
 * FEATURE: deprecate `-bigMergeConcurrency` command-line flag, since improper configuration for this flag frequently led to uncontrolled growth of unmerged parts, which, in turn, could lead to queries slowdown and increased CPU usage. The concurrency for [background merges](https://docs.victoriametrics.com/#storage) can be controlled via `-smallMergeConcurrency` command-line flag, though it isn't recommended to change this flag in general case.
 * FEATURE: do not execute the incoming request if it has been canceled by the client before the execution start. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4223).
 * FEATURE: support time formats with timezones. For example, `2024-01-02+02:00` means `January 2, 2024` at `+02:00` time zone. See [these docs](https://docs.victoriametrics.com/#timestamp-formats).
