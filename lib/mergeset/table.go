@@ -594,9 +594,14 @@ func (tb *Table) mergePartsOptimal(pws []*partWrapper) error {
 	return nil
 }
 
-// DebugFlush flushes all the added items to the storage, so they become visible to search.
+// DebugFlush makes sure all the recently added data is visible to search.
 //
-// This function is only for debugging and testing.
+// Note: this function doesn't store all the in-memory data to disk - it just converts
+// recently added items to searchable parts, which can be stored either in memory
+// (if they are quite small) or to persistent disk.
+//
+// This function is for debugging and testing purposes only,
+// since it may slow down data ingestion when used frequently.
 func (tb *Table) DebugFlush() {
 	tb.flushPendingItems(nil, true)
 
