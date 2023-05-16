@@ -18,7 +18,7 @@ import useStateSearchParams from "../../hooks/useStateSearchParams";
 
 const exampleDuration = "30ms, 15s, 3d4h, 1y2w";
 
-const Index: FC = () => {
+const TopQueries: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const [topN, setTopN] = useStateSearchParams(10, "topN");
@@ -152,7 +152,7 @@ const Index: FC = () => {
             title={"Most frequently executed queries"}
             columns={[
               { key: "query" },
-              { key: "timeRangeHours", title: "time range, hours" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "Query Time Interval" },
               { key: "count" }
             ]}
           />
@@ -161,8 +161,8 @@ const Index: FC = () => {
             title={"Most heavy queries"}
             columns={[
               { key: "query" },
-              { key: "avgDurationSeconds", title: "avg duration, seconds" },
-              { key: "timeRangeHours", title: "time range, hours" },
+              { key: "avgDurationSeconds", title: "avg duration, sec" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "Query Time Interval" },
               { key: "count" }
             ]}
             defaultOrderBy={"avgDurationSeconds"}
@@ -172,8 +172,8 @@ const Index: FC = () => {
             title={"Queries with most summary time to execute"}
             columns={[
               { key: "query" },
-              { key: "sumDurationSeconds", title: "sum duration, seconds" },
-              { key: "timeRangeHours", title: "time range, hours" },
+              { key: "sumDurationSeconds", title: "sum duration, sec" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "Query Time Interval" },
               { key: "count" }
             ]}
             defaultOrderBy={"sumDurationSeconds"}
@@ -184,4 +184,4 @@ const Index: FC = () => {
   );
 };
 
-export default Index;
+export default TopQueries;

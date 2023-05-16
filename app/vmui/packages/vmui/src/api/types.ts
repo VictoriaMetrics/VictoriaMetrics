@@ -20,3 +20,8 @@ export interface TracingData {
   duration_msec: number;
   children: TracingData[];
 }
+
+export interface QueryStats {
+  seriesFetched?: string;
+  resultLength?: number;
+}

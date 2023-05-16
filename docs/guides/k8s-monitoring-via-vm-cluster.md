@@ -1,3 +1,13 @@
+---
+weight: 3
+title: Kubernetes monitoring with VictoriaMetrics Cluster
+menu:
+  docs:
+    parent: "guides"
+    weight: 3
+aliases:
+- /guides/k8s-monitoring-via-vm-cluster.html
+---
 # Kubernetes monitoring with VictoriaMetrics Cluster
 
 
@@ -539,7 +549,7 @@ The VictoriaMetrics dashboard is also available to use:
   <img src="guide-vmcluster-grafana-dash.png" width="800" alt="VictoriaMetrics cluster dashboard">
 </p>
 
-vmagent has it’s own dashboard:
+vmagent has its own dashboard:
 <p align="center">
   <img src="guide-vmcluster-vmagent-grafana-dash.png" width="800" alt="vmagent dashboard">
 </p>

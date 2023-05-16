@@ -19,20 +19,17 @@ import (
 // have DeleteBucketPolicy permissions, Amazon S3 returns a 403 Access Denied
 // error. If you have the correct permissions, but you're not using an identity
 // that belongs to the bucket owner's account, Amazon S3 returns a 405 Method Not
-// Allowed error. As a security precaution, the root user of the Amazon Web
-// Services account that owns a bucket can always use this operation, even if the
-// policy explicitly denies the root user the ability to perform this action. For
-// more information about bucket policies, see Using Bucket Policies and
-// UserPolicies
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html). The
-// following operations are related to DeleteBucketPolicy
-//
-// * CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//
-// *
-// DeleteObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+// Allowed error. To ensure that bucket owners don't inadvertently lock themselves
+// out of their own buckets, the root principal in a bucket owner's Amazon Web
+// Services account can perform the GetBucketPolicy , PutBucketPolicy , and
+// DeleteBucketPolicy API actions, even if their bucket policy explicitly denies
+// the root principal's access. Bucket owner root principals can only be blocked
+// from performing these API actions by VPC endpoint policies and Amazon Web
+// Services Organizations policies. For more information about bucket policies, see
+// Using Bucket Policies and UserPolicies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html)
+// . The following operations are related to DeleteBucketPolicy
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
 func (c *Client) DeleteBucketPolicy(ctx context.Context, params *DeleteBucketPolicyInput, optFns ...func(*Options)) (*DeleteBucketPolicyOutput, error) {
 	if params == nil {
 		params = &DeleteBucketPolicyInput{}
@@ -125,6 +122,9 @@ func (c *Client) addOperationDeleteBucketPolicyMiddlewares(stack *middleware.Sta
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addDeleteBucketPolicyUpdateEndpoint(stack, options); err != nil {

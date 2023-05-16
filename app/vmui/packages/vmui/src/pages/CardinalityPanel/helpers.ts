@@ -17,6 +17,9 @@ export const queryUpdater: QueryUpdater = {
     return getSeriesSelector(label, value);
   },
   labelValueCountByLabelName: ({ query, match }): string => {
+    if (match === "") {
+      return `{${query}!=""}`;
+    }
     return `${match.replace("}", "")}, ${query}!=""}`;
   },
 };

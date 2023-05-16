@@ -3,6 +3,8 @@ import { useAppState } from "../../../state/common/StateContext";
 import { useMemo, useState } from "preact/compat";
 import { getTopQueries } from "../../../api/top-queries";
 import { TopQueriesData } from "../../../types";
+import { useTopQueriesState } from "../../../state/topQueries/TopQueriesStateContext";
+import { getDurationFromMilliseconds } from "../../../utils/time";
 import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 
 interface useFetchTopQueriesProps {
@@ -31,7 +33,7 @@ export const useFetchTopQueries = ({ topN, maxLifetime }: useFetchTopQueriesProp
         list.forEach(key => {
           const target = resp[key];
           if (Array.isArray(target)) {
-            target.forEach(t => t.timeRangeHours = +(t.timeRangeSeconds/3600).toFixed(2));
+            target.forEach(t => t.timeRange = getDurationFromMilliseconds(t.timeRangeSeconds*1000));
           }
         });
       }

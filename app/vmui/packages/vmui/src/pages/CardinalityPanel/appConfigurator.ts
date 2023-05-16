@@ -28,8 +28,9 @@ export default class AppConfigurator {
   get defaultTSDBStatus(): TSDBStatus {
     return {
       totalSeries: 0,
-      totalLabelValuePairs: 0,
+      totalSeriesPrev: 0,
       totalSeriesByAll: 0,
+      totalLabelValuePairs: 0,
       seriesCountByMetricName: [],
       seriesCountByLabelName: [],
       seriesCountByFocusLabelValue: [],
@@ -51,7 +52,7 @@ export default class AppConfigurator {
     } else if (isLabel) {
       keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName");
     } else {
-      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName", "seriesCountByLabelValuePair");
+      keys = keys.concat("seriesCountByMetricName", "seriesCountByLabelName", "seriesCountByLabelValuePair", "labelValueCountByLabelName");
     }
     return keys;
   }
@@ -119,7 +120,11 @@ export default class AppConfigurator {
        <p>
           Use this table to identify label values that are storing per each selected series.
        </p>`,
-      labelValueCountByLabelName: "",
+      labelValueCountByLabelName: `
+       <p>
+          This table returns a list of labels with the highest number of the unique values.
+       </p>
+      `,
       seriesCountByLabelValuePair: `
         <p>
           This table returns a list of the label values pairs with the highest number of series.
@@ -142,11 +147,11 @@ export default class AppConfigurator {
     };
   }
 
-  totalSeries(keyName: string): number {
+  totalSeries(keyName: string, prev = false): number {
     if (keyName === "labelValueCountByLabelName") {
       return -1;
     }
-    return this.tsdbStatus.totalSeries;
+    return prev ? this.tsdbStatus.totalSeriesPrev : this.tsdbStatus.totalSeries;
   }
 }
 

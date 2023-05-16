@@ -23,7 +23,7 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
 		"See also -remoteWrite.streamAggr.keepInput and -streamAggr.dedupInterval")
 	streamAggrKeepInput = flag.Bool("streamAggr.keepInput", false, "Whether to keep input samples after the aggregation with -streamAggr.config. "+
-		"By default the input is dropped after the aggregation, so only the aggregate data is stored. "+
+		"By default, the input is dropped after the aggregation, so only the aggregate data is stored. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flag.Duration("streamAggr.dedupInterval", 0, "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
@@ -174,6 +174,7 @@ func pushAggregateSeries(tss []prompbmarshal.TimeSeries) {
 	ctx.skipStreamAggr = true
 	for _, ts := range tss {
 		labels := ts.Labels
+		ctx.Labels = ctx.Labels[:0]
 		for _, label := range labels {
 			name := label.Name
 			if name == "__name__" {

@@ -113,7 +113,7 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
 		},
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
@@ -352,12 +352,12 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     vmNativeFilterTimeStart,
-			Usage:    "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeStepInterval,
@@ -431,7 +431,7 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
 		},
 		&cli.BoolFlag{
 			Name: vmInterCluster,
@@ -503,7 +503,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadUseStream,
-			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
+			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default, is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
 			Value: false,
 		},
 		&cli.StringFlag{

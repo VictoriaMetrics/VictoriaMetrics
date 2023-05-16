@@ -222,12 +222,7 @@ func MustRemoveDirAtomic(dir string) {
 	if !IsPathExist(dir) {
 		return
 	}
-	n := atomic.AddUint64(&atomicDirRemoveCounter, 1)
-	tmpDir := fmt.Sprintf("%s.must-remove.%d", dir, n)
-	if err := os.Rename(dir, tmpDir); err != nil {
-		logger.Panicf("FATAL: cannot move %s to %s: %s", dir, tmpDir, err)
-	}
-	MustRemoveAll(tmpDir)
+	mustRemoveDirAtomic(dir)
 	parentDir := filepath.Dir(dir)
 	MustSyncPath(parentDir)
 }

@@ -31,9 +31,9 @@ var (
 	tlsCertFile           = flagutil.NewArrayString("notifier.tlsCertFile", "Optional path to client-side TLS certificate file to use when connecting to -notifier.url")
 	tlsKeyFile            = flagutil.NewArrayString("notifier.tlsKeyFile", "Optional path to client-side TLS certificate key to use when connecting to -notifier.url")
 	tlsCAFile             = flagutil.NewArrayString("notifier.tlsCAFile", "Optional path to TLS CA file to use for verifying connections to -notifier.url. "+
-		"By default system CA is used")
+		"By default, system CA is used")
 	tlsServerName = flagutil.NewArrayString("notifier.tlsServerName", "Optional TLS server name to use for connections to -notifier.url. "+
-		"By default the server name from -notifier.url is used")
+		"By default, the server name from -notifier.url is used")
 
 	oauth2ClientID = flagutil.NewArrayString("notifier.oauth2.clientID", "Optional OAuth2 clientID to use for -notifier.url. "+
 		"If multiple args are set, then they are applied independently for the corresponding -notifier.url")

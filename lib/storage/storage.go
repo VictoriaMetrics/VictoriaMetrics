@@ -1027,18 +1027,23 @@ func SetRetentionTimezoneOffset(offset time.Duration) {
 var retentionTimezoneOffsetMsecs int64
 
 func nextRetentionDuration(retentionMsecs int64) time.Duration {
-	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
-	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
-	t := time.Now().UnixNano() / 1e6
-	deadline := ((t + retentionMsecs - 1) / retentionMsecs) * retentionMsecs
+	nowMsecs := time.Now().UnixNano() / 1e6
+	return nextRetentionDurationAt(nowMsecs, retentionMsecs)
+}
+
+func nextRetentionDurationAt(atMsecs int64, retentionMsecs int64) time.Duration {
 	// Schedule the deadline to +4 hours from the next retention period start.
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
-	deadline += 4 * 3600 * 1000
+	retentionOffsetMsecs := retentionTimezoneOffsetMsecs - int64(4*3600*1000)
+
+	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected
+	deadline := ((atMsecs + retentionMsecs + retentionOffsetMsecs - 1) / retentionMsecs) * retentionMsecs
+
 	// The effect of time zone on retention period is moved out.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2574
-	deadline -= retentionTimezoneOffsetMsecs
-	return time.Duration(deadline-t) * time.Millisecond
+	deadline -= retentionOffsetMsecs
+	return time.Duration(deadline-atMsecs) * time.Millisecond
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on the given tr.
@@ -2157,10 +2162,14 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		}
 		v = v.Clone()
 		v.Union(&e.v)
-		byDateMutable.m[date] = &byDateMetricIDEntry{
+		dme := &byDateMetricIDEntry{
 			date: date,
 			v:    *v,
 		}
+		if date == byDateMutable.hotEntry.Load().(*byDateMetricIDEntry).date {
+			byDateMutable.hotEntry.Store(dme)
+		}
+		byDateMutable.m[date] = dme
 	}
 	for date, e := range byDate.m {
 		v := byDateMutable.get(date)

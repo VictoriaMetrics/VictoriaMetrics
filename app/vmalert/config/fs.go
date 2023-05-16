@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fslocal"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/fsurl"
 )
 
 // FS represent a file system abstract for reading files.
@@ -32,17 +33,16 @@ var (
 )
 
 // readFromFS parses the given path list and inits FS for each item.
-// Once inited, readFromFS will try to read and return files from each FS.
+// Once initialed, readFromFS will try to read and return files from each FS.
 // readFromFS returns an error if at least one FS failed to init.
 // The function can be called multiple times but each unique path
-// will be inited only once.
+// will be initialed only once.
 //
 // It is allowed to mix different FS types in path list.
 func readFromFS(paths []string) (map[string][]byte, error) {
 	var err error
 	result := make(map[string][]byte)
 	for _, path := range paths {
-
 		fsRegistryMu.Lock()
 		fs, ok := fsRegistry[path]
 		if !ok {
@@ -89,8 +89,9 @@ func readFromFS(paths []string) (map[string][]byte, error) {
 
 // newFS creates FS based on the give path.
 // Supported file systems are: fs
-func newFS(path string) (FS, error) {
+func newFS(originPath string) (FS, error) {
 	scheme := "fs"
+	path := originPath
 	n := strings.Index(path, "://")
 	if n >= 0 {
 		scheme = path[:n]
@@ -102,6 +103,8 @@ func newFS(path string) (FS, error) {
 	switch scheme {
 	case "fs":
 		return &fslocal.FS{Pattern: path}, nil
+	case "http", "https":
+		return &fsurl.FS{Path: originPath}, nil
 	default:
 		return nil, fmt.Errorf("unsupported scheme %q", scheme)
 	}

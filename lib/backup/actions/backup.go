@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -83,12 +83,7 @@ func (b *Backup) Run() error {
 }
 
 func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
-	last := strings.LastIndex(src.Dir, "/")
-	if last < 0 {
-		return fmt.Errorf("cannot decode snapshot location %q", src.Dir)
-	}
-
-	snapshotName := src.Dir[last+1:]
+	snapshotName := filepath.Base(src.Dir)
 	snapshotTime, err := snapshot.Time(snapshotName)
 	if err != nil {
 		return fmt.Errorf("cannot decode snapshot name %q: %w", snapshotName, err)

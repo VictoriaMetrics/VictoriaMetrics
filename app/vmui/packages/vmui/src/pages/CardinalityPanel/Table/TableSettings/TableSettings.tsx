@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState, useRef, useMemo } from "preact/compat";
+import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
 import { useSortedCategories } from "../../../../hooks/useSortedCategories";
 import { InstantMetricResult } from "../../../../api/types";
 import Button from "../../../../components/Main/Button/Button";
@@ -12,6 +12,7 @@ import Switch from "../../../../components/Main/Switch/Switch";
 import { arrayEquals } from "../../../../utils/array";
 import classNames from "classnames";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useBoolean from "../../../../hooks/useBoolean";
 
 const title = "Table settings";
 
@@ -30,7 +31,11 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onCh
 
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const [openSettings, setOpenSettings] = useState(false);
+  const {
+    value: openSettings,
+    toggle: toggleOpenSettings,
+    setFalse: handleClose,
+  } = useBoolean(false);
 
   const disabledButton = useMemo(() => !columns.length, [columns]);
 
@@ -38,25 +43,17 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onCh
     onChange(defaultColumns.includes(key) ? defaultColumns.filter(col => col !== key) : [...defaultColumns, key]);
   };
 
-  const handleClose = () => {
-    setOpenSettings(false);
-  };
-
   const toggleTableCompact = () => {
     customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
   };
 
   const handleResetColumns = () => {
-    setOpenSettings(false);
+    handleClose();
     onChange(columns.map(col => col.key));
   };
 
   const createHandlerChange = (key: string) => () => {
     handleChange(key);
-  };
-
-  const toggleOpenSettings = () => {
-    setOpenSettings(prev => !prev);
   };
 
   useEffect(() => {
