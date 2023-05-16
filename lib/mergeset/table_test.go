@@ -104,7 +104,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	defer tb.MustClose()
 
 	// Write a lot of items into the table, so background merges would start.
-	const itemsCount = 3e5
+	const itemsCount = 6e6
 	for i := 0; i < itemsCount; i++ {
 		item := []byte(fmt.Sprintf("item %d", i))
 		tb.AddItems([][]byte{item})
