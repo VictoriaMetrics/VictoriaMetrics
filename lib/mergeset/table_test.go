@@ -101,6 +101,7 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 
 	var isReadOnly uint32
 	tb := MustOpenTable(path, nil, nil, &isReadOnly)
+	defer tb.MustClose()
 
 	// Write a lot of items into the table, so background merges would start.
 	const itemsCount = 6e6
@@ -115,15 +116,6 @@ func TestTableCreateSnapshotAt(t *testing.T) {
 	if n := m.TotalItemsCount(); n != itemsCount {
 		t.Fatalf("unexpected itemsCount; got %d; want %v", n, itemsCount)
 	}
-
-	// We should release all resources and save whole data to the disk
-	// If we do not close the table merge workers can use in memory parts
-	// and snapshots will be with not full data
-	tb.MustClose()
-
-	// We must re-open table for create snapshot process
-	tb = MustOpenTable(path, nil, nil, &isReadOnly)
-	defer tb.MustClose()
 
 	// Create multiple snapshots.
 	snapshot1 := path + "-test-snapshot1"
