@@ -772,15 +772,10 @@ func incRefForParts(pws []*partWrapper) {
 func (pt *partition) MustClose() {
 	close(pt.stopCh)
 
-	logger.Infof("waiting for service workers to stop on %q...", pt.smallPartsPath)
-	startTime := time.Now()
+	// Waiting for service workers to stop
 	pt.wg.Wait()
-	logger.Infof("service workers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
-	logger.Infof("flushing inmemory parts to files on %q...", pt.smallPartsPath)
-	startTime = time.Now()
 	pt.flushInmemoryRows()
-	logger.Infof("inmemory parts have been flushed to files in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	// Remove references from inmemoryParts, smallParts and bigParts, so they may be eventually closed
 	// after all the searches are done.
