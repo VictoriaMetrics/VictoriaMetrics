@@ -1,19 +1,17 @@
 import React, { FC, useEffect, useRef, useState } from "preact/compat";
 import uPlot, { Options as uPlotOptions } from "uplot";
-import useResize from "../../../hooks/useResize";
 import { BarChartProps } from "./types";
 import "./style.scss";
 import { useAppState } from "../../../state/common/StateContext";
 
 const BarChart: FC<BarChartProps> = ({
   data,
-  container,
+  layoutSize,
   configs }) => {
   const { isDarkTheme } = useAppState();
 
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
-  const layoutSize = useResize(container);
 
   const options: uPlotOptions ={
     ...configs,

@@ -7,7 +7,7 @@ import { darkPalette, lightPalette } from "../../../constants/palette";
 import { Theme } from "../../../types";
 import { useAppDispatch, useAppState } from "../../../state/common/StateContext";
 import useSystemTheme from "../../../hooks/useSystemTheme";
-import useResize from "../../../hooks/useResize";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 interface ThemeProviderProps {
   onLoaded: (val: boolean) => void
@@ -29,7 +29,7 @@ export const ThemeProvider: FC<ThemeProviderProps> = ({ onLoaded }) => {
   const { theme } = useAppState();
   const isDarkTheme = useSystemTheme();
   const dispatch = useAppDispatch();
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
 
   const [palette, setPalette] = useState({
     [Theme.dark]: darkPalette,
