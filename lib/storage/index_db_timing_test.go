@@ -61,7 +61,7 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		var mn MetricName
-		var tsid TSID
+		var genTSID generationTSID
 		mn.AccountID = atomic.AddUint32(&goroutineID, 1)
 
 		// The most common tags.
@@ -76,14 +76,14 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 		startOffset := 0
 		for pb.Next() {
-			benchmarkIndexDBAddTSIDs(db, &tsid, &mn, startOffset, recordsPerLoop)
+			benchmarkIndexDBAddTSIDs(db, &genTSID, &mn, startOffset, recordsPerLoop)
 			startOffset += recordsPerLoop
 		}
 	})
 	b.StopTimer()
 }
 
-func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffset, recordsPerLoop int) {
+func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, startOffset, recordsPerLoop int) {
 	var metricName []byte
 	var metricNameRaw []byte
 	is := db.getIndexSearch(0, 0, noDeadline)
@@ -96,7 +96,7 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, tsid *TSID, mn *MetricName, startOffs
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
-		if err := is.GetOrCreateTSIDByName(tsid, metricName, metricNameRaw, 0); err != nil {
+		if err := is.GetOrCreateTSIDByName(genTSID, metricName, metricNameRaw, 0); err != nil {
 			panic(fmt.Errorf("cannot insert record: %w", err))
 		}
 	}
@@ -137,7 +137,7 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		mn.ProjectID = projectID
 		metricName = mn.Marshal(metricName[:0])
 		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
-		if err := is.createTSIDByName(&tsid, metricName, metricNameRaw, 0); err != nil {
+		if err := is.createTSIDByMetricName(&tsid, metricName, metricNameRaw, 0); err != nil {
 			b.Fatalf("cannot insert record: %s", err)
 		}
 	}
@@ -312,7 +312,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		value := fmt.Sprintf("value_%d", i)
 		mn.AddTag(key, value)
 	}
-	var tsid TSID
+	var genTSID generationTSID
 	var metricName []byte
 	var metricNameRaw []byte
 
@@ -324,7 +324,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		mn.sortTags()
 		metricName = mn.Marshal(metricName[:0])
 		metricNameRaw = mn.marshalRaw(metricName[:0])
-		if err := is.GetOrCreateTSIDByName(&tsid, metricName, metricNameRaw, 0); err != nil {
+		if err := is.GetOrCreateTSIDByName(&genTSID, metricName, metricNameRaw, 0); err != nil {
 			b.Fatalf("cannot insert record: %s", err)
 		}
 	}
@@ -333,7 +333,7 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		var tsidLocal TSID
+		var tsidLocal generationTSID
 		var metricNameLocal []byte
 		var metricNameLocalRaw []byte
 		mnLocal := mn
