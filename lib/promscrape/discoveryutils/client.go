@@ -83,7 +83,7 @@ type HTTPClient struct {
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, followRedirects *bool) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
@@ -139,6 +139,14 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 			ac.SetHeaders(req, true)
 		}
 	}
+	if followRedirects != nil && !*followRedirects {
+		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		blockingClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+	}
 	setHTTPProxyHeaders := func(req *http.Request) {}
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) {
@@ -186,7 +194,8 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 }
 
 func (c *Client) getAPIResponseWithConcurrencyLimit(ctx context.Context, client *HTTPClient, path string,
-	modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
+	modifyRequest RequestCallback, inspectResponse ResponseCallback,
+) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
