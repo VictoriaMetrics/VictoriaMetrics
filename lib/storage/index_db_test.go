@@ -22,6 +22,49 @@ import (
 	"github.com/VictoriaMetrics/fastcache"
 )
 
+func TestCanPostponeIndexCreation(t *testing.T) {
+	f := func(currentTime, rotationTimestamp, date, metricID uint64, resultExpected bool) {
+		t.Helper()
+		result := canPostponeIndexCreation(currentTime, rotationTimestamp, date, metricID)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+
+	// the date doesn't match rotationTimestamp
+	f(0, 0, 1, 0, false)
+
+	// the rotationTimestamp is less than an hour to the day start
+	f(0, 0, 0, 0, false)
+
+	// the rotationTimestamp is less than an hour before the next day start
+	f(23*3600+10, 23*3600+1, 0, 0, false)
+
+	// the time for index creation is over
+	f(0, 10*3600, 0, 0, false)
+	f(23*3600+1, 10*3600, 0, 0, false)
+	f(24*3600, 10*3600, 0, 0, false)
+	f(1234567890, 0, 0, 0, false)
+
+	// the time for index creation for the given metricID is over
+	f(23*3600-1, 4*3600, 0, 1, false)
+	f(22*3600, 4*3600, 0, 1, false)
+	f(10*3600, 4*3600, 0, 1, false)
+
+	// it is ok to create index for the given metricID
+	f(4*3600, 4*3600, 0, 1, true)
+	f(7*3600, 4*3600, 0, 1, true)
+	f(9*3600, 4*3600, 0, 1, true)
+
+	// different metricID
+	f(10*3600, 4*3600, 0, 12345, true)
+	f(14*3600, 4*3600, 0, 12345, true)
+	f(15*3600, 4*3600, 0, 12345, true)
+	f(16*3600, 4*3600, 0, 12345, false)
+	f(17*3600, 4*3600, 0, 12345, false)
+	f(20*3600, 4*3600, 0, 12345, false)
+}
+
 func TestMarshalUnmarshalMetricIDs(t *testing.T) {
 	f := func(metricIDs []uint64) {
 		t.Helper()
@@ -592,6 +635,8 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
 
+	date := uint64(timestampFromTime(time.Now())) / msecPerDay
+
 	var metricNameBuf []byte
 	var metricNameRawBuf []byte
 	for i := 0; i < 4e2+1; i++ {
@@ -612,20 +657,19 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 		metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 
 		// Create tsid for the metricName.
-		var tsid TSID
-		if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, metricNameRawBuf, 0); err != nil {
+		var genTSID generationTSID
+		if err := is.GetOrCreateTSIDByName(&genTSID, metricNameBuf, metricNameRawBuf, date); err != nil {
 			return nil, nil, fmt.Errorf("unexpected error when creating tsid for mn:\n%s: %w", &mn, err)
 		}
 
 		mns = append(mns, mn)
-		tsids = append(tsids, tsid)
+		tsids = append(tsids, genTSID.TSID)
 	}
 
 	// fill Date -> MetricID cache
-	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 	for i := range tsids {
 		tsid := &tsids[i]
-		is.createPerDayIndexes(date, tsid.MetricID, &mns[i])
+		is.createPerDayIndexes(date, tsid, &mns[i])
 	}
 
 	// Flush index to disk, so it becomes visible for search
@@ -644,8 +688,9 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		return false
 	}
 
+	currentTime := timestampFromTime(time.Now())
 	timeseriesCounters := make(map[uint64]bool)
-	var tsidCopy TSID
+	var genTSID generationTSID
 	var metricNameCopy []byte
 	allLabelNames := make(map[string]bool)
 	for i := range mns {
@@ -658,26 +703,29 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 		mn.sortTags()
 		metricName := mn.Marshal(nil)
 
-		if err := db.getTSIDByNameNoCreate(&tsidCopy, metricName); err != nil {
-			return fmt.Errorf("cannot obtain tsid #%d for mn %s: %w", i, mn, err)
+		is := db.getIndexSearch(noDeadline)
+		if !is.getTSIDByMetricName(&genTSID, metricName, uint64(currentTime)/msecPerDay) {
+			return fmt.Errorf("cannot obtain tsid #%d for mn %s", i, mn)
 		}
+		db.putIndexSearch(is)
+
 		if isConcurrent {
 			// Copy tsid.MetricID, since multiple TSIDs may match
 			// the same mn in concurrent mode.
-			tsidCopy.MetricID = tsid.MetricID
+			genTSID.TSID.MetricID = tsid.MetricID
 		}
-		if !reflect.DeepEqual(tsid, &tsidCopy) {
-			return fmt.Errorf("unexpected tsid for mn:\n%s\ngot\n%+v\nwant\n%+v", mn, &tsidCopy, tsid)
+		if !reflect.DeepEqual(tsid, &genTSID.TSID) {
+			return fmt.Errorf("unexpected tsid for mn:\n%s\ngot\n%+v\nwant\n%+v", mn, &genTSID.TSID, tsid)
 		}
 
 		// Search for metric name for the given metricID.
 		var err error
-		metricNameCopy, err = db.searchMetricNameWithCache(metricNameCopy[:0], tsidCopy.MetricID)
+		metricNameCopy, err = db.searchMetricNameWithCache(metricNameCopy[:0], genTSID.TSID.MetricID)
 		if err != nil {
-			return fmt.Errorf("error in searchMetricNameWithCache for metricID=%d; i=%d: %w", tsidCopy.MetricID, i, err)
+			return fmt.Errorf("error in searchMetricNameWithCache for metricID=%d; i=%d: %w", genTSID.TSID.MetricID, i, err)
 		}
 		if !bytes.Equal(metricName, metricNameCopy) {
-			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", tsidCopy.MetricID, metricNameCopy, metricName)
+			return fmt.Errorf("unexpected mn for metricID=%d;\ngot\n%q\nwant\n%q", genTSID.TSID.MetricID, metricNameCopy, metricName)
 		}
 
 		// Try searching metric name for non-existent MetricID.
@@ -738,7 +786,6 @@ func testIndexDBCheckTSIDByName(db *indexDB, mns []MetricName, tsids []TSID, isC
 	}
 
 	// Try tag filters.
-	currentTime := timestampFromTime(time.Now())
 	tr := TimeRange{
 		MinTimestamp: currentTime - msecPerDay,
 		MaxTimestamp: currentTime + msecPerDay,
@@ -1460,9 +1507,11 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 	}
 
 	const metricRowsN = 1000
-	// use min-max timestamps of 1month range to create smaller number of partitions
-	timeMin, timeMax := time.Now().Add(-730*time.Hour), time.Now()
-	mrs := testGenerateMetricRows(r, metricRowsN, timeMin.UnixMilli(), timeMax.UnixMilli())
+
+	currentDayTimestamp := (time.Now().UnixMilli() / msecPerDay) * msecPerDay
+	timeMin := currentDayTimestamp - 24*3600*1000
+	timeMax := currentDayTimestamp + 24*3600*1000
+	mrs := testGenerateMetricRows(r, metricRowsN, timeMin, timeMax)
 	if err := s.AddRows(mrs, defaultPrecisionBits); err != nil {
 		t.Fatalf("unexpected error when adding mrs: %s", err)
 	}
@@ -1527,17 +1576,14 @@ func TestIndexDBRepopulateAfterRotation(t *testing.T) {
 		s.getTSIDFromCache(&genTSID, mr.MetricNameRaw)
 		entriesByGeneration[genTSID.generation]++
 	}
-	if len(entriesByGeneration) > 2 {
+	if len(entriesByGeneration) != 2 {
 		t.Fatalf("expecting two generations; got %d", entriesByGeneration)
 	}
 	prevEntries := entriesByGeneration[prevGeneration]
 	currEntries := entriesByGeneration[dbNew.generation]
 	totalEntries := prevEntries + currEntries
-	if totalEntries != metricRowsN {
-		t.Fatalf("unexpected number of entries in tsid cache; got %d; want %d", totalEntries, metricRowsN)
-	}
-	if float64(currEntries)/float64(totalEntries) > 0.1 {
-		t.Fatalf("too big share of entries in the new generation; currEntries=%d, prevEntries=%d", currEntries, prevEntries)
+	if float64(currEntries)/float64(totalEntries) < 0.1 {
+		t.Fatalf("too small share of entries in the new generation; currEntries=%d, prevEntries=%d", currEntries, prevEntries)
 	}
 }
 
@@ -1601,12 +1647,12 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
 			metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
-			var tsid TSID
-			if err := is.GetOrCreateTSIDByName(&tsid, metricNameBuf, metricNameRawBuf, 0); err != nil {
+			var genTSID generationTSID
+			if err := is.GetOrCreateTSIDByName(&genTSID, metricNameBuf, metricNameRawBuf, 0); err != nil {
 				t.Fatalf("unexpected error when creating tsid for mn:\n%s: %s", &mn, err)
 			}
 			mns = append(mns, mn)
-			tsids = append(tsids, tsid)
+			tsids = append(tsids, genTSID.TSID)
 		}
 
 		// Add the metrics to the per-day stores
@@ -1615,7 +1661,7 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 		for i := range tsids {
 			tsid := &tsids[i]
 			metricIDs.Add(tsid.MetricID)
-			is.createPerDayIndexes(date, tsid.MetricID, &mns[i])
+			is.createPerDayIndexes(date, tsid, &mns[i])
 		}
 		allMetricIDs.Union(&metricIDs)
 		perDayMetricIDs[date] = &metricIDs

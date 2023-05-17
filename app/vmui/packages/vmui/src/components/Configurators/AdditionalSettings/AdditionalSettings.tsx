@@ -1,4 +1,4 @@
-import React, { FC, useRef, useState } from "preact/compat";
+import React, { FC, useRef } from "preact/compat";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { useQueryDispatch, useQueryState } from "../../../state/query/QueryStateContext";
 import "./style.scss";
@@ -8,6 +8,7 @@ import Popper from "../../Main/Popper/Popper";
 import { TuneIcon } from "../../Main/Icons";
 import Button from "../../Main/Button/Button";
 import classNames from "classnames";
+import useBoolean from "../../../hooks/useBoolean";
 
 const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
   const { autocomplete } = useQueryState();
@@ -59,16 +60,13 @@ const AdditionalSettingsControls: FC<{isMobile?: boolean}> = ({ isMobile }) => {
 
 const AdditionalSettings: FC = () => {
   const { isMobile } = useDeviceDetect();
-  const [openList, setOpenList] = useState(false);
   const targetRef = useRef<HTMLDivElement>(null);
 
-  const handleToggleList = () => {
-    setOpenList(prev => !prev);
-  };
-
-  const handleCloseList = () => {
-    setOpenList(false);
-  };
+  const {
+    value: openList,
+    toggle: handleToggleList,
+    setFalse: handleCloseList,
+  } = useBoolean(false);
 
   if (isMobile) {
     return (

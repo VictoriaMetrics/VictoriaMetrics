@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "preact/compat";
+import React, { FC, useCallback } from "preact/compat";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import Button from "../Button/Button";
 import { KeyboardIcon } from "../Icons";
@@ -7,38 +7,31 @@ import "./style.scss";
 import Tooltip from "../Tooltip/Tooltip";
 import keyList from "./constants/keyList";
 import { isMacOs } from "../../../utils/detect-device";
+import useBoolean from "../../../hooks/useBoolean";
+import useEventListener from "../../../hooks/useEventListener";
 
 const title = "Shortcut keys";
 const isMac = isMacOs();
 const keyOpenHelp = isMac ? "Cmd + /" : "F1";
 
 const ShortcutKeys: FC<{ showTitle?: boolean }> = ({ showTitle }) => {
-  const [openList, setOpenList] = useState(false);
   const appModeEnable = getAppModeEnable();
 
-  const handleOpen = () => {
-    setOpenList(true);
-  };
+  const {
+    value: openList,
+    setTrue: handleOpen,
+    setFalse: handleClose,
+  } = useBoolean(false);
 
-  const handleClose = () => {
-    setOpenList(false);
-  };
-
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const openOnMac = isMac && e.key === "/" && e.metaKey;
     const openOnOther = !isMac && e.key === "F1" && !e.metaKey;
     if (openOnMac || openOnOther) {
       handleOpen();
     }
-  };
+  }, [handleOpen]);
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  useEventListener("keydown", handleKeyDown);
 
   return <>
     <Tooltip

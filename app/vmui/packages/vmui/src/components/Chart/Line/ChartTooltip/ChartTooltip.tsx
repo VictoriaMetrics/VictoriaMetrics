@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import uPlot from "uplot";
 import { MetricResult } from "../../../../api/types";
 import { formatPrettyNumber } from "../../../../utils/uplot/helpers";
@@ -12,6 +12,7 @@ import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import "./style.scss";
 import { SeriesItem } from "../../../../utils/uplot/series";
+import useEventListener from "../../../../hooks/useEventListener";
 
 export interface ChartTooltipProps {
   id: string,
@@ -46,8 +47,6 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
 
   const [seriesIdx, setSeriesIdx] = useState(tooltipIdx.seriesIdx);
   const [dataIdx, setDataIdx] = useState(tooltipIdx.dataIdx);
-
-  const targetPortal = useMemo(() => u.root.querySelector(".u-wrap"), [u]);
 
   const value = get(u, ["data", seriesIdx, dataIdx], 0);
   const valueFormat = formatPrettyNumber(value, get(yRange, [0]), get(yRange, [1]));
@@ -85,11 +84,11 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     setPosition({ top: clientY, left: clientX });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!moving) return;
     const { clientX, clientY } = e;
     setPosition({ top: clientY, left: clientX });
-  };
+  }, [moving]);
 
   const handleMouseUp = () => {
     setMoving(false);
@@ -125,19 +124,10 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     setDataIdx(tooltipIdx.dataIdx);
   }, [tooltipIdx]);
 
-  useEffect(() => {
-    if (moving) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    }
+  useEventListener("mousemove", handleMouseMove);
+  useEventListener("mouseup", handleMouseUp);
 
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [moving]);
-
-  if (!targetPortal || tooltipIdx.seriesIdx < 0 || tooltipIdx.dataIdx < 0) return null;
+  if (tooltipIdx.seriesIdx < 0 || tooltipIdx.dataIdx < 0) return null;
 
   return ReactDOM.createPortal((
     <div
@@ -190,7 +180,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
         {fullMetricName}
       </div>
     </div>
-  ), targetPortal);
+  ), u.root);
 };
 
 export default ChartTooltip;

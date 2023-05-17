@@ -1,8 +1,11 @@
-import { useState, useEffect } from "preact/compat";
+import { useState } from "preact/compat";
+import useEventListener from "./useEventListener";
+import { useRef } from "react";
 
-const useDropzone = (node: HTMLElement | null): {dragging: boolean, files: File[]} => {
+const useDropzone = (): { dragging: boolean, files: File[] } => {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
+  const bodyRef = useRef(document.body);
 
   const handleAddFiles = (fileList: FileList) => {
     const filesArray = Array.from(fileList || []);
@@ -43,21 +46,11 @@ const useDropzone = (node: HTMLElement | null): {dragging: boolean, files: File[
     setFiles(jsonFiles);
   };
 
-  useEffect(() => {
-    node?.addEventListener("dragenter", handleDrag);
-    node?.addEventListener("dragleave", handleDrag);
-    node?.addEventListener("dragover", handleDrag);
-    node?.addEventListener("drop", handleDrop);
-    node?.addEventListener("paste", handlePaste);
-
-    return () => {
-      node?.removeEventListener("dragenter", handleDrag);
-      node?.removeEventListener("dragleave", handleDrag);
-      node?.removeEventListener("dragover", handleDrag);
-      node?.removeEventListener("drop", handleDrop);
-      node?.removeEventListener("paste", handlePaste);
-    };
-  }, [node]);
+  useEventListener("dragenter", handleDrag, bodyRef);
+  useEventListener("dragleave", handleDrag, bodyRef);
+  useEventListener("dragover", handleDrag, bodyRef);
+  useEventListener("drop", handleDrop, bodyRef);
+  useEventListener("paste", handlePaste, bodyRef);
 
   return {
     files,

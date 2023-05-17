@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
 import uPlot from "uplot";
 import ReactDOM from "react-dom";
 import Button from "../../../Main/Button/Button";
@@ -6,6 +6,7 @@ import { CloseIcon, DragIcon } from "../../../Main/Icons";
 import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import "../../Line/ChartTooltip/style.scss";
+import useEventListener from "../../../../hooks/useEventListener";
 
 export interface TooltipHeatmapProps  {
   cursor: {left: number, top: number}
@@ -45,24 +46,22 @@ const ChartTooltipHeatmap: FC<ChartTooltipHeatmapProps> = ({
   const [moving, setMoving] = useState(false);
   const [moved, setMoved] = useState(false);
 
-  const targetPortal = useMemo(() => u.root.querySelector(".u-wrap"), [u]);
-
   const handleClose = () => {
     onClose && onClose(id);
   };
 
-  const handleMouseDown = (e: ReactMouseEvent<HTMLButtonElement, MouseEvent>) => {
+  const handleMouseDown = (e: ReactMouseEvent) => {
     setMoved(true);
     setMoving(true);
     const { clientX, clientY } = e;
     setPosition({ top: clientY, left: clientX });
   };
 
-  const handleMouseMove = (e: MouseEvent) => {
+  const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!moving) return;
     const { clientX, clientY } = e;
     setPosition({ top: clientY, left: clientX });
-  };
+  }, [moving]);
 
   const handleMouseUp = () => {
     setMoving(false);
@@ -88,19 +87,10 @@ const ChartTooltipHeatmap: FC<ChartTooltipHeatmapProps> = ({
 
   useEffect(calcPosition, [u, cursor, tooltipOffset, tooltipRef]);
 
-  useEffect(() => {
-    if (moving) {
-      document.addEventListener("mousemove", handleMouseMove);
-      document.addEventListener("mouseup", handleMouseUp);
-    }
+  useEventListener("mousemove", handleMouseMove);
+  useEventListener("mouseup", handleMouseUp);
 
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [moving]);
-
-  if (!targetPortal || !cursor.left || !cursor.top || !value) return null;
+  if (!cursor?.left || !cursor?.top || !value) return null;
 
   return ReactDOM.createPortal((
     <div
@@ -146,7 +136,7 @@ const ChartTooltipHeatmap: FC<ChartTooltipHeatmapProps> = ({
         {bucket}
       </div>
     </div>
-  ), targetPortal);
+  ), u.root);
 };
 
 export default ChartTooltipHeatmap;

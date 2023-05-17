@@ -105,15 +105,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ui := ac[authToken]
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
-		err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
 		if *logInvalidAuthTokens {
+			err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        err,
 				StatusCode: http.StatusUnauthorized,
 			}
 			httpserver.Errorf(w, r, "%s", err)
 		} else {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}
 		return true
 	}
@@ -158,6 +158,9 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		up, headers = ui.DefaultURL, ui.Headers
 		isDefault = true
 	}
+	r.Body = &readTrackingBody{
+		r: r.Body,
+	}
 
 	maxAttempts := up.getBackendsCount()
 	for i := 0; i < maxAttempts; i++ {
@@ -195,11 +198,10 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	transportOnce.Do(transportInit)
 	res, err := transport.RoundTrip(req)
 	if err != nil {
-		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
-		requestURI := httpserver.GetRequestURI(r)
-		if r.Method == http.MethodPost || r.Method == http.MethodPut {
-			// It is impossible to retry POST and PUT requests,
-			// since we already proxied the request body to the backend.
+		rtb := req.Body.(*readTrackingBody)
+		if rtb.readStarted {
+			// Request body has been already read, so it is impossible to retry the request.
+			// Return the error to the client then.
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        fmt.Errorf("cannot proxy the request to %q: %w", targetURL, err),
 				StatusCode: http.StatusServiceUnavailable,
@@ -207,7 +209,11 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying the request to %q: %s", remoteAddr, requestURI, targetURL, err)
+		// Retry the request if its body wasn't read yet. This usually means that the backend isn't reachable.
+		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+		// NOTE: do not use httpserver.GetRequestURI
+		// it explicitly reads request body and fails retries.
+		logger.Warnf("remoteAddr: %s; requestURI: %s; error when proxying the request to %q: %s", remoteAddr, req.URL, targetURL, err)
 		return false
 	}
 	removeHopHeaders(res.Header)
@@ -218,7 +224,6 @@ func tryProcessingRequest(w http.ResponseWriter, r *http.Request, targetURL *url
 	copyBuf.B = bytesutil.ResizeNoCopyNoOverallocate(copyBuf.B, 16*1024)
 	_, err = io.CopyBuffer(w, res.Body, copyBuf.B)
 	copyBufPool.Put(copyBuf)
-	_ = res.Body.Close()
 	if err != nil && !netutil.IsTrivialNetworkError(err) {
 		remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 		requestURI := httpserver.GetRequestURI(r)
@@ -349,4 +354,29 @@ func handleConcurrencyLimitError(w http.ResponseWriter, r *http.Request, err err
 		StatusCode: http.StatusTooManyRequests,
 	}
 	httpserver.Errorf(w, r, "%s", err)
+}
+
+type readTrackingBody struct {
+	r           io.ReadCloser
+	readStarted bool
+}
+
+// Read implements io.Reader interface
+// tracks body reading requests
+func (rtb *readTrackingBody) Read(p []byte) (int, error) {
+	if len(p) > 0 {
+		rtb.readStarted = true
+	}
+	return rtb.r.Read(p)
+}
+
+// Close implements io.Closer interface.
+func (rtb *readTrackingBody) Close() error {
+	// Close rtb.r only if at least a single Read call was performed.
+	// http.Roundtrip performs body.Close call even without any Read calls
+	// so this hack allows us to reuse request body
+	if rtb.readStarted {
+		return rtb.r.Close()
+	}
+	return nil
 }

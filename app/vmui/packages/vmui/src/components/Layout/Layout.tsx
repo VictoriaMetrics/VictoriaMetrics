@@ -26,16 +26,15 @@ const Layout: FC = () => {
 
   // for support old links with search params
   const redirectSearchToHashParams = () => {
-    const { search } = window.location;
+    const { search, href } = window.location;
     if (search) {
       const query = qs.parse(search, { ignoreQueryPrefix: true });
-      Object.entries(query).forEach(([key, value]) => {
-        searchParams.set(key, value as string);
-        setSearchParams(searchParams);
-      });
+      Object.entries(query).forEach(([key, value]) => searchParams.set(key, value as string));
+      setSearchParams(searchParams);
       window.location.search = "";
     }
-    window.location.replace(window.location.href.replace(/\/\?#\//, "/#/"));
+    const newHref = href.replace(/\/\?#\//, "/#/");
+    if (newHref !== href) window.location.replace(newHref);
   };
 
   useEffect(setDocumentTitle, [pathname]);

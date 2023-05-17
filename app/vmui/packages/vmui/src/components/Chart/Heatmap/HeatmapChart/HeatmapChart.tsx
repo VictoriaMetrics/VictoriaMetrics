@@ -10,7 +10,6 @@ import { getAxes } from "../../../../utils/uplot/axes";
 import { MetricResult } from "../../../../api/types";
 import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
 import throttle from "lodash.throttle";
-import useResize from "../../../../hooks/useResize";
 import { TimeParams } from "../../../../types";
 import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
@@ -23,6 +22,8 @@ import ChartTooltipHeatmap, {
   ChartTooltipHeatmapProps,
   TooltipHeatmapProps
 } from "../ChartTooltipHeatmap/ChartTooltipHeatmap";
+import { ElementSize } from "../../../../hooks/useElementSize";
+import useEventListener from "../../../../hooks/useEventListener";
 
 export interface HeatmapChartProps {
   metrics: MetricResult[];
@@ -31,7 +32,7 @@ export interface HeatmapChartProps {
   yaxis: YaxisState;
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null;
+  layoutSize: ElementSize,
   height?: number;
   onChangeLegend: (val: TooltipHeatmapProps) => void;
 }
@@ -45,7 +46,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container,
+  layoutSize,
   height,
   onChangeLegend,
 }) => {
@@ -56,7 +57,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const [startTouchDistance, setStartTouchDistance] = useState(0);
-  const layoutSize = useResize(container);
 
   const [tooltipProps, setTooltipProps] = useState<TooltipHeatmapProps | null>(null);
   const [tooltipOffset, setTooltipOffset] = useState({ left: 0, top: 0 });
@@ -116,7 +116,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
     });
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const { target, ctrlKey, metaKey, key } = e;
     const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     if (!uPlotInst || isInput) return;
@@ -131,10 +131,10 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
         max: xRange.max - factor
       });
     }
-  };
+  }, [uPlotInst, xRange]);
 
-  const handleClick = () => {
-    if (!tooltipProps) return;
+  const handleClick = useCallback(() => {
+    if (!tooltipProps?.value) return;
     const id = `${tooltipProps?.bucket}_${tooltipProps?.startDate}`;
     const props = {
       id,
@@ -147,12 +147,11 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       const res = JSON.parse(JSON.stringify(props));
       setStickyToolTips(prev => [...prev, res]);
     }
-  };
+  }, [stickyTooltips, tooltipProps, tooltipOffset, unit]);
 
-  const handleUnStick = (id:string) => {
+  const handleUnStick = (id: string) => {
     setStickyToolTips(prev => prev.filter(t => t.id !== id));
   };
-
 
   const setCursor = (u: uPlot) => {
     const left = u.cursor.left && u.cursor.left > 0 ? u.cursor.left : 0;
@@ -263,20 +262,13 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
   useEffect(() => {
     setStickyToolTips([]);
     setTooltipProps(null);
-    if (!uPlotRef.current || !layoutSize.width || !layoutSize.height) return;
+    const isValidData = data[0] === null && Array.isArray(data[1]);
+    if (!uPlotRef.current || !layoutSize.width || !layoutSize.height || !isValidData) return;
     const u = new uPlot(options, data, uPlotRef.current);
     setUPlotInst(u);
     setXRange({ min: period.start, max: period.end });
     return u.destroy;
   }, [uPlotRef.current, layoutSize, height, isDarkTheme, data]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [xRange]);
 
   const handleTouchStart = (e: TouchEvent) => {
     if (e.touches.length !== 2) return;
@@ -287,7 +279,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
     setStartTouchDistance(Math.sqrt(dx * dx + dy * dy));
   };
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (e.touches.length !== 2 || !uPlotInst) return;
     e.preventDefault();
 
@@ -307,33 +299,19 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       min: min + zoomFactor,
       max: max - zoomFactor
     }));
-  };
-
-  useEffect(() => {
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchstart", handleTouchStart);
-
-    return () => {
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchstart", handleTouchStart);
-    };
-  }, [uPlotInst, startTouchDistance]);
+  }, [uPlotInst, startTouchDistance, xRange]);
 
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
 
   useEffect(() => {
-    const show = !!tooltipProps?.value;
-    if (show) window.addEventListener("click", handleClick);
-
-    return () => {
-      window.removeEventListener("click", handleClick);
-    };
-  }, [tooltipProps, stickyTooltips]);
-
-  useEffect(() => {
     if (tooltipProps) onChangeLegend(tooltipProps);
   }, [tooltipProps]);
+
+  useEventListener("click", handleClick);
+  useEventListener("keydown", handleKeyDown);
+  useEventListener("touchmove", handleTouchMove);
+  useEventListener("touchstart", handleTouchStart);
 
   return (
     <div
