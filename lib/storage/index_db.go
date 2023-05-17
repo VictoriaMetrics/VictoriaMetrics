@@ -458,12 +458,9 @@ func canPostponeIndexCreation(currentTimestamp, rotationTimestamp, date, metricI
 	// Calculate the probability of index creation for the given metricID
 	pMin := uint64((float64(timeSinceRotation) / float64(d)) * (1 << 64))
 	p := fastHashUint64(metricID)
-	if p < pMin {
-		// The time window for creating the index is over
-		return false
-	}
-	// We have some time for postponing index creation
-	return true
+	// If p is smaller than pMin, means the time window for creating the index is over.
+	// Otherwise we still have some time for postponing index creation
+	return p >= pMin
 }
 
 func marshalTagFiltersKey(dst []byte, tfss []*TagFilters, tr TimeRange, versioned bool) []byte {
