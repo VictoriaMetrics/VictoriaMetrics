@@ -95,15 +95,15 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 	ui := ac[authToken]
 	if ui == nil {
 		invalidAuthTokenRequests.Inc()
-		err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
 		if *logInvalidAuthTokens {
+			err := fmt.Errorf("cannot find the provided auth token %q in config", authToken)
 			err = &httpserver.ErrorWithStatusCode{
 				Err:        err,
 				StatusCode: http.StatusUnauthorized,
 			}
 			httpserver.Errorf(w, r, "%s", err)
 		} else {
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		}
 		return true
 	}
