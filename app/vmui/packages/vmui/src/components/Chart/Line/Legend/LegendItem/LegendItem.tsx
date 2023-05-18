@@ -5,6 +5,7 @@ import "./style.scss";
 import classNames from "classnames";
 import Tooltip from "../../../../Main/Tooltip/Tooltip";
 import { getFreeFields } from "./helpers";
+import useCopyToClipboard from "../../../../../hooks/useCopyToClipboard";
 
 interface LegendItemProps {
   legend: LegendItemType;
@@ -13,16 +14,20 @@ interface LegendItemProps {
 }
 
 const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
+  const copyToClipboard = useCopyToClipboard();
   const [copiedValue, setCopiedValue] = useState("");
+
   const freeFormFields = useMemo(() => {
     const result = getFreeFields(legend);
     return isHeatmap ? result.filter(f => f.key !== "vmrange") : result;
   }, [legend, isHeatmap]);
+
   const calculations = legend.calculations;
   const showCalculations = Object.values(calculations).some(v => v);
 
   const handleClickFreeField = async (val: string, id: string) => {
-    await navigator.clipboard.writeText(val);
+    const copied = await copyToClipboard(val);
+    if (!copied) return;
     setCopiedValue(id);
     setTimeout(() => setCopiedValue(""), 2000);
   };

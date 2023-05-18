@@ -12,7 +12,8 @@ aliases:
 
 # Release process guidance
 
-## Prereqs
+## Pre-reqs
+
 1. Make sure you have enterprise remote configured
 ```
 git remote add enterprise <url>
@@ -44,7 +45,7 @@ git remote add enterprise <url>
       * linux/386
       This step can be run manually with the command `make publish` from the needed git tag.
 4. Push the tags created `v1.xx.y` and `v1.xx.y-cluster` at step 2 to public GitHub repository at https://github.com/VictoriaMetrics/VictoriaMetrics .
-   **Important note:** do not push enteprise tags to public GitHub repository - they must be pushed only to private repository.
+   **Important note:** do not push enterprise tags to public GitHub repository - they must be pushed only to private repository.
 5. Run `TAG=v1.xx.y make github-create-release github-upload-assets`. This command performs the following tasks:
    a) Create draft GitHub release with the name `TAG`. This step can be run manually
       with the command `TAG=v1.xx.y make github-create-release`.
@@ -72,7 +73,7 @@ git remote add enterprise <url>
  pre-requirements:
 
 * snapcraft binary, can be installed with commands:
-   for MacOS `brew install snapcraft` and [install mutipass](https://discourse.ubuntu.com/t/installing-multipass-on-macos/8329),
+   for MacOS `brew install snapcraft` and [install multipass](https://discourse.ubuntu.com/t/installing-multipass-on-macos/8329),
    for Ubuntu - `sudo snap install snapcraft --classic`
 * exported snapcraft login to `~/.snap/login.json` with `snapcraft export-login login.json && mkdir -p ~/.snap && mv login.json ~/.snap/`
 * already created release at github (it operates `git describe` version, so git tag must be annotated).
@@ -86,9 +87,9 @@ git remote add enterprise <url>
 * Publish message in Slack  at <https://victoriametrics.slack.com>
 * Post at Twitter at <https://twitter.com/MetricsVictoria>
 * Post in Reddit at <https://www.reddit.com/r/VictoriaMetrics/>
-* Post in Linkedin at <https://www.linkedin.com/company/victoriametrics/>
+* Post in LinkedIn at <https://www.linkedin.com/company/victoriametrics/>
 * Publish message in Telegram at <https://t.me/VictoriaMetrics_en> and <https://t.me/VictoriaMetrics_ru1>
-* Publish message in google groups at <https://groups.google.com/forum/#!forum/victorametrics-users>
+* Publish message in Google Groups at <https://groups.google.com/forum/#!forum/victorametrics-users>
 
 ## Helm Charts
 

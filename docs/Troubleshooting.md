@@ -45,7 +45,7 @@ then please follow the following steps in order to quickly find the solution:
    These cases are documented in [the changelog](https://docs.victoriametrics.com/CHANGELOG.html).
    So please read the changelog before the upgrade.
 
-1. Inpsect command-line flags passed to VictoriaMetrics components and remove flags which unclear outcomes for your workload.
+1. Inspect command-line flags passed to VictoriaMetrics components and remove flags which unclear outcomes for your workload.
    VictoriaMetrics components are designed to work optimally with the default command-line flag values (e.g. when these flags aren't set explicitly).
    It is recommended removing flags with unclear outcomes, since they may result in unexpected issues.
 
@@ -58,14 +58,14 @@ then please follow the following steps in order to quickly find the solution:
    via multiple keywords and phrases specific to the issue. There are high chances that the issue
    and the solution is already documented somewhere.
 
-1. Try searching for the issue at [VictoriaMetrics Github](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
+1. Try searching for the issue at [VictoriaMetrics GitHub](https://github.com/VictoriaMetrics/VictoriaMetrics/issues).
    The signal/noise quality of search results here is much lower than in Google, but sometimes it may help
    finding the relevant information about the issue when Google fails to find the needed information.
-   If you located the relevant Github issue, but it misses some information on how to diagnose or troubleshoot it,
+   If you located the relevant GitHub issue, but it misses some information on how to diagnose or troubleshoot it,
    then please provide this information in comments to the issue. This increases chances that it will be resolved soon.
 
 1. Try searching for information about the issue in [VictoriaMetrics source code](https://github.com/search?q=repo%3AVictoriaMetrics%2FVictoriaMetrics&type=code).
-   Github code search may be not very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
+   GitHub code search may be not very good in some cases, so it is recommended [checking out VictoriaMetrics source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
    and perform local search in the checked out code.
    Note that the source code for VictoriaMetrics cluster is located in [the cluster](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/cluster) branch.
 
@@ -76,8 +76,8 @@ then please follow the following steps in order to quickly find the solution:
    by providing the maximum details on how to reproduce the issue.
 
    After that you can post the link to the issue to [VictoriaMetrics Slack chat](https://victoriametrics.slack.com),
-   so VictoriaMetrics community could help finding the solution to the issue. It is better filing the issue at VictoriaMetrics Github
-   before posting your question to VictoriaMetrics Slack chat, since Github issues are indexed by Google,
+   so VictoriaMetrics community could help finding the solution to the issue. It is better filing the issue at VictoriaMetrics GitHub
+   before posting your question to VictoriaMetrics Slack chat, since GitHub issues are indexed by Google,
    while Slack messages aren't indexed by Google. This simplifies searching for the solution to the issue for future VictoriaMetrics users.
 
 1. Pro tip 1: if you see that [VictoriaMetrics docs](https://docs.victoriametrics.com/) contain incomplete or incorrect information,
@@ -86,7 +86,7 @@ then please follow the following steps in order to quickly find the solution:
    All the docs published at `https://docs.victoriametrics.com` are located in the [docs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/docs)
    folder inside VictoriaMetrics repository.
 
-1. Pro tip 2: please provide links to existing docs / Github issues / StackOverflow questions
+1. Pro tip 2: please provide links to existing docs / GitHub issues / StackOverflow questions
    instead of copy-n-pasting the information from these sources when asking or answering questions
    from VictoriaMetrics community. If the linked resources have no enough information,
    then it is better posting the missing information in the web resource before providing links
@@ -94,8 +94,8 @@ then please follow the following steps in order to quickly find the solution:
    for VictoriaMetrics users via Google and ChatGPT :)
 
 1. Pro tip 3: if you are answering somebody's question about VictoriaMetrics components
-   at Github issues / Slack chat / StackOverflow, then the best answer is a direct link to the information
-   regaring the question.
+   at GitHub issues / Slack chat / StackOverflow, then the best answer is a direct link to the information
+   regarding the question.
    The better answer is a concise message with multiple links to the relevant information.
    The worst answer is a message with misleading or completely wrong information.
 
@@ -157,7 +157,7 @@ If you see unexpected or unreliable query results from VictoriaMetrics, then try
 
 4. If you use cluster version of VictoriaMetrics, then it may return partial responses by default
    when some of `vmstorage` nodes are temporarily unavailable - see [cluster availability docs](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#cluster-availability)
-   for details. If you want prioritizing query consistency over cluster availability,
+   for details. If you want to prioritize query consistency over cluster availability,
    then you can pass `-search.denyPartialResponse` command-line flag to all the `vmselect` nodes.
    In this case VictoriaMetrics returns an error during querying if at least a single `vmstorage` node is unavailable.
    Another option is to pass `deny_partial_response=1` query arg to `/api/v1/query` and `/api/v1/query_range`.
@@ -272,7 +272,7 @@ There are the following most commons reasons for slow data ingestion in Victoria
    is resource shortage at `vmstorage` nodes. In this case you need to increase amounts
    of available resources (CPU, RAM, disk IO) at `vmstorage` nodes or to add more `vmstorage` nodes to the cluster.
 
-5. Noisy neighbor. Make sure VictoriaMetrics components run in an envirnoments without other resource-hungry apps.
+5. Noisy neighbor. Make sure VictoriaMetrics components run in an environments without other resource-hungry apps.
    Such apps may steal RAM, CPU, disk IO and network bandwidth, which is needed for VictoriaMetrics components.
    Issues like this are very hard to catch via [official Grafana dashboard for cluster version of VictoriaMetrics](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#monitoring)
    and proper diagnosis would require checking resource usage on the instances where VictoriaMetrics runs.
@@ -402,7 +402,7 @@ for details.
 Having proper [monitoring](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#monitoring)
 would help identify and prevent most of the issues listed above.
 
-[Grafana dasbhoards](https://grafana.com/orgs/victoriametrics/dashboards) contain panels reflecting the
+[Grafana dashboards](https://grafana.com/orgs/victoriametrics/dashboards) contain panels reflecting the
 health state, resource usage and other specific metrics for VictoriaMetrics components.
 
 Alerting rules for [single-node](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/deployment/docker/alerts.yml)

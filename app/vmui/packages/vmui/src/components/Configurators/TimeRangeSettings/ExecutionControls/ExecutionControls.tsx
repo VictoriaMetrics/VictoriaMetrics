@@ -8,6 +8,7 @@ import "./style.scss";
 import classNames from "classnames";
 import Tooltip from "../../../Main/Tooltip/Tooltip";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useBoolean from "../../../../hooks/useBoolean";
 
 interface AutoRefreshOption {
   seconds: number
@@ -38,12 +39,19 @@ export const ExecutionControls: FC = () => {
 
   const [selectedDelay, setSelectedDelay] = useState<AutoRefreshOption>(delayOptions[0]);
 
+  const {
+    value: openOptions,
+    toggle: toggleOpenOptions,
+    setFalse: handleCloseOptions,
+  } = useBoolean(false);
+  const optionsButtonRef = useRef<HTMLDivElement>(null);
+
   const handleChange = (d: AutoRefreshOption) => {
     if ((autoRefresh && !d.seconds) || (!autoRefresh && d.seconds)) {
       setAutoRefresh(prev => !prev);
     }
     setSelectedDelay(d);
-    setOpenOptions(false);
+    handleCloseOptions();
   };
 
   const handleUpdate = () => {
@@ -64,17 +72,6 @@ export const ExecutionControls: FC = () => {
       timer && clearInterval(timer);
     };
   }, [selectedDelay, autoRefresh]);
-
-  const [openOptions, setOpenOptions] = useState(false);
-  const optionsButtonRef = useRef<HTMLDivElement>(null);
-
-  const toggleOpenOptions = () => {
-    setOpenOptions(prev => !prev);
-  };
-
-  const handleCloseOptions = () => {
-    setOpenOptions(false);
-  };
 
   const createHandlerChange = (d: AutoRefreshOption) => () => {
     handleChange(d);

@@ -13,6 +13,7 @@ import { getAppModeEnable } from "../../../utils/app-mode";
 import Popper from "../../Main/Popper/Popper";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import classNames from "classnames";
+import useBoolean from "../../../hooks/useBoolean";
 
 const StepConfigurator: FC = () => {
   const appModeEnable = getAppModeEnable();
@@ -28,19 +29,16 @@ const StepConfigurator: FC = () => {
     return getStepFromDuration(end - start, isHistogram);
   }, [step, isHistogram]);
 
-  const [openOptions, setOpenOptions] = useState(false);
   const [customStep, setCustomStep] = useState(value || defaultStep);
   const [error, setError] = useState("");
 
+  const {
+    value: openOptions,
+    toggle: toggleOpenOptions,
+    setFalse: handleCloseOptions,
+  } = useBoolean(false);
+
   const buttonRef = useRef<HTMLDivElement>(null);
-
-  const toggleOpenOptions = () => {
-    setOpenOptions(prev => !prev);
-  };
-
-  const handleCloseOptions = () => {
-    setOpenOptions(false);
-  };
 
   const handleApply = (value?: string) => {
     const step = value || customStep || defaultStep || "1s";

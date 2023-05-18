@@ -235,3 +235,6 @@ func IgnorePath(path string) bool {
 
 // BackupCompleteFilename is a filename, which is created in the destination fs when backup is complete.
 const BackupCompleteFilename = "backup_complete.ignore"
+
+// BackupMetadataFilename is a filename, which contains metadata for the backup.
+const BackupMetadataFilename = "backup_metadata.ignore"

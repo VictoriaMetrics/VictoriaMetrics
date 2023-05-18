@@ -52,7 +52,7 @@ Backup manager uploads only the data that has been changed or created since the 
 This reduces the consumed network traffic and the time needed for performing the backup.
 See [this article](https://medium.com/@valyala/speeding-up-backups-for-big-time-series-databases-533c1a927883) for details.
 
-*Please take into account that the first backup upload could take a significant amount of time as it needs to upload all of the data.*
+*Please take into account that the first backup upload could take a significant amount of time as it needs to upload all the data.*
 
 There are two flags which could help with performance tuning:
 
@@ -154,6 +154,30 @@ The result on the GCS bucket. We see only 3 daily backups:
 
 ![daily](vmbackupmanager_rp_daily_2.png)
 
+### Protection backups against deletion by retention policy
+
+You can protect any backup against deletion by retention policy with the `vmbackupmanager backups lock` command.
+
+For instance:
+
+```console
+./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+```
+
+After that the backup won't be deleted by retention policy.
+You can view the `locked` attribute in backup list:
+
+```console
+./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+```
+
+To remove protection, you can use the command `vmbackupmanager backups unlock`.
+
+For example:
+
+```console
+./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+```
 
 ## API methods
 
@@ -164,7 +188,23 @@ The result on the GCS bucket. We see only 3 daily backups:
   ```json
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-  > Note: `created_at` field is in RFC3339 format. 
+  > Note: `created_at` field is in RFC3339 format.
+
+* GET `/api/v1/backups/<BACKUP_NAME>` - returns backup info by name.
+  Example output:
+  ```json
+  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00","locked":true}
+  ```
+
+* PUT `/api/v1/backups/<BACKUP_NAME>` - update "locked" attribute for backup by name.
+  Example request body:
+  ```json
+  {"locked":true}
+  ```
+  Example response:
+  ```json
+  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00", "locked": true}
+  ```
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
   Example request body:
@@ -191,7 +231,13 @@ vmbackupmanager backup
   vmbackupmanager backup list 
     List backups in remote storage
 
-vmbackupmanager restore 
+  vmbackupmanager backup lock
+    Locks backup in remote storage against deletion
+
+  vmbackupmanager backup unlock
+    Unlocks backup in remote storage for deletion
+
+vmbackupmanager restore
   Restore backup specified by restore mark if it exists
 
   vmbackupmanager restore get 
@@ -381,7 +427,7 @@ command-line flags:
   -dst string
      The root folder of Victoria Metrics backups. Example: gs://bucket/path/to/backup/dir, s3://bucket/path/to/backup/dir or fs:///path/to/local/backup/dir
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
   -envflag.enable
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
@@ -391,11 +437,11 @@ command-line flags:
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -451,16 +497,16 @@ command-line flags:
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -runOnStart
-     Upload backups immediately after start of the service. Otherwise the backup starts on new hour
+     Upload backups immediately after start of the service. Otherwise, the backup starts on new hour
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
   -snapshot.createURL string
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
-     VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snaphosts will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
+     VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snapshots will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls
