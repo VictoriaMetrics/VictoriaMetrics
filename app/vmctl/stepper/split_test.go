@@ -121,6 +121,55 @@ func Test_splitDateRange(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "month chunking with one day time range",
+			args: args{
+				start:       "2022-01-03T11:11:11Z",
+				end:         "2022-01-04T12:12:12Z",
+				granularity: StepMonth,
+			},
+			want: []testTimeRange{
+				{
+					"2022-01-03T11:11:11Z",
+					"2022-01-04T12:12:12Z",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "month chunking with same day time range",
+			args: args{
+				start:       "2022-01-03T11:11:11Z",
+				end:         "2022-01-03T12:12:12Z",
+				granularity: StepMonth,
+			},
+			want: []testTimeRange{
+				{
+					"2022-01-03T11:11:11Z",
+					"2022-01-03T12:12:12Z",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "month chunking with one month and two days range",
+			args: args{
+				start:       "2022-01-03T11:11:11Z",
+				end:         "2022-02-03T00:00:00Z",
+				granularity: StepMonth,
+			},
+			want: []testTimeRange{
+				{
+					"2022-01-03T11:11:11Z",
+					"2022-01-31T23:59:59.999999999Z",
+				},
+				{
+					"2022-02-01T00:00:00Z",
+					"2022-02-03T00:00:00Z",
+				},
+			},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
