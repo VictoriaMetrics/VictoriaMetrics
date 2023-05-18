@@ -1,6 +1,7 @@
 package handshake
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -55,8 +56,18 @@ func VMSelectServer(c net.Conn, compressionLevel int) (*BufferedConn, error) {
 	return genericServer(c, vmselectHello, compressionLevel)
 }
 
+// ErrIgnoreHealthcheck means the TCP healthckeck, which must be ignored.
+//
+// The TCP healthcheck is performed by opening and then immediately closing the connection.
+var ErrIgnoreHealthcheck = fmt.Errorf("TCP healthcheck - ignore it")
+
 func genericServer(c net.Conn, msg string, compressionLevel int) (*BufferedConn, error) {
 	if err := readMessage(c, msg); err != nil {
+		if errors.Is(err, io.EOF) {
+			// This is TCP healthcheck, which must be ignored in order to prevent from logs pollution.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1762
+			return nil, ErrIgnoreHealthcheck
+		}
 		return nil, fmt.Errorf("cannot read hello: %w", err)
 	}
 	if err := writeMessage(c, successResponse); err != nil {
