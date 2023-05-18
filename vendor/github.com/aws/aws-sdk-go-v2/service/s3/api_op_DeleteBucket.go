@@ -13,14 +13,9 @@ import (
 
 // Deletes the S3 bucket. All objects (including all object versions and delete
 // markers) in the bucket must be deleted before the bucket itself can be deleted.
-// Related Resources
-//
-// * CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//
-// *
-// DeleteObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+// The following operations are related to DeleteBucket :
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
 func (c *Client) DeleteBucket(ctx context.Context, params *DeleteBucketInput, optFns ...func(*Options)) (*DeleteBucketOutput, error) {
 	if params == nil {
 		params = &DeleteBucketInput{}
@@ -113,6 +108,9 @@ func (c *Client) addOperationDeleteBucketMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addDeleteBucketUpdateEndpoint(stack, options); err != nil {
