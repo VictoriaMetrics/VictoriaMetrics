@@ -72,8 +72,8 @@ func main() {
 						return fmt.Errorf("failed to create VM importer: %s", err)
 					}
 
-					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency))
-					return otsdbProcessor.run(isNonInteractive(c), c.Bool(globalVerbose))
+					otsdbProcessor := newOtsdbProcessor(otsdbClient, importer, c.Int(otsdbConcurrency), isNonInteractive(c), c.Bool(globalVerbose))
+					return otsdbProcessor.run()
 				},
 			},
 			{
@@ -113,8 +113,10 @@ func main() {
 						c.Int(influxConcurrency),
 						c.String(influxMeasurementFieldSeparator),
 						c.Bool(influxSkipDatabaseLabel),
-						c.Bool(influxPrometheusMode))
-					return processor.run(isNonInteractive(c), c.Bool(globalVerbose))
+						c.Bool(influxPrometheusMode),
+						isNonInteractive(c),
+						c.Bool(globalVerbose))
+					return processor.run()
 				},
 			},
 			{
@@ -152,9 +154,11 @@ func main() {
 							timeEnd:   c.Timestamp(remoteReadFilterTimeEnd),
 							chunk:     c.String(remoteReadStepInterval),
 						},
-						cc: c.Int(remoteReadConcurrency),
+						cc:        c.Int(remoteReadConcurrency),
+						isSilent:  isNonInteractive(c),
+						isVerbose: c.Bool(globalVerbose),
 					}
-					return rmp.run(ctx, isNonInteractive(c), c.Bool(globalVerbose))
+					return rmp.run(ctx)
 				},
 			},
 			{
@@ -250,8 +254,9 @@ func main() {
 						backoff:        backoff.New(),
 						cc:             c.Int(vmConcurrency),
 						disableRetries: c.Bool(vmNativeDisableRetries),
+						isSilent:       isNonInteractive(c),
 					}
-					return p.run(ctx, isNonInteractive(c))
+					return p.run(ctx)
 				},
 			},
 			{

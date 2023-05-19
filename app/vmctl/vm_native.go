@@ -32,6 +32,7 @@ type vmNativeProcessor struct {
 	interCluster   bool
 	cc             int
 	disableRetries bool
+	isSilent       bool
 }
 
 const (
@@ -41,7 +42,7 @@ const (
 	nativeSingleProcessTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
-func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
+func (p *vmNativeProcessor) run(ctx context.Context) error {
 	if p.cc == 0 {
 		p.cc = 1
 	}
@@ -78,13 +79,13 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 			return fmt.Errorf("failed to get tenants: %w", err)
 		}
 		question := fmt.Sprintf("The following tenants were discovered: %s.\n Continue?", tenants)
-		if !silent && !prompt(question) {
+		if !p.isSilent && !prompt(question) {
 			return nil
 		}
 	}
 
 	for _, tenantID := range tenants {
-		err := p.runBackfilling(ctx, tenantID, ranges, silent)
+		err := p.runBackfilling(ctx, tenantID, ranges, p.isSilent)
 		if err != nil {
 			return fmt.Errorf("migration failed: %s", err)
 		}
@@ -111,6 +112,9 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
+	if p.isSilent {
+		fmt.Printf("Continue import process with filter %s:\n", f.String())
+	}
 
 	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
