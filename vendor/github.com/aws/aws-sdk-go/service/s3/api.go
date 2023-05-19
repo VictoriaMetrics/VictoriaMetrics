@@ -418,18 +418,20 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 // has a default encryption configuration that uses server-side encryption with
 // an Key Management Service (KMS) key (SSE-KMS), or a customer-provided encryption
 // key (SSE-C), Amazon S3 uses the corresponding KMS key, or a customer-provided
-// key to encrypt the target object copy. When you perform a CopyObject operation,
-// if you want to use a different type of encryption setting for the target
-// object, you can use other appropriate encryption-related headers to encrypt
-// the target object with a KMS key, an Amazon S3 managed key, or a customer-provided
-// key. With server-side encryption, Amazon S3 encrypts your data as it writes
-// it to disks in its data centers and decrypts the data when you access it.
-// If the encryption setting in your request is different from the default encryption
-// configuration of the destination bucket, the encryption setting in your request
-// takes precedence. If the source object for the copy is stored in Amazon S3
-// using SSE-C, you must provide the necessary encryption information in your
-// request so that Amazon S3 can decrypt the object for copying. For more information
-// about server-side encryption, see Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html).
+// key to encrypt the target object copy.
+//
+// When you perform a CopyObject operation, if you want to use a different type
+// of encryption setting for the target object, you can use other appropriate
+// encryption-related headers to encrypt the target object with a KMS key, an
+// Amazon S3 managed key, or a customer-provided key. With server-side encryption,
+// Amazon S3 encrypts your data as it writes it to disks in its data centers
+// and decrypts the data when you access it. If the encryption setting in your
+// request is different from the default encryption configuration of the destination
+// bucket, the encryption setting in your request takes precedence. If the source
+// object for the copy is stored in Amazon S3 using SSE-C, you must provide
+// the necessary encryption information in your request so that Amazon S3 can
+// decrypt the object for copying. For more information about server-side encryption,
+// see Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html).
 //
 // If a target object uses SSE-KMS, you can enable an S3 Bucket Key for the
 // object. For more information, see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
@@ -474,6 +476,11 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 // more information, see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html)
 // in the Amazon S3 User Guide.
 //
+// If the source object's storage class is GLACIER, you must restore a copy
+// of this object before you can use it as a source object for the copy operation.
+// For more information, see RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html).
+// For more information, see Copying Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html).
+//
 // # Versioning
 //
 // By default, x-amz-copy-source identifies the current version of an object
@@ -489,17 +496,11 @@ func (c *S3) CopyObjectRequest(input *CopyObjectInput) (req *request.Request, ou
 // If you do not enable versioning or suspend it on the target bucket, the version
 // ID that Amazon S3 generates is always null.
 //
-// If the source object's storage class is GLACIER, you must restore a copy
-// of this object before you can use it as a source object for the copy operation.
-// For more information, see RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html).
-//
 // The following operations are related to CopyObject:
 //
 //   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
 //
 //   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//
-// For more information, see Copying Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/CopyingObjectsExamples.html).
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -663,9 +664,8 @@ func (c *S3) CreateBucketRequest(input *CreateBucketInput) (req *request.Request
 //     request, s3:PutBucketObjectLockConfiguration and s3:PutBucketVersioning
 //     permissions are required.
 //
-//   - S3 Object Ownership - If your CreateBucket request includes the the
-//     x-amz-object-ownership header, s3:PutBucketOwnershipControls permission
-//     is required.
+//   - S3 Object Ownership - If your CreateBucket request includes the x-amz-object-ownership
+//     header, s3:PutBucketOwnershipControls permission is required.
 //
 // The following operations are related to CreateBucket:
 //
@@ -773,7 +773,7 @@ func (c *S3) CreateMultipartUploadRequest(input *CreateMultipartUploadInput) (re
 // lifecycle configuration. Otherwise, the incomplete multipart upload becomes
 // eligible for an abort action and Amazon S3 aborts the multipart upload. For
 // more information, see Aborting Incomplete Multipart Uploads Using a Bucket
-// Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
+// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
 //
 // For information about the permissions required to use the multipart upload
 // API, see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
@@ -812,7 +812,7 @@ func (c *S3) CreateMultipartUploadRequest(input *CreateMultipartUploadInput) (re
 // provide in UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
 // and UploadPartCopy (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPartCopy.html)
 // requests must match the headers you used in the request to initiate the upload
-// by using CreateMultipartUpload. you can request that Amazon S3 save the uploaded
+// by using CreateMultipartUpload. You can request that Amazon S3 save the uploaded
 // parts encrypted with server-side encryption with an Amazon S3 managed key
 // (SSE-S3), an Key Management Service (KMS) key (SSE-KMS), or a customer-provided
 // encryption key (SSE-C).
@@ -1009,7 +1009,7 @@ func (c *S3) DeleteBucketRequest(input *DeleteBucketInput) (req *request.Request
 // Deletes the S3 bucket. All objects (including all object versions and delete
 // markers) in the bucket must be deleted before the bucket itself can be deleted.
 //
-// Related Resources
+// The following operations are related to DeleteBucket:
 //
 //   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 //
@@ -1188,7 +1188,7 @@ func (c *S3) DeleteBucketCorsRequest(input *DeleteBucketCorsInput) (req *request
 // For information about cors, see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
 // in the Amazon S3 User Guide.
 //
-// Related Resources:
+// The following operations are related to DeleteBucketCors:
 //
 //   - PutBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
 //
@@ -1279,7 +1279,7 @@ func (c *S3) DeleteBucketEncryptionRequest(input *DeleteBucketEncryptionInput) (
 // and Managing Access Permissions to your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // in the Amazon S3 User Guide.
 //
-// Related Resources
+// The following operations are related to DeleteBucketEncryption:
 //
 //   - PutBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketEncryption.html)
 //
@@ -1833,9 +1833,13 @@ func (c *S3) DeleteBucketPolicyRequest(input *DeleteBucketPolicyInput) (req *req
 // using an identity that belongs to the bucket owner's account, Amazon S3 returns
 // a 405 Method Not Allowed error.
 //
-// As a security precaution, the root user of the Amazon Web Services account
-// that owns a bucket can always use this operation, even if the policy explicitly
-// denies the root user the ability to perform this action.
+// To ensure that bucket owners don't inadvertently lock themselves out of their
+// own buckets, the root principal in a bucket owner's Amazon Web Services account
+// can perform the GetBucketPolicy, PutBucketPolicy, and DeleteBucketPolicy
+// API actions, even if their bucket policy explicitly denies the root principal's
+// access. Bucket owner root principals can only be blocked from performing
+// these API actions by VPC endpoint policies and Amazon Web Services Organizations
+// policies.
 //
 // For more information about bucket policies, see Using Bucket Policies and
 // UserPolicies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
@@ -2603,7 +2607,7 @@ func (c *S3) GetBucketAccelerateConfigurationRequest(input *GetBucketAccelerateC
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
 // in the Amazon S3 User Guide.
 //
-// Related Resources
+// The following operations are related to GetBucketAccelerateConfiguration:
 //
 //   - PutBucketAccelerateConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketAccelerateConfiguration.html)
 //
@@ -2684,8 +2688,14 @@ func (c *S3) GetBucketAclRequest(input *GetBucketAclInput) (req *request.Request
 // is granted to the anonymous user, you can return the ACL of the bucket without
 // using an authorization header.
 //
-// To use this API against an access point, provide the alias of the access
-// point in place of the bucket name.
+// To use this API operation against an access point, provide the alias of the
+// access point in place of the bucket name.
+//
+// To use this API operation against an Object Lambda access point, provide
+// the alias of the Object Lambda access point in place of the bucket name.
+// If the Object Lambda access point alias in a request is not valid, the error
+// code InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 //
 // If your bucket uses the bucket owner enforced setting for S3 Object Ownership,
 // requests to read ACLs are still supported and return the bucket-owner-full-control
@@ -2693,7 +2703,7 @@ func (c *S3) GetBucketAclRequest(input *GetBucketAclInput) (req *request.Request
 // see Controlling object ownership and disabling ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide.
 //
-// Related Resources
+// The following operations are related to GetBucketAcl:
 //
 //   - ListObjects (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html)
 //
@@ -2782,7 +2792,7 @@ func (c *S3) GetBucketAnalyticsConfigurationRequest(input *GetBucketAnalyticsCon
 // – Storage Class Analysis (https://docs.aws.amazon.com/AmazonS3/latest/dev/analytics-storage-class.html)
 // in the Amazon S3 User Guide.
 //
-// Related Resources
+// The following operations are related to GetBucketAnalyticsConfiguration:
 //
 //   - DeleteBucketAnalyticsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketAnalyticsConfiguration.html)
 //
@@ -2868,8 +2878,14 @@ func (c *S3) GetBucketCorsRequest(input *GetBucketCorsInput) (req *request.Reque
 // action. By default, the bucket owner has this permission and can grant it
 // to others.
 //
-// To use this API against an access point, provide the alias of the access
-// point in place of the bucket name.
+// To use this API operation against an access point, provide the alias of the
+// access point in place of the bucket name.
+//
+// To use this API operation against an Object Lambda access point, provide
+// the alias of the Object Lambda access point in place of the bucket name.
+// If the Object Lambda access point alias in a request is not valid, the error
+// code InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 //
 // For more information about CORS, see Enabling Cross-Origin Resource Sharing
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html).
@@ -3444,14 +3460,18 @@ func (c *S3) GetBucketLocationRequest(input *GetBucketLocationInput) (req *reque
 // the LocationConstraint request parameter in a CreateBucket request. For more
 // information, see CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html).
 //
-// To use this implementation of the operation, you must be the bucket owner.
+// To use this API operation against an access point, provide the alias of the
+// access point in place of the bucket name.
 //
-// To use this API against an access point, provide the alias of the access
-// point in place of the bucket name.
+// To use this API operation against an Object Lambda access point, provide
+// the alias of the Object Lambda access point in place of the bucket name.
+// If the Object Lambda access point alias in a request is not valid, the error
+// code InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 //
-// For requests made using Amazon Web Services Signature Version 4 (SigV4),
-// we recommend that you use HeadBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html)
-// to return the bucket Region instead of GetBucketLocation.
+// We recommend that you use HeadBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html)
+// to return the Region that a bucket resides in. For backward compatibility,
+// Amazon S3 continues to support GetBucketLocation.
 //
 // The following operations are related to GetBucketLocation:
 //
@@ -3795,8 +3815,14 @@ func (c *S3) GetBucketNotificationConfigurationRequest(input *GetBucketNotificat
 // to other users to read this configuration with the s3:GetBucketNotification
 // permission.
 //
-// To use this API against an access point, provide the alias of the access
-// point in place of the bucket name.
+// To use this API operation against an access point, provide the alias of the
+// access point in place of the bucket name.
+//
+// To use this API operation against an Object Lambda access point, provide
+// the alias of the Object Lambda access point in place of the bucket name.
+// If the Object Lambda access point alias in a request is not valid, the error
+// code InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 //
 // For more information about setting and reading the notification configuration
 // on a bucket, see Setting Up Notification of Bucket Events (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html).
@@ -3971,12 +3997,22 @@ func (c *S3) GetBucketPolicyRequest(input *GetBucketPolicyInput) (req *request.R
 // identity that belongs to the bucket owner's account, Amazon S3 returns a
 // 405 Method Not Allowed error.
 //
-// As a security precaution, the root user of the Amazon Web Services account
-// that owns a bucket can always use this operation, even if the policy explicitly
-// denies the root user the ability to perform this action.
+// To ensure that bucket owners don't inadvertently lock themselves out of their
+// own buckets, the root principal in a bucket owner's Amazon Web Services account
+// can perform the GetBucketPolicy, PutBucketPolicy, and DeleteBucketPolicy
+// API actions, even if their bucket policy explicitly denies the root principal's
+// access. Bucket owner root principals can only be blocked from performing
+// these API actions by VPC endpoint policies and Amazon Web Services Organizations
+// policies.
 //
-// To use this API against an access point, provide the alias of the access
-// point in place of the bucket name.
+// To use this API operation against an access point, provide the alias of the
+// access point in place of the bucket name.
+//
+// To use this API operation against an Object Lambda access point, provide
+// the alias of the Object Lambda access point in place of the bucket name.
+// If the Object Lambda access point alias in a request is not valid, the error
+// code InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 //
 // For more information about bucket policies, see Using Bucket Policies and
 // User Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html).
@@ -4506,7 +4542,7 @@ func (c *S3) GetBucketWebsiteRequest(input *GetBucketWebsiteInput) (req *request
 // bucket owners can allow other users to read the website configuration by
 // writing a bucket policy granting them the S3:GetBucketWebsite permission.
 //
-// The following operations are related to DeleteBucketWebsite:
+// The following operations are related to GetBucketWebsite:
 //
 //   - DeleteBucketWebsite (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketWebsite.html)
 //
@@ -4696,7 +4732,7 @@ func (c *S3) GetObjectRequest(input *GetObjectInput) (req *request.Request, outp
 //
 //   - response-content-encoding
 //
-// # Additional Considerations about Request Headers
+// # Overriding Response Header Values
 //
 // If both of the If-Match and If-Unmodified-Since headers are present in the
 // request as follows: If-Match condition evaluates to true, and; If-Unmodified-Since
@@ -4801,8 +4837,6 @@ func (c *S3) GetObjectAclRequest(input *GetObjectAclInput) (req *request.Request
 // in the Amazon S3 User Guide
 //
 // This action is not supported by Amazon S3 on Outposts.
-//
-// # Versioning
 //
 // By default, GET returns ACL information about the current version of an object.
 // To return ACL information about a different version, use the versionId subresource.
@@ -5590,12 +5624,18 @@ func (c *S3) HeadBucketRequest(input *HeadBucketInput) (req *request.Request, ou
 // Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
 //
-// To use this API against an access point, you must provide the alias of the
-// access point in place of the bucket name or specify the access point ARN.
-// When using the access point ARN, you must direct requests to the access point
-// hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
+// To use this API operation against an access point, you must provide the alias
+// of the access point in place of the bucket name or specify the access point
+// ARN. When using the access point ARN, you must direct requests to the access
+// point hostname. The access point hostname takes the form AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com.
 // When using the Amazon Web Services SDKs, you provide the ARN in place of
-// the bucket name. For more information see, Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html).
+// the bucket name. For more information, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html).
+//
+// To use this API operation against an Object Lambda access point, provide
+// the alias of the Object Lambda access point in place of the bucket name.
+// If the Object Lambda access point alias in a request is not valid, the error
+// code InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -5725,7 +5765,8 @@ func (c *S3) HeadObjectRequest(input *HeadObjectInput) (req *request.Request, ou
 // # Permissions
 //
 // You need the relevant read object (or version) permission for this operation.
-// For more information, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html).
+// For more information, see Actions, resources, and condition keys for Amazon
+// S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/list_amazons3.html).
 // If the object you request does not exist, the error Amazon S3 returns depends
 // on whether you also have the s3:ListBucket permission.
 //
@@ -7225,7 +7266,7 @@ func (c *S3) PutBucketAclRequest(input *PutBucketAclInput) (req *request.Request
 // object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide.
 //
-// # Access Permissions
+// # Permissions
 //
 // You can set access permissions using one of the following methods:
 //
@@ -7287,7 +7328,7 @@ func (c *S3) PutBucketAclRequest(input *PutBucketAclInput) (req *request.Request
 //     Regions and endpoints, see Regions and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
 //     in the Amazon Web Services General Reference.
 //
-// Related Resources
+// The following operations are related to PutBucketAcl:
 //
 //   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 //
@@ -7392,7 +7433,7 @@ func (c *S3) PutBucketAnalyticsConfigurationRequest(input *PutBucketAnalyticsCon
 // see Permissions Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
 //
-// Special Errors
+// PutBucketAnalyticsConfiguration has the following special errors:
 //
 //   - HTTP Error: HTTP 400 Bad Request Code: InvalidArgument Cause: Invalid
 //     argument.
@@ -7405,7 +7446,7 @@ func (c *S3) PutBucketAnalyticsConfigurationRequest(input *PutBucketAnalyticsCon
 //     the owner of the specified bucket, or you do not have the s3:PutAnalyticsConfiguration
 //     bucket permission to set the configuration on the bucket.
 //
-// Related Resources
+// The following operations are related to PutBucketAnalyticsConfiguration:
 //
 //   - GetBucketAnalyticsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketAnalyticsConfiguration.html)
 //
@@ -7525,7 +7566,7 @@ func (c *S3) PutBucketCorsRequest(input *PutBucketCorsInput) (req *request.Reque
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html) in the Amazon
 // S3 User Guide.
 //
-// Related Resources
+// The following operations are related to PutBucketCors:
 //
 //   - GetBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketCors.html)
 //
@@ -7633,7 +7674,7 @@ func (c *S3) PutBucketEncryptionRequest(input *PutBucketEncryptionInput) (req *r
 // and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // in the Amazon S3 User Guide.
 //
-// Related Resources
+// The following operations are related to PutBucketEncryption:
 //
 //   - GetBucketEncryption (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketEncryption.html)
 //
@@ -7743,17 +7784,26 @@ func (c *S3) PutBucketIntelligentTieringConfigurationRequest(input *PutBucketInt
 // move objects stored in the S3 Intelligent-Tiering storage class to the Archive
 // Access or Deep Archive Access tier.
 //
-// Special Errors
+// PutBucketIntelligentTieringConfiguration has the following special errors:
 //
-//   - HTTP 400 Bad Request Error Code: InvalidArgument Cause: Invalid Argument
+// # HTTP 400 Bad Request Error
 //
-//   - HTTP 400 Bad Request Error Code: TooManyConfigurations Cause: You are
-//     attempting to create a new configuration but have already reached the
-//     1,000-configuration limit.
+// Code: InvalidArgument
 //
-//   - HTTP 403 Forbidden Error Code: AccessDenied Cause: You are not the owner
-//     of the specified bucket, or you do not have the s3:PutIntelligentTieringConfiguration
-//     bucket permission to set the configuration on the bucket.
+// Cause: Invalid Argument
+//
+// # HTTP 400 Bad Request Error
+//
+// Code: TooManyConfigurations
+//
+// Cause: You are attempting to create a new configuration but have already
+// reached the 1,000-configuration limit.
+//
+// # HTTP 403 Forbidden Error
+//
+// Cause: You are not the owner of the specified bucket, or you do not have
+// the s3:PutIntelligentTieringConfiguration bucket permission to set the configuration
+// on the bucket.
 //
 // Returns awserr.Error for service API and SDK errors. Use runtime type assertions
 // with awserr.Error's Code and Message methods to get detailed information about
@@ -7871,19 +7921,28 @@ func (c *S3) PutBucketInventoryConfigurationRequest(input *PutBucketInventoryCon
 // and Identity and access management in Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
 // in the Amazon S3 User Guide.
 //
-// Special Errors
+// PutBucketInventoryConfiguration has the following special errors:
 //
-//   - HTTP 400 Bad Request Error Code: InvalidArgument Cause: Invalid Argument
+// # HTTP 400 Bad Request Error
 //
-//   - HTTP 400 Bad Request Error Code: TooManyConfigurations Cause: You are
-//     attempting to create a new configuration but have already reached the
-//     1,000-configuration limit.
+// Code: InvalidArgument
 //
-//   - HTTP 403 Forbidden Error Code: AccessDenied Cause: You are not the owner
-//     of the specified bucket, or you do not have the s3:PutInventoryConfiguration
-//     bucket permission to set the configuration on the bucket.
+// Cause: Invalid Argument
 //
-// Related Resources
+// # HTTP 400 Bad Request Error
+//
+// Code: TooManyConfigurations
+//
+// Cause: You are attempting to create a new configuration but have already
+// reached the 1,000-configuration limit.
+//
+// # HTTP 403 Forbidden Error
+//
+// Cause: You are not the owner of the specified bucket, or you do not have
+// the s3:PutInventoryConfiguration bucket permission to set the configuration
+// on the bucket.
+//
+// The following operations are related to PutBucketInventoryConfiguration:
 //
 //   - GetBucketInventoryConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketInventoryConfiguration.html)
 //
@@ -8006,7 +8065,7 @@ func (c *S3) PutBucketLifecycleRequest(input *PutBucketLifecycleInput) (req *req
 // For more examples of transitioning objects to storage classes such as STANDARD_IA
 // or ONEZONE_IA, see Examples of Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#lifecycle-configuration-examples).
 //
-// Related Resources
+// The following operations are related to PutBucketLifecycle:
 //
 //   - GetBucketLifecycle (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketLifecycle.html)(Deprecated)
 //
@@ -8160,7 +8219,7 @@ func (c *S3) PutBucketLifecycleConfigurationRequest(input *PutBucketLifecycleCon
 // For more information about permissions, see Managing Access Permissions to
 // Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
 //
-// The following are related to PutBucketLifecycleConfiguration:
+// The following operations are related to PutBucketLifecycleConfiguration:
 //
 //   - Examples of Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-configuration-examples.html)
 //
@@ -8603,8 +8662,6 @@ func (c *S3) PutBucketNotificationConfigurationRequest(input *PutBucketNotificat
 // messages to your SNS topic. If the message fails, the entire PUT action will
 // fail, and Amazon S3 will not add the configuration to your bucket.
 //
-// # Responses
-//
 // If the configuration in the request body includes only one TopicConfiguration
 // specifying only the s3:ReducedRedundancyLostObject event type, the response
 // will also include the x-amz-sns-test-message-id header containing the message
@@ -8791,9 +8848,13 @@ func (c *S3) PutBucketPolicyRequest(input *PutBucketPolicyInput) (req *request.R
 // identity that belongs to the bucket owner's account, Amazon S3 returns a
 // 405 Method Not Allowed error.
 //
-// As a security precaution, the root user of the Amazon Web Services account
-// that owns a bucket can always use this operation, even if the policy explicitly
-// denies the root user the ability to perform this action.
+// To ensure that bucket owners don't inadvertently lock themselves out of their
+// own buckets, the root principal in a bucket owner's Amazon Web Services account
+// can perform the GetBucketPolicy, PutBucketPolicy, and DeleteBucketPolicy
+// API actions, even if their bucket policy explicitly denies the root principal's
+// access. Bucket owner root principals can only be blocked from performing
+// these API actions by VPC endpoint policies and Amazon Web Services Organizations
+// policies.
 //
 // For more information, see Bucket policy examples (https://docs.aws.amazon.com/AmazonS3/latest/userguide/example-bucket-policies.html).
 //
@@ -9243,15 +9304,15 @@ func (c *S3) PutBucketVersioningRequest(input *PutBucketVersioningInput) (req *r
 // you must include the x-amz-mfa request header and the Status and the MfaDelete
 // request elements in a request to set the versioning state of the bucket.
 //
-// If you have an object expiration lifecycle policy in your non-versioned bucket
-// and you want to maintain the same permanent delete behavior when you enable
-// versioning, you must add a noncurrent expiration policy. The noncurrent expiration
-// lifecycle policy will manage the deletes of the noncurrent object versions
-// in the version-enabled bucket. (A version-enabled bucket maintains one current
-// and zero or more noncurrent object versions.) For more information, see Lifecycle
-// and Versioning (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html#lifecycle-and-other-bucket-config).
+// If you have an object expiration lifecycle configuration in your non-versioned
+// bucket and you want to maintain the same permanent delete behavior when you
+// enable versioning, you must add a noncurrent expiration policy. The noncurrent
+// expiration lifecycle configuration will manage the deletes of the noncurrent
+// object versions in the version-enabled bucket. (A version-enabled bucket
+// maintains one current and zero or more noncurrent object versions.) For more
+// information, see Lifecycle and Versioning (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html#lifecycle-and-other-bucket-config).
 //
-// Related Resources
+// The following operations are related to PutBucketVersioning:
 //
 //   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 //
@@ -9551,7 +9612,7 @@ func (c *S3) PutObjectRequest(input *PutObjectInput) (req *request.Request, outp
 // in the response. When you enable versioning for a bucket, if Amazon S3 receives
 // multiple write requests for the same object simultaneously, it stores all
 // of the objects. For more information about versioning, see Adding Objects
-// to Versioning Enabled Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/AddingObjectstoVersioningEnabledBuckets.html).
+// to Versioning-Enabled Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/AddingObjectstoVersioningEnabledBuckets.html).
 // For information about returning the versioning state of a bucket, see GetBucketVersioning
 // (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketVersioning.html).
 //
@@ -9659,7 +9720,7 @@ func (c *S3) PutObjectAclRequest(input *PutObjectAclInput) (req *request.Request
 // object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide.
 //
-// # Access Permissions
+// # Permissions
 //
 // You can set access permissions using one of the following methods:
 //
@@ -9725,7 +9786,7 @@ func (c *S3) PutObjectAclRequest(input *PutObjectAclInput) (req *request.Request
 // sets the ACL of the current version of an object. To set the ACL of a different
 // version, use the versionId subresource.
 //
-// Related Resources
+// The following operations are related to PutObjectAcl:
 //
 //   - CopyObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CopyObject.html)
 //
@@ -10083,7 +10144,7 @@ func (c *S3) PutObjectTaggingRequest(input *PutObjectTaggingInput) (req *request
 // For information about the Amazon S3 object tagging feature, see Object Tagging
 // (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-tagging.html).
 //
-// Special Errors
+// PutObjectTagging has the following special errors:
 //
 //   - Code: InvalidTagError Cause: The tag provided was not a valid tag. This
 //     error can occur if the tag did not pass input validation. For more information,
@@ -10097,7 +10158,7 @@ func (c *S3) PutObjectTaggingRequest(input *PutObjectTaggingInput) (req *request
 //   - Code: InternalError Cause: The service was unable to apply the provided
 //     tag to the object.
 //
-// Related Resources
+// The following operations are related to PutObjectTagging:
 //
 //   - GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
 //
@@ -10194,7 +10255,7 @@ func (c *S3) PutPublicAccessBlockRequest(input *PutPublicAccessBlockInput) (req 
 // For more information about when Amazon S3 considers a bucket or an object
 // public, see The Meaning of "Public" (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status).
 //
-// Related Resources
+// The following operations are related to PutPublicAccessBlock:
 //
 //   - GetPublicAccessBlock (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetPublicAccessBlock.html)
 //
@@ -10285,29 +10346,29 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //
 //   - restore an archive - Restore an archived object
 //
-// To use this operation, you must have permissions to perform the s3:RestoreObject
-// action. The bucket owner has this permission by default and can grant this
-// permission to others. For more information about permissions, see Permissions
-// Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
-// in the Amazon S3 User Guide.
-//
 // For more information about the S3 structure in the request body, see the
 // following:
 //
 //   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
-//     Managing Access with ACLs (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3_ACLs_UsingACLs.html)
-//     in the Amazon S3 User Guide Protecting Data Using Server-Side Encryption
-//     (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html)
+//
+//   - Managing Access with ACLs (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3_ACLs_UsingACLs.html)
 //     in the Amazon S3 User Guide
 //
-//   - Define the SQL expression for the SELECT type of restoration for your
-//     query in the request body's SelectParameters structure. You can use expressions
-//     like the following examples. The following expression returns all records
-//     from the specified object. SELECT * FROM Object Assuming that you are
-//     not using any headers for data stored in the object, you can specify columns
-//     with positional headers. SELECT s._1, s._2 FROM Object s WHERE s._3 >
-//     100 If you have headers and you set the fileHeaderInfo in the CSV structure
+//   - Protecting Data Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/serv-side-encryption.html)
+//     in the Amazon S3 User Guide
+//
+// Define the SQL expression for the SELECT type of restoration for your query
+// in the request body's SelectParameters structure. You can use expressions
+// like the following examples.
+//
+//   - The following expression returns all records from the specified object.
+//     SELECT * FROM Object
+//
+//   - Assuming that you are not using any headers for data stored in the object,
+//     you can specify columns with positional headers. SELECT s._1, s._2 FROM
+//     Object s WHERE s._3 > 100
+//
+//   - If you have headers and you set the fileHeaderInfo in the CSV structure
 //     in the request body to USE, you can specify headers in the query. (If
 //     you set the fileHeaderInfo field to IGNORE, the first row is skipped for
 //     the query.) You cannot mix ordinal positions with header column names.
@@ -10326,13 +10387,22 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //
 //   - The output results are new Amazon S3 objects. Unlike archive retrievals,
 //     they are stored until explicitly deleted-manually or through a lifecycle
-//     policy.
+//     configuration.
 //
 //   - You can issue more than one select request on the same Amazon S3 object.
 //     Amazon S3 doesn't duplicate requests, so avoid issuing duplicate requests.
 //
 //   - Amazon S3 accepts a select request even if the object has already been
 //     restored. A select request doesn’t return error response 409.
+//
+// # Permissions
+//
+// To use this operation, you must have permissions to perform the s3:RestoreObject
+// action. The bucket owner has this permission by default and can grant this
+// permission to others. For more information about permissions, see Permissions
+// Related to Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+// in the Amazon S3 User Guide.
 //
 // # Restoring objects
 //
@@ -10357,14 +10427,13 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //
 //   - Expedited - Expedited retrievals allow you to quickly access your data
 //     stored in the S3 Glacier Flexible Retrieval storage class or S3 Intelligent-Tiering
-//     Archive tier when occasional urgent requests for a subset of archives
-//     are required. For all but the largest archived objects (250 MB+), data
-//     accessed using Expedited retrievals is typically made available within
-//     1–5 minutes. Provisioned capacity ensures that retrieval capacity for
-//     Expedited retrievals is available when you need it. Expedited retrievals
-//     and provisioned capacity are not available for objects stored in the S3
-//     Glacier Deep Archive storage class or S3 Intelligent-Tiering Deep Archive
-//     tier.
+//     Archive tier when occasional urgent requests for restoring archives are
+//     required. For all but the largest archived objects (250 MB+), data accessed
+//     using Expedited retrievals is typically made available within 1–5 minutes.
+//     Provisioned capacity ensures that retrieval capacity for Expedited retrievals
+//     is available when you need it. Expedited retrievals and provisioned capacity
+//     are not available for objects stored in the S3 Glacier Deep Archive storage
+//     class or S3 Intelligent-Tiering Deep Archive tier.
 //
 //   - Standard - Standard retrievals allow you to access any of your archived
 //     objects within several hours. This is the default option for retrieval
@@ -10426,11 +10495,9 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //   - If the object is previously restored, Amazon S3 returns 200 OK in the
 //     response.
 //
-// Special Errors
-//
-//   - Code: RestoreAlreadyInProgress Cause: Object restore is already in progress.
-//     (This error does not apply to SELECT type requests.) HTTP Status Code:
-//     409 Conflict SOAP Fault Code Prefix: Client
+//   - Special errors: Code: RestoreAlreadyInProgress Cause: Object restore
+//     is already in progress. (This error does not apply to SELECT type requests.)
+//     HTTP Status Code: 409 Conflict SOAP Fault Code Prefix: Client
 //
 //   - Code: GlacierExpeditedRetrievalNotAvailable Cause: expedited retrievals
 //     are currently not available. Try again later. (Returned if there is insufficient
@@ -10438,7 +10505,7 @@ func (c *S3) RestoreObjectRequest(input *RestoreObjectInput) (req *request.Reque
 //     Expedited retrievals and not to S3 Standard or Bulk retrievals.) HTTP
 //     Status Code: 503 SOAP Fault Code Prefix: N/A
 //
-// Related Resources
+// The following operations are related to RestoreObject:
 //
 //   - PutBucketLifecycleConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLifecycleConfiguration.html)
 //
@@ -10606,7 +10673,7 @@ func (c *S3) SelectObjectContentRequest(input *SelectObjectContentInput) (req *r
 // For a list of special errors for this operation, see List of SELECT Object
 // Content Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#SelectObjectContentErrorCodeList)
 //
-// Related Resources
+// The following operations are related to SelectObjectContent:
 //
 //   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 //
@@ -10932,14 +10999,14 @@ func (c *S3) UploadPartRequest(input *UploadPartInput) (req *request.Request, ou
 //
 //   - x-amz-server-side-encryption-customer-key-MD5
 //
-// Special Errors
+// UploadPart has the following special errors:
 //
 //   - Code: NoSuchUpload Cause: The specified multipart upload does not exist.
 //     The upload ID might be invalid, or the multipart upload might have been
 //     aborted or completed. HTTP Status Code: 404 Not Found SOAP Fault Code
 //     Prefix: Client
 //
-// Related Resources
+// The following operations are related to UploadPart:
 //
 //   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
 //
@@ -11089,7 +11156,7 @@ func (c *S3) UploadPartCopyRequest(input *UploadPartCopyInput) (req *request.Req
 //
 // x-amz-copy-source: /bucket/object?versionId=version id
 //
-// Special Errors
+// Special errors
 //
 //   - Code: NoSuchUpload Cause: The specified multipart upload does not exist.
 //     The upload ID might be invalid, or the multipart upload might have been
@@ -11098,7 +11165,7 @@ func (c *S3) UploadPartCopyRequest(input *UploadPartCopyInput) (req *request.Req
 //   - Code: InvalidRequest Cause: The specified copy source is not supported
 //     as a byte-range copy source. HTTP Status Code: 400 Bad Request
 //
-// Related Resources
+// The following operations are related to UploadPartCopy:
 //
 //   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
 //
@@ -11264,7 +11331,7 @@ func (c *S3) WriteGetObjectResponseWithContext(ctx aws.Context, input *WriteGetO
 // Specifies the days since the initiation of an incomplete multipart upload
 // that Amazon S3 will wait before permanently removing all parts of the upload.
 // For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
-// Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
+// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
 // in the Amazon S3 User Guide.
 type AbortIncompleteMultipartUpload struct {
 	_ struct{} `type:"structure"`
@@ -14978,7 +15045,7 @@ type CreateMultipartUploadOutput struct {
 	// name in the request, the response includes this header. The header indicates
 	// when the initiated multipart upload becomes eligible for an abort operation.
 	// For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
-	// Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
+	// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
 	//
 	// The response also includes the x-amz-abort-rule-id header that provides the
 	// ID of the lifecycle configuration rule that defines this action.
@@ -18081,9 +18148,8 @@ type Error struct {
 
 	// The error code is a string that uniquely identifies an error condition. It
 	// is meant to be read and understood by programs that detect and handle errors
-	// by type.
-	//
-	// Amazon S3 error codes
+	// by type. The following is a list of Amazon S3 error codes. For more information,
+	// see Error responses (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html).
 	//
 	//    * Code: AccessDenied Description: Access Denied HTTP Status Code: 403
 	//    Forbidden SOAP Fault Code Prefix: Client
@@ -18791,6 +18857,15 @@ type GetBucketAclInput struct {
 
 	// Specifies the S3 bucket whose ACL is being requested.
 	//
+	// To use this API operation against an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// To use this API operation against an Object Lambda access point, provide
+	// the alias of the Object Lambda access point in place of the bucket name.
+	// If the Object Lambda access point alias in a request is not valid, the error
+	// code InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
+	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
@@ -19063,6 +19138,15 @@ type GetBucketCorsInput struct {
 	_ struct{} `locationName:"GetBucketCorsRequest" type:"structure"`
 
 	// The bucket name for which to get the cors configuration.
+	//
+	// To use this API operation against an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// To use this API operation against an Object Lambda access point, provide
+	// the alias of the Object Lambda access point in place of the bucket name.
+	// If the Object Lambda access point alias in a request is not valid, the error
+	// code InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
@@ -19834,6 +19918,15 @@ type GetBucketLocationInput struct {
 
 	// The name of the bucket for which to get the location.
 	//
+	// To use this API operation against an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// To use this API operation against an Object Lambda access point, provide
+	// the alias of the Object Lambda access point in place of the bucket name.
+	// If the Object Lambda access point alias in a request is not valid, the error
+	// code InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
+	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
@@ -20229,6 +20322,15 @@ type GetBucketNotificationConfigurationRequest struct {
 
 	// The name of the bucket for which to get the notification configuration.
 	//
+	// To use this API operation against an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// To use this API operation against an Object Lambda access point, provide
+	// the alias of the Object Lambda access point in place of the bucket name.
+	// If the Object Lambda access point alias in a request is not valid, the error
+	// code InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
+	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
 
@@ -20448,6 +20550,15 @@ type GetBucketPolicyInput struct {
 	_ struct{} `locationName:"GetBucketPolicyRequest" type:"structure"`
 
 	// The bucket name for which to get the bucket policy.
+	//
+	// To use this API operation against an access point, provide the alias of the
+	// access point in place of the bucket name.
+	//
+	// To use this API operation against an Object Lambda access point, provide
+	// the alias of the Object Lambda access point in place of the bucket name.
+	// If the Object Lambda access point alias in a request is not valid, the error
+	// code InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError, see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
 	//
 	// Bucket is a required field
 	Bucket *string `location:"uri" locationName:"Bucket" type:"string" required:"true"`
@@ -23872,6 +23983,12 @@ type HeadBucketInput struct {
 	// information about access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide.
 	//
+	// When you use this action with an Object Lambda access point, provide the
+	// alias of the Object Lambda access point in place of the bucket name. If the
+	// Object Lambda access point alias in a request is not valid, the error code
+	// InvalidAccessPointAliasError is returned. For more information about InvalidAccessPointAliasError,
+	// see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList).
+	//
 	// When you use this action with Amazon S3 on Outposts, you must direct requests
 	// to the S3 on Outposts hostname. The S3 on Outposts hostname takes the form
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When
@@ -25660,7 +25777,8 @@ type LambdaFunctionConfiguration struct {
 	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true" enum:"Event"`
 
 	// Specifies object key name filtering rules. For information about key name
-	// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+	// filtering, see Configuring event notifications using object key name filtering
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
 	// in the Amazon S3 User Guide.
 	Filter *NotificationConfigurationFilter `type:"structure"`
 
@@ -25800,8 +25918,8 @@ func (s *LifecycleConfiguration) SetRules(v []*Rule) *LifecycleConfiguration {
 type LifecycleExpiration struct {
 	_ struct{} `type:"structure"`
 
-	// Indicates at what date the object is to be moved or deleted. Should be in
-	// GMT ISO 8601 Format.
+	// Indicates at what date the object is to be moved or deleted. The date value
+	// must conform to the ISO 8601 format. The time is always midnight UTC.
 	Date *time.Time `type:"timestamp" timestampFormat:"iso8601"`
 
 	// Indicates the lifetime, in days, of the objects that are subject to the rule.
@@ -25861,7 +25979,7 @@ type LifecycleRule struct {
 	// Specifies the days since the initiation of an incomplete multipart upload
 	// that Amazon S3 will wait before permanently removing all parts of the upload.
 	// For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
-	// Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
+	// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
 	// in the Amazon S3 User Guide.
 	AbortIncompleteMultipartUpload *AbortIncompleteMultipartUpload `type:"structure"`
 
@@ -28482,7 +28600,7 @@ type ListPartsOutput struct {
 	// name in the request, then the response includes this header indicating when
 	// the initiated multipart upload will become eligible for abort operation.
 	// For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
-	// Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
+	// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
 	//
 	// The response will also include the x-amz-abort-rule-id header that will provide
 	// the ID of the lifecycle configuration rule that defines this action.
@@ -29578,7 +29696,8 @@ func (s *NotificationConfigurationDeprecated) SetTopicConfiguration(v *TopicConf
 }
 
 // Specifies object key name filtering rules. For information about key name
-// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+// filtering, see Configuring event notifications using object key name filtering
+// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
 // in the Amazon S3 User Guide.
 type NotificationConfigurationFilter struct {
 	_ struct{} `type:"structure"`
@@ -36029,7 +36148,8 @@ type QueueConfiguration struct {
 	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true" enum:"Event"`
 
 	// Specifies object key name filtering rules. For information about key name
-	// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+	// filtering, see Configuring event notifications using object key name filtering
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
 	// in the Amazon S3 User Guide.
 	Filter *NotificationConfigurationFilter `type:"structure"`
 
@@ -37434,7 +37554,7 @@ type Rule struct {
 	// Specifies the days since the initiation of an incomplete multipart upload
 	// that Amazon S3 will wait before permanently removing all parts of the upload.
 	// For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
-	// Lifecycle Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
+	// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
 	// in the Amazon S3 User Guide.
 	AbortIncompleteMultipartUpload *AbortIncompleteMultipartUpload `type:"structure"`
 
@@ -38257,11 +38377,12 @@ type ServerSideEncryptionByDefault struct {
 	// and only if SSEAlgorithm is set to aws:kms.
 	//
 	// You can specify the key ID or the Amazon Resource Name (ARN) of the KMS key.
-	// However, if you are using encryption with cross-account or Amazon Web Services
-	// service operations you must use a fully qualified KMS key ARN. For more information,
-	// see Using encryption for cross-account operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy).
+	// If you use a key ID, you can run into a LogDestination undeliverable error
+	// when creating a VPC flow log.
 	//
-	// For example:
+	// If you are using encryption with cross-account or Amazon Web Services service
+	// operations you must use a fully qualified KMS key ARN. For more information,
+	// see Using encryption for cross-account operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy).
 	//
 	//    * Key ID: 1234abcd-12ab-34cd-56ef-1234567890ab
 	//
@@ -39066,7 +39187,8 @@ type TopicConfiguration struct {
 	Events []*string `locationName:"Event" type:"list" flattened:"true" required:"true" enum:"Event"`
 
 	// Specifies object key name filtering rules. For information about key name
-	// filtering, see Configuring Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+	// filtering, see Configuring event notifications using object key name filtering
+	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
 	// in the Amazon S3 User Guide.
 	Filter *NotificationConfigurationFilter `type:"structure"`
 
@@ -40541,9 +40663,7 @@ type WriteGetObjectResponseInput struct {
 	ServerSideEncryption *string `location:"header" locationName:"x-amz-fwd-header-x-amz-server-side-encryption" type:"string" enum:"ServerSideEncryption"`
 
 	// The integer status code for an HTTP response of a corresponding GetObject
-	// request.
-	//
-	// Status Codes
+	// request. The following is a list of status codes.
 	//
 	//    * 200 - OK
 	//
@@ -41804,6 +41924,9 @@ const (
 
 	// ObjectStorageClassGlacierIr is a ObjectStorageClass enum value
 	ObjectStorageClassGlacierIr = "GLACIER_IR"
+
+	// ObjectStorageClassSnow is a ObjectStorageClass enum value
+	ObjectStorageClassSnow = "SNOW"
 )
 
 // ObjectStorageClass_Values returns all elements of the ObjectStorageClass enum
@@ -41818,6 +41941,7 @@ func ObjectStorageClass_Values() []string {
 		ObjectStorageClassDeepArchive,
 		ObjectStorageClassOutposts,
 		ObjectStorageClassGlacierIr,
+		ObjectStorageClassSnow,
 	}
 }
 
@@ -42095,6 +42219,9 @@ const (
 
 	// StorageClassGlacierIr is a StorageClass enum value
 	StorageClassGlacierIr = "GLACIER_IR"
+
+	// StorageClassSnow is a StorageClass enum value
+	StorageClassSnow = "SNOW"
 )
 
 // StorageClass_Values returns all elements of the StorageClass enum
@@ -42109,6 +42236,7 @@ func StorageClass_Values() []string {
 		StorageClassDeepArchive,
 		StorageClassOutposts,
 		StorageClassGlacierIr,
+		StorageClassSnow,
 	}
 }
 
