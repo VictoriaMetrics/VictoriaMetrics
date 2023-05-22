@@ -15,7 +15,7 @@ Please provide a brief description of the changes you made. Be as specific as po
     * Provide a link to the relevant documentation for any new features you add or modify.
 
 - [ ] After your pull request is merged, please add a message to the issue with instructions for how to test the fix or try the feature you added.
-- [ ] Please avoid closing the original issue before the release unless you are the author of the issue and want to close it or the fix/feature doesn't require the release procedure.
+- [ ] Do not close the original issue before the change is released. Please note, in some cases Github can automatically close the issue once PR is merged. Re-open the issue in such case.
 
 Examples of good changelog messages:
 
