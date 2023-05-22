@@ -5,7 +5,7 @@ Please provide a brief description of the changes you made. Be as specific as po
 ### Checklist (Optional for External Contributions)
 
 - [ ] Include a link to the GitHub issue in the PR description, if possible.
-- [ ] Add an item to the [Changelog](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) that describes the problem you're addressing and how you're solving it.
+- [ ] Mention the change in the [Changelog](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md). Explain what has changed and why. If there is a related issue or documentation change - link them as well.
 
   Tips for writing a good changelog message::
 
