@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/http2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/proxy"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/timerpool"
@@ -83,7 +85,7 @@ type HTTPClient struct {
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, followRedirects *bool) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
@@ -139,7 +141,7 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 			ac.SetHeaders(req, true)
 		}
 	}
-	if followRedirects != nil && !*followRedirects {
+	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
 		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
@@ -151,6 +153,17 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) {
 			proxyURL.SetHeaders(proxyAC, req)
+		}
+	}
+	if httpCfg.EnableHTTP2 != nil && !*httpCfg.EnableHTTP2 {
+		// golang HTTP/2 support had many problematic corner cases where
+		// dead connections would be kept and used in connection pools.
+		// https://github.com/golang/go/issues/32388
+		// https://github.com/golang/go/issues/39337
+		// https://github.com/golang/go/issues/39750
+		_, err := http2.ConfigureTransports(client.Transport.(*http.Transport))
+		if err != nil {
+			return nil, fmt.Errorf("failed to configure net/http HTTP/1 Transport to use HTTP/2.: %s", err)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
