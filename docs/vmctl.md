@@ -1,7 +1,14 @@
 ---
 sort: 8
+weight: 8
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 8
+title: vmctl
+aliases:
+  - /vmctl.html
 ---
-
 # vmctl
 
 VictoriaMetrics command-line tool
