@@ -438,6 +438,7 @@ copy-docs:
 # For ORDER=0 it adds no order tag/weight tag.
 # FOR OLD_URL='' it adds no alias.
 # Images starting with <img src="docs/ are replaced with <img src="
+# Cluster docs are supposed to be ordered as 2nd.
 # The rest of docs is ordered manually.
 docs-sync:
 	SRC=README.md DST=docs/README.md OLD_URL='' ORDER=0 TITLE=VictoriaMetrics $(MAKE) copy-docs
