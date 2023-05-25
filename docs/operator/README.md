@@ -1,5 +1,7 @@
 ---
 sort: 27
+title: VictoriaMetrics Operator
+disableToc: true
 ---
 
 # VictoriaMetrics Operator
