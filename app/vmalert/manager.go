@@ -188,6 +188,7 @@ func (g *Group) toAPI() APIGroup {
 
 		Labels: g.Labels,
 	}
+	ag.Rules = make([]APIRule, 0)
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, r.ToAPI())
 	}
