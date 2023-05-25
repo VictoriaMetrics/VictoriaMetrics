@@ -1,7 +1,14 @@
 ---
 sort: 6
+weight: 6
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 6
+title: vmbackup
+aliases:
+  - /vmbackup.html
 ---
-
 # vmbackup
 
 `vmbackup` creates VictoriaMetrics data backups from [instant snapshots](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#how-to-work-with-snapshots).

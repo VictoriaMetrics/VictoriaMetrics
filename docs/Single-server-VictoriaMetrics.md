@@ -1,7 +1,14 @@
 ---
 sort: 1
+weight: 1
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 1
+title: VictoriaMetrics
+aliases:
+  - /Single-server-VictoriaMetrics.html
 ---
-
 # VictoriaMetrics
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
