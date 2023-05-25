@@ -79,7 +79,7 @@ func (b *Backup) Run() error {
 	if err := storeMetadata(src, dst); err != nil {
 		return fmt.Errorf("cannot store backup metadata: %w", err)
 	}
-	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte{}); err != nil {
+	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte("ok")); err != nil {
 		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
 
