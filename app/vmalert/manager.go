@@ -172,6 +172,7 @@ func (g *Group) toAPI() APIGroup {
 		Params:         urlValuesToStrings(g.Params),
 		Labels:         g.Labels,
 	}
+	ag.Rules = make([]APIRule, 0)
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, r.ToAPI())
 	}
