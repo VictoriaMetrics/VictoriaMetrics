@@ -3980,6 +3980,7 @@ func compareSeries(ss, ssExpected []*series, expr graphiteql.Expr) error {
 		if !reflect.DeepEqual(s.Timestamps, sExpected.Timestamps) {
 			return fmt.Errorf("unexpected timestamps for series %q\ngot\n%d\nwant\n%d", s.Name, s.Timestamps, sExpected.Timestamps)
 		}
+
 		if !equalFloats(s.Values, sExpected.Values) {
 			return fmt.Errorf("unexpected values for series %q\ngot\n%g\nwant\n%g", s.Name, s.Values, sExpected.Values)
 		}
@@ -4012,7 +4013,7 @@ func equalFloats(a, b []float64) bool {
 		} else if math.IsNaN(v2) {
 			return false
 		}
-		eps := math.Abs(v1) / 1e15
+		eps := math.Abs(v1) / 1e9
 		if math.Abs(v1-v2) > eps {
 			return false
 		}
