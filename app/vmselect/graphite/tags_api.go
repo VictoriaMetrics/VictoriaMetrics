@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/flags"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -177,18 +178,19 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
+	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
 	if len(exprs) == 0 && len(etfs) == 0 {
 		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTagValues.
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, limit, deadline)
+		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, maxTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, limit*10)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, maxTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -263,19 +265,20 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
+	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
 	if len(exprs) == 0 && len(etfs) == 0 {
 		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTags.
 
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, err = netstorage.GraphiteTags(nil, filter, limit, deadline)
+		labels, err = netstorage.GraphiteTags(nil, filter, maxTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, limit*10)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, maxTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -343,7 +346,8 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, limit*10)
+	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
+	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, maxTagKeysPerSearch)
 	if err != nil {
 		return err
 	}
@@ -411,11 +415,15 @@ func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter
 		return err
 	}
 	filter := r.FormValue("filter")
-	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, limit, deadline)
+	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
+	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, maxTagKeysPerSearch, deadline)
 	if err != nil {
 		return err
 	}
 
+	if limit > 0 && limit < len(tagValues) {
+		tagValues = tagValues[:limit]
+	}
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -439,11 +447,15 @@ func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 	filter := r.FormValue("filter")
-	labels, err := netstorage.GraphiteTags(nil, filter, limit, deadline)
+	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
+	labels, err := netstorage.GraphiteTags(nil, filter, maxTagKeysPerSearch, deadline)
 	if err != nil {
 		return err
 	}
 
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
+	}
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
