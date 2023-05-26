@@ -257,7 +257,8 @@ copy-docs:
 
 # Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
 # For ORDER=0 it adds no order tag/weight tag.
-# FOR OLD_URL='' it adds no alias.
+# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
+# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links. 
 # Images starting with <img src="docs/ are replaced with <img src="
 # Cluster docs are supposed to be ordered as 2nd.
 # The rest of docs is ordered manually.
