@@ -24,6 +24,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly form path to static assets in WEB UI if `http.pathPrefix` set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4349).
 
 ## [v1.91.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.0)
 

@@ -1,5 +1,4 @@
 {% import (
-    "strings"
     "net/http"
     "path"
     "net/url"
@@ -85,10 +84,7 @@ type NavItem struct {
 
 {% func printNavItems(r *http.Request, current string, items []NavItem) %}
 {%code
-    prefix := "/vmalert/"
-    if strings.HasPrefix(r.URL.Path, prefix) {
-        prefix = ""
-    }
+    prefix := utils.Prefix(r.URL.Path)
 %}
 <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
   <div class="container-fluid">
