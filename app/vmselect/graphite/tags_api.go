@@ -415,8 +415,8 @@ func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter
 		return err
 	}
 	filter := r.FormValue("filter")
-	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
-	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, maxTagKeysPerSearch, deadline)
+	maxTagValuesPerSearch := flags.GetMaxTagValuesPerSearch()
+	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, maxTagValuesPerSearch, deadline)
 	if err != nil {
 		return err
 	}
