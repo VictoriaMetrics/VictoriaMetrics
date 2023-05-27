@@ -1,7 +1,14 @@
 ---
 sort: 5
+weight: 5
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 5
+title: vmauth
+aliases:
+  - /vmauth.html
 ---
-
 # vmauth
 
 `vmauth` is a simple auth proxy, router and [load balancer](#load-balancing) for [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics).

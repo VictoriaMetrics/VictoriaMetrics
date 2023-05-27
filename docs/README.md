@@ -1,4 +1,6 @@
-
+---
+title: VictoriaMetrics
+---
 # VictoriaMetrics
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)

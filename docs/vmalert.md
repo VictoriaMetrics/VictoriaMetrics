@@ -1,7 +1,14 @@
 ---
 sort: 4
+weight: 4
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 4
+title: vmalert
+aliases:
+  - /vmalert.html
 ---
-
 # vmalert
 
 `vmalert` executes a list of the given [alerting](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
