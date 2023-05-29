@@ -165,8 +165,8 @@ func TestHandler(t *testing.T) {
 }
 
 func TestEmptyResponse(t *testing.T) {
-	rh := &requestHandler{m: &manager{groups: make(map[uint64]*Group)}}
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rh.handler(w, r) }))
+	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*Group)}}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithNoGroups.handler(w, r) }))
 	defer ts.Close()
 
 	getResp := func(url string, to interface{}, code int) {
@@ -190,7 +190,7 @@ func TestEmptyResponse(t *testing.T) {
 		}
 	}
 
-	t.Run("/api/v1/alerts", func(t *testing.T) {
+	t.Run("no groups /api/v1/alerts", func(t *testing.T) {
 		lr := listAlertsResponse{}
 		getResp(ts.URL+"/api/v1/alerts", &lr, 200)
 		if lr.Data.Alerts == nil {
@@ -204,7 +204,7 @@ func TestEmptyResponse(t *testing.T) {
 		}
 	})
 
-	t.Run("/api/v1/rules", func(t *testing.T) {
+	t.Run("no groups /api/v1/rules", func(t *testing.T) {
 		lr := listGroupsResponse{}
 		getResp(ts.URL+"/api/v1/rules", &lr, 200)
 		if lr.Data.Groups == nil {
@@ -215,6 +215,28 @@ func TestEmptyResponse(t *testing.T) {
 		getResp(ts.URL+"/vmalert/api/v1/rules", &lr, 200)
 		if lr.Data.Groups == nil {
 			t.Errorf("expected /api/v1/rules response to have non-nil data")
+		}
+	})
+
+	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*Group{0: {Name: "test"}}}}
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithEmptyGroup.handler(w, r) })
+
+	t.Run("empty group /api/v1/rules", func(t *testing.T) {
+		lr := listGroupsResponse{}
+		getResp(ts.URL+"/api/v1/rules", &lr, 200)
+		if lr.Data.Groups == nil {
+			t.Fatalf("expected /api/v1/rules response to have non-nil data")
+		}
+
+		lr = listGroupsResponse{}
+		getResp(ts.URL+"/vmalert/api/v1/rules", &lr, 200)
+		if lr.Data.Groups == nil {
+			t.Fatalf("expected /api/v1/rules response to have non-nil data")
+		}
+
+		group := lr.Data.Groups[0]
+		if group.Rules == nil {
+			t.Fatalf("expected /api/v1/rules response to have non-nil rules for group")
 		}
 	})
 }

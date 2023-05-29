@@ -418,27 +418,37 @@ check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
 copy-docs:
-	echo '' > ${DST}
+	echo "---" > ${DST}
 	@if [ ${ORDER} -ne 0 ]; then \
-		echo "---\nsort: ${ORDER}\n---\n" > ${DST}; \
+		echo "sort: ${ORDER}" >> ${DST}; \
+		echo "weight: ${ORDER}" >> ${DST}; \
+		echo "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}" >> ${DST}; \
 	fi
+
+	echo "title: ${TITLE}" >> ${DST}
+	@if [ ${OLD_URL} ]; then \
+		echo "aliases:\n  - ${OLD_URL}" >> ${DST}; \
+	fi
+	echo "---" >> ${DST}
 	cat ${SRC} >> ${DST}
 	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
 	rm -rf docs/*.tmp
 
-# Copies docs for all components and adds the order tag.
-# For ORDER=0 it adds no order tag.
+# Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
+# For ORDER=0 it adds no order tag/weight tag.
+# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
+# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links. 
 # Images starting with <img src="docs/ are replaced with <img src="
-# Cluster docs are supposed to be ordered as 9th.
+# Cluster docs are supposed to be ordered as 2nd.
 # The rest of docs is ordered manually.
 docs-sync:
-	SRC=README.md DST=docs/README.md ORDER=0 $(MAKE) copy-docs
-	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md ORDER=1 $(MAKE) copy-docs
-	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=3 $(MAKE) copy-docs
-	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=4 $(MAKE) copy-docs
-	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=5 $(MAKE) copy-docs
-	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=6 $(MAKE) copy-docs
-	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=7 $(MAKE) copy-docs
-	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
-	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
-	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+	SRC=README.md DST=docs/README.md OLD_URL='' ORDER=0 TITLE=VictoriaMetrics $(MAKE) copy-docs
+	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md OLD_URL='/Single-server-VictoriaMetrics.html' TITLE=VictoriaMetrics ORDER=1 $(MAKE) copy-docs
+	SRC=app/vmagent/README.md DST=docs/vmagent.md OLD_URL='/vmagent.html' ORDER=3 TITLE=vmagent $(MAKE) copy-docs
+	SRC=app/vmalert/README.md DST=docs/vmalert.md OLD_URL='/vmalert.html' ORDER=4 TITLE=vmalert $(MAKE) copy-docs
+	SRC=app/vmauth/README.md DST=docs/vmauth.md OLD_URL='/vmauth.html' ORDER=5 TITLE=vmauth $(MAKE) copy-docs
+	SRC=app/vmbackup/README.md DST=docs/vmbackup.md OLD_URL='/vmbackup.html' ORDER=6 TITLE=vmbackup $(MAKE) copy-docs
+	SRC=app/vmrestore/README.md DST=docs/vmrestore.md OLD_URL='/vmrestore.html' ORDER=7 TITLE=vmrestore $(MAKE) copy-docs
+	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
+	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs
