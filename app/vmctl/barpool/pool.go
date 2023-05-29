@@ -32,6 +32,7 @@ func AddWithTemplate(format string, total int) *pb.ProgressBar {
 	return bar
 }
 
+// NewSingleProgress returns progress bar with given template
 func NewSingleProgress(format string, total int) *pb.ProgressBar {
 	tpl := getTemplate(format)
 	return pb.ProgressBarTemplate(tpl).New(total)
