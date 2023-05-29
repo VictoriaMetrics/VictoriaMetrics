@@ -27,7 +27,7 @@ Managed VictoriaMetrics provides different levels of user access. It defines wha
 You assign the role to the user during the user creation procedure. You can change the role after the creation
 
 
-#### Roles definition
+### Roles definition
 
 <table>
   <tr>
@@ -82,7 +82,7 @@ You assign the role to the user during the user creation procedure. You can chan
   </tr>
 </table>
 
-#### User statuses
+### User statuses
 
 
 <table>
