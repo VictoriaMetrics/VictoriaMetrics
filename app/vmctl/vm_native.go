@@ -113,10 +113,6 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
-	if p.isSilent {
-		fmt.Printf("Continue import process with filter %s:\n", f.String())
-	}
-
 	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
