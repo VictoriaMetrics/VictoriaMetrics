@@ -2516,7 +2516,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxTagValues int
-     The maximum number of tag values returned from /api/v1/label/<label_name>/values and Graphite /tags/<tag_name> API (default 100000)
+     The maximum number of tag values returned from /api/v1/label/<label_name>/values (default 100000)
   -search.maxUniqueTimeseries int
      The maximum number of unique time series, which can be selected during /api/v1/query and /api/v1/query_range queries. This option allows limiting memory usage (default 300000)
   -search.minStalenessInterval duration
