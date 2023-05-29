@@ -34,6 +34,8 @@ You can be more specific here by saying `requests_success_total` (for only succe
 or `request_errors_total` (for requests which failed). Choosing a metric name is very important and supposed to clarify
 what is actually measured to every person who reads it, just like **variable names** in programming.
 
+#### Labels
+
 Every metric can contain additional meta-information in the form of label-value pairs:
 
 ```
@@ -52,6 +54,12 @@ Actually, the metric name is also a label with a special name `__name__`. So the
 requests_total{path="/", code="200"} 
 {__name__="requests_total", path="/", code="200"} 
 ```
+
+Labels can be automatically attached to the [time series](#time-series) 
+written via [vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) 
+or [Prometheus](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup).
+VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 
 #### Time series
 
@@ -343,6 +351,18 @@ VictoriaMetrics limits label's value size with 16kB. This limit can be changed v
 It is very important to keep under control the number of unique label values, since every unique label value
 leads to a new [time series](#time-series). Try to avoid using volatile label values such as session ID or query ID in order to
 avoid excessive resource usage and database slowdown.
+
+### Multi-tenancy
+
+[Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics 
+supports [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+for data isolation.
+
+Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) 
+version of VictoriaMetrics by adding [labels](#labels) on [write path](#write-data)
+and enforcing [labels filtering](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements) 
+on [read path](#query-data).
+
 
 ## Write data
 
