@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -9,7 +10,6 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/flags"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmstorage"
@@ -17,6 +17,11 @@ import (
 	graphiteparser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	maxGraphiteTagKeysPerSearch   = flag.Int("search.maxGraphiteTagKeys", 100e3, "The maximum number of tag keys returned from Graphite /tags, /tags/autoComplete/*, /tags/findSeries API")
+	maxGraphiteTagValuesPerSearch = flag.Int("search.maxGraphiteTagValues", 100e3, "The maximum number of tag values returned Graphite /tags/<tag_name> API")
 )
 
 // TagsDelSeriesHandler implements /tags/delSeries handler.
@@ -178,19 +183,18 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, w http.ResponseWriter, r
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
 	if len(exprs) == 0 && len(etfs) == 0 {
 		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTagValues.
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, maxTagKeysPerSearch, deadline)
+		tagValues, err = netstorage.GraphiteTagValues(nil, tag, filter, *maxGraphiteTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, maxTagKeysPerSearch)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -265,20 +269,19 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, w http.ResponseWriter, r *
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
 	if len(exprs) == 0 && len(etfs) == 0 {
 		// Fast path: there are no `expr` filters, so use netstorage.GraphiteTags.
 
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, err = netstorage.GraphiteTags(nil, filter, maxTagKeysPerSearch, deadline)
+		labels, err = netstorage.GraphiteTags(nil, filter, *maxGraphiteTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, maxTagKeysPerSearch)
+		sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -346,8 +349,7 @@ func TagsFindSeriesHandler(startTime time.Time, w http.ResponseWriter, r *http.R
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
-	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, maxTagKeysPerSearch)
+	sq, err := getSearchQueryForExprs(startTime, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 	if err != nil {
 		return err
 	}
@@ -415,8 +417,7 @@ func TagValuesHandler(startTime time.Time, tagName string, w http.ResponseWriter
 		return err
 	}
 	filter := r.FormValue("filter")
-	maxTagValuesPerSearch := flags.GetMaxTagValuesPerSearch()
-	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, maxTagValuesPerSearch, deadline)
+	tagValues, err := netstorage.GraphiteTagValues(nil, tagName, filter, *maxGraphiteTagValuesPerSearch, deadline)
 	if err != nil {
 		return err
 	}
@@ -447,8 +448,7 @@ func TagsHandler(startTime time.Time, w http.ResponseWriter, r *http.Request) er
 		return err
 	}
 	filter := r.FormValue("filter")
-	maxTagKeysPerSearch := flags.GetMaxTagKeysPerSearch()
-	labels, err := netstorage.GraphiteTags(nil, filter, maxTagKeysPerSearch, deadline)
+	labels, err := netstorage.GraphiteTags(nil, filter, *maxGraphiteTagKeysPerSearch, deadline)
 	if err != nil {
 		return err
 	}
