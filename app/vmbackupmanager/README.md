@@ -108,7 +108,7 @@ The result on the GCS bucket
 
 * The latest folder
 
-  <img alt="latest folder" src="vmbackupmanager_root_folder.png">
+  <img alt="latest folder" src="vmbackupmanager_latest_folder.png">
 
 ## Backup Retention Policy
 
