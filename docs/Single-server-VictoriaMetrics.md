@@ -2523,7 +2523,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxTSDBStatusSeries int
      The maximum number of time series, which can be processed during the call to /api/v1/status/tsdb. This option allows limiting memory usage (default 10000000)
   -search.maxTagKeys int
-     The maximum number of tag keys returned from /api/v1/labels and Graphite /tags, /tags/autoComplete/*, /tags/findSeries API (default 100000)
+     The maximum number of tag keys returned from /api/v1/labels (default 100000)
   -search.maxTagValueSuffixesPerSearch int
      The maximum number of tag value suffixes returned from /metrics/find (default 100000)
   -search.maxTagValues int
