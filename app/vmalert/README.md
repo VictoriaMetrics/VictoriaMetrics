@@ -947,7 +947,7 @@ The shortlist of configuration flags is the following:
      Optional label in the form 'Name=value' to add to all generated recording rules and alerts. Pass multiple -label flags in order to add multiple label sets.
      Supports an array of values separated by comma or specified via multiple flags.
   -external.url string
-     External URL is used as alert's source for sent alerts to the notifier
+     External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
