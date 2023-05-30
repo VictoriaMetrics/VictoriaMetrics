@@ -163,7 +163,10 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 			if r.Method != http.MethodGet {
 				return false
 			}
-			fmt.Fprintf(w, "vmstorage - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
+			w.Header().Add("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
+			<a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
+`)
 			return true
 		}
 		return requestHandler(w, r, strg)

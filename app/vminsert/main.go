@@ -192,7 +192,10 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != http.MethodGet {
 			return false
 		}
-		fmt.Fprintf(w, "vminsert - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprintf(w, `vminsert - a component of VictoriaMetrics cluster<br/>
+			<a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
+`)
 		return true
 	}
 	p, err := httpserver.ParsePath(r.URL.Path)
