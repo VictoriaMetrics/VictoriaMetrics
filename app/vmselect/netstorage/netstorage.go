@@ -2697,13 +2697,14 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
-	sns := make([]*storageNode, 0, len(addrs))
 	var snsLock sync.Mutex
+	sns := make([]*storageNode, 0, len(addrs))
 	var wg sync.WaitGroup
 	ms := metrics.NewSet()
 	for _, addr := range addrs {
 		wg.Add(1)
 		go func(addr string) {
+			defer wg.Done()
 			if _, _, err := net.SplitHostPort(addr); err != nil {
 				// Automatically add missing port.
 				addr += ":8401"
@@ -2741,7 +2742,6 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 			snsLock.Lock()
 			sns = append(sns, sn)
 			snsLock.Unlock()
-			wg.Done()
 		}(addr)
 	}
 	wg.Wait()
