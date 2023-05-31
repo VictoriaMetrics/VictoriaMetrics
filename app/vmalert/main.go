@@ -74,7 +74,7 @@ absolute path to all .tpl files in root.
 	ruleUpdateEntriesLimit = flag.Int("rule.updateEntriesLimit", 20, "Defines the max number of rule's state updates stored in-memory. "+
 		"Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param.")
 
-	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier")
+	externalURL         = flag.String("external.url", "", "External URL is used as alert's source for sent alerts to the notifier. By default, hostname is used as address.")
 	externalAlertSource = flag.String("external.alert.source", "", `External Alert Source allows to override the Source link for alerts sent to AlertManager `+
 		`for cases where you want to build a custom link to Grafana, Prometheus or any other service. `+
 		`Supports templating - see https://docs.victoriametrics.com/vmalert.html#templating . `+

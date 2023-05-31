@@ -45,10 +45,12 @@ with similarities and differences:
   or [fields](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#field-key) in
   VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics
   it will be multiple metrics;
-* there are no [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
-  or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization), all
+* there are no [databases](https://docs.influxdata.com/influxdb/v1.8/concepts/glossary/#database), 
+  [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
+  or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization). All
   data in VictoriaMetrics is stored in a global namespace or within
-  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
+  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). 
+  See more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy). 
 
 Let's consider the
 following [sample data](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#sample-data)

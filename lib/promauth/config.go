@@ -123,6 +123,9 @@ type HTTPClientConfig struct {
 
 	// Headers contains optional HTTP headers, which must be sent in the request to the server
 	Headers []string `yaml:"headers,omitempty"`
+
+	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
+	FollowRedirects *bool `yaml:"follow_redirects,omitempty"`
 }
 
 // ProxyClientConfig represents proxy client config.

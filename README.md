@@ -528,8 +528,10 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
-* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line. The `db` label name can be overridden via `-influxDBLabel` command-line flag.
+* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
+  [label](https://docs.victoriametrics.com/keyConcepts.html#labels) value unless `db` tag exists in the InfluxDB line. 
+  The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
+  read more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy).
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -1622,6 +1624,10 @@ Retention filters can be evaluated for free by downloading and using enterprise 
 * `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
 Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. It is possible to use recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to reduce the number of time series. See [these docs](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
+
+Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
+and can't be performed if there is not enough of free disk space or if vmstorage 
+is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
