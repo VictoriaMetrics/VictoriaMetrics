@@ -74,7 +74,7 @@ file.
 <div class="with-copy" markdown="1">
 
 ```console
-git clone https://github.com/VictoriaMetrics/VictoriaMetrics && 
+git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
 make docker-cluster-up
 ```
 
