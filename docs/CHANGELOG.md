@@ -24,7 +24,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
-* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix behavior when changing url in global settings if it includes tenants. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4322).
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix bug with custom URL in global settings not respecting tenantID change. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4322).
 
 ## [v1.91.0](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.0)
 
