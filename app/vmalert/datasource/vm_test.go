@@ -580,9 +580,9 @@ func TestRequestParams(t *testing.T) {
 		{
 			"custom params overrides the original params",
 			false,
-			&(*storage.Clone().ApplyParams(QuerierParams{
+			storage.Clone().ApplyParams(QuerierParams{
 				QueryParams: url.Values{"round_digits": {"2"}},
-			})),
+			}),
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("query=%s&round_digits=2&time=%d", query, timestamp.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
