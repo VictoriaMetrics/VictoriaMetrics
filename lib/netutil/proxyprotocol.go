@@ -71,9 +71,11 @@ func readProxyProto(r io.Reader) (net.Addr, error) {
 	if version != 2 {
 		return nil, fmt.Errorf("unsupported proxy protocol version, only v2 protocol version is supported, got: %d", version)
 	}
-	if proto != 1 {
-		// Only TCP is supported (aka STREAM).
-		return nil, fmt.Errorf("the proxy protocol implementation doesn't support proto %d; expecting 1", proto)
+	if proto == 0 && command != 0 || proto > 1 {
+		// supported proto:
+		// 0 - UNSPEC with LOCAL command. Common use case for load balancer health checks.
+		// 1 - TCP (aka STREAM).
+		return nil, fmt.Errorf("the proxy protocol implementation doesn't support proto %d and command: %d; expecting proto 1 or proto 0 with command 0", proto, command)
 	}
 	// The length of the remainder of the header including any TLVs in network byte order
 	// 0, 1, 2
