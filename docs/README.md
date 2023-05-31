@@ -1628,6 +1628,10 @@ Retention filters can be evaluated for free by downloading and using enterprise 
 
 Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. It is possible to use recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to reduce the number of time series. See [these docs](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
 
+Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
+and can't be performed if there is not enough of free disk space or if vmstorage 
+is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
+
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Multi-tenancy
