@@ -279,6 +279,9 @@ func TestRequestParams(t *testing.T) {
 	}
 	query := "up"
 	timestamp := time.Date(2001, 2, 3, 4, 5, 6, 0, time.UTC)
+	storage := VMStorage{
+		extraParams: url.Values{"round_digits": {"10"}},
+	}
 	testCases := []struct {
 		name       string
 		queryRange bool
@@ -472,6 +475,17 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				exp := fmt.Sprintf("end=%d&max_lookback=1h&nocache=1&query=%s&start=%d",
 					timestamp.Unix(), query, timestamp.Unix())
+				checkEqualString(t, exp, r.URL.RawQuery)
+			},
+		},
+		{
+			"custom params overrides the original params",
+			false,
+			storage.Clone().ApplyParams(QuerierParams{
+				QueryParams: url.Values{"round_digits": {"2"}},
+			}),
+			func(t *testing.T, r *http.Request) {
+				exp := fmt.Sprintf("query=%s&round_digits=2&time=%d", query, timestamp.Unix())
 				checkEqualString(t, exp, r.URL.RawQuery)
 			},
 		},
