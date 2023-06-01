@@ -16,6 +16,7 @@ import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateCont
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import useBoolean from "../../../hooks/useBoolean";
+import { getTenantIdFromUrl } from "../../../utils/tenants";
 
 const title = "Settings";
 
@@ -57,6 +58,10 @@ const GlobalSettings: FC = () => {
   };
 
   const handlerApply = () => {
+    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
+    if (tenantIdFromUrl !== "") {
+      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
+    }
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
