@@ -1898,8 +1898,12 @@ type AssumeRoleWithSAMLInput struct {
 	// For more information, see Configuring a Relying Party and Adding Claims (https://docs.aws.amazon.com/IAM/latest/UserGuide/create-role-saml-IdP-tasks.html)
 	// in the IAM User Guide.
 	//
+	// SAMLAssertion is a sensitive parameter and its value will be
+	// replaced with "sensitive" in string returned by AssumeRoleWithSAMLInput's
+	// String and GoString methods.
+	//
 	// SAMLAssertion is a required field
-	SAMLAssertion *string `min:"4" type:"string" required:"true"`
+	SAMLAssertion *string `min:"4" type:"string" required:"true" sensitive:"true"`
 }
 
 // String returns the string representation.
@@ -2264,8 +2268,12 @@ type AssumeRoleWithWebIdentityInput struct {
 	// the user who is using your application with a web identity provider before
 	// the application makes an AssumeRoleWithWebIdentity call.
 	//
+	// WebIdentityToken is a sensitive parameter and its value will be
+	// replaced with "sensitive" in string returned by AssumeRoleWithWebIdentityInput's
+	// String and GoString methods.
+	//
 	// WebIdentityToken is a required field
-	WebIdentityToken *string `min:"4" type:"string" required:"true"`
+	WebIdentityToken *string `min:"4" type:"string" required:"true" sensitive:"true"`
 }
 
 // String returns the string representation.
@@ -2571,8 +2579,12 @@ type Credentials struct {
 
 	// The secret access key that can be used to sign requests.
 	//
+	// SecretAccessKey is a sensitive parameter and its value will be
+	// replaced with "sensitive" in string returned by Credentials's
+	// String and GoString methods.
+	//
 	// SecretAccessKey is a required field
-	SecretAccessKey *string `type:"string" required:"true"`
+	SecretAccessKey *string `type:"string" required:"true" sensitive:"true"`
 
 	// The token that users must pass to the service API to use the temporary credentials.
 	//

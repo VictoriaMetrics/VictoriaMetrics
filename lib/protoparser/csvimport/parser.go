@@ -88,6 +88,10 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 			}
 			cd := &cds[col]
 			col++
+			if cd.isEmpty() || sc.Column == "" {
+				// Ignore empty column.
+				continue
+			}
 			if parseTimestamp := cd.ParseTimestamp; parseTimestamp != nil {
 				timestamp, err := parseTimestamp(sc.Column)
 				if err != nil {
@@ -105,9 +109,8 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 				continue
 			}
 			metricName := cd.MetricName
-			if metricName == "" || sc.Column == "" {
-				// The given field is ignored.
-				continue
+			if metricName == "" {
+				logger.Panicf("BUG: unexpected empty MetricName")
 			}
 			value, err := fastfloat.Parse(sc.Column)
 			if err != nil {
@@ -118,13 +121,15 @@ func parseRows(sc *scanner, dst []Row, tags []Tag, metrics []metric, cds []Colum
 				Value: value,
 			})
 		}
-
-		if col < uint(len(cds)) && sc.Error == nil && len(metrics) == 0 {
+		if col < uint(len(cds)) && sc.Error == nil {
 			sc.Error = fmt.Errorf("missing columns in the csv line %q; got %d columns; want at least %d columns", line, col, len(cds))
 		}
 		if sc.Error != nil {
 			logger.Errorf("error when parsing csv line %q: %s; skipping this line", line, sc.Error)
 			invalidLines.Inc()
+			continue
+		}
+		if len(metrics) == 0 {
 			continue
 		}
 		r.Metric = metrics[0].Name

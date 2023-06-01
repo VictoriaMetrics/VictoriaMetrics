@@ -13,8 +13,18 @@ import (
 //
 // It returns unix timestamp in seconds.
 func ParseTime(s string) (float64, error) {
+	currentTimestamp := float64(time.Now().UnixNano()) / 1e9
+	return ParseTimeAt(s, currentTimestamp)
+}
+
+// ParseTimeAt parses time s in different formats, assuming the given currentTimestamp.
+//
+// See https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats
+//
+// It returns unix timestamp in seconds.
+func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 	if s == "now" {
-		return float64(time.Now().UnixNano()) / 1e9, nil
+		return currentTimestamp, nil
 	}
 	sOrig := s
 	tzOffset := float64(0)
@@ -49,8 +59,7 @@ func ParseTime(s string) (float64, error) {
 		if d > 0 {
 			d = -d
 		}
-		t := time.Now().Add(d)
-		return float64(t.UnixNano()) / 1e9, nil
+		return currentTimestamp + float64(d)/1e9, nil
 	}
 	if len(s) == 4 {
 		// Parse YYYY

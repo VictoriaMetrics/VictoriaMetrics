@@ -190,9 +190,9 @@ func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDail
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", getTSIDCacheSize())
-	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/10)
+	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize())
+	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
+	s.metricNameCache = s.mustLoadCache("metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
@@ -283,7 +283,14 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	s.deletedMetricIDsUpdateLock.Unlock()
 }
 
-// DebugFlush flushes recently added storage data, so it becomes visible to search.
+// DebugFlush makes sure all the recently added data is visible to search.
+//
+// Note: this function doesn't store all the in-memory data to disk - it just converts
+// recently added items to searchable parts, which can be stored either in memory
+// (if they are quite small) or to persistent disk.
+//
+// This function is for debugging and testing purposes only,
+// since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.flushPendingRows()
 	s.idb().tb.DebugFlush()
@@ -755,7 +762,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	// from inconsistent behaviour after possible unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
-	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, "metricName_tsid")
 }
 
 // MustClose closes the storage.
@@ -773,11 +780,11 @@ func (s *Storage) MustClose() {
 	s.idb().MustClose()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, "metricName_tsid")
 	s.tsidCache.Stop()
-	s.mustSaveCache(s.metricIDCache, "MetricID->TSID", "metricID_tsid")
+	s.mustSaveCache(s.metricIDCache, "metricID_tsid")
 	s.metricIDCache.Stop()
-	s.mustSaveCache(s.metricNameCache, "MetricID->MetricName", "metricID_metricName")
+	s.mustSaveCache(s.metricNameCache, "metricID_metricName")
 	s.metricNameCache.Stop()
 
 	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -807,8 +814,6 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 	}
 	name := "next_day_metric_ids"
 	path := filepath.Join(s.cachePath, name)
-	logger.Infof("loading %s from %q...", name, path)
-	startTime := time.Now()
 	if !fs.IsPathExist(path) {
 		logger.Infof("nothing to load from %q", path)
 		return e
@@ -817,7 +822,6 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
-	srcOrigLen := len(src)
 	if len(src) < 16 {
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 16)
 		return e
@@ -842,7 +846,6 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 		return e
 	}
 	e.v = *m
-	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), m.Len(), srcOrigLen)
 	return e
 }
 
@@ -851,8 +854,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		hour: hour,
 	}
 	path := filepath.Join(s.cachePath, name)
-	logger.Infof("loading %s from %q...", name, path)
-	startTime := time.Now()
 	if !fs.IsPathExist(path) {
 		logger.Infof("nothing to load from %q", path)
 		return hm
@@ -861,7 +862,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
-	srcOrigLen := len(src)
 	if len(src) < 16 {
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 16)
 		return hm
@@ -886,15 +886,12 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 		return hm
 	}
 	hm.m = m
-	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), m.Len(), srcOrigLen)
 	return hm
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	name := "next_day_metric_ids"
 	path := filepath.Join(s.cachePath, name)
-	logger.Infof("saving %s to %q...", name, path)
-	startTime := time.Now()
 	dst := make([]byte, 0, e.v.Len()*8+16)
 
 	// Marshal header
@@ -906,13 +903,10 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), e.v.Len(), len(dst))
 }
 
 func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	path := filepath.Join(s.cachePath, name)
-	logger.Infof("saving %s to %q...", name, path)
-	startTime := time.Now()
 	dst := make([]byte, 0, hm.m.Len()*8+24)
 
 	// Marshal header
@@ -924,7 +918,6 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), hm.m.Len(), len(dst))
 }
 
 func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
@@ -987,32 +980,19 @@ func loadMinTimestampForCompositeIndex(path string) (int64, error) {
 	return encoding.UnmarshalInt64(data), nil
 }
 
-func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
+func (s *Storage) mustLoadCache(name string, sizeBytes int) *workingsetcache.Cache {
 	path := filepath.Join(s.cachePath, name)
-	logger.Infof("loading %s cache from %q...", info, path)
-	startTime := time.Now()
-	c := workingsetcache.Load(path, sizeBytes)
-	var cs fastcache.Stats
-	c.UpdateStats(&cs)
-	logger.Infof("loaded %s cache from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
-		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
-	return c
+	return workingsetcache.Load(path, sizeBytes)
 }
 
-func (s *Storage) mustSaveCache(c *workingsetcache.Cache, info, name string) {
+func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 	saveCacheLock.Lock()
 	defer saveCacheLock.Unlock()
 
 	path := filepath.Join(s.cachePath, name)
-	logger.Infof("saving %s cache to %q...", info, path)
-	startTime := time.Now()
 	if err := c.Save(path); err != nil {
-		logger.Panicf("FATAL: cannot save %s cache to %q: %s", info, path, err)
+		logger.Panicf("FATAL: cannot save cache to %q: %s", path, err)
 	}
-	var cs fastcache.Stats
-	c.UpdateStats(&cs)
-	logger.Infof("saved %s cache to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
-		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 }
 
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
@@ -1032,17 +1012,18 @@ func nextRetentionDuration(retentionMsecs int64) time.Duration {
 }
 
 func nextRetentionDurationAt(atMsecs int64, retentionMsecs int64) time.Duration {
-	// Schedule the deadline to +4 hours from the next retention period start.
-	// This should prevent from possible double deletion of indexdb
-	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
-	retentionOffsetMsecs := retentionTimezoneOffsetMsecs - int64(4*3600*1000)
-
 	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected
-	deadline := ((atMsecs + retentionMsecs + retentionOffsetMsecs - 1) / retentionMsecs) * retentionMsecs
+	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
 
 	// The effect of time zone on retention period is moved out.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2574
-	deadline -= retentionOffsetMsecs
+	deadline := ((atMsecs + retentionMsecs + retentionTimezoneOffsetMsecs - 1) / retentionMsecs) * retentionMsecs
+
+	// Schedule the deadline to +4 hours from the next retention period start.
+	// This should prevent from possible double deletion of indexdb
+	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
+	deadline += int64(4 * 3600 * 1000)
+	deadline -= retentionTimezoneOffsetMsecs
 	return time.Duration(deadline-atMsecs) * time.Millisecond
 }
 

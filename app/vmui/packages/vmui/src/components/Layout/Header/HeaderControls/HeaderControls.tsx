@@ -1,4 +1,4 @@
-import React, { FC, useMemo, useState } from "preact/compat";
+import React, { FC, useMemo } from "preact/compat";
 import { RouterOptions, routerOptions, RouterOptionsHeader } from "../../../../router";
 import TenantsConfiguration from "../../../Configurators/GlobalSettings/TenantsConfiguration/TenantsConfiguration";
 import StepConfigurator from "../../../Configurators/StepConfigurator/StepConfigurator";
@@ -15,6 +15,7 @@ import "./style.scss";
 import classNames from "classnames";
 import { getAppModeEnable } from "../../../../utils/app-mode";
 import Modal from "../../../Main/Modal/Modal";
+import useBoolean from "../../../../hooks/useBoolean";
 
 interface HeaderControlsProp {
   displaySidebar: boolean
@@ -50,21 +51,18 @@ const Controls: FC<HeaderControlsProp> = ({
 
 const HeaderControls: FC<HeaderControlsProp> = (props) => {
   const appModeEnable = getAppModeEnable();
-  const [openList, setOpenList] = useState(false);
   const { pathname } = useLocation();
   const { accountIds } = useFetchAccountIds();
+
+  const {
+    value: openList,
+    toggle: handleToggleList,
+    setFalse: handleCloseList,
+  } = useBoolean(false);
 
   const headerSetup = useMemo(() => {
     return ((routerOptions[pathname] || {}) as RouterOptions).header || {};
   }, [pathname]);
-
-  const handleToggleList = () => {
-    setOpenList(prev => !prev);
-  };
-
-  const handleCloseList = () => {
-    setOpenList(false);
-  };
 
   if (props.isMobile) {
     return (

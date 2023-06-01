@@ -1,4 +1,6 @@
-import { useEffect, RefObject } from "react";
+import { RefObject } from "react";
+import useEventListener from "./useEventListener";
+import { useCallback } from "preact/compat";
 
 type Event = MouseEvent | TouchEvent;
 
@@ -7,26 +9,19 @@ const useClickOutside = <T extends HTMLElement = HTMLElement>(
   handler: (event: Event) => void,
   preventRef?: RefObject<T>
 ) => {
-  useEffect(() => {
-    const listener = (event: Event) => {
-      const el = ref?.current;
-      const target = event.target as HTMLElement;
-      const isPreventRef = preventRef?.current && preventRef.current.contains(target);
-      if (!el || el.contains((event?.target as Node) || null) || isPreventRef) {
-        return;
-      }
+  const listener = useCallback((event: Event) => {
+    const el = ref?.current;
+    const target = event.target as HTMLElement;
+    const isPreventRef = preventRef?.current && preventRef.current.contains(target);
+    if (!el || el.contains((event?.target as Node) || null) || isPreventRef) {
+      return;
+    }
 
-      handler(event); // Call the handler only if the click is outside of the element passed.
-    };
+    handler(event); // Call the handler only if the click is outside of the element passed.
+  }, [ref, handler]);
 
-    document.addEventListener("mousedown", listener);
-    document.addEventListener("touchstart", listener);
-
-    return () => {
-      document.removeEventListener("mousedown", listener);
-      document.removeEventListener("touchstart", listener);
-    };
-  }, [ref, handler]); // Reload only if ref or handler changes
+  useEventListener("mousedown", listener);
+  useEventListener("touchstart", listener);
 };
 
 export default useClickOutside;

@@ -13,7 +13,6 @@ import { getAxes, getMinMaxBuffer } from "../../../../utils/uplot/axes";
 import { MetricResult } from "../../../../api/types";
 import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
 import throttle from "lodash.throttle";
-import useResize from "../../../../hooks/useResize";
 import { TimeParams } from "../../../../types";
 import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
@@ -23,6 +22,8 @@ import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
 import { useAppState } from "../../../../state/common/StateContext";
 import { SeriesItem } from "../../../../utils/uplot/series";
+import { ElementSize } from "../../../../hooks/useElementSize";
+import useEventListener from "../../../../hooks/useEventListener";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -32,7 +33,7 @@ export interface LineChartProps {
   series: uPlotSeries[];
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null;
+  layoutSize: ElementSize;
   height?: number;
 }
 
@@ -46,7 +47,7 @@ const LineChart: FC<LineChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container,
+  layoutSize,
   height
 }) => {
   const { isDarkTheme } = useAppState();
@@ -57,7 +58,6 @@ const LineChart: FC<LineChartProps> = ({
   const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const [startTouchDistance, setStartTouchDistance] = useState(0);
-  const layoutSize = useResize(container);
 
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipIdx, setTooltipIdx] = useState({ seriesIdx: -1, dataIdx: -1 });
@@ -115,7 +115,7 @@ const LineChart: FC<LineChartProps> = ({
     });
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const { target, ctrlKey, metaKey, key } = e;
     const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     if (!uPlotInst || isInput) return;
@@ -130,9 +130,10 @@ const LineChart: FC<LineChartProps> = ({
         max: xRange.max - factor
       });
     }
-  };
+  }, [uPlotInst, xRange]);
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
+    if (!showTooltip) return;
     const id = `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`;
     const props = {
       id,
@@ -148,7 +149,7 @@ const LineChart: FC<LineChartProps> = ({
       const tooltipProps = JSON.parse(JSON.stringify(props));
       setStickyToolTips(prev => [...prev, tooltipProps]);
     }
-  };
+  }, [metrics, series, stickyTooltips, tooltipIdx, tooltipOffset, showTooltip, unit, yRange]);
 
   const handleUnStick = (id:string) => {
     setStickyToolTips(prev => prev.filter(t => t.id !== id));
@@ -231,14 +232,6 @@ const LineChart: FC<LineChartProps> = ({
     return u.destroy;
   }, [uPlotRef.current, series, layoutSize, height, isDarkTheme]);
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [xRange]);
-
   const handleTouchStart = (e: TouchEvent) => {
     if (e.touches.length !== 2) return;
     e.preventDefault();
@@ -248,7 +241,7 @@ const LineChart: FC<LineChartProps> = ({
     setStartTouchDistance(Math.sqrt(dx * dx + dy * dy));
   };
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (e.touches.length !== 2 || !uPlotInst) return;
     e.preventDefault();
 
@@ -268,17 +261,7 @@ const LineChart: FC<LineChartProps> = ({
       min: min + zoomFactor,
       max: max - zoomFactor
     }));
-  };
-
-  useEffect(() => {
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchstart", handleTouchStart);
-
-    return () => {
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchstart", handleTouchStart);
-    };
-  }, [uPlotInst, startTouchDistance]);
+  }, [uPlotInst, startTouchDistance, xRange]);
 
   useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
   useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
@@ -286,13 +269,12 @@ const LineChart: FC<LineChartProps> = ({
   useEffect(() => {
     const show = tooltipIdx.dataIdx !== -1 && tooltipIdx.seriesIdx !== -1;
     setShowTooltip(show);
-
-    if (show) window.addEventListener("click", handleClick);
-
-    return () => {
-      window.removeEventListener("click", handleClick);
-    };
   }, [tooltipIdx, stickyTooltips]);
+
+  useEventListener("click", handleClick);
+  useEventListener("keydown", handleKeyDown);
+  useEventListener("touchmove", handleTouchMove);
+  useEventListener("touchstart", handleTouchStart);
 
   return (
     <div

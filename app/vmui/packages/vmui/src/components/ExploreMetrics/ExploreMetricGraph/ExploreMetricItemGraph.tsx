@@ -11,6 +11,7 @@ import "./style.scss";
 import classNames from "classnames";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { getDurationFromMilliseconds, getSecondsFromDuration, getStepFromDuration } from "../../../utils/time";
+import useBoolean from "../../../hooks/useBoolean";
 
 interface ExploreMetricItemGraphProps {
   name: string,
@@ -41,7 +42,10 @@ const ExploreMetricItem: FC<ExploreMetricItemGraphProps> = ({
   const [isHeatmap, setIsHeatmap] = useState(false);
   const step = isHeatmap && customStep === defaultStep ? heatmapStep : customStep;
 
-  const [showAllSeries, setShowAllSeries] = useState(false);
+  const {
+    value: showAllSeries,
+    setTrue: handleShowAll,
+  } = useBoolean(false);
 
   const query = useMemo(() => {
     const params = Object.entries({ job, instance })
@@ -79,10 +83,6 @@ with (q = ${queryBase}) (
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
-  };
-
-  const handleShowAll = () => {
-    setShowAllSeries(true);
   };
 
   useEffect(() => {

@@ -194,3 +194,52 @@ func TestLabels_Set(t *testing.T) {
 	f(`http_request_total{a="b"}`, `a`, `c`, `{__name__="http_request_total",a="c"}`)
 	f(`http_request_total{a="b"}`, `ip`, `127.0.0.1`, `{__name__="http_request_total",a="b",ip="127.0.0.1"}`)
 }
+
+func TestNewLabelsFromStringSuccess(t *testing.T) {
+	f := func(s, resultExpected string) {
+		t.Helper()
+		labels, err := NewLabelsFromString(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		result := labels.String()
+		if result != resultExpected {
+			t.Fatalf("unexpected result;\ngot\n%s\nwant\n%s", result, resultExpected)
+		}
+	}
+
+	f("{}", "{}")
+	f("foo", `{__name__="foo"}`)
+	f(`foo{bar="baz"}`, `{__name__="foo",bar="baz"}`)
+	f(`foo {bar="baz", a="b"}`, `{__name__="foo",bar="baz",a="b"}`)
+	f(`{foo="bar", baz="a"}`, `{foo="bar",baz="a"}`)
+	f(`{__name__="aaa"}`, `{__name__="aaa"}`)
+	f(`{__name__="abc",de="fg"}`, `{__name__="abc",de="fg"}`)
+}
+
+func TestNewLabelsFromStringFailure(t *testing.T) {
+	f := func(s string) {
+		t.Helper()
+		labels, err := NewLabelsFromString(s)
+		if labels != nil {
+			t.Fatalf("unexpected non-nil labels: %s", labels)
+		}
+		if err == nil {
+			t.Fatalf("expecting non-nil error")
+		}
+	}
+
+	f("")
+	f("foo bar")
+	f(`foo{`)
+	f(`foo{bar`)
+	f(`foo{bar=`)
+	f(`foo{bar="`)
+	f(`foo{bar="baz`)
+	f(`foo{bar="baz"`)
+	f(`foo{bar="baz",`)
+	f(`foo{"bar"="baz"}`)
+	f(`{"bar":"baz"}`)
+	f(`{bar:"baz"}`)
+	f(`{bar=~"baz"}`)
+}

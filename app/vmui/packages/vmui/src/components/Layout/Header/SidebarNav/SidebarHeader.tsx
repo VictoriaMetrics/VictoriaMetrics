@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef, useState } from "preact/compat";
+import React, { FC, useEffect, useRef } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import ShortcutKeys from "../../../Main/ShortcutKeys/ShortcutKeys";
 import classNames from "classnames";
@@ -7,6 +7,7 @@ import useClickOutside from "../../../../hooks/useClickOutside";
 import MenuBurger from "../../../Main/MenuBurger/MenuBurger";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import "./style.scss";
+import useBoolean from "../../../../hooks/useBoolean";
 
 interface SidebarHeaderProps {
   background: string
@@ -21,15 +22,12 @@ const SidebarHeader: FC<SidebarHeaderProps> = ({
   const { isMobile } = useDeviceDetect();
 
   const sidebarRef = useRef<HTMLDivElement>(null);
-  const [openMenu, setOpenMenu] = useState(false);
 
-  const handleToggleMenu = () => {
-    setOpenMenu(prev => !prev);
-  };
-
-  const handleCloseMenu = () => {
-    setOpenMenu(false);
-  };
+  const {
+    value: openMenu,
+    toggle: handleToggleMenu,
+    setFalse: handleCloseMenu,
+  } = useBoolean(false);
 
   useEffect(handleCloseMenu, [pathname]);
 

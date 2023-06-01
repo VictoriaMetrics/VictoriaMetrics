@@ -39,7 +39,7 @@ kubectl apply -f release/crds
  
 Then you need RBAC for operator, relevant configuration for the release can be found at release/operator/rbac.yaml
 
-Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/vars.MD)
+Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/operator/vars.html)
 and apply it:
 ```console
 kubectl apply -f release/operator/

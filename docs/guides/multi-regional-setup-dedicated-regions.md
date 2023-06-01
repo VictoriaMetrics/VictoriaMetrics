@@ -1,6 +1,6 @@
 ---
 weight: 11
-title: Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring
+title: "Multi-regional setup with VictoriaMetrics: Dedicated regions for monitoring"
 menu:
   docs:
     parent: "guides"
@@ -94,3 +94,4 @@ Additional context
 ### What more can we do?
 
 Setup vmagents in Ground Control regions. That allows it to accept data close to storage and add more reliability if storage is temporarily offline.
+g

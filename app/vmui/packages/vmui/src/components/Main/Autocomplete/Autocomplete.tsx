@@ -1,9 +1,11 @@
-import React, { FC, Ref, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, Ref, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
 import classNames from "classnames";
 import Popper from "../Popper/Popper";
 import "./style.scss";
 import { DoneIcon } from "../Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useBoolean from "../../../hooks/useBoolean";
+import useEventListener from "../../../hooks/useEventListener";
 
 interface AutocompleteProps {
   value: string
@@ -39,8 +41,13 @@ const Autocomplete: FC<AutocompleteProps> = ({
   const { isMobile } = useDeviceDetect();
   const wrapperEl = useRef<HTMLDivElement>(null);
 
-  const [openAutocomplete, setOpenAutocomplete] = useState(false);
   const [focusOption, setFocusOption] = useState(-1);
+
+  const {
+    value: openAutocomplete,
+    setValue: setOpenAutocomplete,
+    setFalse: handleCloseAutocomplete,
+  } = useBoolean(false);
 
   const foundOptions = useMemo(() => {
     if (!openAutocomplete) return [];
@@ -57,10 +64,6 @@ const Autocomplete: FC<AutocompleteProps> = ({
     return noOptionsText && !foundOptions.length;
   }, [noOptionsText,foundOptions]);
 
-  const handleCloseAutocomplete = () => {
-    setOpenAutocomplete(false);
-  };
-
   const createHandlerSelect = (item: string) => () => {
     if (disabled) return;
     onSelect(item);
@@ -73,7 +76,7 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (target?.scrollIntoView) target.scrollIntoView({ block: "center" });
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const { key, ctrlKey, metaKey, shiftKey } = e;
     const modifiers = ctrlKey || metaKey || shiftKey;
     const hasOptions = foundOptions.length;
@@ -98,22 +101,16 @@ const Autocomplete: FC<AutocompleteProps> = ({
     if (key === "Escape") {
       handleCloseAutocomplete();
     }
-  };
+  }, [focusOption, foundOptions, handleCloseAutocomplete, onSelect, selected]);
 
   useEffect(() => {
     const words = (value.match(/[a-zA-Z_:.][a-zA-Z0-9_:.]*/gm) || []).length;
     setOpenAutocomplete(value.length > minLength && words <= maxWords);
   }, [value]);
 
-  useEffect(() => {
-    scrollToValue();
+  useEventListener("keydown", handleKeyDown);
 
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [focusOption, foundOptions]);
+  useEffect(scrollToValue, [focusOption, foundOptions]);
 
   useEffect(() => {
     setFocusOption(-1);

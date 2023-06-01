@@ -324,8 +324,6 @@ func (pw *partWrapper) decRef() {
 // The table is created if it doesn't exist yet.
 func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockCallback, isReadOnly *uint32) *Table {
 	path = filepath.Clean(path)
-	logger.Infof("opening table %q...", path)
-	startTime := time.Now()
 
 	// Create a directory for the table if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
@@ -352,11 +350,6 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 
 	// Wake up a single background merger, so it could start merging parts if needed.
 	tb.notifyBackgroundMergers()
-
-	var m TableMetrics
-	tb.UpdateMetrics(&m)
-	logger.Infof("table %q has been opened in %.3f seconds; partsCount: %d; blocksCount: %d, itemsCount: %d; sizeBytes: %d",
-		path, time.Since(startTime).Seconds(), m.FilePartsCount, m.FileBlocksCount, m.FileItemsCount, m.FileSizeBytes)
 
 	if flushCallback != nil {
 		tb.flushCallbackWorkerWG.Add(1)
@@ -392,20 +385,11 @@ func (tb *Table) startBackgroundWorkers() {
 func (tb *Table) MustClose() {
 	close(tb.stopCh)
 
-	logger.Infof("waiting for background workers to stop on %q...", tb.path)
-	startTime := time.Now()
+	// Waiting for background workers to stop
 	tb.wg.Wait()
-	logger.Infof("background workers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
 
-	logger.Infof("flushing inmemory parts to files on %q...", tb.path)
-	startTime = time.Now()
 	tb.flushInmemoryItems()
-	logger.Infof("inmemory parts have been successfully flushed to files in %.3f seconds at %q", time.Since(startTime).Seconds(), tb.path)
-
-	logger.Infof("waiting for flush callback worker to stop on %q...", tb.path)
-	startTime = time.Now()
 	tb.flushCallbackWorkerWG.Wait()
-	logger.Infof("flush callback worker stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), tb.path)
 
 	// Remove references to parts from the tb, so they may be eventually closed after all the searches are done.
 	tb.partsLock.Lock()
@@ -594,9 +578,14 @@ func (tb *Table) mergePartsOptimal(pws []*partWrapper) error {
 	return nil
 }
 
-// DebugFlush flushes all the added items to the storage, so they become visible to search.
+// DebugFlush makes sure all the recently added data is visible to search.
 //
-// This function is only for debugging and testing.
+// Note: this function doesn't store all the in-memory data to disk - it just converts
+// recently added items to searchable parts, which can be stored either in memory
+// (if they are quite small) or to persistent disk.
+//
+// This function is for debugging and testing purposes only,
+// since it may slow down data ingestion when used frequently.
 func (tb *Table) DebugFlush() {
 	tb.flushPendingItems(nil, true)
 

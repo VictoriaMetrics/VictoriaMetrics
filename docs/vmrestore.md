@@ -1,7 +1,14 @@
 ---
 sort: 7
+weight: 7
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 7
+title: vmrestore
+aliases:
+  - /vmrestore.html
 ---
-
 # vmrestore
 
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
