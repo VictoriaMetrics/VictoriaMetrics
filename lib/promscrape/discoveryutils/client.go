@@ -155,15 +155,10 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 			proxyURL.SetHeaders(proxyAC, req)
 		}
 	}
-	if httpCfg.EnableHTTP2 != nil && !*httpCfg.EnableHTTP2 {
-		// golang HTTP/2 support had many problematic corner cases where
-		// dead connections would be kept and used in connection pools.
-		// https://github.com/golang/go/issues/32388
-		// https://github.com/golang/go/issues/39337
-		// https://github.com/golang/go/issues/39750
+	if httpCfg.EnableHTTP2 != nil && *httpCfg.EnableHTTP2 {
 		_, err := http2.ConfigureTransports(client.Transport.(*http.Transport))
 		if err != nil {
-			return nil, fmt.Errorf("failed to configure net/http HTTP/1 Transport to use HTTP/2.: %s", err)
+			return nil, fmt.Errorf("failed to configure HTTP/2 transport: %s", err)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())

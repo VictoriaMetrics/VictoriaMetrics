@@ -163,14 +163,9 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 		Timeout: 30 * sw.ScrapeTimeout,
 	}
 	if sw.EnableHTTP2 {
-		// golang HTTP/2 support had many problematic corner cases where
-		// dead connections would be kept and used in connection pools.
-		// https://github.com/golang/go/issues/32388
-		// https://github.com/golang/go/issues/39337
-		// https://github.com/golang/go/issues/39750
 		_, err := http2.ConfigureTransports(sc.Transport.(*http.Transport))
 		if err != nil {
-			logger.Fatalf("failed to configure net/http HTTP/1 Transport to use HTTP/2.: %s", err)
+			logger.Errorf("failed to configure HTTP/2 transport: %s", err)
 		}
 	}
 
