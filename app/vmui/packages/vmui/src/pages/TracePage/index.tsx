@@ -75,12 +75,6 @@ const TracePage: FC = () => {
     handleCloseError(index);
   };
 
-  const { files, dragging } = useDropzone(document.body);
-  useEffect(() => {
-    setSearchParams({});
-  }, []);
-
-
   const { files, dragging } = useDropzone();
 
   useEffect(() => {
