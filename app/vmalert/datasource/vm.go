@@ -36,6 +36,7 @@ func (s *VMStorage) Clone() *VMStorage {
 		queryStep:        s.queryStep,
 		appendTypePrefix: s.appendTypePrefix,
 		dataSourceType:   s.dataSourceType,
+		extraParams:      s.extraParams,
 	}
 }
 
@@ -45,7 +46,16 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 		s.dataSourceType = *params.DataSourceType
 	}
 	s.evaluationInterval = params.EvaluationInterval
-	s.extraParams = params.QueryParams
+	if len(params.QueryParams) != 0 {
+		for k, vl := range params.QueryParams {
+			if s.extraParams.Has(k) {
+				s.extraParams.Del(k)
+			}
+			for _, v := range vl {
+				s.extraParams.Add(k, v)
+			}
+		}
+	}
 	return s
 }
 
