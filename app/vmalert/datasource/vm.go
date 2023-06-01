@@ -29,6 +29,7 @@ func toDatasourceType(s string) datasourceType {
 }
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
+// WARN: when adding a new field, remember to update Clone() method.
 type VMStorage struct {
 	c                *http.Client
 	authCfg          *promauth.Config
@@ -58,10 +59,16 @@ func (s *VMStorage) Clone() *VMStorage {
 		c:                s.c,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
+		appendTypePrefix: s.appendTypePrefix,
 		lookBack:         s.lookBack,
 		queryStep:        s.queryStep,
-		appendTypePrefix: s.appendTypePrefix,
-		dataSourceType:   s.dataSourceType,
+
+		dataSourceType:     s.dataSourceType,
+		evaluationInterval: s.evaluationInterval,
+		extraParams:        s.extraParams,
+		extraHeaders:       s.extraHeaders,
+
+		debug: s.debug,
 	}
 }
 
@@ -69,14 +76,18 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
-	s.extraParams = params.QueryParams
-	s.debug = params.Debug
+	for k, vl := range params.QueryParams {
+		for _, v := range vl { // custom query params are prior to default ones
+			s.extraParams.Set(k, v)
+		}
+	}
 	if params.Headers != nil {
 		for key, value := range params.Headers {
 			kv := keyValue{key: key, value: value}
 			s.extraHeaders = append(s.extraHeaders, kv)
 		}
 	}
+	s.debug = params.Debug
 	return s
 }
 

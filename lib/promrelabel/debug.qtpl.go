@@ -181,11 +181,11 @@ func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, 
 //line lib/promrelabel/debug.qtpl:73
 func streamrelabelDebugFormInputs(qw422016 *qt422016.Writer, metric, relabelConfigs string) {
 //line lib/promrelabel/debug.qtpl:73
-	qw422016.N().S(`<div>Relabel configs:<br/><textarea name="relabel_configs" style="width: 100%; height: 15em" class="m-1">`)
+	qw422016.N().S(`<div>Relabel configs:<br/><textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">`)
 //line lib/promrelabel/debug.qtpl:76
 	qw422016.E().S(relabelConfigs)
 //line lib/promrelabel/debug.qtpl:76
-	qw422016.N().S(`</textarea></div><div>Labels:<br/><textarea name="metric" style="width: 100%; height: 5em" class="m-1">`)
+	qw422016.N().S(`</textarea></div><div>Labels:<br/><textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">`)
 //line lib/promrelabel/debug.qtpl:81
 	qw422016.E().S(metric)
 //line lib/promrelabel/debug.qtpl:81

@@ -245,7 +245,6 @@ type ScrapeConfig struct {
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
-	FollowRedirects      *bool                       `yaml:"follow_redirects,omitempty"`
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
@@ -990,8 +989,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorTimestamps = *sc.HonorTimestamps
 	}
 	denyRedirects := false
-	if sc.FollowRedirects != nil {
-		denyRedirects = !*sc.FollowRedirects
+	if sc.HTTPClientConfig.FollowRedirects != nil {
+		denyRedirects = !*sc.HTTPClientConfig.FollowRedirects
 	}
 	metricsPath := sc.MetricsPath
 	if metricsPath == "" {

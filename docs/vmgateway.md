@@ -1,7 +1,14 @@
 ---
 sort: 9
+weight: 9
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 9
+title: vmgateway
+aliases:
+  - /vmgateway.html
 ---
-
 # vmgateway
 
 ***vmgateway is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***

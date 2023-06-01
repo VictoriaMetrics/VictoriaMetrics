@@ -1,7 +1,14 @@
 ---
 sort: 8
+weight: 8
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 8
+title: vmctl
+aliases:
+  - /vmctl.html
 ---
-
 # vmctl
 
 VictoriaMetrics command-line tool
@@ -740,6 +747,7 @@ See `./vmctl vm-native --help` for details and full list of flags.
 Migration in `vm-native` mode takes two steps:
 1. Explore the list of the metrics to migrate via `api/v1/label/__name__/values` API;
 2. Migrate explored metrics one-by-one.
+
 ```
 ./vmctl vm-native \
     --vm-native-src-addr=http://127.0.0.1:8481/select/0/prometheus \ # migrate from

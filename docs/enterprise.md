@@ -10,7 +10,7 @@ aliases:
 - /enterprise.html
 ---
 
-# VictoriaMetrics enterprise
+# VictoriaMetrics Enterprise
 
 VictoriaMetrics components are provided in two kinds - [community edition](https://victoriametrics.com/products/open-source/)
 and [enterprise edition](https://victoriametrics.com/products/enterprise/).

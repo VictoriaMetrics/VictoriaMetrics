@@ -545,7 +545,7 @@ func isGraphiteTagsPath(path string) bool {
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.Warnf("error in %q: %s", httpserver.GetRequestURI(r), err)
+	logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity

@@ -64,7 +64,7 @@ git remote add enterprise <url>
    and this release contains all the needed binaries and checksums.
 7. Update the release description with the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
 8. Remove the `draft` checkbox for the `TAG` release and manually publish it.
-9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
+9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/gcp-test/sandbox/manifests/benchmark-vm/vmcluster.yaml)
    by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
 10. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
 

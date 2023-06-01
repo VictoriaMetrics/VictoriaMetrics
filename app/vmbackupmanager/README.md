@@ -1,4 +1,4 @@
-## vmbackupmanager
+# vmbackupmanager
 
 ***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
@@ -104,11 +104,11 @@ The result on the GCS bucket
 
 * The root folder
 
-  ![root](vmbackupmanager_root_folder.png)
+  <img alt="root folder" src="vmbackupmanager_root_folder.png">
 
 * The latest folder
 
-  ![latest](vmbackupmanager_latest_folder.png)
+  <img alt="latest folder" src="vmbackupmanager_latest_folder.png">
 
 ## Backup Retention Policy
 
@@ -123,7 +123,7 @@ Backup retention policy is controlled by:
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
-![daily](vmbackupmanager_rp_daily_1.png)
+<img alt="retention policy daily before retention cycle" src="vmbackupmanager_rp_daily_1.png">
 
 We enable backup retention policy for backup manager by using following configuration:
 
@@ -148,8 +148,32 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-![daily](vmbackupmanager_rp_daily_2.png)
+<img alt="retention policy daily after retention cycle" src="vmbackupmanager_rp_daily_2.png">
 
+### Protection backups against deletion by retention policy
+
+You can protect any backup against deletion by retention policy with the `vmbackupmanager backups lock` command.
+
+For instance:
+
+```console
+./vmbackupmanager backup lock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+```
+
+After that the backup won't be deleted by retention policy.
+You can view the `locked` attribute in backup list:
+
+```console
+./vmbackupmanager backup list -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+```
+
+To remove protection, you can use the command `vmbackupmanager backups unlock`.
+
+For example:
+
+```console
+./vmbackupmanager backup unlock daily/2021-02-13 -dst=<DST_PATH> -storageDataPath=/vmstorage-data -eula
+```
 
 ## API methods
 
@@ -160,7 +184,23 @@ The result on the GCS bucket. We see only 3 daily backups:
   ```json
   [{"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00"},{"name":"hourly/2023-04-07:11","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:06+00:00"},{"name":"latest","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:04+00:00"},{"name":"monthly/2023-04","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:10+00:00"},{"name":"weekly/2023-14","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:09+00:00"}]
   ```
-  > Note: `created_at` field is in RFC3339 format. 
+  > Note: `created_at` field is in RFC3339 format.
+
+* GET `/api/v1/backups/<BACKUP_NAME>` - returns backup info by name.
+  Example output:
+  ```json
+  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00","locked":true}
+  ```
+
+* PUT `/api/v1/backups/<BACKUP_NAME>` - update "locked" attribute for backup by name.
+  Example request body:
+  ```json
+  {"locked":true}
+  ```
+  Example response:
+  ```json
+  {"name":"daily/2023-04-07","size_bytes":318837,"size":"311.4ki","created_at":"2023-04-07T16:15:07+00:00", "locked": true}
+  ```
 
 * POST `/api/v1/restore` - saves backup name to restore when [performing restore](#restore-commands).
   Example request body:
@@ -187,7 +227,13 @@ vmbackupmanager backup
   vmbackupmanager backup list 
     List backups in remote storage
 
-vmbackupmanager restore 
+  vmbackupmanager backup lock
+    Locks backup in remote storage against deletion
+
+  vmbackupmanager backup unlock
+    Unlocks backup in remote storage for deletion
+
+vmbackupmanager restore
   Restore backup specified by restore mark if it exists
 
   vmbackupmanager restore get 
