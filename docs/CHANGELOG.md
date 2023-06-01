@@ -28,6 +28,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly form path to static assets in WEB UI if `http.pathPrefix` set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4349).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly set datasource query params. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4340). Thanks to @gsakun for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4341).
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return empty slices instead of nil for `/api/v1/rules` for groups with present name but absent `rules`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221).
 * BUGFIX: [vmauth](https://docs.victoriametrics.com/vmauth.html): Properly handle LOCAL command for proxy protocol. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3335#issuecomment-1569864108).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): Fixes crash on startup. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4378).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix bug with custom URL in global settings not respecting tenantID change. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4322).
