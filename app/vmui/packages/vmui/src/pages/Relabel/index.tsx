@@ -74,6 +74,7 @@ const Relabel: FC = () => {
             label="Relabel configs"
             value={config}
             language={"yaml"}
+            resize={"vertical"}
             onChange={handleChangeConfig}
             onEnter={handleRunQuery}
           />
@@ -83,6 +84,7 @@ const Relabel: FC = () => {
             label="Labels"
             value={labels}
             language={"vm-labels"}
+            resize={"vertical"}
             onChange={handleChangeLabels}
             onEnter={handleRunQuery}
           />

@@ -39,7 +39,6 @@ const WithTemplate: FC = () => {
             value={expr}
             error={error}
             autofocus
-            showControlsInfo
             onEnter={handleRunQuery}
             onChange={handleChangeInput}
           />

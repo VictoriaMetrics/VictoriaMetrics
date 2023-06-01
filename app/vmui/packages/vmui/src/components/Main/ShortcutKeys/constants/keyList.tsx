@@ -10,11 +10,11 @@ const keyList = [
     title: "Query",
     list: [
       {
-        keys: <><code>Shift</code> + <code>Enter</code></>,
+        keys: <code>Enter</code>,
         description: "Run"
       },
       {
-        keys: <code>Enter</code>,
+        keys: <><code>Shift</code> + <code>Enter</code></>,
         description: "Multi-line queries"
       },
       {

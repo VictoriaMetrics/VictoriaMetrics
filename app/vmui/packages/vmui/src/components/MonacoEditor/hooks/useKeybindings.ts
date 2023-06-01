@@ -11,12 +11,6 @@ const useKeybindings = (monaco: Monaco | null, onEnter?: (val: string) => void) 
   useEffect(() => {
     if (!monaco) return;
     monaco.editor.addEditorAction({
-      id: "execute-shift-enter",
-      label: "Execute",
-      keybindings: [monaco.KeyMod.Shift | monaco.KeyCode.Enter],
-      run: handleRunEnter
-    });
-    monaco.editor.addEditorAction({
       id: "execute-ctrl-enter",
       label: "Execute",
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],

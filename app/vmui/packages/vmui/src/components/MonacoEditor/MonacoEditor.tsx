@@ -4,16 +4,19 @@ import useMonacoTheme from "./hooks/useMonacoTheme";
 import useLabelsSyntax from "./hooks/useLabelsSyntax";
 import useKeybindings from "./hooks/useKeybindings";
 import "./style.scss";
+import classNames from "classnames";
 
 interface MonacoEditorProps {
   value: string;
   label?: string;
   language?: string;
+  disabled?: boolean;
+  resize?: "vertical" | "horizontal" | "both" | "none";
   onChange: (val: string | undefined) => void;
   onEnter?: (val: string) => void;
 }
 
-const MonacoEditor: FC<MonacoEditorProps> = ({ value, label, language, onChange, onEnter }) => {
+const MonacoEditor: FC<MonacoEditorProps> = ({ value, label, language, disabled, resize = "none", onChange, onEnter }) => {
   const monaco = useMonaco();
   useMonacoTheme(monaco);
   useLabelsSyntax(monaco);
@@ -22,11 +25,16 @@ const MonacoEditor: FC<MonacoEditorProps> = ({ value, label, language, onChange,
   return (
     <div className="vm-text-field vm-monaco-editor">
       <Editor
-        className="vm-text-field__input vm-monaco-editor__input"
+        className={classNames({
+          "vm-text-field__input": true,
+          "vm-monaco-editor__input": true,
+          [`vm-monaco-editor__input_resize-${resize}`]: resize,
+        })}
         defaultLanguage={language}
         value={value}
         theme={"vm-theme"}
         options={{
+          readOnly: disabled,
           scrollBeyondLastLine: false,
           automaticLayout: true,
           lineNumbers: "off",

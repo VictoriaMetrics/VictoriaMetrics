@@ -7,7 +7,21 @@
 
   &__input {
     height: 100%;
-    resize: vertical;
     padding: $padding-small 0;
+    resize: none;
+
+    &_resize {
+      &-vertical {
+        resize: vertical;
+      }
+
+      &-horizontal {
+        resize: horizontal;
+      }
+
+      &-both {
+        resize: both;
+      }
+    }
   }
 }
