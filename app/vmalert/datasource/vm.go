@@ -13,6 +13,7 @@ import (
 )
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
+// WARN: when adding a new field, remember to update Clone() method.
 type VMStorage struct {
 	c                *http.Client
 	authCfg          *promauth.Config
@@ -32,11 +33,13 @@ func (s *VMStorage) Clone() *VMStorage {
 		c:                s.c,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
+		appendTypePrefix: s.appendTypePrefix,
 		lookBack:         s.lookBack,
 		queryStep:        s.queryStep,
-		appendTypePrefix: s.appendTypePrefix,
-		dataSourceType:   s.dataSourceType,
-		extraParams:      s.extraParams,
+
+		dataSourceType:     s.dataSourceType,
+		evaluationInterval: s.evaluationInterval,
+		extraParams:        s.extraParams,
 	}
 }
 
@@ -46,14 +49,9 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 		s.dataSourceType = *params.DataSourceType
 	}
 	s.evaluationInterval = params.EvaluationInterval
-	if len(params.QueryParams) != 0 {
-		for k, vl := range params.QueryParams {
-			if s.extraParams.Has(k) {
-				s.extraParams.Del(k)
-			}
-			for _, v := range vl {
-				s.extraParams.Add(k, v)
-			}
+	for k, vl := range params.QueryParams {
+		for _, v := range vl { // custom query params are prior to default ones
+			s.extraParams.Set(k, v)
 		}
 	}
 	return s
