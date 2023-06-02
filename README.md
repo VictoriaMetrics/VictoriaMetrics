@@ -1144,6 +1144,10 @@ Below is the output for `/path/to/vmselect -help`:
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
+  -search.maxGraphiteTagKeys int
+     The maximum number of tag keys returned from Graphite /tags, /tags/autoComplete/*, /tags/findSeries API (default 100000)
+  -search.maxGraphiteTagValues int
+     The maximum number of tag values returned Graphite /tags/<tag_name> API (default 100000) 
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
   -search.maxMemoryPerQuery size

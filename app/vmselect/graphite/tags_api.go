@@ -1,6 +1,7 @@
 package graphite
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -16,6 +17,11 @@ import (
 	graphiteparser "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
 	"github.com/VictoriaMetrics/metrics"
+)
+
+var (
+	maxGraphiteTagKeysPerSearch   = flag.Int("search.maxGraphiteTagKeys", 100e3, "The maximum number of tag keys returned from Graphite /tags, /tags/autoComplete/*, /tags/findSeries API")
+	maxGraphiteTagValuesPerSearch = flag.Int("search.maxGraphiteTagValues", 100e3, "The maximum number of tag values returned Graphite /tags/<tag_name> API")
 )
 
 // TagsDelSeriesHandler implements /tags/delSeries handler.
@@ -183,13 +189,13 @@ func TagsAutoCompleteValuesHandler(startTime time.Time, at *auth.Token, w http.R
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L228
 		filter := regexp.QuoteMeta(valuePrefix)
-		tagValues, isPartial, err = netstorage.GraphiteTagValues(nil, at.AccountID, at.ProjectID, denyPartialResponse, tag, filter, limit, deadline)
+		tagValues, isPartial, err = netstorage.GraphiteTagValues(nil, at.AccountID, at.ProjectID, denyPartialResponse, tag, filter, *maxGraphiteTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, limit*10)
+		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -273,13 +279,13 @@ func TagsAutoCompleteTagsHandler(startTime time.Time, at *auth.Token, w http.Res
 		// Escape special chars in tagPrefix as Graphite does.
 		// See https://github.com/graphite-project/graphite-web/blob/3ad279df5cb90b211953e39161df416e54a84948/webapp/graphite/tags/base.py#L181
 		filter := regexp.QuoteMeta(tagPrefix)
-		labels, isPartial, err = netstorage.GraphiteTags(nil, at.AccountID, at.ProjectID, denyPartialResponse, filter, limit, deadline)
+		labels, isPartial, err = netstorage.GraphiteTags(nil, at.AccountID, at.ProjectID, denyPartialResponse, filter, *maxGraphiteTagKeysPerSearch, deadline)
 		if err != nil {
 			return err
 		}
 	} else {
 		// Slow path: use netstorage.SearchMetricNames for applying `expr` filters.
-		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, limit*10)
+		sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 		if err != nil {
 			return err
 		}
@@ -348,7 +354,7 @@ func TagsFindSeriesHandler(startTime time.Time, at *auth.Token, w http.ResponseW
 	if err != nil {
 		return fmt.Errorf("cannot setup tag filters: %w", err)
 	}
-	sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, limit*10)
+	sq, err := getSearchQueryForExprs(startTime, at, etfs, exprs, *maxGraphiteTagKeysPerSearch)
 	if err != nil {
 		return err
 	}
@@ -418,11 +424,14 @@ func TagValuesHandler(startTime time.Time, at *auth.Token, tagName string, w htt
 	}
 	filter := r.FormValue("filter")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	tagValues, isPartial, err := netstorage.GraphiteTagValues(nil, at.AccountID, at.ProjectID, denyPartialResponse, tagName, filter, limit, deadline)
+	tagValues, isPartial, err := netstorage.GraphiteTagValues(nil, at.AccountID, at.ProjectID, denyPartialResponse, tagName, filter, *maxGraphiteTagValuesPerSearch, deadline)
 	if err != nil {
 		return err
 	}
 
+	if limit > 0 && limit < len(tagValues) {
+		tagValues = tagValues[:limit]
+	}
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
@@ -447,11 +456,14 @@ func TagsHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r *
 	}
 	filter := r.FormValue("filter")
 	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
-	labels, isPartial, err := netstorage.GraphiteTags(nil, at.AccountID, at.ProjectID, denyPartialResponse, filter, limit, deadline)
+	labels, isPartial, err := netstorage.GraphiteTags(nil, at.AccountID, at.ProjectID, denyPartialResponse, filter, *maxGraphiteTagKeysPerSearch, deadline)
 	if err != nil {
 		return err
 	}
 
+	if limit > 0 && limit < len(labels) {
+		labels = labels[:limit]
+	}
 	w.Header().Set("Content-Type", "application/json")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
