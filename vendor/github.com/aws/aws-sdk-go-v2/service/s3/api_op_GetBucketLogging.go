@@ -13,15 +13,10 @@ import (
 )
 
 // Returns the logging status of a bucket and the permissions users have to view
-// and modify that status. To use GET, you must be the bucket owner. The following
-// operations are related to GetBucketLogging:
-//
-// * CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//
-// *
-// PutBucketLogging
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLogging.html)
+// and modify that status. The following operations are related to GetBucketLogging
+// :
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+//   - PutBucketLogging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketLogging.html)
 func (c *Client) GetBucketLogging(ctx context.Context, params *GetBucketLoggingInput, optFns ...func(*Options)) (*GetBucketLoggingOutput, error) {
 	if params == nil {
 		params = &GetBucketLoggingInput{}
@@ -54,10 +49,9 @@ type GetBucketLoggingInput struct {
 
 type GetBucketLoggingOutput struct {
 
-	// Describes where logs are stored and the prefix that Amazon S3 assigns to all log
-	// object keys for a bucket. For more information, see PUT Bucket logging
-	// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html) in
-	// the Amazon S3 API Reference.
+	// Describes where logs are stored and the prefix that Amazon S3 assigns to all
+	// log object keys for a bucket. For more information, see PUT Bucket logging (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html)
+	// in the Amazon S3 API Reference.
 	LoggingEnabled *types.LoggingEnabled
 
 	// Metadata pertaining to the operation's result.
@@ -121,6 +115,9 @@ func (c *Client) addOperationGetBucketLoggingMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketLoggingUpdateEndpoint(stack, options); err != nil {

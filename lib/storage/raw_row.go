@@ -95,7 +95,7 @@ func (rrm *rawRowsMarshaler) marshalToInmemoryPart(mp *inmemoryPart, rows []rawR
 	// Use the minimum compression level for first-level in-memory blocks,
 	// since they are going to be re-compressed during subsequent merges.
 	const compressLevel = -5 // See https://github.com/facebook/zstd/releases/tag/v1.3.4
-	rrm.bsw.InitFromInmemoryPart(mp, compressLevel)
+	rrm.bsw.MustInitFromInmemoryPart(mp, compressLevel)
 
 	ph := &mp.ph
 	ph.Reset()

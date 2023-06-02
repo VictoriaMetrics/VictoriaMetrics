@@ -6,6 +6,8 @@ menu:
   docs:
     parent: "managed"
     weight: 5
+aliases:
+- /managed-victoriametrics/user-managment.html
 ---
 # User Management in Managed VictoriaMetrics 
 
@@ -25,7 +27,7 @@ Managed VictoriaMetrics provides different levels of user access. It defines wha
 You assign the role to the user during the user creation procedure. You can change the role after the creation
 
 
-#### Roles definition
+### Roles definition
 
 <table>
   <tr>
@@ -80,7 +82,7 @@ You assign the role to the user during the user creation procedure. You can chan
   </tr>
 </table>
 
-#### User statuses
+### User statuses
 
 
 <table>
@@ -94,7 +96,7 @@ You assign the role to the user during the user creation procedure. You can chan
   </tr>
   <tr>
    <td class="highlight"><strong class="nn">Inactive</strong></td>
-   <td>The user is registered in the Managed VictoriaMetrics but has no access to perform any actions. Admin can active or completely delete the user.</td>
+   <td>The user is registered in the Managed VictoriaMetrics but has no access to perform any actions. Admin can activate or completely delete the user.</td>
   </tr>
 </table>
 

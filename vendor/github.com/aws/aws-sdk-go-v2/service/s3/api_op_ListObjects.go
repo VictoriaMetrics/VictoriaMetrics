@@ -17,30 +17,14 @@ import (
 // bucket. A 200 OK response can contain valid or invalid XML. Be sure to design
 // your application to parse the contents of the response and handle it
 // appropriately. This action has been revised. We recommend that you use the newer
-// version, ListObjectsV2
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html), when
-// developing applications. For backward compatibility, Amazon S3 continues to
-// support ListObjects. The following operations are related to ListObjects:
-//
-// *
-// ListObjectsV2
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
-//
-// *
-// GetObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//
-// *
-// PutObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
-//
-// *
-// CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
-//
-// *
-// ListBuckets
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
+// version, ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+// , when developing applications. For backward compatibility, Amazon S3 continues
+// to support ListObjects . The following operations are related to ListObjects :
+//   - ListObjectsV2 (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjectsV2.html)
+//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+//   - ListBuckets (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
 func (c *Client) ListObjects(ctx context.Context, params *ListObjectsInput, optFns ...func(*Options)) (*ListObjectsOutput, error) {
 	if params == nil {
 		params = &ListObjectsInput{}
@@ -64,17 +48,15 @@ type ListObjectsInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
@@ -145,8 +127,8 @@ type ListObjectsOutput struct {
 	// satisfied the search criteria.
 	IsTruncated bool
 
-	// Indicates where in the bucket listing begins. Marker is included in the response
-	// if it was sent with the request.
+	// Indicates where in the bucket listing begins. Marker is included in the
+	// response if it was sent with the request.
 	Marker *string
 
 	// The maximum number of keys returned in the response body.
@@ -228,6 +210,9 @@ func (c *Client) addOperationListObjectsMiddlewares(stack *middleware.Stack, opt
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addListObjectsUpdateEndpoint(stack, options); err != nil {

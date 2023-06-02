@@ -7,7 +7,7 @@ import Modal from "../../Main/Modal/Modal";
 import "./style.scss";
 import Tooltip from "../../Main/Tooltip/Tooltip";
 import LimitsConfigurator from "./LimitsConfigurator/LimitsConfigurator";
-import { SeriesLimits } from "../../../types";
+import { Theme } from "../../../types";
 import { useCustomPanelDispatch, useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import { getAppModeEnable } from "../../../utils/app-mode";
 import classNames from "classnames";
@@ -15,6 +15,8 @@ import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useBoolean from "../../../hooks/useBoolean";
+import { getTenantIdFromUrl } from "../../../utils/tenants";
 
 const title = "Settings";
 
@@ -22,7 +24,7 @@ const GlobalSettings: FC = () => {
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
-  const { serverUrl: stateServerUrl } = useAppState();
+  const { serverUrl: stateServerUrl, theme } = useAppState();
   const { timezone: stateTimezone } = useTimeState();
   const { seriesLimits } = useCustomPanelState();
 
@@ -31,20 +33,43 @@ const GlobalSettings: FC = () => {
   const customPanelDispatch = useCustomPanelDispatch();
 
   const [serverUrl, setServerUrl] = useState(stateServerUrl);
-  const [limits, setLimits] = useState<SeriesLimits>(seriesLimits);
+  const [limits, setLimits] = useState(seriesLimits);
   const [timezone, setTimezone] = useState(stateTimezone);
 
-  const [open, setOpen] = useState(false);
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => setOpen(false);
+  const setDefaultsValues = () => {
+    setServerUrl(stateServerUrl);
+    setLimits(seriesLimits);
+    setTimezone(stateTimezone);
+  };
+
+  const {
+    value: open,
+    setTrue: handleOpen,
+    setFalse: handleClose,
+  } = useBoolean(false);
+
+  const handleCloseAndReset = () => {
+    handleClose();
+    setDefaultsValues();
+  };
+
+  const handleChangeTheme = (value: Theme) => {
+    dispatch({ type: "SET_THEME", payload: value });
+  };
 
   const handlerApply = () => {
+    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
+    if (tenantIdFromUrl !== "") {
+      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
+    }
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
+    handleClose();
   };
 
   useEffect(() => {
+    // the tenant selector can change the serverUrl
     if (stateServerUrl === serverUrl) return;
     setServerUrl(stateServerUrl);
   }, [stateServerUrl]);
@@ -77,7 +102,7 @@ const GlobalSettings: FC = () => {
     {open && (
       <Modal
         title={title}
-        onClose={handleClose}
+        onClose={handleCloseAndReset}
       >
         <div
           className={classNames({
@@ -88,10 +113,10 @@ const GlobalSettings: FC = () => {
           {!appModeEnable && (
             <div className="vm-server-configurator__input">
               <ServerConfigurator
+                stateServerUrl={stateServerUrl}
                 serverUrl={serverUrl}
                 onChange={setServerUrl}
                 onEnter={handlerApply}
-                onBlur={handlerApply}
               />
             </div>
           )}
@@ -110,9 +135,28 @@ const GlobalSettings: FC = () => {
           </div>
           {!appModeEnable && (
             <div className="vm-server-configurator__input">
-              <ThemeControl/>
+              <ThemeControl
+                theme={theme}
+                onChange={handleChangeTheme}
+              />
             </div>
           )}
+          <div className="vm-server-configurator-footer">
+            <Button
+              color="error"
+              variant="outlined"
+              onClick={handleCloseAndReset}
+            >
+              Cancel
+            </Button>
+            <Button
+              color="primary"
+              variant="contained"
+              onClick={handlerApply}
+            >
+              Apply
+            </Button>
+          </div>
         </div>
       </Modal>
     )}

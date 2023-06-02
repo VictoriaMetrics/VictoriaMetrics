@@ -569,7 +569,7 @@ func MarshalMetricNameRaw(dst []byte, accountID, projectID uint32, labels []prom
 			label.Name = label.Name[:maxLabelNameLen]
 		}
 		if len(label.Value) > maxLabelValueLen {
-			atomic.AddUint64(&TooLongLabelValues, 1)
+			trackTruncatedLabels(labels, label)
 			label.Value = label.Value[:maxLabelValueLen]
 		}
 		if len(label.Value) == 0 {
@@ -619,7 +619,7 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	select {
 	case <-droppedLabelsLogTicker.C:
 		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
-		// because labelsToString() will be called with each trackDroppedLAbels call.
+		// because labelsToString() will be called with each trackDroppedLabels call.
 		logger.Warnf("dropping %d labels for %s; dropped labels: %s; either reduce the number of labels for this metric "+
 			"or increase -maxLabelsPerTimeseries=%d command-line flag value",
 			len(droppedLabels), labelsToString(labels), labelsToString(droppedLabels), maxLabelsPerTimeseries)
@@ -627,7 +627,21 @@ func trackDroppedLabels(labels, droppedLabels []prompb.Label) {
 	}
 }
 
+func trackTruncatedLabels(labels []prompb.Label, truncated *prompb.Label) {
+	atomic.AddUint64(&TooLongLabelValues, 1)
+	select {
+	case <-truncatedLabelsLogTicker.C:
+		// Do not call logger.WithThrottler() here, since this will result in increased CPU usage
+		// because labelsToString() will be called with each trackTruncatedLabels call.
+		logger.Warnf("truncated label value as it exceeds configured maximal label value length: max %d, actual %d;"+
+			" truncated label: %s; original labels: %s; either reduce the label value length or increase -maxLabelValueLen=%d;",
+			maxLabelValueLen, len(truncated.Value), truncated.Name, labelsToString(labels), maxLabelValueLen)
+	default:
+	}
+}
+
 var droppedLabelsLogTicker = time.NewTicker(5 * time.Second)
+var truncatedLabelsLogTicker = time.NewTicker(5 * time.Second)
 
 func labelsToString(labels []prompb.Label) string {
 	labelsCopy := append([]prompb.Label{}, labels...)

@@ -16,6 +16,7 @@ import (
 	"time"
 	"unsafe"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bloomfilter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/decimal"
@@ -144,11 +145,11 @@ type accountProjectKey struct {
 	ProjectID uint32
 }
 
-// OpenStorage opens storage on the given path with the given retentionMsecs.
-func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) (*Storage, error) {
+// MustOpenStorage opens storage on the given path with the given retentionMsecs.
+func MustOpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySeries int) *Storage {
 	path, err := filepath.Abs(path)
 	if err != nil {
-		return nil, fmt.Errorf("cannot determine absolute path for %q: %w", path, err)
+		logger.Panicf("FATAL: cannot determine absolute path for %q: %s", path, err)
 	}
 	if retentionMsecs <= 0 {
 		retentionMsecs = maxRetentionMsecs
@@ -158,45 +159,36 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	}
 	s := &Storage{
 		path:           path,
-		cachePath:      path + "/cache",
+		cachePath:      filepath.Join(path, cacheDirname),
 		retentionMsecs: retentionMsecs,
 		stop:           make(chan struct{}),
 	}
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, fmt.Errorf("cannot create a directory for the storage at %q: %w", path, err)
-	}
+	fs.MustMkdirIfNotExist(path)
 
 	// Check whether the cache directory must be removed
-	// It is removed if it contains reset_cache_on_startup file.
+	// It is removed if it contains resetCacheOnStartupFilename.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447 for details.
-	if fs.IsPathExist(s.cachePath + "/reset_cache_on_startup") {
-		logger.Infof("removing cache directory at %q, since it contains `reset_cache_on_startup` file...", s.cachePath)
-		// Do not use fs.MustRemoveDirAtomic() here, since the cache directory may be mounted
-		// to a separate filesystem. In this case the fs.MustRemoveDirAtomic() will fail while
+	if fs.IsPathExist(filepath.Join(s.cachePath, resetCacheOnStartupFilename)) {
+		logger.Infof("removing cache directory at %q, since it contains `%s` file...", s.cachePath, resetCacheOnStartupFilename)
+		// Do not use fs.MustRemoveAll() here, since the cache directory may be mounted
+		// to a separate filesystem. In this case the fs.MustRemoveAll() will fail while
 		// trying to remove the mount root.
 		fs.RemoveDirContents(s.cachePath)
 		logger.Infof("cache directory at %q has been successfully removed", s.cachePath)
 	}
 
 	// Protect from concurrent opens.
-	flockF, err := fs.CreateFlockFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create lock file in %q; "+
-			"make sure the dir isn't used by other processes or manually delete the file if you recover from abrupt VictoriaMetrics crash; error: %w", path, err)
-	}
-	s.flockF = flockF
+	s.flockF = fs.MustCreateFlockFile(path)
 
 	// Check whether restore process finished successfully
-	restoreLockF := path + "/restore-in-progress"
+	restoreLockF := filepath.Join(path, backupnames.RestoreInProgressFilename)
 	if fs.IsPathExist(restoreLockF) {
-		return nil, fmt.Errorf("restore lock file exists, incomplete vmrestore run. Run vmrestore again or remove lock file %q", restoreLockF)
+		logger.Panicf("FATAL: incomplete vmrestore run; run vmrestore again or remove lock file %q", restoreLockF)
 	}
 
 	// Pre-create snapshots directory if it is missing.
-	snapshotsPath := path + "/snapshots"
-	if err := fs.MkdirAllIfNotExist(snapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", snapshotsPath, err)
-	}
+	snapshotsPath := filepath.Join(path, snapshotsDirname)
+	fs.MustMkdirIfNotExist(snapshotsPath)
 	fs.MustRemoveTemporaryDirs(snapshotsPath)
 
 	// Initialize series cardinality limiter.
@@ -209,9 +201,9 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 
 	// Load caches.
 	mem := memory.Allowed()
-	s.tsidCache = s.mustLoadCache("MetricName->TSID", "metricName_tsid", getTSIDCacheSize())
-	s.metricIDCache = s.mustLoadCache("MetricID->TSID", "metricID_tsid", mem/16)
-	s.metricNameCache = s.mustLoadCache("MetricID->MetricName", "metricID_metricName", mem/10)
+	s.tsidCache = s.mustLoadCache("metricName_tsid", getTSIDCacheSize())
+	s.metricIDCache = s.mustLoadCache("metricID_tsid", mem/16)
+	s.metricNameCache = s.mustLoadCache("metricID_metricName", mem/10)
 	s.dateMetricIDCache = newDateMetricIDCache()
 
 	hour := fasttime.UnixHour()
@@ -228,54 +220,46 @@ func OpenStorage(path string, retentionMsecs int64, maxHourlySeries, maxDailySer
 	s.prefetchedMetricIDs.Store(&uint64set.Set{})
 
 	// Load metadata
-	metadataDir := path + "/metadata"
-	isEmptyDB := !fs.IsPathExist(path + "/indexdb")
-	if err := fs.MkdirAllIfNotExist(metadataDir); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", metadataDir, err)
-	}
+	metadataDir := filepath.Join(path, metadataDirname)
+	isEmptyDB := !fs.IsPathExist(filepath.Join(path, indexdbDirname))
+	fs.MustMkdirIfNotExist(metadataDir)
 	s.minTimestampForCompositeIndex = mustGetMinTimestampForCompositeIndex(metadataDir, isEmptyDB)
 
 	// Load indexdb
-	idbPath := path + "/indexdb"
-	idbSnapshotsPath := idbPath + "/snapshots"
-	if err := fs.MkdirAllIfNotExist(idbSnapshotsPath); err != nil {
-		return nil, fmt.Errorf("cannot create %q: %w", idbSnapshotsPath, err)
-	}
+	idbPath := filepath.Join(path, indexdbDirname)
+	idbSnapshotsPath := filepath.Join(idbPath, snapshotsDirname)
+	fs.MustMkdirIfNotExist(idbSnapshotsPath)
 	fs.MustRemoveTemporaryDirs(idbSnapshotsPath)
-	idbCurr, idbPrev, err := s.openIndexDBTables(idbPath)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open indexdb tables at %q: %w", idbPath, err)
-	}
+	idbCurr, idbPrev := s.mustOpenIndexDBTables(idbPath)
 	idbCurr.SetExtDB(idbPrev)
 	s.idbCurr.Store(idbCurr)
 
 	// Load deleted metricIDs from idbCurr and idbPrev
 	dmisCurr, err := idbCurr.loadDeletedMetricIDs()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load deleted metricIDs for the current indexDB: %w", err)
+		logger.Panicf("FATAL: cannot load deleted metricIDs for the current indexDB at %q: %s", path, err)
 	}
 	dmisPrev, err := idbPrev.loadDeletedMetricIDs()
 	if err != nil {
-		return nil, fmt.Errorf("cannot load deleted metricIDs for the previous indexDB: %w", err)
+		logger.Panicf("FATAL: cannot load deleted metricIDs for the previous indexDB at %q: %s", path, err)
 	}
 	s.setDeletedMetricIDs(dmisCurr)
 	s.updateDeletedMetricIDs(dmisPrev)
 
+	// check for free disk space before opening the table
+	// to prevent unexpected part merges. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4023
+	s.startFreeDiskSpaceWatcher()
+
 	// Load data
-	tablePath := path + "/data"
-	tb, err := openTable(tablePath, s)
-	if err != nil {
-		s.idb().MustClose()
-		return nil, fmt.Errorf("cannot open table at %q: %w", tablePath, err)
-	}
+	tablePath := filepath.Join(path, dataDirname)
+	tb := mustOpenTable(tablePath, s)
 	s.tb = tb
 
 	s.startCurrHourMetricIDsUpdater()
 	s.startNextDayMetricIDsUpdater()
 	s.startRetentionWatcher()
-	s.startFreeDiskSpaceWatcher()
 
-	return s, nil
+	return s
 }
 
 // RetentionMsecs returns retentionMsecs for s.
@@ -314,7 +298,14 @@ func (s *Storage) updateDeletedMetricIDs(metricIDs *uint64set.Set) {
 	s.deletedMetricIDsUpdateLock.Unlock()
 }
 
-// DebugFlush flushes recently added storage data, so it becomes visible to search.
+// DebugFlush makes sure all the recently added data is visible to search.
+//
+// Note: this function doesn't store all the in-memory data to disk - it just converts
+// recently added items to searchable parts, which can be stored either in memory
+// (if they are quite small) or to persistent disk.
+//
+// This function is for debugging and testing purposes only,
+// since it may slow down data ingestion when used frequently.
 func (s *Storage) DebugFlush() {
 	s.tb.flushPendingRows()
 	s.idb().tb.DebugFlush()
@@ -337,10 +328,8 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 
 	snapshotName := snapshot.NewName()
 	srcDir := s.path
-	dstDir := fmt.Sprintf("%s/snapshots/%s", srcDir, snapshotName)
-	if err := fs.MkdirAllFailIfExist(dstDir); err != nil {
-		return "", fmt.Errorf("cannot create dir %q: %w", dstDir, err)
-	}
+	dstDir := filepath.Join(srcDir, snapshotsDirname, snapshotName)
+	fs.MustMkdirFailIfExist(dstDir)
 	dirsToRemoveOnError = append(dirsToRemoveOnError, dstDir)
 
 	smallDir, bigDir, err := s.tb.CreateSnapshot(snapshotName, deadline)
@@ -349,45 +338,38 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 	}
 	dirsToRemoveOnError = append(dirsToRemoveOnError, smallDir, bigDir)
 
-	dstDataDir := dstDir + "/data"
-	if err := fs.MkdirAllFailIfExist(dstDataDir); err != nil {
-		return "", fmt.Errorf("cannot create dir %q: %w", dstDataDir, err)
-	}
-	dstSmallDir := dstDataDir + "/small"
-	if err := fs.SymlinkRelative(smallDir, dstSmallDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", smallDir, dstSmallDir, err)
-	}
-	dstBigDir := dstDataDir + "/big"
-	if err := fs.SymlinkRelative(bigDir, dstBigDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", bigDir, dstBigDir, err)
-	}
+	dstDataDir := filepath.Join(dstDir, dataDirname)
+	fs.MustMkdirFailIfExist(dstDataDir)
+
+	dstSmallDir := filepath.Join(dstDataDir, smallDirname)
+	fs.MustSymlinkRelative(smallDir, dstSmallDir)
+
+	dstBigDir := filepath.Join(dstDataDir, bigDirname)
+	fs.MustSymlinkRelative(bigDir, dstBigDir)
+
 	fs.MustSyncPath(dstDataDir)
 
-	srcMetadataDir := srcDir + "/metadata"
-	dstMetadataDir := dstDir + "/metadata"
-	if err := fs.CopyDirectory(srcMetadataDir, dstMetadataDir); err != nil {
-		return "", fmt.Errorf("cannot copy metadata: %w", err)
-	}
+	srcMetadataDir := filepath.Join(srcDir, metadataDirname)
+	dstMetadataDir := filepath.Join(dstDir, metadataDirname)
+	fs.MustCopyDirectory(srcMetadataDir, dstMetadataDir)
 
-	idbSnapshot := fmt.Sprintf("%s/indexdb/snapshots/%s", srcDir, snapshotName)
+	idbSnapshot := filepath.Join(srcDir, indexdbDirname, snapshotsDirname, snapshotName)
 	idb := s.idb()
-	currSnapshot := idbSnapshot + "/" + idb.name
+	currSnapshot := filepath.Join(idbSnapshot, idb.name)
 	if err := idb.tb.CreateSnapshotAt(currSnapshot, deadline); err != nil {
 		return "", fmt.Errorf("cannot create curr indexDB snapshot: %w", err)
 	}
 	dirsToRemoveOnError = append(dirsToRemoveOnError, idbSnapshot)
 
 	ok := idb.doExtDB(func(extDB *indexDB) {
-		prevSnapshot := idbSnapshot + "/" + extDB.name
+		prevSnapshot := filepath.Join(idbSnapshot, extDB.name)
 		err = extDB.tb.CreateSnapshotAt(prevSnapshot, deadline)
 	})
 	if ok && err != nil {
 		return "", fmt.Errorf("cannot create prev indexDB snapshot: %w", err)
 	}
-	dstIdbDir := dstDir + "/indexdb"
-	if err := fs.SymlinkRelative(idbSnapshot, dstIdbDir); err != nil {
-		return "", fmt.Errorf("cannot create symlink from %q to %q: %w", idbSnapshot, dstIdbDir, err)
-	}
+	dstIdbDir := filepath.Join(dstDir, indexdbDirname)
+	fs.MustSymlinkRelative(idbSnapshot, dstIdbDir)
 
 	fs.MustSyncPath(dstDir)
 
@@ -398,7 +380,7 @@ func (s *Storage) CreateSnapshot(deadline uint64) (string, error) {
 
 // ListSnapshots returns sorted list of existing snapshots for s.
 func (s *Storage) ListSnapshots() ([]string, error) {
-	snapshotsPath := s.path + "/snapshots"
+	snapshotsPath := filepath.Join(s.path, snapshotsDirname)
 	d, err := os.Open(snapshotsPath)
 	if err != nil {
 		return nil, fmt.Errorf("cannot open snapshots directory: %w", err)
@@ -425,13 +407,13 @@ func (s *Storage) DeleteSnapshot(snapshotName string) error {
 	if err := snapshot.Validate(snapshotName); err != nil {
 		return fmt.Errorf("invalid snapshotName %q: %w", snapshotName, err)
 	}
-	snapshotPath := s.path + "/snapshots/" + snapshotName
+	snapshotPath := filepath.Join(s.path, snapshotsDirname, snapshotName)
 
 	logger.Infof("deleting snapshot %q...", snapshotPath)
 	startTime := time.Now()
 
 	s.tb.MustDeleteSnapshot(snapshotName)
-	idbPath := fmt.Sprintf("%s/indexdb/snapshots/%s", s.path, snapshotName)
+	idbPath := filepath.Join(s.path, indexdbDirname, snapshotsDirname, snapshotName)
 	fs.MustRemoveDirAtomic(idbPath)
 	fs.MustRemoveDirAtomic(snapshotPath)
 
@@ -738,12 +720,9 @@ func (s *Storage) nextDayMetricIDsUpdater() {
 func (s *Storage) mustRotateIndexDB() {
 	// Create new indexdb table.
 	newTableName := nextIndexDBTableName()
-	idbNewPath := s.path + "/indexdb/" + newTableName
+	idbNewPath := filepath.Join(s.path, indexdbDirname, newTableName)
 	rotationTimestamp := fasttime.UnixTimestamp()
-	idbNew, err := openIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
-	if err != nil {
-		logger.Panicf("FATAL: cannot create new indexDB at %q: %s", idbNewPath, err)
-	}
+	idbNew := mustOpenIndexDB(idbNewPath, s, rotationTimestamp, &s.isReadOnly)
 
 	// Drop extDB
 	idbCurr := s.idb()
@@ -798,7 +777,7 @@ func (s *Storage) resetAndSaveTSIDCache() {
 	// from inconsistent behaviour after possible unclean shutdown.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1347
 	s.tsidCache.Reset()
-	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, "metricName_tsid")
 }
 
 // MustClose closes the storage.
@@ -816,11 +795,11 @@ func (s *Storage) MustClose() {
 	s.idb().MustClose()
 
 	// Save caches.
-	s.mustSaveCache(s.tsidCache, "MetricName->TSID", "metricName_tsid")
+	s.mustSaveCache(s.tsidCache, "metricName_tsid")
 	s.tsidCache.Stop()
-	s.mustSaveCache(s.metricIDCache, "MetricID->TSID", "metricID_tsid")
+	s.mustSaveCache(s.metricIDCache, "metricID_tsid")
 	s.metricIDCache.Stop()
-	s.mustSaveCache(s.metricNameCache, "MetricID->MetricName", "metricID_metricName")
+	s.mustSaveCache(s.metricNameCache, "metricID_metricName")
 	s.metricNameCache.Stop()
 
 	hmCurr := s.currHourMetricIDs.Load().(*hourMetricIDs)
@@ -832,9 +811,8 @@ func (s *Storage) MustClose() {
 	s.mustSaveNextDayMetricIDs(nextDayMetricIDs)
 
 	// Release lock file.
-	if err := s.flockF.Close(); err != nil {
-		logger.Panicf("FATAL: cannot close lock file %q: %s", s.flockF.Name(), err)
-	}
+	fs.MustClose(s.flockF)
+	s.flockF = nil
 
 	// Stop series limiters.
 	if sl := s.hourlySeriesLimiter; sl != nil {
@@ -850,9 +828,7 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 		date: date,
 	}
 	name := "next_day_metric_ids"
-	path := s.cachePath + "/" + name
-	logger.Infof("loading %s from %q...", name, path)
-	startTime := time.Now()
+	path := filepath.Join(s.cachePath, name)
 	if !fs.IsPathExist(path) {
 		logger.Infof("nothing to load from %q", path)
 		return e
@@ -861,7 +837,6 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
-	srcOrigLen := len(src)
 	if len(src) < 16 {
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 16)
 		return e
@@ -886,7 +861,6 @@ func (s *Storage) mustLoadNextDayMetricIDs(date uint64) *byDateMetricIDEntry {
 		return e
 	}
 	e.v = *m
-	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), m.Len(), srcOrigLen)
 	return e
 }
 
@@ -894,9 +868,7 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	hm := &hourMetricIDs{
 		hour: hour,
 	}
-	path := s.cachePath + "/" + name
-	logger.Infof("loading %s from %q...", name, path)
-	startTime := time.Now()
+	path := filepath.Join(s.cachePath, name)
 	if !fs.IsPathExist(path) {
 		logger.Infof("nothing to load from %q", path)
 		return hm
@@ -905,7 +877,6 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 	if err != nil {
 		logger.Panicf("FATAL: cannot read %s: %s", path, err)
 	}
-	srcOrigLen := len(src)
 	if len(src) < 16 {
 		logger.Errorf("discarding %s, since it has broken header; got %d bytes; want %d bytes", path, len(src), 16)
 		return hm
@@ -965,15 +936,12 @@ func (s *Storage) mustLoadHourMetricIDs(hour uint64, name string) *hourMetricIDs
 
 	hm.m = m
 	hm.byTenant = byTenant
-	logger.Infof("loaded %s from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), m.Len(), srcOrigLen)
 	return hm
 }
 
 func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	name := "next_day_metric_ids"
-	path := s.cachePath + "/" + name
-	logger.Infof("saving %s to %q...", name, path)
-	startTime := time.Now()
+	path := filepath.Join(s.cachePath, name)
 	dst := make([]byte, 0, e.v.Len()*8+16)
 
 	// Marshal header
@@ -985,13 +953,10 @@ func (s *Storage) mustSaveNextDayMetricIDs(e *byDateMetricIDEntry) {
 	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), e.v.Len(), len(dst))
 }
 
 func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
-	path := s.cachePath + "/" + name
-	logger.Infof("saving %s to %q...", name, path)
-	startTime := time.Now()
+	path := filepath.Join(s.cachePath, name)
 	dst := make([]byte, 0, hm.m.Len()*8+24)
 
 	// Marshal header
@@ -1016,7 +981,6 @@ func (s *Storage) mustSaveHourMetricIDs(hm *hourMetricIDs, name string) {
 	if err := os.WriteFile(path, dst, 0644); err != nil {
 		logger.Panicf("FATAL: cannot write %d bytes to %q: %s", len(dst), path, err)
 	}
-	logger.Infof("saved %s to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d", name, path, time.Since(startTime).Seconds(), hm.m.Len(), len(dst))
 }
 
 func unmarshalUint64Set(src []byte) (*uint64set.Set, []byte, error) {
@@ -1046,7 +1010,7 @@ func marshalUint64Set(dst []byte, m *uint64set.Set) []byte {
 }
 
 func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) int64 {
-	path := metadataDir + "/minTimestampForCompositeIndex"
+	path := filepath.Join(metadataDir, "minTimestampForCompositeIndex")
 	minTimestamp, err := loadMinTimestampForCompositeIndex(path)
 	if err == nil {
 		return minTimestamp
@@ -1064,9 +1028,7 @@ func mustGetMinTimestampForCompositeIndex(metadataDir string, isEmptyDB bool) in
 	}
 	minTimestamp = date * msecPerDay
 	dateBuf := encoding.MarshalInt64(nil, minTimestamp)
-	if err := fs.WriteFileAtomically(path, dateBuf, true); err != nil {
-		logger.Fatalf("cannot store minTimestampForCompositeIndex: %s", err)
-	}
+	fs.MustWriteAtomic(path, dateBuf, true)
 	return minTimestamp
 }
 
@@ -1081,32 +1043,19 @@ func loadMinTimestampForCompositeIndex(path string) (int64, error) {
 	return encoding.UnmarshalInt64(data), nil
 }
 
-func (s *Storage) mustLoadCache(info, name string, sizeBytes int) *workingsetcache.Cache {
-	path := s.cachePath + "/" + name
-	logger.Infof("loading %s cache from %q...", info, path)
-	startTime := time.Now()
-	c := workingsetcache.Load(path, sizeBytes)
-	var cs fastcache.Stats
-	c.UpdateStats(&cs)
-	logger.Infof("loaded %s cache from %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
-		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
-	return c
+func (s *Storage) mustLoadCache(name string, sizeBytes int) *workingsetcache.Cache {
+	path := filepath.Join(s.cachePath, name)
+	return workingsetcache.Load(path, sizeBytes)
 }
 
-func (s *Storage) mustSaveCache(c *workingsetcache.Cache, info, name string) {
+func (s *Storage) mustSaveCache(c *workingsetcache.Cache, name string) {
 	saveCacheLock.Lock()
 	defer saveCacheLock.Unlock()
 
-	path := s.cachePath + "/" + name
-	logger.Infof("saving %s cache to %q...", info, path)
-	startTime := time.Now()
+	path := filepath.Join(s.cachePath, name)
 	if err := c.Save(path); err != nil {
-		logger.Panicf("FATAL: cannot save %s cache to %q: %s", info, path, err)
+		logger.Panicf("FATAL: cannot save cache to %q: %s", path, err)
 	}
-	var cs fastcache.Stats
-	c.UpdateStats(&cs)
-	logger.Infof("saved %s cache to %q in %.3f seconds; entriesCount: %d; sizeBytes: %d",
-		info, path, time.Since(startTime).Seconds(), cs.EntriesCount, cs.BytesSize)
 }
 
 // saveCacheLock prevents from data races when multiple concurrent goroutines save the same cache.
@@ -1121,18 +1070,24 @@ func SetRetentionTimezoneOffset(offset time.Duration) {
 var retentionTimezoneOffsetMsecs int64
 
 func nextRetentionDuration(retentionMsecs int64) time.Duration {
-	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected.
+	nowMsecs := time.Now().UnixNano() / 1e6
+	return nextRetentionDurationAt(nowMsecs, retentionMsecs)
+}
+
+func nextRetentionDurationAt(atMsecs int64, retentionMsecs int64) time.Duration {
+	// Round retentionMsecs to days. This guarantees that per-day inverted index works as expected
 	retentionMsecs = ((retentionMsecs + msecPerDay - 1) / msecPerDay) * msecPerDay
-	t := time.Now().UnixNano() / 1e6
-	deadline := ((t + retentionMsecs - 1) / retentionMsecs) * retentionMsecs
+
+	// The effect of time zone on retention period is moved out.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2574
+	deadline := ((atMsecs + retentionMsecs + retentionTimezoneOffsetMsecs - 1) / retentionMsecs) * retentionMsecs
+
 	// Schedule the deadline to +4 hours from the next retention period start.
 	// This should prevent from possible double deletion of indexdb
 	// due to time drift - see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/248 .
-	deadline += 4 * 3600 * 1000
-	// The effect of time zone on retention period is moved out.
-	// See https://github.com/VictoriaMetrics/VictoriaMetrics/pull/2574
+	deadline += int64(4 * 3600 * 1000)
 	deadline -= retentionTimezoneOffsetMsecs
-	return time.Duration(deadline-t) * time.Millisecond
+	return time.Duration(deadline-atMsecs) * time.Millisecond
 }
 
 // SearchMetricNames returns marshaled metric names matching the given tfss on the given tr.
@@ -1299,13 +1254,15 @@ func (s *Storage) DeleteSeries(qt *querytracer.Tracer, tfss []*TagFilters) (int,
 
 // SearchLabelNamesWithFiltersOnTimeRange searches for label names matching the given tfss on tr.
 func (s *Storage) SearchLabelNamesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, tfss []*TagFilters, tr TimeRange,
-	maxLabelNames, maxMetrics int, deadline uint64) ([]string, error) {
+	maxLabelNames, maxMetrics int, deadline uint64,
+) ([]string, error) {
 	return s.idb().SearchLabelNamesWithFiltersOnTimeRange(qt, accountID, projectID, tfss, tr, maxLabelNames, maxMetrics, deadline)
 }
 
 // SearchLabelValuesWithFiltersOnTimeRange searches for label values for the given labelName, filters and tr.
 func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer, accountID, projectID uint32, labelName string, tfss []*TagFilters,
-	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64) ([]string, error) {
+	tr TimeRange, maxLabelValues, maxMetrics int, deadline uint64,
+) ([]string, error) {
 	return s.idb().SearchLabelValuesWithFiltersOnTimeRange(qt, accountID, projectID, labelName, tfss, tr, maxLabelValues, maxMetrics, deadline)
 }
 
@@ -1315,7 +1272,8 @@ func (s *Storage) SearchLabelValuesWithFiltersOnTimeRange(qt *querytracer.Tracer
 //
 // If more than maxTagValueSuffixes suffixes is found, then only the first maxTagValueSuffixes suffixes is returned.
 func (s *Storage) SearchTagValueSuffixes(qt *querytracer.Tracer, accountID, projectID uint32, tr TimeRange, tagKey, tagValuePrefix string,
-	delimiter byte, maxTagValueSuffixes int, deadline uint64) ([]string, error) {
+	delimiter byte, maxTagValueSuffixes int, deadline uint64,
+) ([]string, error) {
 	return s.idb().SearchTagValueSuffixes(qt, accountID, projectID, tr, tagKey, tagValuePrefix, delimiter, maxTagValueSuffixes, deadline)
 }
 
@@ -1889,10 +1847,7 @@ func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, preci
 	if err != nil {
 		err = fmt.Errorf("cannot update per-date data: %w", err)
 	} else {
-		err = s.tb.AddRows(rows)
-		if err != nil {
-			err = fmt.Errorf("cannot add rows to table: %w", err)
-		}
+		s.tb.MustAddRows(rows)
 	}
 	if err != nil {
 		return fmt.Errorf("error occurred during rows addition: %w", err)
@@ -1955,11 +1910,13 @@ type pendingMetricRows struct {
 }
 
 func (pmrs *pendingMetricRows) reset() {
-	for _, pmr := range pmrs.pmrs {
+	mrs := pmrs.pmrs
+	for i := range mrs {
+		pmr := &mrs[i]
 		pmr.MetricName = nil
 		pmr.mr = nil
 	}
-	pmrs.pmrs = pmrs.pmrs[:0]
+	pmrs.pmrs = mrs[:0]
 	pmrs.metricNamesBuf = pmrs.metricNamesBuf[:0]
 	pmrs.lastMetricNameRaw = nil
 	pmrs.lastMetricName = nil
@@ -1979,10 +1936,16 @@ func (pmrs *pendingMetricRows) addRow(mr *MetricRow) error {
 		pmrs.lastMetricName = pmrs.metricNamesBuf[metricNamesBufLen:]
 		pmrs.lastMetricNameRaw = mr.MetricNameRaw
 	}
-	pmrs.pmrs = append(pmrs.pmrs, pendingMetricRow{
-		MetricName: pmrs.lastMetricName,
-		mr:         mr,
-	})
+	mrs := pmrs.pmrs
+	if cap(mrs) > len(mrs) {
+		mrs = mrs[:len(mrs)+1]
+	} else {
+		mrs = append(mrs, pendingMetricRow{})
+	}
+	pmrs.pmrs = mrs
+	pmr := &mrs[len(mrs)-1]
+	pmr.MetricName = pmrs.lastMetricName
+	pmr.mr = mr
 	return nil
 }
 
@@ -2115,7 +2078,7 @@ func (s *Storage) updatePerDateData(rows []rawRow, mrs []*MetricRow) error {
 	sort.Slice(pendingDateMetricIDs, func(i, j int) bool {
 		a := pendingDateMetricIDs[i]
 		b := pendingDateMetricIDs[j]
-		if a.accountID != b.projectID {
+		if a.accountID != b.accountID {
 			return a.accountID < b.accountID
 		}
 		if a.projectID != b.projectID {
@@ -2306,10 +2269,14 @@ func (dmc *dateMetricIDCache) syncLocked() {
 		}
 		v = v.Clone()
 		v.Union(&e.v)
-		byDateMutable.m[date] = &byDateMetricIDEntry{
+		dme := &byDateMetricIDEntry{
 			date: date,
 			v:    *v,
 		}
+		if date == byDateMutable.hotEntry.Load().(*byDateMetricIDEntry).date {
+			byDateMutable.hotEntry.Store(dme)
+		}
+		byDateMutable.m[date] = dme
 	}
 	for date, e := range byDate.m {
 		v := byDateMutable.get(date)
@@ -2491,31 +2458,20 @@ func (s *Storage) putTSIDToCache(tsid *generationTSID, metricName []byte) {
 	s.tsidCache.Set(metricName, buf)
 }
 
-func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error) {
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, nil, fmt.Errorf("cannot create directory %q: %w", path, err)
-	}
+func (s *Storage) mustOpenIndexDBTables(path string) (curr, prev *indexDB) {
+	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
-
-	d, err := os.Open(path)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open directory: %w", err)
-	}
-	defer fs.MustClose(d)
 
 	// Search for the two most recent tables - the last one is active,
 	// the previous one contains backup data.
-	fis, err := d.Readdir(-1)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot read directory: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	var tableNames []string
-	for _, fi := range fis {
-		if !fs.IsDirOrSymlink(fi) {
+	for _, de := range des {
+		if !fs.IsDirOrSymlink(de) {
 			// Skip non-directories.
 			continue
 		}
-		tableName := fi.Name()
+		tableName := de.Name()
 		if !indexDBTableNameRegexp.MatchString(tableName) {
 			// Skip invalid directories.
 			continue
@@ -2539,9 +2495,9 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 
 	// Remove all the tables except two last tables.
 	for _, tn := range tableNames[:len(tableNames)-2] {
-		pathToRemove := path + "/" + tn
+		pathToRemove := filepath.Join(path, tn)
 		logger.Infof("removing obsolete indexdb dir %q...", pathToRemove)
-		fs.MustRemoveDirAtomic(pathToRemove)
+		fs.MustRemoveAll(pathToRemove)
 		logger.Infof("removed obsolete indexdb dir %q", pathToRemove)
 	}
 
@@ -2549,20 +2505,13 @@ func (s *Storage) openIndexDBTables(path string) (curr, prev *indexDB, err error
 	fs.MustSyncPath(path)
 
 	// Open the last two tables.
-	currPath := path + "/" + tableNames[len(tableNames)-1]
+	currPath := filepath.Join(path, tableNames[len(tableNames)-1])
 
-	curr, err = openIndexDB(currPath, s, 0, &s.isReadOnly)
-	if err != nil {
-		return nil, nil, fmt.Errorf("cannot open curr indexdb table at %q: %w", currPath, err)
-	}
-	prevPath := path + "/" + tableNames[len(tableNames)-2]
-	prev, err = openIndexDB(prevPath, s, 0, &s.isReadOnly)
-	if err != nil {
-		curr.MustClose()
-		return nil, nil, fmt.Errorf("cannot open prev indexdb table at %q: %w", prevPath, err)
-	}
+	curr = mustOpenIndexDB(currPath, s, 0, &s.isReadOnly)
+	prevPath := filepath.Join(path, tableNames[len(tableNames)-2])
+	prev = mustOpenIndexDB(prevPath, s, 0, &s.isReadOnly)
 
-	return curr, prev, nil
+	return curr, prev
 }
 
 var indexDBTableNameRegexp = regexp.MustCompile("^[0-9A-F]{16}$")

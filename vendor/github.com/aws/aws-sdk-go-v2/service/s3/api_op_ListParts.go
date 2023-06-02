@@ -16,46 +16,26 @@ import (
 
 // Lists the parts that have been uploaded for a specific multipart upload. This
 // operation must include the upload ID, which you obtain by sending the initiate
-// multipart upload request (see CreateMultipartUpload
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)).
-// This request returns a maximum of 1,000 uploaded parts. The default number of
+// multipart upload request (see CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
+// ). This request returns a maximum of 1,000 uploaded parts. The default number of
 // parts returned is 1,000 parts. You can restrict the number of parts returned by
-// specifying the max-parts request parameter. If your multipart upload consists of
-// more than 1,000 parts, the response returns an IsTruncated field with the value
-// of true, and a NextPartNumberMarker element. In subsequent ListParts requests
-// you can include the part-number-marker query string parameter and set its value
-// to the NextPartNumberMarker field value from the previous response. If the
-// upload was created using a checksum algorithm, you will need to have permission
-// to the kms:Decrypt action for the request to succeed. For more information on
-// multipart uploads, see Uploading Objects Using Multipart Upload
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html). For
-// information on permissions required to use the multipart upload API, see
-// Multipart Upload and Permissions
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html). The
-// following operations are related to ListParts:
-//
-// * CreateMultipartUpload
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
-//
-// *
-// UploadPart
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
-//
-// *
-// CompleteMultipartUpload
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
-//
-// *
-// AbortMultipartUpload
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)
-//
-// *
-// GetObjectAttributes
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
-//
-// *
-// ListMultipartUploads
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html)
+// specifying the max-parts request parameter. If your multipart upload consists
+// of more than 1,000 parts, the response returns an IsTruncated field with the
+// value of true, and a NextPartNumberMarker element. In subsequent ListParts
+// requests you can include the part-number-marker query string parameter and set
+// its value to the NextPartNumberMarker field value from the previous response.
+// If the upload was created using a checksum algorithm, you will need to have
+// permission to the kms:Decrypt action for the request to succeed. For more
+// information on multipart uploads, see Uploading Objects Using Multipart Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html)
+// . For information on permissions required to use the multipart upload API, see
+// Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
+// . The following operations are related to ListParts :
+//   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
+//   - UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
+//   - CompleteMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CompleteMultipartUpload.html)
+//   - AbortMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)
+//   - GetObjectAttributes (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
+//   - ListMultipartUploads (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html)
 func (c *Client) ListParts(ctx context.Context, params *ListPartsInput, optFns ...func(*Options)) (*ListPartsOutput, error) {
 	if params == nil {
 		params = &ListPartsInput{}
@@ -79,17 +59,15 @@ type ListPartsInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
@@ -112,36 +90,32 @@ type ListPartsInput struct {
 	// Sets the maximum number of parts to return.
 	MaxParts int32
 
-	// Specifies the part after which listing should begin. Only parts with higher part
-	// numbers will be listed.
+	// Specifies the part after which listing should begin. Only parts with higher
+	// part numbers will be listed.
 	PartNumberMarker *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
 	// The server-side encryption (SSE) algorithm used to encrypt the object. This
 	// parameter is needed only when the object was created using a checksum algorithm.
-	// For more information, see Protecting data using SSE-C keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// For more information, see Protecting data using SSE-C keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 	// in the Amazon S3 User Guide.
 	SSECustomerAlgorithm *string
 
 	// The server-side encryption (SSE) customer managed key. This parameter is needed
 	// only when the object was created using a checksum algorithm. For more
-	// information, see Protecting data using SSE-C keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// information, see Protecting data using SSE-C keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 	// in the Amazon S3 User Guide.
 	SSECustomerKey *string
 
 	// The MD5 server-side encryption (SSE) customer managed key. This parameter is
 	// needed only when the object was created using a checksum algorithm. For more
-	// information, see Protecting data using SSE-C keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// information, see Protecting data using SSE-C keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 	// in the Amazon S3 User Guide.
 	SSECustomerKeyMD5 *string
 
@@ -150,15 +124,14 @@ type ListPartsInput struct {
 
 type ListPartsOutput struct {
 
-	// If the bucket has a lifecycle rule configured with an action to abort incomplete
-	// multipart uploads and the prefix in the lifecycle rule matches the object name
-	// in the request, then the response includes this header indicating when the
-	// initiated multipart upload will become eligible for abort operation. For more
-	// information, see Aborting Incomplete Multipart Uploads Using a Bucket Lifecycle
-	// Policy
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config).
-	// The response will also include the x-amz-abort-rule-id header that will provide
-	// the ID of the lifecycle configuration rule that defines this action.
+	// If the bucket has a lifecycle rule configured with an action to abort
+	// incomplete multipart uploads and the prefix in the lifecycle rule matches the
+	// object name in the request, then the response includes this header indicating
+	// when the initiated multipart upload will become eligible for abort operation.
+	// For more information, see Aborting Incomplete Multipart Uploads Using a Bucket
+	// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
+	// . The response will also include the x-amz-abort-rule-id header that will
+	// provide the ID of the lifecycle configuration rule that defines this action.
 	AbortDate *time.Time
 
 	// This header is returned along with the x-amz-abort-date header. It identifies
@@ -195,9 +168,9 @@ type ListPartsOutput struct {
 	// subsequent request.
 	NextPartNumberMarker *string
 
-	// Container element that identifies the object owner, after the object is created.
-	// If multipart upload is initiated by an IAM user, this element provides the
-	// parent account ID and display name.
+	// Container element that identifies the object owner, after the object is
+	// created. If multipart upload is initiated by an IAM user, this element provides
+	// the parent account ID and display name.
 	Owner *types.Owner
 
 	// When a list is truncated, this element specifies the last part in the list, as
@@ -205,8 +178,8 @@ type ListPartsOutput struct {
 	// subsequent request.
 	PartNumberMarker *string
 
-	// Container for elements related to a particular part. A response can contain zero
-	// or more Part elements.
+	// Container for elements related to a particular part. A response can contain
+	// zero or more Part elements.
 	Parts []types.Part
 
 	// If present, indicates that the requester was successfully charged for the
@@ -281,6 +254,9 @@ func (c *Client) addOperationListPartsMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addListPartsUpdateEndpoint(stack, options); err != nil {

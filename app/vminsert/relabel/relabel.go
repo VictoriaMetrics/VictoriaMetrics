@@ -71,6 +71,12 @@ var (
 
 var pcsGlobal atomic.Value
 
+// CheckRelabelConfig checks config pointed by -relabelConfig
+func CheckRelabelConfig() error {
+	_, err := loadRelabelConfig()
+	return err
+}
+
 func loadRelabelConfig() (*promrelabel.ParsedConfigs, error) {
 	if len(*relabelConfig) == 0 {
 		return nil, nil

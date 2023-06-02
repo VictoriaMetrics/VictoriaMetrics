@@ -1,12 +1,18 @@
 # All these commands must run from repository root.
 
-DOCKER_NAMESPACE := victoriametrics
+DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.17.2
-CERTS_IMAGE := alpine:3.17.2
-GO_BUILDER_IMAGE := golang:1.20.2-alpine
+ROOT_IMAGE ?= alpine:3.18.0
+
+# Use alpine:3.17.3 instead of 3.18.0 for CERTS_IMAGE
+# because alpine:3.18.0 is broken for cross-platform builds
+# TODO: sync it with ROOT_IMAGE when it will be fixed in the new alpine releases
+CERTS_IMAGE := alpine:3.17.3
+
+GO_BUILDER_IMAGE := golang:1.20.4-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
+DOCKER_COMPOSE ?= docker compose
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
@@ -105,13 +111,9 @@ app-via-docker-linux-arm:
 	CGO_ENABLED=0 GOOS=linux GOARCH=arm $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-linux-arm64:
-ifeq ($(APP_NAME),vmagent)
-	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 $(MAKE) app-via-docker-goos-goarch
-else
 	APP_SUFFIX='-linux-arm64' \
 	DOCKER_OPTS='--env CGO_ENABLED=1 --env GOOS=linux --env GOARCH=arm64 --env CC=/opt/cross-builder/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc' \
 	$(MAKE) app-via-docker
-endif
 
 app-via-docker-linux-ppc64le:
 	CGO_ENABLED=0 GOOS=linux GOARCH=ppc64le $(MAKE) app-via-docker-goos-goarch
@@ -132,7 +134,7 @@ app-via-docker-openbsd-amd64:
 	CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-via-docker-goos-goarch
 
 app-via-docker-windows-amd64:
-	APP_SUFFIX='-$(GOARCH)' \
+	APP_SUFFIX='-amd64' \
 	DOCKER_OPTS='--env CGO_ENABLED=0 --env GOOS=windows --env GOARCH=amd64' \
 	$(MAKE) app-via-docker-windows
 
@@ -162,12 +164,7 @@ package-via-docker-arm:
 	GOARCH=arm $(MAKE) package-via-docker-goarch-nocgo
 
 package-via-docker-arm64:
-ifeq ($(APP_NAME),vmagent)
-	GOARCH=arm64 $(MAKE) package-via-docker-goarch-nocgo
-else
 	$(MAKE) package-via-docker-goarch-arm64
-endif
-
 
 package-via-docker-ppc64le:
 	GOARCH=ppc64le $(MAKE) package-via-docker-goarch-nocgo
@@ -178,15 +175,14 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f
 
-
 docker-single-up:
-	docker-compose -f deployment/docker/docker-compose.yml up
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
 
 docker-single-down:
-	docker-compose -f deployment/docker/docker-compose.yml down -v
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
 
 docker-cluster-up:
-	docker-compose -f deployment/docker/docker-compose-cluster.yml up
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
 
 docker-cluster-down:
-	docker-compose -f deployment/docker/docker-compose-cluster.yml down -v
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v

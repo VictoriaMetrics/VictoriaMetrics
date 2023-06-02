@@ -1,3 +1,13 @@
+---
+weight: 7
+title: How to delete or replace metrics in VictoriaMetrics
+menu:
+  docs:
+    parent: "guides"
+    weight: 7
+aliases:
+- /guides/guide-delete-or-replace-metrics.html
+---
 # How to delete or replace metrics in VictoriaMetrics 
 
 Data deletion is an operation people expect a database to have. [VictoriaMetrics](https://victoriametrics.com) supports 
@@ -89,6 +99,7 @@ To trigger [forced merge](https://docs.victoriametrics.com/Single-server-Victori
 ```console
 curl -v -X POST http://vmstorage:8482/internal/force_merge
 ```
+</div>
 
 After the merge is complete, the data will be permanently deleted from the disk.
 
@@ -97,7 +108,7 @@ After the merge is complete, the data will be permanently deleted from the disk.
 By default, VictoriaMetrics doesn't provide a mechanism for replacing or updating data. As a workaround, take the following actions:
 
 - [export time series to a file](https://docs.victoriametrics.com/url-examples.html#apiv1export);
-- change the values of time serie in the file and save it;
+- change the values of time series in the file and save it;
 - [delete time series from a database](https://docs.victoriametrics.com/url-examples.html#apiv1admintsdbdelete_series);
 - [import saved file to VictoriaMetrics](https://docs.victoriametrics.com/url-examples.html#apiv1import).
 

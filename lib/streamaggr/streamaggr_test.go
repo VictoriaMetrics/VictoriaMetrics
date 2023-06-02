@@ -118,6 +118,45 @@ func TestAggregatorsFailure(t *testing.T) {
 `)
 }
 
+func TestAggregatorsEqual(t *testing.T) {
+	f := func(a, b string, expectedResult bool) {
+		t.Helper()
+
+		pushFunc := func(tss []prompbmarshal.TimeSeries) {}
+		aa, err := NewAggregatorsFromData([]byte(a), pushFunc, 0)
+		if err != nil {
+			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+		ab, err := NewAggregatorsFromData([]byte(b), pushFunc, 0)
+		if err != nil {
+			t.Fatalf("cannot initialize aggregators: %s", err)
+		}
+		result := aa.Equal(ab)
+		if result != expectedResult {
+			t.Fatalf("unexpected result; got %v; want %v", result, expectedResult)
+		}
+	}
+	f("", "", true)
+	f(`
+- outputs: [total]
+  interval: 5m
+`, ``, false)
+	f(`
+- outputs: [total]
+  interval: 5m
+`, `
+- outputs: [total]
+  interval: 5m
+`, true)
+	f(`
+- outputs: [total]
+  interval: 3m
+`, `
+- outputs: [total]
+  interval: 5m
+`, false)
+}
+
 func TestAggregatorsSuccess(t *testing.T) {
 	f := func(config, inputMetrics, outputMetricsExpected string) {
 		t.Helper()
@@ -145,11 +184,6 @@ func TestAggregatorsSuccess(t *testing.T) {
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
 		a.Push(tssInput)
-		if a != nil {
-			for _, aggr := range a.as {
-				aggr.flush()
-			}
-		}
 		a.MustStop()
 
 		// Verify the tssOutput contains the expected metrics

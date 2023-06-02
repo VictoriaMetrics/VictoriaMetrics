@@ -1,3 +1,13 @@
+---
+title: Migrate from InfluxDB to VictoriaMetrics
+weight: 8
+menu:
+  docs:
+    parent: "guides"
+    weight: 8
+aliases:
+- /guides/migrate-from-influx.html
+---
 # Migrate from InfluxDB to VictoriaMetrics
 
 InfluxDB is a well-known time series database built for
@@ -24,21 +34,23 @@ VictoriaMetrics is something [new to explore](https://docs.victoriametrics.com/k
 with similarities and differences:
 
 * both solutions are **schemaless**, which means there is no need to define metrics or their tags in advance;
-* multi-dimensional data support is implemented
+* multidimensional data support is implemented
   via [tags](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#tags)
   in InfluxDB and via [labels](https://docs.victoriametrics.com/keyConcepts.html#structure-of-a-metric) in
   VictoriaMetrics. However, labels in VictoriaMetrics are always `strings`, while InfluxDB supports multiple data types;
 * timestamps are stored with nanosecond resolution in InfluxDB, while in VictoriaMetrics it is **milliseconds**;
-* in VictoriaMetrics metric's value is always `float64`, while InfluxDB supports multiple data types.
+* in VictoriaMetrics metric value is always `float64`, while InfluxDB supports multiple data types.
 * there are
   no [measurements](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#measurement)
   or [fields](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#field-key) in
   VictoriaMetrics, metric name contains it all. If measurement contains more than 1 field, then for VictoriaMetrics
   it will be multiple metrics;
-* there are no [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
-  or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization), all
+* there are no [databases](https://docs.influxdata.com/influxdb/v1.8/concepts/glossary/#database), 
+  [buckets](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#bucket)
+  or [organizations](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#organization). All
   data in VictoriaMetrics is stored in a global namespace or within
-  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
+  a [tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy). 
+  See more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy). 
 
 Let's consider the
 following [sample data](https://docs.influxdata.com/influxdb/v2.2/reference/key-concepts/data-elements/#sample-data)
@@ -201,7 +213,7 @@ filling the gaps in the graph. This behavior is described in more
 detail [here](https://docs.victoriametrics.com/keyConcepts.html#range-query). In InfluxDB, we can achieve a similar
 behavior by adding `fill(previous)` to the query.
 
-VictoriaMetrics fills the gaps on the graph assuming time series are always continious and not discrete.
+VictoriaMetrics fills the gaps on the graph assuming time series are always continuous and not discrete.
 To limit the interval on which VictoriaMetrics will try to fill the gaps, set `-search.setLookbackToStep`
 command-line flag. This limits the gap filling to a single `step` interval passed to
 [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).

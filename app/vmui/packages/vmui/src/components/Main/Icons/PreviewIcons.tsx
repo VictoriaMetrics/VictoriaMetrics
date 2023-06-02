@@ -1,18 +1,13 @@
 import React, { FC } from "preact/compat";
 import * as icons from "./index";
-import { useSnack } from "../../../contexts/Snackbar";
+import useCopyToClipboard from "../../../hooks/useCopyToClipboard";
 import "./style.scss";
 
 const PreviewIcons: FC = () => {
-  const { showInfoMessage } = useSnack();
+  const copyToClipboard = useCopyToClipboard();
 
-  const handleClickIcon = (copyValue: string) => {
-    navigator.clipboard.writeText(`<${copyValue}/>`);
-    showInfoMessage({ text: `<${copyValue}/> has been copied`, type: "success" });
-  };
-
-  const createHandlerClickIcon = (key: string) => () => {
-    handleClickIcon(key);
+  const createHandlerClickIcon = (key: string) => async () => {
+    await copyToClipboard(`<${key}/>`, `<${key}/> has been copied`);
   };
 
   return (

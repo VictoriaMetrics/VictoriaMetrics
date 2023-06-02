@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/notifier"
 )
@@ -19,9 +20,18 @@ func TestHandler(t *testing.T) {
 		},
 		state: newRuleState(10),
 	}
+	ar.state.add(ruleStateEntry{
+		time:    time.Now(),
+		at:      time.Now(),
+		samples: 10,
+	})
+	rr := &RecordingRule{
+		Name:  "record",
+		state: newRuleState(10),
+	}
 	g := &Group{
 		Name:  "group",
-		Rules: []Rule{ar},
+		Rules: []Rule{ar, rr},
 	}
 	m := &manager{groups: make(map[uint64]*Group)}
 	m.groups[0] = g
@@ -62,6 +72,14 @@ func TestHandler(t *testing.T) {
 	t.Run("/vmalert/rule", func(t *testing.T) {
 		a := ar.ToAPI()
 		getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
+		r := rr.ToAPI()
+		getResp(ts.URL+"/vmalert/"+r.WebLink(), nil, 200)
+	})
+	t.Run("/vmalert/alert", func(t *testing.T) {
+		alerts := ar.AlertsToAPI()
+		for _, a := range alerts {
+			getResp(ts.URL+"/vmalert/"+a.WebLink(), nil, 200)
+		}
 	})
 	t.Run("/vmalert/rule?badParam", func(t *testing.T) {
 		params := fmt.Sprintf("?%s=0&%s=1", paramGroupID, paramRuleID)
@@ -144,5 +162,81 @@ func TestHandler(t *testing.T) {
 	t.Run("/api/v1/1/0/status", func(t *testing.T) {
 		getResp(ts.URL+"/api/v1/1/0/status", nil, 404)
 	})
+}
 
+func TestEmptyResponse(t *testing.T) {
+	rhWithNoGroups := &requestHandler{m: &manager{groups: make(map[uint64]*Group)}}
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithNoGroups.handler(w, r) }))
+	defer ts.Close()
+
+	getResp := func(url string, to interface{}, code int) {
+		t.Helper()
+		resp, err := http.Get(url)
+		if err != nil {
+			t.Fatalf("unexpected err %s", err)
+		}
+		if code != resp.StatusCode {
+			t.Errorf("unexpected status code %d want %d", resp.StatusCode, code)
+		}
+		defer func() {
+			if err := resp.Body.Close(); err != nil {
+				t.Errorf("err closing body %s", err)
+			}
+		}()
+		if to != nil {
+			if err = json.NewDecoder(resp.Body).Decode(to); err != nil {
+				t.Errorf("unexpected err %s", err)
+			}
+		}
+	}
+
+	t.Run("no groups /api/v1/alerts", func(t *testing.T) {
+		lr := listAlertsResponse{}
+		getResp(ts.URL+"/api/v1/alerts", &lr, 200)
+		if lr.Data.Alerts == nil {
+			t.Errorf("expected /api/v1/alerts response to have non-nil data")
+		}
+
+		lr = listAlertsResponse{}
+		getResp(ts.URL+"/vmalert/api/v1/alerts", &lr, 200)
+		if lr.Data.Alerts == nil {
+			t.Errorf("expected /api/v1/alerts response to have non-nil data")
+		}
+	})
+
+	t.Run("no groups /api/v1/rules", func(t *testing.T) {
+		lr := listGroupsResponse{}
+		getResp(ts.URL+"/api/v1/rules", &lr, 200)
+		if lr.Data.Groups == nil {
+			t.Errorf("expected /api/v1/rules response to have non-nil data")
+		}
+
+		lr = listGroupsResponse{}
+		getResp(ts.URL+"/vmalert/api/v1/rules", &lr, 200)
+		if lr.Data.Groups == nil {
+			t.Errorf("expected /api/v1/rules response to have non-nil data")
+		}
+	})
+
+	rhWithEmptyGroup := &requestHandler{m: &manager{groups: map[uint64]*Group{0: {Name: "test"}}}}
+	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { rhWithEmptyGroup.handler(w, r) })
+
+	t.Run("empty group /api/v1/rules", func(t *testing.T) {
+		lr := listGroupsResponse{}
+		getResp(ts.URL+"/api/v1/rules", &lr, 200)
+		if lr.Data.Groups == nil {
+			t.Fatalf("expected /api/v1/rules response to have non-nil data")
+		}
+
+		lr = listGroupsResponse{}
+		getResp(ts.URL+"/vmalert/api/v1/rules", &lr, 200)
+		if lr.Data.Groups == nil {
+			t.Fatalf("expected /api/v1/rules response to have non-nil data")
+		}
+
+		group := lr.Data.Groups[0]
+		if group.Rules == nil {
+			t.Fatalf("expected /api/v1/rules response to have non-nil rules for group")
+		}
+	})
 }

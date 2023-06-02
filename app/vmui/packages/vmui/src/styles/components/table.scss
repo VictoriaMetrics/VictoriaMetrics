@@ -26,11 +26,12 @@
   }
 
   &-cell {
-    padding: $padding-small;
+    padding: 12px;
     border-bottom: $border-divider;
     height: 40px;
     vertical-align: top;
-    line-height: 25px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
 
     &__content {
       display: flex;
@@ -67,6 +68,10 @@
 
     &_no-wrap {
       white-space: nowrap;
+    }
+
+    &_no-padding {
+      padding: 0;
     }
   }
 

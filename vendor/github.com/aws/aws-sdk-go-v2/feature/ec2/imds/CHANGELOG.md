@@ -1,3 +1,19 @@
+# v1.13.3 (2023-04-24)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.2 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.1 (2023-03-21)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.13.0 (2023-03-14)
+
+* **Feature**: Add flag to disable IMDSv1 fallback
+
 # v1.12.24 (2023-03-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

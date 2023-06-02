@@ -1,5 +1,13 @@
 ---
 sort: 25
+weight: 25
+title: Relabeling cookbook
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 25
+aliases:
+- /relabeling.html
 ---
 
 # Relabeling cookbook
@@ -11,7 +19,7 @@ with [additional enhancements](https://docs.victoriametrics.com/vmagent.html#rel
 The relabeling is mostly used for the following tasks:
 
 * Dropping unneeded scrape targets during [service discovery](https://docs.victoriametrics.com/sd_configs.html#prometheus-service-discovery).
-  See [how to drop unneded targets with relabeling](#how-to-drop-discovered-targets).
+  See [how to drop discovered targets](#how-to-drop-discovered-targets).
 * Adding or updating static labels at scrape targets. See [how to add labels to scrape targets](#how-to-add-labels-to-scrape-targets).
 * Copying target labels from another labels. See [how to copy labels in scrape targets](#how-to-copy-labels-in-scrape-targets).
 * Modifying scrape urls for discovered targets. See [how to modify scrape urls in targets](#how-to-modify-scrape-urls-in-targets).
@@ -80,7 +88,7 @@ Important notes:
 
 * Labels with `__` prefix are automatically removed after the relabeling, so there is no need in removing them with relabeling rules.
 * Make sure that metrics exposed by the target can be uniquely identified by their names
-  and the remaining labels after label removal. Otherwise duplicate metrics with duplicate timestams
+  and the remaining labels after label removal. Otherwise, duplicate metrics with duplicate timestamps
   and different values will be pushed to the storage. This is an undesired issue in most cases.
 
 See also [useful tips for metric relabeling](#useful-tips-for-metric-relabeling).
@@ -237,7 +245,7 @@ with the `$N` syntax, where `N` is the number of the capture group in `regex`. T
 
 It is possible to construct a label from multiple parts of different labels. In this case just specify the needed source labels inside `source_labels` list.
 The values of labels specified in `source_labels` list are joined with `;` separator by default before being matched against the `regex`.
-The separator can be overriden via `separator` option.
+The separator can be overridden via `separator` option.
 
 If the `regex` doesn't match the value constructed from `source_labels`, then the relabeling rule is skipped and the remaining relabeling rules are executed.
 
@@ -252,9 +260,9 @@ Single-node VictoriaMetrics and [vmagent](https://docs.victoriametrics.com/vmage
 * The `instance` label is set to the `host:port` part of `__address__` label value after target-level relabeling.
   The `__address__` label value is automatically set to the most suitable value depending
   on the used [service discovery type](https://docs.victoriametrics.com/sd_configs.html#supported-service-discovery-configs).
-  The `__address__` label can be overriden during relabeling - see [these docs](#how-to-modify-scrape-urls-in-targets).
+  The `__address__` label can be overridden during relabeling - see [these docs](#how-to-modify-scrape-urls-in-targets).
 
-Both `instance` and `job` labels can be overriden during relabeling. For example, the following config discovers pod targets
+Both `instance` and `job` labels can be overridden during relabeling. For example, the following config discovers pod targets
 in [Kubernetes](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs) and overrides `job` label from `k8s` to `foo`:
 
 ```yaml
@@ -275,7 +283,7 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 URLs for scrape targets are composed of the following parts:
 
 * Scheme (e.g. `http` or `https`). The scheme is available during target relabeling in a special label - `__scheme__`.
-  By default the scheme is set to `http`. It can be overriden either by specifying the `scheme` option
+  By default, the scheme is set to `http`. It can be overridden either by specifying the `scheme` option
   at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs) level
   or by updating the `__scheme__` label during relabeling.
 * Host and port (e.g. `host12:3456`). This information is available during target relabeling in a special label - `__address__`.
@@ -289,7 +297,7 @@ URLs for scrape targets are composed of the following parts:
   The `__address__` label can contain the full scrape url, e.g. `http://host:port/metrics/path?query_args`.
   In this case the `__scheme__` and `__metrics_path__` labels are ignored.
 * URL path (e.g. `/metrics`). This information is available during target relabeling in a special label - `__metrics_path__`.
-  By default the `__metrics_path__` is set to `/metrics`. It can be overriden either by specifying the `metrics_path`
+  By default, the `__metrics_path__` is set to `/metrics`. It can be overridden either by specifying the `metrics_path`
   option at [scrape_config](https://docs.victoriametrics.com/sd_configs.html#scrape_configs)
   or by updating the `__metrics_path__` label during relabeling.
 * Query args (e.g. `?foo=bar&baz=xyz`). This information is available during target relabeling in special labels
@@ -428,7 +436,7 @@ scrape_configs:
 ```
 
 The `action: drop` drops all the scrape targets with labels matching the `if` [selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors),
-while keeping the rest of targets. For example, the followign config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs)
+while keeping the rest of targets. For example, the following config discovers pod targets in [Kubernetes](https://docs.victoriametrics.com/sd_configs.html#kubernetes_sd_configs)
 and scrapes only pods with names starting with prefixes other than `foo`:
 
 ```yaml
@@ -467,6 +475,6 @@ See also [useful tips for target relabeling](#useful-tips-for-target-relabeling)
 * Metric relabeling can be debugged at `http://vmagent:8429/metric-relabel-debug` page.
   See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug).
 * All the labels, which start with `__` prefix, are automatically removed from metrics after the relabeling.
-  So it is common practice to store temporary labels with names startigh with `__` during metrics relabeling.
+  So it is common practice to store temporary labels with names starting with `__` during metrics relabeling.
 * All the target-level labels are automatically added to all the metrics scraped from targets,
   so target-level labels are available during metrics relabeling.

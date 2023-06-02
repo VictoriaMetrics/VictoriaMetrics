@@ -167,38 +167,29 @@ func timeseriesWorker(qt *querytracer.Tracer, workChs []chan *timeseriesWork, wo
 	// Then help others with the remaining work.
 	rowsProcessed = 0
 	seriesProcessed = 0
-	idx := int(workerID)
-	for {
-		tsw, idxNext := stealTimeseriesWork(workChs, idx)
-		if tsw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Do not call runtime.Gosched() here in order to give a chance
+			// the real owner of the work to complete it, since it consumes additional CPU
+			// and slows down the code on systems with big number of CPU cores.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3966#issuecomment-1483208419
+
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			tsw, ok := <-ch
+			if !ok {
+				break
+			}
+			tsw.err = tsw.do(&tmpResult.rs, workerID)
+			rowsProcessed += tsw.rowsProcessed
+			seriesProcessed++
 		}
-		tsw.err = tsw.do(&tmpResult.rs, workerID)
-		rowsProcessed += tsw.rowsProcessed
-		seriesProcessed++
-		idx = idxNext
 	}
 	qt.Printf("others work processed: series=%d, samples=%d", seriesProcessed, rowsProcessed)
 
 	putTmpResult(tmpResult)
-}
-
-func stealTimeseriesWork(workChs []chan *timeseriesWork, startIdx int) (*timeseriesWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		tsw, ok := <-ch
-		if ok {
-			return tsw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpResult() *result {
@@ -226,10 +217,17 @@ type result struct {
 
 var resultPool sync.Pool
 
+// MaxWorkers returns the maximum number of workers netstorage can spin when calling RunParallel()
+func MaxWorkers() int {
+	return gomaxprocs
+}
+
+var gomaxprocs = cgroup.AvailableCPUs()
+
 // RunParallel runs f in parallel for all the results from rss.
 //
 // f shouldn't hold references to rs after returning.
-// workerID is the id of the worker goroutine that calls f.
+// workerID is the id of the worker goroutine that calls f. The workerID is in the range [0..MaxWorkers()-1].
 // Data processing is immediately stopped if f returns non-nil error.
 //
 // rss becomes unusable after the call to RunParallel.
@@ -263,7 +261,8 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 		tsw.f = f
 		tsw.mustStop = &mustStop
 	}
-	if gomaxprocs == 1 || tswsLen == 1 {
+	maxWorkers := MaxWorkers()
+	if maxWorkers == 1 || tswsLen == 1 {
 		// It is faster to process time series in the current goroutine.
 		tsw := getTimeseriesWork()
 		tmpResult := getTmpResult()
@@ -299,8 +298,8 @@ func (rss *Results) runParallel(qt *querytracer.Tracer, f func(rs *Result, worke
 
 	// Prepare worker channels.
 	workers := len(tsws)
-	if workers > gomaxprocs {
-		workers = gomaxprocs
+	if workers > maxWorkers {
+		workers = maxWorkers
 	}
 	itemsPerWorker := (len(tsws) + workers - 1) / workers
 	workChs := make([]chan *timeseriesWork, workers)
@@ -351,8 +350,6 @@ var (
 	rowsReadPerQuery   = metrics.NewHistogram(`vm_rows_read_per_query`)
 	seriesReadPerQuery = metrics.NewHistogram(`vm_series_read_per_query`)
 )
-
-var gomaxprocs = cgroup.AvailableCPUs()
 
 type packedTimeseries struct {
 	samples     int
@@ -536,35 +533,23 @@ func unpackWorker(workChs []chan *unpackWork, workerID uint) {
 	}
 
 	// Then help others with their work.
-	idx := int(workerID)
-	for {
-		upw, idxNext := stealUnpackWork(workChs, idx)
-		if upw == nil {
-			// There is no more work
-			break
+	for i := uint(1); i < uint(len(workChs)); i++ {
+		idx := (i + workerID) % uint(len(workChs))
+		ch := workChs[idx]
+		for len(ch) > 0 {
+			// Give a chance other goroutines to perform their work
+			runtime.Gosched()
+			// It is expected that every channel in the workChs is already closed,
+			// so the next line should return immediately.
+			upw, ok := <-ch
+			if !ok {
+				break
+			}
+			upw.unpack(tmpBlock)
 		}
-		upw.unpack(tmpBlock)
-		idx = idxNext
 	}
 
 	putTmpStorageBlock(tmpBlock)
-}
-
-func stealUnpackWork(workChs []chan *unpackWork, startIdx int) (*unpackWork, int) {
-	for i := startIdx; i < startIdx+len(workChs); i++ {
-		// Give a chance other goroutines to perform their work
-		runtime.Gosched()
-
-		idx := i % len(workChs)
-		ch := workChs[idx]
-		// It is expected that every channel in the workChs is already closed,
-		// so the next line should return immediately.
-		upw, ok := <-ch
-		if ok {
-			return upw, idx
-		}
-	}
-	return nil, startIdx
 }
 
 func getTmpStorageBlock() *storage.Block {
@@ -3046,45 +3031,54 @@ func initStorageNodes(addrs []string) *storageNodesBucket {
 	if len(addrs) == 0 {
 		logger.Panicf("BUG: addrs must be non-empty")
 	}
+	var snsLock sync.Mutex
 	sns := make([]*storageNode, 0, len(addrs))
+	var wg sync.WaitGroup
 	ms := metrics.NewSet()
 	for _, addr := range addrs {
-		if _, _, err := net.SplitHostPort(addr); err != nil {
-			// Automatically add missing port.
-			addr += ":8401"
-		}
-		sn := &storageNode{
-			// There is no need in requests compression, since they are usually very small.
-			connPool: netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout),
+		wg.Add(1)
+		go func(addr string) {
+			defer wg.Done()
+			if _, _, err := net.SplitHostPort(addr); err != nil {
+				// Automatically add missing port.
+				addr += ":8401"
+			}
+			sn := &storageNode{
+				// There is no need in requests compression, since they are usually very small.
+				connPool: netutil.NewConnPool(ms, "vmselect", addr, handshake.VMSelectClient, 0, *vmstorageDialTimeout),
 
-			concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
+				concurrentQueries: ms.NewCounter(fmt.Sprintf(`vm_concurrent_queries{name="vmselect", addr=%q}`, addr)),
 
-			registerMetricNamesRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			registerMetricNamesErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			deleteSeriesErrors:          ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelNamesErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			labelValuesErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tagValueSuffixesErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tsdbStatusErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			seriesCountErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
-			tenantsErrors:               ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				registerMetricNamesRequests: ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				registerMetricNamesErrors:   ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="registerMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				deleteSeriesRequests:        ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				deleteSeriesErrors:          ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="deleteSeries", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				labelNamesRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				labelNamesErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				labelValuesRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				labelValuesErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="labelValues", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				tagValueSuffixesRequests:    ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				tagValueSuffixesErrors:      ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tagValueSuffixes", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				tsdbStatusRequests:          ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				tsdbStatusErrors:            ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tsdbStatus", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				seriesCountRequests:         ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				seriesCountErrors:           ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="seriesCount", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				searchMetricNamesRequests:   ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				searchMetricNamesErrors:     ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="searchMetricNames", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				searchRequests:              ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				searchErrors:                ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="search", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				tenantsRequests:             ms.NewCounter(fmt.Sprintf(`vm_requests_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
+				tenantsErrors:               ms.NewCounter(fmt.Sprintf(`vm_request_errors_total{action="tenants", type="rpcClient", name="vmselect", addr=%q}`, addr)),
 
-			metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
-			metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
-		}
-		sns = append(sns, sn)
+				metricBlocksRead: ms.NewCounter(fmt.Sprintf(`vm_metric_blocks_read_total{name="vmselect", addr=%q}`, addr)),
+				metricRowsRead:   ms.NewCounter(fmt.Sprintf(`vm_metric_rows_read_total{name="vmselect", addr=%q}`, addr)),
+			}
+			snsLock.Lock()
+			sns = append(sns, sn)
+			snsLock.Unlock()
+		}(addr)
 	}
+	wg.Wait()
 	metrics.RegisterSet(ms)
 	return &storageNodesBucket{
 		sns: sns,

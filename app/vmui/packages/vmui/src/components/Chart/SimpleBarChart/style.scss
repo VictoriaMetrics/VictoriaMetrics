@@ -1,0 +1,74 @@
+@use "src/styles/variables" as *;
+
+$color-bar: #33BB55;
+$color-bar-highest: #F79420;
+
+.vm-simple-bar-chart {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  height: 100%;
+  padding-bottom: calc($font-size-small/2);
+  overflow: hidden;
+
+  &-y-axis {
+    position: relative;
+    display: grid;
+    transform: translateY($font-size-small);
+
+    &__tick {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      transform-style: preserve-3d;
+      text-align: right;
+      padding-right: $padding-small;
+      font-size: $font-size-small;
+      line-height: 2;
+      z-index: 1;
+
+      &:after {
+        content: '';
+        position: absolute;
+        top: auto;
+        left: 100%;
+        width: 100vw;
+        height: 0;
+        border-bottom: $border-divider;
+        transform: translateY(-1px) translateZ(-1);
+      }
+    }
+  }
+
+  &-data {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1%;
+
+    &-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      flex-grow: 1;
+      width: 100%;
+      min-width: 1px;
+      height: calc(100% - ($font-size-small*4));
+      background-color: $color-bar;
+      transition: background-color 200ms ease-in;
+
+      &:hover {
+        background-color: lighten($color-bar, 10%);
+      }
+
+      &:first-child {
+        background-color: $color-bar-highest;
+
+        &:hover {
+          background-color: lighten($color-bar-highest, 10%);
+        }
+      }
+    }
+  }
+}

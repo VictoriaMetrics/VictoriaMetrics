@@ -111,11 +111,7 @@ func (a *Alert) ExecTemplate(q templates.QueryFn, labels, annotations map[string
 		ActiveAt: a.ActiveAt,
 		For:      a.For,
 	}
-	tmpl, err := templates.GetWithFuncs(templates.FuncsWithQuery(q))
-	if err != nil {
-		return nil, fmt.Errorf("error getting a template: %w", err)
-	}
-	return templateAnnotations(annotations, tplData, tmpl, true)
+	return ExecTemplate(q, annotations, tplData)
 }
 
 // ExecTemplate executes the given template for given annotations map.
@@ -174,6 +170,8 @@ func templateAnnotation(dst io.Writer, text string, data tplData, tmpl *textTpl.
 	if err != nil {
 		return fmt.Errorf("error cloning template before parse annotation: %w", err)
 	}
+	// Clone() doesn't copy tpl Options, so we set them manually
+	tpl = tpl.Option("missingkey=zero")
 	tpl, err = tpl.Parse(text)
 	if err != nil {
 		return fmt.Errorf("error parsing annotation template: %w", err)

@@ -1,8 +1,16 @@
 ---
 sort: 99
+weight: 99
+title: VictoriaMetrics Enterprise
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 99
+aliases:
+- /enterprise.html
 ---
 
-# VictoriaMetrics enterprise
+# VictoriaMetrics Enterprise
 
 VictoriaMetrics components are provided in two kinds - [community edition](https://victoriametrics.com/products/open-source/)
 and [enterprise edition](https://victoriametrics.com/products/enterprise/).
@@ -10,7 +18,7 @@ and [enterprise edition](https://victoriametrics.com/products/enterprise/).
 VictoriaMetrics community components are open source and are free to use - see [the source code](https://github.com/VictoriaMetrics/VictoriaMetrics/)
 and [the license](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/LICENSE).
 
-The use of VictoriaMetrics enteprise components is permitted in the following cases:
+The use of VictoriaMetrics enterprise components is permitted in the following cases:
 
 - Evaluation use in non-production setups. Just download and run enterprise binaries or packages of VictoriaMetrics
   components from usual places - [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) and [docker hub](https://hub.docker.com/u/victoriametrics).
@@ -34,10 +42,6 @@ plus the following additional features:
   by specifying different retentions to different datasets.
 - [Automatic discovery of vmstorage nodes](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#automatic-vmstorage-discovery) -
   this feature allows updating the list of `vmstorage` nodes at `vminsert` and `vmselect` without the need to restart these services.
-- [Graphite querying](https://docs.victoriametrics.com/#graphite-render-api-usage) - this feature allows seamless
-  transition from Graphite to VictoriaMetrics without the need to modify queries at dashboards and alerts.
-  VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite -
-  see [this case study](https://docs.victoriametrics.com/CaseStudies.html#grammarly).
 - [Backup automation](https://docs.victoriametrics.com/vmbackupmanager.html).
 - [Advanced per-tenant stats](https://docs.victoriametrics.com/PerTenantStatistic.html).
 - [Advanced auth and rate limiter](https://docs.victoriametrics.com/vmgateway.html).
@@ -45,6 +49,7 @@ plus the following additional features:
 - [Kafka integration](https://docs.victoriametrics.com/vmagent.html#kafka-integration).
 - [Multitenant support in vmalert](https://docs.victoriametrics.com/vmalert.html#multitenancy).
 - [Ability to read alerting and recording rules from object storage](https://docs.victoriametrics.com/vmalert.html#reading-rules-from-object-storage).
+- [Ability to filter incoming requests by IP at vmauth](https://docs.victoriametrics.com/vmauth.html#ip-filters).
 - [Anomaly Detection Service](https://docs.victoriametrics.com/vmanomaly.html).
 
 On top of this, enterprise package of VictoriaMetrics includes the following important Enterprise features:

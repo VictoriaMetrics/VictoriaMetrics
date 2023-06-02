@@ -39,6 +39,9 @@ vmbackup-freebsd-amd64-prod:
 vmbackup-openbsd-amd64-prod:
 	APP_NAME=vmbackup $(MAKE) app-via-docker-openbsd-amd64
 
+vmbackup-windows-amd64-prod:
+	APP_NAME=vmbackup $(MAKE) app-via-docker-windows-amd64
+
 package-vmbackup:
 	APP_NAME=vmbackup $(MAKE) package-via-docker
 
@@ -92,6 +95,9 @@ vmbackup-freebsd-amd64:
 
 vmbackup-openbsd-amd64:
 	APP_NAME=vmbackup CGO_ENABLED=0 GOOS=openbsd GOARCH=amd64 $(MAKE) app-local-goos-goarch
+
+vmbackup-windows-amd64:
+	GOARCH=amd64 APP_NAME=vmbackup $(MAKE) app-local-windows-goarch
 
 vmbackup-pure:
 	APP_NAME=vmbackup $(MAKE) app-local-pure

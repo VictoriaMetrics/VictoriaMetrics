@@ -21,19 +21,20 @@ import (
 
 // Returns the Region the bucket resides in. You set the bucket's Region using the
 // LocationConstraint request parameter in a CreateBucket request. For more
-// information, see CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html). To use
-// this implementation of the operation, you must be the bucket owner. To use this
-// API against an access point, provide the alias of the access point in place of
-// the bucket name. The following operations are related to GetBucketLocation:
-//
-// *
-// GetObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//
-// *
-// CreateBucket
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+// information, see CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
+// . To use this API operation against an access point, provide the alias of the
+// access point in place of the bucket name. To use this API operation against an
+// Object Lambda access point, provide the alias of the Object Lambda access point
+// in place of the bucket name. If the Object Lambda access point alias in a
+// request is not valid, the error code InvalidAccessPointAliasError is returned.
+// For more information about InvalidAccessPointAliasError , see List of Error
+// Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+// . We recommend that you use HeadBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_HeadBucket.html)
+// to return the Region that a bucket resides in. For backward compatibility,
+// Amazon S3 continues to support GetBucketLocation. The following operations are
+// related to GetBucketLocation :
+//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//   - CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 func (c *Client) GetBucketLocation(ctx context.Context, params *GetBucketLocationInput, optFns ...func(*Options)) (*GetBucketLocationOutput, error) {
 	if params == nil {
 		params = &GetBucketLocationInput{}
@@ -51,7 +52,14 @@ func (c *Client) GetBucketLocation(ctx context.Context, params *GetBucketLocatio
 
 type GetBucketLocationInput struct {
 
-	// The name of the bucket for which to get the location.
+	// The name of the bucket for which to get the location. To use this API operation
+	// against an access point, provide the alias of the access point in place of the
+	// bucket name. To use this API operation against an Object Lambda access point,
+	// provide the alias of the Object Lambda access point in place of the bucket name.
+	// If the Object Lambda access point alias in a request is not valid, the error
+	// code InvalidAccessPointAliasError is returned. For more information about
+	// InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+	// .
 	//
 	// This member is required.
 	Bucket *string
@@ -67,9 +75,8 @@ type GetBucketLocationInput struct {
 type GetBucketLocationOutput struct {
 
 	// Specifies the Region where the bucket resides. For a list of all the Amazon S3
-	// supported location constraints by Region, see Regions and Endpoints
-	// (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region). Buckets in
-	// Region us-east-1 have a LocationConstraint of null.
+	// supported location constraints by Region, see Regions and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
+	// . Buckets in Region us-east-1 have a LocationConstraint of null .
 	LocationConstraint types.BucketLocationConstraint
 
 	// Metadata pertaining to the operation's result.
@@ -136,6 +143,9 @@ func (c *Client) addOperationGetBucketLocationMiddlewares(stack *middleware.Stac
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketLocationUpdateEndpoint(stack, options); err != nil {
@@ -221,9 +231,9 @@ func newServiceMetadataMiddleware_opGetBucketLocation(region string) *awsmiddlew
 	}
 }
 
-// getGetBucketLocationBucketMember returns a pointer to string denoting a provided
-// bucket member valueand a boolean indicating if the input has a modeled bucket
-// name,
+// getGetBucketLocationBucketMember returns a pointer to string denoting a
+// provided bucket member valueand a boolean indicating if the input has a modeled
+// bucket name,
 func getGetBucketLocationBucketMember(input interface{}) (*string, bool) {
 	in := input.(*GetBucketLocationInput)
 	if in.Bucket == nil {

@@ -15,86 +15,66 @@ import (
 	"time"
 )
 
-// Retrieves objects from Amazon S3. To use GET, you must have READ access to the
+// Retrieves objects from Amazon S3. To use GET , you must have READ access to the
 // object. If you grant READ access to the anonymous user, you can return the
 // object without using an authorization header. An Amazon S3 bucket has no
 // directory hierarchy such as you would find in a typical computer file system.
 // You can, however, create a logical hierarchy by using object key names that
-// imply a folder structure. For example, instead of naming an object sample.jpg,
-// you can name it photos/2006/February/sample.jpg. To get an object from such a
+// imply a folder structure. For example, instead of naming an object sample.jpg ,
+// you can name it photos/2006/February/sample.jpg . To get an object from such a
 // logical hierarchy, specify the full key name for the object in the GET
 // operation. For a virtual hosted-style request example, if you have the object
-// photos/2006/February/sample.jpg, specify the resource as
-// /photos/2006/February/sample.jpg. For a path-style request example, if you have
-// the object photos/2006/February/sample.jpg in the bucket named examplebucket,
-// specify the resource as /examplebucket/photos/2006/February/sample.jpg. For more
-// information about request types, see HTTP Host Header Bucket Specification
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html#VirtualHostingSpecifyBucket).
-// For more information about returning the ACL of an object, see GetObjectAcl
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html). If the
-// object you are retrieving is stored in the S3 Glacier or S3 Glacier Deep Archive
-// storage class, or S3 Intelligent-Tiering Archive or S3 Intelligent-Tiering Deep
-// Archive tiers, before you can retrieve the object you must first restore a copy
-// using RestoreObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html).
-// Otherwise, this action returns an InvalidObjectStateError error. For information
-// about restoring archived objects, see Restoring Archived Objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html).
-// Encryption request headers, like x-amz-server-side-encryption, should not be
+// photos/2006/February/sample.jpg , specify the resource as
+// /photos/2006/February/sample.jpg . For a path-style request example, if you have
+// the object photos/2006/February/sample.jpg in the bucket named examplebucket ,
+// specify the resource as /examplebucket/photos/2006/February/sample.jpg . For
+// more information about request types, see HTTP Host Header Bucket Specification (https://docs.aws.amazon.com/AmazonS3/latest/dev/VirtualHosting.html#VirtualHostingSpecifyBucket)
+// . For more information about returning the ACL of an object, see GetObjectAcl (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html)
+// . If the object you are retrieving is stored in the S3 Glacier or S3 Glacier
+// Deep Archive storage class, or S3 Intelligent-Tiering Archive or S3
+// Intelligent-Tiering Deep Archive tiers, before you can retrieve the object you
+// must first restore a copy using RestoreObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_RestoreObject.html)
+// . Otherwise, this action returns an InvalidObjectState error. For information
+// about restoring archived objects, see Restoring Archived Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/restoring-objects.html)
+// . Encryption request headers, like x-amz-server-side-encryption , should not be
 // sent for GET requests if your object uses server-side encryption with KMS keys
 // (SSE-KMS) or server-side encryption with Amazon S3–managed encryption keys
 // (SSE-S3). If your object does use these types of keys, you’ll get an HTTP 400
 // BadRequest error. If you encrypt an object by using server-side encryption with
 // customer-provided encryption keys (SSE-C) when you store the object in Amazon
 // S3, then when you GET the object, you must use the following headers:
+//   - x-amz-server-side-encryption-customer-algorithm
+//   - x-amz-server-side-encryption-customer-key
+//   - x-amz-server-side-encryption-customer-key-MD5
 //
-// *
-// x-amz-server-side-encryption-customer-algorithm
-//
-// *
-// x-amz-server-side-encryption-customer-key
-//
-// *
-// x-amz-server-side-encryption-customer-key-MD5
-//
-// For more information about SSE-C,
-// see Server-Side Encryption (Using Customer-Provided Encryption Keys)
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html).
-// Assuming you have the relevant permission to read object tags, the response also
-// returns the x-amz-tagging-count header that provides the count of number of tags
-// associated with the object. You can use GetObjectTagging
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html) to
-// retrieve the tag set associated with an object. Permissions You need the
+// For more information about SSE-C, see Server-Side Encryption (Using
+// Customer-Provided Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+// . Assuming you have the relevant permission to read object tags, the response
+// also returns the x-amz-tagging-count header that provides the count of number
+// of tags associated with the object. You can use GetObjectTagging (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectTagging.html)
+// to retrieve the tag set associated with an object. Permissions You need the
 // relevant read object (or version) permission for this operation. For more
-// information, see Specifying Permissions in a Policy
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html). If
-// the object you request does not exist, the error Amazon S3 returns depends on
-// whether you also have the s3:ListBucket permission.
+// information, see Specifying Permissions in a Policy (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-with-s3-actions.html)
+// . If the object you request does not exist, the error Amazon S3 returns depends
+// on whether you also have the s3:ListBucket permission.
+//   - If you have the s3:ListBucket permission on the bucket, Amazon S3 will
+//     return an HTTP status code 404 ("no such key") error.
+//   - If you don’t have the s3:ListBucket permission, Amazon S3 will return an
+//     HTTP status code 403 ("access denied") error.
 //
-// * If you have the
-// s3:ListBucket permission on the bucket, Amazon S3 will return an HTTP status
-// code 404 ("no such key") error.
+// Versioning By default, the GET action returns the current version of an object.
+// To return a different version, use the versionId subresource.
+//   - If you supply a versionId , you need the s3:GetObjectVersion permission to
+//     access a specific version of an object. If you request a specific version, you
+//     do not need to have the s3:GetObject permission. If you request the current
+//     version without a specific version ID, only s3:GetObject permission is
+//     required. s3:GetObjectVersion permission won't be required.
+//   - If the current version of the object is a delete marker, Amazon S3 behaves
+//     as if the object was deleted and includes x-amz-delete-marker: true in the
+//     response.
 //
-// * If you don’t have the s3:ListBucket
-// permission, Amazon S3 will return an HTTP status code 403 ("access denied")
-// error.
-//
-// Versioning By default, the GET action returns the current version of an
-// object. To return a different version, use the versionId subresource.
-//
-// * If you
-// supply a versionId, you need the s3:GetObjectVersion permission to access a
-// specific version of an object. If you request a specific version, you do not
-// need to have the s3:GetObject permission.
-//
-// * If the current version of the
-// object is a delete marker, Amazon S3 behaves as if the object was deleted and
-// includes x-amz-delete-marker: true in the response.
-//
-// For more information about
-// versioning, see PutBucketVersioning
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html).
-// Overriding Response Header Values There are times when you want to override
+// For more information about versioning, see PutBucketVersioning (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketVersioning.html)
+// . Overriding Response Header Values There are times when you want to override
 // certain response header values in a GET response. For example, you might
 // override the Content-Disposition response header value in your GET request. You
 // can override values for a set of response headers using the following query
@@ -102,44 +82,30 @@ import (
 // that is, when status code 200 OK is returned. The set of headers you can
 // override using these parameters is a subset of the headers that Amazon S3
 // accepts when you create an object. The response headers that you can override
-// for the GET response are Content-Type, Content-Language, Expires, Cache-Control,
-// Content-Disposition, and Content-Encoding. To override these header values in
-// the GET response, you use the following request parameters. You must sign the
-// request, either using an Authorization header or a presigned URL, when using
-// these parameters. They cannot be used with an unsigned (anonymous) request.
+// for the GET response are Content-Type , Content-Language , Expires ,
+// Cache-Control , Content-Disposition , and Content-Encoding . To override these
+// header values in the GET response, you use the following request parameters. You
+// must sign the request, either using an Authorization header or a presigned URL,
+// when using these parameters. They cannot be used with an unsigned (anonymous)
+// request.
+//   - response-content-type
+//   - response-content-language
+//   - response-expires
+//   - response-cache-control
+//   - response-content-disposition
+//   - response-content-encoding
 //
-// *
-// response-content-type
-//
-// * response-content-language
-//
-// * response-expires
-//
-// *
-// response-cache-control
-//
-// * response-content-disposition
-//
-// *
-// response-content-encoding
-//
-// Additional Considerations about Request Headers If
-// both of the If-Match and If-Unmodified-Since headers are present in the request
-// as follows: If-Match condition evaluates to true, and; If-Unmodified-Since
-// condition evaluates to false; then, S3 returns 200 OK and the data requested. If
-// both of the If-None-Match and If-Modified-Since headers are present in the
-// request as follows: If-None-Match condition evaluates to false, and;
-// If-Modified-Since condition evaluates to true; then, S3 returns 304 Not Modified
-// response code. For more information about conditional requests, see RFC 7232
-// (https://tools.ietf.org/html/rfc7232). The following operations are related to
-// GetObject:
-//
-// * ListBuckets
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
-//
-// *
-// GetObjectAcl
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html)
+// Overriding Response Header Values If both of the If-Match and
+// If-Unmodified-Since headers are present in the request as follows: If-Match
+// condition evaluates to true , and; If-Unmodified-Since condition evaluates to
+// false ; then, S3 returns 200 OK and the data requested. If both of the
+// If-None-Match and If-Modified-Since headers are present in the request as
+// follows: If-None-Match condition evaluates to false , and; If-Modified-Since
+// condition evaluates to true ; then, S3 returns 304 Not Modified response code.
+// For more information about conditional requests, see RFC 7232 (https://tools.ietf.org/html/rfc7232)
+// . The following operations are related to GetObject :
+//   - ListBuckets (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
+//   - GetObjectAcl (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAcl.html)
 func (c *Client) GetObject(ctx context.Context, params *GetObjectInput, optFns ...func(*Options)) (*GetObjectOutput, error) {
 	if params == nil {
 		params = &GetObjectInput{}
@@ -163,19 +129,17 @@ type GetObjectInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide. When using an Object Lambda access point the
 	// hostname takes the form
-	// AccessPointName-AccountId.s3-object-lambda.Region.amazonaws.com. When using this
-	// action with Amazon S3 on Outposts, you must direct requests to the S3 on
+	// AccessPointName-AccountId.s3-object-lambda.Region.amazonaws.com. When you use
+	// this action with Amazon S3 on Outposts, you must direct requests to the S3 on
 	// Outposts hostname. The S3 on Outposts hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
@@ -214,18 +178,16 @@ type GetObjectInput struct {
 	// Useful for downloading just a part of an object.
 	PartNumber int32
 
-	// Downloads the specified range bytes of an object. For more information about the
-	// HTTP Range header, see
-	// https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35
-	// (https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.35). Amazon S3
-	// doesn't support retrieving multiple ranges of data per GET request.
+	// Downloads the specified range bytes of an object. For more information about
+	// the HTTP Range header, see
+	// https://www.rfc-editor.org/rfc/rfc9110.html#name-range (https://www.rfc-editor.org/rfc/rfc9110.html#name-range)
+	// . Amazon S3 doesn't support retrieving multiple ranges of data per GET request.
 	Range *string
 
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -251,11 +213,11 @@ type GetObjectInput struct {
 	// AES256).
 	SSECustomerAlgorithm *string
 
-	// Specifies the customer-provided encryption key for Amazon S3 used to encrypt the
-	// data. This value is used to decrypt the object when recovering it and must match
-	// the one used when storing the data. The key must be appropriate for use with the
-	// algorithm specified in the x-amz-server-side-encryption-customer-algorithm
-	// header.
+	// Specifies the customer-provided encryption key for Amazon S3 used to encrypt
+	// the data. This value is used to decrypt the object when recovering it and must
+	// match the one used when storing the data. The key must be appropriate for use
+	// with the algorithm specified in the
+	// x-amz-server-side-encryption-customer-algorithm header.
 	SSECustomerKey *string
 
 	// Specifies the 128-bit MD5 digest of the encryption key according to RFC 1321.
@@ -287,32 +249,28 @@ type GetObjectOutput struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -393,22 +351,23 @@ type GetObjectOutput struct {
 	// restored object copy.
 	Restore *string
 
-	// If server-side encryption with a customer-provided encryption key was requested,
-	// the response will include this header confirming the encryption algorithm used.
+	// If server-side encryption with a customer-provided encryption key was
+	// requested, the response will include this header confirming the encryption
+	// algorithm used.
 	SSECustomerAlgorithm *string
 
-	// If server-side encryption with a customer-provided encryption key was requested,
-	// the response will include this header to provide round-trip message integrity
-	// verification of the customer-provided encryption key.
+	// If server-side encryption with a customer-provided encryption key was
+	// requested, the response will include this header to provide round-trip message
+	// integrity verification of the customer-provided encryption key.
 	SSECustomerKeyMD5 *string
 
 	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric customer managed key that was used for the
-	// object.
+	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
+	// used for the object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms).
+	// (for example, AES256, aws:kms ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Provides storage class information of the object. Amazon S3 returns this header
@@ -484,6 +443,9 @@ func (c *Client) addOperationGetObjectMiddlewares(stack *middleware.Stack, optio
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetObjectOutputChecksumMiddlewares(stack, options); err != nil {

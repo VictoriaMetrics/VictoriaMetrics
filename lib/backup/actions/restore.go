@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
@@ -44,13 +45,8 @@ func (r *Restore) Run() error {
 	startTime := time.Now()
 
 	// Make sure VictoriaMetrics doesn't run during the restore process.
-	if err := fs.MkdirAllIfNotExist(r.Dst.Dir); err != nil {
-		return fmt.Errorf("cannot create dir %q: %w", r.Dst.Dir, err)
-	}
-	flockF, err := fs.CreateFlockFile(r.Dst.Dir)
-	if err != nil {
-		return fmt.Errorf("cannot create lock file in %q; make sure VictoriaMetrics doesn't use the dir; error: %w", r.Dst.Dir, err)
-	}
+	fs.MustMkdirIfNotExist(r.Dst.Dir)
+	flockF := fs.MustCreateFlockFile(r.Dst.Dir)
 	defer fs.MustClose(flockF)
 
 	if err := createRestoreLock(r.Dst.Dir); err != nil {
@@ -209,7 +205,7 @@ func (sw *statWriter) Write(p []byte) (int, error) {
 }
 
 func createRestoreLock(dstDir string) error {
-	lockF := path.Join(dstDir, "restore-in-progress")
+	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	f, err := os.Create(lockF)
 	if err != nil {
 		return fmt.Errorf("cannot create restore lock file %q: %w", lockF, err)
@@ -218,7 +214,7 @@ func createRestoreLock(dstDir string) error {
 }
 
 func removeRestoreLock(dstDir string) error {
-	lockF := path.Join(dstDir, "restore-in-progress")
+	lockF := path.Join(dstDir, backupnames.RestoreInProgressFilename)
 	if err := os.Remove(lockF); err != nil {
 		return fmt.Errorf("cannote remove restore lock file %q: %w", lockF, err)
 	}

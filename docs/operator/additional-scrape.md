@@ -7,7 +7,7 @@ menu:
     parent: "operator"
     weight: 2
 aliases:
-- operator/additional-scrape.html
+- /operator/additional-scrape.html
 ---
 
 # Additional Scrape Configuration

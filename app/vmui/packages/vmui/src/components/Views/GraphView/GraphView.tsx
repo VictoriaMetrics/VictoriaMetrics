@@ -1,9 +1,10 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
-import LineChart from "../../Chart/LineChart/LineChart";
+import LineChart from "../../Chart/Line/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
-import Legend from "../../Chart/Legend/Legend";
-import { getHideSeries, getLegendItem, getSeriesItemContext } from "../../../utils/uplot/series";
+import Legend from "../../Chart/Line/Legend/Legend";
+import LegendHeatmap from "../../Chart/Heatmap/LegendHeatmap/LegendHeatmap";
+import { getHideSeries, getLegendItem, getSeriesItemContext, SeriesItem } from "../../../utils/uplot/series";
 import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
 import { LegendItemType } from "../../../utils/uplot/types";
 import { TimeParams } from "../../../types";
@@ -11,9 +12,13 @@ import { AxisRange, YaxisState } from "../../../state/graph/reducer";
 import { getAvgFromArray, getMaxFromArray, getMinFromArray } from "../../../utils/math";
 import classNames from "classnames";
 import { useTimeState } from "../../../state/time/TimeStateContext";
+import HeatmapChart from "../../Chart/Heatmap/HeatmapChart/HeatmapChart";
 import "./style.scss";
 import { promValueToNumber } from "../../../utils/metric";
+import { normalizeData } from "../../../utils/uplot/heatmap";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { TooltipHeatmapProps } from "../../Chart/Heatmap/ChartTooltipHeatmap/ChartTooltipHeatmap";
+import useElementSize from "../../../hooks/useElementSize";
 
 export interface GraphViewProps {
   data?: MetricResult[];
@@ -28,10 +33,11 @@ export interface GraphViewProps {
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void
   fullWidth?: boolean
   height?: number
+  isHistogram?: boolean
 }
 
 const GraphView: FC<GraphViewProps> = ({
-  data = [],
+  data: dataRaw = [],
   period,
   customStep,
   query,
@@ -42,25 +48,55 @@ const GraphView: FC<GraphViewProps> = ({
   setPeriod,
   alias = [],
   fullWidth = true,
-  height
+  height,
+  isHistogram
 }) => {
   const { isMobile } = useDeviceDetect();
   const { timezone } = useTimeState();
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
+
+  const data = useMemo(() => normalizeData(dataRaw, isHistogram), [isHistogram, dataRaw]);
   const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItemType[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
+  const [legendValue, setLegendValue] = useState<TooltipHeatmapProps | null>(null);
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
-    const limits = getLimitsYAxis(values);
+    const limits = getLimitsYAxis(values, !isHistogram);
     setYaxisLimits(limits);
   };
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
     setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
+  };
+
+  const handleChangeLegend = (val: TooltipHeatmapProps) => {
+    setLegendValue(val);
+  };
+
+  const prepareHistogramData = (data: (number | null)[][]) => {
+    const values = data.slice(1, data.length);
+    const xs: (number | null | undefined)[] = [];
+    const counts: (number | null | undefined)[] = [];
+
+    values.forEach((arr, indexRow) => {
+      arr.forEach((v, indexValue) => {
+        const targetIndex = (indexValue * values.length) + indexRow;
+        counts[targetIndex] = v;
+      });
+    });
+
+    data[0].forEach(t => {
+      const arr = new Array(values.length).fill(t);
+      xs.push(...arr);
+    });
+
+    const ys = new Array(xs.length).fill(0).map((n, i) => i % (values.length));
+
+    return [null, [xs, ys, counts]];
   };
 
   useEffect(() => {
@@ -111,10 +147,11 @@ const GraphView: FC<GraphViewProps> = ({
     });
     timeDataSeries.unshift(timeSeries);
     setLimitsYaxis(tempValues);
-    setDataChart(timeDataSeries as uPlotData);
+    const result = isHistogram ? prepareHistogramData(timeDataSeries) : timeDataSeries;
+    setDataChart(result as uPlotData);
     setSeries(tempSeries);
     setLegend(tempLegend);
-  }, [data, timezone]);
+  }, [data, timezone, isHistogram]);
 
   useEffect(() => {
     const tempLegend: LegendItemType[] = [];
@@ -128,7 +165,7 @@ const GraphView: FC<GraphViewProps> = ({
     setLegend(tempLegend);
   }, [hideSeries]);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerRef, containerSize] = useElementSize();
 
   return (
     <div
@@ -139,7 +176,7 @@ const GraphView: FC<GraphViewProps> = ({
       })}
       ref={containerRef}
     >
-      {containerRef?.current &&
+      {!isHistogram && (
         <LineChart
           data={dataChart}
           series={series}
@@ -148,14 +185,38 @@ const GraphView: FC<GraphViewProps> = ({
           yaxis={yaxis}
           unit={unit}
           setPeriod={setPeriod}
-          container={containerRef?.current}
+          layoutSize={containerSize}
           height={height}
-        />}
-      {showLegend && <Legend
-        labels={legend}
-        query={query}
-        onChange={onChangeLegend}
-      />}
+        />
+      )}
+      {isHistogram && (
+        <HeatmapChart
+          data={dataChart}
+          metrics={data}
+          period={period}
+          yaxis={yaxis}
+          unit={unit}
+          setPeriod={setPeriod}
+          layoutSize={containerSize}
+          height={height}
+          onChangeLegend={handleChangeLegend}
+        />
+      )}
+      {!isHistogram && showLegend && (
+        <Legend
+          labels={legend}
+          query={query}
+          onChange={onChangeLegend}
+        />
+      )}
+      {isHistogram && showLegend && (
+        <LegendHeatmap
+          series={series as SeriesItem[]}
+          min={yaxis.limits.range[1][0] || 0}
+          max={yaxis.limits.range[1][1] || 0}
+          legendValue={legendValue}
+        />
+      )}
     </div>
   );
 };

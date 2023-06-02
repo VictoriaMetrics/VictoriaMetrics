@@ -43,8 +43,10 @@ var (
 	finalMergeDelay = flag.Duration("finalMergeDelay", 0, "The delay before starting final merge for per-month partition after no new data is ingested into it. "+
 		"Final merge may require additional disk IO and CPU resources. Final merge may increase query speed and reduce disk space usage in some cases. "+
 		"Zero value disables final merge")
-	bigMergeConcurrency     = flag.Int("bigMergeConcurrency", 0, "The maximum number of CPU cores to use for big merges. Default value is used if set to 0")
-	smallMergeConcurrency   = flag.Int("smallMergeConcurrency", 0, "The maximum number of CPU cores to use for small merges. Default value is used if set to 0")
+	_ = flag.Int("bigMergeConcurrency", 0, "Deprecated: this flag does nothing. Please use -smallMergeConcurrency "+
+		"for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage")
+	smallMergeConcurrency = flag.Int("smallMergeConcurrency", 0, "The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . "+
+		"It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries")
 	retentionTimezoneOffset = flag.Duration("retentionTimezoneOffset", 0, "The offset for performing indexdb rotation. "+
 		"If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. "+
 		"If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)")
@@ -84,7 +86,6 @@ func main() {
 	storage.SetDedupInterval(*minScrapeInterval)
 	storage.SetLogNewSeries(*logNewSeries)
 	storage.SetFinalMergeDelay(*finalMergeDelay)
-	storage.SetBigMergeWorkersCount(*bigMergeConcurrency)
 	storage.SetMergeWorkersCount(*smallMergeConcurrency)
 	storage.SetRetentionTimezoneOffset(*retentionTimezoneOffset)
 	storage.SetFreeDiskSpaceLimit(minFreeDiskSpaceBytes.N)
@@ -98,10 +99,7 @@ func main() {
 	}
 	logger.Infof("opening storage at %q with -retentionPeriod=%s", *storageDataPath, retentionPeriod)
 	startTime := time.Now()
-	strg, err := storage.OpenStorage(*storageDataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
-	if err != nil {
-		logger.Fatalf("cannot open a storage at %s with -retentionPeriod=%s: %s", *storageDataPath, retentionPeriod, err)
-	}
+	strg := storage.MustOpenStorage(*storageDataPath, retentionPeriod.Msecs, *maxHourlySeries, *maxDailySeries)
 	initStaleSnapshotsRemover(strg)
 
 	var m storage.Metrics
@@ -165,7 +163,10 @@ func newRequestHandler(strg *storage.Storage) httpserver.RequestHandler {
 			if r.Method != http.MethodGet {
 				return false
 			}
-			fmt.Fprintf(w, "vmstorage - a component of VictoriaMetrics cluster. See docs at https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html")
+			w.Header().Add("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprintf(w, `vmstorage - a component of VictoriaMetrics cluster<br/>
+			<a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
+`)
 			return true
 		}
 		return requestHandler(w, r, strg)

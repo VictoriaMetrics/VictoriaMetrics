@@ -176,16 +176,19 @@ func (g *Group) toAPI() APIGroup {
 		// encode as string to avoid rounding
 		ID: fmt.Sprintf("%d", g.ID()),
 
-		Name:           g.Name,
-		Type:           g.Type.String(),
-		File:           g.File,
-		Interval:       g.Interval.Seconds(),
-		LastEvaluation: g.LastEvaluation,
-		Concurrency:    g.Concurrency,
-		Params:         urlValuesToStrings(g.Params),
-		Headers:        headersToStrings(g.Headers),
-		Labels:         g.Labels,
+		Name:            g.Name,
+		Type:            g.Type.String(),
+		File:            g.File,
+		Interval:        g.Interval.Seconds(),
+		LastEvaluation:  g.LastEvaluation,
+		Concurrency:     g.Concurrency,
+		Params:          urlValuesToStrings(g.Params),
+		Headers:         headersToStrings(g.Headers),
+		NotifierHeaders: headersToStrings(g.NotifierHeaders),
+
+		Labels: g.Labels,
 	}
+	ag.Rules = make([]APIRule, 0)
 	for _, r := range g.Rules {
 		ag.Rules = append(ag.Rules, r.ToAPI())
 	}

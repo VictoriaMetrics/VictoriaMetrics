@@ -35,12 +35,12 @@ func (r graphiteResponse) metrics() []Metric {
 	return ms
 }
 
-func parseGraphiteResponse(req *http.Request, resp *http.Response) ([]Metric, error) {
+func parseGraphiteResponse(req *http.Request, resp *http.Response) (Result, error) {
 	r := &graphiteResponse{}
 	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return nil, fmt.Errorf("error parsing graphite metrics for %s: %w", req.URL.Redacted(), err)
+		return Result{}, fmt.Errorf("error parsing graphite metrics for %s: %w", req.URL.Redacted(), err)
 	}
-	return r.metrics(), nil
+	return Result{Data: r.metrics()}, nil
 }
 
 const (

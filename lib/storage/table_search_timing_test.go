@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -13,8 +14,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	isDebug = true
 	n := m.Run()
-	if err := os.RemoveAll("./benchmarkTableSearch"); err != nil {
+	if err := os.RemoveAll("benchmarkTableSearch"); err != nil {
 		panic(fmt.Errorf("cannot remove benchmark tables: %w", err))
 	}
 	os.Exit(n)
@@ -39,16 +41,13 @@ func BenchmarkTableSearch(b *testing.B) {
 func openBenchTable(b *testing.B, startTimestamp int64, rowsPerInsert, rowsCount, tsidsCount int) *table {
 	b.Helper()
 
-	path := fmt.Sprintf("./benchmarkTableSearch/rows%d_tsids%d", rowsCount, tsidsCount)
+	path := filepath.Join("benchmarkTableSearch", fmt.Sprintf("rows%d_tsids%d", rowsCount, tsidsCount))
 	if !createdBenchTables[path] {
 		createBenchTable(b, path, startTimestamp, rowsPerInsert, rowsCount, tsidsCount)
 		createdBenchTables[path] = true
 	}
 	strg := newTestStorage()
-	tb, err := openTable(path, strg)
-	if err != nil {
-		b.Fatalf("cnanot open table %q: %s", path, err)
-	}
+	tb := mustOpenTable(path, strg)
 
 	// Verify rows count in the table opened from files.
 	insertsCount := uint64((rowsCount + rowsPerInsert - 1) / rowsPerInsert)
@@ -68,10 +67,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 	b.Helper()
 
 	strg := newTestStorage()
-	tb, err := openTable(path, strg)
-	if err != nil {
-		b.Fatalf("cannot open table %q: %s", path, err)
-	}
+	tb := mustOpenTable(path, strg)
 
 	insertsCount := uint64((rowsCount + rowsPerInsert - 1) / rowsPerInsert)
 	timestamp := uint64(startTimestamp)
@@ -94,9 +90,7 @@ func createBenchTable(b *testing.B, path string, startTimestamp int64, rowsPerIn
 					r.Timestamp = int64(ts)
 					r.Value = value
 				}
-				if err := tb.AddRows(rows); err != nil {
-					panic(fmt.Errorf("cannot add %d rows: %w", rowsPerInsert, err))
-				}
+				tb.MustAddRows(rows)
 			}
 			wg.Done()
 		}(k)

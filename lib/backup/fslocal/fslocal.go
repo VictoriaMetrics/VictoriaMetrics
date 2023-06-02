@@ -68,7 +68,7 @@ func (fs *FS) ListParts() ([]common.Part, error) {
 	}
 
 	var parts []common.Part
-	dir += "/"
+	dir += string(filepath.Separator)
 	for _, file := range files {
 		if !strings.HasPrefix(file, dir) {
 			logger.Panicf("BUG: unexpected prefix for file %q; want %q", file, dir)
@@ -187,11 +187,7 @@ func (fs *FS) mkdirAll(filePath string) error {
 }
 
 func (fs *FS) path(p common.Part) string {
-	dir := fs.Dir
-	for strings.HasSuffix(dir, "/") {
-		dir = dir[:len(dir)-1]
-	}
-	return fs.Dir + "/" + p.Path
+	return filepath.Join(fs.Dir, p.Path)
 }
 
 type limitedReadCloser struct {
@@ -235,9 +231,11 @@ func (wc *writeCloser) Write(p []byte) (int, error) {
 }
 
 func (wc *writeCloser) Close() error {
+	wc.w.MustFlush(true)
 	wc.w.MustClose()
 	if wc.n != 0 {
 		return fmt.Errorf("missing data writes for %d bytes", wc.n)
 	}
-	return fscommon.FsyncFile(wc.path)
+
+	return nil
 }

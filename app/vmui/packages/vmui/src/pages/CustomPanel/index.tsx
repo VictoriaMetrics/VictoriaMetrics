@@ -22,6 +22,9 @@ import TableView from "../../components/Views/TableView/TableView";
 import Button from "../../components/Main/Button/Button";
 import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
+import GraphTips from "../../components/Chart/GraphTips/GraphTips";
+import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
+import useBoolean from "../../hooks/useBoolean";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -34,14 +37,29 @@ const CustomPanel: FC = () => {
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
-  const [showAllSeries, setShowAllSeries] = useState(false);
   const [hideError, setHideError] = useState(!query[0]);
+
+  const {
+    value: showAllSeries,
+    setTrue: handleShowAll,
+    setFalse: handleHideSeries,
+  } = useBoolean(false);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const { queryOptions } = useFetchQueryOptions();
-  const { isLoading, liveData, graphData, error, warning, traces } = useFetchQuery({
+  const {
+    isLoading,
+    liveData,
+    graphData,
+    error,
+    queryErrors,
+    queryStats,
+    warning,
+    traces,
+    isHistogram
+  } = useFetchQuery({
     visible: true,
     customStep,
     hideQuery,
@@ -58,10 +76,6 @@ const CustomPanel: FC = () => {
 
   const setPeriod = ({ from, to }: {from: Date, to: Date}) => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
-  };
-
-  const handleShowAll = () => {
-    setShowAllSeries(true);
   };
 
   const handleTraceDelete = (trace: Trace) => {
@@ -87,9 +101,11 @@ const CustomPanel: FC = () => {
     setTracesState([]);
   }, [displayType]);
 
+  useEffect(handleHideSeries, [query]);
+
   useEffect(() => {
-    setShowAllSeries(false);
-  }, [query]);
+    graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
+  }, [graphData]);
 
   return (
     <div
@@ -99,7 +115,8 @@ const CustomPanel: FC = () => {
       })}
     >
       <QueryConfigurator
-        error={!hideError ? error : ""}
+        errors={!hideError ? queryErrors : []}
+        stats={queryStats}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
@@ -114,6 +131,7 @@ const CustomPanel: FC = () => {
       )}
       {isLoading && <Spinner />}
       {!hideError && error && <Alert variant="error">{error}</Alert>}
+      {!liveData?.length && (displayType !== "chart") && <Alert variant="info"><InstantQueryTip/></Alert>}
       {warning && <Alert variant="warning">
         <div
           className={classNames({
@@ -142,11 +160,14 @@ const CustomPanel: FC = () => {
         <div className="vm-custom-panel-body-header">
           <DisplayTypeSwitch/>
           {displayType === "chart" && (
-            <GraphSettings
-              yaxis={yaxis}
-              setYaxisLimits={setYaxisLimits}
-              toggleEnableLimits={toggleEnableLimits}
-            />
+            <div className="vm-custom-panel-body-header__left">
+              <GraphTips/>
+              <GraphSettings
+                yaxis={yaxis}
+                setYaxisLimits={setYaxisLimits}
+                toggleEnableLimits={toggleEnableLimits}
+              />
+            </div>
           )}
           {displayType === "table" && (
             <TableSettings
@@ -166,6 +187,7 @@ const CustomPanel: FC = () => {
             setYaxisLimits={setYaxisLimits}
             setPeriod={setPeriod}
             height={isMobile ? window.innerHeight * 0.5 : 500}
+            isHistogram={isHistogram}
           />
         )}
         {liveData && (displayType === "code") && (

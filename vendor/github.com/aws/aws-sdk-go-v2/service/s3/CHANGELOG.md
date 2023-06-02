@@ -1,3 +1,33 @@
+# v1.33.1 (2023-05-04)
+
+* **Documentation**: Documentation updates for Amazon S3
+
+# v1.33.0 (2023-04-24)
+
+* **Feature**: added custom paginators for listMultipartUploads and ListObjectVersions
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.32.0 (2023-04-19)
+
+* **Feature**: Provides support for "Snow" Storage class.
+
+# v1.31.3 (2023-04-10)
+
+* No change notes available for this release.
+
+# v1.31.2 (2023-04-07)
+
+* **Dependency Update**: Updated to the latest SDK module versions
+
+# v1.31.1 (2023-03-31)
+
+* **Documentation**: Documentation updates for Amazon S3
+
+# v1.31.0 (2023-03-21)
+
+* **Feature**: port v1 sdk 100-continue http header customization for s3 PutObject/UploadPart request and enable user config
+* **Dependency Update**: Updated to the latest SDK module versions
+
 # v1.30.6 (2023-03-10)
 
 * **Dependency Update**: Updated to the latest SDK module versions

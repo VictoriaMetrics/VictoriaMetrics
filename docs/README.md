@@ -1,4 +1,6 @@
-
+---
+title: VictoriaMetrics
+---
 # VictoriaMetrics
 
 [![Latest Release](https://img.shields.io/github/release/VictoriaMetrics/VictoriaMetrics.svg?style=flat-square)](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/latest)
@@ -41,7 +43,8 @@ VictoriaMetrics has the following prominent features:
 * It can be used as long-term storage for Prometheus. See [these docs](#prometheus-setup) for details.
 * It can be used as a drop-in replacement for Prometheus in Grafana, because it supports [Prometheus querying API](#prometheus-querying-api-usage).
 * It can be used as a drop-in replacement for Graphite in Grafana, because it supports [Graphite API](#graphite-api-usage).
-* It features easy setup and operation:
+  VictoriaMetrics allows reducing infrastructure costs by more than 10x comparing to Graphite - see [this case study](https://docs.victoriametrics.com/CaseStudies.html#grammarly).
+* It is easy to setup and operate:
   * VictoriaMetrics consists of a single [small executable](https://medium.com/@valyala/stripping-dependency-bloat-in-victoriametrics-docker-image-983fb5912b0d)
     without external dependencies.
   * All the configuration is done via explicit command-line flags with reasonable defaults.
@@ -202,7 +205,7 @@ Changing scrape configuration is possible with text editor:
 vi $SNAP_DATA/var/snap/victoriametrics/current/etc/victoriametrics-scrape-config.yaml
 ```
 
-After changes were made, trigger config re-read with the command `curl 127.0.0.1:8248/-/reload`.
+After changes were made, trigger config re-read with the command `curl 127.0.0.1:8428/-/reload`.
 
 ## Prometheus setup
 
@@ -282,7 +285,11 @@ http://<victoriametrics-addr>:8428
 
 Substitute `<victoriametrics-addr>` with the hostname or IP address of VictoriaMetrics.
 
-Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+Then build graphs and dashboards for the created datasource using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/)
+or [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
+
+Alternatively, use VictoriaMetrics [datasource plugin](https://github.com/VictoriaMetrics/grafana-datasource) with support of extra features. 
+See more in [description](https://github.com/VictoriaMetrics/grafana-datasource#victoriametrics-data-source-for-grafana).
 
 ## How to upgrade VictoriaMetrics
 
@@ -303,13 +310,21 @@ Prometheus doesn't drop data during VictoriaMetrics restart. See [this article](
 ## vmui
 
 VictoriaMetrics provides UI for query troubleshooting and exploration. The UI is available at `http://victoriametrics:8428/vmui`.
-The UI allows exploring query results via graphs and tables.
-It also provides the following features:
+The UI allows exploring query results via graphs and tables. It also provides the following features:
 
-- [metrics explorer](#metrics-explorer)
-- [cardinality explorer](#cardinality-explorer)
-- [query tracer](#query-tracing)
-- [top queries explorer](#top-queries)
+- Explore:
+  - [Metrics explorer](#metrics-explorer) - automatically builds graphs for selected metrics; 
+  - [Cardinality explorer](#cardinality-explorer) - stats about existing metrics in TSDB;
+  - [Top queries](#top-queries) - shows most frequently executed queries;
+- Tools:
+  - [Trace analyzer](#query-tracing) - playground for loading query traces in JSON format; 
+  - [WITH expressions playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/expand-with-exprs) - test how WITH expressions work; 
+  - [Metric relabel debugger](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling) - playground for [relabeling](#relabeling) configs.
+
+VMUI automatically switches from graph view to heatmap view when the query returns [histogram](https://docs.victoriametrics.com/keyConcepts.html#histogram) buckets
+(both [Prometheus histograms](https://prometheus.io/docs/concepts/metric_types/#histogram)
+and [VictoriaMetrics histograms](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350) are supported).
+Try, for example, [this query](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/?g0.expr=sum%28rate%28vm_promscrape_scrape_duration_seconds_bucket%29%29+by+%28vmrange%29&g0.range_input=24h&g0.end_input=2023-04-10T17%3A46%3A12&g0.relative_time=last_24_hours&g0.step_input=31m).
 
 Graphs in `vmui` support scrolling and zooming:
 
@@ -321,9 +336,12 @@ Query history can be navigated by holding `Ctrl` (or `Cmd` on MacOS) and pressin
 
 Multi-line queries can be entered by pressing `Shift-Enter` in query input field.
 
-When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling) or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results), it may be useful disabling response cache by clicking `Disable cache` checkbox.
+When querying the [backfilled data](https://docs.victoriametrics.com/#backfilling)
+or during [query troubleshooting](https://docs.victoriametrics.com/Troubleshooting.html#unexpected-query-results),
+it may be useful disabling response cache by clicking `Disable cache` checkbox.
 
-VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range. The step value can be customized by changing `Step value` input.
+VMUI automatically adjusts the interval between datapoints on the graph depending on the horizontal resolution and on the selected time range.
+The step value can be customized by changing `Step value` input.
 
 VMUI allows investigating correlations between multiple queries on the same graph. Just click `Add Query` button,
 enter an additional query in the newly appeared input field and press `Enter`.
@@ -367,8 +385,8 @@ VictoriaMetrics provides an ability to explore time series cardinality at `Explo
   may show lower than expected number of unique label values for labels with small number of unique values.
   This is because of [implementation limits](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/5a6e617b5e41c9170e7c562aecd15ee0c901d489/app/vmselect/netstorage/netstorage.go#L1039-L1045).
 
-By default cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
-By default all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
+By default, cardinality explorer analyzes time series for the current date. It provides the ability to select different day at the top right corner.
+By default, all the time series for the selected date are analyzed. It is possible to narrow down the analysis to series
 matching the specified [series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors).
 
 Cardinality explorer is built on top of [/api/v1/status/tsdb](#tsdb-stats).
@@ -513,8 +531,10 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
-* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line. The `db` label name can be overridden via `-influxDBLabel` command-line flag.
+* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
+  [label](https://docs.victoriametrics.com/keyConcepts.html#labels) value unless `db` tag exists in the InfluxDB line. 
+  The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
+  read more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy).
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -565,7 +585,8 @@ The `/api/v1/export` endpoint should return the following response:
 ```
 
 Note that InfluxDB line protocol expects [timestamps in *nanoseconds* by default](https://docs.influxdata.com/influxdb/v1.7/write_protocols/line_protocol_tutorial/#timestamp),
-while VictoriaMetrics stores them with *milliseconds* precision.
+while VictoriaMetrics stores them with *milliseconds* precision. It is allowed to ingest timestamps with seconds,
+microseconds or nanoseconds precision - VictoriaMetrics will automatically convert them to milliseconds.
 
 Extra labels may be added to all the written time series by passing `extra_label=name=value` query args.
 For example, `/write?extra_label=foo=bar` would add `{foo="bar"}` label to all the ingested metrics.
@@ -627,7 +648,6 @@ VictoriaMetrics supports `__graphite__` pseudo-label for selecting time series w
 The `__graphite__` pseudo-label supports e.g. alternate regexp filters such as `(value1|...|valueN)`. They are transparently converted to `{value1,...,valueN}` syntax [used in Graphite](https://graphite.readthedocs.io/en/latest/render_api.html#paths-and-wildcards). This allows using [multi-value template variables in Grafana](https://grafana.com/docs/grafana/latest/variables/formatting-multi-value-variables/) inside `__graphite__` pseudo-label. For example, Grafana expands `{__graphite__=~"foo.($bar).baz"}` into `{__graphite__=~"foo.(x|y).baz"}` if `$bar` template variable contains `x` and `y` values. In this case the query is automatically converted into `{__graphite__=~"foo.{x,y}.baz"}` before execution.
 
 VictoriaMetrics also supports Graphite query language - see [these docs](#graphite-render-api-usage).
-
 
 ## How to send data from OpenTSDB-compatible agents
 
@@ -743,20 +763,45 @@ All the Prometheus querying API handlers can be prepended with `/prometheus` pre
 
 ### Prometheus querying API enhancements
 
-VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used for enforcing additional label filters for queries. For example,
-`/api/v1/query_range?extra_label=user_id=123&extra_label=group_id=456&query=<query>` would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+VictoriaMetrics accepts optional `extra_label=<label_name>=<label_value>` query arg, which can be used
+for enforcing additional label filters for queries. For example, `/api/v1/query_range?extra_label=user_id=123&extra_label=group_id=456&query=<query>`
+would automatically add `{user_id="123",group_id="456"}` label filters to the given `<query>`.
+This functionality can be used for limiting the scope of time series visible to the given tenant.
+It is expected that the `extra_label` query args are automatically set by auth proxy sitting in front of VictoriaMetrics.
+See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
-VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries. For example,
-`/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically set by auth proxy sitting in front of VictoriaMetrics. See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
+VictoriaMetrics accepts optional `extra_filters[]=series_selector` query arg, which can be used for enforcing arbitrary label filters for queries.
+For example, `/api/v1/query_range?extra_filters[]={env=~"prod|staging",user="xyz"}&query=<query>` would automatically
+add `{env=~"prod|staging",user="xyz"}` label filters to the given `<query>`. This functionality can be used for limiting
+the scope of time series visible to the given tenant. It is expected that the `extra_filters[]` query args are automatically
+set by auth proxy sitting in front of VictoriaMetrics.
+See [vmauth](https://docs.victoriametrics.com/vmauth.html) and [vmgateway](https://docs.victoriametrics.com/vmgateway.html) as examples of such proxies.
 
 VictoriaMetrics accepts multiple formats for `time`, `start` and `end` query args - see [these docs](#timestamp-formats).
 
-VictoriaMetrics accepts `round_digits` query arg for `/api/v1/query` and `/api/v1/query_range` handlers. It can be used for rounding response values to the given number of digits after the decimal point. For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
+VictoriaMetrics accepts `round_digits` query arg for [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query)
+and [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query) handlers. It can be used for rounding response values
+to the given number of digits after the decimal point.
+For example, `/api/v1/query?query=avg_over_time(temperature[1h])&round_digits=2` would round response values to up to two digits after the decimal point.
 
-VictoriaMetrics accepts `limit` query arg for `/api/v1/labels` and `/api/v1/label/<labelName>/values` handlers for limiting the number of returned entries. For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels. If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values, then limits specified in the command-line flags are used.
+VictoriaMetrics accepts `limit` query arg for [/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels)
+and [`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues) handlers for limiting the number of returned entries.
+For example, the query to `/api/v1/labels?limit=5` returns a sample of up to 5 unique labels, while ignoring the rest of labels.
+If the provided `limit` value exceeds the corresponding `-search.maxTagKeys` / `-search.maxTagValues` command-line flag values,
+then limits specified in the command-line flags are used.
 
-By default, VictoriaMetrics returns time series for the last 5 minutes from `/api/v1/series`, `/api/v1/labels` and `/api/v1/label/<labelName>/values` while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
-VictoriaMetrics accepts `limit` query arg for `/api/v1/series` handlers for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest. If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
+By default, VictoriaMetrics returns time series for the last day starting at 00:00 UTC
+from [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series),
+[/api/v1/labels](https://docs.victoriametrics.com/url-examples.html#apiv1labels) and
+[`/api/v1/label/<labelName>/values`](https://docs.victoriametrics.com/url-examples.html#apiv1labelvalues),
+while the Prometheus API defaults to all time.  Explicitly set `start` and `end` to select the desired time range.
+VictoriaMetrics rounds the specified `start..end` time range to day granularity because of performance optimization concerns.
+If you need the exact set of label names and label values on the given time range, then send queries
+to [/api/v1/query](https://docs.victoriametrics.com/keyConcepts.html#instant-query) or to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query).
+
+VictoriaMetrics accepts `limit` query arg at [/api/v1/series](https://docs.victoriametrics.com/url-examples.html#apiv1series)
+for limiting the number of returned entries. For example, the query to `/api/v1/series?limit=5` returns a sample of up to 5 series, while ignoring the rest of series.
+If the provided `limit` value exceeds the corresponding `-search.maxSeries` command-line flag values, then limits specified in the command-line flags are used.
 
 Additionally, VictoriaMetrics provides the following handlers:
 
@@ -781,9 +826,11 @@ in [query APIs](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 - Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
-- [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, '2022-03-29T01:02:03Z`.
-- Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`.
-- Relative duration comparing to the current time. For example, `1h5m` means `one hour and five minutes ago`.
+- [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, `2022-03-29T01:02:03Z` or `2022-03-29T01:02:03+02:30`.
+- Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`, `2022-03-29T01:02:03`.
+  The partial RFC3339 time is in UTC timezone by default. It is possible to specify timezone there by adding `+hh:mm` or `-hh:mm` suffix to partial time.
+  For example, `2022-03-01+06:30` is `2022-03-01` at `06:30` timezone.
+- Relative duration comparing to the current time. For example, `1h5m`, `-1h5m` or `now-1h5m` means `one hour and five minutes ago`, while `now` means `now`.
 
 
 ## Graphite API usage
@@ -805,10 +852,10 @@ VictoriaMetrics supports `__graphite__` pseudo-label for filtering time series w
 
 ### Graphite Render API usage
 
-[VictoriaMetrics Enterprise](https://docs.victoriametrics.com/enterprise.html) supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
+VictoriaMetrics supports [Graphite Render API](https://graphite.readthedocs.io/en/stable/render_api.html) subset
 at `/render` endpoint, which is used by [Graphite datasource in Grafana](https://grafana.com/docs/grafana/latest/datasources/graphite/).
-When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
-Enterprise binaries can be downloaded and evaluated for free from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
+When configuring Graphite datasource in Grafana, the `Storage-Step` http request header must be set to a step between Graphite data points
+stored in VictoriaMetrics. For example, `Storage-Step: 10s` would mean 10 seconds distance between Graphite datapoints stored in VictoriaMetrics.
 
 ### Graphite Metrics API usage
 
@@ -820,7 +867,7 @@ VictoriaMetrics supports the following handlers from [Graphite Metrics API](http
 
 VictoriaMetrics accepts the following additional query args at `/metrics/find` and `/metrics/expand`:
 
-* `label` - for selecting arbitrary label values. By default `label=__name__`, i.e. metric names are selected.
+* `label` - for selecting arbitrary label values. By default, `label=__name__`, i.e. metric names are selected.
 * `delimiter` - for using different delimiters in metric name hierarchy. For example, `/metrics/find?delimiter=_&query=node_*` would return all the metric name prefixes
     that start with `node_`. By default `delimiter=.`.
 
@@ -946,7 +993,7 @@ Note that background merges may never occur for data from previous months, so st
 In this case [forced merge](#forced-merge) may help freeing up storage space.
 
 It is recommended verifying which metrics will be deleted with the call to `http://<victoria-metrics-addr>:8428/api/v1/series?match[]=<timeseries_selector_for_delete>`
-before actually deleting the metrics.  By default this query will only scan series in the past 5 minutes, so you may need to
+before actually deleting the metrics. By default, this query will only scan series in the past 5 minutes, so you may need to
 adjust `start` and `end` to a suitable range to achieve match hits.
 
 The `/api/v1/admin/tsdb/delete_series` handler may be protected with `authKey` if `-deleteAuthKey` command-line flag is set.
@@ -1312,7 +1359,8 @@ Example contents for `-relabelConfig` file:
 VictoriaMetrics provides additional relabeling features such as Graphite-style relabeling.
 See [these docs](https://docs.victoriametrics.com/vmagent.html#relabeling) for more details.
 
-The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page.
+The relabeling can be debugged at `http://victoriametrics:8428/metric-relabel-debug` page
+or at our [public playground](https://play.victoriametrics.com/select/accounting/1/6a716b0f-38bc-4856-90ce-448fd713e3fe/prometheus/graph/#/relabeling).
 See [these docs](https://docs.victoriametrics.com/vmagent.html#relabel-debug) for more details.
 
 
@@ -1359,7 +1407,7 @@ See also [resource usage limits docs](#resource-usage-limits).
 
 ## Resource usage limits
 
-By default VictoriaMetrics is tuned for an optimal resource usage under typical workloads. Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
+By default, VictoriaMetrics is tuned for an optimal resource usage under typical workloads. Some workloads may need fine-grained resource usage limits. In these cases the following command-line flags may be useful:
 
 - `-memory.allowedPercent` and `-memory.allowedBytes` limit the amounts of memory, which may be used for various internal caches at VictoriaMetrics. Note that VictoriaMetrics may use more memory, since these flags don't limit additional memory, which may be needed on a per-query basis.
 - `-search.maxMemoryPerQuery` limits the amounts of memory, which can be used for processing a single query. Queries, which need more memory, are rejected. Heavy queries, which select big number of time series, may exceed the per-query memory limit by a small percent. The total memory limit for concurrently executed queries can be estimated as `-search.maxMemoryPerQuery` multiplied by `-search.maxConcurrentRequests`.
@@ -1421,22 +1469,37 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 
 ## Deduplication
 
-VictoriaMetrics leaves a single raw sample with the biggest timestamp per each `-dedup.minScrapeInterval` discrete interval
-if `-dedup.minScrapeInterval` is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would leave a single
-raw sample with the biggest timestamp per each discrete 60s interval.
+VictoriaMetrics leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) for each [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+per each `-dedup.minScrapeInterval` discrete interval if `-dedup.minScrapeInterval` is set to positive duration. 
+For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with the biggest timestamp per each discrete
+`60s` interval.
 This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
-If multiple raw samples have the same biggest timestamp on the given `-dedup.minScrapeInterval` discrete interval, then the sample with the biggest value is left.
+If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
+then the sample with **the biggest value** is kept.
 
-The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. So it is safe to use deduplication and downsampling simultaneously.
+Please note, [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of raw samples should be identical
+in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent.html#high-availability)
+needs to be identically configured. 
 
-The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. It is recommended to have a single `scrape_interval` across all the scrape targets. See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
+The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled.
+So it is safe to use deduplication and downsampling simultaneously.
 
-The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
-write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
-`external_labels` section in their configs, so they write data to the same time series. See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. 
+It is recommended to have a single `scrape_interval` across all the scrape targets. 
+See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
 
-It is recommended passing different `-promscrape.cluster.name` values to HA pairs of `vmagent` instances, so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples from other `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
+The de-duplication reduces disk space usage if multiple **identically configured** [vmagent](https://docs.victoriametrics.com/vmagent.html)
+or Prometheus instances in HA pair write data to the same VictoriaMetrics instance. 
+These vmagent or Prometheus instances must have **identical** `external_labels` section in their configs, 
+so they write data to the same time series. 
+See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+
+It is recommended passing different `-promscrape.cluster.name` values to each distinct HA pair of `vmagent` instances, 
+so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples 
+from other `vmagent` instances. 
+See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
 
 ## Storage
 
@@ -1448,12 +1511,14 @@ can be configured with the `-inmemoryDataFlushInterval` command-line flag (note 
 In-memory parts are persisted to disk into `part` directories under the `<-storageDataPath>/data/small/YYYY_MM/` folder,
 where `YYYY_MM` is the month partition for the stored data. For example, `2022_11` is the partition for `parts`
 with [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) from `November 2022`.
+Each partition directory contains `parts.json` file with the actual list of parts in the partition.
 
-The `part` directory has the following name pattern: `rowsCount_blocksCount_minTimestamp_maxTimestamp`, where:
+Every `part` directory contains `metadata.json` file with the following fields:
 
-- `rowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
-- `blocksCount` - the number of blocks stored in the part (see details about blocks below)
-- `minTimestamp` and `maxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+- `RowsCount` - the number of [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) stored in the part
+- `BlocksCount` - the number of blocks stored in the part (see details about blocks below)
+- `MinTimestamp` and `MaxTimestamp` - minimum and maximum timestamps across raw samples stored in the part
+- `MinDedupInterval` - the [deduplication interval](#deduplication) applied to the given part.
 
 Each `part` consists of `blocks` sorted by internal time series id (aka `TSID`).
 Each `block` contains up to 8K [raw samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples),
@@ -1475,11 +1540,10 @@ for fast block lookups, which belong to the given `TSID` and cover the given tim
   and [freeing up disk space for the deleted time series](#how-to-delete-time-series) are performed during the merge
 
 Newly added `parts` either successfully appear in the storage or fail to appear.
-The newly added `parts` are being created in a temporary directory under `<-storageDataPath>/data/{small,big}/YYYY_MM/tmp` folder.
-When the newly added `part` is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html)
-to a temporary directory, then it is atomically moved to the storage directory.
-Thanks to this alogrithm, storage never contains partially created parts, even if hardware power off
-occurrs in the middle of writing the `part` to disk - such incompletely written `parts`
+The newly added `part` is atomically registered in the `parts.json` file under the corresponding partition
+after it is fully written and [fsynced](https://man7.org/linux/man-pages/man2/fsync.2.html) to the storage.
+Thanks to this algorithm, storage never contains partially created parts, even if hardware power off
+occurs in the middle of writing the `part` to disk - such incompletely written `parts`
 are automatically deleted on the next VictoriaMetrics start.
 
 The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
@@ -1506,15 +1570,14 @@ Retention is configured with the `-retentionPeriod` command-line flag, which tak
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
 Data partitions outside the configured retention are deleted on the first day of the new month.
-Each partition consists of one or more data parts with the following name pattern `rowsCount_blocksCount_minTimestamp_maxTimestamp`.
-Data parts outside of the configured retention are eventually deleted during
+Each partition consists of one or more data parts. Data parts outside the configured retention are eventually deleted during
 [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
 
 Please note, the time range covered by data part is not limited by retention period unit. Hence, data part may contain data
-for multiple days and will be deleted only when fully outside of the configured retention.
+for multiple days and will be deleted only when fully outside the configured retention.
 
 It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to a lower
 value than before, then data outside the configured period will be eventually deleted.
@@ -1558,7 +1621,7 @@ For example, the following config sets 3 days retention for time series with `te
 
 Important notes:
 
-- The data outside of the configured retention isn't deleted instantly - it is deleted eventually during [background merges](https://docs.victoriametrics.com/#storage).
+- The data outside the configured retention isn't deleted instantly - it is deleted eventually during [background merges](https://docs.victoriametrics.com/#storage).
 - The `-retentionFilter` doesn't remove old data from `indexdb` (aka inverted index) until the configured [-retentionPeriod](#retention).
   So the `indexdb` size can grow big under [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)
   even for small retentions configured via `-retentionFilter`.
@@ -1579,6 +1642,10 @@ Retention filters can be evaluated for free by downloading and using enterprise 
 * `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
 Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. It is possible to use recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to reduce the number of time series. See [these docs](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
+
+Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
+and can't be performed if there is not enough of free disk space or if vmstorage 
+is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
@@ -1900,7 +1967,14 @@ are added to all the metrics before sending them to the remote storage:
 
 ## Cache removal
 
-VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown (e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup. Sometimes it is needed to remove such caches on the next startup. This can be performed by placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
+VictoriaMetrics uses various internal caches. These caches are stored to `<-storageDataPath>/cache` directory during graceful shutdown
+(e.g. when VictoriaMetrics is stopped by sending `SIGINT` signal). The caches are read on the next VictoriaMetrics startup.
+Sometimes it is needed to remove such caches on the next startup. This can be done in the following ways:
+
+- By manually removing the `<-storageDataPath>/cache` directory when VictoriaMetrics is stopped.
+- By placing `reset_cache_on_startup` file inside the `<-storageDataPath>/cache` directory before the restart of VictoriaMetrics.
+  In this case VictoriaMetrics will automatically remove all the caches on the next start.
+  See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1447) for details.
 
 ## Cache tuning
 
@@ -2005,9 +2079,9 @@ Enterprise binaries can be downloaded and evaluated for free from [the releases 
 A single-node VictoriaMetrics is capable of proxying requests to [vmalert](https://docs.victoriametrics.com/vmalert.html)
 when `-vmalert.proxyURL` flag is set. Use this feature for the following cases:
 * for proxying requests from [Grafana Alerting UI](https://grafana.com/docs/grafana/latest/alerting/);
-* for accessing vmalert's UI through single-node VictoriaMetrics Web interface.
+* for accessing vmalerts UI through single-node VictoriaMetrics Web interface.
 
-For accessing vmalert's UI through single-node VictoriaMetrics configure `-vmalert.proxyURL` flag and visit
+For accessing vmalerts UI through single-node VictoriaMetrics configure `-vmalert.proxyURL` flag and visit
 `http://<victoriametrics-addr>:8428/vmalert/` link.
 
 ## Benchmarks
@@ -2138,7 +2212,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
 
 ```
   -bigMergeConcurrency int
-     The maximum number of CPU cores to use for big merges. Default value is used if set to 0
+     Deprecated: this flag does nothing. Please use -smallMergeConcurrency for controlling the concurrency of background merges. See https://docs.victoriametrics.com/#storage
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -configAuthKey string
@@ -2155,16 +2229,16 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -deleteAuthKey string
      authKey for metrics' deletion via /api/v1/admin/tsdb/delete_series and /tags/delSeries
   -denyQueriesOutsideRetention
-     Whether to deny queries outside of the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
+     Whether to deny queries outside the configured -retentionPeriod. When set, then /api/v1/query_range would return '503 Service Unavailable' error for queries with 'from' value outside -retentionPeriod. This may be useful when multiple data sources with distinct retentions are hidden behind query-tee
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
      Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
-     Whether to check only -promscrape.config and then exit. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
+     Whether to check config files without running VictoriaMetrics. The following config files are checked: -promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
   -envflag.enable
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
@@ -2180,7 +2254,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -forceMergeAuthKey string
      authKey, which must be passed in query string to /internal/force_merge pages
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -graphiteListenAddr string
      TCP and UDP address to listen for Graphite plaintext data. Usually :2003 must be set. Doesn't work if empty. See also -graphiteListenAddr.useProxyProtocol
   -graphiteListenAddr.useProxyProtocol
@@ -2190,7 +2264,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -2227,7 +2301,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -influxSkipMeasurement
      Uses '{field_name}' as a metric name while ignoring '{measurement}' and '-influxMeasurementFieldSeparator'
   -influxSkipSingleField
-     Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metic name if InfluxDB line contains only a single field
+     Uses '{measurement}' instead of '{measurement}{separator}{field_name}' for metric name if InfluxDB line contains only a single field
   -influxTrimTimestamp duration
      Trim timestamps for InfluxDB line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)
   -inmemoryDataFlushInterval duration
@@ -2235,7 +2309,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -insert.maxQueueDuration duration
      The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
   -internStringCacheExpireDuration duration
-     The expire duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
   -internStringDisableCache
      Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
@@ -2298,9 +2372,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.azureSDCheckInterval duration
      Interval for checking for changes in Azure. This works only if azure_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#azure_sd_configs for details (default 1m0s)
   -promscrape.cluster.memberNum string
-     The number of number in the cluster of scrapers. It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
+     The number of number in the cluster of scrapers. It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name (default "0")
   -promscrape.cluster.membersCount int
-     The number of members in a cluster of scrapers. Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets
+     The number of members in a cluster of scrapers. Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets
   -promscrape.cluster.name string
      Optional name of the cluster. If multiple vmagent clusters scrape the same targets, then each cluster must have unique name in order to properly de-duplicate samples received from these clusters. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679
   -promscrape.cluster.replicationFactor int
@@ -2312,7 +2386,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.config.strictParse
      Whether to deny unsupported fields in -promscrape.config . Set to false in order to silently skip unsupported fields (default true)
   -promscrape.configCheckInterval duration
-     Interval for checking for changes in '-promscrape.config' file. By default the checking is disabled. Send SIGHUP signal in order to force config check for changes
+     Interval for checking for changes in '-promscrape.config' file. By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes
   -promscrape.consul.waitTime duration
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
@@ -2320,9 +2394,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.digitaloceanSDCheckInterval duration
      Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details (default 1m0s)
   -promscrape.disableCompression
-     Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+     Whether to disable sending 'Accept-Encoding: gzip' request headers to all the scrape targets. This may reduce CPU usage on scrape targets at the cost of higher network bandwidth utilization. It is possible to set 'disable_compression: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control
   -promscrape.disableKeepAlive
-     Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
+     Whether to disable HTTP keep-alive connections when scraping all the targets. This may be useful when targets has no support for HTTP keep-alive connection. It is possible to set 'disable_keepalive: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control. Note that disabling HTTP keep-alive may increase load on both vmagent and scrape targets
   -promscrape.discovery.concurrency int
      The maximum number of concurrent requests to Prometheus autodiscovery API (Consul, Kubernetes, etc.) (default 100)
   -promscrape.discovery.concurrentWaitTime duration
@@ -2373,7 +2447,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -promscrape.seriesLimitPerTarget int
      Optional limit on the number of unique time series a single scrape target can expose. See https://docs.victoriametrics.com/vmagent.html#cardinality-limiter for more info
   -promscrape.streamParse
-     Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine grained control
+     Whether to enable stream parsing for metrics obtained from scrape targets. This may be useful for reducing memory usage when millions of metrics are exposed per each scrape target. It is possible to set 'stream_parse: true' individually per each 'scrape_config' section in '-promscrape.config' for fine-grained control
   -promscrape.suppressDuplicateScrapeTargetErrors
      Whether to suppress 'duplicate scrape target' errors; see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details
   -promscrape.suppressScrapeErrors
@@ -2388,7 +2462,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -relabelConfig string
      Optional path to a file with relabeling rules, which are applied to all the ingested metrics. The path can point either to local file or to http url. See https://docs.victoriametrics.com/#relabeling for details. The config is reloaded on SIGHUP signal
@@ -2407,9 +2481,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.disableCache
      Whether to disable response caching. This may be useful during data backfilling
   -search.graphiteMaxPointsPerSeries int
-     The maximum number of points per series Graphite render API can return. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 1000000)
+     The maximum number of points per series Graphite render API can return (default 1000000)
   -search.graphiteStorageStep duration
-     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 10s)
+     The interval between datapoints stored in the database. It is used at Graphite Render API handler for normalizing the interval between datapoints in case it isn't normalized. It can be overridden by sending 'storage_step' query arg to /render API or by sending the desired interval via 'Storage-Step' http header during querying /render API (default 10s)
   -search.latencyOffset duration
      The time when data points become visible in query results after the collection. It can be overridden on per-query basis via latency_offset arg. Too small value can result in incomplete last points for query results (default 30s)
   -search.logQueryMemoryUsage size
@@ -2426,9 +2500,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxFederateSeries int
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
-     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default 300000)
+     The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
   -search.maxLookback duration
-     Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons
+     Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
      The maximum amounts of memory a single query may consume. Queries requiring more memory are rejected. The total memory limit for concurrently executed queries can be estimated as -search.maxMemoryPerQuery multiplied by -search.maxConcurrentRequests . See also -search.logQueryMemoryUsage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -2452,7 +2526,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxSeriesPerAggrFunc int
      The maximum number of time series an aggregate MetricsQL function can generate (default 1000000)
   -search.maxStalenessInterval duration
-     The maximum interval for staleness calculations. By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
+     The maximum interval for staleness calculations. By default, it is automatically calculated from the median interval between samples. This flag could be useful for tuning Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also '-search.setLookbackToStep' flag
   -search.maxStatusRequestDuration duration
      The maximum duration for /api/v1/status/* requests (default 5m0s)
   -search.maxStepForPointsAdjustment duration
@@ -2488,7 +2562,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -selfScrapeJob string
      Value for 'job' label, which is added to self-scraped metrics (default "victoria-metrics")
   -smallMergeConcurrency int
-     The maximum number of CPU cores to use for small merges. Default value is used if set to 0
+     The maximum number of workers for background merges. See https://docs.victoriametrics.com/#storage . It isn't recommended tuning this flag in general case, since this may lead to uncontrolled increase in the number of parts and increased CPU usage during queries
   -snapshotAuthKey string
      authKey, which must be passed in query string to /snapshot* pages
   -snapshotCreateTimeout duration
@@ -2524,7 +2598,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -streamAggr.dedupInterval duration
      Input samples are de-duplicated with this interval before being aggregated. Only the last sample per each time series per each interval is aggregated if the interval is greater than zero
   -streamAggr.keepInput
-     Whether to keep input samples after the aggregation with -streamAggr.config. By default the input is dropped after the aggregation, so only the aggregate data is stored. See https://docs.victoriametrics.com/stream-aggregation.html
+     Whether to keep input samples after the aggregation with -streamAggr.config. By default, the input is dropped after the aggregation, so only the aggregate data is stored. See https://docs.victoriametrics.com/stream-aggregation.html
   -tls
      Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
   -tlsCertFile string

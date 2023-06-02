@@ -6,38 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
-
-// FsyncFile fsyncs path contents and the parent directory contents.
-func FsyncFile(path string) error {
-	if err := fsync(path); err != nil {
-		_ = os.RemoveAll(path)
-		return fmt.Errorf("cannot fsync file %q: %w", path, err)
-	}
-	dir := filepath.Dir(path)
-	if err := fsync(dir); err != nil {
-		return fmt.Errorf("cannot fsync dir %q: %w", dir, err)
-	}
-	return nil
-}
-
-// FsyncDir fsyncs dir contents.
-func FsyncDir(dir string) error {
-	return fsync(dir)
-}
-
-func fsync(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	if err := f.Sync(); err != nil {
-		_ = f.Close()
-		return err
-	}
-	return f.Close()
-}
 
 // AppendFiles appends all the files from dir to dst.
 //
@@ -76,7 +47,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			// Do not take into account special files.
 			continue
 		}
-		path := dir + "/" + name
+		path := filepath.Join(dir, name)
 		if fi.IsDir() {
 			// Process directory
 			dst, err = AppendFiles(dst, path)
@@ -111,13 +82,13 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot list files at %q from symlink %q: %w", pathReal, path, err)
 			}
-			pathReal += "/"
+			pathReal += string(filepath.Separator)
 			for i := len(dst); i < len(dstNew); i++ {
 				x := dstNew[i]
 				if !strings.HasPrefix(x, pathReal) {
 					return nil, fmt.Errorf("unexpected prefix for path %q; want %q", x, pathReal)
 				}
-				dstNew[i] = path + "/" + x[len(pathReal):]
+				dstNew[i] = filepath.Join(path, x[len(pathReal):])
 			}
 			dst = dstNew
 			continue
@@ -135,7 +106,7 @@ func appendFilesInternal(dst []string, d *os.File) ([]string, error) {
 }
 
 func isSpecialFile(name string) bool {
-	return name == "flock.lock" || name == "restore-in-progress"
+	return name == "flock.lock" || name == backupnames.RestoreInProgressFilename
 }
 
 // RemoveEmptyDirs recursively removes empty directories under the given dir.
@@ -181,7 +152,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 		if name == "." || name == ".." {
 			continue
 		}
-		path := dir + "/" + name
+		path := filepath.Join(dir, name)
 		if fi.IsDir() {
 			// Process directory
 			ok, err := removeEmptyDirs(path)
@@ -249,7 +220,7 @@ func removeEmptyDirsInternal(d *os.File) (bool, error) {
 	if dirEntries > 0 {
 		return false, nil
 	}
-	// Use os.RemoveAll() instead of os.Remove(), since the dir may contain special files such as flock.lock and restore-in-progress,
+	// Use os.RemoveAll() instead of os.Remove(), since the dir may contain special files such as flock.lock and backupnames.RestoreInProgressFilename,
 	// which must be ignored.
 	if err := os.RemoveAll(dir); err != nil {
 		return false, fmt.Errorf("cannot remove %q: %w", dir, err)
@@ -264,3 +235,6 @@ func IgnorePath(path string) bool {
 
 // BackupCompleteFilename is a filename, which is created in the destination fs when backup is complete.
 const BackupCompleteFilename = "backup_complete.ignore"
+
+// BackupMetadataFilename is a filename, which contains metadata for the backup.
+const BackupMetadataFilename = "backup_metadata.ignore"

@@ -38,9 +38,9 @@ var (
 	maxQueryLen = flagutil.NewBytes("search.maxQueryLen", 16*1024, "The maximum search query length in bytes")
 	maxLookback = flag.Duration("search.maxLookback", 0, "Synonym to -search.lookback-delta from Prometheus. "+
 		"The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. "+
-		"See also '-search.maxStalenessInterval' flag, which has the same meaining due to historical reasons")
+		"See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons")
 	maxStalenessInterval = flag.Duration("search.maxStalenessInterval", 0, "The maximum interval for staleness calculations. "+
-		"By default it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
+		"By default, it is automatically calculated from the median interval between samples. This flag could be useful for tuning "+
 		"Prometheus data model closer to Influx-style data model. See https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. "+
 		"See also '-search.setLookbackToStep' flag")
 	setLookbackToStep = flag.Bool("search.setLookbackToStep", false, "Whether to fix lookback interval to 'step' query arg value. "+
@@ -65,9 +65,16 @@ const defaultStep = 5 * 60 * 1000
 // ExpandWithExprs handles the request to /expand-with-exprs
 func ExpandWithExprs(w http.ResponseWriter, r *http.Request) {
 	query := r.FormValue("query")
+	format := r.FormValue("format")
 	bw := bufferedwriter.Get(w)
 	defer bufferedwriter.Put(bw)
-	WriteExpandWithExprsResponse(bw, query)
+	if format == "json" {
+		w.Header().Set("Content-Type", "application/json")
+		httpserver.EnableCORS(w, r)
+		WriteExpandWithExprsJSONResponse(bw, query)
+	} else {
+		WriteExpandWithExprsResponse(bw, query)
+	}
 	_ = bw.Flush()
 }
 
@@ -842,7 +849,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	} else {
 		queryOffset = 0
 	}
-	ec := promql.EvalConfig{
+	qs := &promql.QueryStats{}
+	ec := &promql.EvalConfig{
 		AuthToken:           at,
 		Start:               start,
 		End:                 start,
@@ -860,8 +868,9 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 		},
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
+		QueryStats:          qs,
 	}
-	result, err := promql.Exec(qt, &ec, query, true)
+	result, err := promql.Exec(qt, ec, query, true)
 	if err != nil {
 		return fmt.Errorf("error when executing query=%q for (time=%d, step=%d): %w", query, start, step, err)
 	}
@@ -884,7 +893,8 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	qtDone := func() {
 		qt.Donef("query=%s, time=%d: series=%d", query, start, len(result))
 	}
-	WriteQueryResponse(bw, ec.IsPartialResponse, result, qt, qtDone)
+
+	WriteQueryResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone, qs)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot flush query response to remote client: %w", err)
 	}
@@ -949,7 +959,8 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		start, end = promql.AdjustStartEnd(start, end, step)
 	}
 
-	ec := promql.EvalConfig{
+	qs := &promql.QueryStats{}
+	ec := &promql.EvalConfig{
 		AuthToken:           at,
 		Start:               start,
 		End:                 end,
@@ -967,8 +978,9 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		},
 
 		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
+		QueryStats:          qs,
 	}
-	result, err := promql.Exec(qt, &ec, query, false)
+	result, err := promql.Exec(qt, ec, query, false)
 	if err != nil {
 		return err
 	}
@@ -992,7 +1004,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	qtDone := func() {
 		qt.Donef("start=%d, end=%d, step=%d, query=%q: series=%d", start, end, step, query, len(result))
 	}
-	WriteQueryRangeResponse(bw, ec.IsPartialResponse, result, qt, qtDone)
+	WriteQueryRangeResponse(bw, ec.IsPartialResponse.Load(), result, qt, qtDone, qs)
 	if err := bw.Flush(); err != nil {
 		return fmt.Errorf("cannot send query range response to remote client: %w", err)
 	}

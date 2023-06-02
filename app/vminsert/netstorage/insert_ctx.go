@@ -65,7 +65,7 @@ func (ctx *InsertCtx) Reset() {
 	ctx.Labels = ctx.Labels[:0]
 	ctx.MetricNameBuf = ctx.MetricNameBuf[:0]
 
-	if ctx.bufRowss == nil {
+	if ctx.bufRowss == nil || len(ctx.bufRowss) != len(ctx.snb.sns) {
 		ctx.bufRowss = make([]bufRows, len(ctx.snb.sns))
 	}
 	for i := range ctx.bufRowss {

@@ -5,11 +5,11 @@ import { ArrowDownIcon, ArrowDropDownIcon } from "../../../Icons";
 interface CalendarHeaderProps {
   viewDate: Dayjs
   onChangeViewDate: (date: Dayjs) => void
-  displayYears: boolean
+  showArrowNav: boolean
   toggleDisplayYears: () => void
 }
 
-const CalendarHeader: FC<CalendarHeaderProps> = ({ viewDate, displayYears, onChangeViewDate, toggleDisplayYears }) => {
+const CalendarHeader: FC<CalendarHeaderProps> = ({ viewDate, showArrowNav, onChangeViewDate, toggleDisplayYears }) => {
 
   const setPrevMonth = () => {
     onChangeViewDate(viewDate.subtract(1, "month"));
@@ -32,7 +32,7 @@ const CalendarHeader: FC<CalendarHeaderProps> = ({ viewDate, displayYears, onCha
           <ArrowDropDownIcon/>
         </div>
       </div>
-      {!displayYears && (
+      {showArrowNav && (
         <div className="vm-calendar-header-right">
           <div
             className="vm-calendar-header-right__prev"

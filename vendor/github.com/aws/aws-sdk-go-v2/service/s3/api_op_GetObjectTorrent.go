@@ -14,17 +14,12 @@ import (
 )
 
 // Returns torrent files from a bucket. BitTorrent can save you bandwidth when
-// you're distributing large files. For more information about BitTorrent, see
-// Using BitTorrent with Amazon S3
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/S3Torrent.html). You can get
-// torrent only for objects that are less than 5 GB in size, and that are not
-// encrypted using server-side encryption with a customer-provided encryption key.
-// To use GET, you must have READ access to the object. This action is not
-// supported by Amazon S3 on Outposts. The following action is related to
-// GetObjectTorrent:
-//
-// * GetObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+// you're distributing large files. You can get torrent only for objects that are
+// less than 5 GB in size, and that are not encrypted using server-side encryption
+// with a customer-provided encryption key. To use GET, you must have READ access
+// to the object. This action is not supported by Amazon S3 on Outposts. The
+// following action is related to GetObjectTorrent :
+//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
 func (c *Client) GetObjectTorrent(ctx context.Context, params *GetObjectTorrentInput, optFns ...func(*Options)) (*GetObjectTorrentOutput, error) {
 	if params == nil {
 		params = &GetObjectTorrentInput{}
@@ -60,8 +55,7 @@ type GetObjectTorrentInput struct {
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -135,6 +129,9 @@ func (c *Client) addOperationGetObjectTorrentMiddlewares(stack *middleware.Stack
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetObjectTorrentUpdateEndpoint(stack, options); err != nil {

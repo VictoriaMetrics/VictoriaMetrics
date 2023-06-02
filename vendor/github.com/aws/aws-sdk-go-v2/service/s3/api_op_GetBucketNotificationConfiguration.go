@@ -17,16 +17,18 @@ import (
 // element. By default, you must be the bucket owner to read the notification
 // configuration of a bucket. However, the bucket owner can use a bucket policy to
 // grant permission to other users to read this configuration with the
-// s3:GetBucketNotification permission. For more information about setting and
-// reading the notification configuration on a bucket, see Setting Up Notification
-// of Bucket Events
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html). For
-// more information about bucket policies, see Using Bucket Policies
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html). The
-// following action is related to GetBucketNotification:
-//
-// * PutBucketNotification
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotification.html)
+// s3:GetBucketNotification permission. To use this API operation against an access
+// point, provide the alias of the access point in place of the bucket name. To use
+// this API operation against an Object Lambda access point, provide the alias of
+// the Object Lambda access point in place of the bucket name. If the Object Lambda
+// access point alias in a request is not valid, the error code
+// InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+// . For more information about setting and reading the notification configuration
+// on a bucket, see Setting Up Notification of Bucket Events (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+// . For more information about bucket policies, see Using Bucket Policies (https://docs.aws.amazon.com/AmazonS3/latest/dev/using-iam-policies.html)
+// . The following action is related to GetBucketNotification :
+//   - PutBucketNotification (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketNotification.html)
 func (c *Client) GetBucketNotificationConfiguration(ctx context.Context, params *GetBucketNotificationConfigurationInput, optFns ...func(*Options)) (*GetBucketNotificationConfigurationOutput, error) {
 	if params == nil {
 		params = &GetBucketNotificationConfigurationInput{}
@@ -44,7 +46,14 @@ func (c *Client) GetBucketNotificationConfiguration(ctx context.Context, params 
 
 type GetBucketNotificationConfigurationInput struct {
 
-	// The name of the bucket for which to get the notification configuration.
+	// The name of the bucket for which to get the notification configuration. To use
+	// this API operation against an access point, provide the alias of the access
+	// point in place of the bucket name. To use this API operation against an Object
+	// Lambda access point, provide the alias of the Object Lambda access point in
+	// place of the bucket name. If the Object Lambda access point alias in a request
+	// is not valid, the error code InvalidAccessPointAliasError is returned. For more
+	// information about InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+	// .
 	//
 	// This member is required.
 	Bucket *string
@@ -57,8 +66,8 @@ type GetBucketNotificationConfigurationInput struct {
 	noSmithyDocumentSerde
 }
 
-// A container for specifying the notification configuration of the bucket. If this
-// element is empty, notifications are turned off for the bucket.
+// A container for specifying the notification configuration of the bucket. If
+// this element is empty, notifications are turned off for the bucket.
 type GetBucketNotificationConfigurationOutput struct {
 
 	// Enables delivery of events to Amazon EventBridge.
@@ -68,12 +77,12 @@ type GetBucketNotificationConfigurationOutput struct {
 	// them.
 	LambdaFunctionConfigurations []types.LambdaFunctionConfiguration
 
-	// The Amazon Simple Queue Service queues to publish messages to and the events for
-	// which to publish messages.
+	// The Amazon Simple Queue Service queues to publish messages to and the events
+	// for which to publish messages.
 	QueueConfigurations []types.QueueConfiguration
 
-	// The topic to which notifications are sent and the events for which notifications
-	// are generated.
+	// The topic to which notifications are sent and the events for which
+	// notifications are generated.
 	TopicConfigurations []types.TopicConfiguration
 
 	// Metadata pertaining to the operation's result.
@@ -137,6 +146,9 @@ func (c *Client) addOperationGetBucketNotificationConfigurationMiddlewares(stack
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketNotificationConfigurationUpdateEndpoint(stack, options); err != nil {

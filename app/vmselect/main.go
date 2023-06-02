@@ -182,6 +182,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		if r.Method != http.MethodGet {
 			return false
 		}
+		w.Header().Add("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprintf(w, `vmselect - a component of VictoriaMetrics cluster<br/>
 <a href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">docs</a><br>
 `)
@@ -210,6 +211,13 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 			timerpool.Put(t)
 			qt.Printf("wait in queue because -search.maxConcurrentRequests=%d concurrent requests are executed", *maxConcurrentRequests)
 			defer func() { <-concurrencyLimitCh }()
+		case <-r.Context().Done():
+			timerpool.Put(t)
+			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
+			requestURI := httpserver.GetRequestURI(r)
+			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
+				d.Seconds(), remoteAddr, requestURI)
+			return true
 		case <-t.C:
 			timerpool.Put(t)
 			concurrencyLimitTimeout.Inc()
@@ -394,9 +402,23 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return true
 	}
 	if strings.HasPrefix(p.Suffix, "graphite/functions") {
-		graphiteFunctionsRequests.Inc()
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, "%s", `{}`)
+		funcName := p.Suffix[len("graphite/functions"):]
+		funcName = strings.TrimPrefix(funcName, "/")
+		if funcName == "" {
+			graphiteFunctionsRequests.Inc()
+			if err := graphite.FunctionsHandler(startTime, w, r); err != nil {
+				graphiteFunctionsErrors.Inc()
+				httpserver.Errorf(w, r, "%s", err)
+				return true
+			}
+			return true
+		}
+		graphiteFunctionDetailsRequests.Inc()
+		if err := graphite.FunctionDetailsHandler(startTime, funcName, w, r); err != nil {
+			graphiteFunctionDetailsErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
 		return true
 	}
 
@@ -605,17 +627,27 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 			return true
 		}
 		return true
+	case "graphite/render":
+		graphiteRenderRequests.Inc()
+		if err := graphite.RenderHandler(startTime, at, w, r); err != nil {
+			graphiteRenderErrors.Inc()
+			httpserver.Errorf(w, r, "error in %q: %s", r.URL.Path, err)
+			return true
+		}
+		return true
 	case "prometheus/metric-relabel-debug", "metric-relabel-debug":
 		promrelabelMetricRelabelDebugRequests.Inc()
 		metric := r.FormValue("metric")
 		relabelConfigs := r.FormValue("relabel_configs")
-		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, nil)
+		format := r.FormValue("format")
+		promrelabel.WriteMetricRelabelDebug(w, "", metric, relabelConfigs, format, nil)
 		return true
 	case "prometheus/target-relabel-debug", "target-relabel-debug":
 		promrelabelTargetRelabelDebugRequests.Inc()
 		metric := r.FormValue("metric")
 		relabelConfigs := r.FormValue("relabel_configs")
-		promrelabel.WriteTargetRelabelDebug(w, "", metric, relabelConfigs, nil)
+		format := r.FormValue("format")
+		promrelabel.WriteTargetRelabelDebug(w, "", metric, relabelConfigs, format, nil)
 		return true
 	case "prometheus/expand-with-exprs", "expand-with-exprs":
 		expandWithExprsRequests.Inc()
@@ -692,7 +724,7 @@ func isGraphiteTagsPath(path string) bool {
 }
 
 func sendPrometheusError(w http.ResponseWriter, r *http.Request, err error) {
-	logger.Warnf("error in %q: %s", httpserver.GetRequestURI(r), err)
+	logger.WarnfSkipframes(1, "error in %q: %s", httpserver.GetRequestURI(r), err)
 
 	w.Header().Set("Content-Type", "application/json")
 	statusCode := http.StatusUnprocessableEntity
@@ -790,7 +822,14 @@ var (
 	graphiteTagsDelSeriesRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/tags/delSeries"}`)
 	graphiteTagsDelSeriesErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/tags/delSeries"}`)
 
+	graphiteRenderRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/render"}`)
+	graphiteRenderErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/render"}`)
+
 	graphiteFunctionsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/functions"}`)
+	graphiteFunctionsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/functions"}`)
+
+	graphiteFunctionDetailsRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/graphite/functions/<func_name>"}`)
+	graphiteFunctionDetailsErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/select/{}/graphite/functions/<func_name>"}`)
 
 	promrelabelMetricRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/metric-relabel-debug"}`)
 	promrelabelTargetRelabelDebugRequests = metrics.NewCounter(`vm_http_requests_total{path="/select/{}/prometheus/target-relabel-debug"}`)

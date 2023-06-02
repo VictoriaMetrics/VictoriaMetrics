@@ -13,34 +13,22 @@ import (
 )
 
 // Returns the access control list (ACL) of an object. To use this operation, you
-// must have s3:GetObjectAcl permissions or READ_ACP access to the object. For more
-// information, see Mapping of ACL permissions and access policy permissions
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#acl-access-policy-permission-mapping)
+// must have s3:GetObjectAcl permissions or READ_ACP access to the object. For
+// more information, see Mapping of ACL permissions and access policy permissions (https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#acl-access-policy-permission-mapping)
 // in the Amazon S3 User Guide This action is not supported by Amazon S3 on
-// Outposts. Versioning By default, GET returns ACL information about the current
-// version of an object. To return ACL information about a different version, use
-// the versionId subresource. If your bucket uses the bucket owner enforced setting
-// for S3 Object Ownership, requests to read ACLs are still supported and return
-// the bucket-owner-full-control ACL with the owner being the account that created
-// the bucket. For more information, see  Controlling object ownership and
-// disabling ACLs
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
+// Outposts. By default, GET returns ACL information about the current version of
+// an object. To return ACL information about a different version, use the
+// versionId subresource. If your bucket uses the bucket owner enforced setting for
+// S3 Object Ownership, requests to read ACLs are still supported and return the
+// bucket-owner-full-control ACL with the owner being the account that created the
+// bucket. For more information, see Controlling object ownership and disabling
+// ACLs (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
 // in the Amazon S3 User Guide. The following operations are related to
-// GetObjectAcl:
-//
-// * GetObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
-//
-// *
-// GetObjectAttributes
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
-//
-// *
-// DeleteObject
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
-//
-// *
-// PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
+// GetObjectAcl :
+//   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
+//   - GetObjectAttributes (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObjectAttributes.html)
+//   - DeleteObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteObject.html)
+//   - PutObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutObject.html)
 func (c *Client) GetObjectAcl(ctx context.Context, params *GetObjectAclInput, optFns ...func(*Options)) (*GetObjectAclOutput, error) {
 	if params == nil {
 		params = &GetObjectAclInput{}
@@ -64,8 +52,7 @@ type GetObjectAclInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
 	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
@@ -84,8 +71,7 @@ type GetObjectAclInput struct {
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
@@ -168,6 +154,9 @@ func (c *Client) addOperationGetObjectAclMiddlewares(stack *middleware.Stack, op
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetObjectAclUpdateEndpoint(stack, options); err != nil {

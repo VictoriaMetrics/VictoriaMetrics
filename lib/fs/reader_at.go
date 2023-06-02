@@ -4,13 +4,14 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"sync/atomic"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/metrics"
 )
 
 var disableMmap = flag.Bool("fs.disableMmap", is32BitPtr, "Whether to use pread() instead of mmap() for reading data files. "+
-	"By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
+	"By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. "+
 	"mmap() is usually faster for reading small data chunks than pread()")
 
 // Disable mmap for architectures with 32-bit pointers in order to be able to work with files exceeding 2^32 bytes.
@@ -27,8 +28,13 @@ type MustReadAtCloser interface {
 
 // ReaderAt implements rand-access reader.
 type ReaderAt struct {
+	readCalls uint64
+	readBytes uint64
+
 	f        *os.File
 	mmapData []byte
+
+	useLocalStats bool
 }
 
 // MustReadAt reads len(p) bytes at off from r.
@@ -37,7 +43,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 		return
 	}
 	if off < 0 {
-		logger.Panicf("off=%d cannot be negative", off)
+		logger.Panicf("BUG: off=%d cannot be negative", off)
 	}
 	if len(r.mmapData) == 0 {
 		n, err := r.f.ReadAt(p, off)
@@ -45,19 +51,24 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 			logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, r.f.Name(), err)
 		}
 		if n != len(p) {
-			logger.Panicf("FATAL: unexpected number of bytes read; got %d; want %d", n, len(p))
+			logger.Panicf("FATAL: unexpected number of bytes read from file %q; got %d; want %d", r.f.Name(), n, len(p))
 		}
 	} else {
 		if off > int64(len(r.mmapData)-len(p)) {
-			logger.Panicf("off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(r.mmapData)-len(p), len(p))
+			logger.Panicf("BUG: off=%d is out of allowed range [0...%d] for len(p)=%d", off, len(r.mmapData)-len(p), len(p))
 		}
 		src := r.mmapData[off:]
 		// The copy() below may result in thread block as described at https://valyala.medium.com/mmap-in-go-considered-harmful-d92a25cb161d .
 		// But production workload proved this is OK in most cases, so use it without fear :)
 		copy(p, src)
 	}
-	readCalls.Inc()
-	readBytes.Add(len(p))
+	if r.useLocalStats {
+		atomic.AddUint64(&r.readCalls, 1)
+		atomic.AddUint64(&r.readBytes, uint64(len(p)))
+	} else {
+		readCalls.Inc()
+		readBytes.Add(len(p))
+	}
 }
 
 // MustClose closes r.
@@ -71,7 +82,26 @@ func (r *ReaderAt) MustClose() {
 	}
 	MustClose(r.f)
 	r.f = nil
+
+	if r.useLocalStats {
+		readCalls.Add(int(r.readCalls))
+		readBytes.Add(int(r.readBytes))
+		r.readCalls = 0
+		r.readBytes = 0
+		r.useLocalStats = false
+	}
 	readersCount.Dec()
+}
+
+// SetUseLocalStats switches to local stats collection instead of global stats collection.
+//
+// This function must be called before the first call to MustReadAt().
+//
+// Collecting local stats may improve performance on systems with big number of CPU cores,
+// since the locally collected stats is pushed to global stats only at MustClose() call
+// instead of pushing it at every MustReadAt call.
+func (r *ReaderAt) SetUseLocalStats() {
+	r.useLocalStats = true
 }
 
 // MustFadviseSequentialRead hints the OS that f is read mostly sequentially.

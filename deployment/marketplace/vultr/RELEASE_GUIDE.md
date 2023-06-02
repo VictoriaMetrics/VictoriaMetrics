@@ -8,5 +8,5 @@
 4. Set variables `VULTR_API_KEY` with `VM_VERSION` for `packer` environment and run make from example below:
 
 ```console
-make release-victoria-metrics-vultr-server VULTR_API_KEY="5FI5J9PZCCN1TAXPHI8UMDH5ZX8JIHJKTSLB" VM_VERSION="1.88.0"
+make release-victoria-metrics-vultr-server VULTR_API_KEY="5FI5J9PZCCN1TAXPHI8UMDH5ZX8JIHJKTSLB" VM_VERSION="1.90.0"
 ```

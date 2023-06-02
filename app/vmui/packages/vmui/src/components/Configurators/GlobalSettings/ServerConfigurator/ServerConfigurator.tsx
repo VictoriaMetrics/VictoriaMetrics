@@ -1,16 +1,21 @@
-import React, { FC, useState } from "preact/compat";
+import React, { FC, useEffect, useState } from "preact/compat";
 import { ErrorTypes } from "../../../../types";
 import TextField from "../../../Main/TextField/TextField";
 import { isValidHttpUrl } from "../../../../utils/url";
 
 export interface ServerConfiguratorProps {
   serverUrl: string
+  stateServerUrl: string
   onChange: (url: string) => void
   onEnter: () => void
-  onBlur: () => void
 }
 
-const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange , onEnter, onBlur }) => {
+const ServerConfigurator: FC<ServerConfiguratorProps> = ({
+  serverUrl,
+  stateServerUrl,
+  onChange ,
+  onEnter
+}) => {
 
   const [error, setError] = useState("");
 
@@ -18,9 +23,12 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange ,
     const value = val || "";
     onChange(value);
     setError("");
-    if (!value) setError(ErrorTypes.emptyServer);
-    if (!isValidHttpUrl(value)) setError(ErrorTypes.validServer);
   };
+
+  useEffect(() => {
+    if (!stateServerUrl) setError(ErrorTypes.emptyServer);
+    if (!isValidHttpUrl(stateServerUrl)) setError(ErrorTypes.validServer);
+  }, [stateServerUrl]);
 
   return (
     <TextField
@@ -30,7 +38,6 @@ const ServerConfigurator: FC<ServerConfiguratorProps> = ({ serverUrl, onChange ,
       error={error}
       onChange={onChangeServer}
       onEnter={onEnter}
-      onBlur={onBlur}
       inputmode="url"
     />
   );

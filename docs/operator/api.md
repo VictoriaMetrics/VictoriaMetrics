@@ -65,6 +65,8 @@ This Document documents the types introduced by the VictoriaMetrics to be consum
 * [HTTPAuth](#httpauth)
 * [ServiceSpec](#servicespec)
 * [StorageSpec](#storagespec)
+* [StreamAggrConfig](#streamaggrconfig)
+* [StreamAggrRule](#streamaggrrule)
 * [VMAlert](#vmalert)
 * [VMAlertDatasourceSpec](#vmalertdatasourcespec)
 * [VMAlertList](#vmalertlist)
@@ -169,7 +171,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | ----- | ----------- | ------ | -------- |
 | podMetadata | PodMetadata configures Labels and Annotations which are propagated to the alertmanager pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMAlertmanager if no specified operator uses default config version | [Image](#image) | false |
-| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
+| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
 | secrets | Secrets is a list of Secrets in the same namespace as the VMAlertmanager object, which shall be mounted into the VMAlertmanager Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt; | []string | false |
 | configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMAlertmanager object, which shall be mounted into the VMAlertmanager Pods. The ConfigMaps are mounted into /etc/vm/configs/&lt;configmap-name&gt;. | []string | false |
 | templates | Templates is a list of ConfigMap key references for ConfigMaps in the same namespace as the VMAlertmanager object, which shall be mounted into the VMAlertmanager Pods. The Templates are mounted into /etc/vm/templates/&lt;configmap-name&gt;/&lt;configmap-key&gt;. | [][ConfigMapKeyReference](#configmapkeyreference) | false |
@@ -206,7 +208,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | clusterAdvertiseAddress | ClusterAdvertiseAddress is the explicit address to advertise in cluster. Needs to be provided for non RFC1918 [1] (public) addresses. [1] RFC1918: https://tools.ietf.org/html/rfc1918 | string | false |
 | portName | PortName used for the pods and governing service. This defaults to web | string | false |
 | serviceSpec | ServiceSpec that will be added to vmalertmanager service spec | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmalertmanager VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
 | livenessProbe | LivenessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
 | readinessProbe | ReadinessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
@@ -217,6 +219,7 @@ VMAlertmanagerSpec is a specification of the desired behavior of the VMAlertmana
 | extraArgs | ExtraArgs that will be passed to  VMAlertmanager pod for example log.level: debug | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAlertmanager pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | disableNamespaceMatcher | DisableNamespaceMatcher disables namespace label matcher for VMAlertmanagerConfig It may be useful if alert doesn&#39;t have namespace label for some reason | bool | false |
+| disableRouteContinueEnforce | DisableRouteContinueEnforce cancel the behavior for VMAlertmanagerConfig that always enforce first-level route continue to true | bool | false |
 | rollingUpdateStrategy | RollingUpdateStrategy defines strategy for application updates Default is OnDelete, in this case operator handles update process Can be changed for RollingUpdate | [appsv1.StatefulSetUpdateStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#statefulsetupdatestrategy-v1-apps) | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
@@ -432,8 +435,8 @@ Route defines a node in the routing tree.
 | group_interval | How long to wait before sending an updated notification. | string | false |
 | repeat_interval | How long to wait before repeating the last notification. | string | false |
 | matchers | List of matchers that the alert’s labels should match. For the first level route, the operator adds a namespace: \&#34;CRD_NS\&#34; matcher. https://prometheus.io/docs/alerting/latest/configuration/#matcher | []string | false |
-| continue | Continue indicating whether an alert should continue matching subsequent sibling nodes. It will always be true for the first-level route. | bool | false |
-| routes | RawRoutes alertmanager nested routes https://prometheus.io/docs/alerting/latest/configuration/#route | []apiextensionsv1.JSON | false |
+| continue | Continue indicating whether an alert should continue matching subsequent sibling nodes. It will always be true for the first-level route if disableRouteContinueEnforce for vmalertmanager not set. | bool | false |
+| routes | Child routes. https://prometheus.io/docs/alerting/latest/configuration/#route | []apiextensionsv1.JSON | false |
 | mute_time_intervals | MuteTimeIntervals for alerts | []string | false |
 | active_time_intervals | ActiveTimeIntervals Times when the route should be active These must match the name at time_intervals | []string | false |
 
@@ -709,6 +712,7 @@ VMAgentRemoteWriteSpec defines the remote storage configuration for VmAgent
 | tlsConfig | TLSConfig describes tls configuration for remote write target | *[TLSConfig](#tlsconfig) | false |
 | sendTimeout | Timeout for sending a single block of data to -remoteWrite.url (default 1m0s) | *string | false |
 | headers | Headers allow configuring custom http headers Must be in form of semicolon separated header with value e.g. headerName: headerValue vmagent supports since 1.79.0 version | []string | false |
+| streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMAgent for -remoteWrite.url | *[StreamAggrConfig](#streamaggrconfig) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -720,7 +724,7 @@ VMAgentSpec defines the desired state of VMAgent
 | ----- | ----------- | ------ | -------- |
 | podMetadata | PodMetadata configures Labels and Annotations which are propagated to the vmagent pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMAgent if no specified operator uses default config version | [Image](#image) | false |
-| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
+| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
 | secrets | Secrets is a list of Secrets in the same namespace as the vmagent object, which shall be mounted into the vmagent Pods. will be mounted at path /etc/vm/secrets | []string | false |
 | configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the vmagent object, which shall be mounted into the vmagent Pods. will be mounted at path  /etc/vm/configs | []string | false |
 | logLevel | LogLevel for VMAgent to be configured with. INFO, WARN, ERROR, FATAL, PANIC | string | false |
@@ -744,6 +748,7 @@ VMAgentSpec defines the desired state of VMAgent
 | dnsPolicy | DNSPolicy set DNS policy for the pod | [v1.DNSPolicy](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#pod-v1-core) | false |
 | topologySpreadConstraints | TopologySpreadConstraints embedded kubernetes pod configuration option, controls how pods are spread across your cluster among failure-domains such as regions, zones, nodes, and other user-defined topology domains https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/ | [][v1.TopologySpreadConstraint](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) | false |
 | scrapeInterval | ScrapeInterval defines how often scrape targets by default | string | false |
+| scrapeTimeout | ScrapeTimeout defines global timeout for targets scrape | string | false |
 | aPIServerConfig | APIServerConfig allows specifying a host and auth methods to access apiserver. If left empty, VMAgent is assumed to run inside of the cluster and will discover API servers automatically and use the pod&#39;s CA certificate and bearer token file at /var/run/secrets/kubernetes.io/serviceaccount/. | *[APIServerConfig](#apiserverconfig) | false |
 | overrideHonorLabels | OverrideHonorLabels if set to true overrides all user configured honor_labels. If HonorLabels is set in ServiceScrape or PodScrape to true, this overrides honor_labels to false. | bool | false |
 | overrideHonorTimestamps | OverrideHonorTimestamps allows to globally enforce honoring timestamps in all scrape configs. | bool | false |
@@ -774,7 +779,7 @@ VMAgentSpec defines the desired state of VMAgent
 | extraArgs | ExtraArgs that will be passed to  VMAgent pod for example remoteWrite.tmpDataPath: /tmp it would be converted to flag --remoteWrite.tmpDataPath=/tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAgent pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vmagent service spec | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmagent VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | shardCount | ShardCount - numbers of shards of VMAgent in this case operator will use 1 deployment/sts per shard with replicas count according to spec.replicas https://victoriametrics.github.io/vmagent.html#scraping-big-number-of-targets | *int | false |
 | updateStrategy | UpdateStrategy - overrides default update strategy. works only for deployments, statefulset always use OnDelete. | *[appsv1.DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#deploymentstrategy-v1-apps) | false |
 | rollingUpdate | RollingUpdate - overrides deployment update params. | *[appsv1.RollingUpdateDeployment](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#rollingupdatedeployment-v1-apps) | false |
@@ -958,6 +963,34 @@ StorageSpec defines the configured storage for a group Prometheus servers. If ne
 
 [Back to TOC](#table-of-contents)
 
+## StreamAggrConfig
+
+StreamAggrConfig defines the stream aggregation config
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| rules | Stream aggregation rules | [][StreamAggrRule](#streamaggrrule) | true |
+| keepInput | Allows writing both raw and aggregate data | bool | false |
+| dedupInterval | Allows setting different de-duplication intervals per each configured remote storage | string | false |
+
+[Back to TOC](#table-of-contents)
+
+## StreamAggrRule
+
+StreamAggrRule defines the rule in stream aggregation config
+
+| Field | Description | Scheme | Required |
+| ----- | ----------- | ------ | -------- |
+| match | Match is a label selector for filtering time series for the given selector.\n\nIf the match isn&#39;t set, then all the input time series are processed. | string | false |
+| interval | Interval is the interval between aggregations. | string | true |
+| outputs | Outputs is a list of output aggregate functions to produce.\n\nThe following names are allowed:\n\n- total - aggregates input counters - increase - counts the increase over input counters - count_series - counts the input series - count_samples - counts the input samples - sum_samples - sums the input samples - last - the last biggest sample value - min - the minimum sample value - max - the maximum sample value - avg - the average value across all the samples - stddev - standard deviation across all the samples - stdvar - standard variance across all the samples - histogram_bucket - creates VictoriaMetrics histogram for input samples - quantiles(phi1, ..., phiN) - quantiles&#39; estimation for phi in the range [0..1]\n\nThe output time series will have the following names:\n\n  input_name:aggr_&lt;interval&gt;_&lt;output&gt; | []string | true |
+| by | By is an optional list of labels for grouping input series.\n\nSee also Without.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
+| without | Without is an optional list of labels, which must be excluded when grouping input series.\n\nSee also By.\n\nIf neither By nor Without are set, then the Outputs are calculated individually per each input time series. | []string | false |
+| input_relabel_configs | InputRelabelConfigs is an optional relabeling rules, which are applied on the input before aggregation. | [][RelabelConfig](#relabelconfig) | false |
+| output_relabel_configs | OutputRelabelConfigs is an optional relabeling rules, which are applied on the aggregated output before being sent to remote storage. | [][RelabelConfig](#relabelconfig) | false |
+
+[Back to TOC](#table-of-contents)
+
 ## VMAlert
 
 VMAlert  executes a list of given alerting or recording rules against configured address.
@@ -1059,7 +1092,7 @@ VMAlertSpec defines the desired state of VMAlert
 | ----- | ----------- | ------ | -------- |
 | podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMAlert pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMAlert if no specified operator uses default config version | [Image](#image) | false |
-| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
+| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
 | secrets | Secrets is a list of Secrets in the same namespace as the VMAlert object, which shall be mounted into the VMAlert Pods. The Secrets are mounted into /etc/vm/secrets/&lt;secret-name&gt;. | []string | false |
 | configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMAlert object, which shall be mounted into the VMAlert Pods. The ConfigMaps are mounted into /etc/vm/configs/&lt;configmap-name&gt;. | []string | false |
 | logFormat | LogFormat for VMAlert to be configured with. default or json | string | false |
@@ -1098,7 +1131,7 @@ VMAlertSpec defines the desired state of VMAlert
 | extraEnvs | ExtraEnvs that will be added to VMAlert pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | externalLabels | ExternalLabels in the form &#39;name: value&#39; to add to all generated recording rules and alerts. | map[string]string | false |
 | serviceSpec | ServiceSpec that will be added to vmalert service spec | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmalert VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | updateStrategy | UpdateStrategy - overrides default update strategy. | *[appsv1.DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#deploymentstrategy-v1-apps) | false |
 | rollingUpdate | RollingUpdate - overrides deployment update params. | *[appsv1.RollingUpdateDeployment](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#rollingupdatedeployment-v1-apps) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
@@ -1156,7 +1189,7 @@ VMSingleSpec defines the desired state of VMSingle
 | ----- | ----------- | ------ | -------- |
 | podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMSingle pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMSingle if no specified operator uses default config version | [Image](#image) | false |
-| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
+| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
 | secrets | Secrets is a list of Secrets in the same namespace as the VMSingle object, which shall be mounted into the VMSingle Pods. | []string | false |
 | configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMSingle object, which shall be mounted into the VMSingle Pods. | []string | false |
 | logLevel | LogLevel for victoria metrics single to be configured with. | string | false |
@@ -1191,13 +1224,14 @@ VMSingleSpec defines the desired state of VMSingle
 | extraArgs | ExtraArgs that will be passed to  VMSingle pod for example remoteWrite.tmpDataPath: /tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMSingle pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vmsingle service spec | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmsingle VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | livenessProbe | LivenessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
 | readinessProbe | ReadinessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
 | startupProbe | StartupProbe that will be added to CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
 | nodeSelector | NodeSelector Define which Nodes the Pods are scheduled on. | map[string]string | false |
 | terminationGracePeriodSeconds | TerminationGracePeriodSeconds period for container graceful termination | *int64 | false |
 | readinessGates | ReadinessGates defines pod readiness gates | []v1.PodReadinessGate | false |
+| streamAggrConfig | StreamAggrConfig defines stream aggregation configuration for VMSingle | *[StreamAggrConfig](#streamaggrconfig) | false |
 
 [Back to TOC](#table-of-contents)
 
@@ -1668,7 +1702,7 @@ VMClusterSpec defines the desired state of VMCluster
 | podSecurityPolicyName | PodSecurityPolicyName - defines name for podSecurityPolicy in case of empty value, prefixedName will be used. | string | false |
 | serviceAccountName | ServiceAccountName is the name of the ServiceAccount to use to run the VMSelect, VMStorage and VMInsert Pods. | string | false |
 | clusterVersion | ClusterVersion defines default images tag for all components. it can be overwritten with component specific image.tag value. | string | false |
-| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
+| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
 | vmselect |  | *[VMSelect](#vmselect) | false |
 | vminsert |  | *[VMInsert](#vminsert) | false |
 | vmstorage |  | *[VMStorage](#vmstorage) | false |
@@ -1718,11 +1752,12 @@ VMClusterStatus defines the observed state of VMCluster
 | extraArgs |  | map[string]string | false |
 | insertPorts | InsertPorts - additional listen ports for data ingestion. | *[InsertPorts](#insertports) | false |
 | port | Port listen port | string | false |
+| clusterNativeListenPort | ClusterNativePort for multi-level cluster setup. More details: https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup | string | false |
 | schedulerName | SchedulerName - defines kubernetes scheduler name | string | false |
 | runtimeClassName | RuntimeClassName - defines runtime class for kubernetes pod. https://kubernetes.io/docs/concepts/containers/runtime-class/ | *string | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be added to vminsert service spec | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vminsert VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | updateStrategy | UpdateStrategy - overrides default update strategy. | *[appsv1.DeploymentStrategyType](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#deploymentstrategy-v1-apps) | false |
 | rollingUpdate | RollingUpdate - overrides deployment update params. | *[appsv1.RollingUpdateDeployment](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#rollingupdatedeployment-v1-apps) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
@@ -1789,6 +1824,7 @@ VMClusterStatus defines the observed state of VMCluster
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | extraArgs |  | map[string]string | false |
 | port | Port listen port | string | false |
+| clusterNativeListenPort | ClusterNativePort for multi-level cluster setup. More details: https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multi-level-cluster-setup | string | false |
 | schedulerName | SchedulerName - defines kubernetes scheduler name | string | false |
 | runtimeClassName | RuntimeClassName - defines runtime class for kubernetes pod. https://kubernetes.io/docs/concepts/containers/runtime-class/ | *string | false |
 | serviceSpec | ServiceSpec that will be added to vmselect service spec | *[ServiceSpec](#servicespec) | false |
@@ -1845,7 +1881,7 @@ VMClusterStatus defines the observed state of VMCluster
 | extraArgs |  | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMSelect pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
 | serviceSpec | ServiceSpec that will be create additional service for vmstorage | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmstorage VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
 | livenessProbe | LivenessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
 | readinessProbe | ReadinessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |
@@ -2040,7 +2076,7 @@ VMAuthSpec defines the desired state of VMAuth
 | ----- | ----------- | ------ | -------- |
 | podMetadata | PodMetadata configures Labels and Annotations which are propagated to the VMAuth pods. | *[EmbeddedObjectMetadata](#embeddedobjectmetadata) | false |
 | image | Image - docker image settings for VMAuth if no specified operator uses default config version | [Image](#image) | false |
-| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see http://kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
+| imagePullSecrets | ImagePullSecrets An optional list of references to secrets in the same namespace to use for pulling images from registries see https://kubernetes.io/docs/concepts/containers/images/#referring-to-an-imagepullsecrets-on-a-pod | [][v1.LocalObjectReference](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#localobjectreference-v1-core) | false |
 | secrets | Secrets is a list of Secrets in the same namespace as the VMAuth object, which shall be mounted into the VMAuth Pods. | []string | false |
 | configMaps | ConfigMaps is a list of ConfigMaps in the same namespace as the VMAuth object, which shall be mounted into the VMAuth Pods. | []string | false |
 | logLevel | LogLevel for victoria metrics single to be configured with. | string | false |
@@ -2070,8 +2106,8 @@ VMAuthSpec defines the desired state of VMAuth
 | userNamespaceSelector | UserNamespaceSelector Namespaces to be selected for  VMAuth discovery. Works in combination with Selector. NamespaceSelector nil - only objects at VMAuth namespace. Selector nil - only objects at NamespaceSelector namespaces. If both nil - behaviour controlled by selectAllByDefault | *[metav1.LabelSelector](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#labelselector-v1-meta) | false |
 | extraArgs | ExtraArgs that will be passed to  VMAuth pod for example remoteWrite.tmpDataPath: /tmp | map[string]string | false |
 | extraEnvs | ExtraEnvs that will be added to VMAuth pod | [][v1.EnvVar](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#envvar-v1-core) | false |
-| serviceSpec | ServiceSpec that will be added to vmsingle service spec | *[ServiceSpec](#servicespec) | false |
-| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
+| serviceSpec | ServiceSpec that will be added to vmauth service spec | *[ServiceSpec](#servicespec) | false |
+| serviceScrapeSpec | ServiceScrapeSpec that will be added to vmauth VMServiceScrape spec | *[VMServiceScrapeSpec](#vmservicescrapespec) | false |
 | podDisruptionBudget | PodDisruptionBudget created by operator | *[EmbeddedPodDisruptionBudgetSpec](#embeddedpoddisruptionbudgetspec) | false |
 | ingress | Ingress enables ingress configuration for VMAuth. | *[EmbeddedIngress](#embeddedingress) | false |
 | livenessProbe | LivenessProbe that will be added CRD pod | *[v1.Probe](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.22/#probe-v1-core) | false |

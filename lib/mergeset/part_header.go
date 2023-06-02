@@ -6,10 +6,9 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 )
 
 type partHeader struct {
@@ -79,92 +78,53 @@ func (ph *partHeader) CopyFrom(src *partHeader) {
 	ph.lastItem = append(ph.lastItem[:0], src.lastItem...)
 }
 
-func (ph *partHeader) ParseFromPath(partPath string) error {
+func (ph *partHeader) MustReadMetadata(partPath string) {
 	ph.Reset()
 
-	partPath = filepath.Clean(partPath)
-
-	// Extract encoded part name.
-	n := strings.LastIndexByte(partPath, '/')
-	if n < 0 {
-		return fmt.Errorf("cannot find encoded part name in the path %q", partPath)
-	}
-	partName := partPath[n+1:]
-
-	// PartName must have the following form:
-	// itemsCount_blocksCount_Garbage
-	a := strings.Split(partName, "_")
-	if len(a) != 3 {
-		return fmt.Errorf("unexpected number of substrings in the part name %q: got %d; want %d", partName, len(a), 3)
-	}
-
-	// Read itemsCount from partName.
-	itemsCount, err := strconv.ParseUint(a[0], 10, 64)
-	if err != nil {
-		return fmt.Errorf("cannot parse itemsCount from partName %q: %w", partName, err)
-	}
-	ph.itemsCount = itemsCount
-	if ph.itemsCount <= 0 {
-		return fmt.Errorf("part %q cannot contain zero items", partPath)
-	}
-
-	// Read blocksCount from partName.
-	blocksCount, err := strconv.ParseUint(a[1], 10, 64)
-	if err != nil {
-		return fmt.Errorf("cannot parse blocksCount from partName %q: %w", partName, err)
-	}
-	ph.blocksCount = blocksCount
-	if ph.blocksCount <= 0 {
-		return fmt.Errorf("part %q cannot contain zero blocks", partPath)
-	}
-	if ph.blocksCount > ph.itemsCount {
-		return fmt.Errorf("the number of blocks cannot exceed the number of items in the part %q; got blocksCount=%d, itemsCount=%d",
-			partPath, ph.blocksCount, ph.itemsCount)
-	}
-
-	// Read other ph fields from metadata.
-	metadataPath := partPath + "/metadata.json"
+	// Read ph fields from metadata.
+	metadataPath := filepath.Join(partPath, metadataFilename)
 	metadata, err := os.ReadFile(metadataPath)
 	if err != nil {
-		return fmt.Errorf("cannot read %q: %w", metadataPath, err)
+		logger.Panicf("FATAL: cannot read %q: %s", metadataPath, err)
 	}
 
 	var phj partHeaderJSON
 	if err := json.Unmarshal(metadata, &phj); err != nil {
-		return fmt.Errorf("cannot parse %q: %w", metadataPath, err)
+		logger.Panicf("FATAL: cannot parse %q: %s", metadataPath, err)
 	}
-	if ph.itemsCount != phj.ItemsCount {
-		return fmt.Errorf("invalid ItemsCount in %q; got %d; want %d", metadataPath, phj.ItemsCount, ph.itemsCount)
+
+	if phj.ItemsCount <= 0 {
+		logger.Panicf("FATAL: part %q cannot contain zero items", partPath)
 	}
-	if ph.blocksCount != phj.BlocksCount {
-		return fmt.Errorf("invalid BlocksCount in %q; got %d; want %d", metadataPath, phj.BlocksCount, ph.blocksCount)
+	ph.itemsCount = phj.ItemsCount
+
+	if phj.BlocksCount <= 0 {
+		logger.Panicf("FATAL: part %q cannot contain zero blocks", partPath)
 	}
+	if phj.BlocksCount > phj.ItemsCount {
+		logger.Panicf("FATAL: the number of blocks cannot exceed the number of items in the part %q; got blocksCount=%d, itemsCount=%d",
+			partPath, phj.BlocksCount, phj.ItemsCount)
+	}
+	ph.blocksCount = phj.BlocksCount
 
 	ph.firstItem = append(ph.firstItem[:0], phj.FirstItem...)
 	ph.lastItem = append(ph.lastItem[:0], phj.LastItem...)
-
-	return nil
 }
 
-func (ph *partHeader) Path(tablePath string, suffix uint64) string {
-	tablePath = filepath.Clean(tablePath)
-	return fmt.Sprintf("%s/%d_%d_%016X", tablePath, ph.itemsCount, ph.blocksCount, suffix)
-}
-
-func (ph *partHeader) WriteMetadata(partPath string) error {
+func (ph *partHeader) MustWriteMetadata(partPath string) {
 	phj := &partHeaderJSON{
 		ItemsCount:  ph.itemsCount,
 		BlocksCount: ph.blocksCount,
 		FirstItem:   append([]byte{}, ph.firstItem...),
 		LastItem:    append([]byte{}, ph.lastItem...),
 	}
-	metadata, err := json.MarshalIndent(&phj, "", "\t")
+	metadata, err := json.Marshal(&phj)
 	if err != nil {
-		return fmt.Errorf("cannot marshal metadata: %w", err)
+		logger.Panicf("BUG: cannot marshal partHeader metadata: %s", err)
 	}
-	metadataPath := partPath + "/metadata.json"
-	if err := fs.WriteFileAtomically(metadataPath, metadata, false); err != nil {
-		return fmt.Errorf("cannot create %q: %w", metadataPath, err)
-	}
-	return nil
+	metadataPath := filepath.Join(partPath, metadataFilename)
+	// There is no need in calling fs.MustWriteAtomic() here,
+	// since the file is created only once during part creatinng
+	// and the part directory is synced aftewards.
+	fs.MustWriteSync(metadataPath, metadata)
 }

@@ -387,15 +387,13 @@ func mustLoadRollupResultCacheKeyPrefix(path string) {
 func mustSaveRollupResultCacheKeyPrefix(path string) {
 	path = path + ".key.prefix"
 	data := encoding.MarshalUint64(nil, rollupResultCacheKeyPrefix)
-	if err := fs.WriteFileAtomically(path, data, true); err != nil {
-		logger.Fatalf("cannot store rollupResult cache key prefix to %q: %s", path, err)
-	}
+	fs.MustWriteAtomic(path, data, true)
 }
 
 var tooBigRollupResults = metrics.NewCounter("vm_too_big_rollup_results_total")
 
 // Increment this value every time the format of the cache changes.
-const rollupResultCacheVersion = 8
+const rollupResultCacheVersion = 9
 
 func marshalRollupResultCacheKey(dst []byte, at *auth.Token, expr metricsql.Expr, window, step int64, etfs [][]storage.TagFilter) []byte {
 	dst = append(dst, rollupResultCacheVersion)

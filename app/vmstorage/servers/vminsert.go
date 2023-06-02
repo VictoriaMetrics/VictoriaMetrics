@@ -1,6 +1,7 @@
 package servers
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -73,7 +74,6 @@ func (s *VMInsertServer) run() {
 			}
 			logger.Panicf("FATAL: cannot process vminsert conns at %s: %s", s.ln.Addr(), err)
 		}
-		logger.Infof("accepted vminsert conn from %s", c.RemoteAddr())
 
 		if !s.connsMap.Add(c) {
 			// The server is closed.
@@ -98,7 +98,9 @@ func (s *VMInsertServer) run() {
 					// c is stopped inside VMInsertServer.MustStop
 					return
 				}
-				logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
+				if !errors.Is(err, handshake.ErrIgnoreHealthcheck) {
+					logger.Errorf("cannot perform vminsert handshake with client %q: %s", c.RemoteAddr(), err)
+				}
 				_ = c.Close()
 				return
 			}

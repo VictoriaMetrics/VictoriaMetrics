@@ -26,15 +26,16 @@ Operator introduces the following custom resources:
 * [VMAlertmanager](#vmalertmanager)
 * [VMAlertmanagerConfig](#vmalertmanagerconfig)
 * [VMRule](#vmrule)
+* [VMPrometheusConverter](#vmprometheusconverter)
 * [VMProbe](#vmprobe)
-* [VMNodeScrape](#vmodescrape)
+* [VMNodeScrape](#vmnodescrape)
 * [VMStaticScrape](#vmstaticscrape)
 * [VMAuth](#vmauth)
 * [VMUser](#vmuser)
 
 ## VMSingle
 
-The `VMSingle` CRD declaratively defines a [single-node VM](https://github.com/VictoriaMetrics/VictoriaMetrics) 
+The `VMSingle` CRD declaratively defines a [single-node VM](https://github.com/VictoriaMetrics/VictoriaMetrics)
 installation to run in a Kubernetes cluster. 
 
 For each `VMSingle` resource, the Operator deploys a properly configured `Deployment` in the same namespace. 
@@ -117,7 +118,7 @@ for how metrics should be exposed. Following these conventions new services will
 need to reconfigure.
 
 Monitoring configuration based on  `discoveryRole` setting. By default, `endpoints` is used to get objects from kubernetes api. 
-Its also possible to use `discoveryRole: service` or `discoveryRole: endpointslices`
+It's also possible to use `discoveryRole: service` or `discoveryRole: endpointslices`
 
  `Endpoints` objects are essentially lists of IP addresses. 
 Typically, `Endpoints` objects are populated by `Service` object. `Service` object discovers `Pod`s by a label 
@@ -208,7 +209,7 @@ two operators at the same time.
 ## VMProbe
 
  The `VMProbe` CRD provides probing target ability with a prober. The most common prober is [blackbox exporter](https://github.com/prometheus/blackbox_exporter). 
- By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. Its possible to use static targets 
+ By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's possible to use static targets
  or use standard k8s discovery mechanism with `Ingress`. 
   You have to configure blackbox exporter before you can use this feature. The second requirement is `VMAgent` selectors, 
   it must match your `VMProbe` by label or namespace selector.
@@ -216,7 +217,7 @@ two operators at the same time.
 ## VMNodeScrape
 
 The `VMNodeScrape` CRD provides discovery mechanism for scraping metrics kubernetes nodes.
-By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. Its useful for cadvisor scraping,
+By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's useful for cadvisor scraping,
 node-exporter or other node-based exporters. `VMAgent` nodeScrapeSelector must match `VMNodeScrape` labels.
 
 ## VMStaticScrape
@@ -229,7 +230,7 @@ when service-discovery is not available. `VMAgent` staticScrapeSelector must mat
 
  The `VMAuth` CRD provides mechanism for exposing application with authorization to outside world or to other applications inside kubernetes cluster.
 For first case, user can configure `ingress` setting at `VMAuth` CRD. For second one, operator will create secret with `username` and `password` at `VMUser` CRD name. 
-So it will be possible to access this credentials from any application by targeting corresponding kubernetes secret.
+So it will be possible to access these credentials from any application by targeting corresponding kubernetes secret.
 
 ## VMUser
 

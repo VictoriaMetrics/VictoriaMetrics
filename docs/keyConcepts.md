@@ -1,5 +1,13 @@
 ---
 sort: 22
+weight: 22
+title: Key concepts
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 22
+aliases:
+- /keyConcepts.html
 ---
 
 # Key concepts
@@ -26,6 +34,8 @@ You can be more specific here by saying `requests_success_total` (for only succe
 or `request_errors_total` (for requests which failed). Choosing a metric name is very important and supposed to clarify
 what is actually measured to every person who reads it, just like **variable names** in programming.
 
+#### Labels
+
 Every metric can contain additional meta-information in the form of label-value pairs:
 
 ```
@@ -38,12 +48,18 @@ the `request` was served. Label-value pairs are always of a `string` type. Victo
 which means there is no need to define metric names or their labels in advance. User is free to add or change ingested
 metrics anytime.
 
-Actually, the metric's name is also a label with a special name `__name__`. So the following two series are identical:
+Actually, the metric name is also a label with a special name `__name__`. So the following two series are identical:
 
 ```
 requests_total{path="/", code="200"} 
 {__name__="requests_total", path="/", code="200"} 
 ```
+
+Labels can be automatically attached to the [time series](#time-series) 
+written via [vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) 
+or [Prometheus](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup).
+VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 
 #### Time series
 
@@ -126,7 +142,7 @@ was rapidly changing from 1:38 pm to 1:39 pm, then there were no changes until 1
 Counter is used for measuring the number of events, like the number of requests, errors, logs, messages, etc.
 The most common [MetricsQL](#metricsql) functions used with counters are:
 
-* [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) - calculates the average per-second speed of metric's change.
+* [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) - calculates the average per-second speed of metric change.
   For example, `rate(requests_total)` shows how many requests are served per second on average;
 * [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) - calculates the growth of a metric on the given
   time period specified in square brackets.
@@ -162,7 +178,7 @@ and [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-fu
 
 #### Histogram
 
-Historgram is a set of [counter](#counter) metrics with different `vmrange` or `le` labels.
+Histogram is a set of [counter](#counter) metrics with different `vmrange` or `le` labels.
 The `vmrange` or `le` labels define measurement boundaries of a particular bucket.
 When the observed measurement hits a particular bucket, then the corresponding counter is incremented.
 
@@ -330,11 +346,23 @@ This limit can be changed via `-maxLabelsPerTimeseries` command-line flag if nec
 Every label value can contain an arbitrary string value. The good practice is to use short and meaningful label values to
 describe the attribute of the metric, not to tell the story about it. For example, label-value pair
 `environment="prod"` is ok, but `log_message="long log message with a lot of details..."` is not ok. By default,
-VcitoriaMetrics limits label's value size with 16kB. This limit can be changed via `-maxLabelValueLen` command-line flag.
+VictoriaMetrics limits label's value size with 16kB. This limit can be changed via `-maxLabelValueLen` command-line flag.
 
 It is very important to keep under control the number of unique label values, since every unique label value
 leads to a new [time series](#time-series). Try to avoid using volatile label values such as session ID or query ID in order to
 avoid excessive resource usage and database slowdown.
+
+### Multi-tenancy
+
+[Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics 
+supports [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+for data isolation.
+
+Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) 
+version of VictoriaMetrics by adding [labels](#labels) on [write path](#write-data)
+and enforcing [labels filtering](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements) 
+on [read path](#query-data).
+
 
 ## Write data
 
@@ -843,7 +871,7 @@ per each monitored `node_exporter` instance, which exposes the `node_network_rec
 rate(node_network_receive_bytes_total)
 ```
 
-By default VictoriaMetrics calculates the `rate` over [raw samples](#raw-samples) on the lookbehind window specified in the `step` param
+By default, VictoriaMetrics calculates the `rate` over [raw samples](#raw-samples) on the lookbehind window specified in the `step` param
 passed either to [instant query](#instant-query) or to [range query](#range-query).
 The interval on which `rate` needs to be calculated can be specified explicitly
 as [duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) in square brackets:

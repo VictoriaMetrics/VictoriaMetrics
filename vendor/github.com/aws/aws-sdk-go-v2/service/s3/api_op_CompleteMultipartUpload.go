@@ -13,10 +13,9 @@ import (
 )
 
 // Completes a multipart upload by assembling previously uploaded parts. You first
-// initiate the multipart upload and then upload all parts using the UploadPart
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html) operation.
-// After successfully uploading all relevant parts of an upload, you call this
-// action to complete the upload. Upon receiving this request, Amazon S3
+// initiate the multipart upload and then upload all parts using the UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
+// operation. After successfully uploading all relevant parts of an upload, you
+// call this action to complete the upload. Upon receiving this request, Amazon S3
 // concatenates all the parts in ascending order by part number to create a new
 // object. In the Complete Multipart Upload request, you must provide the parts
 // list. You must ensure that the parts list is complete. This action concatenates
@@ -26,78 +25,48 @@ import (
 // minutes to complete. After Amazon S3 begins processing the request, it sends an
 // HTTP response header that specifies a 200 OK response. While processing is in
 // progress, Amazon S3 periodically sends white space characters to keep the
-// connection from timing out. Because a request could fail after the initial 200
-// OK response has been sent, it is important that you check the response body to
-// determine whether the request succeeded. Note that if CompleteMultipartUpload
-// fails, applications should be prepared to retry the failed requests. For more
-// information, see Amazon S3 Error Best Practices
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ErrorBestPractices.html). You
-// cannot use Content-Type: application/x-www-form-urlencoded with Complete
+// connection from timing out. A request could fail after the initial 200 OK
+// response has been sent. This means that a 200 OK response can contain either a
+// success or an error. If you call the S3 API directly, make sure to design your
+// application to parse the contents of the response and handle it appropriately.
+// If you use Amazon Web Services SDKs, SDKs handle this condition. The SDKs detect
+// the embedded error and apply error handling per your configuration settings
+// (including automatically retrying the request as appropriate). If the condition
+// persists, the SDKs throws an exception (or, for the SDKs that don't use
+// exceptions, they return the error). Note that if CompleteMultipartUpload fails,
+// applications should be prepared to retry the failed requests. For more
+// information, see Amazon S3 Error Best Practices (https://docs.aws.amazon.com/AmazonS3/latest/dev/ErrorBestPractices.html)
+// . You cannot use Content-Type: application/x-www-form-urlencoded with Complete
 // Multipart Upload requests. Also, if you do not provide a Content-Type header,
 // CompleteMultipartUpload returns a 200 OK response. For more information about
-// multipart uploads, see Uploading Objects Using Multipart Upload
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html). For
-// information about permissions required to use the multipart upload API, see
-// Multipart Upload and Permissions
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html).
-// CompleteMultipartUpload has the following special errors:
+// multipart uploads, see Uploading Objects Using Multipart Upload (https://docs.aws.amazon.com/AmazonS3/latest/dev/uploadobjusingmpu.html)
+// . For information about permissions required to use the multipart upload API,
+// see Multipart Upload and Permissions (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuAndPermissions.html)
+// . CompleteMultipartUpload has the following special errors:
+//   - Error code: EntityTooSmall
+//   - Description: Your proposed upload is smaller than the minimum allowed
+//     object size. Each part must be at least 5 MB in size, except the last part.
+//   - 400 Bad Request
+//   - Error code: InvalidPart
+//   - Description: One or more of the specified parts could not be found. The
+//     part might not have been uploaded, or the specified entity tag might not have
+//     matched the part's entity tag.
+//   - 400 Bad Request
+//   - Error code: InvalidPartOrder
+//   - Description: The list of parts was not in ascending order. The parts list
+//     must be specified in order by part number.
+//   - 400 Bad Request
+//   - Error code: NoSuchUpload
+//   - Description: The specified multipart upload does not exist. The upload ID
+//     might be invalid, or the multipart upload might have been aborted or completed.
+//   - 404 Not Found
 //
-// * Error code:
-// EntityTooSmall
-//
-// * Description: Your proposed upload is smaller than the minimum
-// allowed object size. Each part must be at least 5 MB in size, except the last
-// part.
-//
-// * 400 Bad Request
-//
-// * Error code: InvalidPart
-//
-// * Description: One or more
-// of the specified parts could not be found. The part might not have been
-// uploaded, or the specified entity tag might not have matched the part's entity
-// tag.
-//
-// * 400 Bad Request
-//
-// * Error code: InvalidPartOrder
-//
-// * Description: The list
-// of parts was not in ascending order. The parts list must be specified in order
-// by part number.
-//
-// * 400 Bad Request
-//
-// * Error code: NoSuchUpload
-//
-// * Description:
-// The specified multipart upload does not exist. The upload ID might be invalid,
-// or the multipart upload might have been aborted or completed.
-//
-// * 404 Not
-// Found
-//
-// The following operations are related to CompleteMultipartUpload:
-//
-// *
-// CreateMultipartUpload
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
-//
-// *
-// UploadPart
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
-//
-// *
-// AbortMultipartUpload
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)
-//
-// *
-// ListParts
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
-//
-// *
-// ListMultipartUploads
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html)
+// The following operations are related to CompleteMultipartUpload :
+//   - CreateMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateMultipartUpload.html)
+//   - UploadPart (https://docs.aws.amazon.com/AmazonS3/latest/API/API_UploadPart.html)
+//   - AbortMultipartUpload (https://docs.aws.amazon.com/AmazonS3/latest/API/API_AbortMultipartUpload.html)
+//   - ListParts (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListParts.html)
+//   - ListMultipartUploads (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListMultipartUploads.html)
 func (c *Client) CompleteMultipartUpload(ctx context.Context, params *CompleteMultipartUploadInput, optFns ...func(*Options)) (*CompleteMultipartUploadOutput, error) {
 	if params == nil {
 		params = &CompleteMultipartUploadInput{}
@@ -121,17 +90,15 @@ type CompleteMultipartUploadInput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
@@ -149,32 +116,28 @@ type CompleteMultipartUploadInput struct {
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 32-bit CRC32C checksum of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 160-bit SHA-1 digest of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 256-bit SHA-256 digest of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -189,29 +152,25 @@ type CompleteMultipartUploadInput struct {
 	// Confirms that the requester knows that they will be charged for the request.
 	// Bucket owners need not specify this parameter in their requests. For information
 	// about downloading objects from Requester Pays buckets, see Downloading Objects
-	// in Requester Pays Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
 	// in the Amazon S3 User Guide.
 	RequestPayer types.RequestPayer
 
 	// The server-side encryption (SSE) algorithm used to encrypt the object. This
 	// parameter is needed only when the object was created using a checksum algorithm.
-	// For more information, see Protecting data using SSE-C keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// For more information, see Protecting data using SSE-C keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 	// in the Amazon S3 User Guide.
 	SSECustomerAlgorithm *string
 
 	// The server-side encryption (SSE) customer managed key. This parameter is needed
 	// only when the object was created using a checksum algorithm. For more
-	// information, see Protecting data using SSE-C keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// information, see Protecting data using SSE-C keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 	// in the Amazon S3 User Guide.
 	SSECustomerKey *string
 
 	// The MD5 server-side encryption (SSE) customer managed key. This parameter is
 	// needed only when the object was created using a checksum algorithm. For more
-	// information, see Protecting data using SSE-C keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
+	// information, see Protecting data using SSE-C keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 	// in the Amazon S3 User Guide.
 	SSECustomerKeyMD5 *string
 
@@ -227,17 +186,15 @@ type CompleteMultipartUploadOutput struct {
 	// AccessPointName-AccountId.s3-accesspoint.Region.amazonaws.com. When using this
 	// action with an access point through the Amazon Web Services SDKs, you provide
 	// the access point ARN in place of the bucket name. For more information about
-	// access point ARNs, see Using access points
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
-	// in the Amazon S3 User Guide. When using this action with Amazon S3 on Outposts,
-	// you must direct requests to the S3 on Outposts hostname. The S3 on Outposts
-	// hostname takes the form
-	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com. When using
-	// this action with S3 on Outposts through the Amazon Web Services SDKs, you
-	// provide the Outposts bucket ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see Using Amazon S3 on Outposts
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html) in the
-	// Amazon S3 User Guide.
+	// access point ARNs, see Using access points (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-access-points.html)
+	// in the Amazon S3 User Guide. When you use this action with Amazon S3 on
+	// Outposts, you must direct requests to the S3 on Outposts hostname. The S3 on
+	// Outposts hostname takes the form
+	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
+	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
+	// provide the Outposts access point ARN in place of the bucket name. For more
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// in the Amazon S3 User Guide.
 	Bucket *string
 
 	// Indicates whether the multipart upload uses an S3 Bucket Key for server-side
@@ -247,32 +204,28 @@ type CompleteMultipartUploadOutput struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -282,13 +235,12 @@ type CompleteMultipartUploadOutput struct {
 	// data. If the entity tag is not an MD5 digest of the object data, it will contain
 	// one or more nonhexadecimal characters and/or will consist of less than 32 or
 	// more than 32 hexadecimal digits. For more information about how the entity tag
-	// is calculated, see Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// is calculated, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ETag *string
 
-	// If the object expiration is configured, this will contain the expiration date
-	// (expiry-date) and rule ID (rule-id). The value of rule-id is URL-encoded.
+	// If the object expiration is configured, this will contain the expiration date (
+	// expiry-date ) and rule ID ( rule-id ). The value of rule-id is URL-encoded.
 	Expiration *string
 
 	// The object key of the newly created object.
@@ -302,18 +254,16 @@ type CompleteMultipartUploadOutput struct {
 	RequestCharged types.RequestCharged
 
 	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric customer managed key that was used for the
-	// object.
+	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
+	// used for the object.
 	SSEKMSKeyId *string
 
-	// If you specified server-side encryption either with an Amazon S3-managed
-	// encryption key or an Amazon Web Services KMS key in your initiate multipart
-	// upload request, the response includes this header. It confirms the encryption
-	// algorithm that Amazon S3 used to encrypt the object.
+	// The server-side encryption algorithm used when storing this object in Amazon S3
+	// (for example, AES256, aws:kms ).
 	ServerSideEncryption types.ServerSideEncryption
 
-	// Version ID of the newly created object, in case the bucket has versioning turned
-	// on.
+	// Version ID of the newly created object, in case the bucket has versioning
+	// turned on.
 	VersionId *string
 
 	// Metadata pertaining to the operation's result.
@@ -377,6 +327,9 @@ func (c *Client) addOperationCompleteMultipartUploadMiddlewares(stack *middlewar
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addCompleteMultipartUploadUpdateEndpoint(stack, options); err != nil {

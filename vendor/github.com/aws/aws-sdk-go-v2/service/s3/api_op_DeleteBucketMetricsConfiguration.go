@@ -17,30 +17,15 @@ import (
 // permissions to perform the s3:PutMetricsConfiguration action. The bucket owner
 // has this permission by default. The bucket owner can grant this permission to
 // others. For more information about permissions, see Permissions Related to
-// Bucket Subresource Operations
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
-// and Managing Access Permissions to Your Amazon S3 Resources
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html).
-// For information about CloudWatch request metrics for Amazon S3, see Monitoring
-// Metrics with Amazon CloudWatch
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html).
-// The following operations are related to DeleteBucketMetricsConfiguration:
-//
-// *
-// GetBucketMetricsConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketMetricsConfiguration.html)
-//
-// *
-// PutBucketMetricsConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketMetricsConfiguration.html)
-//
-// *
-// ListBucketMetricsConfigurations
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketMetricsConfigurations.html)
-//
-// *
-// Monitoring Metrics with Amazon CloudWatch
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html)
+// Bucket Subresource Operations (https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-with-s3-actions.html#using-with-s3-actions-related-to-bucket-subresources)
+// and Managing Access Permissions to Your Amazon S3 Resources (https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+// . For information about CloudWatch request metrics for Amazon S3, see
+// Monitoring Metrics with Amazon CloudWatch (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html)
+// . The following operations are related to DeleteBucketMetricsConfiguration :
+//   - GetBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketMetricsConfiguration.html)
+//   - PutBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketMetricsConfiguration.html)
+//   - ListBucketMetricsConfigurations (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketMetricsConfigurations.html)
+//   - Monitoring Metrics with Amazon CloudWatch (https://docs.aws.amazon.com/AmazonS3/latest/dev/cloudwatch-monitoring.html)
 func (c *Client) DeleteBucketMetricsConfiguration(ctx context.Context, params *DeleteBucketMetricsConfigurationInput, optFns ...func(*Options)) (*DeleteBucketMetricsConfigurationOutput, error) {
 	if params == nil {
 		params = &DeleteBucketMetricsConfigurationInput{}
@@ -63,7 +48,8 @@ type DeleteBucketMetricsConfigurationInput struct {
 	// This member is required.
 	Bucket *string
 
-	// The ID used to identify the metrics configuration.
+	// The ID used to identify the metrics configuration. The ID has a 64 character
+	// limit and can only contain letters, numbers, periods, dashes, and underscores.
 	//
 	// This member is required.
 	Id *string
@@ -138,6 +124,9 @@ func (c *Client) addOperationDeleteBucketMetricsConfigurationMiddlewares(stack *
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addDeleteBucketMetricsConfigurationUpdateEndpoint(stack, options); err != nil {

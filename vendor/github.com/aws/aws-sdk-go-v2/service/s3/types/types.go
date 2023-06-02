@@ -9,9 +9,8 @@ import (
 
 // Specifies the days since the initiation of an incomplete multipart upload that
 // Amazon S3 will wait before permanently removing all parts of the upload. For
-// more information, see  Aborting Incomplete Multipart Uploads Using a Bucket
-// Lifecycle Policy
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
+// more information, see Aborting Incomplete Multipart Uploads Using a Bucket
+// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
 // in the Amazon S3 User Guide.
 type AbortIncompleteMultipartUpload struct {
 
@@ -23,9 +22,8 @@ type AbortIncompleteMultipartUpload struct {
 }
 
 // Configures the transfer acceleration state for an Amazon S3 bucket. For more
-// information, see Amazon S3 Transfer Acceleration
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html) in
-// the Amazon S3 User Guide.
+// information, see Amazon S3 Transfer Acceleration (https://docs.aws.amazon.com/AmazonS3/latest/dev/transfer-acceleration.html)
+// in the Amazon S3 User Guide.
 type AccelerateConfiguration struct {
 
 	// Specifies the transfer acceleration status of the bucket.
@@ -50,8 +48,7 @@ type AccessControlPolicy struct {
 type AccessControlTranslation struct {
 
 	// Specifies the replica ownership. For default and valid values, see PUT bucket
-	// replication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTreplication.html)
+	// replication (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTreplication.html)
 	// in the Amazon S3 API Reference.
 	//
 	// This member is required.
@@ -60,9 +57,10 @@ type AccessControlTranslation struct {
 	noSmithyDocumentSerde
 }
 
-// A conjunction (logical AND) of predicates, which is used in evaluating a metrics
-// filter. The operator must have at least two predicates in any combination, and
-// an object must match all of the predicates for the filter to apply.
+// A conjunction (logical AND) of predicates, which is used in evaluating a
+// metrics filter. The operator must have at least two predicates in any
+// combination, and an object must match all of the predicates for the filter to
+// apply.
 type AnalyticsAndOperator struct {
 
 	// The prefix to use when evaluating an AND predicate: The prefix that an object
@@ -191,9 +189,8 @@ type Bucket struct {
 }
 
 // Specifies the lifecycle configuration for objects in an Amazon S3 bucket. For
-// more information, see Object Lifecycle Management
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html) in
-// the Amazon S3 User Guide.
+// more information, see Object Lifecycle Management (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lifecycle-mgmt.html)
+// in the Amazon S3 User Guide.
 type BucketLifecycleConfiguration struct {
 
 	// A lifecycle rule for individual objects in an Amazon S3 bucket.
@@ -207,10 +204,9 @@ type BucketLifecycleConfiguration struct {
 // Container for logging status information.
 type BucketLoggingStatus struct {
 
-	// Describes where logs are stored and the prefix that Amazon S3 assigns to all log
-	// object keys for a bucket. For more information, see PUT Bucket logging
-	// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html) in
-	// the Amazon S3 API Reference.
+	// Describes where logs are stored and the prefix that Amazon S3 assigns to all
+	// log object keys for a bucket. For more information, see PUT Bucket logging (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html)
+	// in the Amazon S3 API Reference.
 	LoggingEnabled *LoggingEnabled
 
 	noSmithyDocumentSerde
@@ -222,43 +218,39 @@ type Checksum struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
 	noSmithyDocumentSerde
 }
 
-// Container for all (if there are any) keys between Prefix and the next occurrence
-// of the string specified by a delimiter. CommonPrefixes lists keys that act like
-// subdirectories in the directory specified by Prefix. For example, if the prefix
-// is notes/ and the delimiter is a slash (/) as in notes/summer/july, the common
-// prefix is notes/summer/.
+// Container for all (if there are any) keys between Prefix and the next
+// occurrence of the string specified by a delimiter. CommonPrefixes lists keys
+// that act like subdirectories in the directory specified by Prefix. For example,
+// if the prefix is notes/ and the delimiter is a slash (/) as in
+// notes/summer/july, the common prefix is notes/summer/.
 type CommonPrefix struct {
 
 	// Container for the specified common prefix.
@@ -283,32 +275,28 @@ type CompletedPart struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -336,15 +324,15 @@ type Condition struct {
 	HttpErrorCodeReturnedEquals *string
 
 	// The object key name prefix when the redirect is applied. For example, to
-	// redirect requests for ExamplePage.html, the key prefix will be ExamplePage.html.
-	// To redirect request for all pages with the prefix docs/, the key prefix will be
-	// /docs, which identifies all objects in the docs/ folder. Required when the
-	// parent element Condition is specified and sibling HttpErrorCodeReturnedEquals is
-	// not specified. If both conditions are specified, both must be true for the
+	// redirect requests for ExamplePage.html , the key prefix will be ExamplePage.html
+	// . To redirect request for all pages with the prefix docs/ , the key prefix will
+	// be /docs , which identifies all objects in the docs/ folder. Required when the
+	// parent element Condition is specified and sibling HttpErrorCodeReturnedEquals
+	// is not specified. If both conditions are specified, both must be true for the
 	// redirect to be applied. Replacement must be made for object keys containing
 	// special characters (such as carriage returns) when using XML requests. For more
-	// information, see  XML related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	KeyPrefixEquals *string
 
 	noSmithyDocumentSerde
@@ -360,32 +348,28 @@ type CopyObjectResult struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -405,32 +389,28 @@ type CopyPartResult struct {
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -444,9 +424,8 @@ type CopyPartResult struct {
 }
 
 // Describes the cross-origin access configuration for objects in an Amazon S3
-// bucket. For more information, see Enabling Cross-Origin Resource Sharing
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html) in the Amazon S3
-// User Guide.
+// bucket. For more information, see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
+// in the Amazon S3 User Guide.
 type CORSConfiguration struct {
 
 	// A set of origins and methods (cross-origin access that you want to allow). You
@@ -461,8 +440,8 @@ type CORSConfiguration struct {
 // Specifies a cross-origin access rule for an Amazon S3 bucket.
 type CORSRule struct {
 
-	// An HTTP method that you allow the origin to execute. Valid values are GET, PUT,
-	// HEAD, POST, and DELETE.
+	// An HTTP method that you allow the origin to execute. Valid values are GET , PUT
+	// , HEAD , POST , and DELETE .
 	//
 	// This member is required.
 	AllowedMethods []string
@@ -477,15 +456,16 @@ type CORSRule struct {
 	// OPTIONS request, Amazon S3 returns any requested headers that are allowed.
 	AllowedHeaders []string
 
-	// One or more headers in the response that you want customers to be able to access
-	// from their applications (for example, from a JavaScript XMLHttpRequest object).
+	// One or more headers in the response that you want customers to be able to
+	// access from their applications (for example, from a JavaScript XMLHttpRequest
+	// object).
 	ExposeHeaders []string
 
 	// Unique identifier for the rule. The value cannot be longer than 255 characters.
 	ID *string
 
-	// The time in seconds that your browser is to cache the preflight response for the
-	// specified resource.
+	// The time in seconds that your browser is to cache the preflight response for
+	// the specified resource.
 	MaxAgeSeconds int32
 
 	noSmithyDocumentSerde
@@ -512,7 +492,7 @@ type CSVInput struct {
 
 	// A single character used to indicate that a row should be ignored when the
 	// character is present at the start of that row. You can specify any character to
-	// indicate a comment line.
+	// indicate a comment line. The default character is # . Default: #
 	Comments *string
 
 	// A single character used to separate individual fields in a record. You can
@@ -520,27 +500,22 @@ type CSVInput struct {
 	FieldDelimiter *string
 
 	// Describes the first line of input. Valid values are:
-	//
-	// * NONE: First line is not
-	// a header.
-	//
-	// * IGNORE: First line is a header, but you can't use the header values
-	// to indicate the column in an expression. You can use column position (such as
-	// _1, _2, …) to indicate the column (SELECT s._1 FROM OBJECT s).
-	//
-	// * Use: First
-	// line is a header, and you can use the header value to identify a column in an
-	// expression (SELECT "name" FROM OBJECT).
+	//   - NONE : First line is not a header.
+	//   - IGNORE : First line is a header, but you can't use the header values to
+	//   indicate the column in an expression. You can use column position (such as _1,
+	//   _2, …) to indicate the column ( SELECT s._1 FROM OBJECT s ).
+	//   - Use : First line is a header, and you can use the header value to identify a
+	//   column in an expression ( SELECT "name" FROM OBJECT ).
 	FileHeaderInfo FileHeaderInfo
 
 	// A single character used for escaping when the field delimiter is part of the
-	// value. For example, if the value is a, b, Amazon S3 wraps this field value in
-	// quotation marks, as follows: " a , b ". Type: String Default: " Ancestors: CSV
+	// value. For example, if the value is a, b , Amazon S3 wraps this field value in
+	// quotation marks, as follows: " a , b " . Type: String Default: " Ancestors: CSV
 	QuoteCharacter *string
 
 	// A single character used for escaping the quotation mark character inside an
-	// already escaped value. For example, the value """ a , b """ is parsed as " a , b
-	// ".
+	// already escaped value. For example, the value """ a , b """ is parsed as " a ,
+	// b " .
 	QuoteEscapeCharacter *string
 
 	// A single character used to separate individual records in the input. Instead of
@@ -559,8 +534,8 @@ type CSVOutput struct {
 	FieldDelimiter *string
 
 	// A single character used for escaping when the field delimiter is part of the
-	// value. For example, if the value is a, b, Amazon S3 wraps this field value in
-	// quotation marks, as follows: " a , b ".
+	// value. For example, if the value is a, b , Amazon S3 wraps this field value in
+	// quotation marks, as follows: " a , b " .
 	QuoteCharacter *string
 
 	// The single character used for escaping the quote character inside an already
@@ -568,16 +543,12 @@ type CSVOutput struct {
 	QuoteEscapeCharacter *string
 
 	// Indicates whether to use quotation marks around output fields.
-	//
-	// * ALWAYS: Always
-	// use quotation marks for output fields.
-	//
-	// * ASNEEDED: Use quotation marks for
-	// output fields when needed.
+	//   - ALWAYS : Always use quotation marks for output fields.
+	//   - ASNEEDED : Use quotation marks for output fields when needed.
 	QuoteFields QuoteFields
 
-	// A single character used to separate individual records in the output. Instead of
-	// the default value, you can specify an arbitrary delimiter.
+	// A single character used to separate individual records in the output. Instead
+	// of the default value, you can specify an arbitrary delimiter.
 	RecordDelimiter *string
 
 	noSmithyDocumentSerde
@@ -585,25 +556,21 @@ type CSVOutput struct {
 
 // The container element for specifying the default Object Lock retention settings
 // for new objects placed in the specified bucket.
-//
-// * The DefaultRetention settings
-// require both a mode and a period.
-//
-// * The DefaultRetention period can be either
-// Days or Years but you must select one. You cannot specify Days and Years at the
-// same time.
+//   - The DefaultRetention settings require both a mode and a period.
+//   - The DefaultRetention period can be either Days or Years but you must select
+//     one. You cannot specify Days and Years at the same time.
 type DefaultRetention struct {
 
 	// The number of days that you want to specify for the default retention period.
-	// Must be used with Mode.
+	// Must be used with Mode .
 	Days int32
 
 	// The default Object Lock retention mode you want to apply to new objects placed
-	// in the specified bucket. Must be used with either Days or Years.
+	// in the specified bucket. Must be used with either Days or Years .
 	Mode ObjectLockRetentionMode
 
 	// The number of years that you want to specify for the default retention period.
-	// Must be used with Mode.
+	// Must be used with Mode .
 	Years int32
 
 	noSmithyDocumentSerde
@@ -632,9 +599,9 @@ type DeletedObject struct {
 	// whether (true) or not (false) a delete marker was created.
 	DeleteMarker bool
 
-	// The version ID of the delete marker created as a result of the DELETE operation.
-	// If you delete a specific object version, the value returned by this header is
-	// the version ID of the object version deleted.
+	// The version ID of the delete marker created as a result of the DELETE
+	// operation. If you delete a specific object version, the value returned by this
+	// header is the version ID of the object version deleted.
 	DeleteMarkerVersionId *string
 
 	// The name of the deleted object.
@@ -671,17 +638,15 @@ type DeleteMarkerEntry struct {
 // Specifies whether Amazon S3 replicates delete markers. If you specify a Filter
 // in your replication configuration, you must also include a
 // DeleteMarkerReplication element. If your Filter includes a Tag element, the
-// DeleteMarkerReplicationStatus must be set to Disabled, because Amazon S3 does
+// DeleteMarkerReplication Status must be set to Disabled, because Amazon S3 does
 // not support replicating delete markers for tag-based rules. For an example
-// configuration, see Basic Rule Configuration
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-config-min-rule-config).
-// For more information about delete marker replication, see Basic Rule
-// Configuration
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/delete-marker-replication.html).
-// If you are using an earlier version of the replication configuration, Amazon S3
-// handles replication of delete markers differently. For more information, see
-// Backward Compatibility
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations).
+// configuration, see Basic Rule Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-config-min-rule-config)
+// . For more information about delete marker replication, see Basic Rule
+// Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/delete-marker-replication.html)
+// . If you are using an earlier version of the replication configuration, Amazon
+// S3 handles replication of delete markers differently. For more information, see
+// Backward Compatibility (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations)
+// .
 type DeleteMarkerReplication struct {
 
 	// Indicates whether to replicate delete markers. Indicates whether to replicate
@@ -710,10 +675,10 @@ type Destination struct {
 
 	// Destination bucket owner account ID. In a cross-account scenario, if you direct
 	// Amazon S3 to change replica ownership to the Amazon Web Services account that
-	// owns the destination bucket by specifying the AccessControlTranslation property,
-	// this is the account ID of the destination bucket owner. For more information,
-	// see Replication Additional Configuration: Changing the Replica Owner
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-change-owner.html)
+	// owns the destination bucket by specifying the AccessControlTranslation
+	// property, this is the account ID of the destination bucket owner. For more
+	// information, see Replication Additional Configuration: Changing the Replica
+	// Owner (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-change-owner.html)
 	// in the Amazon S3 User Guide.
 	Account *string
 
@@ -721,8 +686,8 @@ type Destination struct {
 	// SourceSelectionCriteria is specified, you must specify this element.
 	EncryptionConfiguration *EncryptionConfiguration
 
-	// A container specifying replication metrics-related settings enabling replication
-	// metrics and events.
+	// A container specifying replication metrics-related settings enabling
+	// replication metrics and events.
 	Metrics *Metrics
 
 	// A container specifying S3 Replication Time Control (S3 RTC), including whether
@@ -733,8 +698,7 @@ type Destination struct {
 	// The storage class to use when replicating objects, such as S3 Standard or
 	// reduced redundancy. By default, Amazon S3 uses the storage class of the source
 	// object to create the object replica. For valid values, see the StorageClass
-	// element of the PUT Bucket replication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTreplication.html)
+	// element of the PUT Bucket replication (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTreplication.html)
 	// action in the Amazon S3 API Reference.
 	StorageClass StorageClass
 
@@ -745,20 +709,19 @@ type Destination struct {
 type Encryption struct {
 
 	// The server-side encryption algorithm used when storing job results in Amazon S3
-	// (for example, AES256, aws:kms).
+	// (for example, AES256, aws:kms ).
 	//
 	// This member is required.
 	EncryptionType ServerSideEncryption
 
-	// If the encryption type is aws:kms, this optional value can be used to specify
+	// If the encryption type is aws:kms , this optional value can be used to specify
 	// the encryption context for the restore results.
 	KMSContext *string
 
-	// If the encryption type is aws:kms, this optional value specifies the ID of the
-	// symmetric customer managed key to use for encryption of job results. Amazon S3
-	// only supports symmetric keys. For more information, see Using symmetric and
-	// asymmetric keys
-	// (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+	// If the encryption type is aws:kms , this optional value specifies the ID of the
+	// symmetric encryption customer managed key to use for encryption of job results.
+	// Amazon S3 only supports symmetric encryption KMS keys. For more information, see
+	// Asymmetric keys in Amazon Web Services KMS (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
 	// in the Amazon Web Services Key Management Service Developer Guide.
 	KMSKeyId *string
 
@@ -772,9 +735,8 @@ type EncryptionConfiguration struct {
 	// Specifies the ID (Key ARN or Alias ARN) of the customer managed Amazon Web
 	// Services KMS key stored in Amazon Web Services Key Management Service (KMS) for
 	// the destination bucket. Amazon S3 uses this key to encrypt replica objects.
-	// Amazon S3 only supports symmetric, customer managed KMS keys. For more
-	// information, see Using symmetric and asymmetric keys
-	// (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+	// Amazon S3 only supports symmetric encryption KMS keys. For more information, see
+	// Asymmetric keys in Amazon Web Services KMS (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
 	// in the Amazon Web Services Key Management Service Developer Guide.
 	ReplicaKmsKeyID *string
 
@@ -783,7 +745,7 @@ type EncryptionConfiguration struct {
 
 // A message that indicates the request is complete and no more messages will be
 // sent. You should not assume that the request is complete until the client
-// receives an EndEvent.
+// receives an EndEvent .
 type EndEvent struct {
 	noSmithyDocumentSerde
 }
@@ -793,934 +755,415 @@ type Error struct {
 
 	// The error code is a string that uniquely identifies an error condition. It is
 	// meant to be read and understood by programs that detect and handle errors by
-	// type. Amazon S3 error codes
-	//
-	// * Code: AccessDenied
-	//
-	// * Description: Access
-	// Denied
-	//
-	// * HTTP Status Code: 403 Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// *
-	// Code: AccountProblem
-	//
-	// * Description: There is a problem with your Amazon Web
-	// Services account that prevents the action from completing successfully. Contact
-	// Amazon Web Services Support for further assistance.
-	//
-	// * HTTP Status Code: 403
-	// Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: AllAccessDisabled
-	//
-	// *
-	// Description: All access to this Amazon S3 resource has been disabled. Contact
-	// Amazon Web Services Support for further assistance.
-	//
-	// * HTTP Status Code: 403
-	// Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// AmbiguousGrantByEmailAddress
-	//
-	// * Description: The email address you provided is
-	// associated with more than one account.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// *
-	// SOAP Fault Code Prefix: Client
-	//
-	// * Code: AuthorizationHeaderMalformed
-	//
-	// *
-	// Description: The authorization header you provided is invalid.
-	//
-	// * HTTP Status
-	// Code: 400 Bad Request
-	//
-	// * HTTP Status Code: N/A
-	//
-	// * Code: BadDigest
-	//
-	// *
-	// Description: The Content-MD5 you specified did not match what we received.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// BucketAlreadyExists
-	//
-	// * Description: The requested bucket name is not available.
-	// The bucket namespace is shared by all users of the system. Please select a
-	// different name and try again.
-	//
-	// * HTTP Status Code: 409 Conflict
-	//
-	// * SOAP Fault
-	// Code Prefix: Client
-	//
-	// * Code: BucketAlreadyOwnedByYou
-	//
-	// * Description: The bucket
-	// you tried to create already exists, and you own it. Amazon S3 returns this error
-	// in all Amazon Web Services Regions except in the North Virginia Region. For
-	// legacy compatibility, if you re-create an existing bucket that you already own
-	// in the North Virginia Region, Amazon S3 returns 200 OK and resets the bucket
-	// access control lists (ACLs).
-	//
-	// * Code: 409 Conflict (in all Regions except the
-	// North Virginia Region)
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// BucketNotEmpty
-	//
-	// * Description: The bucket you tried to delete is not empty.
-	//
-	// *
-	// HTTP Status Code: 409 Conflict
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// CredentialsNotSupported
-	//
-	// * Description: This request does not support
-	// credentials.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: CrossLocationLoggingProhibited
-	//
-	// * Description: Cross-location
-	// logging not allowed. Buckets in one geographic location cannot log information
-	// to a bucket in another location.
-	//
-	// * HTTP Status Code: 403 Forbidden
-	//
-	// * SOAP
-	// Fault Code Prefix: Client
-	//
-	// * Code: EntityTooSmall
-	//
-	// * Description: Your proposed
-	// upload is smaller than the minimum allowed object size.
-	//
-	// * HTTP Status Code: 400
-	// Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: EntityTooLarge
-	//
-	// *
-	// Description: Your proposed upload exceeds the maximum allowed object size.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// ExpiredToken
-	//
-	// * Description: The provided token has expired.
-	//
-	// * HTTP Status
-	// Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// IllegalVersioningConfigurationException
-	//
-	// * Description: Indicates that the
-	// versioning configuration specified in the request is invalid.
-	//
-	// * HTTP Status
-	// Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// IncompleteBody
-	//
-	// * Description: You did not provide the number of bytes specified
-	// by the Content-Length HTTP header
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP
-	// Fault Code Prefix: Client
-	//
-	// * Code: IncorrectNumberOfFilesInPostRequest
-	//
-	// *
-	// Description: POST requires exactly one file upload per request.
-	//
-	// * HTTP Status
-	// Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InlineDataTooLarge
-	//
-	// * Description: Inline data exceeds the maximum allowed
-	// size.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// *
-	// Code: InternalError
-	//
-	// * Description: We encountered an internal error. Please try
-	// again.
-	//
-	// * HTTP Status Code: 500 Internal Server Error
-	//
-	// * SOAP Fault Code Prefix:
-	// Server
-	//
-	// * Code: InvalidAccessKeyId
-	//
-	// * Description: The Amazon Web Services
-	// access key ID you provided does not exist in our records.
-	//
-	// * HTTP Status Code:
-	// 403 Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidAddressingHeader
-	//
-	// * Description: You must specify the Anonymous role.
-	//
-	// *
-	// HTTP Status Code: N/A
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidArgument
-	//
-	// * Description: Invalid Argument
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: InvalidBucketName
-	//
-	// *
-	// Description: The specified bucket is not valid.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: InvalidBucketState
-	//
-	// *
-	// Description: The request is not valid with the current state of the bucket.
-	//
-	// *
-	// HTTP Status Code: 409 Conflict
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidDigest
-	//
-	// * Description: The Content-MD5 you specified is not valid.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidEncryptionAlgorithmError
-	//
-	// * Description: The encryption request you
-	// specified is not valid. The valid value is AES256.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: InvalidLocationConstraint
-	//
-	// *
-	// Description: The specified location constraint is not valid. For more
-	// information about Regions, see How to Select a Region for Your Buckets
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro).
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidObjectState
-	//
-	// * Description: The action is not valid for the current state
-	// of the object.
-	//
-	// * HTTP Status Code: 403 Forbidden
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: InvalidPart
-	//
-	// * Description: One or more of the specified parts
-	// could not be found. The part might not have been uploaded, or the specified
-	// entity tag might not have matched the part's entity tag.
-	//
-	// * HTTP Status Code:
-	// 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: InvalidPartOrder
-	//
-	// *
-	// Description: The list of parts was not in ascending order. Parts list must be
-	// specified in order by part number.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP
-	// Fault Code Prefix: Client
-	//
-	// * Code: InvalidPayer
-	//
-	// * Description: All access to
-	// this object has been disabled. Please contact Amazon Web Services Support for
-	// further assistance.
-	//
-	// * HTTP Status Code: 403 Forbidden
-	//
-	// * SOAP Fault Code
-	// Prefix: Client
-	//
-	// * Code: InvalidPolicyDocument
-	//
-	// * Description: The content of the
-	// form does not meet the conditions specified in the policy document.
-	//
-	// * HTTP
-	// Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidRange
-	//
-	// * Description: The requested range cannot be satisfied.
-	//
-	// * HTTP
-	// Status Code: 416 Requested Range Not Satisfiable
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: InvalidRequest
-	//
-	// * Description: Please use AWS4-HMAC-SHA256.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code: InvalidRequest
-	//
-	// *
-	// Description: SOAP requests must be made over an HTTPS connection.
-	//
-	// * HTTP Status
-	// Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidRequest
-	//
-	// * Description: Amazon S3 Transfer Acceleration is not supported
-	// for buckets with non-DNS compliant names.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * Code: N/A
-	//
-	// * Code: InvalidRequest
-	//
-	// * Description: Amazon S3 Transfer
-	// Acceleration is not supported for buckets with periods (.) in their names.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code: InvalidRequest
-	//
-	// *
-	// Description: Amazon S3 Transfer Accelerate endpoint only supports virtual style
-	// requests.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code:
-	// InvalidRequest
-	//
-	// * Description: Amazon S3 Transfer Accelerate is not configured
-	// on this bucket.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code:
-	// InvalidRequest
-	//
-	// * Description: Amazon S3 Transfer Accelerate is disabled on this
-	// bucket.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code:
-	// InvalidRequest
-	//
-	// * Description: Amazon S3 Transfer Acceleration is not supported
-	// on this bucket. Contact Amazon Web Services Support for more information.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code: InvalidRequest
-	//
-	// *
-	// Description: Amazon S3 Transfer Acceleration cannot be enabled on this bucket.
-	// Contact Amazon Web Services Support for more information.
-	//
-	// * HTTP Status Code:
-	// 400 Bad Request
-	//
-	// * Code: N/A
-	//
-	// * Code: InvalidSecurity
-	//
-	// * Description: The
-	// provided security credentials are not valid.
-	//
-	// * HTTP Status Code: 403
-	// Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: InvalidSOAPRequest
-	//
-	// *
-	// Description: The SOAP request body is invalid.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: InvalidStorageClass
-	//
-	// *
-	// Description: The storage class you specified is not valid.
-	//
-	// * HTTP Status Code:
-	// 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// InvalidTargetBucketForLogging
-	//
-	// * Description: The target bucket for logging does
-	// not exist, is not owned by you, or does not have the appropriate grants for the
-	// log-delivery group.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code
-	// Prefix: Client
-	//
-	// * Code: InvalidToken
-	//
-	// * Description: The provided token is
-	// malformed or otherwise invalid.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP
-	// Fault Code Prefix: Client
-	//
-	// * Code: InvalidURI
-	//
-	// * Description: Couldn't parse the
-	// specified URI.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: KeyTooLongError
-	//
-	// * Description: Your key is too long.
-	//
-	// * HTTP
-	// Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// MalformedACLError
-	//
-	// * Description: The XML you provided was not well-formed or
-	// did not validate against our published schema.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: MalformedPOSTRequest
-	//
-	// *
-	// Description: The body of your POST request is not well-formed
-	// multipart/form-data.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code
-	// Prefix: Client
-	//
-	// * Code: MalformedXML
-	//
-	// * Description: This happens when the user
-	// sends malformed XML (XML that doesn't conform to the published XSD) for the
-	// configuration. The error message is, "The XML you provided was not well-formed
-	// or did not validate against our published schema."
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: MaxMessageLengthExceeded
-	//
-	// *
-	// Description: Your request was too big.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// *
-	// SOAP Fault Code Prefix: Client
-	//
-	// * Code: MaxPostPreDataLengthExceededError
-	//
-	// *
-	// Description: Your POST request fields preceding the upload file were too
-	// large.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// *
-	// Code: MetadataTooLarge
-	//
-	// * Description: Your metadata headers exceed the maximum
-	// allowed metadata size.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code
-	// Prefix: Client
-	//
-	// * Code: MethodNotAllowed
-	//
-	// * Description: The specified method is
-	// not allowed against this resource.
-	//
-	// * HTTP Status Code: 405 Method Not
-	// Allowed
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: MissingAttachment
-	//
-	// *
-	// Description: A SOAP attachment was expected, but none were found.
-	//
-	// * HTTP Status
-	// Code: N/A
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: MissingContentLength
-	//
-	// *
-	// Description: You must provide the Content-Length HTTP header.
-	//
-	// * HTTP Status
-	// Code: 411 Length Required
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// MissingRequestBodyError
-	//
-	// * Description: This happens when the user sends an
-	// empty XML document as a request. The error message is, "Request body is
-	// empty."
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: MissingSecurityElement
-	//
-	// * Description: The SOAP 1.1 request is
-	// missing a security element.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault
-	// Code Prefix: Client
-	//
-	// * Code: MissingSecurityHeader
-	//
-	// * Description: Your request
-	// is missing a required header.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault
-	// Code Prefix: Client
-	//
-	// * Code: NoLoggingStatusForKey
-	//
-	// * Description: There is no
-	// such thing as a logging status subresource for a key.
-	//
-	// * HTTP Status Code: 400
-	// Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: NoSuchBucket
-	//
-	// *
-	// Description: The specified bucket does not exist.
-	//
-	// * HTTP Status Code: 404 Not
-	// Found
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: NoSuchBucketPolicy
-	//
-	// *
-	// Description: The specified bucket does not have a bucket policy.
-	//
-	// * HTTP Status
-	// Code: 404 Not Found
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: NoSuchKey
-	//
-	// *
-	// Description: The specified key does not exist.
-	//
-	// * HTTP Status Code: 404 Not
-	// Found
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: NoSuchLifecycleConfiguration
-	//
-	// *
-	// Description: The lifecycle configuration does not exist.
-	//
-	// * HTTP Status Code:
-	// 404 Not Found
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: NoSuchUpload
-	//
-	// *
-	// Description: The specified multipart upload does not exist. The upload ID might
-	// be invalid, or the multipart upload might have been aborted or completed.
-	//
-	// *
-	// HTTP Status Code: 404 Not Found
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// NoSuchVersion
-	//
-	// * Description: Indicates that the version ID specified in the
-	// request does not match an existing version.
-	//
-	// * HTTP Status Code: 404 Not
-	// Found
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: NotImplemented
-	//
-	// * Description:
-	// A header you provided implies functionality that is not implemented.
-	//
-	// * HTTP
-	// Status Code: 501 Not Implemented
-	//
-	// * SOAP Fault Code Prefix: Server
-	//
-	// * Code:
-	// NotSignedUp
-	//
-	// * Description: Your account is not signed up for the Amazon S3
-	// service. You must sign up before you can use Amazon S3. You can sign up at the
-	// following URL: Amazon S3 (http://aws.amazon.com/s3)
-	//
-	// * HTTP Status Code: 403
-	// Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: OperationAborted
-	//
-	// *
-	// Description: A conflicting conditional action is currently in progress against
-	// this resource. Try again.
-	//
-	// * HTTP Status Code: 409 Conflict
-	//
-	// * SOAP Fault Code
-	// Prefix: Client
-	//
-	// * Code: PermanentRedirect
-	//
-	// * Description: The bucket you are
-	// attempting to access must be addressed using the specified endpoint. Send all
-	// future requests to this endpoint.
-	//
-	// * HTTP Status Code: 301 Moved Permanently
-	//
-	// *
-	// SOAP Fault Code Prefix: Client
-	//
-	// * Code: PreconditionFailed
-	//
-	// * Description: At
-	// least one of the preconditions you specified did not hold.
-	//
-	// * HTTP Status Code:
-	// 412 Precondition Failed
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: Redirect
-	//
-	// *
-	// Description: Temporary redirect.
-	//
-	// * HTTP Status Code: 307 Moved Temporarily
-	//
-	// *
-	// SOAP Fault Code Prefix: Client
-	//
-	// * Code: RestoreAlreadyInProgress
-	//
-	// * Description:
-	// Object restore is already in progress.
-	//
-	// * HTTP Status Code: 409 Conflict
-	//
-	// * SOAP
-	// Fault Code Prefix: Client
-	//
-	// * Code: RequestIsNotMultiPartContent
-	//
-	// * Description:
-	// Bucket POST must be of the enclosure-type multipart/form-data.
-	//
-	// * HTTP Status
-	// Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// RequestTimeout
-	//
-	// * Description: Your socket connection to the server was not read
-	// from or written to within the timeout period.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: RequestTimeTooSkewed
-	//
-	// *
-	// Description: The difference between the request time and the server's time is
-	// too large.
-	//
-	// * HTTP Status Code: 403 Forbidden
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: RequestTorrentOfBucketError
-	//
-	// * Description: Requesting the
-	// torrent file of a bucket is not permitted.
-	//
-	// * HTTP Status Code: 400 Bad
-	// Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code: SignatureDoesNotMatch
-	//
-	// *
-	// Description: The request signature we calculated does not match the signature
-	// you provided. Check your Amazon Web Services secret access key and signing
-	// method. For more information, see REST Authentication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html) and
-	// SOAP Authentication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/SOAPAuthentication.html) for
-	// details.
-	//
-	// * HTTP Status Code: 403 Forbidden
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// *
-	// Code: ServiceUnavailable
-	//
-	// * Description: Reduce your request rate.
-	//
-	// * HTTP
-	// Status Code: 503 Service Unavailable
-	//
-	// * SOAP Fault Code Prefix: Server
-	//
-	// * Code:
-	// SlowDown
-	//
-	// * Description: Reduce your request rate.
-	//
-	// * HTTP Status Code: 503 Slow
-	// Down
-	//
-	// * SOAP Fault Code Prefix: Server
-	//
-	// * Code: TemporaryRedirect
-	//
-	// *
-	// Description: You are being redirected to the bucket while DNS updates.
-	//
-	// * HTTP
-	// Status Code: 307 Moved Temporarily
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// TokenRefreshRequired
-	//
-	// * Description: The provided token must be refreshed.
-	//
-	// *
-	// HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// TooManyBuckets
-	//
-	// * Description: You have attempted to create more buckets than
-	// allowed.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: UnexpectedContent
-	//
-	// * Description: This request does not support
-	// content.
-	//
-	// * HTTP Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix:
-	// Client
-	//
-	// * Code: UnresolvableGrantByEmailAddress
-	//
-	// * Description: The email
-	// address you provided does not match any account on record.
-	//
-	// * HTTP Status Code:
-	// 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
-	//
-	// * Code:
-	// UserKeyMustBeSpecified
-	//
-	// * Description: The bucket POST must contain the
-	// specified field name. If it is specified, check the order of the fields.
-	//
-	// * HTTP
-	// Status Code: 400 Bad Request
-	//
-	// * SOAP Fault Code Prefix: Client
+	// type. The following is a list of Amazon S3 error codes. For more information,
+	// see Error responses (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html)
+	// .
+	//   - Code: AccessDenied
+	//   - Description: Access Denied
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: AccountProblem
+	//   - Description: There is a problem with your Amazon Web Services account that
+	//   prevents the action from completing successfully. Contact Amazon Web Services
+	//   Support for further assistance.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: AllAccessDisabled
+	//   - Description: All access to this Amazon S3 resource has been disabled.
+	//   Contact Amazon Web Services Support for further assistance.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: AmbiguousGrantByEmailAddress
+	//   - Description: The email address you provided is associated with more than
+	//   one account.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: AuthorizationHeaderMalformed
+	//   - Description: The authorization header you provided is invalid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - HTTP Status Code: N/A
+	//   - Code: BadDigest
+	//   - Description: The Content-MD5 you specified did not match what we received.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: BucketAlreadyExists
+	//   - Description: The requested bucket name is not available. The bucket
+	//   namespace is shared by all users of the system. Please select a different name
+	//   and try again.
+	//   - HTTP Status Code: 409 Conflict
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: BucketAlreadyOwnedByYou
+	//   - Description: The bucket you tried to create already exists, and you own it.
+	//   Amazon S3 returns this error in all Amazon Web Services Regions except in the
+	//   North Virginia Region. For legacy compatibility, if you re-create an existing
+	//   bucket that you already own in the North Virginia Region, Amazon S3 returns 200
+	//   OK and resets the bucket access control lists (ACLs).
+	//   - Code: 409 Conflict (in all Regions except the North Virginia Region)
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: BucketNotEmpty
+	//   - Description: The bucket you tried to delete is not empty.
+	//   - HTTP Status Code: 409 Conflict
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: CredentialsNotSupported
+	//   - Description: This request does not support credentials.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: CrossLocationLoggingProhibited
+	//   - Description: Cross-location logging not allowed. Buckets in one geographic
+	//   location cannot log information to a bucket in another location.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: EntityTooSmall
+	//   - Description: Your proposed upload is smaller than the minimum allowed
+	//   object size.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: EntityTooLarge
+	//   - Description: Your proposed upload exceeds the maximum allowed object size.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: ExpiredToken
+	//   - Description: The provided token has expired.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: IllegalVersioningConfigurationException
+	//   - Description: Indicates that the versioning configuration specified in the
+	//   request is invalid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: IncompleteBody
+	//   - Description: You did not provide the number of bytes specified by the
+	//   Content-Length HTTP header
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: IncorrectNumberOfFilesInPostRequest
+	//   - Description: POST requires exactly one file upload per request.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InlineDataTooLarge
+	//   - Description: Inline data exceeds the maximum allowed size.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InternalError
+	//   - Description: We encountered an internal error. Please try again.
+	//   - HTTP Status Code: 500 Internal Server Error
+	//   - SOAP Fault Code Prefix: Server
+	//   - Code: InvalidAccessKeyId
+	//   - Description: The Amazon Web Services access key ID you provided does not
+	//   exist in our records.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidAddressingHeader
+	//   - Description: You must specify the Anonymous role.
+	//   - HTTP Status Code: N/A
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidArgument
+	//   - Description: Invalid Argument
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidBucketName
+	//   - Description: The specified bucket is not valid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidBucketState
+	//   - Description: The request is not valid with the current state of the bucket.
+	//   - HTTP Status Code: 409 Conflict
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidDigest
+	//   - Description: The Content-MD5 you specified is not valid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidEncryptionAlgorithmError
+	//   - Description: The encryption request you specified is not valid. The valid
+	//   value is AES256.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidLocationConstraint
+	//   - Description: The specified location constraint is not valid. For more
+	//   information about Regions, see How to Select a Region for Your Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingBucket.html#access-bucket-intro)
+	//   .
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidObjectState
+	//   - Description: The action is not valid for the current state of the object.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidPart
+	//   - Description: One or more of the specified parts could not be found. The
+	//   part might not have been uploaded, or the specified entity tag might not have
+	//   matched the part's entity tag.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidPartOrder
+	//   - Description: The list of parts was not in ascending order. Parts list must
+	//   be specified in order by part number.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidPayer
+	//   - Description: All access to this object has been disabled. Please contact
+	//   Amazon Web Services Support for further assistance.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidPolicyDocument
+	//   - Description: The content of the form does not meet the conditions specified
+	//   in the policy document.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidRange
+	//   - Description: The requested range cannot be satisfied.
+	//   - HTTP Status Code: 416 Requested Range Not Satisfiable
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidRequest
+	//   - Description: Please use AWS4-HMAC-SHA256 .
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: SOAP requests must be made over an HTTPS connection.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Acceleration is not supported for buckets
+	//   with non-DNS compliant names.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Acceleration is not supported for buckets
+	//   with periods (.) in their names.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Accelerate endpoint only supports virtual
+	//   style requests.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Accelerate is not configured on this
+	//   bucket.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Accelerate is disabled on this bucket.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Acceleration is not supported on this
+	//   bucket. Contact Amazon Web Services Support for more information.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidRequest
+	//   - Description: Amazon S3 Transfer Acceleration cannot be enabled on this
+	//   bucket. Contact Amazon Web Services Support for more information.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - Code: N/A
+	//   - Code: InvalidSecurity
+	//   - Description: The provided security credentials are not valid.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidSOAPRequest
+	//   - Description: The SOAP request body is invalid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidStorageClass
+	//   - Description: The storage class you specified is not valid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidTargetBucketForLogging
+	//   - Description: The target bucket for logging does not exist, is not owned by
+	//   you, or does not have the appropriate grants for the log-delivery group.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidToken
+	//   - Description: The provided token is malformed or otherwise invalid.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: InvalidURI
+	//   - Description: Couldn't parse the specified URI.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: KeyTooLongError
+	//   - Description: Your key is too long.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MalformedACLError
+	//   - Description: The XML you provided was not well-formed or did not validate
+	//   against our published schema.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MalformedPOSTRequest
+	//   - Description: The body of your POST request is not well-formed
+	//   multipart/form-data.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MalformedXML
+	//   - Description: This happens when the user sends malformed XML (XML that
+	//   doesn't conform to the published XSD) for the configuration. The error message
+	//   is, "The XML you provided was not well-formed or did not validate against our
+	//   published schema."
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MaxMessageLengthExceeded
+	//   - Description: Your request was too big.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MaxPostPreDataLengthExceededError
+	//   - Description: Your POST request fields preceding the upload file were too
+	//   large.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MetadataTooLarge
+	//   - Description: Your metadata headers exceed the maximum allowed metadata
+	//   size.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MethodNotAllowed
+	//   - Description: The specified method is not allowed against this resource.
+	//   - HTTP Status Code: 405 Method Not Allowed
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MissingAttachment
+	//   - Description: A SOAP attachment was expected, but none were found.
+	//   - HTTP Status Code: N/A
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MissingContentLength
+	//   - Description: You must provide the Content-Length HTTP header.
+	//   - HTTP Status Code: 411 Length Required
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MissingRequestBodyError
+	//   - Description: This happens when the user sends an empty XML document as a
+	//   request. The error message is, "Request body is empty."
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MissingSecurityElement
+	//   - Description: The SOAP 1.1 request is missing a security element.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: MissingSecurityHeader
+	//   - Description: Your request is missing a required header.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoLoggingStatusForKey
+	//   - Description: There is no such thing as a logging status subresource for a
+	//   key.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoSuchBucket
+	//   - Description: The specified bucket does not exist.
+	//   - HTTP Status Code: 404 Not Found
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoSuchBucketPolicy
+	//   - Description: The specified bucket does not have a bucket policy.
+	//   - HTTP Status Code: 404 Not Found
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoSuchKey
+	//   - Description: The specified key does not exist.
+	//   - HTTP Status Code: 404 Not Found
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoSuchLifecycleConfiguration
+	//   - Description: The lifecycle configuration does not exist.
+	//   - HTTP Status Code: 404 Not Found
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoSuchUpload
+	//   - Description: The specified multipart upload does not exist. The upload ID
+	//   might be invalid, or the multipart upload might have been aborted or completed.
+	//   - HTTP Status Code: 404 Not Found
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NoSuchVersion
+	//   - Description: Indicates that the version ID specified in the request does
+	//   not match an existing version.
+	//   - HTTP Status Code: 404 Not Found
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: NotImplemented
+	//   - Description: A header you provided implies functionality that is not
+	//   implemented.
+	//   - HTTP Status Code: 501 Not Implemented
+	//   - SOAP Fault Code Prefix: Server
+	//   - Code: NotSignedUp
+	//   - Description: Your account is not signed up for the Amazon S3 service. You
+	//   must sign up before you can use Amazon S3. You can sign up at the following URL:
+	//   Amazon S3 (http://aws.amazon.com/s3)
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: OperationAborted
+	//   - Description: A conflicting conditional action is currently in progress
+	//   against this resource. Try again.
+	//   - HTTP Status Code: 409 Conflict
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: PermanentRedirect
+	//   - Description: The bucket you are attempting to access must be addressed
+	//   using the specified endpoint. Send all future requests to this endpoint.
+	//   - HTTP Status Code: 301 Moved Permanently
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: PreconditionFailed
+	//   - Description: At least one of the preconditions you specified did not hold.
+	//   - HTTP Status Code: 412 Precondition Failed
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: Redirect
+	//   - Description: Temporary redirect.
+	//   - HTTP Status Code: 307 Moved Temporarily
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: RestoreAlreadyInProgress
+	//   - Description: Object restore is already in progress.
+	//   - HTTP Status Code: 409 Conflict
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: RequestIsNotMultiPartContent
+	//   - Description: Bucket POST must be of the enclosure-type multipart/form-data.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: RequestTimeout
+	//   - Description: Your socket connection to the server was not read from or
+	//   written to within the timeout period.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: RequestTimeTooSkewed
+	//   - Description: The difference between the request time and the server's time
+	//   is too large.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: RequestTorrentOfBucketError
+	//   - Description: Requesting the torrent file of a bucket is not permitted.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: SignatureDoesNotMatch
+	//   - Description: The request signature we calculated does not match the
+	//   signature you provided. Check your Amazon Web Services secret access key and
+	//   signing method. For more information, see REST Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/RESTAuthentication.html)
+	//   and SOAP Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/SOAPAuthentication.html)
+	//   for details.
+	//   - HTTP Status Code: 403 Forbidden
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: ServiceUnavailable
+	//   - Description: Service is unable to handle request.
+	//   - HTTP Status Code: 503 Service Unavailable
+	//   - SOAP Fault Code Prefix: Server
+	//   - Code: SlowDown
+	//   - Description: Reduce your request rate.
+	//   - HTTP Status Code: 503 Slow Down
+	//   - SOAP Fault Code Prefix: Server
+	//   - Code: TemporaryRedirect
+	//   - Description: You are being redirected to the bucket while DNS updates.
+	//   - HTTP Status Code: 307 Moved Temporarily
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: TokenRefreshRequired
+	//   - Description: The provided token must be refreshed.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: TooManyBuckets
+	//   - Description: You have attempted to create more buckets than allowed.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: UnexpectedContent
+	//   - Description: This request does not support content.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: UnresolvableGrantByEmailAddress
+	//   - Description: The email address you provided does not match any account on
+	//   record.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
+	//   - Code: UserKeyMustBeSpecified
+	//   - Description: The bucket POST must contain the specified field name. If it
+	//   is specified, check the order of the fields.
+	//   - HTTP Status Code: 400 Bad Request
+	//   - SOAP Fault Code Prefix: Client
 	Code *string
 
 	// The error key.
@@ -1745,9 +1188,9 @@ type ErrorDocument struct {
 
 	// The object key name to use when a 4XX class error occurs. Replacement must be
 	// made for object keys containing special characters (such as carriage returns)
-	// when using XML requests. For more information, see  XML related object key
-	// constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// when using XML requests. For more information, see XML related object key
+	// constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	//
 	// This member is required.
 	Key *string
@@ -1761,12 +1204,11 @@ type EventBridgeConfiguration struct {
 }
 
 // Optional configuration to replicate existing source bucket objects. For more
-// information, see Replicating Existing Objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication)
+// information, see Replicating Existing Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication)
 // in the Amazon S3 User Guide.
 type ExistingObjectReplication struct {
 
-	//
+	// Specifies whether Amazon S3 replicates existing source bucket objects.
 	//
 	// This member is required.
 	Status ExistingObjectReplicationStatus
@@ -1781,9 +1223,8 @@ type FilterRule struct {
 	// The object key name prefix or suffix identifying one or more objects to which
 	// the filtering rule applies. The maximum length is 1,024 characters. Overlapping
 	// prefixes and suffixes are not supported. For more information, see Configuring
-	// Event Notifications
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-	// Amazon S3 User Guide.
+	// Event Notifications (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+	// in the Amazon S3 User Guide.
 	Name FilterRuleName
 
 	// The value that the filter searches for in object key names.
@@ -1855,32 +1296,19 @@ type Grantee struct {
 	// Screen name of the grantee.
 	DisplayName *string
 
-	// Email address of the grantee. Using email addresses to specify a grantee is only
-	// supported in the following Amazon Web Services Regions:
-	//
-	// * US East (N.
-	// Virginia)
-	//
-	// * US West (N. California)
-	//
-	// * US West (Oregon)
-	//
-	// * Asia Pacific
-	// (Singapore)
-	//
-	// * Asia Pacific (Sydney)
-	//
-	// * Asia Pacific (Tokyo)
-	//
-	// * Europe
-	// (Ireland)
-	//
-	// * South America (São Paulo)
-	//
-	// For a list of all the Amazon S3
-	// supported Regions and endpoints, see Regions and Endpoints
-	// (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region) in the
-	// Amazon Web Services General Reference.
+	// Email address of the grantee. Using email addresses to specify a grantee is
+	// only supported in the following Amazon Web Services Regions:
+	//   - US East (N. Virginia)
+	//   - US West (N. California)
+	//   - US West (Oregon)
+	//   - Asia Pacific (Singapore)
+	//   - Asia Pacific (Sydney)
+	//   - Asia Pacific (Tokyo)
+	//   - Europe (Ireland)
+	//   - South America (São Paulo)
+	// For a list of all the Amazon S3 supported Regions and endpoints, see Regions
+	// and Endpoints (https://docs.aws.amazon.com/general/latest/gr/rande.html#s3_region)
+	// in the Amazon Web Services General Reference.
 	EmailAddress *string
 
 	// The canonical user ID of the grantee.
@@ -1901,8 +1329,8 @@ type IndexDocument struct {
 	// key name images/index.html) The suffix must not be empty and must not include a
 	// slash character. Replacement must be made for object keys containing special
 	// characters (such as carriage returns) when using XML requests. For more
-	// information, see  XML related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	//
 	// This member is required.
 	Suffix *string
@@ -1942,8 +1370,8 @@ type InputSerialization struct {
 	noSmithyDocumentSerde
 }
 
-// A container for specifying S3 Intelligent-Tiering filters. The filters determine
-// the subset of objects to which the rule applies.
+// A container for specifying S3 Intelligent-Tiering filters. The filters
+// determine the subset of objects to which the rule applies.
 type IntelligentTieringAndOperator struct {
 
 	// An object key name prefix that identifies the subset of objects to which the
@@ -1959,8 +1387,8 @@ type IntelligentTieringAndOperator struct {
 
 // Specifies the S3 Intelligent-Tiering configuration for an Amazon S3 bucket. For
 // information about the S3 Intelligent-Tiering storage class, see Storage class
-// for automatically optimizing frequently and infrequently accessed objects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access).
+// for automatically optimizing frequently and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access)
+// .
 type IntelligentTieringConfiguration struct {
 
 	// The ID used to identify the S3 Intelligent-Tiering configuration.
@@ -1978,8 +1406,8 @@ type IntelligentTieringConfiguration struct {
 	// This member is required.
 	Tierings []Tiering
 
-	// Specifies a bucket filter. The configuration only includes objects that meet the
-	// filter's criteria.
+	// Specifies a bucket filter. The configuration only includes objects that meet
+	// the filter's criteria.
 	Filter *IntelligentTieringFilter
 
 	noSmithyDocumentSerde
@@ -1989,16 +1417,16 @@ type IntelligentTieringConfiguration struct {
 // configuration applies to.
 type IntelligentTieringFilter struct {
 
-	// A conjunction (logical AND) of predicates, which is used in evaluating a metrics
-	// filter. The operator must have at least two predicates, and an object must match
-	// all of the predicates in order for the filter to apply.
+	// A conjunction (logical AND) of predicates, which is used in evaluating a
+	// metrics filter. The operator must have at least two predicates, and an object
+	// must match all of the predicates in order for the filter to apply.
 	And *IntelligentTieringAndOperator
 
 	// An object key name prefix that identifies the subset of objects to which the
 	// rule applies. Replacement must be made for object keys containing special
 	// characters (such as carriage returns) when using XML requests. For more
-	// information, see  XML related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	Prefix *string
 
 	// A container of a key value name pair.
@@ -2008,8 +1436,7 @@ type IntelligentTieringFilter struct {
 }
 
 // Specifies the inventory configuration for an Amazon S3 bucket. For more
-// information, see GET Bucket inventory
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETInventoryConfig.html)
+// information, see GET Bucket inventory (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketGETInventoryConfig.html)
 // in the Amazon S3 API Reference.
 type InventoryConfiguration struct {
 
@@ -2023,16 +1450,16 @@ type InventoryConfiguration struct {
 	// This member is required.
 	Id *string
 
-	// Object versions to include in the inventory list. If set to All, the list
+	// Object versions to include in the inventory list. If set to All , the list
 	// includes all the object versions, which adds the version-related fields
-	// VersionId, IsLatest, and DeleteMarker to the list. If set to Current, the list
-	// does not contain these version-related fields.
+	// VersionId , IsLatest , and DeleteMarker to the list. If set to Current , the
+	// list does not contain these version-related fields.
 	//
 	// This member is required.
 	IncludedObjectVersions InventoryIncludedObjectVersions
 
-	// Specifies whether the inventory is enabled or disabled. If set to True, an
-	// inventory list is generated. If set to False, no inventory list is generated.
+	// Specifies whether the inventory is enabled or disabled. If set to True , an
+	// inventory list is generated. If set to False , no inventory list is generated.
 	//
 	// This member is required.
 	IsEnabled bool
@@ -2042,8 +1469,8 @@ type InventoryConfiguration struct {
 	// This member is required.
 	Schedule *InventorySchedule
 
-	// Specifies an inventory filter. The inventory only includes objects that meet the
-	// filter's criteria.
+	// Specifies an inventory filter. The inventory only includes objects that meet
+	// the filter's criteria.
 	Filter *InventoryFilter
 
 	// Contains the optional fields that are included in the inventory results.
@@ -2077,8 +1504,8 @@ type InventoryEncryption struct {
 	noSmithyDocumentSerde
 }
 
-// Specifies an inventory filter. The inventory only includes objects that meet the
-// filter's criteria.
+// Specifies an inventory filter. The inventory only includes objects that meet
+// the filter's criteria.
 type InventoryFilter struct {
 
 	// The prefix that an object must have to be included in the inventory results.
@@ -2154,9 +1581,8 @@ type JSONOutput struct {
 type LambdaFunctionConfiguration struct {
 
 	// The Amazon S3 bucket event for which to invoke the Lambda function. For more
-	// information, see Supported Event Types
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-	// Amazon S3 User Guide.
+	// information, see Supported Event Types (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Events []Event
@@ -2168,9 +1594,8 @@ type LambdaFunctionConfiguration struct {
 	LambdaFunctionArn *string
 
 	// Specifies object key name filtering rules. For information about key name
-	// filtering, see Configuring Event Notifications
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-	// Amazon S3 User Guide.
+	// filtering, see Configuring event notifications using object key name filtering (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
+	// in the Amazon S3 User Guide.
 	Filter *NotificationConfigurationFilter
 
 	// An optional unique identifier for configurations in a notification
@@ -2180,11 +1605,13 @@ type LambdaFunctionConfiguration struct {
 	noSmithyDocumentSerde
 }
 
-// Container for the expiration for the lifecycle of the object.
+// Container for the expiration for the lifecycle of the object. For more
+// information see, Managing your storage lifecycle (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
+// in the Amazon S3 User Guide.
 type LifecycleExpiration struct {
 
-	// Indicates at what date the object is to be moved or deleted. Should be in GMT
-	// ISO 8601 Format.
+	// Indicates at what date the object is to be moved or deleted. The date value
+	// must conform to the ISO 8601 format. The time is always midnight UTC.
 	Date *time.Time
 
 	// Indicates the lifetime, in days, of the objects that are subject to the rule.
@@ -2200,7 +1627,9 @@ type LifecycleExpiration struct {
 	noSmithyDocumentSerde
 }
 
-// A lifecycle rule for individual objects in an Amazon S3 bucket.
+// A lifecycle rule for individual objects in an Amazon S3 bucket. For more
+// information see, Managing your storage lifecycle (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
+// in the Amazon S3 User Guide.
 type LifecycleRule struct {
 
 	// If 'Enabled', the rule is currently being applied. If 'Disabled', the rule is
@@ -2211,9 +1640,8 @@ type LifecycleRule struct {
 
 	// Specifies the days since the initiation of an incomplete multipart upload that
 	// Amazon S3 will wait before permanently removing all parts of the upload. For
-	// more information, see  Aborting Incomplete Multipart Uploads Using a Bucket
-	// Lifecycle Policy
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
+	// more information, see Aborting Incomplete Multipart Uploads Using a Bucket
+	// Lifecycle Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html#mpu-abort-incomplete-mpu-lifecycle-config)
 	// in the Amazon S3 User Guide.
 	AbortIncompleteMultipartUpload *AbortIncompleteMultipartUpload
 
@@ -2222,7 +1650,7 @@ type LifecycleRule struct {
 	Expiration *LifecycleExpiration
 
 	// The Filter is used to identify objects that a Lifecycle Rule applies to. A
-	// Filter must have exactly one of Prefix, Tag, or And specified. Filter is
+	// Filter must have exactly one of Prefix , Tag , or And specified. Filter is
 	// required if the LifecycleRule does not contain a Prefix element.
 	Filter LifecycleRuleFilter
 
@@ -2246,8 +1674,8 @@ type LifecycleRule struct {
 	// Prefix identifying one or more objects to which the rule applies. This is no
 	// longer used; use Filter instead. Replacement must be made for object keys
 	// containing special characters (such as carriage returns) when using XML
-	// requests. For more information, see  XML related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// requests. For more information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	//
 	// Deprecated: This member has been deprecated.
 	Prefix *string
@@ -2280,7 +1708,7 @@ type LifecycleRuleAndOperator struct {
 }
 
 // The Filter is used to identify objects that a Lifecycle Rule applies to. A
-// Filter must have exactly one of Prefix, Tag, or And specified.
+// Filter must have exactly one of Prefix , Tag , or And specified.
 //
 // The following types satisfy this interface:
 //
@@ -2324,9 +1752,9 @@ func (*LifecycleRuleFilterMemberObjectSizeLessThan) isLifecycleRuleFilter() {}
 
 // Prefix identifying one or more objects to which the rule applies. Replacement
 // must be made for object keys containing special characters (such as carriage
-// returns) when using XML requests. For more information, see  XML related object
-// key constraints
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+// returns) when using XML requests. For more information, see XML related object
+// key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+// .
 type LifecycleRuleFilterMemberPrefix struct {
 	Value string
 
@@ -2344,10 +1772,9 @@ type LifecycleRuleFilterMemberTag struct {
 
 func (*LifecycleRuleFilterMemberTag) isLifecycleRuleFilter() {}
 
-// Describes where logs are stored and the prefix that Amazon S3 assigns to all log
-// object keys for a bucket. For more information, see PUT Bucket logging
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html) in
-// the Amazon S3 API Reference.
+// Describes where logs are stored and the prefix that Amazon S3 assigns to all
+// log object keys for a bucket. For more information, see PUT Bucket logging (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTlogging.html)
+// in the Amazon S3 API Reference.
 type LoggingEnabled struct {
 
 	// Specifies the bucket where you want Amazon S3 to store server access logs. You
@@ -2360,17 +1787,16 @@ type LoggingEnabled struct {
 	// This member is required.
 	TargetBucket *string
 
-	// A prefix for all log object keys. If you store log files from multiple Amazon S3
-	// buckets in a single bucket, you can use a prefix to distinguish which log files
-	// came from which bucket.
+	// A prefix for all log object keys. If you store log files from multiple Amazon
+	// S3 buckets in a single bucket, you can use a prefix to distinguish which log
+	// files came from which bucket.
 	//
 	// This member is required.
 	TargetPrefix *string
 
 	// Container for granting information. Buckets that use the bucket owner enforced
 	// setting for Object Ownership don't support target grants. For more information,
-	// see Permissions for server access log delivery
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
+	// see Permissions for server access log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
 	// in the Amazon S3 User Guide.
 	TargetGrants []TargetGrant
 
@@ -2389,8 +1815,8 @@ type MetadataEntry struct {
 	noSmithyDocumentSerde
 }
 
-// A container specifying replication metrics-related settings enabling replication
-// metrics and events.
+// A container specifying replication metrics-related settings enabling
+// replication metrics and events.
 type Metrics struct {
 
 	// Specifies whether the replication metrics are enabled.
@@ -2405,9 +1831,9 @@ type Metrics struct {
 	noSmithyDocumentSerde
 }
 
-// A conjunction (logical AND) of predicates, which is used in evaluating a metrics
-// filter. The operator must have at least two predicates, and an object must match
-// all of the predicates in order for the filter to apply.
+// A conjunction (logical AND) of predicates, which is used in evaluating a
+// metrics filter. The operator must have at least two predicates, and an object
+// must match all of the predicates in order for the filter to apply.
 type MetricsAndOperator struct {
 
 	// The access point ARN used when evaluating an AND predicate.
@@ -2426,11 +1852,12 @@ type MetricsAndOperator struct {
 // by the metrics configuration ID) from an Amazon S3 bucket. If you're updating an
 // existing metrics configuration, note that this is a full replacement of the
 // existing metrics configuration. If you don't include the elements you want to
-// keep, they are erased. For more information, see PutBucketMetricsConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTMetricConfiguration.html).
+// keep, they are erased. For more information, see PutBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTMetricConfiguration.html)
+// .
 type MetricsConfiguration struct {
 
-	// The ID used to identify the metrics configuration.
+	// The ID used to identify the metrics configuration. The ID has a 64 character
+	// limit and can only contain letters, numbers, periods, dashes, and underscores.
 	//
 	// This member is required.
 	Id *string
@@ -2446,8 +1873,8 @@ type MetricsConfiguration struct {
 // Specifies a metrics configuration filter. The metrics configuration only
 // includes objects that meet the filter's criteria. A filter must be a prefix, an
 // object tag, an access point ARN, or a conjunction (MetricsAndOperator). For more
-// information, see PutBucketMetricsConfiguration
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketMetricsConfiguration.html).
+// information, see PutBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketMetricsConfiguration.html)
+// .
 //
 // The following types satisfy this interface:
 //
@@ -2468,9 +1895,9 @@ type MetricsFilterMemberAccessPointArn struct {
 
 func (*MetricsFilterMemberAccessPointArn) isMetricsFilter() {}
 
-// A conjunction (logical AND) of predicates, which is used in evaluating a metrics
-// filter. The operator must have at least two predicates, and an object must match
-// all of the predicates in order for the filter to apply.
+// A conjunction (logical AND) of predicates, which is used in evaluating a
+// metrics filter. The operator must have at least two predicates, and an object
+// must match all of the predicates in order for the filter to apply.
 type MetricsFilterMemberAnd struct {
 	Value MetricsAndOperator
 
@@ -2534,16 +1961,14 @@ type NoncurrentVersionExpiration struct {
 	// Specifies how many noncurrent versions Amazon S3 will retain. If there are this
 	// many more recent noncurrent versions, Amazon S3 will take the associated action.
 	// For more information about noncurrent versions, see Lifecycle configuration
-	// elements
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
+	// elements (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
 	// in the Amazon S3 User Guide.
 	NewerNoncurrentVersions int32
 
 	// Specifies the number of days an object is noncurrent before Amazon S3 can
 	// perform the associated action. The value must be a non-zero positive integer.
 	// For information about the noncurrent days calculations, see How Amazon S3
-	// Calculates When an Object Became Noncurrent
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#non-current-days-calculations)
+	// Calculates When an Object Became Noncurrent (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#non-current-days-calculations)
 	// in the Amazon S3 User Guide.
 	NoncurrentDays int32
 
@@ -2551,27 +1976,25 @@ type NoncurrentVersionExpiration struct {
 }
 
 // Container for the transition rule that describes when noncurrent objects
-// transition to the STANDARD_IA, ONEZONE_IA, INTELLIGENT_TIERING, GLACIER_IR,
-// GLACIER, or DEEP_ARCHIVE storage class. If your bucket is versioning-enabled (or
-// versioning is suspended), you can set this action to request that Amazon S3
-// transition noncurrent object versions to the STANDARD_IA, ONEZONE_IA,
-// INTELLIGENT_TIERING, GLACIER_IR, GLACIER, or DEEP_ARCHIVE storage class at a
+// transition to the STANDARD_IA , ONEZONE_IA , INTELLIGENT_TIERING , GLACIER_IR ,
+// GLACIER , or DEEP_ARCHIVE storage class. If your bucket is versioning-enabled
+// (or versioning is suspended), you can set this action to request that Amazon S3
+// transition noncurrent object versions to the STANDARD_IA , ONEZONE_IA ,
+// INTELLIGENT_TIERING , GLACIER_IR , GLACIER , or DEEP_ARCHIVE storage class at a
 // specific period in the object's lifetime.
 type NoncurrentVersionTransition struct {
 
 	// Specifies how many noncurrent versions Amazon S3 will retain. If there are this
 	// many more recent noncurrent versions, Amazon S3 will take the associated action.
 	// For more information about noncurrent versions, see Lifecycle configuration
-	// elements
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
+	// elements (https://docs.aws.amazon.com/AmazonS3/latest/userguide/intro-lifecycle-rules.html)
 	// in the Amazon S3 User Guide.
 	NewerNoncurrentVersions int32
 
 	// Specifies the number of days an object is noncurrent before Amazon S3 can
 	// perform the associated action. For information about the noncurrent days
 	// calculations, see How Amazon S3 Calculates How Long an Object Has Been
-	// Noncurrent
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#non-current-days-calculations)
+	// Noncurrent (https://docs.aws.amazon.com/AmazonS3/latest/dev/intro-lifecycle-rules.html#non-current-days-calculations)
 	// in the Amazon S3 User Guide.
 	NoncurrentDays int32
 
@@ -2581,8 +2004,8 @@ type NoncurrentVersionTransition struct {
 	noSmithyDocumentSerde
 }
 
-// A container for specifying the notification configuration of the bucket. If this
-// element is empty, notifications are turned off for the bucket.
+// A container for specifying the notification configuration of the bucket. If
+// this element is empty, notifications are turned off for the bucket.
 type NotificationConfiguration struct {
 
 	// Enables delivery of events to Amazon EventBridge.
@@ -2592,21 +2015,20 @@ type NotificationConfiguration struct {
 	// them.
 	LambdaFunctionConfigurations []LambdaFunctionConfiguration
 
-	// The Amazon Simple Queue Service queues to publish messages to and the events for
-	// which to publish messages.
+	// The Amazon Simple Queue Service queues to publish messages to and the events
+	// for which to publish messages.
 	QueueConfigurations []QueueConfiguration
 
-	// The topic to which notifications are sent and the events for which notifications
-	// are generated.
+	// The topic to which notifications are sent and the events for which
+	// notifications are generated.
 	TopicConfigurations []TopicConfiguration
 
 	noSmithyDocumentSerde
 }
 
 // Specifies object key name filtering rules. For information about key name
-// filtering, see Configuring Event Notifications
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-// Amazon S3 User Guide.
+// filtering, see Configuring event notifications using object key name filtering (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
+// in the Amazon S3 User Guide.
 type NotificationConfigurationFilter struct {
 
 	// A container for object key name prefix and suffix filtering rules.
@@ -2625,22 +2047,17 @@ type Object struct {
 	// contents of an object, not its metadata. The ETag may or may not be an MD5
 	// digest of the object data. Whether or not it is depends on how the object was
 	// created and how it is encrypted as described below:
-	//
-	// * Objects created by the
-	// PUT Object, POST Object, or Copy operation, or through the Amazon Web Services
-	// Management Console, and are encrypted by SSE-S3 or plaintext, have ETags that
-	// are an MD5 digest of their object data.
-	//
-	// * Objects created by the PUT Object,
-	// POST Object, or Copy operation, or through the Amazon Web Services Management
-	// Console, and are encrypted by SSE-C or SSE-KMS, have ETags that are not an MD5
-	// digest of their object data.
-	//
-	// * If an object is created by either the Multipart
-	// Upload or Part Copy operation, the ETag is not an MD5 digest, regardless of the
-	// method of encryption. If an object is larger than 16 MB, the Amazon Web Services
-	// Management Console will upload or copy that object as a Multipart Upload, and
-	// therefore the ETag will not be an MD5 digest.
+	//   - Objects created by the PUT Object, POST Object, or Copy operation, or
+	//   through the Amazon Web Services Management Console, and are encrypted by SSE-S3
+	//   or plaintext, have ETags that are an MD5 digest of their object data.
+	//   - Objects created by the PUT Object, POST Object, or Copy operation, or
+	//   through the Amazon Web Services Management Console, and are encrypted by SSE-C
+	//   or SSE-KMS, have ETags that are not an MD5 digest of their object data.
+	//   - If an object is created by either the Multipart Upload or Part Copy
+	//   operation, the ETag is not an MD5 digest, regardless of the method of
+	//   encryption. If an object is larger than 16 MB, the Amazon Web Services
+	//   Management Console will upload or copy that object as a Multipart Upload, and
+	//   therefore the ETag will not be an MD5 digest.
 	ETag *string
 
 	// The name that you assign to an object. You use the object key to retrieve the
@@ -2667,8 +2084,8 @@ type ObjectIdentifier struct {
 
 	// Key name of the object. Replacement must be made for object keys containing
 	// special characters (such as carriage returns) when using XML requests. For more
-	// information, see  XML related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	//
 	// This member is required.
 	Key *string
@@ -2687,9 +2104,9 @@ type ObjectLockConfiguration struct {
 	ObjectLockEnabled ObjectLockEnabled
 
 	// Specifies the Object Lock rule for the specified object. Enable the this rule
-	// when you apply ObjectLockConfiguration to a bucket. Bucket settings require both
-	// a mode and a period. The period can be either Days or Years but you must select
-	// one. You cannot specify Days and Years at the same time.
+	// when you apply ObjectLockConfiguration to a bucket. Bucket settings require
+	// both a mode and a period. The period can be either Days or Years but you must
+	// select one. You cannot specify Days and Years at the same time.
 	Rule *ObjectLockRule
 
 	noSmithyDocumentSerde
@@ -2734,37 +2151,33 @@ type ObjectPart struct {
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// The base64-encoded, 256-bit SHA-256 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
-	// The part number identifying the part. This value is a positive integer between 1
-	// and 10,000.
+	// The part number identifying the part. This value is a positive integer between
+	// 1 and 10,000.
 	PartNumber int32
 
 	// The size of the uploaded part in bytes.
@@ -2831,7 +2244,16 @@ type OutputSerialization struct {
 // Container for the owner's display name and ID.
 type Owner struct {
 
-	// Container for the display name of the owner.
+	// Container for the display name of the owner. This value is only supported in
+	// the following Amazon Web Services Regions:
+	//   - US East (N. Virginia)
+	//   - US West (N. California)
+	//   - US West (Oregon)
+	//   - Asia Pacific (Singapore)
+	//   - Asia Pacific (Sydney)
+	//   - Asia Pacific (Tokyo)
+	//   - Europe (Ireland)
+	//   - South America (São Paulo)
 	DisplayName *string
 
 	// Container for the ID of the owner.
@@ -2883,32 +2305,28 @@ type Part struct {
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 32-bit CRC32 checksum of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32 *string
 
 	// The base64-encoded, 32-bit CRC32C checksum of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumCRC32C *string
 
 	// The base64-encoded, 160-bit SHA-1 digest of the object. This will only be
 	// present if it was uploaded with the object. With multipart uploads, this may not
 	// be a checksum value of the object. For more information about how checksums are
-	// calculated with multipart uploads, see  Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
+	// calculated with multipart uploads, see Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html#large-object-checksums)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA1 *string
 
 	// This header can be used as a data integrity check to verify that the data
 	// received is the same data that was originally sent. This header specifies the
 	// base64-encoded, 256-bit SHA-256 digest of the object. For more information, see
-	// Checking object integrity
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
+	// Checking object integrity (https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html)
 	// in the Amazon S3 User Guide.
 	ChecksumSHA256 *string
 
@@ -2965,30 +2383,23 @@ type ProgressEvent struct {
 // The PublicAccessBlock configuration that you want to apply to this Amazon S3
 // bucket. You can enable the configuration options in any combination. For more
 // information about when Amazon S3 considers a bucket or object public, see The
-// Meaning of "Public"
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status)
+// Meaning of "Public" (https://docs.aws.amazon.com/AmazonS3/latest/dev/access-control-block-public-access.html#access-control-block-public-access-policy-status)
 // in the Amazon S3 User Guide.
 type PublicAccessBlockConfiguration struct {
 
 	// Specifies whether Amazon S3 should block public access control lists (ACLs) for
 	// this bucket and objects in this bucket. Setting this element to TRUE causes the
 	// following behavior:
-	//
-	// * PUT Bucket ACL and PUT Object ACL calls fail if the
-	// specified ACL is public.
-	//
-	// * PUT Object calls fail if the request includes a
-	// public ACL.
-	//
-	// * PUT Bucket calls fail if the request includes a public
-	// ACL.
-	//
+	//   - PUT Bucket ACL and PUT Object ACL calls fail if the specified ACL is
+	//   public.
+	//   - PUT Object calls fail if the request includes a public ACL.
+	//   - PUT Bucket calls fail if the request includes a public ACL.
 	// Enabling this setting doesn't affect existing policies or ACLs.
 	BlockPublicAcls bool
 
-	// Specifies whether Amazon S3 should block public bucket policies for this bucket.
-	// Setting this element to TRUE causes Amazon S3 to reject calls to PUT Bucket
-	// policy if the specified bucket policy allows public access. Enabling this
+	// Specifies whether Amazon S3 should block public bucket policies for this
+	// bucket. Setting this element to TRUE causes Amazon S3 to reject calls to PUT
+	// Bucket policy if the specified bucket policy allows public access. Enabling this
 	// setting doesn't affect existing bucket policies.
 	BlockPublicPolicy bool
 
@@ -3027,9 +2438,8 @@ type QueueConfiguration struct {
 	QueueArn *string
 
 	// Specifies object key name filtering rules. For information about key name
-	// filtering, see Configuring Event Notifications
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-	// Amazon S3 User Guide.
+	// filtering, see Configuring event notifications using object key name filtering (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
+	// in the Amazon S3 User Guide.
 	Filter *NotificationConfigurationFilter
 
 	// An optional unique identifier for configurations in a notification
@@ -3048,8 +2458,8 @@ type RecordsEvent struct {
 	noSmithyDocumentSerde
 }
 
-// Specifies how requests are redirected. In the event of an error, you can specify
-// a different error code to return.
+// Specifies how requests are redirected. In the event of an error, you can
+// specify a different error code to return.
 type Redirect struct {
 
 	// The host name to use in the redirect request.
@@ -3065,22 +2475,21 @@ type Redirect struct {
 
 	// The object key prefix to use in the redirect request. For example, to redirect
 	// requests for all pages with prefix docs/ (objects in the docs/ folder) to
-	// documents/, you can set a condition block with KeyPrefixEquals set to docs/ and
-	// in the Redirect set ReplaceKeyPrefixWith to /documents. Not required if one of
-	// the siblings is present. Can be present only if ReplaceKeyWith is not provided.
-	// Replacement must be made for object keys containing special characters (such as
-	// carriage returns) when using XML requests. For more information, see  XML
-	// related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// documents/ , you can set a condition block with KeyPrefixEquals set to docs/
+	// and in the Redirect set ReplaceKeyPrefixWith to /documents . Not required if one
+	// of the siblings is present. Can be present only if ReplaceKeyWith is not
+	// provided. Replacement must be made for object keys containing special characters
+	// (such as carriage returns) when using XML requests. For more information, see
+	// XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	ReplaceKeyPrefixWith *string
 
 	// The specific object key to use in the redirect request. For example, redirect
-	// request to error.html. Not required if one of the siblings is present. Can be
+	// request to error.html . Not required if one of the siblings is present. Can be
 	// present only if ReplaceKeyPrefixWith is not provided. Replacement must be made
 	// for object keys containing special characters (such as carriage returns) when
-	// using XML requests. For more information, see  XML related object key
-	// constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// using XML requests. For more information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	ReplaceKeyWith *string
 
 	noSmithyDocumentSerde
@@ -3104,11 +2513,11 @@ type RedirectAllRequestsTo struct {
 
 // A filter that you can specify for selection for modifications on replicas.
 // Amazon S3 doesn't replicate replica modifications by default. In the latest
-// version of replication configuration (when Filter is specified), you can specify
-// this element and set the status to Enabled to replicate modifications on
-// replicas. If you don't specify the Filter element, Amazon S3 assumes that the
-// replication configuration is the earlier version, V1. In the earlier version,
-// this element is not allowed.
+// version of replication configuration (when Filter is specified), you can
+// specify this element and set the status to Enabled to replicate modifications
+// on replicas. If you don't specify the Filter element, Amazon S3 assumes that
+// the replication configuration is the earlier version, V1. In the earlier
+// version, this element is not allowed.
 type ReplicaModifications struct {
 
 	// Specifies whether Amazon S3 replicates modifications on replicas.
@@ -3125,9 +2534,8 @@ type ReplicationConfiguration struct {
 
 	// The Amazon Resource Name (ARN) of the Identity and Access Management (IAM) role
 	// that Amazon S3 assumes when replicating objects. For more information, see How
-	// to Set Up Replication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-how-setup.html) in
-	// the Amazon S3 User Guide.
+	// to Set Up Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-how-setup.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Role *string
@@ -3158,24 +2566,25 @@ type ReplicationRule struct {
 	// Specifies whether Amazon S3 replicates delete markers. If you specify a Filter
 	// in your replication configuration, you must also include a
 	// DeleteMarkerReplication element. If your Filter includes a Tag element, the
-	// DeleteMarkerReplicationStatus must be set to Disabled, because Amazon S3 does
+	// DeleteMarkerReplication Status must be set to Disabled, because Amazon S3 does
 	// not support replicating delete markers for tag-based rules. For an example
-	// configuration, see Basic Rule Configuration
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-config-min-rule-config).
-	// For more information about delete marker replication, see Basic Rule
-	// Configuration
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/delete-marker-replication.html).
-	// If you are using an earlier version of the replication configuration, Amazon S3
-	// handles replication of delete markers differently. For more information, see
-	// Backward Compatibility
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations).
+	// configuration, see Basic Rule Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-config-min-rule-config)
+	// . For more information about delete marker replication, see Basic Rule
+	// Configuration (https://docs.aws.amazon.com/AmazonS3/latest/dev/delete-marker-replication.html)
+	// . If you are using an earlier version of the replication configuration, Amazon
+	// S3 handles replication of delete markers differently. For more information, see
+	// Backward Compatibility (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-add-config.html#replication-backward-compat-considerations)
+	// .
 	DeleteMarkerReplication *DeleteMarkerReplication
 
-	//
+	// Optional configuration to replicate existing source bucket objects. For more
+	// information, see Replicating Existing Objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication-what-is-isnot-replicated.html#existing-object-replication)
+	// in the Amazon S3 User Guide.
 	ExistingObjectReplication *ExistingObjectReplication
 
 	// A filter that identifies the subset of objects to which the replication rule
-	// applies. A Filter must specify exactly one Prefix, Tag, or an And child element.
+	// applies. A Filter must specify exactly one Prefix , Tag , or an And child
+	// element.
 	Filter ReplicationRuleFilter
 
 	// A unique identifier for the rule. The maximum value is 255 characters.
@@ -3185,8 +2594,8 @@ type ReplicationRule struct {
 	// rule applies. The maximum prefix length is 1,024 characters. To include all
 	// objects in a bucket, specify an empty string. Replacement must be made for
 	// object keys containing special characters (such as carriage returns) when using
-	// XML requests. For more information, see  XML related object key constraints
-	// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+	// XML requests. For more information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+	// .
 	//
 	// Deprecated: This member has been deprecated.
 	Prefix *string
@@ -3196,16 +2605,15 @@ type ReplicationRule struct {
 	// according to all replication rules. However, if there are two or more rules with
 	// the same destination bucket, then objects will be replicated according to the
 	// rule with the highest priority. The higher the number, the higher the priority.
-	// For more information, see Replication
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html) in the Amazon
-	// S3 User Guide.
+	// For more information, see Replication (https://docs.aws.amazon.com/AmazonS3/latest/dev/replication.html)
+	// in the Amazon S3 User Guide.
 	Priority int32
 
-	// A container that describes additional filters for identifying the source objects
-	// that you want to replicate. You can choose to enable or disable the replication
-	// of these objects. Currently, Amazon S3 supports only the filter that you can
-	// specify for objects created with server-side encryption using a customer managed
-	// key stored in Amazon Web Services Key Management Service (SSE-KMS).
+	// A container that describes additional filters for identifying the source
+	// objects that you want to replicate. You can choose to enable or disable the
+	// replication of these objects. Currently, Amazon S3 supports only the filter that
+	// you can specify for objects created with server-side encryption using a customer
+	// managed key stored in Amazon Web Services Key Management Service (SSE-KMS).
 	SourceSelectionCriteria *SourceSelectionCriteria
 
 	noSmithyDocumentSerde
@@ -3214,12 +2622,10 @@ type ReplicationRule struct {
 // A container for specifying rule filters. The filters determine the subset of
 // objects to which the rule applies. This element is required only if you specify
 // more than one filter. For example:
-//
-// * If you specify both a Prefix and a Tag
-// filter, wrap these filters in an And tag.
-//
-// * If you specify a filter based on
-// multiple tags, wrap the Tag elements in an And tag.
+//   - If you specify both a Prefix and a Tag filter, wrap these filters in an And
+//     tag.
+//   - If you specify a filter based on multiple tags, wrap the Tag elements in an
+//     And tag.
 type ReplicationRuleAndOperator struct {
 
 	// An object key name prefix that identifies the subset of objects to which the
@@ -3233,7 +2639,8 @@ type ReplicationRuleAndOperator struct {
 }
 
 // A filter that identifies the subset of objects to which the replication rule
-// applies. A Filter must specify exactly one Prefix, Tag, or an And child element.
+// applies. A Filter must specify exactly one Prefix , Tag , or an And child
+// element.
 //
 // The following types satisfy this interface:
 //
@@ -3247,12 +2654,10 @@ type ReplicationRuleFilter interface {
 // A container for specifying rule filters. The filters determine the subset of
 // objects to which the rule applies. This element is required only if you specify
 // more than one filter. For example:
-//
-// * If you specify both a Prefix and a Tag
-// filter, wrap these filters in an And tag.
-//
-// * If you specify a filter based on
-// multiple tags, wrap the Tag elements in an And tag.
+//   - If you specify both a Prefix and a Tag filter, wrap these filters in an And
+//     tag.
+//   - If you specify a filter based on multiple tags, wrap the Tag elements in an
+//     And tag.
 type ReplicationRuleFilterMemberAnd struct {
 	Value ReplicationRuleAndOperator
 
@@ -3264,8 +2669,8 @@ func (*ReplicationRuleFilterMemberAnd) isReplicationRuleFilter() {}
 // An object key name prefix that identifies the subset of objects to which the
 // rule applies. Replacement must be made for object keys containing special
 // characters (such as carriage returns) when using XML requests. For more
-// information, see  XML related object key constraints
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints).
+// information, see XML related object key constraints (https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-keys.html#object-key-xml-related-constraints)
+// .
 type ReplicationRuleFilterMemberPrefix struct {
 	Value string
 
@@ -3274,8 +2679,8 @@ type ReplicationRuleFilterMemberPrefix struct {
 
 func (*ReplicationRuleFilterMemberPrefix) isReplicationRuleFilter() {}
 
-// A container for specifying a tag key and value. The rule applies only to objects
-// that have the tag in their tag set.
+// A container for specifying a tag key and value. The rule applies only to
+// objects that have the tag in their tag set.
 type ReplicationRuleFilterMemberTag struct {
 	Value Tag
 
@@ -3284,9 +2689,10 @@ type ReplicationRuleFilterMemberTag struct {
 
 func (*ReplicationRuleFilterMemberTag) isReplicationRuleFilter() {}
 
-// A container specifying S3 Replication Time Control (S3 RTC) related information,
-// including whether S3 RTC is enabled and the time when all objects and operations
-// on objects must be replicated. Must be specified together with a Metrics block.
+// A container specifying S3 Replication Time Control (S3 RTC) related
+// information, including whether S3 RTC is enabled and the time when all objects
+// and operations on objects must be replicated. Must be specified together with a
+// Metrics block.
 type ReplicationTime struct {
 
 	// Specifies whether the replication time is enabled.
@@ -3304,7 +2710,7 @@ type ReplicationTime struct {
 }
 
 // A container specifying the time value for S3 Replication Time Control (S3 RTC)
-// and replication metrics EventThreshold.
+// and replication metrics EventThreshold .
 type ReplicationTimeValue struct {
 
 	// Contains an integer specifying time in minutes. Valid value: 15
@@ -3338,7 +2744,7 @@ type RequestProgress struct {
 type RestoreRequest struct {
 
 	// Lifetime of the active copy in days. Do not use with restores that specify
-	// OutputLocation. The Days element is required for regular restores, and must not
+	// OutputLocation . The Days element is required for regular restores, and must not
 	// be provided for select requests.
 	Days int32
 
@@ -3346,7 +2752,7 @@ type RestoreRequest struct {
 	Description *string
 
 	// S3 Glacier related parameters pertaining to this job. Do not use with restores
-	// that specify OutputLocation.
+	// that specify OutputLocation .
 	GlacierJobParameters *GlacierJobParameters
 
 	// Describes the location where the restore job's output is stored.
@@ -3365,8 +2771,7 @@ type RestoreRequest struct {
 }
 
 // Specifies the redirect behavior and when a redirect is applied. For more
-// information about routing rules, see Configuring advanced conditional redirects
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html#advanced-conditional-redirects)
+// information about routing rules, see Configuring advanced conditional redirects (https://docs.aws.amazon.com/AmazonS3/latest/dev/how-to-page-redirect.html#advanced-conditional-redirects)
 // in the Amazon S3 User Guide.
 type RoutingRule struct {
 
@@ -3443,10 +2848,10 @@ type ScanRange struct {
 	// scan the last N bytes of the file. For example, 50 means scan the last 50 bytes.
 	End int64
 
-	// Specifies the start of the byte range. This parameter is optional. Valid values:
-	// non-negative integers. The default value is 0. If only start is supplied, it
-	// means scan from that point to the end of the file. For example, 50 means scan
-	// from byte 50 until the end of the file.
+	// Specifies the start of the byte range. This parameter is optional. Valid
+	// values: non-negative integers. The default value is 0. If only start is
+	// supplied, it means scan from that point to the end of the file. For example, 50
+	// means scan from byte 50 until the end of the file.
 	Start int64
 
 	noSmithyDocumentSerde
@@ -3542,8 +2947,7 @@ type SelectParameters struct {
 // at configuration, Amazon S3 automatically creates an Amazon Web Services KMS key
 // in your Amazon Web Services account the first time that you add an object
 // encrypted with SSE-KMS to a bucket. By default, Amazon S3 uses this KMS key for
-// SSE-KMS. For more information, see PUT Bucket encryption
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html)
+// SSE-KMS. For more information, see PUT Bucket encryption (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTencryption.html)
 // in the Amazon S3 API Reference.
 type ServerSideEncryptionByDefault struct {
 
@@ -3554,23 +2958,18 @@ type ServerSideEncryptionByDefault struct {
 
 	// Amazon Web Services Key Management Service (KMS) customer Amazon Web Services
 	// KMS key ID to use for the default encryption. This parameter is allowed if and
-	// only if SSEAlgorithm is set to aws:kms. You can specify the key ID or the Amazon
-	// Resource Name (ARN) of the KMS key. However, if you are using encryption with
-	// cross-account or Amazon Web Services service operations you must use a fully
-	// qualified KMS key ARN. For more information, see Using encryption for
-	// cross-account operations
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy).
-	// For example:
-	//
-	// * Key ID: 1234abcd-12ab-34cd-56ef-1234567890ab
-	//
-	// * Key ARN:
-	// arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab
-	//
-	// Amazon
-	// S3 only supports symmetric KMS keys and not asymmetric KMS keys. For more
-	// information, see Using symmetric and asymmetric keys
-	// (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
+	// only if SSEAlgorithm is set to aws:kms . You can specify the key ID or the
+	// Amazon Resource Name (ARN) of the KMS key. If you use a key ID, you can run into
+	// a LogDestination undeliverable error when creating a VPC flow log. If you are
+	// using encryption with cross-account or Amazon Web Services service operations
+	// you must use a fully qualified KMS key ARN. For more information, see Using
+	// encryption for cross-account operations (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html#bucket-encryption-update-bucket-policy)
+	// .
+	//   - Key ID: 1234abcd-12ab-34cd-56ef-1234567890ab
+	//   - Key ARN:
+	//   arn:aws:kms:us-east-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab
+	// Amazon S3 only supports symmetric encryption KMS keys. For more information,
+	// see Asymmetric keys in Amazon Web Services KMS (https://docs.aws.amazon.com/kms/latest/developerguide/symmetric-asymmetric.html)
 	// in the Amazon Web Services Key Management Service Developer Guide.
 	KMSMasterKeyID *string
 
@@ -3601,28 +3000,27 @@ type ServerSideEncryptionRule struct {
 	// encryption using KMS (SSE-KMS) for new objects in the bucket. Existing objects
 	// are not affected. Setting the BucketKeyEnabled element to true causes Amazon S3
 	// to use an S3 Bucket Key. By default, S3 Bucket Key is not enabled. For more
-	// information, see Amazon S3 Bucket Keys
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html) in the Amazon
-	// S3 User Guide.
+	// information, see Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
+	// in the Amazon S3 User Guide.
 	BucketKeyEnabled bool
 
 	noSmithyDocumentSerde
 }
 
-// A container that describes additional filters for identifying the source objects
-// that you want to replicate. You can choose to enable or disable the replication
-// of these objects. Currently, Amazon S3 supports only the filter that you can
-// specify for objects created with server-side encryption using a customer managed
-// key stored in Amazon Web Services Key Management Service (SSE-KMS).
+// A container that describes additional filters for identifying the source
+// objects that you want to replicate. You can choose to enable or disable the
+// replication of these objects. Currently, Amazon S3 supports only the filter that
+// you can specify for objects created with server-side encryption using a customer
+// managed key stored in Amazon Web Services Key Management Service (SSE-KMS).
 type SourceSelectionCriteria struct {
 
 	// A filter that you can specify for selections for modifications on replicas.
 	// Amazon S3 doesn't replicate replica modifications by default. In the latest
-	// version of replication configuration (when Filter is specified), you can specify
-	// this element and set the status to Enabled to replicate modifications on
-	// replicas. If you don't specify the Filter element, Amazon S3 assumes that the
-	// replication configuration is the earlier version, V1. In the earlier version,
-	// this element is not allowed
+	// version of replication configuration (when Filter is specified), you can
+	// specify this element and set the status to Enabled to replicate modifications
+	// on replicas. If you don't specify the Filter element, Amazon S3 assumes that
+	// the replication configuration is the earlier version, V1. In the earlier
+	// version, this element is not allowed
 	ReplicaModifications *ReplicaModifications
 
 	// A container for filter information for the selection of Amazon S3 objects
@@ -3637,8 +3035,8 @@ type SourceSelectionCriteria struct {
 type SSEKMS struct {
 
 	// Specifies the ID of the Amazon Web Services Key Management Service (Amazon Web
-	// Services KMS) symmetric customer managed key to use for encrypting inventory
-	// reports.
+	// Services KMS) symmetric encryption customer managed key to use for encrypting
+	// inventory reports.
 	//
 	// This member is required.
 	KeyId *string
@@ -3693,15 +3091,15 @@ type StatsEvent struct {
 // analyze the tradeoffs between different storage classes for an Amazon S3 bucket.
 type StorageClassAnalysis struct {
 
-	// Specifies how data related to the storage class analysis for an Amazon S3 bucket
-	// should be exported.
+	// Specifies how data related to the storage class analysis for an Amazon S3
+	// bucket should be exported.
 	DataExport *StorageClassAnalysisDataExport
 
 	noSmithyDocumentSerde
 }
 
-// Container for data related to the storage class analysis for an Amazon S3 bucket
-// for export.
+// Container for data related to the storage class analysis for an Amazon S3
+// bucket for export.
 type StorageClassAnalysisDataExport struct {
 
 	// The place to store the data for an analysis.
@@ -3709,7 +3107,7 @@ type StorageClassAnalysisDataExport struct {
 	// This member is required.
 	Destination *AnalyticsExportDestination
 
-	// The version of the output schema to use when exporting data. Must be V_1.
+	// The version of the output schema to use when exporting data. Must be V_1 .
 	//
 	// This member is required.
 	OutputSchemaVersion StorageClassAnalysisSchemaVersion
@@ -3746,8 +3144,7 @@ type Tagging struct {
 
 // Container for granting information. Buckets that use the bucket owner enforced
 // setting for Object Ownership don't support target grants. For more information,
-// see Permissions server access log delivery
-// (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
+// see Permissions server access log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
 // in the Amazon S3 User Guide.
 type TargetGrant struct {
 
@@ -3766,8 +3163,7 @@ type TargetGrant struct {
 type Tiering struct {
 
 	// S3 Intelligent-Tiering access tier. See Storage class for automatically
-	// optimizing frequently and infrequently accessed objects
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access)
+	// optimizing frequently and infrequently accessed objects (https://docs.aws.amazon.com/AmazonS3/latest/dev/storage-class-intro.html#sc-dynamic-data-access)
 	// for a list of access tiers in the S3 Intelligent-Tiering storage class.
 	//
 	// This member is required.
@@ -3791,9 +3187,8 @@ type Tiering struct {
 type TopicConfiguration struct {
 
 	// The Amazon S3 bucket event about which to send notifications. For more
-	// information, see Supported Event Types
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-	// Amazon S3 User Guide.
+	// information, see Supported Event Types (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html)
+	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Events []Event
@@ -3805,9 +3200,8 @@ type TopicConfiguration struct {
 	TopicArn *string
 
 	// Specifies object key name filtering rules. For information about key name
-	// filtering, see Configuring Event Notifications
-	// (https://docs.aws.amazon.com/AmazonS3/latest/dev/NotificationHowTo.html) in the
-	// Amazon S3 User Guide.
+	// filtering, see Configuring event notifications using object key name filtering (https://docs.aws.amazon.com/AmazonS3/latest/userguide/notification-how-to-filtering.html)
+	// in the Amazon S3 User Guide.
 	Filter *NotificationConfigurationFilter
 
 	// An optional unique identifier for configurations in a notification
@@ -3819,17 +3213,16 @@ type TopicConfiguration struct {
 
 // Specifies when an object transitions to a specified storage class. For more
 // information about Amazon S3 lifecycle configuration rules, see Transitioning
-// Objects Using Amazon S3 Lifecycle
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-transition-general-considerations.html)
+// Objects Using Amazon S3 Lifecycle (https://docs.aws.amazon.com/AmazonS3/latest/dev/lifecycle-transition-general-considerations.html)
 // in the Amazon S3 User Guide.
 type Transition struct {
 
-	// Indicates when objects are transitioned to the specified storage class. The date
-	// value must be in ISO 8601 format. The time is always midnight UTC.
+	// Indicates when objects are transitioned to the specified storage class. The
+	// date value must be in ISO 8601 format. The time is always midnight UTC.
 	Date *time.Time
 
-	// Indicates the number of days after creation when objects are transitioned to the
-	// specified storage class. The value must be a positive integer.
+	// Indicates the number of days after creation when objects are transitioned to
+	// the specified storage class. The value must be a positive integer.
 	Days int32
 
 	// The storage class to which you want the object to transition.
@@ -3838,9 +3231,8 @@ type Transition struct {
 	noSmithyDocumentSerde
 }
 
-// Describes the versioning state of an Amazon S3 bucket. For more information, see
-// PUT Bucket versioning
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html)
+// Describes the versioning state of an Amazon S3 bucket. For more information,
+// see PUT Bucket versioning (https://docs.aws.amazon.com/AmazonS3/latest/API/RESTBucketPUTVersioningStatus.html)
 // in the Amazon S3 API Reference.
 type VersioningConfiguration struct {
 

@@ -1278,6 +1278,7 @@ func (p *parser) parseWindowAndStep() (*DurationExpr, *DurationExpr, bool, error
 	if err := p.lex.Next(); err != nil {
 		return nil, nil, false, err
 	}
+
 	return window, step, inheritStep, nil
 }
 
@@ -1340,6 +1341,10 @@ func (p *parser) parsePositiveDuration() (*DurationExpr, error) {
 		if _, err := p.parsePositiveNumberExpr(); err != nil {
 			return nil, fmt.Errorf(`duration: parse error: %s`, err)
 		}
+	}
+	// Verify duration value.
+	if _, err := DurationValue(s, 0); err != nil {
+		return nil, fmt.Errorf(`duration: parse value error: %q: %w`, s, err)
 	}
 	de := &DurationExpr{
 		s: s,

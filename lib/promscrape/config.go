@@ -21,6 +21,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/azure"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consulagent"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
@@ -53,10 +54,10 @@ var (
 		"This may be needed for reducing memory usage when original labels for big number of scrape targets occupy big amounts of memory. "+
 		"Note that this reduces debuggability for improper per-target relabeling configs")
 	clusterMembersCount = flag.Int("promscrape.cluster.membersCount", 0, "The number of members in a cluster of scrapers. "+
-		"Each member must have an unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
-		"Each member then scrapes roughly 1/N of all the targets. By default cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
+		"Each member must have a unique -promscrape.cluster.memberNum in the range 0 ... promscrape.cluster.membersCount-1 . "+
+		"Each member then scrapes roughly 1/N of all the targets. By default, cluster scraping is disabled, i.e. a single scraper scrapes all the targets")
 	clusterMemberNum = flag.String("promscrape.cluster.memberNum", "0", "The number of number in the cluster of scrapers. "+
-		"It must be an unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
+		"It must be a unique value in the range 0 ... promscrape.cluster.membersCount-1 across scrapers in the cluster. "+
 		"Can be specified as pod name of Kubernetes StatefulSet - pod-name-Num, where Num is a numeric part of pod name")
 	clusterReplicationFactor = flag.Int("promscrape.cluster.replicationFactor", 1, "The number of members in the cluster, which scrape the same targets. "+
 		"If the replication factor is greater than 1, then the deduplication must be enabled at remote storage side. See https://docs.victoriametrics.com/#deduplication")
@@ -244,7 +245,6 @@ type ScrapeConfig struct {
 	MetricsPath          string                      `yaml:"metrics_path,omitempty"`
 	HonorLabels          bool                        `yaml:"honor_labels,omitempty"`
 	HonorTimestamps      *bool                       `yaml:"honor_timestamps,omitempty"`
-	FollowRedirects      *bool                       `yaml:"follow_redirects,omitempty"`
 	Scheme               string                      `yaml:"scheme,omitempty"`
 	Params               map[string][]string         `yaml:"params,omitempty"`
 	HTTPClientConfig     promauth.HTTPClientConfig   `yaml:",inline"`
@@ -255,6 +255,7 @@ type ScrapeConfig struct {
 
 	AzureSDConfigs        []azure.SDConfig        `yaml:"azure_sd_configs,omitempty"`
 	ConsulSDConfigs       []consul.SDConfig       `yaml:"consul_sd_configs,omitempty"`
+	ConsulAgentSDConfigs  []consulagent.SDConfig  `yaml:"consulagent_sd_configs,omitempty"`
 	DigitaloceanSDConfigs []digitalocean.SDConfig `yaml:"digitalocean_sd_configs,omitempty"`
 	DNSSDConfigs          []dns.SDConfig          `yaml:"dns_sd_configs,omitempty"`
 	DockerSDConfigs       []docker.SDConfig       `yaml:"docker_sd_configs,omitempty"`
@@ -306,6 +307,9 @@ func (sc *ScrapeConfig) mustStop() {
 	}
 	for i := range sc.ConsulSDConfigs {
 		sc.ConsulSDConfigs[i].MustStop()
+	}
+	for i := range sc.ConsulAgentSDConfigs {
+		sc.ConsulAgentSDConfigs[i].MustStop()
 	}
 	for i := range sc.DigitaloceanSDConfigs {
 		sc.DigitaloceanSDConfigs[i].MustStop()
@@ -547,6 +551,33 @@ func (cfg *Config) getConsulSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	return dst
 }
 
+// getConsulAgentSDScrapeWork returns `consulagent_sd_configs` ScrapeWork from cfg.
+func (cfg *Config) getConsulAgentSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
+	swsPrevByJob := getSWSByJob(prev)
+	dst := make([]*ScrapeWork, 0, len(prev))
+	for _, sc := range cfg.ScrapeConfigs {
+		dstLen := len(dst)
+		ok := true
+		for j := range sc.ConsulAgentSDConfigs {
+			sdc := &sc.ConsulAgentSDConfigs[j]
+			var okLocal bool
+			dst, okLocal = appendSDScrapeWork(dst, sdc, cfg.baseDir, sc.swc, "consulagent_sd_config")
+			if ok {
+				ok = okLocal
+			}
+		}
+		if ok {
+			continue
+		}
+		swsPrev := swsPrevByJob[sc.swc.jobName]
+		if len(swsPrev) > 0 {
+			logger.Errorf("there were errors when discovering consulagent targets for job %q, so preserving the previous targets", sc.swc.jobName)
+			dst = append(dst[:dstLen], swsPrev...)
+		}
+	}
+	return dst
+}
+
 // getDigitalOceanDScrapeWork returns `digitalocean_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getDigitalOceanDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 	swsPrevByJob := getSWSByJob(prev)
@@ -711,21 +742,11 @@ func (cfg *Config) getEurekaSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
 
 // getFileSDScrapeWork returns `file_sd_configs` ScrapeWork from cfg.
 func (cfg *Config) getFileSDScrapeWork(prev []*ScrapeWork) []*ScrapeWork {
-	// Create a map for the previous scrape work.
-	swsMapPrev := make(map[string][]*ScrapeWork)
-	for _, sw := range prev {
-		filepath := sw.Labels.Get("__vm_filepath")
-		if len(filepath) == 0 {
-			logger.Panicf("BUG: missing `__vm_filepath` label")
-		} else {
-			swsMapPrev[filepath] = append(swsMapPrev[filepath], sw)
-		}
-	}
 	dst := make([]*ScrapeWork, 0, len(prev))
 	for _, sc := range cfg.ScrapeConfigs {
 		for j := range sc.FileSDConfigs {
 			sdc := &sc.FileSDConfigs[j]
-			dst = sdc.appendScrapeWork(dst, swsMapPrev, cfg.baseDir, sc.swc)
+			dst = sdc.appendScrapeWork(dst, cfg.baseDir, sc.swc)
 		}
 	}
 	return dst
@@ -968,8 +989,8 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorTimestamps = *sc.HonorTimestamps
 	}
 	denyRedirects := false
-	if sc.FollowRedirects != nil {
-		denyRedirects = !*sc.FollowRedirects
+	if sc.HTTPClientConfig.FollowRedirects != nil {
+		denyRedirects = !*sc.HTTPClientConfig.FollowRedirects
 	}
 	metricsPath := sc.MetricsPath
 	if metricsPath == "" {
@@ -1122,7 +1143,7 @@ func appendScrapeWorkForTargetLabels(dst []*ScrapeWork, swc *scrapeWorkConfig, t
 	return dst
 }
 
-func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[string][]*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
+func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, baseDir string, swc *scrapeWorkConfig) []*ScrapeWork {
 	metaLabels := promutils.GetLabels()
 	defer promutils.PutLabels(metaLabels)
 	for _, file := range sdc.Files {
@@ -1133,7 +1154,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			paths, err = filepath.Glob(pathPattern)
 			if err != nil {
 				// Do not return this error, since other files may contain valid scrape configs.
-				logger.Errorf("invalid pattern %q in `files` section: %s; skipping it", file, err)
+				logger.Errorf("invalid pattern %q in `file_sd_config->files` section of job_name=%q: %s; skipping it", file, swc.jobName, err)
 				continue
 			}
 		}
@@ -1141,13 +1162,7 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			stcs, err := loadStaticConfigs(path)
 			if err != nil {
 				// Do not return this error, since other paths may contain valid scrape configs.
-				if sws := swsMapPrev[path]; sws != nil {
-					// Re-use the previous valid scrape work for this path.
-					logger.Errorf("keeping the previously loaded `static_configs` from %q because of error when re-loading the file: %s", path, err)
-					dst = append(dst, sws...)
-				} else {
-					logger.Errorf("skipping loading `static_configs` from %q because of error: %s", path, err)
-				}
+				logger.Errorf("cannot load file %q for job_name=%q at `file_sd_configs`: %s; skipping this file", path, swc.jobName, err)
 				continue
 			}
 			pathShort := path
@@ -1159,7 +1174,6 @@ func (sdc *FileSDConfig) appendScrapeWork(dst []*ScrapeWork, swsMapPrev map[stri
 			}
 			metaLabels.Reset()
 			metaLabels.Add("__meta_filepath", pathShort)
-			metaLabels.Add("__vm_filepath", path) // This label is needed for internal promscrape logic
 			for i := range stcs {
 				dst = stcs[i].appendScrapeWork(dst, swc, metaLabels)
 			}
@@ -1258,36 +1272,15 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
 		return nil, nil
 	}
-	// See https://www.robustperception.io/life-of-a-label
-	scheme := labels.Get("__scheme__")
-	if len(scheme) == 0 {
-		scheme = "http"
-	}
-	metricsPath := labels.Get("__metrics_path__")
-	if len(metricsPath) == 0 {
-		metricsPath = "/metrics"
-	}
-	address := labels.Get("__address__")
-	if len(address) == 0 {
-		// Drop target without scrape address.
+	scrapeURL, address := promrelabel.GetScrapeURL(labels, swc.params)
+	if scrapeURL == "" {
+		// Drop target without URL.
 		droppedTargetsMap.Register(originalLabels, swc.relabelConfigs)
 		return nil, nil
 	}
-	// Usability extension to Prometheus behavior: extract optional scheme and metricsPath from __address__.
-	// Prometheus silently drops targets with __address__ containing scheme or metricsPath
-	// according to https://www.robustperception.io/life-of-a-label/ .
-	if strings.HasPrefix(address, "http://") {
-		scheme = "http"
-		address = address[len("http://"):]
-	} else if strings.HasPrefix(address, "https://") {
-		scheme = "https"
-		address = address[len("https://"):]
+	if _, err := url.Parse(scrapeURL); err != nil {
+		return nil, fmt.Errorf("invalid target url=%q for job=%q: %w", scrapeURL, swc.jobName, err)
 	}
-	if n := strings.IndexByte(address, '/'); n >= 0 {
-		metricsPath = address[n:]
-		address = address[:n]
-	}
-	address = addMissingPort(address, scheme == "https")
 
 	var at *auth.Token
 	tenantID := labels.Get("__tenant_id__")
@@ -1299,23 +1292,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		at = newToken
 	}
 
-	if !strings.HasPrefix(metricsPath, "/") {
-		metricsPath = "/" + metricsPath
-	}
-	params := getParamsFromLabels(labels, swc.params)
-	optionalQuestion := ""
-	if len(params) > 0 {
-		optionalQuestion = "?"
-		if strings.Contains(metricsPath, "?") {
-			optionalQuestion = "&"
-		}
-	}
-	paramsStr := url.Values(params).Encode()
-	scrapeURL := getScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr)
-	if _, err := url.Parse(scrapeURL); err != nil {
-		return nil, fmt.Errorf("invalid url %q for scheme=%q, target=%q, address=%q, metrics_path=%q for job=%q: %w",
-			scrapeURL, scheme, target, address, metricsPath, swc.jobName, err)
-	}
 	// Read __scrape_interval__ and __scrape_timeout__ from labels.
 	scrapeInterval := swc.scrapeInterval
 	if s := labels.Get("__scrape_interval__"); len(s) > 0 {
@@ -1396,41 +1372,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		jobNameOriginal: swc.jobName,
 	}
 	return sw, nil
-}
-
-func getScrapeURL(scheme, address, metricsPath, optionalQuestion, paramsStr string) string {
-	bb := bbPool.Get()
-	b := bb.B[:0]
-	b = append(b, scheme...)
-	b = append(b, "://"...)
-	b = append(b, address...)
-	b = append(b, metricsPath...)
-	b = append(b, optionalQuestion...)
-	b = append(b, paramsStr...)
-	s := bytesutil.InternBytes(b)
-	bb.B = b
-	bbPool.Put(bb)
-	return s
-}
-
-func getParamsFromLabels(labels *promutils.Labels, paramsOrig map[string][]string) map[string][]string {
-	// See https://www.robustperception.io/life-of-a-label
-	var m map[string][]string
-	for _, label := range labels.GetLabels() {
-		if !strings.HasPrefix(label.Name, "__param_") {
-			continue
-		}
-		name := label.Name[len("__param_"):]
-		values := []string{label.Value}
-		if p := paramsOrig[name]; len(p) > 1 {
-			values = append(values, p[1:]...)
-		}
-		if m == nil {
-			m = make(map[string][]string)
-		}
-		m[name] = values
-	}
-	return m
 }
 
 func mergeLabels(dst *promutils.Labels, swc *scrapeWorkConfig, target string, extraLabels, metaLabels *promutils.Labels) {

@@ -8,15 +8,15 @@ import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
 import HeaderNav from "./HeaderNav/HeaderNav";
-import useResize from "../../../hooks/useResize";
 import SidebarHeader from "./SidebarNav/SidebarHeader";
 import HeaderControls from "./HeaderControls/HeaderControls";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 const Header: FC = () => {
   const { isMobile } = useDeviceDetect();
 
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
 
   const { isDarkTheme } = useAppState();

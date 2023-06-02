@@ -18,7 +18,7 @@
     padding: $padding-small $padding-global;
     border: $border-divider;
     background-color: transparent;
-    font-size: 12px;
+    font-size: $font-size;
     line-height: 18px;
     grid-area: 1 / 1 / 2 / 2;
     overflow: hidden;
@@ -58,6 +58,8 @@
   &__error {
     top: calc((100% - ($font-size-small/2)) - 2px);
     color: $color-error;
+    pointer-events: auto;
+    user-select: text;
   }
 
   &__helper-text {
@@ -69,7 +71,7 @@
     display: block;
     border-radius: $border-radius-small;
     transition: border 200ms ease;
-    min-height: 34px;
+    min-height: 40px;
     resize: none;
     overflow: hidden;
     background-color: transparent;

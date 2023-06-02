@@ -32,8 +32,8 @@ import (
 const ServiceID = "S3"
 const ServiceAPIVersion = "2006-03-01"
 
-// Client provides the API client to make operations call for Amazon Simple Storage
-// Service.
+// Client provides the API client to make operations call for Amazon Simple
+// Storage Service.
 type Client struct {
 	options Options
 }
@@ -79,6 +79,11 @@ type Options struct {
 
 	// Configures the events that will be sent to the configured logger.
 	ClientLogMode aws.ClientLogMode
+
+	// The threshold ContentLength in bytes for HTTP PUT request to receive {Expect:
+	// 100-continue} header. Setting to -1 will disable adding the Expect header to
+	// requests; setting to 0 will set the threshold to default 2MB
+	ContinueHeaderThresholdBytes int64
 
 	// The credentials object to use when signing requests.
 	Credentials aws.CredentialsProvider
@@ -130,7 +135,7 @@ type Options struct {
 	Retryer aws.Retryer
 
 	// The RuntimeEnvironment configuration, only populated if the DefaultsMode is set
-	// to DefaultsModeAuto and is initialized using config.LoadDefaultConfig. You
+	// to DefaultsModeAuto and is initialized using config.LoadDefaultConfig . You
 	// should not populate this structure programmatically, or rely on the values here
 	// within your applications.
 	RuntimeEnvironment aws.RuntimeEnvironment
@@ -154,8 +159,8 @@ type Options struct {
 	UseDualstack bool
 
 	// Allows you to enable the client to use path-style addressing, i.e.,
-	// https://s3.amazonaws.com/BUCKET/KEY. By default, the S3 client will use virtual
-	// hosted bucket addressing when possible(https://BUCKET.s3.amazonaws.com/KEY).
+	// https://s3.amazonaws.com/BUCKET/KEY . By default, the S3 client will use virtual
+	// hosted bucket addressing when possible( https://BUCKET.s3.amazonaws.com/KEY ).
 	UsePathStyle bool
 
 	// Signature Version 4a (SigV4a) Signer
@@ -530,8 +535,12 @@ func addMetadataRetrieverMiddleware(stack *middleware.Stack) error {
 	return s3shared.AddMetadataRetrieverMiddleware(stack)
 }
 
-// ComputedInputChecksumsMetadata provides information about the algorithms used to
-// compute the checksum(s) of the input payload.
+func add100Continue(stack *middleware.Stack, options Options) error {
+	return s3shared.Add100Continue(stack, options.ContinueHeaderThresholdBytes)
+}
+
+// ComputedInputChecksumsMetadata provides information about the algorithms used
+// to compute the checksum(s) of the input payload.
 type ComputedInputChecksumsMetadata struct {
 	// ComputedChecksums is a map of algorithm name to checksum value of the computed
 	// input payload's checksums.
@@ -551,8 +560,8 @@ func GetComputedInputChecksumsMetadata(m middleware.Metadata) (ComputedInputChec
 
 }
 
-// ChecksumValidationMetadata contains metadata such as the checksum algorithm used
-// for data integrity validation.
+// ChecksumValidationMetadata contains metadata such as the checksum algorithm
+// used for data integrity validation.
 type ChecksumValidationMetadata struct {
 	// AlgorithmsUsed is the set of the checksum algorithms used to validate the
 	// response payload. The response payload must be completely read in order for the
@@ -561,10 +570,10 @@ type ChecksumValidationMetadata struct {
 	AlgorithmsUsed []string
 }
 
-// GetChecksumValidationMetadata returns the set of algorithms that will be used to
-// validate the response payload with. The response payload must be completely read
-// in order for the checksum validation to be performed. An error is returned by
-// the operation output's response io.ReadCloser if the computed checksums are
+// GetChecksumValidationMetadata returns the set of algorithms that will be used
+// to validate the response payload with. The response payload must be completely
+// read in order for the checksum validation to be performed. An error is returned
+// by the operation output's response io.ReadCloser if the computed checksums are
 // invalid. Returns false if no checksum algorithm used metadata was found.
 func GetChecksumValidationMetadata(m middleware.Metadata) (ChecksumValidationMetadata, bool) {
 	values, ok := internalChecksum.GetOutputValidationAlgorithmsUsed(m)
@@ -591,8 +600,8 @@ func disableAcceptEncodingGzip(stack *middleware.Stack) error {
 	return acceptencodingcust.AddAcceptEncodingGzip(stack, acceptencodingcust.AddAcceptEncodingGzipOptions{})
 }
 
-// ResponseError provides the HTTP centric error type wrapping the underlying error
-// with the HTTP response value and the deserialized RequestID.
+// ResponseError provides the HTTP centric error type wrapping the underlying
+// error with the HTTP response value and the deserialized RequestID.
 type ResponseError interface {
 	error
 
@@ -602,8 +611,8 @@ type ResponseError interface {
 
 var _ ResponseError = (*s3shared.ResponseError)(nil)
 
-// GetHostIDMetadata retrieves the host id from middleware metadata returns host id
-// as string along with a boolean indicating presence of hostId on middleware
+// GetHostIDMetadata retrieves the host id from middleware metadata returns host
+// id as string along with a boolean indicating presence of hostId on middleware
 // metadata.
 func GetHostIDMetadata(metadata middleware.Metadata) (string, bool) {
 	return s3shared.GetHostIDMetadata(metadata)

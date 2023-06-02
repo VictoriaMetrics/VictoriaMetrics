@@ -10,9 +10,9 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/config/log"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/envtemplate"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 )
 
@@ -36,7 +36,8 @@ type Group struct {
 	Params url.Values `yaml:"params"`
 	// Headers contains optional HTTP headers added to each rule request
 	Headers []Header `yaml:"headers,omitempty"`
-
+	// NotifierHeaders contains optional HTTP headers sent to notifiers for generated notifications
+	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
 }
@@ -199,9 +200,17 @@ func (r *Rule) Validate() error {
 // ValidateTplFn must validate the given annotations
 type ValidateTplFn func(annotations map[string]string) error
 
+// cLogger is a logger with support of logs suppressing.
+// it is used when logs emitted by config package needs
+// to be suppressed.
+var cLogger = &log.Logger{}
+
 // ParseSilent parses rule configs from given file patterns without emitting logs
 func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	files, err := readFromFS(pathPatterns, true)
+	cLogger.Suppress(true)
+	defer cLogger.Suppress(false)
+
+	files, err := readFromFS(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
@@ -210,7 +219,7 @@ func ParseSilent(pathPatterns []string, validateTplFn ValidateTplFn, validateExp
 
 // Parse parses rule configs from given file patterns
 func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressions bool) ([]Group, error) {
-	files, err := readFromFS(pathPatterns, false)
+	files, err := readFromFS(pathPatterns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read from the config: %s", err)
 	}
@@ -219,7 +228,7 @@ func Parse(pathPatterns []string, validateTplFn ValidateTplFn, validateExpressio
 		return nil, fmt.Errorf("failed to parse %s: %s", pathPatterns, err)
 	}
 	if len(groups) < 1 {
-		logger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
+		cLogger.Warnf("no groups found in %s", strings.Join(pathPatterns, ";"))
 	}
 	return groups, nil
 }

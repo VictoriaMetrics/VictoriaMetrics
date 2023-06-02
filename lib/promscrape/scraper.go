@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/azure"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consul"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/consulagent"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/digitalocean"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/dns"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape/discovery/docker"
@@ -36,7 +37,7 @@ import (
 
 var (
 	configCheckInterval = flag.Duration("promscrape.configCheckInterval", 0, "Interval for checking for changes in '-promscrape.config' file. "+
-		"By default the checking is disabled. Send SIGHUP signal in order to force config check for changes")
+		"By default, the checking is disabled. Send SIGHUP signal in order to force config check for changes")
 	suppressDuplicateScrapeTargetErrors = flag.Bool("promscrape.suppressDuplicateScrapeTargetErrors", false, "Whether to suppress 'duplicate scrape target' errors; "+
 		"see https://docs.victoriametrics.com/vmagent.html#troubleshooting for details")
 	promscrapeConfigFile = flag.String("promscrape.config", "", "Optional path to Prometheus config file with 'scrape_configs' section containing targets to scrape. "+
@@ -50,7 +51,7 @@ var (
 // CheckConfig checks -promscrape.config for errors and unsupported options.
 func CheckConfig() error {
 	if *promscrapeConfigFile == "" {
-		return fmt.Errorf("missing -promscrape.config option")
+		return nil
 	}
 	_, _, err := loadConfig(*promscrapeConfigFile)
 	return err
@@ -125,6 +126,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 	scs := newScrapeConfigs(pushData, globalStopCh)
 	scs.add("azure_sd_configs", *azure.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getAzureSDScrapeWork(swsPrev) })
 	scs.add("consul_sd_configs", *consul.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getConsulSDScrapeWork(swsPrev) })
+	scs.add("consulagent_sd_configs", *consulagent.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getConsulAgentSDScrapeWork(swsPrev) })
 	scs.add("digitalocean_sd_configs", *digitalocean.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDigitalOceanDScrapeWork(swsPrev) })
 	scs.add("dns_sd_configs", *dns.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDNSSDScrapeWork(swsPrev) })
 	scs.add("docker_sd_configs", *docker.SDCheckInterval, func(cfg *Config, swsPrev []*ScrapeWork) []*ScrapeWork { return cfg.getDockerSDScrapeWork(swsPrev) })
@@ -161,6 +163,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 				goto waitForChans
 			}
 			if bytes.Equal(data, dataNew) {
+				configSuccess.Set(1)
 				logger.Infof("nothing changed in %q", configFile)
 				goto waitForChans
 			}
@@ -178,6 +181,7 @@ func runScraper(configFile string, pushData func(at *auth.Token, wr *prompbmarsh
 				goto waitForChans
 			}
 			if bytes.Equal(data, dataNew) {
+				configSuccess.Set(1)
 				// Nothing changed since the previous loadConfig
 				goto waitForChans
 			}

@@ -14,16 +14,19 @@ import classNames from "classnames";
 import { MouseEvent as ReactMouseEvent } from "react";
 import { arrayEquals } from "../../../utils/array";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import { QueryStats } from "../../../api/types";
 
 export interface QueryConfiguratorProps {
-  error?: ErrorTypes | string;
+  errors: (ErrorTypes | string)[];
+  stats: QueryStats[];
   queryOptions: string[]
   onHideQuery: (queries: number[]) => void
   onRunQuery: () => void
 }
 
 const QueryConfigurator: FC<QueryConfiguratorProps> = ({
-  error,
+  errors,
+  stats,
   queryOptions,
   onHideQuery,
   onRunQuery
@@ -141,7 +144,8 @@ const QueryConfigurator: FC<QueryConfiguratorProps> = ({
             value={stateQuery[i]}
             autocomplete={autocomplete}
             options={queryOptions}
-            error={error}
+            error={errors[i]}
+            stats={stats[i]}
             onArrowUp={createHandlerArrow(-1, i)}
             onArrowDown={createHandlerArrow(1, i)}
             onEnter={handleRunQuery}

@@ -15,17 +15,17 @@ import (
 // Returns the Cross-Origin Resource Sharing (CORS) configuration information set
 // for the bucket. To use this operation, you must have permission to perform the
 // s3:GetBucketCORS action. By default, the bucket owner has this permission and
-// can grant it to others. For more information about CORS, see  Enabling
-// Cross-Origin Resource Sharing
-// (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html). The following
-// operations are related to GetBucketCors:
-//
-// * PutBucketCors
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
-//
-// *
-// DeleteBucketCors
-// (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)
+// can grant it to others. To use this API operation against an access point,
+// provide the alias of the access point in place of the bucket name. To use this
+// API operation against an Object Lambda access point, provide the alias of the
+// Object Lambda access point in place of the bucket name. If the Object Lambda
+// access point alias in a request is not valid, the error code
+// InvalidAccessPointAliasError is returned. For more information about
+// InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+// . For more information about CORS, see Enabling Cross-Origin Resource Sharing (https://docs.aws.amazon.com/AmazonS3/latest/dev/cors.html)
+// . The following operations are related to GetBucketCors :
+//   - PutBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html)
+//   - DeleteBucketCors (https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html)
 func (c *Client) GetBucketCors(ctx context.Context, params *GetBucketCorsInput, optFns ...func(*Options)) (*GetBucketCorsOutput, error) {
 	if params == nil {
 		params = &GetBucketCorsInput{}
@@ -43,7 +43,14 @@ func (c *Client) GetBucketCors(ctx context.Context, params *GetBucketCorsInput, 
 
 type GetBucketCorsInput struct {
 
-	// The bucket name for which to get the cors configuration.
+	// The bucket name for which to get the cors configuration. To use this API
+	// operation against an access point, provide the alias of the access point in
+	// place of the bucket name. To use this API operation against an Object Lambda
+	// access point, provide the alias of the Object Lambda access point in place of
+	// the bucket name. If the Object Lambda access point alias in a request is not
+	// valid, the error code InvalidAccessPointAliasError is returned. For more
+	// information about InvalidAccessPointAliasError , see List of Error Codes (https://docs.aws.amazon.com/AmazonS3/latest/API/ErrorResponses.html#ErrorCodeList)
+	// .
 	//
 	// This member is required.
 	Bucket *string
@@ -123,6 +130,9 @@ func (c *Client) addOperationGetBucketCorsMiddlewares(stack *middleware.Stack, o
 		return err
 	}
 	if err = addMetadataRetrieverMiddleware(stack); err != nil {
+		return err
+	}
+	if err = awsmiddleware.AddRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addGetBucketCorsUpdateEndpoint(stack, options); err != nil {

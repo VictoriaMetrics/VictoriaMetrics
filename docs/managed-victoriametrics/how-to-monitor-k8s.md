@@ -6,12 +6,14 @@ menu:
   docs:
     parent: "managed"
     weight: 3
+aliases:
+- /managed-victoriametrics/how-to-monitor-k8s.html
 ---
 # Kubernetes Monitoring with Managed VictoriaMetrics
 
 Monitoring kubernetes cluster is necessary to build SLO/SLI, to analyze performance and cost-efficiency of your workloads. 
 
-To enable enable kubernetes cluster monitoring, we will be collecting metrics about cluster performance and utilization from kubernetes components like `kube-api-server`, `kube-controller-manager`, `kube-scheduler`, `kube-state-metrics`,  `etcd`, `core-dns`, `kubelet` and `kube-proxy`. We will also install some recording rules, alert rules and dashboards to provide visibility of cluster performance, as well as alerting for cluster metrics.
+To enable kubernetes cluster monitoring, we will be collecting metrics about cluster performance and utilization from kubernetes components like `kube-api-server`, `kube-controller-manager`, `kube-scheduler`, `kube-state-metrics`,  `etcd`, `core-dns`, `kubelet` and `kube-proxy`. We will also install some recording rules, alert rules and dashboards to provide visibility of cluster performance, as well as alerting for cluster metrics.
 For node resource utilization we will be collecting metrics from `node-exporter`. We will also install dashboard and alerts for node related metrics
 
 For workloads monitoring in kubernetes cluster we will have [VictoriaMetrics Operator](https://docs.victoriametrics.com/operator/VictoriaMetrics-Operator.html). It enables us to define scrape jobs using kubernetes CRDs [VMServiceScrape](https://docs.victoriametrics.com/operator/design.html#vmservicescrape), [VMPodScrape](https://docs.victoriametrics.com/operator/design.html#vmpodscrape). To add alerts or recording rules for workloads we can use [VMRule](https://docs.victoriametrics.com/operator/design.html#vmrule) CRD
@@ -20,7 +22,7 @@ For workloads monitoring in kubernetes cluster we will have [VictoriaMetrics Ope
 
 In this guide we will be using [victoria-metrics-k8s-stack](https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-k8s-stack) helm chart
 
-This chart will install `VMOperator`, `VMAgent`, `NodeExporter`, `kube-state-metrics`, `grafana` and some service scrape configurations to start monitoring kuberentes cluster components
+This chart will install `VMOperator`, `VMAgent`, `NodeExporter`, `kube-state-metrics`, `grafana` and some service scrape configurations to start monitoring kubernetes cluster components
 
 ## Prerequisites
 - Active Managed VictoriaMetrics instance. You can learn how to signup for Managed VictoriaMetrics [here](https://docs.victoriametrics.com/managed-victoriametrics/quickstart.html#how-to-register). 
@@ -133,4 +135,4 @@ Connect to grafana and create your datasource
 
 
 - You should be able to see data that was sent to your dbaas using VMAgent dashboard [http://localhost:3000/d/G7Z9GzMGz/victoriametrics-vmagent/](http://localhost:3000/d/G7Z9GzMGz/victoriametrics-vmagent/)
-- You also will be able to see bunch of kuberentes dashboards in your grafana 
+- You also will be able to see bunch of kubernetes dashboards in your grafana
