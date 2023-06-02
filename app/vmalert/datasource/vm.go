@@ -29,7 +29,7 @@ type VMStorage struct {
 
 // Clone makes clone of VMStorage, shares http client.
 func (s *VMStorage) Clone() *VMStorage {
-	return &VMStorage{
+	ns := &VMStorage{
 		c:                s.c,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
@@ -39,8 +39,15 @@ func (s *VMStorage) Clone() *VMStorage {
 
 		dataSourceType:     s.dataSourceType,
 		evaluationInterval: s.evaluationInterval,
-		extraParams:        s.extraParams,
+
+		// init map so it can be populated below
+		extraParams: url.Values{},
 	}
+	for k, v := range s.extraParams {
+		ns.extraParams[k] = v
+	}
+
+	return ns
 }
 
 // ApplyParams - changes given querier params.
@@ -49,9 +56,14 @@ func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 		s.dataSourceType = *params.DataSourceType
 	}
 	s.evaluationInterval = params.EvaluationInterval
-	for k, vl := range params.QueryParams {
-		for _, v := range vl { // custom query params are prior to default ones
-			s.extraParams.Set(k, v)
+	if params.QueryParams != nil {
+		if s.extraParams == nil {
+			s.extraParams = url.Values{}
+		}
+		for k, vl := range params.QueryParams {
+			for _, v := range vl { // custom query params are prior to default ones
+				s.extraParams.Set(k, v)
+			}
 		}
 	}
 	return s
@@ -72,6 +84,7 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 		lookBack:         lookBack,
 		queryStep:        queryStep,
 		dataSourceType:   NewPrometheusType(),
+		extraParams:      url.Values{},
 	}
 }
 
