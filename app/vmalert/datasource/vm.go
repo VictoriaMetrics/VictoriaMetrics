@@ -69,6 +69,7 @@ func (s *VMStorage) Clone() *VMStorage {
 		debug: s.debug,
 	}
 	if s.extraHeaders != nil {
+		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
 		copy(ns.extraHeaders, s.extraHeaders)
 	}
 	if s.extraParams != nil {
