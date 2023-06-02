@@ -117,6 +117,11 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 
 ### Bump the version of images
 
+Bump `tag` field in `values.yaml` with new release version.
+Bump `appVersion` field in `Chart.yaml` with new release version.
+Bump `version` field in `Chart.yaml` with incremental semver version.
+Do these updates to the following charts:
+
 1. Update `vmagent` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml) 
 2. Update `vmalert` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/Chart.yaml)
 3. Update `vmauth` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/Chart.yaml)
@@ -124,11 +129,14 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 5. Update `k8s-stack` chart versions in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/values.yaml), bump version for `vmselect`, `vminsert`, `vmstorage`, `vmsingle`, `vmalert`, `vmagent` and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
 6. Update `single-node` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
 7. Update `vmgateway` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/values.yamll) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
-8. Run `make gen-docs`
-9. Run `make package` that creates or updates zip file with the packed chart
-10. Run `make merge`. It creates or updates metadata for charts in index.yaml
-11. Push changes to master. `master` is a source of truth
-12. Push the changes to `gh-pages` branch
+
+Once updated, run the following commands:
+
+1. Run `make gen-docs`
+2. Run `make package` that creates or updates zip file with the packed chart
+3. Run `make merge`. It creates or updates metadata for charts in index.yaml
+4. Push changes to master. `master` is a source of truth
+5. Push the same changes to `gh-pages` branch
 
 ## Ansible Roles 
 
