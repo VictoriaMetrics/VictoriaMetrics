@@ -28,12 +28,17 @@ Make sure you have GNU version of utilities `zip`, `tar`, `sha256sum`. To instal
 ```bash
 brew install coreutils
 brew install gnu-tar
+export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
 ```
 
 Docker may need additional configuration changes:
 ```bash 
 docker buildx create --use --name=qemu
 docker buildx inspect --bootstrap  
+```
+
+For ARM arch (M1/M2 processors) additionally configure docker with preferred platform:
+```
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
 ```
 
