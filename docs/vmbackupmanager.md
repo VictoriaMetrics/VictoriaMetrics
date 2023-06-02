@@ -9,7 +9,7 @@ title: vmbackupmanager
 aliases:
   - /vmbackupmanager.html
 ---
-## vmbackupmanager
+# vmbackupmanager
 
 ***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
@@ -115,11 +115,11 @@ The result on the GCS bucket
 
 * The root folder
 
-  ![root](vmbackupmanager_root_folder.png)
+  <img alt="root folder" src="vmbackupmanager_root_folder.png">
 
 * The latest folder
 
-  ![latest](vmbackupmanager_latest_folder.png)
+  <img alt="latest folder" src="vmbackupmanager_latest_folder.png">
 
 ## Backup Retention Policy
 
@@ -134,7 +134,7 @@ Backup retention policy is controlled by:
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
-![daily](vmbackupmanager_rp_daily_1.png)
+<img alt="retention policy daily before retention cycle" src="vmbackupmanager_rp_daily_1.png">
 
 We enable backup retention policy for backup manager by using following configuration:
 
@@ -159,7 +159,7 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-![daily](vmbackupmanager_rp_daily_2.png)
+<img alt="retention policy daily after retention cycle" src="vmbackupmanager_rp_daily_2.png">
 
 ### Protection backups against deletion by retention policy
 

@@ -752,14 +752,18 @@ See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
 ## High availability
 
-It is possible to run multiple identically configured `vmagent` instances or `vmagent` [clusters](#scraping-big-number-of-targets),
-so they [scrape](#how-to-collect-metrics-in-prometheus-format) the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems.
+It is possible to run multiple **identically configured** `vmagent` instances or `vmagent` 
+[clusters](#scraping-big-number-of-targets), so they [scrape](#how-to-collect-metrics-in-prometheus-format) 
+the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems. 
+Two **identically configured** vmagent instances or clusters is usually called an HA pair.
 
-In this case the deduplication must be configured at VictoriaMetrics in order to de-duplicate samples received from multiple identically configured `vmagent` instances or clusters.
+When running HA pairs, [deduplication](https://docs.victoriametrics.com/#deduplication) must be configured 
+at VictoriaMetrics side in order to de-duplicate received samples.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
-It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` instance or per each `vmagent` cluster in HA setup.
-This is needed for proper data de-duplication. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
+It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` 
+instance or per each `vmagent` cluster in HA setup. This is needed for proper data de-duplication. 
+See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
 
