@@ -51,8 +51,11 @@ Bumping the limits may significantly improve build speed.
 1a. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) and update version if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/SECURITY.md)
 1b. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
 1c. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
-like in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
-2. Create the following release tags:
+and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
+1d. Cherry-pick all changes from `master` to `cluster` branch, and to ENT branches `enterprise-single-node`, `enterprise-cluster`.
+1e. Cherry-pick bug fixes relevant for LTS releases.
+2. Make sure you get all changes fetched `git fetch --all`.
+3. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
    * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
