@@ -29,6 +29,7 @@ func toDatasourceType(s string) datasourceType {
 }
 
 // VMStorage represents vmstorage entity with ability to read and write metrics
+// WARN: when adding a new field, remember to update Clone() method.
 type VMStorage struct {
 	c                *http.Client
 	authCfg          *promauth.Config
@@ -54,29 +55,54 @@ type keyValue struct {
 
 // Clone makes clone of VMStorage, shares http client.
 func (s *VMStorage) Clone() *VMStorage {
-	return &VMStorage{
+	ns := &VMStorage{
 		c:                s.c,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
+		appendTypePrefix: s.appendTypePrefix,
 		lookBack:         s.lookBack,
 		queryStep:        s.queryStep,
-		appendTypePrefix: s.appendTypePrefix,
-		dataSourceType:   s.dataSourceType,
+
+		dataSourceType:     s.dataSourceType,
+		evaluationInterval: s.evaluationInterval,
+
+		// init map so it can be populated below
+		extraParams: url.Values{},
+
+		debug: s.debug,
 	}
+	if len(s.extraHeaders) > 0 {
+		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
+		copy(ns.extraHeaders, s.extraHeaders)
+	}
+	for k, v := range s.extraParams {
+		ns.extraParams[k] = v
+	}
+
+	return ns
 }
 
 // ApplyParams - changes given querier params.
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
-	s.extraParams = params.QueryParams
-	s.debug = params.Debug
+	if params.QueryParams != nil {
+		if s.extraParams == nil {
+			s.extraParams = url.Values{}
+		}
+		for k, vl := range params.QueryParams {
+			for _, v := range vl { // custom query params are prior to default ones
+				s.extraParams.Set(k, v)
+			}
+		}
+	}
 	if params.Headers != nil {
 		for key, value := range params.Headers {
 			kv := keyValue{key: key, value: value}
 			s.extraHeaders = append(s.extraHeaders, kv)
 		}
 	}
+	s.debug = params.Debug
 	return s
 }
 
@@ -95,6 +121,7 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 		lookBack:         lookBack,
 		queryStep:        queryStep,
 		dataSourceType:   datasourcePrometheus,
+		extraParams:      url.Values{},
 	}
 }
 

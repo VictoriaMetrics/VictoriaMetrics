@@ -9,7 +9,7 @@ title: vmbackupmanager
 aliases:
   - /vmbackupmanager.html
 ---
-## vmbackupmanager
+# vmbackupmanager
 
 ***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
