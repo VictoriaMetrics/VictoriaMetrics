@@ -76,9 +76,14 @@ func (s *VMStorage) Clone() *VMStorage {
 func (s *VMStorage) ApplyParams(params QuerierParams) *VMStorage {
 	s.dataSourceType = toDatasourceType(params.DataSourceType)
 	s.evaluationInterval = params.EvaluationInterval
-	for k, vl := range params.QueryParams {
-		for _, v := range vl { // custom query params are prior to default ones
-			s.extraParams.Set(k, v)
+	if params.QueryParams != nil {
+		if s.extraParams == nil {
+			s.extraParams = url.Values{}
+		}
+		for k, vl := range params.QueryParams {
+			for _, v := range vl { // custom query params are prior to default ones
+				s.extraParams.Set(k, v)
+			}
 		}
 	}
 	if params.Headers != nil {
@@ -106,6 +111,7 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 		lookBack:         lookBack,
 		queryStep:        queryStep,
 		dataSourceType:   datasourcePrometheus,
+		extraParams:      url.Values{},
 	}
 }
 
