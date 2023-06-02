@@ -66,19 +66,17 @@ func (s *VMStorage) Clone() *VMStorage {
 		dataSourceType:     s.dataSourceType,
 		evaluationInterval: s.evaluationInterval,
 
+		// init map so it can be populated below
+		extraParams: url.Values{},
+
 		debug: s.debug,
 	}
-	if s.extraHeaders != nil {
+	if len(s.extraHeaders) > 0 {
 		ns.extraHeaders = make([]keyValue, len(s.extraHeaders))
 		copy(ns.extraHeaders, s.extraHeaders)
 	}
-	if s.extraParams != nil {
-		if ns.extraParams == nil {
-			ns.extraParams = url.Values{}
-		}
-		for k, v := range s.extraParams {
-			ns.extraParams[k] = v
-		}
+	for k, v := range s.extraParams {
+		ns.extraParams[k] = v
 	}
 
 	return ns
