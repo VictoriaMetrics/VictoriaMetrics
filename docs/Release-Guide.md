@@ -22,11 +22,31 @@ git remote add enterprise <url>
 3. Make sure you have github token with at least `read:org, repo, write:packages` permissions exported under `GITHUB_TOKEN` env variable.
    You can create token [here](https://github.com/settings/tokens)
 
+### For MacOS users
+
+Make sure you have GNU version of utilities `zip`, `tar`, `sha256sum`. To install them run the following commands:
+```bash
+brew install coreutils
+brew install gnu-tar
+```
+
+Docker may need additional configuration changes:
+```bash 
+docker buildx create --use --name=qemu
+docker buildx inspect --bootstrap  
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+```
+
+By default, docker on MacOS has limited amount of resources (CPU, mem) to use. 
+Bumping the limits may significantly improve build speed.
+
 ## Release version and Docker images
 
 0. Make sure that the release commits have no security issues.
 1a. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) and update version if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/SECURITY.md)
 1b. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
+1c. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
+like in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
 2. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
@@ -62,8 +82,8 @@ git remote add enterprise <url>
         and all the needed assets are re-uploaded to it.
 6. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
-7. Update the release description with the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
-8. Remove the `draft` checkbox for the `TAG` release and manually publish it.
+7. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
+8. Publish release by pressing "Publish release" green button in GitHub's UI.
 9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/gcp-test/sandbox/manifests/benchmark-vm/vmcluster.yaml)
    by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
 10. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
@@ -126,7 +146,7 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 
 ## RPM packages
 
-### Bump the version of components
+### Bump the version of components (for LTS releases only)
 
 Repository [https://github.com/VictoriaMetrics/victoriametrics-lts-rpm](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm)
 
