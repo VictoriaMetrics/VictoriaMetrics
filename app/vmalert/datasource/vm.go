@@ -55,7 +55,7 @@ type keyValue struct {
 
 // Clone makes clone of VMStorage, shares http client.
 func (s *VMStorage) Clone() *VMStorage {
-	return &VMStorage{
+	ns := &VMStorage{
 		c:                s.c,
 		authCfg:          s.authCfg,
 		datasourceURL:    s.datasourceURL,
@@ -65,11 +65,22 @@ func (s *VMStorage) Clone() *VMStorage {
 
 		dataSourceType:     s.dataSourceType,
 		evaluationInterval: s.evaluationInterval,
-		extraParams:        s.extraParams,
-		extraHeaders:       s.extraHeaders,
 
 		debug: s.debug,
 	}
+	if s.extraHeaders != nil {
+		copy(ns.extraHeaders, s.extraHeaders)
+	}
+	if s.extraParams != nil {
+		if ns.extraParams == nil {
+			ns.extraParams = url.Values{}
+		}
+		for k, v := range s.extraParams {
+			ns.extraParams[k] = v
+		}
+	}
+
+	return ns
 }
 
 // ApplyParams - changes given querier params.
