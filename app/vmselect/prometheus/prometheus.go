@@ -633,11 +633,7 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 		return err
 	}
 
-	minLimit := *maxSeriesLimit
-	if limit > 0 && limit < *maxSeriesLimit {
-		minLimit = limit
-	}
-	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, minLimit)
+	sq := storage.NewSearchQuery(cp.start, cp.end, cp.filterss, *maxSeriesLimit)
 	metricNames, err := netstorage.SearchMetricNames(qt, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
