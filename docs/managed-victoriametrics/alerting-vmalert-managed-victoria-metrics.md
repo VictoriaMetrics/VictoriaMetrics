@@ -83,7 +83,7 @@ export ALERTMANAGER_URL=http://localhost:9093
 export TOKEN=81e8226e-4e25-480d-9397-31ba4007f0bf 
 export MANAGED_VM_URL=https://gw-c15-1c.cloud.victoriametrics.com
 export ALERTMANAGER_URL=http://alertmanager:9093 
-docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoriametrics/vmalert:v1.87.1 -datasource.url=$MANAGED_VM_URL -datasource.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_URL -remoteRead.bearerToken=$TOKEN  -remoteWrite.url=$MANAGED_VM_URL -remoteWrite.bearerToken=$TOKEN  -notifier.url=$ALERTMANAGER_URL -rule="/etc/alerts/*.yml"
+docker run -it -p 8880:8880 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoriametrics/vmalert:v1.87.1 -datasource.url=$MANAGED_VM_URL -datasource.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_URL -remoteRead.bearerToken=$TOKEN  -remoteWrite.url=$MANAGED_VM_URL -remoteWrite.bearerToken=$TOKEN  -notifier.url=$ALERTMANAGER_URL -rule="/etc/alerts/*.yml"
 ```
 
 ##### Helm Chart
@@ -198,7 +198,7 @@ export TOKEN=76bc5470-d340-4e5e-9574-49ed30911cc4
 export MANAGED_VM_READ_URL=https://gw-c15-1a.cloud.victoriametrics.com/select/0/prometheus/
 export MANAGED_VM_WRITE_URL=https://gw-c15-1a.cloud.victoriametrics.com/insert/0/prometheus/
 export ALERTMANAGER_URL=http://alertmanager:9093 
-docker run -it -p 8080:8080 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoriametrics/vmalert:v1.87.1 -datasource.url=$MANAGED_VM_READ_URL -datasource.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_READ_URL -remoteRead.bearerToken=$TOKEN  -remoteWrite.url=$MANAGED_VM_WRITE_URL -remoteWrite.bearerToken=$TOKEN  -notifier.url=$ALERTMANAGER_URL -rule="/etc/alerts/*.yml"
+docker run -it -p 8880:8880 -v $(pwd)/alerts.yml:/etc/alerts/alerts.yml victoriametrics/vmalert:v1.87.1 -datasource.url=$MANAGED_VM_READ_URL -datasource.bearerToken=$TOKEN -remoteRead.url=$MANAGED_VM_READ_URL -remoteRead.bearerToken=$TOKEN  -remoteWrite.url=$MANAGED_VM_WRITE_URL -remoteWrite.bearerToken=$TOKEN  -notifier.url=$ALERTMANAGER_URL -rule="/etc/alerts/*.yml"
 ```
 
 ##### Helm Chart

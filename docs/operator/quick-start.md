@@ -1236,7 +1236,7 @@ spec:
         namespace: default
       paths: ["/.*"]
     - static:
-        url: http://vmalert-example.default.svc:8080
+        url: http://vmalert-example.default.svc:8880
       paths: ["/api/v1/groups","/api/v1/alerts"]
 EOF
 ```
