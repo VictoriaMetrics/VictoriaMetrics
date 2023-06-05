@@ -168,12 +168,12 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 			logger.Errorf("failed to configure HTTP/2 transport: %s", err)
 		}
 	}
-
 	if sw.DenyRedirects {
 		sc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
 	}
+
 	return &client{
 		hc:                      hc,
 		ctx:                     ctx,
