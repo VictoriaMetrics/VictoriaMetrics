@@ -1544,7 +1544,13 @@ occurs in the middle of writing the `part` to disk - such incompletely written `
 are automatically deleted on the next VictoriaMetrics start.
 
 The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
-leaving the source `parts` untouched.
+leaving the source `parts` untouched. However, due to hardware issues data on disk may be corrupted regardless of
+VictoriaMetrics process. VictoriaMetrics can detect corruption during decompressing, decoding or sanity checking
+of the data blocks. But **it cannot fix the corrupted data**. Data parts that fail to load on startup need to be deleted
+or restored from backups. This is why it is recommended performing
+[regular backups](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#backups).
+
+VictoriaMetrics doesn't use checksums for stored data blocks. See why [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
 VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
 This prevents from potential out of disk space errors during merge.
@@ -2501,7 +2507,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxGraphiteTagKeys int
      The maximum number of tag keys returned from Graphite /tags, /tags/autoComplete/*, /tags/findSeries API (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned Graphite /tags/<tag_name> API (default 100000) 
+     The maximum number of tag values returned Graphite /tags/<tag_name> API (default 100000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size
