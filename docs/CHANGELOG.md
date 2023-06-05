@@ -24,6 +24,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
+
+* FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): Adds `enable_http2` on scrape configuration level. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4283). Thanks to @Haleygo for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4295).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add verbose output for docker installations or when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4081).
 * BUGFIX: add the following command-line flags, which can be used for limiting Graphite API calls: 
   `--search.maxGraphiteTagKeys` for limiting the number of tag keys returned from Graphite `/tags`, `/tags/autoComplete/*`, `/tags/findSeries` API. 
