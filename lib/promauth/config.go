@@ -126,6 +126,9 @@ type HTTPClientConfig struct {
 
 	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
 	FollowRedirects *bool `yaml:"follow_redirects,omitempty"`
+
+	// EnableHTTP2 specifies whether the client should configure HTTP2.
+	EnableHTTP2 *bool `yaml:"enable_http2,omitempty"`
 }
 
 // ProxyClientConfig represents proxy client config.
