@@ -31,6 +31,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
   `--search.maxGraphiteTagKeys` for limiting the number of tag keys returned from Graphite `/tags`, `/tags/autoComplete/*`, `/tags/findSeries` API. 
   `--search.maxGraphiteTagValues` for limiting the number of tag values returned Graphite `/tags/<tag_name>` API. 
   Remove redundant limit from [Prometheus api/v1/series](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4339).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic on vmagent shutdown which could lead to loosing aggregation results which were not flushed to remote yet. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
 
