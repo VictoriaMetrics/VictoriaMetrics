@@ -587,6 +587,8 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
+	// sas must be stopped before rwctx is closed
+	// because sas can write pending series to rwctx.pss if there are any
 	sas := rwctx.sas.Swap(nil)
 	sas.MustStop()
 
