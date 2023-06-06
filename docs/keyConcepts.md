@@ -504,10 +504,11 @@ GET | POST /api/v1/query?query=...&time=...&step=...
 Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `time` - optional timestamp when to evaluate the `query`. If `time` is skipped, then the current timestamp is used.
+* `time` - optional, timestamp to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional max lookback window for searching for raw samples when executing the `query`.
-  If `step` is skipped, then it is set to `5m` (5 minutes) by default.
+* `step` - optional, the max time range for searching for raw samples in the past when executing the `query`. 
+  For example, request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for metric `up`
+  on interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
 
 To understand how instant queries work, let's begin with a data sample:
 
