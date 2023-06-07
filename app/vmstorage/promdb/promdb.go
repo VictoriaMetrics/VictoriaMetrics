@@ -26,7 +26,7 @@ var prometheusRetentionMsecs int64
 // See also MustClose.
 func Init(retentionMsecs int64) {
 	if promDB != nil {
-		logger.Fatalf("BUG: it looks like MustOpenPromDB is called multiple times without MustClosePromDB call")
+		logger.Fatalf("BUG: promdb.Init is called multiple times without promdb.MustClose call")
 	}
 	prometheusRetentionMsecs = retentionMsecs
 	if *prometheusDataPath == "" {
@@ -85,7 +85,7 @@ func MustClose() {
 		return
 	}
 	if promDB == nil {
-		logger.Panicf("BUG: it looks like MustClosePromDB is called without MustOpenPromDB call")
+		logger.Panicf("BUG: promdb.MustClose is called without promdb.Init call")
 	}
 	if err := promDB.Close(); err != nil {
 		logger.Panicf("FATAL: cannot close promDB: %s", err)
@@ -98,6 +98,9 @@ var promDB *tsdb.DB
 
 // GetLabelNamesOnTimeRange returns label names.
 func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+	if *prometheusDataPath == "" {
+		return nil, nil
+	}
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
@@ -115,6 +118,9 @@ func GetLabelNamesOnTimeRange(tr storage.TimeRange, deadline searchutils.Deadlin
 
 // GetLabelValuesOnTimeRange returns values for the given labelName on the given tr.
 func GetLabelValuesOnTimeRange(labelName string, tr storage.TimeRange, deadline searchutils.Deadline) ([]string, error) {
+	if *prometheusDataPath == "" {
+		return nil, nil
+	}
 	d := time.Unix(int64(deadline.Deadline()), 0)
 	ctx, cancel := context.WithDeadline(context.Background(), d)
 	defer cancel()
