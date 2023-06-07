@@ -41,6 +41,7 @@ var (
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
+	brokenBeckendDeadlineTime = flag.Duration("brokenBackendDeadline", 3*time.Second, "The deadline time for broken backend")
 )
 
 func main() {
@@ -179,7 +180,7 @@ func processRequest(w http.ResponseWriter, r *http.Request, ui *UserInfo) {
 		if ok {
 			return
 		}
-		bu.setBroken()
+		bu.setBroken(*brokenBeckendDeadlineTime)
 	}
 	err := &httpserver.ErrorWithStatusCode{
 		Err:        fmt.Errorf("all the backends for the user %q are unavailable", ui.name()),
