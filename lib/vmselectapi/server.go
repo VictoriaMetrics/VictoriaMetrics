@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -254,6 +255,13 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 		if err := s.processRequest(ctx); err != nil {
 			if err == io.EOF {
 				// Remote client gracefully closed the connection.
+				return nil
+			}
+			if err == net.ErrClosed || strings.Contains(err.Error(), "broken pipe") {
+				// The connection has been interrupted abruptly.
+				// It could happen due to unexpected network glitch or because connection was
+				// interrupted by remote client. In both cases, remote client will notice
+				// connection breach and handle it on its own. No need in mirroring the error here.
 				return nil
 			}
 			if errors.Is(err, storage.ErrDeadlineExceeded) {
