@@ -158,7 +158,7 @@ VictoriaMetrics can also be installed via these installation methods:
 The following command-line flags are used the most:
 
 * `-storageDataPath` - VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
-* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [the Retention section](#retention) for more details.
+* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. The minimum retention period is 24h or 1d. See [the Retention section](#retention) for more details.
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
