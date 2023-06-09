@@ -2477,7 +2477,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter
-     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
+     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1). The minimum retention period is 24h or 1d.
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -search.cacheTimestampOffset duration
