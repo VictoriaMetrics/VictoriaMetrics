@@ -526,6 +526,9 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
+_Please note, [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) might be more efficient
+for cases when downsampling or aggregation need to be applied **before data gets into the TSDB.**_
+
 `vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
 via [recording rules](#recording-rules) and backfill results to the configured `-remoteWrite.url`.
 This ability allows to aggregate data. For example, the following rule will calculate the average value for
