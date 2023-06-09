@@ -66,6 +66,9 @@ type ScrapeWork struct {
 	// Whether to deny redirects during requests to scrape config.
 	DenyRedirects bool
 
+	// Whether to configure HTTP2.
+	EnableHTTP2 bool
+
 	// OriginalLabels contains original labels before relabeling.
 	//
 	// These labels are needed for relabeling troubleshooting at /targets page.
@@ -399,7 +402,8 @@ func (sw *scrapeWork) mustSwitchToStreamParseMode(responseSize int) bool {
 
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
 func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
-	if *streamParse || sw.Config.StreamParse || sw.mustSwitchToStreamParseMode(sw.prevBodyLen) {
+	// use stream reader when stream mode enabled or http2 enabled
+	if *streamParse || sw.Config.StreamParse || sw.mustSwitchToStreamParseMode(sw.prevBodyLen) || sw.Config.EnableHTTP2 {
 		// Read the response in stream mode.
 		sr, err := sw.GetStreamReader()
 		if err != nil {
