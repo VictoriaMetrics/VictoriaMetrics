@@ -504,9 +504,11 @@ GET | POST /api/v1/query?query=...&time=...&step=...
 Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `time` - optional, timestamp to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
+* `time` - optional, [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional, the max time range for searching for raw samples in the past when executing the `query`. 
+* `step` - optional, the max [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+  for searching for raw samples in the past when executing the `query`. 
   For example, request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for metric `up`
   on interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
 
@@ -596,18 +598,18 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
 
 Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `start` - the starting timestamp of the time range for `query` evaluation.
-* `end` - the ending timestamp of the time range for `query` evaluation.
+* `start` - the starting [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
+* `end` - the ending [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
-* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) between datapoints,
-  which must be returned from the range query.
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
+  between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
 
-The `start` and `end` params can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-
-To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
-need to issue a range query:
+To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`
+in VictoriaMetrics we need to issue a range query:
 
 ```console
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
