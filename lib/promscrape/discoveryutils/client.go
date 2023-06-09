@@ -3,6 +3,7 @@ package discoveryutils
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -293,7 +294,7 @@ func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Respon
 			if statusCode != http.StatusTooManyRequests {
 				return true
 			}
-		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+		} else if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
 			return true
 		}
 		return false
