@@ -22,7 +22,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang/snappy v0.0.4
 	github.com/googleapis/gax-go/v2 v2.8.0
-	github.com/influxdata/influxdb v1.11.1
+	github.com/influxdata/influxdb v1.11.2
 	github.com/klauspost/compress v1.16.5
 	github.com/prometheus/prometheus v0.44.0
 	github.com/urfave/cli/v2 v2.25.3
