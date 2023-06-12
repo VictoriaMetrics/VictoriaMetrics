@@ -33,6 +33,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
   `--search.maxGraphiteTagValues` for limiting the number of tag values returned Graphite `/tags/<tag_name>` API. 
   Remove redundant limit from [Prometheus api/v1/series](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4339).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic on vmagent shutdown which could lead to loosing aggregation results which were not flushed to remote yet. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fixed service name detection for [consulagent service discovery](https://docs.victoriametrics.com/sd_configs.html?highlight=consulagent#consulagent_sd_configs) in case of a difference in service name and service id. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4390) for details.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix an issue with `vmbackupmanager` not being able to restore data from a backup stored in GCS. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4420) for details.
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
