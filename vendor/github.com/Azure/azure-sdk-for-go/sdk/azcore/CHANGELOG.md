@@ -1,5 +1,12 @@
 # Release History
 
+## 1.6.1 (2023-06-06)
+
+### Bugs Fixed
+* Retry policy always clones the underlying `*http.Request` before invoking the next policy.
+* Added some non-standard error codes to the list of error codes for unregistered resource providers.
+* Fixed an issue in `azcore.NewClient()` and `arm.NewClient()` that could cause an incorrect module name to be used in telemetry.
+
 ## 1.6.0 (2023-05-04)
 
 ### Features Added
