@@ -65,7 +65,7 @@ func (b *Backoff) Retry(ctx context.Context, cb retryableFunc) (uint64, error) {
 			if !t.Stop() {
 				<-t.C
 			}
-			return attempt, nil
+			return attempt, err
 		}
 	}
 	return attempt, fmt.Errorf("execution failed after %d retry attempts", b.retries)

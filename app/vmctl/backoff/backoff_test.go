@@ -95,7 +95,7 @@ func TestRetry_Do(t *testing.T) {
 			ctx:           context.Background(),
 			cancelTimeout: time.Second * 5,
 			want:          3,
-			wantErr:       false,
+			wantErr:       true,
 		},
 	}
 	for _, tt := range tests {
