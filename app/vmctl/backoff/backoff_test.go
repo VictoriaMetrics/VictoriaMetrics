@@ -16,7 +16,7 @@ func TestRetry_Do(t *testing.T) {
 		backoffMinDuration time.Duration
 		retryableFunc      retryableFunc
 		ctx                context.Context
-		withCancel         bool
+		cancelTimeout      time.Duration
 		want               uint64
 		wantErr            bool
 	}{
@@ -79,10 +79,33 @@ func TestRetry_Do(t *testing.T) {
 			want:    5,
 			wantErr: true,
 		},
+		{
+			name:               "cancel context",
+			backoffRetries:     5,
+			backoffFactor:      0.1,
+			backoffMinDuration: time.Millisecond * 10,
+			retryableFunc: func() error {
+				t := time.NewTicker(time.Millisecond * 5)
+				defer t.Stop()
+				for range t.C {
+					return fmt.Errorf("got some error")
+				}
+				return nil
+			},
+			ctx:           context.Background(),
+			cancelTimeout: time.Second * 5,
+			want:          3,
+			wantErr:       false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := New()
+			if tt.cancelTimeout != 0 {
+				newCtx, cancelFn := context.WithTimeout(tt.ctx, tt.cancelTimeout)
+				tt.ctx = newCtx
+				defer cancelFn()
+			}
 			got, err := r.Retry(tt.ctx, tt.retryableFunc)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Retry() error = %v, wantErr %v", err, tt.wantErr)
