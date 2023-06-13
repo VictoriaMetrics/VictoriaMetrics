@@ -27,6 +27,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * SECURITY: upgrade Go builder from Go1.20.4 to Go1.20.5. See [the list of issues addressed in Go1.20.5](https://github.com/golang/go/issues?q=milestone%3AGo1.20.5+label%3ACherryPickApproved).
 
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add verbose output for docker installations or when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4081).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt backoff retries when import process is cancelled. The change makes vmctl more responsive in case of errors during the import. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
 * FEATURE: vmstorage: suppress "broken pipe" errors for search queries on vmstorage side. See [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4418/commits/a6a7795b9e1f210d614a2c5f9a3016b97ded4792).
 * FEATURE: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): add panel for tracking rate of syscalls while writing or reading from disk via `process_io_(read|write)_syscalls_total` metrics.
 * FEATURE: add ability to fine-tune Graphite API limits via the following command-line flags:
