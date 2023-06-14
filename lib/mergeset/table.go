@@ -274,6 +274,9 @@ type partWrapper struct {
 
 	refCount uint32
 
+	// mustBeDeleted marks partWrapper for deletion.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
 	mustBeDeleted uint32
 
 	isInMerge bool
