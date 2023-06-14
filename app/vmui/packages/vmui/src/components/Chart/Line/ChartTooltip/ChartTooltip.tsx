@@ -19,7 +19,6 @@ export interface ChartTooltipProps {
   u: uPlot,
   metricItem: MetricResult,
   seriesItem: SeriesItem,
-  yRange: number[];
   unit?: string,
   isSticky?: boolean,
   showQueryNum?: boolean,
@@ -34,7 +33,6 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   unit = "",
   metricItem,
   seriesItem,
-  yRange,
   tooltipIdx,
   tooltipOffset,
   isSticky,
@@ -51,7 +49,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const [dataIdx, setDataIdx] = useState(tooltipIdx.dataIdx);
 
   const value = get(u, ["data", seriesIdx, dataIdx], 0);
-  const valueFormat = formatPrettyNumber(value, get(yRange, [0]), get(yRange, [1]));
+  const valueFormat = formatPrettyNumber(value, get(u, ["scales", "1", "min"], 0), get(u, ["scales", "1", "max"], 1));
   const dataTime = u.data[0][dataIdx];
   const date = dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
 
