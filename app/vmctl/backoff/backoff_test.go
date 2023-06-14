@@ -37,7 +37,7 @@ func TestRetry_Do(t *testing.T) {
 			},
 			ctx:     context.Background(),
 			want:    0,
-			wantErr: false,
+			wantErr: true,
 		},
 		{
 			name:               "only one retry test",
@@ -82,7 +82,7 @@ func TestRetry_Do(t *testing.T) {
 		{
 			name:               "cancel context",
 			backoffRetries:     5,
-			backoffFactor:      0.1,
+			backoffFactor:      1.7,
 			backoffMinDuration: time.Millisecond * 10,
 			retryableFunc: func() error {
 				t := time.NewTicker(time.Millisecond * 5)
@@ -93,14 +93,14 @@ func TestRetry_Do(t *testing.T) {
 				return nil
 			},
 			ctx:           context.Background(),
-			cancelTimeout: time.Second * 5,
+			cancelTimeout: time.Millisecond * 40,
 			want:          3,
 			wantErr:       true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := New()
+			r := &Backoff{retries: tt.backoffRetries, factor: tt.backoffFactor, minDuration: tt.backoffMinDuration}
 			if tt.cancelTimeout != 0 {
 				newCtx, cancelFn := context.WithTimeout(tt.ctx, tt.cancelTimeout)
 				tt.ctx = newCtx
