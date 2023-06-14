@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	backoffRetries     = 5
-	backoffFactor      = 1.7
+	backoffRetries     = 10
+	backoffFactor      = 1.6
 	backoffMinDuration = time.Second
 )
 
