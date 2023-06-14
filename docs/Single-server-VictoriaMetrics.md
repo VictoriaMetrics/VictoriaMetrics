@@ -1174,6 +1174,12 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 
 ### How to import data in JSON line format
 
+`/api/v1/import` is an API optimized for performance and processes data in a streaming fashion. 
+The client can transfer unlimited amount of data through one open connection. 
+`/api/v1/import` API doesn't return parsing errors to the client, as it is expected for data stream
+to be not interrupted. Instead, look for parsing errors on server side (VictoriaMetrics single-node or vminsert) or
+check for changes in `vm_rows_invalid_total` (exported by server side) metric.
+
 Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 
 ```console
