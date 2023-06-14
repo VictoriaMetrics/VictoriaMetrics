@@ -331,6 +331,7 @@ func (c *client) doRequest(url string, body []byte) (*http.Response, error) {
 	h := req.Header
 	h.Set("User-Agent", "vmagent")
 	h.Set("Content-Type", "application/x-protobuf")
+	h["X-Idempotency-Key"] = []string{}
 	if c.useVMProto {
 		h.Set("Content-Encoding", "zstd")
 		h.Set("X-VictoriaMetrics-Remote-Write-Version", "1")
