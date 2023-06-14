@@ -42,6 +42,10 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
           label: routerOptions[router.topQueries].title,
           value: router.topQueries,
         },
+        {
+          label: routerOptions[router.logs].title,
+          value: router.logs,
+        },
       ]
     },
     {

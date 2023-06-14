@@ -38,7 +38,7 @@ const Tooltip: FC<TooltipProps> = ({
       width: popperRef.current.clientWidth,
       height: popperRef.current.clientHeight
     });
-  }, [isOpen]);
+  }, [isOpen, title]);
 
   const popperStyle = useMemo(() => {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

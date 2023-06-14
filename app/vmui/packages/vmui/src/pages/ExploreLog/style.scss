@@ -1,0 +1,15 @@
+@use "src/styles/variables" as *;
+
+.vm-explore-log {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  align-items: flex-start;
+  gap: $padding-medium;
+
+  &-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: $padding-medium;
+  }
+}
