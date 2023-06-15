@@ -526,6 +526,9 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
+_Please note, [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) might be more efficient
+for cases when downsampling or aggregation need to be applied **before data gets into the TSDB.**_
+
 `vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
 via [recording rules](#recording-rules) and backfill results to the configured `-remoteWrite.url`.
 This ability allows to aggregate data. For example, the following rule will calculate the average value for
@@ -828,6 +831,32 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
+
+### Series with the same labelset
+
+vmalert can produce the following error message during rules evaluation:
+```
+result contains metrics with the same labelset after applying rule labels
+```
+
+The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+after applying extra labels to result.
+
+For example, a rule with `expr: foo > 0` returns two distinct time series in response:
+```
+foo{bar="baz"} 1
+foo{bar="qux"} 2
+```
+
+If user configures `-external.label=bar=baz` cmd-line flag to enforce
+adding `bar="baz"` label-value pair, then time series won't be distinct anymore:
+```
+foo{bar="baz"} 1
+foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
+```
+
+The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
+To fix it one should avoid collisions by carefully picking label overrides in configuration.
 
 
 ## Profiling

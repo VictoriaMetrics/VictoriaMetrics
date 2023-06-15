@@ -274,6 +274,9 @@ type partWrapper struct {
 
 	refCount uint32
 
+	// mustBeDeleted marks partWrapper for deletion.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
 	mustBeDeleted uint32
 
 	isInMerge bool
@@ -1382,6 +1385,11 @@ func mustOpenParts(path string) []*partWrapper {
 			refCount: 1,
 		}
 		pws = append(pws, pw)
+	}
+	partNamesPath := filepath.Join(path, partsFilename)
+	if !fs.IsPathExist(partNamesPath) {
+		// create parts.json file on migration from previous versions before v1.90.0
+		mustWritePartNames(pws, path)
 	}
 
 	return pws
