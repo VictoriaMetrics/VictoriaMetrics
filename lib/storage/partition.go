@@ -265,6 +265,12 @@ func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partiti
 	smallParts := mustOpenParts(smallPartsPath, partNamesSmall)
 	bigParts := mustOpenParts(bigPartsPath, partNamesBig)
 
+	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
+	if !fs.IsPathExist(partNamesPath) {
+		// create parts.json file on migration from previous versions before v1.90.0
+		mustWritePartNames(smallParts, bigParts, smallPartsPath)
+	}
+
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
