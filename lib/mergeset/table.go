@@ -1383,6 +1383,11 @@ func mustOpenParts(path string) []*partWrapper {
 		}
 		pws = append(pws, pw)
 	}
+	partNamesPath := filepath.Join(path, partsFilename)
+	if !fs.IsPathExist(partNamesPath) {
+		// create parts.json file on migration from previous versions before v1.90.0
+		mustWritePartNames(pws, path)
+	}
 
 	return pws
 }
