@@ -168,6 +168,8 @@ type partWrapper struct {
 	refCount uint32
 
 	// The flag, which is set when the part must be deleted after refCount reaches zero.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
 	mustBeDeleted uint32
 
 	// The part itself.
