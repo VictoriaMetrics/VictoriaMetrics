@@ -54,10 +54,16 @@ func TestClient_Push(t *testing.T) {
 			}},
 		}
 		err := client.Push(s)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
 		if err == nil {
 			sent++
 		}
-		faultyClient.Push(s)
+		err = faultyClient.Push(s)
+		if err != nil {
+			t.Fatalf("unexpected err: %s", err)
+		}
 	}
 	if sent == 0 {
 		t.Fatalf("0 series sent")
