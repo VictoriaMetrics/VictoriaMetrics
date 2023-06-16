@@ -185,6 +185,11 @@ var (
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
 )
 
+var (
+	retryCount   = 5
+	retryBackoff = time.Second
+)
+
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
@@ -202,12 +207,6 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	}
 
 	b := snappy.Encode(nil, data)
-
-	const (
-		retryCount   = 5
-		retryBackoff = time.Second
-	)
-
 	for attempts := 0; attempts < retryCount; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
@@ -216,10 +215,10 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 			return
 		}
 
-		_, isRetriable := err.(*retriableError)
-		logger.Warnf("attempt %d to send request failed: %s (retriable: %v)", attempts+1, err, isRetriable)
+		_, isNotRetriable := err.(*nonRetriableError)
+		logger.Warnf("attempt %d to send request failed: %s (retriable: %v)", attempts+1, err, !isNotRetriable)
 
-		if !isRetriable {
+		if isNotRetriable {
 			// exit fast if error isn't retriable
 			break
 		}
@@ -276,22 +275,21 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 	case 2:
 		// respond with a HTTP 2xx status code when the write is successful.
 		return nil
-	case 5:
-		// respond with HTTP status code 5xx when the write fails and SHOULD be retried.
-		return &retriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
-			resp.StatusCode, req.URL.Redacted(), body)}
-	default:
+	case 4:
 		// respond with HTTP status code 4xx when the request is invalid, will never be able to succeed
 		// and should not be retried.
+		return &nonRetriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
+			resp.StatusCode, req.URL.Redacted(), body)}
+	default:
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
 }
 
-type retriableError struct {
+type nonRetriableError struct {
 	err error
 }
 
-func (e *retriableError) Error() string {
+func (e *nonRetriableError) Error() string {
 	return e.err.Error()
 }
