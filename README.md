@@ -2056,6 +2056,26 @@ the current timestamps. Query cache can be enabled after the backfilling is comp
 An alternative solution is to query `/internal/resetRollupResultCache` url after backfilling is complete. This will reset
 the query cache, which could contain incomplete data cached during the backfilling.
 
+Use the next [curl](https://curl.se/) commands to reset the query cache on [VictoriaMetrics Single](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html):
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -Is http://127.0.0.1:8428/internal/resetRollupResultCache
+```
+
+</div>
+
+and [VictoriaMetrics Cluster](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) version:
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -Is http://127.0.0.1:8481/select/internal/resetRollupResultCache
+```
+
+</div>
+
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
 cache when samples with timestamps older than `now - search.cacheTimestampOffset` are ingested to it.
