@@ -226,9 +226,9 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/api/v1/newrelic/inventory/deltas":
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(202)
-		fmt.Fprintf(w, `{"status":"ok"}`)
+		// w.Header().Set("Content-Type", "application/json")
+		// w.WriteHeader(202)
+		// fmt.Fprintf(w, `{"status":"ok"}`)
 		return true
 	case "/api/v1/newrelic/infra/v2/metrics/events/bulk":
 		if err := newrelic.InsertHandlerForHTTP(r); err != nil {
