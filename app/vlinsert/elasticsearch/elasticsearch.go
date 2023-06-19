@@ -9,24 +9,19 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
+	common "github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	pc "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/valyala/fastjson"
-)
-
-var (
-	maxLineSizeBytes = flagutil.NewBytes("insert.maxLineSizeBytes", 256*1024, "The maximum size of a single line, which can be read by /insert/* handlers")
 )
 
 // RequestHandler processes ElasticSearch insert requests
@@ -156,11 +151,11 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	if isGzip {
-		zr, err := common.GetGzipReader(r)
+		zr, err := pc.GetGzipReader(r)
 		if err != nil {
 			return 0, fmt.Errorf("cannot read gzipped _bulk request: %w", err)
 		}
-		defer common.PutGzipReader(zr)
+		defer pc.PutGzipReader(zr)
 		r = zr
 	}
 
@@ -170,7 +165,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	lb := lineBufferPool.Get()
 	defer lineBufferPool.Put(lb)
 
-	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, maxLineSizeBytes.IntN())
+	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, common.MaxLineSizeBytes.IntN())
 	sc := bufio.NewScanner(wcr)
 	sc.Buffer(lb.B, len(lb.B))
 
@@ -202,7 +197,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
 			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`, maxLineSizeBytes.IntN())
+				return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`, common.MaxLineSizeBytes.IntN())
 			}
 			return false, err
 		}
@@ -223,27 +218,27 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
 			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", maxLineSizeBytes.IntN())
+				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", common.MaxLineSizeBytes.IntN())
 			}
 			return false, err
 		}
 		return false, fmt.Errorf(`missing log message after the "create" or "index" command`)
 	}
 	line = sc.Bytes()
-	pctx := getParserCtx()
-	if err := pctx.parseLogMessage(line); err != nil {
+	pctx := common.GetParserCtx()
+	if err := pctx.ParseLogMessage(line); err != nil {
 		invalidJSONLineLogger.Warnf("cannot parse json-encoded log entry: %s", err)
 		return true, nil
 	}
 
-	timestamp, err := extractTimestampFromFields(timeField, pctx.fields)
+	timestamp, err := extractTimestampFromFields(timeField, pctx.Fields())
 	if err != nil {
 		invalidTimestampLogger.Warnf("skipping the log entry because cannot parse timestamp: %s", err)
 		return true, nil
 	}
-	updateMessageFieldName(msgField, pctx.fields)
-	processLogMessage(timestamp, pctx.fields)
-	putParserCtx(pctx)
+	pctx.RenameField(msgField, "_msg")
+	processLogMessage(timestamp, pctx.Fields())
+	common.PutParserCtx(pctx)
 	return true, nil
 }
 
@@ -268,115 +263,6 @@ func extractTimestampFromFields(timeField string, fields []logstorage.Field) (in
 		return timestamp, nil
 	}
 	return time.Now().UnixNano(), nil
-}
-
-func updateMessageFieldName(msgField string, fields []logstorage.Field) {
-	if msgField == "" {
-		return
-	}
-	for i := range fields {
-		f := &fields[i]
-		if f.Name == msgField {
-			f.Name = "_msg"
-			return
-		}
-	}
-}
-
-type parserCtx struct {
-	p         fastjson.Parser
-	buf       []byte
-	prefixBuf []byte
-	fields    []logstorage.Field
-}
-
-func (pctx *parserCtx) reset() {
-	pctx.buf = pctx.buf[:0]
-	pctx.prefixBuf = pctx.prefixBuf[:0]
-
-	fields := pctx.fields
-	for i := range fields {
-		lf := &fields[i]
-		lf.Name = ""
-		lf.Value = ""
-	}
-	pctx.fields = fields[:0]
-}
-
-func getParserCtx() *parserCtx {
-	v := parserCtxPool.Get()
-	if v == nil {
-		return &parserCtx{}
-	}
-	return v.(*parserCtx)
-}
-
-func putParserCtx(pctx *parserCtx) {
-	pctx.reset()
-	parserCtxPool.Put(pctx)
-}
-
-var parserCtxPool sync.Pool
-
-func (pctx *parserCtx) parseLogMessage(msg []byte) error {
-	s := bytesutil.ToUnsafeString(msg)
-	v, err := pctx.p.Parse(s)
-	if err != nil {
-		return fmt.Errorf("cannot parse json: %w", err)
-	}
-	if t := v.Type(); t != fastjson.TypeObject {
-		return fmt.Errorf("expecting json dictionary; got %s", t)
-	}
-	pctx.reset()
-	pctx.fields, pctx.buf, pctx.prefixBuf = appendLogFields(pctx.fields, pctx.buf, pctx.prefixBuf, v)
-	return nil
-}
-
-func appendLogFields(dst []logstorage.Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]logstorage.Field, []byte, []byte) {
-	o := v.GetObject()
-	o.Visit(func(k []byte, v *fastjson.Value) {
-		t := v.Type()
-		switch t {
-		case fastjson.TypeNull:
-			// Skip nulls
-		case fastjson.TypeObject:
-			// Flatten nested JSON objects.
-			// For example, {"foo":{"bar":"baz"}} is converted to {"foo.bar":"baz"}
-			prefixLen := len(prefixBuf)
-			prefixBuf = append(prefixBuf, k...)
-			prefixBuf = append(prefixBuf, '.')
-			dst, dstBuf, prefixBuf = appendLogFields(dst, dstBuf, prefixBuf, v)
-			prefixBuf = prefixBuf[:prefixLen]
-		case fastjson.TypeArray, fastjson.TypeNumber, fastjson.TypeTrue, fastjson.TypeFalse:
-			// Convert JSON arrays, numbers, true and false values to their string representation
-			dstBufLen := len(dstBuf)
-			dstBuf = v.MarshalTo(dstBuf)
-			value := dstBuf[dstBufLen:]
-			dst, dstBuf = appendLogField(dst, dstBuf, prefixBuf, k, value)
-		case fastjson.TypeString:
-			// Decode JSON strings
-			dstBufLen := len(dstBuf)
-			dstBuf = append(dstBuf, v.GetStringBytes()...)
-			value := dstBuf[dstBufLen:]
-			dst, dstBuf = appendLogField(dst, dstBuf, prefixBuf, k, value)
-		default:
-			logger.Panicf("BUG: unexpected JSON type: %s", t)
-		}
-	})
-	return dst, dstBuf, prefixBuf
-}
-
-func appendLogField(dst []logstorage.Field, dstBuf, prefixBuf, k, value []byte) ([]logstorage.Field, []byte) {
-	dstBufLen := len(dstBuf)
-	dstBuf = append(dstBuf, prefixBuf...)
-	dstBuf = append(dstBuf, k...)
-	name := dstBuf[dstBufLen:]
-
-	dst = append(dst, logstorage.Field{
-		Name:  bytesutil.ToUnsafeString(name),
-		Value: bytesutil.ToUnsafeString(value),
-	})
-	return dst, dstBuf
 }
 
 func parseElasticsearchTimestamp(s string) (int64, error) {
