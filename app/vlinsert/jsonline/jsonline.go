@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	common "github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
@@ -94,7 +94,6 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 
 	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, common.MaxLineSizeBytes.IntN())
 	sc := bufio.NewScanner(wcr)
-	sc.Buffer(lb.B, len(lb.B))
 	sc.Buffer(lb.B, len(lb.B))
 
 	n := 0
