@@ -1,30 +1,44 @@
 # Docker compose environment for VictoriaMetrics
 
-Docker compose environment for VictoriaMetrics includes VictoriaMetrics components,
+Docker compose environment for VictoriaMetrics includes VictoriaMetrics and VictoriaLogs components,
 [Alertmanager](https://prometheus.io/docs/alerting/latest/alertmanager/) 
 and [Grafana](https://grafana.com/).
 
 For starting the docker-compose environment ensure you have docker installed and running and access to the Internet.
 **All commands should be executed from the root directory of [the repo](https://github.com/VictoriaMetrics/VictoriaMetrics).**
 
+**VictoriaMetrics**
+
 To spin-up environment for single server VictoriaMetrics run the following command:
 ```
-make docker-single-up
+make docker-victoriametrics-single-up
 ```
 
 To shut down the docker-compose environment for single server run the following command:
 ```
-make docker-single-down
+make docker-victoriametrics-single-down
 ```
 
 For cluster version the command will be the following:
 ```
-make docker-cluster-up
+make docker-victoriametrics-cluster-up
 ```
 
 To shut down the docker compose environment for cluster version run the following command:
 ```
-make docker-cluster-down
+make docker-victoriametrics-cluster-down
+```
+
+** VictoriaLogs**
+
+To spin-up environment for single server VictoriaLogs run the following command:
+```
+make docker-victorialogs-single-up
+```
+
+To shut down the docker-compose environment for single server run the following command:
+```
+make docker-victoriametrics-single-down
 ```
 
 ## VictoriaMetrics single server

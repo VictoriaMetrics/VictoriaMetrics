@@ -177,12 +177,22 @@ remove-docker-images:
 
 docker-single-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+docker-victoriametrics-single-up: docker-single-up
 
 docker-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
+docker-victoriametrics-single-down: docker-single-down
 
 docker-cluster-up:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+docker-victoriametrics-cluster-up: docker-cluster-up
 
 docker-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
+docker-victoriametrics-cluster-down: docker-cluster-down
+
+docker-victorialogs-single-up:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-vl.yml up -d
+
+docker-victorialogs-single-down:
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-vl.yml down -v
