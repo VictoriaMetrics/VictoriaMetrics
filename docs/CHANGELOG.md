@@ -36,6 +36,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
   Remove redundant limit from [Prometheus api/v1/series](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4339).
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic on vmagent shutdown which could lead to loosing aggregation results which were not flushed to remote yet. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix an issue with `vmbackupmanager` not being able to restore data from a backup stored in GCS. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4420) for details.
+* BUGFIX: properly return the error to user when `-search.maxSamplesPerQuery` limit is exceeded. Before, user could have received a partial response instead.
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
 
