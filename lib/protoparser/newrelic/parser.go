@@ -3,6 +3,7 @@ package newrelic
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"unicode"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -10,6 +11,10 @@ import (
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fastjson/fastfloat"
 )
+
+var baseEventKeys = map[string]struct{}{
+	"timestamp": {}, "entityKey": {}, "eventType": {},
+}
 
 // NewRelic agent sends next struct to the collector
 // MetricPost entity item for the HTTP post to be sent to the ingest service.
@@ -70,7 +75,7 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	m.reset()
 
 	var tags []Tag
-	var metrics []Metric
+	metrics := make([]Metric, 0, o.Len())
 	rawTs := o.Get("timestamp")
 	if rawTs != nil {
 		ts, err := getFloat64(rawTs)
@@ -154,17 +159,33 @@ func (t *Tag) reset() {
 	t.Value = ""
 }
 
+var stringBuilder sync.Pool
+
+func getStringBuilder() *strings.Builder {
+	v := stringBuilder.Get()
+	if v == nil {
+		return &strings.Builder{}
+	}
+	return v.(*strings.Builder)
+}
+
+func puStringBuilder(builder *strings.Builder) {
+	builder.Reset()
+	stringBuilder.Put(builder)
+}
+
 func camelToSnakeCase(camelCase string) string {
-	var str strings.Builder
+	sb := getStringBuilder()
+	defer puStringBuilder(sb)
 
 	for i, char := range camelCase {
 		if i > 0 && unicode.IsUpper(char) {
-			str.WriteRune('_')
+			sb.WriteRune('_')
 		}
-		str.WriteRune(unicode.ToLower(char))
+		sb.WriteRune(unicode.ToLower(char))
 	}
 
-	return str.String()
+	return sb.String()
 }
 
 func getFloat64(v *fastjson.Value) (float64, error) {
@@ -186,11 +207,8 @@ func getFloat64(v *fastjson.Value) (float64, error) {
 func contains(key string) bool {
 	// this is keys of BaseEvent type.
 	// this type contains all NewRelic structs
-	baseEventKeys := []string{"timestamp", "entityKey", "eventType"}
-	for _, baseKey := range baseEventKeys {
-		if baseKey == key {
-			return true
-		}
+	if _, ok := baseEventKeys[key]; ok {
+		return true
 	}
 	return false
 }
