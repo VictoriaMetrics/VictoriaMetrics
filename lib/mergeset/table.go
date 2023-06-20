@@ -141,8 +141,6 @@ type Table struct {
 	// which may need to be merged.
 	needMergeCh chan struct{}
 
-	flockF *os.File
-
 	stopCh chan struct{}
 
 	wg sync.WaitGroup
@@ -331,9 +329,6 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 	// Create a directory for the table if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
 
-	// Protect from concurrent opens.
-	flockF := fs.MustCreateFlockFile(path)
-
 	// Open table parts.
 	pws := mustOpenParts(path)
 
@@ -345,7 +340,6 @@ func MustOpenTable(path string, flushCallback func(), prepareBlock PrepareBlockC
 		fileParts:     pws,
 		mergeIdx:      uint64(time.Now().UnixNano()),
 		needMergeCh:   make(chan struct{}, 1),
-		flockF:        flockF,
 		stopCh:        make(chan struct{}),
 	}
 	tb.rawItems.init()
@@ -408,10 +402,6 @@ func (tb *Table) MustClose() {
 	for _, pw := range fileParts {
 		pw.decRef()
 	}
-
-	// Release flockF
-	fs.MustClose(tb.flockF)
-	tb.flockF = nil
 }
 
 // Path returns the path to tb on the filesystem.
