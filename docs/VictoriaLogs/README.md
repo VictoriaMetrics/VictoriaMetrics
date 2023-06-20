@@ -190,7 +190,7 @@ output.elasticsearch:
 
 The ingested log entries can be queried according to [these docs](#querying).
 
-See also [data ingestion troubleshooting](#data-ingestion-trobuleshooting) docs.
+See also [data ingestion troubleshooting](#data-ingestion-troubleshooting) docs.
 
 #### Logstash setup
 
@@ -279,7 +279,7 @@ output {
 
 The ingested log entries can be queried according to [these docs](#querying).
 
-See also [data ingestion troubleshooting](#data-ingestion-trobuleshooting) docs.
+See also [data ingestion troubleshooting](#data-ingestion-troubleshooting) docs.
 
 ### Querying
 
