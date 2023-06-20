@@ -81,6 +81,16 @@ To access `vmalert` use link [http://localhost:8481/select/0/prometheus/vmalert]
 To access [vmui](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#vmui) 
 use link [http://localhost:8481/select/0/prometheus/vmui](http://localhost:8481/select/0/prometheus/vmui).
 
+## VictoriaLogs single server 
+
+VictoriaMetrics will be accessible on `--httpListenAddr=:8428`
+
+The communication scheme between components is the following:
+
+* [filebeat](#filebeat) collects logs from docker and send them to `VictoriaLogs single server`
+* [victoriametrics](#victoriaMetrics-single-server) collect metrics from `VictoriaLogs` and `filebeat` 
+* [grafana](#grafana) is configured with datasource pointing to `single server VictoriaMetrics`
+
 ## vmagent
 
 vmagent is used for scraping and pushing time series to VictoriaMetrics instance. 
@@ -123,3 +133,13 @@ Grafana is provisioned by default with following entities:
 * `VictoriaMetrics - vmalert` dashboard
 
 Remember to pick `VictoriaMetrics - cluster` datasource when viewing `VictoriaMetrics - cluster` dashboard.
+
+
+## filebeat
+
+Filebeat collects the docker logs in json format and sends them to Victorialogs 
+
+## filebeat-exporter 
+
+[https://github.com/trustpilot/beat-exporter](https://github.com/trustpilot/beat-exporter) exposes metric from filebeat
+in Prometheus format. The VictoriaMetrics single collects this metrics and saves them
