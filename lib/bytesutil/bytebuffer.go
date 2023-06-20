@@ -28,7 +28,7 @@ type ByteBuffer struct {
 
 // Path returns an unique id for bb.
 func (bb *ByteBuffer) Path() string {
-	return fmt.Sprintf("ByteBuffer(%p)", bb)
+	return fmt.Sprintf("ByteBuffer/%p/mem", bb)
 }
 
 // Reset resets bb.
