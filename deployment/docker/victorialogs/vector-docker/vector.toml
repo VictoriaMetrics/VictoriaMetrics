@@ -1,0 +1,28 @@
+[api]
+enabled = true
+address = "0.0.0.0:8686"
+
+[sources.docker]
+type = "docker_logs"
+
+[sinks.vlogs]
+  type = "elasticsearch"
+  inputs = [ "docker" ]
+  endpoints = [ "http://victorialogs:9428/insert/elasticsearch/" ]
+  id_key = "id"
+  mode = "bulk"
+  healthcheck.enabled = false
+
+  [sinks.vlogs.query]
+    _msg_field = "message"
+    _time_field = "timestamp"
+    _stream_fields = "host,container_name"
+
+[sources.vector_metrics]
+type = "internal_metrics"
+
+[sinks.victoriametrics]
+type = "prometheus_remote_write"
+endpoint = "http://victoriametrics:8428/api/v1/write"
+inputs = ["vector_metrics"]
+healthcheck.enabled = false
