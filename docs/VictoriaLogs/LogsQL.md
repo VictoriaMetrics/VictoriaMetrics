@@ -334,7 +334,7 @@ This query matches the following [log messages](https://docs.victoriametrics.com
 
 This query doesn't match the following log messages:
 
-- `ERROR`, since the filter is case-sensitive by default. Use `i(error)` for this case. See [these docs](#case-insenstive-filter) for details.
+- `ERROR`, since the filter is case-sensitive by default. Use `i(error)` for this case. See [these docs](#case-insensitive-filter) for details.
 - `multiple errors occurred`, since the `errors` word doesn't match `error` word. Use `error*` for this case. See [these docs](#prefix-filter) for details.
 
 By default the given [word](#word) is searched in the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
