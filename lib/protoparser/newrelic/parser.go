@@ -26,7 +26,7 @@ import (
 
 // Events represents Metrics collected from NewRelic MetricPost request
 type Events struct {
-	Metrics []*Metric
+	Metrics []Metric
 }
 
 // Unmarshal takes fastjson.Value and collects Metrics
@@ -51,7 +51,7 @@ func (e *Events) Unmarshal(v []*fastjson.Value) error {
 			if err != nil {
 				return fmt.Errorf("error collect metrics from Newrelic json: %s", err)
 			}
-			e.Metrics = metrics
+			e.Metrics = append(e.Metrics, metrics...)
 		}
 	}
 
@@ -66,11 +66,11 @@ type Metric struct {
 	Value     float64
 }
 
-func (m *Metric) unmarshal(o *fastjson.Object) ([]*Metric, error) {
+func (m *Metric) unmarshal(o *fastjson.Object) ([]Metric, error) {
 	m.reset()
 
-	metricNames := make(map[string]float64)
 	var tags []Tag
+	var metrics []Metric
 	rawTs := o.Get("timestamp")
 	if rawTs != nil {
 		ts, err := getFloat64(rawTs)
@@ -120,7 +120,7 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]*Metric, error) {
 				logger.Errorf("error get NewRelic value for metric: %q; %s", string(key), err)
 				return
 			}
-			metricNames[metricName] = f
+			metrics = append(metrics, Metric{Metric: metricName, Value: f})
 		default:
 			// unknown type
 			logger.Errorf("got unsupported NewRelic json %s field type: %s", v, v.Type())
@@ -128,13 +128,9 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]*Metric, error) {
 		}
 	})
 
-	metrics := make([]*Metric, len(metricNames))
-
-	for name, value := range metricNames {
-		m.Metric = name
-		m.Tags = tags
-		m.Value = value
-		metrics = append(metrics, m)
+	for i := range metrics {
+		metrics[i].Timestamp = m.Timestamp
+		metrics[i].Tags = tags
 	}
 
 	return metrics, nil

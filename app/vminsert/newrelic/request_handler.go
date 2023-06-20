@@ -1,7 +1,6 @@
 package newrelic
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/common"
@@ -11,14 +10,8 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/newrelic/stream"
 )
 
-// InsertHandlerForHTTP processes remote write for DataDog POST /api/v1/series request.
-//
-// See https://docs.datadoghq.com/api/latest/metrics/#submit-metrics
+// InsertHandlerForHTTP processes remote write for NewRelic POST /infra/v2/metrics/events/bulk request.
 func InsertHandlerForHTTP(req *http.Request) error {
-	// extraLabels, err := parserCommon.GetExtraLabels(req)
-	// if err != nil {
-	// 	return err
-	// }
 	ce := req.Header.Get("Content-Encoding")
 	return stream.Parse(req.Body, ce, func(series []newrelic.Metric) error {
 		return insertRows(series, nil)
@@ -51,7 +44,6 @@ func insertRows(rows []newrelic.Metric, extraLabels []prompbmarshal.Label) error
 			continue
 		}
 		ctx.SortLabelsIfNeeded()
-		log.Printf("TIMESTAMP => %d", r.Timestamp)
 		if err := ctx.WriteDataPoint(nil, ctx.Labels, r.Timestamp, r.Value); err != nil {
 			return err
 		}
