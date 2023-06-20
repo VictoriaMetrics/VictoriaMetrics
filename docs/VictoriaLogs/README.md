@@ -19,28 +19,43 @@ It provides the following key features:
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
   A single-node VictoriaLogs instance can substitute large ElasticSearch cluster.
 
+VictoriaLogs is at Preview stage now. It is recommended evaluating it on production workloads and verifying claims given above.
+It isn't recommended migrating from existing logging solutions to VictoriaLogs Preview in general case yet.
+See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+
 ## Operation
 
 ### How to run VictoriaLogs
 
-Checkout VictoriaLogs source code. It is located in the VictoriaMetrics repository:
+There are the following options exist now:
 
-```bash
-git clone https://github.com/VictoriaMetrics/VictoriaMetrics
-cd VictoriaMetrics
-```
+- To run Docker image:
 
-Then build VictoriaLogs. The build command requires [Go 1.20](https://golang.org/doc/install).
+  ```bash
+  docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
+    docker.io/victoriametrics/victoria-logs:heads-public-single-node-0-ga638f5e2b
+  ```
 
-```bash
-make victoria-logs
-```
+- To build VictoriaLogs from source code:
 
-Then run the built binary:
+  Checkout VictoriaLogs source code. It is located in the VictoriaMetrics repository:
 
-```bash
-bin/victoria-logs
-```
+  ```bash
+  git clone https://github.com/VictoriaMetrics/VictoriaMetrics
+  cd VictoriaMetrics
+  ```
+
+  Then build VictoriaLogs. The build command requires [Go 1.20](https://golang.org/doc/install).
+
+  ```bash
+  make victoria-logs
+  ```
+
+  Then run the built binary:
+
+  ```bash
+  bin/victoria-logs
+  ```
 
 VictoriaLogs is ready to [receive logs](#data-ingestion) and [query logs](#querying) at the TCP port `9428` now!
 It has no any external dependencies, so it may run in various environments without additional setup and configuration.
