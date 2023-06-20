@@ -32,6 +32,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): update backoff policy on retries to reduce probability of overloading for `source` or `destination` databases. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
 * FEATURE: vmstorage: suppress "broken pipe" errors for search queries on vmstorage side. See [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4418/commits/a6a7795b9e1f210d614a2c5f9a3016b97ded4792).
 * FEATURE: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): add panel for tracking rate of syscalls while writing or reading from disk via `process_io_(read|write)_syscalls_total` metrics.
+* FEATURE: accept timestamps in milliseconds at `start`, `end` and `time` query args in [Prometheus querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage). See [these docs](https://docs.victoriametrics.com/#timestamp-formats) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4459).
 
 * BUGFIX: add the following command-line flags, which can be used for limiting Graphite API calls: 
   `--search.maxGraphiteTagKeys` for limiting the number of tag keys returned from Graphite `/tags`, `/tags/autoComplete/*`, `/tags/findSeries` API. 
