@@ -21,6 +21,7 @@ include package/release/Makefile
 
 all: \
 	victoria-metrics-prod \
+	victoria-logs-prod \
 	vmagent-prod \
 	vmalert-prod \
 	vmauth-prod \
@@ -33,6 +34,7 @@ clean:
 
 publish: docker-scan \
 	publish-victoria-metrics \
+	publish-victoria-logs \
 	publish-vmagent \
 	publish-vmalert \
 	publish-vmauth \
@@ -42,6 +44,7 @@ publish: docker-scan \
 
 package: \
 	package-victoria-metrics \
+	package-victoria-logs \
 	package-vmagent \
 	package-vmalert \
 	package-vmauth \
@@ -178,6 +181,7 @@ publish-release:
 
 release: \
 	release-victoria-metrics \
+	release-victoria-logs \
 	release-vmutils
 
 release-victoria-metrics: \
@@ -191,7 +195,6 @@ release-victoria-metrics: \
 	release-victoria-metrics-openbsd-amd64 \
 	release-victoria-metrics-windows-amd64
 
-# adds i386 arch
 release-victoria-metrics-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-metrics-goos-goarch
 
@@ -237,6 +240,63 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 			> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
+
+release-victoria-logs: \
+	release-victoria-logs-linux-386 \
+	release-victoria-logs-linux-amd64 \
+	release-victoria-logs-linux-arm \
+	release-victoria-logs-linux-arm64 \
+	release-victoria-logs-darwin-amd64 \
+	release-victoria-logs-darwin-arm64 \
+	release-victoria-logs-freebsd-amd64 \
+	release-victoria-logs-openbsd-amd64 \
+	release-victoria-logs-windows-amd64
+
+release-victoria-logs-linux-386:
+	GOOS=linux GOARCH=386 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-linux-amd64:
+	GOOS=linux GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-linux-arm:
+	GOOS=linux GOARCH=arm $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-linux-arm64:
+	GOOS=linux GOARCH=arm64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-darwin-arm64:
+	GOOS=darwin GOARCH=arm64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-freebsd-amd64:
+	GOOS=freebsd GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-openbsd-amd64:
+	GOOS=openbsd GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-victoria-logs-windows-goarch
+
+release-victoria-logs-goos-goarch: victoria-logs-$(GOOS)-$(GOARCH)-prod
+	cd bin && \
+		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-logs-$(GOOS)-$(GOARCH)-prod \
+		&& sha256sum victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-logs-$(GOOS)-$(GOARCH)-prod \
+			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf victoria-logs-$(GOOS)-$(GOARCH)-prod
+
+release-victoria-logs-windows-goarch: victoria-logs-windows-$(GOARCH)-prod
+	cd bin && \
+		zip victoria-logs-windows-$(GOARCH)-$(PKG_TAG).zip \
+			victoria-logs-windows-$(GOARCH)-prod.exe \
+		&& sha256sum victoria-logs-windows-$(GOARCH)-$(PKG_TAG).zip \
+			victoria-logs-windows-$(GOARCH)-prod.exe \
+			> victoria-logs-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		victoria-logs-windows-$(GOARCH)-prod.exe
 
 release-vmutils: \
 	release-vmutils-linux-386 \
