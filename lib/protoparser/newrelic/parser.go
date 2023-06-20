@@ -2,8 +2,6 @@ package newrelic
 
 import (
 	"fmt"
-	"strings"
-	"sync"
 	"unicode"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
@@ -159,33 +157,19 @@ func (t *Tag) reset() {
 	t.Value = ""
 }
 
-var stringBuilder sync.Pool
+func camelToSnakeCase(str string) string {
+	length := len(str)
+	snakeCase := make([]byte, 0, length)
 
-func getStringBuilder() *strings.Builder {
-	v := stringBuilder.Get()
-	if v == nil {
-		return &strings.Builder{}
-	}
-	return v.(*strings.Builder)
-}
-
-func puStringBuilder(builder *strings.Builder) {
-	builder.Reset()
-	stringBuilder.Put(builder)
-}
-
-func camelToSnakeCase(camelCase string) string {
-	sb := getStringBuilder()
-	defer puStringBuilder(sb)
-
-	for i, char := range camelCase {
-		if i > 0 && unicode.IsUpper(char) {
-			sb.WriteRune('_')
+	for i := 0; i < length; i++ {
+		char := str[i]
+		if i > 0 && unicode.IsUpper(rune(char)) {
+			snakeCase = append(snakeCase, '_')
 		}
-		sb.WriteRune(unicode.ToLower(char))
+		snakeCase = append(snakeCase, byte(unicode.ToLower(rune(char))))
 	}
 
-	return sb.String()
+	return string(snakeCase)
 }
 
 func getFloat64(v *fastjson.Value) (float64, error) {
