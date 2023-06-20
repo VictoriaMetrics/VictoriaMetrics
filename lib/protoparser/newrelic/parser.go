@@ -11,18 +11,37 @@ import (
 	"github.com/valyala/fastjson/fastfloat"
 )
 
+// NewRelic agent sends next struct to the collector
+// MetricPost entity item for the HTTP post to be sent to the ingest service.
+// type MetricPost struct {
+// 	ExternalKeys []string          `json:"ExternalKeys,omitempty"`
+// 	EntityID     uint64            `json:"EntityID,omitempty"`
+// 	IsAgent      bool              `json:"IsAgent"`
+// 	Events       []json.RawMessage `json:"Events"`
+// 	// Entity ID of the reporting agent, which will = EntityID when IsAgent == true.
+// 	// The field is required in the backend for host metadata matching of the remote entities
+// 	ReportingAgentID uint64 `json:"ReportingAgentID,omitempty"`
+// }
+// We are using only Events field because it contains all needed metrics
+
+// Events represents Metrics collected from NewRelic MetricPost request
 type Events struct {
 	Metrics []*Metric
 }
 
+// Unmarshal takes fastjson.Value and collects Metrics
 func (e *Events) Unmarshal(v []*fastjson.Value) error {
 	for _, value := range v {
-		events, err := value.Get("Events").Array()
+		events := value.Get("Events")
+		if events == nil {
+			return fmt.Errorf("got empty Events array from request")
+		}
+		eventsArr, err := events.Array()
 		if err != nil {
 			return fmt.Errorf("error collect events: %s", err)
 		}
 
-		for _, event := range events {
+		for _, event := range eventsArr {
 			metricData, err := event.Object()
 			if err != nil {
 				return fmt.Errorf("error get metric data: %s", err)
@@ -39,6 +58,7 @@ func (e *Events) Unmarshal(v []*fastjson.Value) error {
 	return nil
 }
 
+// Metric represents VictoriaMetrics metrics
 type Metric struct {
 	Timestamp int64
 	Tags      []Tag
@@ -48,17 +68,32 @@ type Metric struct {
 
 func (m *Metric) unmarshal(o *fastjson.Object) ([]*Metric, error) {
 	m.reset()
+
 	metricNames := make(map[string]float64)
 	var tags []Tag
-	ts, err := o.Get("timestamp").Int64()
-	if err != nil {
-		return nil, err
+	rawTs := o.Get("timestamp")
+	if rawTs != nil {
+		ts, err := getFloat64(rawTs)
+		if err != nil {
+			return nil, fmt.Errorf("invalid `timestamp` in %s: %w", o, err)
+		}
+		m.Timestamp = int64(ts * 1e3)
+	} else {
+		// Allow missing timestamp. It is automatically populated
+		// with the current time in this case.
+		m.Timestamp = 0
 	}
-	m.Timestamp = ts * 1e3
 
-	partOfMetricName := o.Get("eventType").GetStringBytes()
-	entity := o.Get("entityKey").GetStringBytes()
-	tags = append(tags, Tag{Key: "entityKey", Value: string(entity)})
+	eventType := o.Get("eventType")
+	if eventType == nil {
+		return nil, fmt.Errorf("error get eventType from Events object: %s", o)
+	}
+
+	entityKey := o.Get("entityKey")
+	if entityKey == nil {
+		return nil, fmt.Errorf("error get entityKey from Events object: %s", o)
+	}
+	tags = append(tags, Tag{Key: "entityKey", Value: string(entityKey.GetStringBytes())})
 
 	o.Visit(func(key []byte, v *fastjson.Value) {
 		k := string(key)
@@ -71,20 +106,24 @@ func (m *Metric) unmarshal(o *fastjson.Object) ([]*Metric, error) {
 		case fastjson.TypeString:
 			// this is label with value
 			name := string(key)
-			value := v.Get().GetStringBytes()
-			tags = append(tags, Tag{Key: name, Value: string(value)})
+			value := v.Get()
+			if value == nil {
+				logger.Errorf("error get NewRelic label value from json: %s", v)
+				return
+			}
+			tags = append(tags, Tag{Key: name, Value: string(value.GetStringBytes())})
 		case fastjson.TypeNumber:
 			// this is metric name with value
-			metricName := camelToSnakeCase(fmt.Sprintf("%s_%s", partOfMetricName, string(key)))
+			metricName := camelToSnakeCase(fmt.Sprintf("%s_%s", eventType.GetStringBytes(), string(key)))
 			f, err := getFloat64(v)
 			if err != nil {
-				logger.Errorf("error get Newrelic value for metric: %q; %s", string(key), err)
+				logger.Errorf("error get NewRelic value for metric: %q; %s", string(key), err)
 				return
 			}
 			metricNames[metricName] = f
 		default:
 			// unknown type
-			logger.Errorf("got unsupported Newrelic json type: %s", v.Type())
+			logger.Errorf("got unsupported NewRelic json %s field type: %s", v, v.Type())
 			return
 		}
 	})
