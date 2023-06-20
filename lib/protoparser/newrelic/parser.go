@@ -1,18 +1,18 @@
 package newrelic
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 	"unicode"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/valyala/fastjson"
 	"github.com/valyala/fastjson/fastfloat"
 )
 
 type Events struct {
-	Metrics []Metric
+	Metrics []*Metric
 }
 
 func (e *Events) Unmarshal(v []*fastjson.Value) error {
@@ -27,51 +27,12 @@ func (e *Events) Unmarshal(v []*fastjson.Value) error {
 			if err != nil {
 				return fmt.Errorf("error get metric data: %s", err)
 			}
-
-			var metric Metric
-			metricNames := make(map[string]float64)
-			var tags []Tag
-			ts, err := metricData.Get("timestamp").Int64()
+			var m Metric
+			metrics, err := m.unmarshal(metricData)
 			if err != nil {
-				return err
+				return fmt.Errorf("error collect metrics from Newrelic json: %s", err)
 			}
-			metric.Timestamp = ts * 1e3
-			partOfMetricName := metricData.Get("eventType").GetStringBytes()
-			entity := metricData.Get("entityKey").GetStringBytes()
-			tags = append(tags, Tag{Key: "entityKey", Value: string(entity)})
-
-			metricData.Visit(func(key []byte, v *fastjson.Value) {
-				if bytes.Equal(key, []byte("timestamp")) ||
-					bytes.Equal(key, []byte("entityKey")) ||
-					bytes.Equal(key, []byte("eventType")) {
-					return
-				}
-
-				switch v.Type() {
-				case fastjson.TypeString:
-					// this metric is label
-					name := camelToSnakeCase(string(key))
-					value := v.Get().GetStringBytes()
-					tags = append(tags, Tag{Key: name, Value: string(value)})
-				case fastjson.TypeNumber:
-					// this is metric value
-					metricName := camelToSnakeCase(fmt.Sprintf("%s_%s", partOfMetricName, string(key)))
-					f, err := getFloat64(v)
-					if err != nil {
-						return
-					}
-					metricNames[metricName] = f
-				default:
-					// unknown type
-					return
-				}
-			})
-			for name, value := range metricNames {
-				metric.Metric = name
-				metric.Tags = tags
-				metric.Value = value
-				e.Metrics = append(e.Metrics, metric)
-			}
+			e.Metrics = metrics
 		}
 	}
 
@@ -85,6 +46,61 @@ type Metric struct {
 	Value     float64
 }
 
+func (m *Metric) unmarshal(o *fastjson.Object) ([]*Metric, error) {
+	m.reset()
+	metricNames := make(map[string]float64)
+	var tags []Tag
+	ts, err := o.Get("timestamp").Int64()
+	if err != nil {
+		return nil, err
+	}
+	m.Timestamp = ts * 1e3
+
+	partOfMetricName := o.Get("eventType").GetStringBytes()
+	entity := o.Get("entityKey").GetStringBytes()
+	tags = append(tags, Tag{Key: "entityKey", Value: string(entity)})
+
+	o.Visit(func(key []byte, v *fastjson.Value) {
+		k := string(key)
+		// skip already parsed values
+		if contains(k) {
+			return
+		}
+
+		switch v.Type() {
+		case fastjson.TypeString:
+			// this is label with value
+			name := string(key)
+			value := v.Get().GetStringBytes()
+			tags = append(tags, Tag{Key: name, Value: string(value)})
+		case fastjson.TypeNumber:
+			// this is metric name with value
+			metricName := camelToSnakeCase(fmt.Sprintf("%s_%s", partOfMetricName, string(key)))
+			f, err := getFloat64(v)
+			if err != nil {
+				logger.Errorf("error get Newrelic value for metric: %q; %s", string(key), err)
+				return
+			}
+			metricNames[metricName] = f
+		default:
+			// unknown type
+			logger.Errorf("got unsupported Newrelic json type: %s", v.Type())
+			return
+		}
+	})
+
+	metrics := make([]*Metric, len(metricNames))
+
+	for name, value := range metricNames {
+		m.Metric = name
+		m.Tags = tags
+		m.Value = value
+		metrics = append(metrics, m)
+	}
+
+	return metrics, nil
+}
+
 func (m *Metric) reset() {
 	m.Timestamp = 0
 	m.Tags = nil
@@ -92,7 +108,7 @@ func (m *Metric) reset() {
 	m.Value = 0
 }
 
-// Tag is an OpenTSDB tag.
+// Tag is an NewRelic tag.
 type Tag struct {
 	Key   string
 	Value string
@@ -130,4 +146,16 @@ func getFloat64(v *fastjson.Value) (float64, error) {
 	default:
 		return 0, fmt.Errorf("value doesn't contain float64; it contains %s", v.Type())
 	}
+}
+
+func contains(key string) bool {
+	// this is keys of BaseEvent type.
+	// this type contains all NewRelic structs
+	baseEventKeys := []string{"timestamp", "entityKey", "eventType"}
+	for _, baseKey := range baseEventKeys {
+		if baseKey == key {
+			return true
+		}
+	}
+	return false
 }

@@ -9,7 +9,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 )
 
-func Parse(r io.Reader, contentEncoding string, callback func(series []newrelic.Metric) error) error {
+func Parse(r io.Reader, contentEncoding string, callback func(series []*newrelic.Metric) error) error {
 	wcr := writeconcurrencylimiter.GetReader(r)
 	defer writeconcurrencylimiter.PutReader(wcr)
 	r = wcr
