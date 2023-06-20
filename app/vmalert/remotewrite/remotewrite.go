@@ -276,10 +276,12 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 		// respond with a HTTP 2xx status code when the write is successful.
 		return nil
 	case 4:
-		// respond with HTTP status code 4xx when the request is invalid, will never be able to succeed
-		// and should not be retried.
-		return &nonRetriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
-			resp.StatusCode, req.URL.Redacted(), body)}
+		if resp.StatusCode != http.StatusTooManyRequests {
+			// MUST NOT retry write requests on HTTP 4xx responses other than 429
+			return &nonRetriableError{fmt.Errorf("unexpected response code %d for %s. Response body %q",
+				resp.StatusCode, req.URL.Redacted(), body)}
+		}
+		fallthrough
 	default:
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
