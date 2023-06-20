@@ -209,7 +209,7 @@ If doubt, it is recommended quoting field names and filter args.
 
 The list of LogsQL filters:
 
-- [Time filter](#time-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/keyConcepts.html#time-field) in the given time range
+- [Time filter](#time-filter) - matches logs with [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) in the given time range
 - [Stream filter](#stream-filter) - matches logs, which belong to the given [streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
 - [Word filter](#word-filter) - matches logs with the given [word](#word)
 - [Phrase filter](#phrase-filter) - matches logs with the given phrase
@@ -231,10 +231,10 @@ The list of LogsQL filters:
 
 ### Time filter
 
-VictoriaLogs scans all the logs per each query if it doesn't contain the filter on [`_time` field](https://docs.victoriametrics.com/keyConcepts.html#time-field).
+VictoriaLogs scans all the logs per each query if it doesn't contain the filter on [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field).
 It uses various optimizations in order to speed up full scan queries without the `_time` filter,
 but such queries can be slow if the storage contains large number of logs over long time range. The easiest way to optimize queries
-is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/keyConcepts.html#time-field).
+is to narrow down the search with the filter on [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field).
 
 For example, the following query returns [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field)
 ingested into VictoriaLogs during the last hour, which contain the `error` [word](#word):
@@ -286,7 +286,8 @@ See also:
 ### Stream filter
 
 VictoriaLogs provides an optimized way to select log entries, which belong to particular [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
-This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary [Prometheus-compatible label selector](https://docs.victoriametrics.com/keyConcepts.html#filtering)
+This can be done via `_stream:{...}` filter. The `{...}` may contain arbitrary
+[Prometheus-compatible label selector](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#filtering)
 over fields associated with [log streams](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields).
 For example, the following query selects [log entries](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 with `app` field equal to `nginx`:
