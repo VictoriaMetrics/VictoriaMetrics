@@ -1,10 +1,15 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "preact/compat";
+import React, { FC, useEffect, useMemo, useState } from "preact/compat";
 import { MetricResult } from "../../../api/types";
 import LineChart from "../../Chart/Line/LineChart/LineChart";
 import { AlignedData as uPlotData, Series as uPlotSeries } from "uplot";
 import Legend from "../../Chart/Line/Legend/Legend";
 import LegendHeatmap from "../../Chart/Heatmap/LegendHeatmap/LegendHeatmap";
-import { getHideSeries, getLegendItem, getSeriesItemContext, SeriesItem } from "../../../utils/uplot/series";
+import {
+  getHideSeries,
+  getLegendItem,
+  getSeriesItemContext,
+  SeriesItem
+} from "../../../utils/uplot/series";
 import { getLimitsYAxis, getMinMaxBuffer, getTimeSeries } from "../../../utils/uplot/axes";
 import { LegendItemType } from "../../../utils/uplot/types";
 import { TimeParams } from "../../../types";
@@ -56,13 +61,16 @@ const GraphView: FC<GraphViewProps> = ({
   const currentStep = useMemo(() => customStep || period.step || "1s", [period.step, customStep]);
 
   const data = useMemo(() => normalizeData(dataRaw, isHistogram), [isHistogram, dataRaw]);
-  const getSeriesItem = useCallback(getSeriesItemContext(), [data]);
 
   const [dataChart, setDataChart] = useState<uPlotData>([[]]);
   const [series, setSeries] = useState<uPlotSeries[]>([]);
   const [legend, setLegend] = useState<LegendItemType[]>([]);
   const [hideSeries, setHideSeries] = useState<string[]>([]);
   const [legendValue, setLegendValue] = useState<TooltipHeatmapProps | null>(null);
+
+  const getSeriesItem = useMemo(() => {
+    return getSeriesItemContext(data, hideSeries, alias);
+  }, [data, hideSeries, alias]);
 
   const setLimitsYaxis = (values: {[key: string]: number[]}) => {
     const limits = getLimitsYAxis(values, !isHistogram);
@@ -71,10 +79,6 @@ const GraphView: FC<GraphViewProps> = ({
 
   const onChangeLegend = (legend: LegendItemType, metaKey: boolean) => {
     setHideSeries(getHideSeries({ hideSeries, legend, metaKey, series }));
-  };
-
-  const handleChangeLegend = (val: TooltipHeatmapProps) => {
-    setLegendValue(val);
   };
 
   const prepareHistogramData = (data: (number | null)[][]) => {
@@ -105,8 +109,9 @@ const GraphView: FC<GraphViewProps> = ({
     const tempLegend: LegendItemType[] = [];
     const tempSeries: uPlotSeries[] = [{}];
 
-    data?.forEach((d) => {
-      const seriesItem = getSeriesItem(d, hideSeries, alias);
+    data?.forEach((d, i) => {
+      const seriesItem = getSeriesItem(d, i);
+
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
       const tmpValues = tempValues[d.group] || [];
@@ -156,8 +161,8 @@ const GraphView: FC<GraphViewProps> = ({
   useEffect(() => {
     const tempLegend: LegendItemType[] = [];
     const tempSeries: uPlotSeries[] = [{}];
-    data?.forEach(d => {
-      const seriesItem = getSeriesItem(d, hideSeries, alias);
+    data?.forEach((d, i) => {
+      const seriesItem = getSeriesItem(d, i);
       tempSeries.push(seriesItem);
       tempLegend.push(getLegendItem(seriesItem, d.group));
     });
@@ -199,7 +204,7 @@ const GraphView: FC<GraphViewProps> = ({
           setPeriod={setPeriod}
           layoutSize={containerSize}
           height={height}
-          onChangeLegend={handleChangeLegend}
+          onChangeLegend={setLegendValue}
         />
       )}
       {!isHistogram && showLegend && (

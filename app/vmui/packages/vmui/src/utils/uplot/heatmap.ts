@@ -145,17 +145,22 @@ const sortBucketsByValues = (a: MetricResult, b: MetricResult) => getUpperBound(
 
 export const normalizeData = (buckets: MetricResult[], isHistogram?: boolean): MetricResult[] => {
   if (!isHistogram) return buckets;
+
   const sortedBuckets = buckets.sort(sortBucketsByValues);
   const vmBuckets = convertPrometheusToVictoriaMetrics(sortedBuckets);
-  const allValues = vmBuckets.map(b => b.values).flat();
+
+  // Compute total hits for each timestamp upfront
+  const totalHitsPerTimestamp: { [timestamp: number]: number } = {};
+  vmBuckets.forEach(bucket =>
+    bucket.values.forEach(([timestamp, value]) => {
+      totalHitsPerTimestamp[timestamp] = (totalHitsPerTimestamp[timestamp] || 0) + +value;
+    })
+  );
 
   const result = vmBuckets.map(bucket => {
-    const values = bucket.values.map((v) => {
-      const totalHits = allValues
-        .filter(av => av[0] === v[0])
-        .reduce((bucketSum, v) => bucketSum + +v[1], 0);
-
-      return [v[0], `${Math.round((+v[1] / totalHits) * 100)}`];
+    const values = bucket.values.map(([timestamp, value]) => {
+      const totalHits = totalHitsPerTimestamp[timestamp];
+      return [timestamp, `${Math.round((+value / totalHits) * 100)}`];
     });
 
     return { ...bucket, values };

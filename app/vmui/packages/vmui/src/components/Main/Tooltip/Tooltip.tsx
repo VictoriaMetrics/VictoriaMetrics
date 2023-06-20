@@ -4,7 +4,6 @@ import "./style.scss";
 import { ReactNode } from "react";
 import { ExoticComponent } from "react";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import useEventListener from "../../../hooks/useEventListener";
 
 interface TooltipProps {
   children: ReactNode
@@ -30,7 +29,6 @@ const Tooltip: FC<TooltipProps> = ({
   const popperRef = useRef<HTMLDivElement>(null);
 
   const onScrollWindow = () => setIsOpen(false);
-  useEventListener("scroll", onScrollWindow);
 
   useEffect(() => {
     if (!popperRef.current || !isOpen) return;
@@ -38,6 +36,11 @@ const Tooltip: FC<TooltipProps> = ({
       width: popperRef.current.clientWidth,
       height: popperRef.current.clientHeight
     });
+    window.addEventListener("scroll", onScrollWindow);
+
+    return () => {
+      window.removeEventListener("scroll", onScrollWindow);
+    };
   }, [isOpen]);
 
   const popperStyle = useMemo(() => {
