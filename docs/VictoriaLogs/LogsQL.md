@@ -218,7 +218,7 @@ The list of LogsQL filters:
 - [Any value filter](#any-value-filter) - matches logs with the given non-empty [log field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 - [Exact filter](#exact-filter) - matches logs with the exact value
 - [Exact prefix filter](#exact-prefix-filter) - matches logs starting with the given prefix
-- [Multi-exact filter](#multi-exact-filter) - matches logs with at least one of the specified exact values
+- [Multi-exact filter](#multi-exact-filter) - matches logs with one of the specified exact values
 - [Case-insensitive filter](#case-insensitive-filter) - matches logs with the given case-insensitive word, phrase or prefix
 - [Sequence filter](#sequence-filter) - matches logs with the given sequence of words or phrases
 - [Regexp filter](#regexp-filter) - matches logs for the given regexp
@@ -625,7 +625,7 @@ See also:
 
 ### Multi-exact filter
 
-Sometimes it is needed to locate log messages with a field containing at least one of the given values. This can be done with multiple [exact filters](#exact-filter)
+Sometimes it is needed to locate log messages with a field containing one of the given values. This can be done with multiple [exact filters](#exact-filter)
 combined into a single [logical filter](#logical-filter). For example, the following query matches log messages with `log.level` field
 containing either `error` or `fatal` exact values:
 
