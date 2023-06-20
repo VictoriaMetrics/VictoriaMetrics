@@ -6,18 +6,16 @@ It isn't recommended migrating from existing solutions to VictoriaLogs Preview y
 
 The following functionality is available in VictoriaLogs Preview:
 
-- [Data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
+- [Data ingestion](https://docs.victoriametrics.com/VictoriaLogs/ingestion.html).
 - [Querying](https://docs.victoriametrics.com/VictoriaLogs/#querying).
 - [Querying via command-line](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
 
-See [operation docs](https://docs.victoriametrics.com/VictoriaLogs/#operation) for details.
+See [operation docs](https://docs.victoriametrics.com/VictoriaLogs/quickstart.html) for details.
 
 The following functionality is planned in the future versions of VictoriaLogs:
 
-- Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion) from popular log collectors and formats:
+- Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion.html) from popular log collectors and formats:
   - Promtail (aka Grafana Loki)
-  - Vector.dev
-  - Fluentbit
   - Fluentd
   - Syslog
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html):
