@@ -12,7 +12,7 @@ export interface DragArgs {
     u: uPlot,
     factor: number,
     setPanning: (enable: boolean) => void,
-    setPlotScale: ({ u, min, max }: { u: uPlot, min: number, max: number }) => void
+    setPlotScale: ({ min, max }: { min: number, max: number }) => void
 }
 
 export interface LegendItemType {
