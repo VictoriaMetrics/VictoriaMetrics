@@ -193,8 +193,12 @@ func parseTimestamp(s string) (int64, error) {
 
 var lineBufferPool bytesutil.ByteBufferPool
 
-var requestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
-var rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+var (
+	requestsTotal     = metrics.NewCounter(`vl_http_requests_total{path="/insert/jsonline"}`)
+	rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="jsonline"}`)
+)
 
-var invalidTimestampLogger = logger.WithThrottler("invalidTimestampLogger", 5*time.Second)
-var invalidJSONLineLogger = logger.WithThrottler("invalidJSONLineLogger", 5*time.Second)
+var (
+	invalidTimestampLogger = logger.WithThrottler("invalidTimestampLogger", 5*time.Second)
+	invalidJSONLineLogger  = logger.WithThrottler("invalidJSONLineLogger", 5*time.Second)
+)
