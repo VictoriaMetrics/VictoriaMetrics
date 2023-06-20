@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+  filebeat-vlogs:
+    image: docker.elastic.co/beats/filebeat:8.8.0
+    user: root
+    command:
+      - "--strict.perms=false"
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /var/lib/docker:/var/lib/docker
+    depends_on: [vlogs]
+    ports:
+      - "5140:5140"
+
+  # Run `make package-victoria-logs` to build victoria-logs image
+  vlogs:
+    image: docker.io/victoriametrics/victoria-logs:heads-logs-examples-0-g66b42a677-dirty-b95f1d4b
+    volumes:
+      - vlogs:/vlogs
+    ports:
+      - "9428:9428"
+    command:
+      - -storageDataPath=/vlogs
+
+volumes:
+  vlogs:
