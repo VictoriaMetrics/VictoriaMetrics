@@ -740,7 +740,7 @@ If the field name contains special chars, which may clash with the query syntax,
 For example, the following query matches `event:original` field containing `(error, "open file")` sequence:
 
 ```logsql
-"event.original":seq(error, "open file")
+"event:original":seq(error, "open file")
 ```
 
 See also:
@@ -777,7 +777,7 @@ If the field name contains special chars, which may clash with the query syntax,
 For example, the following query matches `event:original` field containing either `error` or `warn` substrings:
 
 ```logsql
-"event.original":re("error|warn")
+"event:original":re("error|warn")
 ```
 
 Performance tips:
