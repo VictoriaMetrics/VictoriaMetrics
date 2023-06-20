@@ -13,17 +13,18 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/netstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/promql"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/querystats"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmselect/searchutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/auth"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fasttime"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/storage"
@@ -97,7 +98,7 @@ func FederateHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter,
 		cp.start = cp.end - lookbackDelta
 	}
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxFederateSeries)
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	rss, isPartial, err := netstorage.ProcessSearchQuery(nil, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch data for %q: %w", sq, err)
@@ -140,7 +141,7 @@ func ExportCSVHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter
 		return fmt.Errorf("missing `format` arg; see https://docs.victoriametrics.com/#how-to-export-csv-data")
 	}
 	fieldNames := strings.Split(format, ",")
-	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
+	reduceMemUsage := httputils.GetBool(r, "reduce_mem_usage")
 
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxExportSeries)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -280,7 +281,7 @@ func ExportHandler(startTime time.Time, at *auth.Token, w http.ResponseWriter, r
 	}
 	format := r.FormValue("format")
 	maxRowsPerLine := int(fastfloat.ParseInt64BestEffort(r.FormValue("max_rows_per_line")))
-	reduceMemUsage := searchutils.GetBool(r, "reduce_mem_usage")
+	reduceMemUsage := httputils.GetBool(r, "reduce_mem_usage")
 	if err := exportHandler(nil, at, w, cp, format, maxRowsPerLine, reduceMemUsage); err != nil {
 		return fmt.Errorf("error when exporting data on the time range (start=%d, end=%d): %w", cp.start, cp.end, err)
 	}
@@ -525,12 +526,12 @@ var httpClient = &http.Client{
 // Tenants processes /admin/tenants request.
 func Tenants(qt *querytracer.Tracer, startTime time.Time, w http.ResponseWriter, r *http.Request) error {
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	start, err := searchutils.GetTime(r, "start", 0)
+	start, err := httputils.GetTime(r, "start", 0)
 	if err != nil {
 		return err
 	}
 	ct := startTime.UnixNano() / 1e6
-	end, err := searchutils.GetTime(r, "end", ct)
+	end, err := httputils.GetTime(r, "end", ct)
 	if err != nil {
 		return err
 	}
@@ -562,11 +563,11 @@ func LabelValuesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.To
 	if err != nil {
 		return err
 	}
-	limit, err := searchutils.GetInt(r, "limit")
+	limit, err := httputils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
 	labelValues, isPartial, err := netstorage.LabelValues(qt, denyPartialResponse, labelName, sq, limit, cp.deadline)
 	if err != nil {
@@ -630,7 +631,7 @@ func TSDBStatusHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 		}
 		topN = n
 	}
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	start := int64(date*secsPerDay) * 1000
 	end := int64((date+1)*secsPerDay)*1000 - 1
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, start, end, cp.filterss, *maxTSDBStatusSeries)
@@ -661,11 +662,11 @@ func LabelsHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-	limit, err := searchutils.GetInt(r, "limit")
+	limit, err := httputils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxUniqueTimeseries)
 	labels, isPartial, err := netstorage.LabelNames(qt, denyPartialResponse, sq, limit, cp.deadline)
 	if err != nil {
@@ -689,7 +690,7 @@ func SeriesCountHandler(startTime time.Time, at *auth.Token, w http.ResponseWrit
 	defer seriesCountDuration.UpdateDuration(startTime)
 
 	deadline := searchutils.GetDeadlineForStatusRequest(r, startTime)
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	n, isPartial, err := netstorage.SeriesCount(nil, at.AccountID, at.ProjectID, denyPartialResponse, deadline)
 	if err != nil {
 		return fmt.Errorf("cannot obtain series count: %w", err)
@@ -722,13 +723,13 @@ func SeriesHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, 
 	if err != nil {
 		return err
 	}
-	limit, err := searchutils.GetInt(r, "limit")
+	limit, err := httputils.GetInt(r, "limit")
 	if err != nil {
 		return err
 	}
 
 	sq := storage.NewSearchQuery(at.AccountID, at.ProjectID, cp.start, cp.end, cp.filterss, *maxSeriesLimit)
-	denyPartialResponse := searchutils.GetDenyPartialResponse(r)
+	denyPartialResponse := httputils.GetDenyPartialResponse(r)
 	metricNames, isPartial, err := netstorage.SearchMetricNames(qt, denyPartialResponse, sq, cp.deadline)
 	if err != nil {
 		return fmt.Errorf("cannot fetch time series for %q: %w", sq, err)
@@ -759,12 +760,12 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 
 	ct := startTime.UnixNano() / 1e6
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	mayCache := !searchutils.GetBool(r, "nocache")
+	mayCache := !httputils.GetBool(r, "nocache")
 	query := r.FormValue("query")
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
 	}
-	start, err := searchutils.GetTime(r, "time", ct)
+	start, err := httputils.GetTime(r, "time", ct)
 	if err != nil {
 		return err
 	}
@@ -772,7 +773,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	if err != nil {
 		return err
 	}
-	step, err := searchutils.GetDuration(r, "step", lookbackDelta)
+	step, err := httputils.GetDuration(r, "step", lookbackDelta)
 	if err != nil {
 		return err
 	}
@@ -836,7 +837,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 	if err != nil {
 		return err
 	}
-	if !searchutils.GetBool(r, "nocache") && ct-start < queryOffset && start-ct < queryOffset {
+	if !httputils.GetBool(r, "nocache") && ct-start < queryOffset && start-ct < queryOffset {
 		// Adjust start time only if `nocache` arg isn't set.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/241
 		startPrev := start
@@ -863,7 +864,7 @@ func QueryHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w
 			return httpserver.GetRequestURI(r)
 		},
 
-		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
+		DenyPartialResponse: httputils.GetDenyPartialResponse(r),
 		QueryStats:          qs,
 	}
 	result, err := promql.Exec(qt, ec, query, true)
@@ -910,15 +911,15 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 	if len(query) == 0 {
 		return fmt.Errorf("missing `query` arg")
 	}
-	start, err := searchutils.GetTime(r, "start", ct-defaultStep)
+	start, err := httputils.GetTime(r, "start", ct-defaultStep)
 	if err != nil {
 		return err
 	}
-	end, err := searchutils.GetTime(r, "end", ct)
+	end, err := httputils.GetTime(r, "end", ct)
 	if err != nil {
 		return err
 	}
-	step, err := searchutils.GetDuration(r, "step", defaultStep)
+	step, err := httputils.GetDuration(r, "step", defaultStep)
 	if err != nil {
 		return err
 	}
@@ -935,7 +936,7 @@ func QueryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Token, w http.ResponseWriter, query string,
 	start, end, step int64, r *http.Request, ct int64, etfs [][]storage.TagFilter) error {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	mayCache := !searchutils.GetBool(r, "nocache")
+	mayCache := !httputils.GetBool(r, "nocache")
 	lookbackDelta, err := getMaxLookback(r)
 	if err != nil {
 		return err
@@ -973,7 +974,7 @@ func queryRangeHandler(qt *querytracer.Tracer, startTime time.Time, at *auth.Tok
 			return httpserver.GetRequestURI(r)
 		},
 
-		DenyPartialResponse: searchutils.GetDenyPartialResponse(r),
+		DenyPartialResponse: httputils.GetDenyPartialResponse(r),
 		QueryStats:          qs,
 	}
 	result, err := promql.Exec(qt, ec, query, false)
@@ -1087,13 +1088,13 @@ func getMaxLookback(r *http.Request) (int64, error) {
 	if d == 0 {
 		d = maxStalenessInterval.Milliseconds()
 	}
-	maxLookback, err := searchutils.GetDuration(r, "max_lookback", d)
+	maxLookback, err := httputils.GetDuration(r, "max_lookback", d)
 	if err != nil {
 		return 0, err
 	}
 	d = maxLookback
 	if *setLookbackToStep {
-		step, err := searchutils.GetDuration(r, "step", d)
+		step, err := httputils.GetDuration(r, "step", d)
 		if err != nil {
 			return 0, err
 		}
@@ -1133,7 +1134,7 @@ func getLatencyOffsetMilliseconds(r *http.Request) (int64, error) {
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2061#issuecomment-1299109836
 		d = 0
 	}
-	return searchutils.GetDuration(r, "latency_offset", d)
+	return httputils.GetDuration(r, "latency_offset", d)
 }
 
 // QueryStatsHandler returns query stats at `/api/v1/status/top_queries`
@@ -1149,7 +1150,7 @@ func QueryStatsHandler(startTime time.Time, at *auth.Token, w http.ResponseWrite
 		}
 		topN = n
 	}
-	maxLifetimeMsecs, err := searchutils.GetDuration(r, "maxLifetime", 10*60*1000)
+	maxLifetimeMsecs, err := httputils.GetDuration(r, "maxLifetime", 10*60*1000)
 	if err != nil {
 		return fmt.Errorf("cannot parse `maxLifetime` arg: %w", err)
 	}
@@ -1223,12 +1224,12 @@ func getCommonParamsWithDefaultDuration(r *http.Request, startTime time.Time, re
 // - extra_filters[]
 func getCommonParams(r *http.Request, startTime time.Time, requireNonEmptyMatch bool) (*commonParams, error) {
 	deadline := searchutils.GetDeadlineForQuery(r, startTime)
-	start, err := searchutils.GetTime(r, "start", 0)
+	start, err := httputils.GetTime(r, "start", 0)
 	if err != nil {
 		return nil, err
 	}
 	ct := startTime.UnixNano() / 1e6
-	end, err := searchutils.GetTime(r, "end", ct)
+	end, err := httputils.GetTime(r, "end", ct)
 	if err != nil {
 		return nil, err
 	}
