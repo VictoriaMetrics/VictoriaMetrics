@@ -20,6 +20,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promscrape"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/querytracer"
@@ -95,7 +96,7 @@ var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	startTime := time.Now()
 	defer requestDuration.UpdateDuration(startTime)
-	tracerEnabled := searchutils.GetBool(r, "trace")
+	tracerEnabled := httputils.GetBool(r, "trace")
 	qt := querytracer.New(tracerEnabled, r.URL.Path)
 
 	// Limit the number of concurrent queries.
@@ -120,7 +121,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			remoteAddr := httpserver.GetQuotedRemoteAddr(r)
 			requestURI := httpserver.GetRequestURI(r)
 			logger.Infof("client has cancelled the request after %.3f seconds: remoteAddr=%s, requestURI: %q",
-				d.Seconds(), remoteAddr, requestURI)
+				time.Since(startTime).Seconds(), remoteAddr, requestURI)
 			return true
 		case <-t.C:
 			timerpool.Put(t)
