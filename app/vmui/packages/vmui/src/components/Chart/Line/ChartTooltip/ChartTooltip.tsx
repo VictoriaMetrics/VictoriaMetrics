@@ -17,11 +17,11 @@ import useEventListener from "../../../../hooks/useEventListener";
 export interface ChartTooltipProps {
   id: string,
   u: uPlot,
-  metrics: MetricResult[],
-  series: SeriesItem[],
-  yRange: number[];
+  metricItem: MetricResult,
+  seriesItem: SeriesItem,
   unit?: string,
   isSticky?: boolean,
+  showQueryNum?: boolean,
   tooltipOffset: { left: number, top: number },
   tooltipIdx: { seriesIdx: number, dataIdx: number },
   onClose?: (id: string) => void
@@ -31,12 +31,12 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   u,
   id,
   unit = "",
-  metrics,
-  series,
-  yRange,
+  metricItem,
+  seriesItem,
   tooltipIdx,
   tooltipOffset,
   isSticky,
+  showQueryNum,
   onClose
 }) => {
   const tooltipRef = useRef<HTMLDivElement>(null);
@@ -49,21 +49,17 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const [dataIdx, setDataIdx] = useState(tooltipIdx.dataIdx);
 
   const value = get(u, ["data", seriesIdx, dataIdx], 0);
-  const valueFormat = formatPrettyNumber(value, get(yRange, [0]), get(yRange, [1]));
+  const valueFormat = formatPrettyNumber(value, get(u, ["scales", "1", "min"], 0), get(u, ["scales", "1", "max"], 1));
   const dataTime = u.data[0][dataIdx];
   const date = dayjs(dataTime * 1000).tz().format(DATE_FULL_TIMEZONE_FORMAT);
 
-  const color = series[seriesIdx]?.stroke+"";
-
-  const calculations = series[seriesIdx]?.calculations || {};
-
-  const groups = new Set(metrics.map(m => m.group));
-  const showQueryNum = groups.size > 1;
-  const group = metrics[seriesIdx-1]?.group || 0;
+  const color = `${seriesItem?.stroke}`;
+  const calculations = seriesItem?.calculations || {};
+  const group = metricItem?.group || 0;
 
 
   const fullMetricName = useMemo(() => {
-    const metric = metrics[seriesIdx-1]?.metric || {};
+    const metric = metricItem?.metric || {};
     const labelNames = Object.keys(metric).filter(x => x != "__name__");
     const labels = labelNames.map(key => `${key}=${JSON.stringify(metric[key])}`);
     let metricName = metric["__name__"] || "";
@@ -71,7 +67,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
       metricName += "{" + labels.join(",") + "}";
     }
     return metricName;
-  }, [metrics, seriesIdx]);
+  }, [metricItem]);
 
   const handleClose = () => {
     onClose && onClose(id);
@@ -97,7 +93,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
   const calcPosition = () => {
     if (!tooltipRef.current) return;
 
-    const topOnChart = u.valToPos((value || 0), series[seriesIdx]?.scale || "1");
+    const topOnChart = u.valToPos((value || 0), seriesItem?.scale || "1");
     const leftOnChart = u.valToPos(dataTime, "x");
     const { width: tooltipWidth, height: tooltipHeight } = tooltipRef.current.getBoundingClientRect();
     const { width, height } = u.over.getBoundingClientRect();
@@ -142,9 +138,7 @@ const ChartTooltip: FC<ChartTooltipProps> = ({
     >
       <div className="vm-chart-tooltip-header">
         <div className="vm-chart-tooltip-header__date">
-          {showQueryNum && (
-            <div>Query {group}</div>
-          )}
+          {showQueryNum && (<div>Query {group}</div>)}
           {date}
         </div>
         {isSticky && (

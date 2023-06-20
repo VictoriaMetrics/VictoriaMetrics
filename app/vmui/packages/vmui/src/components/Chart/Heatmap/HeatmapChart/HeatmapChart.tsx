@@ -73,10 +73,9 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
     });
   };
   const throttledSetScale = useCallback(throttle(setScale, 500), []);
-  const setPlotScale = ({ u, min, max }: { u: uPlot, min: number, max: number }) => {
+  const setPlotScale = ({ min, max }: { min: number, max: number }) => {
     const delta = (max - min) * 1000;
     if ((delta < limitsDurations.min) || (delta > limitsDurations.max)) return;
-    u.setScale("x", { min, max });
     setXRange({ min, max });
     throttledSetScale({ min, max });
   };
@@ -112,7 +111,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
       const min = xVal - (zoomPos / width) * nxRange;
       const max = min + nxRange;
-      u.batch(() => setPlotScale({ u, min, max }));
+      u.batch(() => setPlotScale({ min, max }));
     });
   };
 
@@ -126,7 +125,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
       e.preventDefault();
       const factor = (xRange.max - xRange.min) / 10 * (plus ? 1 : -1);
       setPlotScale({
-        u: uPlotInst,
         min: xRange.min + factor,
         max: xRange.max - factor
       });
@@ -241,7 +239,7 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
         (u) => {
           const min = u.posToVal(u.select.left, "x");
           const max = u.posToVal(u.select.left + u.select.width, "x");
-          setPlotScale({ u, min, max });
+          setPlotScale({ min, max });
         }
       ]
     },
@@ -295,7 +293,6 @@ const HeatmapChart: FC<HeatmapChartProps> = ({
 
     const zoomFactor = dur / 50 * dir;
     uPlotInst.batch(() => setPlotScale({
-      u: uPlotInst,
       min: min + zoomFactor,
       max: max - zoomFactor
     }));
