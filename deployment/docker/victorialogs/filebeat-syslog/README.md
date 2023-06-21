@@ -1,4 +1,4 @@
-# Docker compose Filebeat integration with VictoriaLogs for docker
+# Docker compose Filebeat integration with VictoriaLogs for syslog
 
 The folder contains the example of integration of [filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-overview.html) with Victorialogs
 
@@ -15,36 +15,26 @@ docker compose rm -f
 
 The docker compose file contains the following components:
 
-* filebeat - fileabeat is configured to collect logs from the `docker`, you can find configuration in the `filebeat.yml`. It writes data in VictoriaLogs
-* filebeat-exporter - it export metrics about the filebeat
+* filebeat - fileabeat is configured to accept `syslog` logs in `rfc3164` format on `5140` port, you can find configuration in the `filebeat.yml`. It writes data in VictoriaLogs
 * VictoriaLogs - the log database, it accepts the data from `filebeat` by elastic protocol
-* VictoriaMetrics - collects metrics from `filebeat` via `filebeat-exporter`, `VictoriaLogs` and `VictoriaMetrics`(itself)
-* grafana - it comes with two predefined dashboards for `VictoriaLogs` and `VictoriaMetrics`
-
 
 the example of filebeat configuration(`filebeat.yml`)
 
 ```yaml
-filebeat.autodiscover:
-  providers:
-    - type: docker
-      hints.enabled: true
-
-processors:
-  - add_docker_metadata: ~
+filebeat.inputs:
+  - type: syslog
+    format: rfc3164
+    protocol.tcp:
+      host: "0.0.0.0:5140"
 
 output.elasticsearch:
   hosts: [ "http://victorialogs:9428/insert/elasticsearch/" ]
   worker: 5
+  bulk_max_size: 1000
   parameters:
     _msg_field: "message"
     _time_field: "@timestamp"
-    _stream_fields: "container.name"
-
-http:
-  enabled: true
-  host: 0.0.0.0
-  port: 5066
+    _stream_fields: "host.name,process.program,process.pid,container.name"
 ```
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) to achieve better performance.
