@@ -18,8 +18,6 @@ The docker compose file contains the following components:
 * vector - vector is configured to collect logs from the `docker`, you can find configuration in the `vector.toml`. It writes data in VictoriaLogs. It pushes metrics to VictoriaMetrics.
 * VictoriaLogs - the log database, it accepts the data from `vector` by elastic protocol
 * VictoriaMetrics - collects metrics from `VictoriaLogs` and `VictoriaMetrics`(itself)
-* grafana - it comes with two predefined dashboards for `VictoriaLogs` and `VictoriaMetrics`
-
 
 the example of vector configuration(`vector.toml`)
 
