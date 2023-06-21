@@ -23,7 +23,7 @@ services:
 
   # Run `make package-victoria-logs` to build victoria-logs image
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:heads-master-0-g88993f312-dirty-e01fb71f
+    image: docker.io/victoriametrics/victoria-logs:latest
     volumes:
       - victorialogs-filebeat-docker-vl:/vlogs
     ports:
@@ -44,7 +44,7 @@ services:
       - ./../../../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.91.2
+    image: victoriametrics/victoria-metrics:latest
     ports:
       - '8428:8428'
     command:
