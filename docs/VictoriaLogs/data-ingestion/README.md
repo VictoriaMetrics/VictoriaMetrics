@@ -3,7 +3,11 @@
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can accept logs from the following log collectors:
 
 - Filebeat. See [how to setup Filebeat for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Filebeat.html).
+- Fluentbit. See [how to setup Fluentbit for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html).
 - Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html).
+- Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html).
+
+See also [Log collectors and data ingestion formats](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#log-collectors-and-data-ingestion-formats) in VictoriaMetrics.
 
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
@@ -21,7 +25,8 @@ VictoriaLogs accepts optional [HTTP parameters](#http-parameters) at data ingest
 ### Elasticsearch bulk API
 
 VictoriaLogs accepts logs in [Elasticsearch bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html)
-format at `http://localhost:9428/insert/elasticsearch/_bulk` endpoint.
+/ [OpenSearch Bulk API](http://opensearch.org/docs/1.2/opensearch/rest-api/document-apis/bulk/) format
+at `http://localhost:9428/insert/elasticsearch/_bulk` endpoint.
 
 The following command pushes a single log line to Elasticsearch bulk API at VictoriaLogs:
 
@@ -114,3 +119,14 @@ VictoriaLogs exposes various [metrics](https://docs.victoriametrics.com/Victoria
   since the last VictoriaLogs restart. If this metric grows rapidly during extended periods of time, then this may lead
   to [high cardinality issues](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#high-cardinality).
   The newly created log streams can be inspected in logs by passing `-logNewStreams` command-line flag to VictoriaLogs.
+
+## Log collectors and data ingestion formats
+
+Here is the list of supported collectors and their ingestion formats supported by VictoriaLogs:
+
+| Collector                                                                                | Elasticsearch                                                                              | JSON Stream                                                   |
+|------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| [filebeat](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Filebeat.html)   | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html)    | No                                                            |
+| [fluentbit](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html) | No                                                                                         | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) |
+| [logstash](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No                                                            |
+| [vector](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html)       | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/)                | No                                                            |

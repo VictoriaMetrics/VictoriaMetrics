@@ -9,6 +9,7 @@ before you start working with VictoriaLogs.
 There are the following options exist:
 
 - [To run Docker image](#docker-image)
+- [To run in Kubernetes with helm-charts](#helm-charts)
 - [To build VictoriaLogs from source code](#building-from-source-code)
 
 ### Docker image
@@ -20,6 +21,11 @@ Here is the command to run VictoriaLogs in a Docker container:
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
   docker.io/victoriametrics/victoria-logs:heads-public-single-node-0-ga638f5e2b
 ```
+
+### Helm charts
+
+You can run VictoriaLogs in Kubernetes environment
+with [helm-charts](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md).
 
 ### Building from source code
 
@@ -50,6 +56,8 @@ It has no any external dependencies, so it may run in various environments witho
 VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
 the needed indexes during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 
+## How to configure VictoriaLogs
+
 It is possible to change the TCP port via `-httpListenAddr` command-line flag. For example, the following command
 starts VictoriaLogs, which accepts incoming requests at port `9200` (aka ElasticSearch HTTP API port):
 
@@ -66,3 +74,26 @@ E.g. it uses the retention of 7 days. Read [these docs](https://docs.victoriamet
 for the [ingested](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) logs.
 
 It is recommended setting up monitoring of VictoriaLogs according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#monitoring).
+
+## How to send logs to VictoriaLogs
+
+You can setup data ingestion for VictoriaLogs via the following ways:
+
+- Configure one of the [supported log collectors](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#http-apis) to send logs to VictoriaLogs.
+- Configure your own log collector to send logs to VictoriaLogs via [supported log ingestion protocols](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#log-collectors-and-data-ingestion-formats).
+
+Here are a demos for running popular supported log collectors in docker with VictoriaLogs:
+
+- [**Filebeat (docker)**](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker)
+- [**Fluentbit (docker)**](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker)
+- [**Logstash (docker)**](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash)
+- [**Vector (docker)**](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/vector-docker)
+
+And you can use [helm chart](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/README.md)
+as demo for running fluentbit in kubernetes with VictoriaLogs:
+
+- [Fluentbit (k8s)](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-logs-single/values.yaml)
+
+## How to query logs in VictoriaLogs
+
+See details in [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying).
