@@ -17,8 +17,6 @@ The following functionality is planned in the future versions of VictoriaLogs:
 
 - Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) from popular log collectors and formats:
   - Promtail (aka Grafana Loki)
-  - Vector.dev
-  - Fluentbit
   - Fluentd
   - Syslog
 - Add missing functionality to [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html):
