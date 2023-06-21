@@ -1,6 +1,8 @@
 package loki
 
 // source: https://raw.githubusercontent.com/grafana/loki/main/pkg/push/timestamp.go
+// Licensed under the Apache License, Version 2.0 (the "License");
+// https://github.com/grafana/loki/blob/main/pkg/push/LICENSE
 
 import (
 	"errors"

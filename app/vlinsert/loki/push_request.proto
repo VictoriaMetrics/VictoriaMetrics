@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 // source: https://raw.githubusercontent.com/grafana/loki/main/pkg/push/push.proto
+// Licensed under the Apache License, Version 2.0 (the "License");
+// https://github.com/grafana/loki/blob/main/pkg/push/LICENSE
 
 package logproto;
 
