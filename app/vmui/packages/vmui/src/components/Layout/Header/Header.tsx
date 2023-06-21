@@ -91,10 +91,12 @@ const Header: FC = () => {
         {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoFullIcon/>}
       </div>
     )}
-    <HeaderControls
-      displaySidebar={displaySidebar}
-      isMobile={isMobile}
-    />
+    {
+      REACT_APP_LOGS ? null : <HeaderControls
+        displaySidebar={displaySidebar}
+        isMobile={isMobile}
+      />
+    }
   </header>;
 };
 
