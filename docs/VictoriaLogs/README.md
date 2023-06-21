@@ -15,13 +15,16 @@ It provides the following key features:
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](#querying-via-command-line) for details.
 - VictoriaLogs capacity and performance scales lineraly with the available resources (CPU, RAM, disk IO, disk space).
-  It runs smoothly on both Raspberry PI and a beefy server with hundreds of CPU cores and terabytes of RAM.
+  It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
-  A single-node VictoriaLogs instance can substitute large ElasticSearch cluster.
+- VictoriaLogs supports multitenancy - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#multitenancy).
+- VictoriaLogs supports out of order logs' ingestion aka backfilling.
 
-VictoriaLogs is at Preview stage now. It is recommended evaluating it on production workloads and verifying claims given above.
+VictoriaLogs is at Preview stage now. It is ready for evaluation in production and verifying claims given above.
 It isn't recommended migrating from existing logging solutions to VictoriaLogs Preview in general case yet.
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+
+If you have questions about VictoriaLogs, then feel free asking them at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
 ## Operation
 
