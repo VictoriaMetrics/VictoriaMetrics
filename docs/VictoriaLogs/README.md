@@ -5,7 +5,8 @@ VictoriaLogs is log management and log analytics system from [VictoriaMetrics](h
 It provides the following key features:
 
 - VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
-- VictoriaLogs is much easier to setup and operate comparing to ElasticSearch and Grafana Loki. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.md).
+- VictoriaLogs is much easier to setup and operate comparing to ElasticSearch and Grafana Loki.
+  See [these docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html).
 - VictoriaLogs provides easy yet powerful query language with full-text search capabilities across
   all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) -
   see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
