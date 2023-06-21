@@ -48,6 +48,28 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
+## VMUI
+
+VictoriaLogs provides simple UI for logs query and exploration. The UI is available at `http://victorialogs:8428/vmui`.
+The UI allows exploring query results via tables or JSON-result:
+
+<img src="vmui.png" width="800" />
+
+There are three modes of displaying query results:
+
+- `Group` - results are displayed as a table with rows grouped by stream and fields for filtering.
+- `Table` - displays query results as a table.
+- `JSON` - displays raw JSON response from `/select/logsql/query` endpoint.
+
+This is the first version that has minimal functionality. This version has the following limitations:
+
+- The number of query results is always limited to 1000 lines.
+- A tenant 0 is always used in queries.
+
+These limitations will be removed in future versions.
+
+To get around the current limitations, you can use an alternative - the [command line interface](#command-line).
+
 ## Command-line
 
 VictoriaLogs integrates well with `curl` and other command-line tools during querying because of the following features:

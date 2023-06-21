@@ -17,6 +17,7 @@ It provides the following key features:
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out of order logs' ingestion aka backfilling.
+- VictoriaLogs provides simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui).
 
 VictoriaLogs is at Preview stage now. It is ready for evaluation in production and verifying claims given above.
 It isn't recommended migrating from existing logging solutions to VictoriaLogs Preview in general case yet.
