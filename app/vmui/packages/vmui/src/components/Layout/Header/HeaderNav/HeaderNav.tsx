@@ -8,6 +8,7 @@ import "./style.scss";
 import NavItem from "./NavItem";
 import NavSubItem from "./NavSubItem";
 import classNames from "classnames";
+import { defaultNavigation, logsNavigation } from "../../../../constants/navigation";
 
 interface HeaderNavProps {
   color: string
@@ -16,55 +17,15 @@ interface HeaderNavProps {
 }
 
 const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
+  const { REACT_APP_LOGS } = process.env;
   const appModeEnable = getAppModeEnable();
   const { dashboardsSettings } = useDashboardsState();
   const { pathname } = useLocation();
 
   const [activeMenu, setActiveMenu] = useState(pathname);
 
-  const menu = useMemo(() => ([
-    {
-      label: routerOptions[router.home].title,
-      value: router.home,
-    },
-    {
-      label: "Explore",
-      submenu: [
-        {
-          label: routerOptions[router.metrics].title,
-          value: router.metrics,
-        },
-        {
-          label: routerOptions[router.cardinality].title,
-          value: router.cardinality,
-        },
-        {
-          label: routerOptions[router.topQueries].title,
-          value: router.topQueries,
-        },
-        {
-          label: routerOptions[router.logs].title,
-          value: router.logs,
-        },
-      ]
-    },
-    {
-      label: "Tools",
-      submenu: [
-        {
-          label: routerOptions[router.trace].title,
-          value: router.trace,
-        },
-        {
-          label: routerOptions[router.withTemplate].title,
-          value: router.withTemplate,
-        },
-        {
-          label: routerOptions[router.relabel].title,
-          value: router.relabel,
-        },
-      ]
-    },
+  const menu = useMemo(() => REACT_APP_LOGS ? logsNavigation : ([
+    ...defaultNavigation,
     {
       label: routerOptions[router.dashboards].title,
       value: router.dashboards,
@@ -101,7 +62,7 @@ const HeaderNav: FC<HeaderNavProps> = ({ color, background, direction }) => {
             <NavItem
               key={m.value}
               activeMenu={activeMenu}
-              value={m.value}
+              value={m.value || ""}
               label={m.label || ""}
               color={color}
             />
