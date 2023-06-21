@@ -5,7 +5,7 @@ vmui-package-base-image:
 
 vmui-build: vmui-package-base-image
 	docker run --rm \
-          --user $(shell id -u):$(shell id -g) \
+         --user $(shell id -u):$(shell id -g) \
          --mount type=bind,src="$(shell pwd)/app/vmui",dst=/build \
          -w /build/packages/vmui \
          --entrypoint=/bin/bash \
@@ -23,3 +23,6 @@ vmui-publish-release: vmui-release
 
 vmui-update: vmui-build
 	rm -rf app/vmselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vmselect/vmui
+
+vmui-logs-update: vmui-build
+	rm -rf app/vlselect/vmui/* && mv app/vmui/packages/vmui/build/* app/vlselect/vmui

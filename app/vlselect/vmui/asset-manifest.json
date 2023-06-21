@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "./static/css/main.29eb5862.css",
+    "main.js": "./static/js/main.1a5782d1.js",
+    "static/js/27.c1ccfd29.chunk.js": "./static/js/27.c1ccfd29.chunk.js",
+    "static/media/Lato-Regular.ttf": "./static/media/Lato-Regular.d714fec1633b69a9c2e9.ttf",
+    "static/media/Lato-Bold.ttf": "./static/media/Lato-Bold.32360ba4b57802daa4d6.ttf",
+    "index.html": "./index.html"
+  },
+  "entrypoints": [
+    "static/css/main.29eb5862.css",
+    "static/js/main.1a5782d1.js"
+  ]
+}
