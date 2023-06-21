@@ -50,7 +50,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 ## VMUI
 
-VictoriaLogs provides simple UI for logs query and exploration. The UI is available at `http://victorialogs:8428/vmui`.
+VictoriaLogs provides simple UI for logs query and exploration. The UI is available at `http://victorialogs:9428/vmui`.
 The UI allows exploring query results via tables or JSON-result:
 
 <img src="vmui.png" width="800" />
