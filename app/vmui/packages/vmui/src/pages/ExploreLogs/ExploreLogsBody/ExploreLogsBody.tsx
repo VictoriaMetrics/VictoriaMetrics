@@ -39,7 +39,7 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
   const { setSearchParamsFromKeys } = useSearchParamsFromObject();
   const [limitRows, setLimitRows] = useStateSearchParams(getFromStorage("LOGS_LIMIT") || 50, "limit");
 
-  const [activeTab, setActiveTab] = useState(DisplayType.group);
+  const [activeTab, setActiveTab] = useStateSearchParams(DisplayType.group, "view");
   const [displayColumns, setDisplayColumns] = useState<string[]>([]);
   const { value: tableCompact, toggle: toggleTableCompact } = useBoolean(false);
 
@@ -61,8 +61,9 @@ const ExploreLogsBody: FC<ExploreLogBodyProps> = ({ data }) => {
     return Array.from(keys).filter((col) => !hideColumns.includes(col));
   }, [logs]);
 
-  const handleChangeTab = (val: string) => {
-    setActiveTab(val as DisplayType);
+  const handleChangeTab = (view: string) => {
+    setActiveTab(view as DisplayType);
+    setSearchParamsFromKeys({ view });
   };
 
   const handleChangeLimit = (limit: number) => {
