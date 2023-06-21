@@ -4,10 +4,16 @@ import (
 	"net/http"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+)
+
+var (
+	maxSortBufferSize = flagutil.NewBytes("select.maxSortBufferSize", 1024*1024, "Query results from /select/logsql/query are automatically sorted by _time "+
+		"if their summary size doesn't exceed this value; otherwise query results are streamed in the response without sorting; "+
+		"too big value for this flag may result in high memory usage, since the sorting is performed in memory")
 )
 
 // ProcessQueryRequest handles /select/logsql/query request
@@ -27,9 +33,8 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 	}
 	w.Header().Set("Content-Type", "application/stream+json; charset=utf-8")
 
-	bw := bufferedwriter.Get(w)
-	defer bufferedwriter.Put(bw)
-
+	sw := getSortWriter()
+	sw.Init(w, maxSortBufferSize.IntN())
 	tenantIDs := []logstorage.TenantID{tenantID}
 	vlstorage.RunQuery(tenantIDs, q, stopCh, func(columns []logstorage.BlockColumn) {
 		if len(columns) == 0 {
@@ -41,13 +46,11 @@ func ProcessQueryRequest(w http.ResponseWriter, r *http.Request, stopCh <-chan s
 		for rowIdx := 0; rowIdx < rowsCount; rowIdx++ {
 			WriteJSONRow(bb, columns, rowIdx)
 		}
-		// Do not check for error here, since the only valid error is when the client
-		// closes the connection during Write() call. There is no need in logging this error,
-		// since it may be too verbose and it doesn't give any actionable info.
-		_, _ = bw.Write(bb.B)
+		sw.MustWrite(bb.B)
 		blockResultPool.Put(bb)
 	})
-	_ = bw.Flush()
+	sw.FinalFlush()
+	putSortWriter(sw)
 }
 
 var blockResultPool bytesutil.ByteBufferPool
