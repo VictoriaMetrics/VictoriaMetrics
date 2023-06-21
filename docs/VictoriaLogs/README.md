@@ -15,6 +15,7 @@ It provides the following key features:
 - VictoriaLogs capacity and performance scales lineraly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
+  See benchmark with ElasticSearch [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark).
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out of order logs' ingestion aka backfilling.
 
