@@ -137,8 +137,6 @@ func readLine(sc *bufio.Scanner, timeField, msgField string, processLogMessage f
 	line := sc.Bytes()
 	p := logjson.GetParser()
 
-	llll.Warnf("\n----\n%s\n----\n", line)
-
 	if err := p.ParseLogMessage(line); err != nil {
 		invalidJSONLineLogger.Warnf("cannot parse json-encoded log entry: %s", err)
 		return true, nil
@@ -225,5 +223,4 @@ var (
 var (
 	invalidTimestampLogger = logger.WithThrottler("invalidTimestampLogger", 5*time.Second)
 	invalidJSONLineLogger  = logger.WithThrottler("invalidJSONLineLogger", 5*time.Second)
-	llll                   = logger.WithThrottler("llll", 2*time.Second)
 )
