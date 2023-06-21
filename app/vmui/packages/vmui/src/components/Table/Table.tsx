@@ -11,15 +11,26 @@ interface TableProps<T> {
   columns: { title?: string, key: keyof Partial<T>, className?: string }[];
   defaultOrderBy: keyof T;
   copyToClipboard?: keyof T;
+  // TODO: Remove when pagination is implemented on the backend.
+  paginationOffset: {
+    startIndex: number;
+    endIndex: number;
+  }
 }
 
-const Table = <T extends object>({ rows, columns, defaultOrderBy, copyToClipboard }: TableProps<T>) => {
+const Table = <T extends object>({ rows, columns, defaultOrderBy, copyToClipboard, paginationOffset }: TableProps<T>) => {
   const [orderBy, setOrderBy] = useState<keyof T>(defaultOrderBy);
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("desc");
   const [copied, setCopied] = useState<number | null>(null);
 
-  const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
-    [rows, orderBy, orderDir]);
+  // const sortedList = useMemo(() => stableSort(rows as [], getComparator(orderDir, orderBy)),
+  //   [rows, orderBy, orderDir]);
+  // TODO: Remove when pagination is implemented on the backend.
+  const sortedList = useMemo(() => {
+    const { startIndex, endIndex } = paginationOffset;
+    return stableSort(rows as [], getComparator(orderDir, orderBy)).slice(startIndex, endIndex);
+  },
+  [rows, orderBy, orderDir, paginationOffset]);
 
   const createSortHandler = (key: keyof T) => () => {
     setOrderDir((prev) => prev === "asc" && orderBy === key ? "desc" : "asc");

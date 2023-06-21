@@ -77,6 +77,16 @@
     &_pre {
       white-space: pre-wrap;
     }
+
+    &_logs-time {
+      white-space: pre;
+      overflow-wrap: normal;
+    }
+
+    &_logs {
+      font-family: $font-family-monospace;
+      line-height: 1.2;
+    }
   }
 
   &__sort-icon {

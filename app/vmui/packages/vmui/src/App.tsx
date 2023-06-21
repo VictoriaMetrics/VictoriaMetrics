@@ -13,7 +13,7 @@ import ExploreMetrics from "./pages/ExploreMetrics";
 import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
-import ExploreLog from "./pages/ExploreLog/ExploreLog";
+import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
 
 const App: FC = () => {
 
@@ -64,7 +64,7 @@ const App: FC = () => {
                 />
                 <Route
                   path={router.logs}
-                  element={<ExploreLog/>}
+                  element={<ExploreLogs/>}
                 />
                 <Route
                   path={router.icons}
