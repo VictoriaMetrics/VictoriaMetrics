@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
@@ -17,6 +19,8 @@ import (
 
 var (
 	rowsIngestedTotalProtobuf = metrics.NewCounter(`vl_rows_ingested_total{type="loki", format="protobuf"}`)
+	bytesBufPool              bytesutil.ByteBufferPool
+	pushReqsPool              sync.Pool
 )
 
 func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
@@ -109,4 +113,17 @@ func parseLogFields(s string) ([]logstorage.Field, error) {
 	}
 
 	return lf, nil
+}
+
+func getPushReq() *PushRequest {
+	v := pushReqsPool.Get()
+	if v == nil {
+		return &PushRequest{}
+	}
+	return v.(*PushRequest)
+}
+
+func putPushReq(reqs *PushRequest) {
+	reqs.Reset()
+	pushReqsPool.Put(reqs)
 }

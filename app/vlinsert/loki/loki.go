@@ -2,16 +2,11 @@ package loki
 
 import (
 	"fmt"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
-
-	"github.com/valyala/fastjson"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -22,25 +17,8 @@ import (
 const msgField = "_msg"
 
 var (
-	parserPool   fastjson.ParserPool
-	bytesBufPool bytesutil.ByteBufferPool
-	pushReqsPool sync.Pool
-
 	lokiRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push"}`)
 )
-
-func getPushReq() *PushRequest {
-	v := pushReqsPool.Get()
-	if v == nil {
-		return &PushRequest{}
-	}
-	return v.(*PushRequest)
-}
-
-func putPushReq(reqs *PushRequest) {
-	reqs.Reset()
-	pushReqsPool.Put(reqs)
-}
 
 // RequestHandler processes ElasticSearch insert requests
 func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
@@ -145,19 +123,4 @@ func getUint32FromString(s string) (uint32, error) {
 		return 0, fmt.Errorf("cannot parse %q as uint32: %w", s, err)
 	}
 	return uint32(n), nil
-}
-
-func parseLokiTimestamp(s string) (int64, error) {
-	// Parsing timestamp in nanoseconds
-	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("cannot parse timestamp in nanoseconds from %q: %w", s, err)
-	}
-	if n > int64(math.MaxInt64) {
-		return 0, fmt.Errorf("too big timestamp in nanoseconds: %d; mustn't exceed %d", n, int64(math.MaxInt64)/1e9)
-	}
-	if n < 0 {
-		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than %d", n, 0)
-	}
-	return n, nil
 }

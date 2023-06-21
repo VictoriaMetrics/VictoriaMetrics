@@ -3,7 +3,9 @@ package loki
 import (
 	"fmt"
 	"io"
+	"math"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/valyala/fastjson"
@@ -20,6 +22,7 @@ import (
 
 var (
 	rowsIngestedTotalJSON = metrics.NewCounter(`vl_rows_ingested_total{type="loki", format="json"}`)
+	parserPool            fastjson.ParserPool
 )
 
 func handleJSON(r *http.Request, w http.ResponseWriter) bool {
@@ -113,4 +116,19 @@ func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fie
 	}
 
 	return rowsIngested, nil
+}
+
+func parseLokiTimestamp(s string) (int64, error) {
+	// Parsing timestamp in nanoseconds
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("cannot parse timestamp in nanoseconds from %q: %w", s, err)
+	}
+	if n > int64(math.MaxInt64) {
+		return 0, fmt.Errorf("too big timestamp in nanoseconds: %d; mustn't exceed %d", n, int64(math.MaxInt64)/1e9)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than %d", n, 0)
+	}
+	return n, nil
 }
