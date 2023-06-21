@@ -1,7 +1,7 @@
 # Logstash setup
 
 [Logstash](https://www.elastic.co/guide/en/logstash/8.8/introduction.html) log collector supports
-[Elasticsearch output](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) compatible with
+[Opensearch output plugin](https://github.com/opensearch-project/logstash-output-opensearch) compatible with
 [Elasticsearch bulk API](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#elasticsearch-bulk-api)
 in VictoriaMetrics.
 
@@ -100,7 +100,7 @@ output {
 }
 ```
 
-More info about output tuning you can find in [these docs](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html).
+More info about output tuning you can find in [these docs](https://github.com/opensearch-project/logstash-output-opensearch/blob/main/README.md).
 
 [Here is a demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash)
 for running Logstash with VictoriaLogs with docker-compose and collecting logs to VictoriaLogs

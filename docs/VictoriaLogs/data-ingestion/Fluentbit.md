@@ -60,7 +60,7 @@ For example, the following `fluentbit.conf` config instructs Filebeat to store t
      header ProjectID 23
 ```
 
-More info about output tuning you can find in [these docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
+More info about output tuning you can find in [these docs](https://docs.fluentbit.io/manual/pipeline/outputs/http).
 
 [Here is a demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/fluentbit-docker)
 for running Fluentbit with VictoriaLogs with docker-compose and collecting logs from docker-containers to VictoriaLogs.
