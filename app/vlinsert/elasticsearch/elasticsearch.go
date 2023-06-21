@@ -17,6 +17,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
@@ -107,24 +108,30 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 			msgField = msgf
 		}
 
-		// Extract stream field names from _stream_fields query arg
-		var streamFields []string
-		if sfs := r.FormValue("_stream_fields"); sfs != "" {
-			streamFields = strings.Split(sfs, ",")
-		}
+		streamFields := httputils.GetArray(r, "_stream_fields")
+		ignoreFields := httputils.GetArray(r, "ignore_fields")
 
-		// Extract field names, which must be ignored
-		var ignoreFields []string
-		if ifs := r.FormValue("ignore_fields"); ifs != "" {
-			ignoreFields = strings.Split(ifs, ",")
+		isDebug := httputils.GetBool(r, "debug")
+		debugRequestURI := ""
+		debugRemoteAddr := ""
+		if isDebug {
+			debugRequestURI = httpserver.GetRequestURI(r)
+			debugRemoteAddr = httpserver.GetQuotedRemoteAddr(r)
 		}
 
 		lr := logstorage.GetLogRows(streamFields, ignoreFields)
 		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
 			lr.MustAdd(tenantID, timestamp, fields)
+			if isDebug {
+				s := lr.GetRowString(0)
+				lr.ResetKeepSettings()
+				logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", debugRemoteAddr, debugRequestURI, s)
+				rowsDroppedTotal.Inc()
+				return
+			}
 			if lr.NeedFlush() {
 				vlstorage.MustAddRows(lr)
-				lr.Reset()
+				lr.ResetKeepSettings()
 			}
 		}
 
@@ -148,7 +155,10 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-var bulkRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
+var (
+	bulkRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
+	rowsDroppedTotal  = metrics.NewCounter(`vl_rows_dropped_total{path="/insert/elasticsearch/_bulk",reason="debug"}`)
+)
 
 func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	processLogMessage func(timestamp int64, fields []logstorage.Field),

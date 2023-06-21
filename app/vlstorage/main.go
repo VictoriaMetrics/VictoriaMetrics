@@ -138,10 +138,10 @@ func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
 		return float64(m().UncompressedFileSize)
 	})
 
-	ms.NewGauge(`vlinsert_rows_dropped_total{reason="too_big_timestamp"}`, func() float64 {
+	ms.NewGauge(`vl_rows_dropped_total{reason="too_big_timestamp"}`, func() float64 {
 		return float64(m().RowsDroppedTooBigTimestamp)
 	})
-	ms.NewGauge(`vlinsert_rows_dropped_total{reason="too_small_timestamp"}`, func() float64 {
+	ms.NewGauge(`vl_rows_dropped_total{reason="too_small_timestamp"}`, func() float64 {
 		return float64(m().RowsDroppedTooSmallTimestamp)
 	})
 
