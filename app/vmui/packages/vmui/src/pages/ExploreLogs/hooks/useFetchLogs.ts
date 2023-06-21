@@ -43,7 +43,7 @@ export const useFetchLogs = (server: string, query: string) => {
         const { done, value } = await reader.read();
 
         if (done) {
-          console.log("Stream finished, no more data.");
+          // "Stream finished, no more data."
           break;
         }
 
@@ -56,8 +56,8 @@ export const useFetchLogs = (server: string, query: string) => {
         }
 
         if (result.length >= MAX_LINES) {
+          // Reached the maximum line limit
           reader.cancel();
-          console.log("Reached the maximum line limit.");
           break;
         }
       }
@@ -71,7 +71,6 @@ export const useFetchLogs = (server: string, query: string) => {
         })
         .filter(line => line);
 
-      console.log(data.length);
       setLogs(data);
 
     } catch (e) {
