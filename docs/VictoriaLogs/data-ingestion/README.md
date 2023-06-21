@@ -118,7 +118,7 @@ VictoriaLogs accepts logs in [Loki JSON API](https://grafana.com/docs/loki/lates
 The following command pushes a single log line to Loki JSON API at VictoriaLogs:
 
 ```bash
-curl -v -H "Content-Type: application/json" -XPOST -s "http://localhost:9428/insert/loki/api/v1/push" --data-raw \
+curl -v -H "Content-Type: application/json" -XPOST -s "http://localhost:9428/insert/loki/api/v1/push?_stream_fields=foo" --data-raw \
   '{"streams": [{ "stream": { "foo": "bar2" }, "values": [ [ "1570818238000000000", "fizzbuzz" ] ] }]}'
 ```
 
