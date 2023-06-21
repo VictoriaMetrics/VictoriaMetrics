@@ -31,7 +31,9 @@ The response can be interrupted at any time by closing the connection to Victori
 This allows post-processing the returned lines at the client side with the usual Unix commands such as `grep`, `jq`, `less`, `head`, etc.
 See [these docs](#command-line) for more details.
 
-The returned lines aren't sorted by default, since sorting disables the ability to send matching log entries to response stream as soon as they are found.
+The returned lines are sorted by [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
+if their total size doesn't exceed `-select.maxSortBufferSize` command-line flag value (by default it is set to one megabyte).
+Otherwise the returned lines aren't sorted, since sorting disables the ability to send matching log entries to response stream as soon as they are found.
 Query results can be sorted either at VictoriaLogs side according [to these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#sorting)
 or at client side with the usual `sort` command according to [these docs](#command-line).
 

@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
@@ -19,11 +18,11 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logjson"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-	"github.com/valyala/fastjson"
 )
 
 var (
@@ -240,27 +239,20 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		return false, fmt.Errorf(`missing log message after the "create" or "index" command`)
 	}
 	line = sc.Bytes()
-	pctx := getParserCtx()
-	if err := pctx.parseLogMessage(line); err != nil {
+	p := logjson.GetParser()
+	if err := p.ParseLogMessage(line); err != nil {
 		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
 
-	timestamp, err := extractTimestampFromFields(timeField, pctx.fields)
+	timestamp, err := extractTimestampFromFields(timeField, p.Fields)
 	if err != nil {
 		return false, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
-	updateMessageFieldName(msgField, pctx.fields)
-	processLogMessage(timestamp, pctx.fields)
-	putParserCtx(pctx)
+	updateMessageFieldName(msgField, p.Fields)
+	processLogMessage(timestamp, p.Fields)
+	logjson.PutParser(p)
 	return true, nil
 }
-
-var parserPool fastjson.ParserPool
-
-var (
-	invalidTimestampLogger = logger.WithThrottler("invalidTimestampLogger", 5*time.Second)
-	invalidJSONLineLogger  = logger.WithThrottler("invalidJSONLineLogger", 5*time.Second)
-)
 
 func extractTimestampFromFields(timeField string, fields []logstorage.Field) (int64, error) {
 	for i := range fields {
@@ -289,102 +281,6 @@ func updateMessageFieldName(msgField string, fields []logstorage.Field) {
 			return
 		}
 	}
-}
-
-type parserCtx struct {
-	p         fastjson.Parser
-	buf       []byte
-	prefixBuf []byte
-	fields    []logstorage.Field
-}
-
-func (pctx *parserCtx) reset() {
-	pctx.buf = pctx.buf[:0]
-	pctx.prefixBuf = pctx.prefixBuf[:0]
-
-	fields := pctx.fields
-	for i := range fields {
-		lf := &fields[i]
-		lf.Name = ""
-		lf.Value = ""
-	}
-	pctx.fields = fields[:0]
-}
-
-func getParserCtx() *parserCtx {
-	v := parserCtxPool.Get()
-	if v == nil {
-		return &parserCtx{}
-	}
-	return v.(*parserCtx)
-}
-
-func putParserCtx(pctx *parserCtx) {
-	pctx.reset()
-	parserCtxPool.Put(pctx)
-}
-
-var parserCtxPool sync.Pool
-
-func (pctx *parserCtx) parseLogMessage(msg []byte) error {
-	s := bytesutil.ToUnsafeString(msg)
-	v, err := pctx.p.Parse(s)
-	if err != nil {
-		return fmt.Errorf("cannot parse json: %w", err)
-	}
-	if t := v.Type(); t != fastjson.TypeObject {
-		return fmt.Errorf("expecting json dictionary; got %s", t)
-	}
-	pctx.reset()
-	pctx.fields, pctx.buf, pctx.prefixBuf = appendLogFields(pctx.fields, pctx.buf, pctx.prefixBuf, v)
-	return nil
-}
-
-func appendLogFields(dst []logstorage.Field, dstBuf, prefixBuf []byte, v *fastjson.Value) ([]logstorage.Field, []byte, []byte) {
-	o := v.GetObject()
-	o.Visit(func(k []byte, v *fastjson.Value) {
-		t := v.Type()
-		switch t {
-		case fastjson.TypeNull:
-			// Skip nulls
-		case fastjson.TypeObject:
-			// Flatten nested JSON objects.
-			// For example, {"foo":{"bar":"baz"}} is converted to {"foo.bar":"baz"}
-			prefixLen := len(prefixBuf)
-			prefixBuf = append(prefixBuf, k...)
-			prefixBuf = append(prefixBuf, '.')
-			dst, dstBuf, prefixBuf = appendLogFields(dst, dstBuf, prefixBuf, v)
-			prefixBuf = prefixBuf[:prefixLen]
-		case fastjson.TypeArray, fastjson.TypeNumber, fastjson.TypeTrue, fastjson.TypeFalse:
-			// Convert JSON arrays, numbers, true and false values to their string representation
-			dstBufLen := len(dstBuf)
-			dstBuf = v.MarshalTo(dstBuf)
-			value := dstBuf[dstBufLen:]
-			dst, dstBuf = appendLogField(dst, dstBuf, prefixBuf, k, value)
-		case fastjson.TypeString:
-			// Decode JSON strings
-			dstBufLen := len(dstBuf)
-			dstBuf = append(dstBuf, v.GetStringBytes()...)
-			value := dstBuf[dstBufLen:]
-			dst, dstBuf = appendLogField(dst, dstBuf, prefixBuf, k, value)
-		default:
-			logger.Panicf("BUG: unexpected JSON type: %s", t)
-		}
-	})
-	return dst, dstBuf, prefixBuf
-}
-
-func appendLogField(dst []logstorage.Field, dstBuf, prefixBuf, k, value []byte) ([]logstorage.Field, []byte) {
-	dstBufLen := len(dstBuf)
-	dstBuf = append(dstBuf, prefixBuf...)
-	dstBuf = append(dstBuf, k...)
-	name := dstBuf[dstBufLen:]
-
-	dst = append(dst, logstorage.Field{
-		Name:  bytesutil.ToUnsafeString(name),
-		Value: bytesutil.ToUnsafeString(value),
-	})
-	return dst, dstBuf
 }
 
 func parseElasticsearchTimestamp(s string) (int64, error) {

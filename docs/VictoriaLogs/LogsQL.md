@@ -1058,8 +1058,9 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 ## Sorting
 
-By default VictoriaLogs doesn't sort the returned results because of performance and efficiency concerns
-described [here](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
+By default VictoriaLogs sorts the returned results by [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
+if their total size doesn't exceed `-select.maxSortBufferSize` command-line value (by default it is set to one megabytes).
+Otherwise sorting is skipped because of performance and efficiency concerns described [here](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 It is possible to sort the [selected log entries](#filters) at client side with `sort` Unix command
 according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
