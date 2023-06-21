@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logjson"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
@@ -168,7 +169,11 @@ func (rs *rowsSorter) parseRows(src []byte) {
 			continue
 		}
 
-		p.ParseLogMessage(line)
+		err := p.ParseLogMessage(line)
+		if err != nil {
+			logger.Errorf("error parse logs line %q: %s", line, err)
+			continue
+		}
 
 		timeValue := ""
 		fieldsBufLen := len(fieldsBuf)
