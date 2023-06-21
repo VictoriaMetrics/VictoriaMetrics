@@ -18,6 +18,12 @@ The docker compose file contains the following components:
 * fluentbit - fluentbit is configured to collect logs from the `docker`, you can find configuration in the `fluent-bit.conf`. It writes data in VictoriaLogs
 * VictoriaLogs - the log database, it accepts the data from `fluentbit` by json line protocol
 
+Querying the data
+
+* [vmui](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/vmui`
+* for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
+
+
 the example of fluentbit configuration(`filebeat.yml`)
 
 ```shell
