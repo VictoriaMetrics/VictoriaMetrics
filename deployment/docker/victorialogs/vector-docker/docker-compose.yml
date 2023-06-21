@@ -28,7 +28,7 @@ services:
 
   # Run `make package-victoria-logs` to build victoria-logs image
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:heads-examples-vl-docker-compose-0-gdefae2a3f-dirty-de6e4df1
+    image: docker.io/victoriametrics/victoria-logs:latest
     volumes:
       - victorialogs-vector-docker-vl:/vlogs
     ports:
@@ -43,7 +43,7 @@ services:
       retries: 10
 
   victoriametrics:
-    image: victoriametrics/victoria-metrics:v1.91.2
+    image: victoriametrics/victoria-metrics:latest
     ports:
       - '8428:8428'
     command:

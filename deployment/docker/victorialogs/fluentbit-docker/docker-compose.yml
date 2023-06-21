@@ -12,7 +12,7 @@ services:
 
   # Run `make package-victoria-logs` to build victoria-logs image
   victorialogs:
-    image: docker.io/victoriametrics/victoria-logs:heads-master-0-g88993f312-dirty-e01fb71f
+    image: docker.io/victoriametrics/victoria-logs:latest
     volumes:
       - victorialogs-fluentbit-vl:/vlogs
     ports:
