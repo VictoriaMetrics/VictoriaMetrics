@@ -13,6 +13,7 @@ docker-compose.yml contains:
 
 - 2 filebeat instances - one for elastic and one for VictoriaLogs.
 - elastic instance
+- VictoriaLogs instance
 - kibana instance - port forwarded to `localhost:5601` to see UI
 - vmsingle - port forwarded to `localhost:8428` to see UI
 - [logs generator](./generator)
@@ -42,6 +43,15 @@ Note that with logs listed in `download.sh` it will require 49GB of free space:
 - 46GB for unarchived logs
 
 If it is needed to minimize disk footprint, you can download only some of them by commenting out lines in `download.sh`.
+Unarchived logs size per file for reference:
+```shell
+2.3M Linux.log
+ 73M SSH.log
+ 32G Thunderbird.log
+5.1M Apache.log
+ 13G hadoop-*.log
+```
+
 
 2. (optional) If needed, adjust amount of logs sent by generator by modifying `-outputRateLimitItems` and
    `outputRateLimitPeriod` parameters in [docker-compose.yml](./docker-compose.yml). By default, it is configured to
@@ -71,4 +81,6 @@ output.elasticsearch:
 
 4. Run `docker-compose up -d` to start benchmark.
 
-5. Navigate to `localhost:3000` to see Grafana, it has pre-configured dashboards for resource usage comparison.
+5. Navigate to `http://localhost:3000/d/hkm6P6_4z/elastic-vs-vlogs` to see Grafana dashboard with resource usage comparison.
+
+![grafana-dashboard.png](grafana-dashboard.png)
