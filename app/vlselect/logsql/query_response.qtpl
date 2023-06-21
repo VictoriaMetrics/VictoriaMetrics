@@ -17,4 +17,25 @@
 }{% newline %}
 {% endfunc %}
 
+// JSONRows prints formatted rows
+{% func JSONRows(rows [][]logstorage.Field) %}
+	{% if len(rows) == 0 %}
+		{% return %}
+	{% endif %}
+	{% for _, fields := range rows %}
+	{
+		{% if len(fields) > 0 %}
+			{% code
+				f := fields[0]
+				fields = fields[1:]
+			%}
+			{%q= f.Name %}:{%q= f.Value %}
+			{% for _, f := range fields %}
+				,{%q= f.Name %}:{%q= f.Value %}
+			{% endfor %}
+		{% endif %}
+	}{% newline %}
+	{% endfor %}
+{% endfunc %}
+
 {% endstripspace %}
