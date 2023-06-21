@@ -45,8 +45,18 @@ The command should return the following response:
 
 ### JSON stream API
 
-TODO: document JSON stream API
+VictoriaLogs supports HTTP API on `/insert/jsonline` endpoint for data ingestion where
+body contains a JSON object in each line (separated by `\n`).
 
+Here is an example:
+
+ ```http request
+ POST http://localhost:9428/insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date
+ Content-Type: application/jsonl
+ { "log": { "level": "info", "message": "hello world" }, "date": "2023‐06‐20T15:31:23Z", "stream": "stream1" }
+ { "log": { "level": "error", "message": "oh no!" }, "date": "2023‐06‐20T15:32:10Z", "stream": "stream1" }
+ { "log": { "level": "info", "message": "hello world" }, "date": "2023‐06‐20T15:35:11Z", "stream": "stream2" }
+ ```
 
 ### HTTP parameters
 
