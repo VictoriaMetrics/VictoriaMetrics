@@ -70,8 +70,16 @@ func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
 	if !strings.Contains(sOrig, "-") {
-		// Parse the timestamp in seconds
-		return strconv.ParseFloat(sOrig, 64)
+		// Parse the timestamp in seconds or in milliseconds
+		ts, err := strconv.ParseFloat(sOrig, 64)
+		if err != nil {
+			return 0, err
+		}
+		if ts >= (1 << 32) {
+			// The timestamp is in milliseconds. Convert it to seconds.
+			ts /= 1000
+		}
+		return ts, nil
 	}
 	if len(s) == 7 {
 		// Parse YYYY-MM

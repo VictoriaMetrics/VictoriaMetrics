@@ -2,7 +2,6 @@ package storage
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -24,8 +23,6 @@ type table struct {
 
 	ptws     []*partitionWrapper
 	ptwsLock sync.Mutex
-
-	flockF *os.File
 
 	stop chan struct{}
 
@@ -85,9 +82,6 @@ func mustOpenTable(path string, s *Storage) *table {
 	// Create a directory for the table if it doesn't exist yet.
 	fs.MustMkdirIfNotExist(path)
 
-	// Protect from concurrent opens.
-	flockF := fs.MustCreateFlockFile(path)
-
 	// Create directories for small and big partitions if they don't exist yet.
 	smallPartitionsPath := filepath.Join(path, smallDirname)
 	fs.MustMkdirIfNotExist(smallPartitionsPath)
@@ -113,8 +107,6 @@ func mustOpenTable(path string, s *Storage) *table {
 		smallPartitionsPath: smallPartitionsPath,
 		bigPartitionsPath:   bigPartitionsPath,
 		s:                   s,
-
-		flockF: flockF,
 
 		stop: make(chan struct{}),
 	}
@@ -197,10 +189,6 @@ func (tb *table) MustClose() {
 		}
 		ptw.decRef()
 	}
-
-	// Release exclusive lock on the table.
-	fs.MustClose(tb.flockF)
-	tb.flockF = nil
 }
 
 // flushPendingRows flushes all the pending raw rows, so they become visible to search.

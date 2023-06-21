@@ -10,7 +10,7 @@ aliases:
 - /operator/VictoriaMetrics-Operator.html
 ---
 
-# VictoriaMetrics operator
+# VictoriaMetrics Operator Overview
 
 ## Overview
 

@@ -24,6 +24,8 @@ The cluster version of VictoriaMetrics is available [here](https://docs.victoria
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
 
+If you have questions about VictoriaMetrics, then feel free asking them at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
+
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
 Enterprise binaries can be downloaded and evaluated for free 
@@ -823,6 +825,7 @@ in [query APIs](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 - Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
+- Unix timestamps in milliseconds. For example, `1562529662678`.
 - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, `2022-03-29T01:02:03Z` or `2022-03-29T01:02:03+02:30`.
 - Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`, `2022-03-29T01:02:03`.
   The partial RFC3339 time is in UTC timezone by default. It is possible to specify timezone there by adding `+hh:mm` or `-hh:mm` suffix to partial time.
@@ -1041,7 +1044,7 @@ VictoriaMetrics provides the following handlers for exporting data:
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
-The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
+The response would contain all the data for the selected time series in [JSON streaming format](http://ndjson.org/).
 Each JSON line contains samples for a single time series. An example output:
 
 ```json
@@ -1162,6 +1165,12 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
   See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
 ### How to import data in JSON line format
+
+`/api/v1/import` is an API optimized for performance and processes data in a streaming fashion. 
+The client can transfer unlimited amount of data through one open connection. 
+`/api/v1/import` API doesn't return parsing errors to the client, as it is expected for data stream
+to be not interrupted. Instead, look for parsing errors on server side (VictoriaMetrics single-node or vminsert) or
+check for changes in `vm_rows_invalid_total` (exported by server side) metric.
 
 Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 

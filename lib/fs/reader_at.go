@@ -19,6 +19,9 @@ const is32BitPtr = (^uintptr(0) >> 32) == 0
 
 // MustReadAtCloser is rand-access read interface.
 type MustReadAtCloser interface {
+	// Path must return path for the reader (e.g. file path, url or in-memory reference)
+	Path() string
+
 	// MustReadAt must read len(p) bytes from offset off to p.
 	MustReadAt(p []byte, off int64)
 
@@ -37,6 +40,11 @@ type ReaderAt struct {
 	useLocalStats bool
 }
 
+// Path returns path to r.
+func (r *ReaderAt) Path() string {
+	return r.f.Name()
+}
+
 // MustReadAt reads len(p) bytes at off from r.
 func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 	if len(p) == 0 {
@@ -48,10 +56,10 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 	if len(r.mmapData) == 0 {
 		n, err := r.f.ReadAt(p, off)
 		if err != nil {
-			logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, r.f.Name(), err)
+			logger.Panicf("FATAL: cannot read %d bytes at offset %d of file %q: %s", len(p), off, r.Path(), err)
 		}
 		if n != len(p) {
-			logger.Panicf("FATAL: unexpected number of bytes read from file %q; got %d; want %d", r.f.Name(), n, len(p))
+			logger.Panicf("FATAL: unexpected number of bytes read from file %q; got %d; want %d", r.Path(), n, len(p))
 		}
 	} else {
 		if off > int64(len(r.mmapData)-len(p)) {
@@ -73,7 +81,7 @@ func (r *ReaderAt) MustReadAt(p []byte, off int64) {
 
 // MustClose closes r.
 func (r *ReaderAt) MustClose() {
-	fname := r.f.Name()
+	fname := r.Path()
 	if len(r.mmapData) > 0 {
 		if err := mUnmap(r.mmapData[:cap(r.mmapData)]); err != nil {
 			logger.Panicf("FATAL: cannot unmap data for file %q: %s", fname, err)
@@ -109,7 +117,7 @@ func (r *ReaderAt) SetUseLocalStats() {
 // if prefetch is set, then the OS is hinted to prefetch f data.
 func (r *ReaderAt) MustFadviseSequentialRead(prefetch bool) {
 	if err := fadviseSequentialRead(r.f, prefetch); err != nil {
-		logger.Panicf("FATAL: error in fadviseSequentialRead(%q, %v): %s", r.f.Name(), prefetch, err)
+		logger.Panicf("FATAL: error in fadviseSequentialRead(%q, %v): %s", r.Path(), prefetch, err)
 	}
 }
 
