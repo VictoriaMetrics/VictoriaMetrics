@@ -6,11 +6,12 @@ import "./style.scss";
 import { getAppModeEnable } from "../../utils/app-mode";
 import classNames from "classnames";
 import Footer from "./Footer/Footer";
-import { routerOptions } from "../../router";
+import router, { routerOptions } from "../../router";
 import { useFetchDashboards } from "../../pages/PredefinedPanels/hooks/useFetchDashboards";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 
 const Layout: FC = () => {
+  const { REACT_APP_LOGS } = process.env;
   const appModeEnable = getAppModeEnable();
   const { isMobile } = useDeviceDetect();
   const { pathname } = useLocation();
@@ -20,7 +21,7 @@ const Layout: FC = () => {
 
   const setDocumentTitle = () => {
     const defaultTitle = "vmui";
-    const routeTitle = routerOptions[pathname]?.title;
+    const routeTitle = REACT_APP_LOGS ? routerOptions[router.logs]?.title : routerOptions[pathname]?.title;
     document.title = routeTitle ? `${routeTitle} - ${defaultTitle}` : defaultTitle;
   };
 

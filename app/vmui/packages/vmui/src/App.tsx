@@ -13,8 +13,10 @@ import ExploreMetrics from "./pages/ExploreMetrics";
 import PreviewIcons from "./components/Main/Icons/PreviewIcons";
 import WithTemplate from "./pages/WithTemplate";
 import Relabel from "./pages/Relabel";
+import ExploreLogs from "./pages/ExploreLogs/ExploreLogs";
 
 const App: FC = () => {
+  const { REACT_APP_LOGS } = process.env;
 
   const [loadedTheme, setLoadedTheme] = useState(false);
 
@@ -29,41 +31,49 @@ const App: FC = () => {
                 path={"/"}
                 element={<Layout/>}
               >
+                {!REACT_APP_LOGS && (
+                  <>
+                    <Route
+                      path={router.home}
+                      element={<CustomPanel/>}
+                    />
+                    <Route
+                      path={router.metrics}
+                      element={<ExploreMetrics/>}
+                    />
+                    <Route
+                      path={router.cardinality}
+                      element={<CardinalityPanel/>}
+                    />
+                    <Route
+                      path={router.topQueries}
+                      element={<TopQueries/>}
+                    />
+                    <Route
+                      path={router.trace}
+                      element={<TracePage/>}
+                    />
+                    <Route
+                      path={router.dashboards}
+                      element={<DashboardsLayout/>}
+                    />
+                    <Route
+                      path={router.withTemplate}
+                      element={<WithTemplate/>}
+                    />
+                    <Route
+                      path={router.relabel}
+                      element={<Relabel/>}
+                    />
+                    <Route
+                      path={router.icons}
+                      element={<PreviewIcons/>}
+                    />
+                  </>
+                )}
                 <Route
-                  path={router.home}
-                  element={<CustomPanel/>}
-                />
-                <Route
-                  path={router.metrics}
-                  element={<ExploreMetrics/>}
-                />
-                <Route
-                  path={router.cardinality}
-                  element={<CardinalityPanel/>}
-                />
-                <Route
-                  path={router.topQueries}
-                  element={<TopQueries/>}
-                />
-                <Route
-                  path={router.trace}
-                  element={<TracePage/>}
-                />
-                <Route
-                  path={router.dashboards}
-                  element={<DashboardsLayout/>}
-                />
-                <Route
-                  path={router.withTemplate}
-                  element={<WithTemplate/>}
-                />
-                <Route
-                  path={router.relabel}
-                  element={<Relabel/>}
-                />
-                <Route
-                  path={router.icons}
-                  element={<PreviewIcons/>}
+                  path={REACT_APP_LOGS ? "/" : router.logs}
+                  element={<ExploreLogs/>}
                 />
               </Route>
             </Routes>
