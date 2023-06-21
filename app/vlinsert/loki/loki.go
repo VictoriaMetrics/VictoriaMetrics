@@ -26,8 +26,7 @@ var (
 	bytesBufPool bytesutil.ByteBufferPool
 	pushReqsPool sync.Pool
 
-	lokiRequestsTotal         = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push"}`)
-	rowsIngestedTotalProtobuf = metrics.NewCounter(`vl_rows_ingested_total{type="loki", format="protobuf"}`)
+	lokiRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/loki/api/v1/push"}`)
 )
 
 func getPushReq() *PushRequest {
