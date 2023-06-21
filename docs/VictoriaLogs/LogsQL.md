@@ -862,11 +862,11 @@ and then apply the `ipv4_range()` [post-filter](#post-filters) to the extracted 
 
 Hints:
 
-- If you need searching for [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) with the given `X.Y.Z.Q` IPv4 address,
+- If you need searching for [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) containing the given `X.Y.Z.Q` IPv4 address,
   then `"X.Y.Z.Q"` query can be used. See [these docs](#phrase-filter) for details.
 - If you need searching for [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) containing
-  at least a single IPv4 address out of the given list, then `"ip1" OR "ip2" OR ... "ipN"` query can be used. See [these docs](#logical-filter) for details.
-- If you need finding log entries with `ip` field in multiple ranges, then use `ip:(ipv4_range(range1) OR ipv4_range(range2) ... OR ipv4_range(rangeN)` query.
+  at least a single IPv4 address out of the given list, then `"ip1" OR "ip2" ... OR "ipN"` query can be used. See [these docs](#logical-filter) for details.
+- If you need finding log entries with `ip` field in multiple ranges, then use `ip:(ipv4_range(range1) OR ipv4_range(range2) ... OR ipv4_range(rangeN))` query.
   See [these docs](#logical-filter) for details.
 
 Performance tips:
