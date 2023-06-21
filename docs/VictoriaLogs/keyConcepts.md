@@ -2,7 +2,8 @@
 
 ## Data model
 
-VictoriaLogs works with structured logs. Every log entry may contain arbitrary number of `key=value` pairs (aka fields).
+[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) works with structured logs.
+Every log entry may contain arbitrary number of `key=value` pairs (aka fields).
 A single log entry can be expressed as a single-level [JSON](https://www.json.org/json-en.html) object with string keys and values.
 For example:
 
@@ -18,7 +19,7 @@ For example:
 ```
 
 VictoriaLogs automatically transforms multi-level JSON (aka nested JSON) into single-level JSON
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion) according to the following rules:
+during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) according to the following rules:
 
 - Nested dictionaries are flattened by concatenating dictionary keys with `.` char. For example, the following multi-level JSON
   is transformed into the following single-level JSON:
@@ -61,7 +62,7 @@ during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-inge
   ```
 
 Both label name and label value may contain arbitrary chars. Such chars must be encoded
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion)
+during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
 according to [JSON string encoding](https://www.rfc-editor.org/rfc/rfc7159.html#section-7).
 Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) encoding:
 
@@ -72,7 +73,7 @@ Unicode chars must be encoded with [UTF-8](https://en.wikipedia.org/wiki/UTF-8) 
 }
 ```
 
-VictoriaLogs automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion) logs.
+VictoriaLogs automatically indexes all the fields in all the [ingested](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) logs.
 This enables [full-text search](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) across all the fields.
 
 VictoriaLogs supports the following field types:
@@ -95,9 +96,9 @@ log entry, which can be ingested into VictoriaLogs:
 ```
 
 If the actual log message has other than `_msg` field name, then it is possible to specify the real log message field
-via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
+via `_msg_field` query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 For example, if log message is located in the `event.original` field, then specify `_msg_field=event.original` query arg
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
+during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 
 ### Time field
 
@@ -112,9 +113,9 @@ For example:
 ```
 
 If the actual timestamp has other than `_time` field name, then it is possible to specify the real timestamp
-field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
+field via `_time_field` query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 For example, if timestamp is located in the `event.created` field, then specify `_time_field=event.created` query arg
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
+during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 
 If `_time` field is missing, then the data ingestion time is used as log entry timestamp.
 
@@ -142,7 +143,7 @@ so it stores all the received log entries in a single default stream - `{}`.
 This may lead to not-so-optimal resource usage and query performance.
 
 Therefore it is recommended specifying stream-level fields via `_stream_fields` query arg
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
+during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 For example, if logs from Kubernetes containers have the following fields:
 
 ```json
@@ -156,7 +157,7 @@ For example, if logs from Kubernetes containers have the following fields:
 ```
 
 then sepcify `_stream_fields=kubernetes.namespace,kubernetes.node.name,kubernetes.pod.name,kubernetes.container.name`
-query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion) in order to properly store
+query arg during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) in order to properly store
 per-container logs into distinct streams.
 
 #### How to determine which fields must be associated with log streams?
@@ -185,8 +186,8 @@ VictoriaLogs works perfectly with such fields unless they are associated with [l
 Never associate high-cardinality fields with [log streams](#stream-fields), since this may result
 to the following issues:
 
-- Performance degradation during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion)
-  and [querying](https://docs.victoriametrics.com/VictoriaLogs/#querying)
+- Performance degradation during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+  and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/)
 - Increased memory usage
 - Increased CPU usage
 - Increased disk space usage
@@ -206,14 +207,3 @@ E.g. the `trace_id:XXXX-YYYY-ZZZZ` query usually works faster than the `_msg:"tr
 
 See [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) for more details.
 
-## Multitenancy
-
-VictoriaLogs supports multitenancy. A tenant is identified by `(AccountID, ProjectID)` pair, where `AccountID` and `ProjectID` are arbitrary 32-bit unsigned integeres.
-The `AccountID` and `ProjectID` fields can be set during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion)
-and [querying](https://docs.victoriametrics.com/VictoriaLogs/#querying) via `AccountID` and `ProjectID` request headers.
-
-If `AccountID` and/or `ProjectID` request headers aren't set, then the default `0` value is used.
-
-VictoriaLogs has very low overhead for per-tenant management, so it is OK to have thousands of tenants in a single VictoriaLogs instance.
-
-VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs.victoriametrics.com/vmauth.html) or similar tools for per-tenant authorization.

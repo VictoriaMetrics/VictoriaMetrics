@@ -1,20 +1,21 @@
 # VictoriaLogs roadmap
 
-The VictoriaLogs Preview is ready for evaluation in production. It is recommended running it alongside the existing solutions
-such as ElasticSearch and Grafana Loki and comparing their resource usage and usability.
+The [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) Preview is ready for evaluation in production.
+It is recommended running it alongside the existing solutions such as ElasticSearch and Grafana Loki
+and comparing their resource usage and usability.
 It isn't recommended migrating from existing solutions to VictoriaLogs Preview yet.
 
 The following functionality is available in VictoriaLogs Preview:
 
-- [Data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
-- [Querying](https://docs.victoriametrics.com/VictoriaLogs/#querying).
-- [Querying via command-line](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+- [Data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- [Querying](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [Querying via command-line](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
-See [operation docs](https://docs.victoriametrics.com/VictoriaLogs/#operation) for details.
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/) for details.
 
 The following functionality is planned in the future versions of VictoriaLogs:
 
-- Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion) from popular log collectors and formats:
+- Support for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/) from popular log collectors and formats:
   - Promtail (aka Grafana Loki)
   - Vector.dev
   - Fluentbit

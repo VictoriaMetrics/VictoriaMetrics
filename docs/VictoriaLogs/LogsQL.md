@@ -1,6 +1,7 @@
 # LogsQL
 
-LogsQL is a simple yet powerful query language for VictoriaLogs. It provides the following features:
+LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).
+It provides the following features:
 
 - Full-text search across [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
   See [word filter](#word-filter), [phrase filter](#phrase-filter) and [prefix filter](#prefix-filter).
@@ -13,9 +14,9 @@ LogsQL is a simple yet powerful query language for VictoriaLogs. It provides the
 If you aren't familiar with VictoriaLogs, then start with [key concepts docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html).
 
 Then follow these docs:
-- [How to run VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/#how-to-run-victorialogs).
-- [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion).
-- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/#querying).
+- [How to run VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html).
+- [how to ingest data into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 The simplest LogsQL query is just a [word](#word), which must be found in the [log message](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 For example, the following query finds all the logs with `error` word:
@@ -148,7 +149,7 @@ _time:[now-5m,now] log.level:error !app:(buggy_app OR foobar)
 
 The `app` field uniquely identifies the application instance if a single instance runs per each unique `app`.
 In this case it is recommended associating the `app` field with [log stream fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields)
-during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/#data-ingestion). This usually improves both compression rate
+during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/). This usually improves both compression rate
 and query performance when querying the needed streams via [`_stream` filter](#stream-filter).
 If the `app` field is associated with the log stream, then the query above can be rewritten to more performant one:
 
@@ -1001,7 +1002,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 ## Transformations
 
 It is possible to perform various transformations on the [selected log entries](#filters) at client side
-with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+with `jq`, `awk`, `cut`, etc. Unix commands according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 LogsQL will support the following transformations for the [selected](#filters) log entries:
 
@@ -1023,7 +1024,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 ## Post-filters
 
 It is possible to perform post-filtering on the [selected log entries](#filters) at client side with `grep` or similar Unix commands
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 LogsQL will support post-filtering on the original [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by various [transformations](#transformations). The following post-filters will be supported:
@@ -1036,7 +1037,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 ## Stats
 
 It is possible to perform stats calculations on the [selected log entries](#filters) at client side with `sort`, `uniq`, etc. Unix commands
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 LogsQL will support calculating the following stats based on the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
 and fields created by [transformations](#transformations):
@@ -1058,10 +1059,10 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 ## Sorting
 
 By default VictoriaLogs doesn't sort the returned results because of performance and efficiency concerns
-described [here](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+described [here](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 It is possible to sort the [selected log entries](#filters) at client side with `sort` Unix command
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 LogsQL will support results' sorting by the given set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
 
@@ -1070,7 +1071,7 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 ## Limiters
 
 It is possible to limit the returned results with `head`, `tail`, `less`, etc. Unix commands
-according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/#querying-via-command-line).
+according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 LogsQL will support the ability to limit the number of returned results alongside the ability to page the returned results.
 Additionally, LogsQL will provide the ability to select fields, which must be returned in the response.
