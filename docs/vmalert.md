@@ -1191,6 +1191,12 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -notifier.url.
+  -remoteWrite.retryAttempts int
+     Max number of retry attempts to send data to the configured -remoteWrite.url before giving up. See -remoteWrite.retryBackoffMinInterval and remoteWrite.retryBackoffFactor (default 5)
+  -remoteWrite.retryBackoffFactor float
+     Backoff factor increases the delay between retries on each attempt. Should be >= 1. See -remoteWrite.retryBackoffMinInterval and remoteWrite.retryAttempts (default 1)
+  -remoteWrite.retryBackoffMinInterval duration
+     The minimum delay between retry attempts. See -remoteWrite.retryBackoffFactor and remoteWrite.retryAttempts (default 1s)
   -remoteWrite.sendTimeout duration
      Timeout for sending data to the configured -remoteWrite.url. (default 30s)
   -remoteWrite.showURL

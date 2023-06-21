@@ -21,8 +21,11 @@ import (
 )
 
 var (
-	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
-	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
+	disablePathAppend       = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
+	sendTimeout             = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
+	maxRetryAttempts        = flag.Int("remoteWrite.retryAttempts", 5, "Max number of retry attempts to send data to the configured -remoteWrite.url before giving up. See -remoteWrite.retryBackoffMinInterval and remoteWrite.retryBackoffFactor")
+	retryBackoffMinInterval = flag.Duration("remoteWrite.retryBackoffMinInterval", time.Second, "The minimum delay between retry attempts. See -remoteWrite.retryBackoffFactor and remoteWrite.retryAttempts")
+	retryBackoffFactor      = flag.Float64("remoteWrite.retryBackoffFactor", 1, "Backoff factor increases the delay between retries on each attempt. Should be >= 1. See -remoteWrite.retryBackoffMinInterval and remoteWrite.retryAttempts")
 )
 
 // Client is an asynchronous HTTP client for writing
@@ -185,11 +188,6 @@ var (
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
 )
 
-var (
-	retryCount   = 5
-	retryBackoff = time.Second
-)
-
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
@@ -207,7 +205,8 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	}
 
 	b := snappy.Encode(nil, data)
-	for attempts := 0; attempts < retryCount; attempts++ {
+	retryBackoff := float64(*retryBackoffMinInterval)
+	for attempts := 0; attempts < *maxRetryAttempts; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
@@ -231,7 +230,8 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		}
 
 		// sleeping to avoid remote db hammering
-		time.Sleep(retryBackoff)
+		time.Sleep(time.Duration(retryBackoff))
+		retryBackoff *= *retryBackoffFactor
 	}
 
 	droppedRows.Add(len(wr.Timeseries))
