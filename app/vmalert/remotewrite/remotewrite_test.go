@@ -19,10 +19,10 @@ import (
 )
 
 func TestClient_Push(t *testing.T) {
-	oldRetryBackoff := retryBackoff
-	retryBackoff = time.Millisecond * 10
+	oldMinInterval := *retryMinInterval
+	*retryMinInterval = time.Millisecond * 10
 	defer func() {
-		retryBackoff = oldRetryBackoff
+		*retryMinInterval = oldMinInterval
 	}()
 
 	testSrv := newRWServer()

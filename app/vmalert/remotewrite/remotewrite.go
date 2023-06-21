@@ -23,6 +23,8 @@ import (
 var (
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
+	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 )
 
 // Client is an asynchronous HTTP client for writing
@@ -185,11 +187,6 @@ var (
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
 )
 
-var (
-	retryCount   = 5
-	retryBackoff = time.Second
-)
-
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
@@ -207,7 +204,13 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	}
 
 	b := snappy.Encode(nil, data)
-	for attempts := 0; attempts < retryCount; attempts++ {
+
+	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
+	if retryInterval > maxRetryInterval {
+		retryInterval = maxRetryInterval
+	}
+	timeStart := time.Now()
+	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
@@ -230,8 +233,19 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		default:
 		}
 
-		// sleeping to avoid remote db hammering
-		time.Sleep(retryBackoff)
+		timeLeftForRetries := maxRetryInterval - time.Since(timeStart)
+		if timeLeftForRetries < 0 {
+			// the max retry time has passed, so we give up
+			break
+		}
+
+		if retryInterval > timeLeftForRetries {
+			retryInterval = timeLeftForRetries
+		}
+		// sleeping to prevent remote db hammering
+		time.Sleep(retryInterval)
+		retryInterval *= 2
+
 	}
 
 	droppedRows.Add(len(wr.Timeseries))
