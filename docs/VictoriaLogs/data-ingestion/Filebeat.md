@@ -1,5 +1,9 @@
 # Filebeat setup
 
+[Filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-overview.html) log collector supports
+[Elasticsearch output](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) compatible with
+VictoriaMetrics [ingestion format](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#elasticsearch-bulk-api).
+
 Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
 
@@ -72,7 +76,7 @@ output.elasticsearch:
   compression_level: 1
 ```
 
-By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `headers` at `output.elasticsearch` section.
 For example, the following `filebeat.yml` config instructs Filebeat to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
@@ -88,6 +92,12 @@ output.elasticsearch:
     _stream_fields: "host.name,log.file.path"
 ```
 
+More info about output parameters you can find in [these docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
+
+[Here is a demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker) for
+running Filebeat with VictoriaLogs with docker-compose and collecting logs to VictoriaLogs.
+
 The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
 See also [data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting) docs.
+
