@@ -11,7 +11,33 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
-func TestReadBulkRequest(t *testing.T) {
+func TestReadBulkRequestFailure(t *testing.T) {
+	f := func(data string) {
+		t.Helper()
+
+		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
+			t.Fatalf("unexpected call to processLogMessage with timestamp=%d, fields=%s", timestamp, fields)
+		}
+
+		r := bytes.NewBufferString(data)
+		rows, err := readBulkRequest(r, false, "_time", "_msg", processLogMessage)
+		if err == nil {
+			t.Fatalf("expecting non-empty error")
+		}
+		if rows != 0 {
+			t.Fatalf("unexpected non-zero rows=%d", rows)
+		}
+	}
+	f("foobar")
+	f(`{}`)
+	f(`{"create":{}}`)
+	f(`{"creat":{}}
+{}`)
+	f(`{"create":{}}
+foobar`)
+}
+
+func TestReadBulkRequestSuccess(t *testing.T) {
 	f := func(data, timeField, msgField string, rowsExpected int, timestampsExpected []int64, resultExpected string) {
 		t.Helper()
 
@@ -66,11 +92,15 @@ func TestReadBulkRequest(t *testing.T) {
 		}
 	}
 
+	// Verify an empty data
+	f("", "_time", "_msg", 0, nil, "")
+
+	// Verify non-empty data
 	data := `{"create":{"_index":"filebeat-8.8.0"}}
 {"@timestamp":"2023-06-06T04:48:11.735Z","log":{"offset":71770,"file":{"path":"/var/log/auth.log"}},"message":"foobar"}
 {"create":{"_index":"filebeat-8.8.0"}}
 {"@timestamp":"2023-06-06T04:48:12.735Z","message":"baz"}
-{"create":{"_index":"filebeat-8.8.0"}}
+{"index":{"_index":"filebeat-8.8.0"}}
 {"message":"xyz","@timestamp":"2023-06-06T04:48:13.735Z","x":"y"}
 `
 	timeField := "@timestamp"
