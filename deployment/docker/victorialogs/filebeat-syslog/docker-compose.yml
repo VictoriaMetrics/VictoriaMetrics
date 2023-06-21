@@ -8,8 +8,6 @@ services:
       - "--strict.perms=false"
     volumes:
       - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /var/lib/docker:/var/lib/docker
     depends_on: [victorialogs]
     ports:
       - "5140:5140"
