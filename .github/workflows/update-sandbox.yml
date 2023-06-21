@@ -1,7 +1,7 @@
 name: sandbox-release
 on:
   release:
-    types: [published ]
+    types: [published]
 permissions:
   contents: write
 jobs:
