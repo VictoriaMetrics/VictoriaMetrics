@@ -208,17 +208,22 @@ var rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="elastic
 func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	processLogMessage func(timestamp int64, fields []logstorage.Field),
 ) (bool, error) {
+	var line []byte
+
 	// Read the command, must be "create" or "index"
-	if !sc.Scan() {
-		if err := sc.Err(); err != nil {
-			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`, maxLineSizeBytes.IntN())
+	for len(line) == 0 {
+		if !sc.Scan() {
+			if err := sc.Err(); err != nil {
+				if errors.Is(err, bufio.ErrTooLong) {
+					return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`,
+						maxLineSizeBytes.IntN())
+				}
+				return false, err
 			}
-			return false, err
+			return false, nil
 		}
-		return false, nil
+		line = sc.Bytes()
 	}
-	line := sc.Bytes()
 	lineStr := bytesutil.ToUnsafeString(line)
 	if !strings.Contains(lineStr, `"create"`) && !strings.Contains(lineStr, `"index"`) {
 		return false, fmt.Errorf(`unexpected command %q; expecting "create" or "index"`, line)

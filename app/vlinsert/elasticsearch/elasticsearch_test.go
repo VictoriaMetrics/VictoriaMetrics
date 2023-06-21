@@ -94,6 +94,8 @@ func TestReadBulkRequestSuccess(t *testing.T) {
 
 	// Verify an empty data
 	f("", "_time", "_msg", 0, nil, "")
+	f("\n", "_time", "_msg", 0, nil, "")
+	f("\n\n", "_time", "_msg", 0, nil, "")
 
 	// Verify non-empty data
 	data := `{"create":{"_index":"filebeat-8.8.0"}}
