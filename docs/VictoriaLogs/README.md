@@ -97,5 +97,6 @@ VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs
 
 ## Benchmarks
 
-We encourage you to run benchmarks on your own. Please share the results or feedback with us just dropping the line any of our [Community channels](https://docs.victoriametrics.com/#community-and-contributions).
-However, we prepared benchmark suite that covers ElasticSearch and VictoriaLogs. You can find it [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark).
+We encourage you to run benchmarks on your own. Please share the results or feedback with us by just dropping the line on any of our [Community channels](https://docs.victoriametrics.com/#community-and-contributions).
+
+However, we prepared a benchmark suite that covers ElasticSearch and VictoriaLogs. You can find it [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark).
