@@ -23,6 +23,8 @@ See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) fo
 
 If you have questions about VictoriaLogs, then feel free asking them at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
+See [Quick start docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) for start working with VictoriaLogs.
+
 ## Monitoring
 
 VictoriaLogs exposes internal metrics in Prometheus exposition format at `http://localhost:9428/metrics` page.
