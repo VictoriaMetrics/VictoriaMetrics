@@ -50,7 +50,7 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 ## VMUI
 
-VictoriaLogs provides simple UI for logs query and exploration. The UI is available at `http://victorialogs:9428/vmui`.
+VictoriaLogs provides a simple UI for logs query and exploration. The UI is available at `http://victorialogs:9428/vmui`.
 The UI allows exploring query results via tables or JSON-result:
 
 <img src="vmui.png" width="800" />
@@ -61,7 +61,7 @@ There are three modes of displaying query results:
 - `Table` - displays query results as a table.
 - `JSON` - displays raw JSON response from `/select/logsql/query` endpoint.
 
-This is the first version that has minimal functionality. This version has the following limitations:
+This is the first version that has minimal functionality. It comes with the following limitations:
 
 - The number of query results is always limited to 1000 lines.
 - A tenant 0 is always used in queries.

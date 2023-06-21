@@ -96,7 +96,7 @@ as demo for running fluentbit in kubernetes with VictoriaLogs:
 
 ## How to query logs in VictoriaLogs
 
-You can query logs with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) using the following ways:
+You can query logs with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) using the following options:
 
 - [VMUI](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web-based UI for querying logs.
 - [Command-line interface](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line-interface).
