@@ -11,22 +11,18 @@ import (
 	"strings"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logjson"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	pc "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
-)
-
-var (
-	maxLineSizeBytes = flagutil.NewBytes("insert.maxLineSizeBytes", 256*1024, "The maximum size of a single line, which can be read by /insert/* handlers")
 )
 
 // RequestHandler processes ElasticSearch insert requests
@@ -165,11 +161,11 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	if isGzip {
-		zr, err := common.GetGzipReader(r)
+		zr, err := pc.GetGzipReader(r)
 		if err != nil {
 			return 0, fmt.Errorf("cannot read gzipped _bulk request: %w", err)
 		}
-		defer common.PutGzipReader(zr)
+		defer pc.PutGzipReader(zr)
 		r = zr
 	}
 
@@ -179,7 +175,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	lb := lineBufferPool.Get()
 	defer lineBufferPool.Put(lb)
 
-	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, maxLineSizeBytes.IntN())
+	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, common.MaxLineSizeBytes.IntN())
 	sc := bufio.NewScanner(wcr)
 	sc.Buffer(lb.B, len(lb.B))
 
@@ -215,7 +211,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 			if err := sc.Err(); err != nil {
 				if errors.Is(err, bufio.ErrTooLong) {
 					return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`,
-						maxLineSizeBytes.IntN())
+						common.MaxLineSizeBytes.IntN())
 				}
 				return false, err
 			}
@@ -232,7 +228,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
 			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", maxLineSizeBytes.IntN())
+				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", common.MaxLineSizeBytes.IntN())
 			}
 			return false, err
 		}
