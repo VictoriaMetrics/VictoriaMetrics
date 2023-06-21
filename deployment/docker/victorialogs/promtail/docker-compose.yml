@@ -22,4 +22,4 @@ services:
       - -storageDataPath=/vlogs
 
 volumes:
-  victorialogs-promtail-docker-:
+  victorialogs-promtail-docker:
