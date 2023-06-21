@@ -174,7 +174,7 @@ Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-curl --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
 ```
 
 </div>
@@ -183,7 +183,7 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-curl --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
 ```
 
 </div>
@@ -497,7 +497,7 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v1/series
 ```
 
 </div>
@@ -524,7 +524,7 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
 ```
 
 </div>
