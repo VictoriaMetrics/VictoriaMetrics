@@ -208,7 +208,7 @@ var rowsIngestedTotal = metrics.NewCounter(`vl_rows_ingested_total{type="elastic
 func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	processLogMessage func(timestamp int64, fields []logstorage.Field),
 ) (bool, error) {
-	// Decode command, must be "create" or "index"
+	// Read the command, must be "create" or "index"
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
 			if errors.Is(err, bufio.ErrTooLong) {
@@ -219,15 +219,10 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 		return false, nil
 	}
 	line := sc.Bytes()
-	p := parserPool.Get()
-	v, err := p.ParseBytes(line)
-	if err != nil {
-		return false, fmt.Errorf(`cannot parse "create" or "index" command: %w`, err)
+	lineStr := bytesutil.ToUnsafeString(line)
+	if !strings.Contains(lineStr, `"create"`) && !strings.Contains(lineStr, `"index"`) {
+		return false, fmt.Errorf(`unexpected command %q; expecting "create" or "index"`, line)
 	}
-	if v.GetObject("create") == nil && v.GetObject("index") == nil {
-		return false, fmt.Errorf(`unexpected command %q; expected "create" or "index"`, v)
-	}
-	parserPool.Put(p)
 
 	// Decode log message
 	if !sc.Scan() {
@@ -242,14 +237,12 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	line = sc.Bytes()
 	pctx := getParserCtx()
 	if err := pctx.parseLogMessage(line); err != nil {
-		invalidJSONLineLogger.Warnf("cannot parse json-encoded log entry: %s", err)
-		return true, nil
+		return false, fmt.Errorf("cannot parse json-encoded log entry: %w", err)
 	}
 
 	timestamp, err := extractTimestampFromFields(timeField, pctx.fields)
 	if err != nil {
-		invalidTimestampLogger.Warnf("skipping the log entry because cannot parse timestamp: %s", err)
-		return true, nil
+		return false, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
 	updateMessageFieldName(msgField, pctx.fields)
 	processLogMessage(timestamp, pctx.fields)
