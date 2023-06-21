@@ -49,8 +49,16 @@ func Init() {
 		LogNewStreams:   *logNewStreams,
 		LogIngestedRows: *logIngestedRows,
 	}
+	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
+	startTime := time.Now()
 	strg = logstorage.MustOpenStorage(*storageDataPath, cfg)
+
+	var ss logstorage.StorageStats
+	strg.UpdateStats(&ss)
+	logger.Infof("successfully opened storage in %.3f seconds; partsCount: %d; blocksCount: %d; rowsCount: %d; sizeBytes: %d",
+		time.Since(startTime).Seconds(), ss.FileParts, ss.FileBlocks, ss.FileRowsCount, ss.CompressedFileSize)
 	storageMetrics = initStorageMetrics(strg)
+
 	metrics.RegisterSet(storageMetrics)
 }
 
