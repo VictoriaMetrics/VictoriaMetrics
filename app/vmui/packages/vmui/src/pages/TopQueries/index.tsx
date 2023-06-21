@@ -147,7 +147,7 @@ const TopQueries: FC = () => {
             title={"Most frequently executed queries"}
             columns={[
               { key: "query" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "Query Time Interval" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
           />
@@ -157,7 +157,7 @@ const TopQueries: FC = () => {
             columns={[
               { key: "query" },
               { key: "avgDurationSeconds", title: "avg duration, sec" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "Query Time Interval" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
             defaultOrderBy={"avgDurationSeconds"}
@@ -168,7 +168,7 @@ const TopQueries: FC = () => {
             columns={[
               { key: "query" },
               { key: "sumDurationSeconds", title: "sum duration, sec" },
-              { key: "timeRange", sortBy: "timeRangeSeconds", title: "Query Time Interval" },
+              { key: "timeRange", sortBy: "timeRangeSeconds", title: "query time interval" },
               { key: "count" }
             ]}
             defaultOrderBy={"sumDurationSeconds"}
