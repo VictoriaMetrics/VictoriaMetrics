@@ -22,34 +22,34 @@ The docker compose file contains the following components:
 the example of vector configuration(`vector.toml`)
 
 ```
-[api]
-  enabled = true
-  address = "0.0.0.0:8686"
-
-  [sources.docker]
+[sources.docker]
   type = "docker_logs"
 
-  [sinks.vlogs]
+[transforms.msg_parser]
+  type = "remap"
+  inputs = ["docker"]
+  source = '''
+  .log = parse_json!(.message)
+  del(.message)
+  '''
+
+[sinks.vlogs]
   type = "elasticsearch"
-  inputs = [ "docker" ]
+  inputs = [ "msg_parser" ]
   endpoints = [ "http://victorialogs:9428/insert/elasticsearch/" ]
-  id_key = "id"
   mode = "bulk"
+  api_version = "v8"
+  compression = "gzip"
   healthcheck.enabled = false
 
   [sinks.vlogs.query]
-  _msg_field = "message"
-  _time_field = "timestamp"
-  _stream_fields = "host,container_name"
+    _msg_field = "log.msg"
+    _time_field = "timestamp"
+    _stream_fields = "source_type,host,container_name"
 
-  [sources.vector_metrics]
-  type = "internal_metrics"
-
-  [sinks.victoriametrics]
-  type = "prometheus_remote_write"
-  endpoint = "http://victoriametrics:8428/api/v1/write"
-  inputs = ["vector_metrics"]
-  healthcheck.enabled = false
+  [sinks.vlogs.request.headers]
+    AccountID = "0"
+    ProjectID = "0"
 ```
 
 Please, note that `_stream_fields` parameter must follow recommended [best practices](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) to achieve better performance.
