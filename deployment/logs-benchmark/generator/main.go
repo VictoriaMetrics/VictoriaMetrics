@@ -49,11 +49,9 @@ func main() {
 	limitter := make(chan struct{}, limitItems)
 	go func() {
 		for {
-			select {
-			case <-limitTicker.C:
-				for i := 0; i < limitItems; i++ {
-					limitter <- struct{}{}
-				}
+			<-limitTicker.C
+			for i := 0; i < limitItems; i++ {
+				limitter <- struct{}{}
 			}
 		}
 	}()
