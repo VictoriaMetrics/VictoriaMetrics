@@ -153,23 +153,9 @@ func (pt *partition) logNewStream(streamTagsCanonical []byte, fields []Field) {
 }
 
 func (pt *partition) logIngestedRows(lr *LogRows) {
-	var rf RowFormatter
-	for i, fields := range lr.rows {
-		tf := TimeFormatter(lr.timestamps[i])
-		streamTags := getStreamTagsString(lr.streamTagsCanonicals[i])
-		rf = append(rf[:0], fields...)
-		rf = append(rf, Field{
-			Name:  "_time",
-			Value: tf.String(),
-		})
-		rf = append(rf, Field{
-			Name:  "_stream",
-			Value: streamTags,
-		})
-		sort.Slice(rf, func(i, j int) bool {
-			return rf[i].Name < rf[j].Name
-		})
-		logger.Infof("partition %s: new log entry %s", pt.path, &rf)
+	for i := range lr.rows {
+		s := lr.GetRowString(i)
+		logger.Infof("partition %s: new log entry %s", pt.path, s)
 	}
 }
 

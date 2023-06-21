@@ -76,8 +76,25 @@ func (rf *RowFormatter) String() string {
 	return string(b)
 }
 
-// Reset resets lr
+// Reset resets lr with all its settings.
+//
+// Call ResetKeepSettings() for resetting lr without resetting its settings.
 func (lr *LogRows) Reset() {
+	lr.ResetKeepSettings()
+
+	sfs := lr.streamFields
+	for k := range sfs {
+		delete(sfs, k)
+	}
+
+	ifs := lr.ignoreFields
+	for k := range ifs {
+		delete(ifs, k)
+	}
+}
+
+// ResetKeepSettings resets rows stored in lr, while keeping its settings passed to GetLogRows().
+func (lr *LogRows) ResetKeepSettings() {
 	lr.buf = lr.buf[:0]
 
 	fb := lr.fieldsBuf
@@ -107,16 +124,6 @@ func (lr *LogRows) Reset() {
 	lr.rows = rows[:0]
 
 	lr.sf = nil
-
-	sfs := lr.streamFields
-	for k := range sfs {
-		delete(sfs, k)
-	}
-
-	ifs := lr.ignoreFields
-	for k := range ifs {
-		delete(ifs, k)
-	}
 }
 
 // NeedFlush returns true if lr contains too much data, so it must be flushed to the storage.
@@ -198,6 +205,26 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 
 	lr.fieldsBuf = fb
 	lr.buf = buf
+}
+
+// GetRowString returns string representation of the row with the given idx.
+func (lr *LogRows) GetRowString(idx int) string {
+	tf := TimeFormatter(lr.timestamps[idx])
+	streamTags := getStreamTagsString(lr.streamTagsCanonicals[idx])
+	var rf RowFormatter
+	rf = append(rf[:0], lr.rows[idx]...)
+	rf = append(rf, Field{
+		Name:  "_time",
+		Value: tf.String(),
+	})
+	rf = append(rf, Field{
+		Name:  "_stream",
+		Value: streamTags,
+	})
+	sort.Slice(rf, func(i, j int) bool {
+		return rf[i].Name < rf[j].Name
+	})
+	return rf.String()
 }
 
 // GetLogRows returns LogRows from the pool for the given streamFields.
