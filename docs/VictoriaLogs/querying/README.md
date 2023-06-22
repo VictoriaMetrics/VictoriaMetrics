@@ -1,6 +1,15 @@
 # Querying
 
-[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried at the `/select/logsql/query` endpoint.
+[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html)
+via the following ways:
+
+- [Web UI](#web-ui) - a web-based UI for querying logs
+- [HTTP API](#http-api)
+- [Command-line interface](#command-line)
+
+## HTTP API
+
+VictoriaLogs can be queried at the `/select/logsql/query` HTTP endpoint.
 The [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) query must be passed via `query` argument.
 For example, the following query returns all the log entries with the `error` word:
 
@@ -47,6 +56,30 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
+
+## Web UI
+
+VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration
+at `http://localhost:9428/select/vmui`. The UI allows exploring query results:
+
+<img src="vmui.png" width="800" />
+
+There are three modes of displaying query results:
+
+- `Group` - results are displayed as a table with rows grouped by stream and fields for filtering.
+- `Table` - displays query results as a table.
+- `JSON` - displays raw JSON response from [HTTP API](#http-api).
+
+This is the first version that has minimal functionality. It comes with the following limitations:
+
+- The number of query results is always limited to 1000 lines. Iteratively add
+  more specific [filters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#filters) to the query
+  in order to get full response with less than 1000 lines.
+- Queries are always executed against [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy) `0`.
+
+These limitations will be removed in future versions.
+
+To get around the current limitations, you can use an alternative - the [command line interface](#command-line).
 
 ## Command-line
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/elasticsearch"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/jsonline"
 )
 
 // Init initializes vlinsert
@@ -19,11 +20,15 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/insert/") {
+		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
 	}
 	path = strings.TrimPrefix(path, "/insert")
 	path = strings.ReplaceAll(path, "//", "/")
 
+	if path == "/jsonline" {
+		return jsonline.RequestHandler(w, r)
+	}
 	switch {
 	case strings.HasPrefix(path, "/elasticsearch/"):
 		path = strings.TrimPrefix(path, "/elasticsearch")

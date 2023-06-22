@@ -1,6 +1,7 @@
 package vlselect
 
 import (
+	"embed"
 	"flag"
 	"fmt"
 	"net/http"
@@ -62,16 +63,37 @@ var (
 	})
 )
 
+//go:embed vmui
+var vmuiFiles embed.FS
+
+var vmuiFileServer = http.FileServer(http.FS(vmuiFiles))
+
 // RequestHandler handles select requests for VictoriaLogs
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/select/") {
+		// Skip requests, which do not start with /select/, since these aren't our requests.
 		return false
 	}
 	path = strings.TrimPrefix(path, "/select")
 	path = strings.ReplaceAll(path, "//", "/")
 
-	// Limit the number of concurrent queries.
+	if path == "/vmui" {
+		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// is hidden behind vmauth or similar proxy.
+		_ = r.ParseForm()
+		newURL := "vmui/?" + r.Form.Encode()
+		httpserver.Redirect(w, newURL)
+		return true
+	}
+	if strings.HasPrefix(path, "/vmui/") {
+		r.URL.Path = path
+		vmuiFileServer.ServeHTTP(w, r)
+		return true
+	}
+
+	// Limit the number of concurrent queries, which can consume big amounts of CPU.
 	startTime := time.Now()
 	stopCh := r.Context().Done()
 	select {

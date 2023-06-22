@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, useState, useEffect, useMemo } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -12,7 +12,7 @@ import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
 import TableSettings from "../CardinalityPanel/Table/TableSettings/TableSettings";
-import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
+import { useCustomPanelState, useCustomPanelDispatch } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
@@ -25,6 +25,7 @@ import useDeviceDetect from "../../hooks/useDeviceDetect";
 import GraphTips from "../../components/Chart/GraphTips/GraphTips";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
 import useBoolean from "../../hooks/useBoolean";
+import { getColumns } from "../../hooks/useSortedCategories";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -89,6 +90,14 @@ const CustomPanel: FC = () => {
 
   const handleRunQuery = () => {
     setHideError(false);
+  };
+
+  const columns = useMemo(() => getColumns(liveData || []).map(c => c.key), [liveData]);
+  const { tableCompact } = useCustomPanelState();
+  const customPanelDispatch = useCustomPanelDispatch();
+
+  const toggleTableCompact = () => {
+    customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
   };
 
   useEffect(() => {
@@ -171,9 +180,11 @@ const CustomPanel: FC = () => {
           )}
           {displayType === "table" && (
             <TableSettings
-              data={liveData || []}
+              columns={columns}
               defaultColumns={displayColumns}
-              onChange={setDisplayColumns}
+              onChangeColumns={setDisplayColumns}
+              tableCompact={tableCompact}
+              toggleTableCompact={toggleTableCompact}
             />
           )}
         </div>

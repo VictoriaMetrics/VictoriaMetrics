@@ -149,6 +149,7 @@ func (c *Client) run(ctx context.Context) {
 			wr.Timeseries = append(wr.Timeseries, ts)
 		}
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
+		logger.Infof("shutting down remote write client and flushing remained %d series", len(wr.Timeseries))
 		c.flush(lastCtx, wr)
 		cancel()
 	}
@@ -210,6 +211,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		retryInterval = maxRetryInterval
 	}
 	timeStart := time.Now()
+  L:  
 	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
@@ -229,7 +231,8 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		// check if request has been cancelled before backoff
 		select {
 		case <-ctx.Done():
-			break
+			logger.Errorf("interrupting retry attempt %d: context cancelled", attempts+1)
+			break L
 		default:
 		}
 

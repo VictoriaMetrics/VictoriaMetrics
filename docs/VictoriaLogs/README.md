@@ -12,11 +12,13 @@ It provides the following key features:
   see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
-- VictoriaLogs capacity and performance scales lineraly with the available resources (CPU, RAM, disk IO, disk space).
+- VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
+  See [these docs](#benchmarks).
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out of order logs' ingestion aka backfilling.
+- VictoriaLogs provides simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui).
 
 VictoriaLogs is at Preview stage now. It is ready for evaluation in production and verifying claims given above.
 It isn't recommended migrating from existing logging solutions to VictoriaLogs Preview in general case yet.
@@ -34,6 +36,21 @@ It is recommended to set up monitoring of these metrics via VictoriaMetrics
 vmagent (see [these docs](https://docs.victoriametrics.com/vmagent.html#how-to-collect-metrics-in-prometheus-format)) or via Prometheus.
 
 VictoriaLogs emits own logs to stdout. It is recommended investigating these logs during troubleshooting.
+
+## Upgrading
+
+It is safe upgrading VictoriaLogs to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+
+It is also safe downgrading to older versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+
+The following steps must be performed during the upgrade / downgrade procedure:
+
+* Send `SIGINT` signal to VictoriaLogs process in order to gracefully stop it.
+  See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
+* Wait until the process stops. This can take a few seconds.
+* Start the upgraded VictoriaMetrics.
 
 ## Retention
 
@@ -97,6 +114,11 @@ VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs
 
 ## Benchmarks
 
-We encourage you to run benchmarks on your own. Please share the results or feedback with us by just dropping the line on any of our [Community channels](https://docs.victoriametrics.com/#community-and-contributions).
+Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
+and resource usage between VictoriaLogs and Elasticsearch.
 
-However, we prepared a benchmark suite that covers ElasticSearch and VictoriaLogs. You can find it [here](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark).
+It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) in production alongside the existing
+log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as ElasticSearch or Grafana Loki.
+
+Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
+via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
