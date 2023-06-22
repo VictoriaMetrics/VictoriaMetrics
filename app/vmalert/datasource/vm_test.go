@@ -94,7 +94,7 @@ func TestVMInstantQuery(t *testing.T) {
 	ts := time.Now()
 
 	expErr := func(err string) {
-		_, _, gotErr := pq.Query(ctx, query, ts)
+		_, _, gotErr := pq.Query(ctx, query, 0, ts)
 		if gotErr == nil {
 			t.Fatalf("expected %q got nil", err)
 		}
@@ -109,7 +109,7 @@ func TestVMInstantQuery(t *testing.T) {
 	expErr("unknown status")                   // 3
 	expErr("unexpected end of JSON input")     // 4
 
-	res, _, err := pq.Query(ctx, query, ts) // 5 - vector
+	res, _, err := pq.Query(ctx, query, 0, ts) // 5 - vector
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -130,7 +130,7 @@ func TestVMInstantQuery(t *testing.T) {
 	}
 	metricsEqual(t, res.Data, expected)
 
-	res, req, err := pq.Query(ctx, query, ts) // 6 - scalar
+	res, req, err := pq.Query(ctx, query, 0, ts) // 6 - scalar
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -155,7 +155,7 @@ func TestVMInstantQuery(t *testing.T) {
 			res.SeriesFetched)
 	}
 
-	res, _, err = pq.Query(ctx, query, ts) // 7 - scalar with stats
+	res, _, err = pq.Query(ctx, query, 0, ts) // 7 - scalar with stats
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -178,7 +178,7 @@ func TestVMInstantQuery(t *testing.T) {
 
 	gq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourceGraphite)})
 
-	res, _, err = gq.Query(ctx, queryRender, ts) // 8 - graphite
+	res, _, err = gq.Query(ctx, queryRender, 0, ts) // 8 - graphite
 	if err != nil {
 		t.Fatalf("unexpected %s", err)
 	}
@@ -193,7 +193,6 @@ func TestVMInstantQuery(t *testing.T) {
 		},
 	}
 	metricsEqual(t, res.Data, exp)
-
 }
 
 func TestVMInstantQueryWithRetry(t *testing.T) {
@@ -231,7 +230,7 @@ func TestVMInstantQueryWithRetry(t *testing.T) {
 	pq := s.BuildWithParams(QuerierParams{DataSourceType: string(datasourcePrometheus)})
 
 	expErr := func(err string) {
-		_, _, gotErr := pq.Query(ctx, query, time.Now())
+		_, _, gotErr := pq.Query(ctx, query, 0, time.Now())
 		if gotErr == nil {
 			t.Fatalf("expected %q got nil", err)
 		}
@@ -241,7 +240,7 @@ func TestVMInstantQueryWithRetry(t *testing.T) {
 	}
 
 	expValue := func(v float64) {
-		res, _, err := pq.Query(ctx, query, time.Now())
+		res, _, err := pq.Query(ctx, query, 0, time.Now())
 		if err != nil {
 			t.Fatalf("unexpected %s", err)
 		}
@@ -528,7 +527,7 @@ func TestRequestParams(t *testing.T) {
 			},
 		},
 		{
-			"step override",
+			"global step override",
 			false,
 			&VMStorage{
 				queryStep: time.Minute,
@@ -616,7 +615,7 @@ func TestRequestParams(t *testing.T) {
 				if tc.queryRange {
 					tc.vm.setPrometheusRangeReqParams(req, query, timestamp, timestamp)
 				} else {
-					tc.vm.setPrometheusInstantReqParams(req, query, timestamp)
+					tc.vm.setPrometheusInstantReqParams(req, query, 0, timestamp)
 				}
 			case datasourceGraphite:
 				tc.vm.setGraphiteReqParams(req, query, timestamp)
@@ -627,7 +626,7 @@ func TestRequestParams(t *testing.T) {
 }
 
 func TestHeaders(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		name    string
 		vmFn    func() *VMStorage
 		checkFn func(t *testing.T, r *http.Request)
@@ -692,7 +691,8 @@ func TestHeaders(t *testing.T) {
 					authCfg: cfg,
 					extraHeaders: []keyValue{
 						{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
-					}}
+					},
+				}
 			},
 			checkFn: func(t *testing.T, r *http.Request) {
 				u, p, _ := r.BasicAuth()

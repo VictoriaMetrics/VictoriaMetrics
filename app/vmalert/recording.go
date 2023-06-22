@@ -17,12 +17,13 @@ import (
 // to evaluate configured Expression and
 // return TimeSeries as result.
 type RecordingRule struct {
-	Type    config.Type
-	RuleID  uint64
-	Name    string
-	Expr    string
-	Labels  map[string]string
-	GroupID uint64
+	Type      config.Type
+	RuleID    uint64
+	Name      string
+	Expr      string
+	QueryStep time.Duration
+	Labels    map[string]string
+	GroupID   uint64
 
 	q datasource.Querier
 
@@ -120,7 +121,7 @@ func (rr *RecordingRule) ExecRange(ctx context.Context, start, end time.Time) ([
 // Exec executes RecordingRule expression via the given Querier.
 func (rr *RecordingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
-	res, req, err := rr.q.Query(ctx, rr.Expr, ts)
+	res, req, err := rr.q.Query(ctx, rr.Expr, rr.QueryStep, ts)
 	curState := ruleStateEntry{
 		time:          start,
 		at:            ts,

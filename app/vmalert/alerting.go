@@ -26,6 +26,7 @@ type AlertingRule struct {
 	Name         string
 	Expr         string
 	For          time.Duration
+	QueryStep    time.Duration
 	Labels       map[string]string
 	Annotations  map[string]string
 	GroupID      uint64
@@ -299,7 +300,7 @@ const resolvedRetention = 15 * time.Minute
 // Based on the Querier results AlertingRule maintains notifier.Alerts
 func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]prompbmarshal.TimeSeries, error) {
 	start := time.Now()
-	res, req, err := ar.q.Query(ctx, ar.Expr, ts)
+	res, req, err := ar.q.Query(ctx, ar.Expr, ar.QueryStep, ts)
 	curState := ruleStateEntry{
 		time:          start,
 		at:            ts,
@@ -332,7 +333,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 	}
 
 	qFn := func(query string) ([]datasource.Metric, error) {
-		res, _, err := ar.q.Query(ctx, query, ts)
+		res, _, err := ar.q.Query(ctx, query, ar.QueryStep, ts)
 		return res.Data, err
 	}
 	updated := make(map[uint64]struct{})
@@ -656,7 +657,7 @@ func (ar *AlertingRule) Restore(ctx context.Context, q datasource.Querier, ts ti
 
 		ar.logDebugf(ts, nil, "restoring alert state via query %q", expr)
 
-		res, _, err := q.Query(ctx, expr, ts)
+		res, _, err := q.Query(ctx, expr, ar.QueryStep, ts)
 		if err != nil {
 			return err
 		}

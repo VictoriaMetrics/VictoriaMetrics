@@ -9,10 +9,8 @@ import (
 	"time"
 )
 
-var (
-	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
-		"to the configured -datasource.url and -remoteRead.url")
-)
+var disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
+	"to the configured -datasource.url and -remoteRead.url")
 
 type promResponse struct {
 	Status    string `json:"status"`
@@ -150,7 +148,7 @@ func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result
 	return res, nil
 }
 
-func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
+func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, queryStep time.Duration, timestamp time.Time) {
 	if s.appendTypePrefix {
 		r.URL.Path += "/prometheus"
 	}
@@ -171,10 +169,15 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
 		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
 	}
-	if s.queryStep > 0 { // override step with user-specified value
+	if s.queryStep > 0 { // override step with user-specified global value
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
 		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
+	}
+	if queryStep > 0 { // override step with user-specified value in each rule
+		// always convert to seconds to keep compatibility with older
+		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
+		q.Set("step", fmt.Sprintf("%ds", int(queryStep.Seconds())))
 	}
 	r.URL.RawQuery = q.Encode()
 	s.setPrometheusReqParams(r, query)

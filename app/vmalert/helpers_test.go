@@ -45,11 +45,11 @@ func (fq *fakeQuerier) BuildWithParams(_ datasource.QuerierParams) datasource.Qu
 }
 
 func (fq *fakeQuerier) QueryRange(ctx context.Context, q string, _, _ time.Time) (datasource.Result, error) {
-	req, _, err := fq.Query(ctx, q, time.Now())
+	req, _, err := fq.Query(ctx, q, 0, time.Now())
 	return req, err
 }
 
-func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Time) (datasource.Result, *http.Request, error) {
+func (fq *fakeQuerier) Query(_ context.Context, _ string, _ time.Duration, _ time.Time) (datasource.Result, *http.Request, error) {
 	fq.Lock()
 	defer fq.Unlock()
 	if fq.err != nil {
@@ -86,11 +86,11 @@ func (fqr *fakeQuerierWithRegistry) BuildWithParams(_ datasource.QuerierParams) 
 }
 
 func (fqr *fakeQuerierWithRegistry) QueryRange(ctx context.Context, q string, _, _ time.Time) (datasource.Result, error) {
-	req, _, err := fqr.Query(ctx, q, time.Now())
+	req, _, err := fqr.Query(ctx, q, 0, time.Now())
 	return req, err
 }
 
-func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Time) (datasource.Result, *http.Request, error) {
+func (fqr *fakeQuerierWithRegistry) Query(_ context.Context, expr string, _ time.Duration, _ time.Time) (datasource.Result, *http.Request, error) {
 	fqr.Lock()
 	defer fqr.Unlock()
 
@@ -109,13 +109,13 @@ type fakeQuerierWithDelay struct {
 	delay time.Duration
 }
 
-func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, ts time.Time) (datasource.Result, *http.Request, error) {
+func (fqd *fakeQuerierWithDelay) Query(ctx context.Context, expr string, _ time.Duration, ts time.Time) (datasource.Result, *http.Request, error) {
 	timer := time.NewTimer(fqd.delay)
 	select {
 	case <-ctx.Done():
 	case <-timer.C:
 	}
-	return fqd.fakeQuerier.Query(ctx, expr, ts)
+	return fqd.fakeQuerier.Query(ctx, expr, 0, ts)
 }
 
 func (fqd *fakeQuerierWithDelay) BuildWithParams(_ datasource.QuerierParams) datasource.Querier {

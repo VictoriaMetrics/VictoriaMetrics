@@ -126,7 +126,7 @@ func NewVMStorage(baseURL string, authCfg *promauth.Config, lookBack time.Durati
 }
 
 // Query executes the given query and returns parsed response
-func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Result, *http.Request, error) {
+func (s *VMStorage) Query(ctx context.Context, query string, queryStep time.Duration, ts time.Time) (Result, *http.Request, error) {
 	req, err := s.newRequestPOST()
 	if err != nil {
 		return Result{}, nil, err
@@ -134,7 +134,7 @@ func (s *VMStorage) Query(ctx context.Context, query string, ts time.Time) (Resu
 
 	switch s.dataSourceType {
 	case "", datasourcePrometheus:
-		s.setPrometheusInstantReqParams(req, query, ts)
+		s.setPrometheusInstantReqParams(req, query, queryStep, ts)
 	case datasourceGraphite:
 		s.setGraphiteReqParams(req, query, ts)
 	default:
