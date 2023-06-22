@@ -37,6 +37,21 @@ vmagent (see [these docs](https://docs.victoriametrics.com/vmagent.html#how-to-c
 
 VictoriaLogs emits own logs to stdout. It is recommended investigating these logs during troubleshooting.
 
+## Upgrading
+
+It is safe upgrading VictoriaLogs to new versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is safe skipping multiple versions during the upgrade unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+It is recommended performing regular upgrades to the latest version, since it may contain important bug fixes, performance optimizations or new features.
+
+It is also safe downgrading to older versions unless [release notes](https://github.com/VictoriaMetrics/VictoriaMetrics/releases) say otherwise.
+
+The following steps must be performed during the upgrade / downgrade procedure:
+
+* Send `SIGINT` signal to VictoriaLogs process in order to gracefully stop it.
+  See [how to send signals to processes](https://stackoverflow.com/questions/33239959/send-signal-to-process-from-command-line).
+* Wait until the process stops. This can take a few seconds.
+* Start the upgraded VictoriaMetrics.
+
 ## Retention
 
 By default VictoriaLogs stores log entries with timestamps in the time range `[now-7d, now]`, while dropping logs outside the given time range.
