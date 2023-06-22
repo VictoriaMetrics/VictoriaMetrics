@@ -257,7 +257,9 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 				// Remote client gracefully closed the connection.
 				return nil
 			}
-			if errors.Is(err, net.ErrClosed) || strings.Contains(err.Error(), "broken pipe") {
+			if errors.Is(err, net.ErrClosed) ||
+				strings.Contains(err.Error(), "broken pipe") ||
+				strings.Contains(err.Error(), "connection reset by peer") {
 				// The connection has been interrupted abruptly.
 				// It could happen due to unexpected network glitch or because connection was
 				// interrupted by remote client. In both cases, remote client will notice
