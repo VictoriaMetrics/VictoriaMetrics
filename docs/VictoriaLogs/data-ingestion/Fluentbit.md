@@ -9,7 +9,7 @@ for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.co
      Match *
      host localhost
      port 9428
-     uri /insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date
+     uri /insert/jsonline?_stream_fields=stream&_msg_field=log&_time_field=date
      format json_lines
      json_date_format iso8601
 ```
@@ -29,7 +29,7 @@ and inspecting VictoriaLogs logs then:
      Match *
      host localhost
      port 9428
-     uri /insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date&debug=1
+     uri /insert/jsonline?_stream_fields=stream&_msg_field=log&_time_field=date&debug=1
      format json_lines
      json_date_format iso8601
 ```
@@ -44,7 +44,7 @@ For example, the following config instructs VictoriaLogs to ignore `log.offset` 
      Match *
      host localhost
      port 9428
-     uri /insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date&ignore_fields=log.offset,event.original
+     uri /insert/jsonline?_stream_fields=stream&_msg_field=log&_time_field=date&ignore_fields=log.offset,event.original
      format json_lines
      json_date_format iso8601
 ```
@@ -58,7 +58,7 @@ This usually allows saving network bandwidth and costs by up to 5 times:
      Match *
      host localhost
      port 9428
-     uri /insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date
+     uri /insert/jsonline?_stream_fields=stream&_msg_field=log&_time_field=date
      format json_lines
      json_date_format iso8601
      compress gzip
@@ -74,7 +74,7 @@ For example, the following `fluentbit.conf` config instructs Fluentbit to store 
      Match *
      host localhost
      port 9428
-     uri /insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date
+     uri /insert/jsonline?_stream_fields=stream&_msg_field=log&_time_field=date
      format json_lines
      json_date_format iso8601
      header AccountID 12

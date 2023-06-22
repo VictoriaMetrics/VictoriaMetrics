@@ -51,7 +51,7 @@ the example of fluentbit configuration(`filebeat.yml`)
     host victorialogs
     port 9428
     compress gzip
-    uri /insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date
+    uri /insert/jsonline?_stream_fields=stream&_msg_field=log&_time_field=date
     format json_lines
     json_date_format iso8601
     header AccountID 0
