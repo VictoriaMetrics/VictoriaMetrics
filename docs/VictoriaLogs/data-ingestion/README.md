@@ -43,7 +43,7 @@ It is possible to push thousands of log lines in a single request to this API.
 See [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) for details on fields,
 which must be present in the ingested log messages.
 
-The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details. 
+The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 
 The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
@@ -87,7 +87,7 @@ Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
 See [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) for details on fields,
 which must be present in the ingested log messages.
 
-The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details. 
+The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
 
 The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
