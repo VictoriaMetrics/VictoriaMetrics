@@ -9,7 +9,7 @@ via the following ways:
 
 ## HTTP API
 
-[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried at the `/select/logsql/query` HTTP endpoint.
+VictoriaLogs can be queried at the `/select/logsql/query` HTTP endpoint.
 The [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) query must be passed via `query` argument.
 For example, the following query returns all the log entries with the `error` word:
 
