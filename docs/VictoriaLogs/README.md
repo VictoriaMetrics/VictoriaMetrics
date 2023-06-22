@@ -15,6 +15,7 @@ It provides the following key features:
 - VictoriaLogs capacity and performance scales lineraly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
+  See [these docs](#benchmarks).
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out of order logs' ingestion aka backfilling.
 - VictoriaLogs provides simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui).
@@ -98,6 +99,11 @@ VictoriaLogs doesn't perform per-tenant authorization. Use [vmauth](https://docs
 
 ## Benchmarks
 
-Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) that covers ElasticSearch and VictoriaLogs.
+Here is a [benchmark suite](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/logs-benchmark) for comparing data ingestion performance
+and resource usage between VictoriaLogs and Elasticsearch.
 
-However, we encourage you to run benchmarks on your own. Please share the results or feedback with us by just dropping the line on any of our [Community channels](https://docs.victoriametrics.com/#community-and-contributions).
+It is recommended [setting up VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) in production alongside the existing
+log management systems and comparing resource usage + query performance between VictoriaLogs and your system such as ElasticSearch or Grafana Loki.
+
+Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
+via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
