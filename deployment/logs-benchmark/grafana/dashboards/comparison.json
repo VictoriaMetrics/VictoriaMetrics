@@ -113,7 +113,7 @@
             "uid": "P4169E866C3094E38"
           },
           "editorMode": "code",
-          "expr": "sum(rate(filebeat_libbeat_output_events{type=\"acked\"})) by (instance, type) *100",
+          "expr": "sum(rate(filebeat_libbeat_output_events{type=\"acked\"})) by (instance, type)",
           "legendFormat": "{{instance}} - {{type}}",
           "range": true,
           "refId": "A"
