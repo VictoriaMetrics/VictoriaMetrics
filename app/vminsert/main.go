@@ -274,7 +274,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		}
 		w.WriteHeader(http.StatusNoContent)
 		return true
-	case "influx/write", "influx/api/v2/write":
+	case "influx/write", "influx/api/v2/write", "api/v2/write":
 		influxWriteRequests.Inc()
 		addInfluxResponseHeaders(w)
 		if err := influx.InsertHandlerForHTTP(at, r); err != nil {
