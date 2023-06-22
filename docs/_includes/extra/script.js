@@ -9,8 +9,16 @@ window.addEventListener("load", function () {
     if (hash!=="") {
         href=hash
     }
-    const element = document.querySelector(`a[href="${href}"]`);
-    element.scrollIntoView({ behavior: "smooth" });
+    let element = document.querySelector(`a[href="${href}"]`);
+    if (element) {
+        element.scrollIntoView({ behavior: "smooth" });
+    } else {
+        href = window.location.pathname;
+        element = document.querySelector(`a[href="${href}"]`);
+        if (element) {
+            element.scrollIntoView({ behavior: "smooth" });
+        }
+    }
 });
 
 
