@@ -17,7 +17,13 @@ The docker compose file contains the following components:
 
 * vector - vector is configured to collect logs from the `docker`, you can find configuration in the `vector.toml`. It writes data in VictoriaLogs. It pushes metrics to VictoriaMetrics.
 * VictoriaLogs - the log database, it accepts the data from `vector` by elastic protocol
-* VictoriaMetrics - collects metrics from `VictoriaLogs` and `VictoriaMetrics`(itself)
+* VictoriaMetrics - collects metrics from `VictoriaLogs` and `VictoriaMetrics`
+
+Querying the data
+
+* [vmui](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
+* for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
+
 
 the example of vector configuration(`vector.toml`)
 

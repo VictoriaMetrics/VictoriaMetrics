@@ -25,7 +25,7 @@ The docker compose file contains the following components:
 
 Querying the data
 
-* [vmui](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/vmui`
+* [vmui](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
 * for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
 
 
