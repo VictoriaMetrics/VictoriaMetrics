@@ -38,6 +38,16 @@ services:
     networks:
       - vm_net
     restart: always
+  victorialogs:
+    image: docker.io/victoriametrics/victoria-logs:latest
+    volumes:
+      - vldata:/vlogs
+    ports:
+      - 9428:9428
+    command:
+      - "-storageDataPath=/vlogs"
+    networks:
+      - vm_net
   grafana:
     container_name: grafana
     image: grafana/grafana:9.2.7
@@ -49,6 +59,7 @@ services:
       - grafanadata:/var/lib/grafana
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
+      - ./../../dashboards/victorialogs.json:/var/lib/grafana/dashboards/vl.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
     networks:
@@ -92,9 +103,36 @@ services:
     networks:
       - vm_net
     restart: always
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.8.1
+    restart: on-failure
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /var/lib/docker/containers/
+        target: /var/lib/docker/containers/
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+    user: root
+    ports:
+      - 5066:5066
+    command:
+      - "--strict.perms=false"
+    depends_on: [ victorialogs ]
+    networks:
+      - vm_net
+  beat-exporter:
+    image: trustpilot/beat-exporter:0.4.0
+    command:
+      - -beat.uri=http://filebeat:5066
+    depends_on: [ filebeat ]
+    networks:
+      - vm_net
 volumes:
   vmagentdata: {}
   vmdata: {}
   grafanadata: {}
+  vldata: {}
 networks:
   vm_net:
