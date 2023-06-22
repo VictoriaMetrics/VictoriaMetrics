@@ -9,10 +9,11 @@ window.addEventListener("load", function () {
     if (hash!=="") {
         href=hash
     }
-    let element = document.querySelector(`a[href="${href}"]`);
+    const selector = function(href) {return `a[href="${href}"]`};
+    let element = document.querySelector(selector(href));
     if (!element) {
         href = window.location.pathname;
-        element = document.querySelector(`a[href="${href}"]`);
+        element = document.querySelector(selector(href));
     }
     if (element) {
         element.scrollIntoView({ behavior: "smooth" });
