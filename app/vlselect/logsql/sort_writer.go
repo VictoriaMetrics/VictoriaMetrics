@@ -37,7 +37,7 @@ var sortWriterPool sync.Pool
 // is sorted by _time field.
 type sortWriter struct {
 	mu         sync.Mutex
-	bw         *bufferedWriter
+	w          io.Writer
 	maxBufLen  int
 	buf        []byte
 	bufFlushed bool
@@ -46,10 +46,7 @@ type sortWriter struct {
 }
 
 func (sw *sortWriter) reset() {
-	if sw.bw != nil {
-		putBufferedWriter(sw.bw)
-		sw.bw = nil
-	}
+	sw.w = nil
 	sw.maxBufLen = 0
 	sw.buf = sw.buf[:0]
 	sw.bufFlushed = false
@@ -59,8 +56,7 @@ func (sw *sortWriter) reset() {
 func (sw *sortWriter) Init(w io.Writer, maxBufLen int) {
 	sw.reset()
 
-	sw.bw = getBufferedWriter()
-	sw.bw.Init(w, 64*1024)
+	sw.w = w
 	sw.maxBufLen = maxBufLen
 }
 
@@ -73,7 +69,7 @@ func (sw *sortWriter) MustWrite(p []byte) {
 	}
 
 	if sw.bufFlushed {
-		if _, err := sw.bw.Write(p); err != nil {
+		if _, err := sw.w.Write(p); err != nil {
 			sw.hasErr = true
 		}
 		return
@@ -84,26 +80,26 @@ func (sw *sortWriter) MustWrite(p []byte) {
 	}
 	sw.bufFlushed = true
 	if len(sw.buf) > 0 {
-		if _, err := sw.bw.Write(sw.buf); err != nil {
+		if _, err := sw.w.Write(sw.buf); err != nil {
 			sw.hasErr = true
 			return
 		}
 		sw.buf = sw.buf[:0]
 	}
-	if _, err := sw.bw.Write(p); err != nil {
+	if _, err := sw.w.Write(p); err != nil {
 		sw.hasErr = true
 	}
 }
 
 func (sw *sortWriter) FinalFlush() {
-	if !sw.hasErr && !sw.bufFlushed {
-		rs := getRowsSorter()
-		rs.parseRows(sw.buf)
-		rs.sort()
-		WriteJSONRows(sw.bw, rs.rows)
-		putRowsSorter(rs)
+	if sw.hasErr || sw.bufFlushed {
+		return
 	}
-	sw.bw.FlushIgnoreErrors()
+	rs := getRowsSorter()
+	rs.parseRows(sw.buf)
+	rs.sort()
+	WriteJSONRows(sw.w, rs.rows)
+	putRowsSorter(rs)
 }
 
 func getRowsSorter() *rowsSorter {
