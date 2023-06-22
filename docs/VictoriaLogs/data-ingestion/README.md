@@ -7,11 +7,13 @@
 - Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html).
 - Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html).
 
-See also [Log collectors and data ingestion formats](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#log-collectors-and-data-ingestion-formats) in VictoriaMetrics.
-
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
-See also [data ingestion troubleshooting](#troubleshooting) docs.
+See also:
+
+- [Log collectors and data ingestion formats](#log-collectors-and-data-ingestion-formats).
+- [Data ingestion troubleshooting](#troubleshooting).
+
 
 ## HTTP APIs
 
@@ -122,11 +124,11 @@ VictoriaLogs exposes various [metrics](https://docs.victoriametrics.com/Victoria
 
 ## Log collectors and data ingestion formats
 
-Here is the list of supported collectors and their ingestion formats supported by VictoriaLogs:
+Here is the list of log collectors and their ingestion formats supported by VictoriaLogs:
 
-| Collector                                                                                | Elasticsearch                                                                              | JSON Stream                                                   |
+| How to setup the collector                                                               | Format: Elasticsearch                                                                     | Format: JSON Stream                                            |
 |------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|---------------------------------------------------------------|
-| [filebeat](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Filebeat.html)   | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html)    | No                                                            |
-| [fluentbit](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html) | No                                                                                         | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) |
-| [logstash](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No                                                            |
-| [vector](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html)       | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/)                | No                                                            |
+| [Filebeat](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Filebeat.html)   | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html)    | No                                                            |
+| [Fluentbit](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html) | No                                                                                         | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) |
+| [Logstash](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No                                                            |
+| [Vector](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html)       | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/)                | No                                                            |

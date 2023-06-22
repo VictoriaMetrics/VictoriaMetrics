@@ -1,9 +1,5 @@
 # Filebeat setup
 
-[Filebeat](https://www.elastic.co/guide/en/beats/filebeat/current/filebeat-overview.html) log collector supports
-[Elasticsearch output](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) compatible with
-VictoriaMetrics [ingestion format](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#elasticsearch-bulk-api).
-
 Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
 
@@ -92,12 +88,9 @@ output.elasticsearch:
     _stream_fields: "host.name,log.file.path"
 ```
 
-More info about output parameters you can find in [these docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
+See also:
 
-[Here is a demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker) for
-running Filebeat with VictoriaLogs with docker-compose and collecting logs to VictoriaLogs.
-
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
-
-See also [data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting) docs.
-
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [Filebeat `output.elasticsearch` docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
+- [Docker-compose demo for Filebeat integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker).

@@ -1,10 +1,5 @@
 # Logstash setup
 
-[Logstash](https://www.elastic.co/guide/en/logstash/8.8/introduction.html) log collector supports
-[Opensearch output plugin](https://github.com/opensearch-project/logstash-output-opensearch) compatible with
-[Elasticsearch bulk API](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#elasticsearch-bulk-api)
-in VictoriaMetrics.
-
 Specify [`output.elasticsearch`](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) section in the `logstash.conf` file
 for sending the collected logs to [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/):
 
@@ -100,12 +95,9 @@ output {
 }
 ```
 
-More info about output tuning you can find in [these docs](https://github.com/opensearch-project/logstash-output-opensearch/blob/main/README.md).
+See also:
 
-[Here is a demo](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash)
-for running Logstash with VictoriaLogs with docker-compose and collecting logs to VictoriaLogs
-(via [Elasticsearch bulk API](https://docs.victoriametrics.com/VictoriaLogs/daat-ingestion/#elasticsearch-bulk-api)).
-
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
-
-See also [data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting) docs.
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [Logstash `output.elasticsearch` docs](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html).
+- [Docker-compose demo for Logstash integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash).
