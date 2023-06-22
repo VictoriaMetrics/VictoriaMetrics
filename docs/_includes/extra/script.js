@@ -2,6 +2,18 @@
 *  doesn't work due to fixed body height when menu is toggled.
 *  This script intercepts clicks on links, toggles the menu off
 *  and performs the anchor navigation. */
+
+window.addEventListener("load", function () {
+    let href = window.location.pathname;
+    const hash = window.location.hash;
+    if (hash!=="") {
+        href=hash
+    }
+    const element = document.querySelector(`a[href="${href}"]`);
+    element.scrollIntoView({ behavior: "smooth" });
+});
+
+
 $(document).on("click", '.shift li.toc a', function(e) {
     let segments = this.href.split('#');
     if (segments.length < 2) {
