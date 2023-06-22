@@ -20,6 +20,7 @@ func Stop() {
 func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 	if !strings.HasPrefix(path, "/insert/") {
+		// Skip requests, which do not start with /insert/, since these aren't our requests.
 		return false
 	}
 	path = strings.TrimPrefix(path, "/insert")

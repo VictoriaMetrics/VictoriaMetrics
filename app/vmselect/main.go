@@ -338,7 +338,7 @@ func selectHandler(qt *querytracer.Tracer, startTime time.Time, w http.ResponseW
 	}
 	if p.Suffix == "vmui" || p.Suffix == "graph" || p.Suffix == "prometheus/vmui" || p.Suffix == "prometheus/graph" {
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		_ = r.ParseForm()
 		suffix := strings.Replace(p.Suffix, "prometheus/", "../prometheus/", 1)
