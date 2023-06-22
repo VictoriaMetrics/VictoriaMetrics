@@ -1,6 +1,15 @@
 # Querying
 
-[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried at the `/select/logsql/query` endpoint.
+[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html)
+via the following ways:
+
+- [VMUI](#vmui) - a web-based UI for querying logs
+- [HTTP API](#http-api)
+- [Command-line interface](#command-line)
+
+## HTTP API
+
+[VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried at the `/select/logsql/query` HTTP endpoint.
 The [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) query must be passed via `query` argument.
 For example, the following query returns all the log entries with the `error` word:
 
@@ -50,8 +59,8 @@ with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
 ## VMUI
 
-VictoriaLogs provides a simple UI for logs query and exploration. The UI is available at `http://victorialogs:9428/vmui`.
-The UI allows exploring query results via tables or JSON-result:
+VictoriaLogs provides a simple UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration
+at `http://localhost:9428/vmui`. The UI allows exploring query results:
 
 <img src="vmui.png" width="800" />
 
@@ -59,12 +68,14 @@ There are three modes of displaying query results:
 
 - `Group` - results are displayed as a table with rows grouped by stream and fields for filtering.
 - `Table` - displays query results as a table.
-- `JSON` - displays raw JSON response from `/select/logsql/query` endpoint.
+- `JSON` - displays raw JSON response from [HTTP API](#http-api).
 
 This is the first version that has minimal functionality. It comes with the following limitations:
 
-- The number of query results is always limited to 1000 lines.
-- A tenant 0 is always used in queries.
+- The number of query results is always limited to 1000 lines. Iteratively add
+  more specific [filters](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#filters) to the query
+  in order to get full response with less than 1000 lines.
+- Queries are always executed against [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy) `0`.
 
 These limitations will be removed in future versions.
 
