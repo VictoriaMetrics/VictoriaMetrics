@@ -175,7 +175,7 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	switch {
 	case path == "/vmui" || path == "/graph":
 		// VMUI access via incomplete url without `/` in the end. Redirect to complete url.
-		// Use relative redirect, since, since the hostname and path prefix may be incorrect if VictoriaMetrics
+		// Use relative redirect, since the hostname and path prefix may be incorrect if VictoriaMetrics
 		// is hidden behind vmauth or similar proxy.
 		_ = r.ParseForm()
 		path = strings.TrimPrefix(path, "/")
