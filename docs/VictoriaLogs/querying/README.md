@@ -3,7 +3,7 @@
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html)
 via the following ways:
 
-- [VMUI](#vmui) - a web-based UI for querying logs
+- [Web UI](#web-ui) - a web-based UI for querying logs
 - [HTTP API](#http-api)
 - [Command-line interface](#command-line)
 
@@ -57,9 +57,9 @@ curl http://localhost:9428/select/logsql/query -H 'AccountID: 12' -H 'ProjectID:
 The number of requests to `/select/logsql/query` can be [monitored](https://docs.victoriametrics.com/VictoriaLogs/#monitoring)
 with `vl_http_requests_total{path="/select/logsql/query"}` metric.
 
-## VMUI
+## Web UI
 
-VictoriaLogs provides a simple UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration
+VictoriaLogs provides a simple Web UI for logs [querying](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html) and exploration
 at `http://localhost:9428/vmui`. The UI allows exploring query results:
 
 <img src="vmui.png" width="800" />
