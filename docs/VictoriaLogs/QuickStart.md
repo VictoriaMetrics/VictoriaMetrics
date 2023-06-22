@@ -19,7 +19,7 @@ Here is the command to run VictoriaLogs in a Docker container:
 
 ```bash
 docker run --rm -it -p 9428:9428 -v ./victoria-logs-data:/victoria-logs-data \
-  docker.io/victoriametrics/victoria-logs:heads-public-single-node-0-ga638f5e2b
+  docker.io/victoriametrics/victoria-logs:v0.1.0-victorialogs
 ```
 
 See also:
