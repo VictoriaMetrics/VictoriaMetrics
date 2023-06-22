@@ -46,6 +46,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): Properly creates `parts.json` after migration from versions below `v1.90.0. It must fix errors on start-up after unclean shutdown. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a memory leak issue associated with chart updates. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4455).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): retry all errors except 4XX status codes while pushing via remote-write to the remote storage. Previously, errors like broken connection could prevent vmalert from retrying the request.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly interrupt retry attempts on vmalert shutdown. Before, vmalert could have waited for all retries to finish for shutdown.
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
 
