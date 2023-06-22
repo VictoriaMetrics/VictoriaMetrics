@@ -8,9 +8,36 @@ before you start working with VictoriaLogs.
 
 There are the following options exist:
 
+- [To run pre-built binaries](#pre-built-binaries)
 - [To run Docker image](#docker-image)
 - [To run in Kubernetes with Helm charts](#helm-charts)
 - [To build VictoriaLogs from source code](#building-from-source-code)
+
+### Pre-built binaries
+
+Pre-built binaries for VictoriaLogs are availble at the [releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/) page.
+Just download archive for the needed Operating system and architecture, unpack it and run `victoria-logs-prod` from it.
+
+For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
+
+```bash
+curl https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.1.0-victorialogs/victoria-logs-linux-amd64-v0.1.0-victorialogs.tar.gz
+tar xzf victoria-logs-linux-amd64-v0.1.0-victorialogs.tar.gz
+./victoria-logs-prod
+```
+
+VictoriaLogs is ready for [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+and [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) at the TCP port `9428` now!
+It has no any external dependencies, so it may run in various environments without additional setup and configuration.
+VictoriaLogs automatically adapts to the available CPU and RAM resources. It also automatically setups and creates
+the needed indexes during [data ingestion](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+
+See also:
+
+- [How to configure VictoriaLogs](#how-to-configure-victorialogs)
+- [How to ingest logs into VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/)
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/)
+
 
 ### Docker image
 
