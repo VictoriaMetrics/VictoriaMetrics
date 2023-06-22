@@ -12,7 +12,7 @@ It provides the following key features:
   see [LogsQL docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
 - VictoriaLogs can be seamlessly combined with good old Unix tools for log analysis such as `grep`, `less`, `sort`, `jq`, etc.
   See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
-- VictoriaLogs capacity and performance scales lineraly with the available resources (CPU, RAM, disk IO, disk space).
+- VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
   See [these docs](#benchmarks).
