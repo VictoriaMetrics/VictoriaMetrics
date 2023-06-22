@@ -37,6 +37,11 @@ const maxInmemoryPartsPerPartition = 20
 
 // datadb represents a database with log data
 type datadb struct {
+	inmemoryMergesTotal  uint64
+	inmemoryActiveMerges uint64
+	fileMergesTotal      uint64
+	fileActiveMerges     uint64
+
 	// pt is the partition the datadb belongs to
 	pt *partition
 
@@ -330,8 +335,18 @@ func (ddb *datadb) mustMergeParts(pws []*partWrapper, isFinal bool) {
 
 	startTime := time.Now()
 
-	// Initialize destination paths.
 	dstPartType := ddb.getDstPartType(pws, isFinal)
+	if dstPartType == partInmemory {
+		atomic.AddUint64(&ddb.inmemoryMergesTotal, 1)
+		atomic.AddUint64(&ddb.inmemoryActiveMerges, 1)
+		defer atomic.AddUint64(&ddb.inmemoryActiveMerges, ^uint64(0))
+	} else {
+		atomic.AddUint64(&ddb.fileMergesTotal, 1)
+		atomic.AddUint64(&ddb.fileActiveMerges, 1)
+		defer atomic.AddUint64(&ddb.fileActiveMerges, ^uint64(0))
+	}
+
+	// Initialize destination paths.
 	mergeIdx := ddb.nextMergeIdx()
 	dstPartPath := ddb.getDstPartPath(dstPartType, mergeIdx)
 
@@ -509,6 +524,18 @@ func (ddb *datadb) mustAddRows(lr *LogRows) {
 
 // DatadbStats contains various stats for datadb.
 type DatadbStats struct {
+	// InmemoryMergesTotal is the number of inmemory merges performed in the given datadb.
+	InmemoryMergesTotal uint64
+
+	// InmemoryActiveMerges is the number of currently active inmemory merges performed by the given datadb.
+	InmemoryActiveMerges uint64
+
+	// FileMergesTotal is the number of file merges performed in the given datadb.
+	FileMergesTotal uint64
+
+	// FileActiveMerges is the number of currently active file merges performed by the given datadb.
+	FileActiveMerges uint64
+
 	// InmemoryRowsCount is the number of rows, which weren't flushed to disk yet.
 	InmemoryRowsCount uint64
 
@@ -551,6 +578,11 @@ func (s *DatadbStats) RowsCount() uint64 {
 
 // updateStats updates s with ddb stats
 func (ddb *datadb) updateStats(s *DatadbStats) {
+	s.InmemoryMergesTotal += atomic.LoadUint64(&ddb.inmemoryMergesTotal)
+	s.InmemoryActiveMerges += atomic.LoadUint64(&ddb.inmemoryActiveMerges)
+	s.FileMergesTotal += atomic.LoadUint64(&ddb.fileMergesTotal)
+	s.FileActiveMerges += atomic.LoadUint64(&ddb.fileActiveMerges)
+
 	ddb.partsLock.Lock()
 
 	s.InmemoryRowsCount += getRowsCount(ddb.inmemoryParts)
