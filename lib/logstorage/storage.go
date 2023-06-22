@@ -457,7 +457,7 @@ type TimeFormatter int64
 func (tf *TimeFormatter) String() string {
 	ts := int64(*tf)
 	t := time.Unix(0, ts).UTC()
-	return t.Format(time.RFC3339)
+	return t.Format(time.RFC3339Nano)
 }
 
 func (s *Storage) getPartitionForDay(day int64) *partitionWrapper {

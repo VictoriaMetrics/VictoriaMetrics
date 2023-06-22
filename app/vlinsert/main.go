@@ -25,13 +25,13 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 	path = strings.TrimPrefix(path, "/insert")
 	path = strings.ReplaceAll(path, "//", "/")
 
+	if path == "/jsonline" {
+		return jsonline.RequestHandler(w, r)
+	}
 	switch {
 	case strings.HasPrefix(path, "/elasticsearch/"):
 		path = strings.TrimPrefix(path, "/elasticsearch")
 		return elasticsearch.RequestHandler(path, w, r)
-	case strings.HasPrefix(path, "/jsonline"):
-		path = strings.TrimPrefix(path, "/jsonline")
-		return jsonline.RequestHandler(path, w, r)
 	default:
 		return false
 	}
