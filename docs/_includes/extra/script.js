@@ -6,11 +6,12 @@
 window.addEventListener("load", function () {
     let href = window.location.pathname;
     const hash = window.location.hash;
-    if (hash!=="") {
-        href=hash
+    if (hash !== "") {
+        href = hash
     }
+    const sidebar = document.querySelector('.sidebar .toctree');
     const selector = function(href) {return `a[href="${href}"]`};
-    let element = document.querySelector(selector(href));
+    let element = sidebar.querySelector(selector(href));
     if (!element) {
         href = window.location.pathname;
         element = document.querySelector(selector(href));
