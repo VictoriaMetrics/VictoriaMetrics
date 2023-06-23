@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
@@ -26,15 +25,15 @@ var (
 func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 	wcr := writeconcurrencylimiter.GetReader(r.Body)
 	defer writeconcurrencylimiter.PutReader(wcr)
-	lr := getLogRows(r)
 
-	tenantID, err := getTenantIDFromRequest(r)
+	cp, err := getCommonParams(r)
 	if err != nil {
-		httpserver.Errorf(w, r, "failed to get tenantID: %s", err)
+		httpserver.Errorf(w, r, "cannot parse request: %s", err)
 		return true
 	}
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 
-	processLogMessage := getLogMessageHandler(r, tenantID, lr)
+	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := processProtobufRequest(wcr, processLogMessage)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot decode loki request: %s", err)
@@ -70,13 +69,12 @@ func processProtobufRequest(r io.Reader, processLogMessage func(timestamp int64,
 	}
 
 	rowsIngested := 0
-	for _, st := range req.Streams {
+	for stIdx, st := range req.Streams {
 		// st.Labels contains labels for the stream.
 		// Labels are same for all entries in the stream.
 		commonFields, err := parseLogFields(st.Labels)
 		if err != nil {
-			logger.Errorf("cannot unmarshal labels: %s", err)
-			continue
+			return rowsIngested, fmt.Errorf("failed to unmarshal labels in stream %d: %q; %s", stIdx, st.Labels, err)
 		}
 		msgFieldIDx := len(commonFields) - 1
 		commonFields[msgFieldIDx].Name = msgField

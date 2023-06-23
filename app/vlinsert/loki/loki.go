@@ -6,9 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/metrics"
@@ -40,52 +38,33 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	}
 }
 
-func getLogRows(r *http.Request) *logstorage.LogRows {
-	var streamFields []string
-	if sfs := r.FormValue("_stream_fields"); sfs != "" {
-		streamFields = strings.Split(sfs, ",")
+func getCommonParams(r *http.Request) (*insertutils.CommonParams, error) {
+	cp, err := insertutils.GetCommonParams(r)
+	if err != nil {
+		return nil, err
 	}
 
-	// Extract field names, which must be ignored
-	var ignoreFields []string
-	if ifs := r.FormValue("ignore_fields"); ifs != "" {
-		ignoreFields = strings.Split(ifs, ",")
+	// If parsed tenant is (0,0) it is likely to be default tenant
+	// Try parsing tenant from Loki headers
+	if cp.TenantID.AccountID == 0 && cp.TenantID.ProjectID == 0 {
+		tenantID, err := getTenantIDFromRequest(r)
+		if err != nil {
+			return nil, err
+		}
+		cp.TenantID = tenantID
 	}
-	lr := logstorage.GetLogRows(streamFields, ignoreFields)
-	return lr
+
+	return cp, nil
 }
 
-func getLogMessageHandler(r *http.Request, tenantID logstorage.TenantID, lr *logstorage.LogRows) func(timestamp int64, fields []logstorage.Field) {
-	isDebug := httputils.GetBool(r, "debug")
-	debugRequestURI := ""
-	debugRemoteAddr := ""
-	if isDebug {
-		debugRequestURI = httpserver.GetRequestURI(r)
-		debugRemoteAddr = httpserver.GetQuotedRemoteAddr(r)
-	}
-
-	return func(timestamp int64, fields []logstorage.Field) {
-		lr.MustAdd(tenantID, timestamp, fields)
-		if isDebug {
-			s := lr.GetRowString(0)
-			lr.ResetKeepSettings()
-			logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", debugRemoteAddr, debugRequestURI, s)
-			return
-		}
-		if lr.NeedFlush() {
-			vlstorage.MustAddRows(lr)
-			lr.ResetKeepSettings()
-		}
-	}
-}
-
+// Parses TenantID from request based on Loki X-Scope-OrgID header
 func getTenantIDFromRequest(r *http.Request) (logstorage.TenantID, error) {
 	var tenantID logstorage.TenantID
 
 	org := r.Header.Get("X-Scope-OrgID")
 	if org == "" {
-		// Rollback to default multi-tenancy headers
-		return logstorage.GetTenantIDFromRequest(r)
+		// Return empty tenantID
+		return logstorage.TenantID{}, nil
 	}
 
 	colon := strings.Index(org, ":")

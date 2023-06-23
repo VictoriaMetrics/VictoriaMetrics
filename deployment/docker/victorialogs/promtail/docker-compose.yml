@@ -15,7 +15,7 @@ services:
   vlogs:
     image: docker.io/victoriametrics/victoria-logs:latest
     volumes:
-      - vlogs:/vlogs
+      - victorialogs-promtail-docker:/vlogs
     ports:
       - '9428:9428'
     command:

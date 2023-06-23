@@ -32,20 +32,20 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 		zr, err := common.GetGzipReader(reader)
 		if err != nil {
 			httpserver.Errorf(w, r, "cannot read gzipped request: %s", err)
+			return true
 		}
 		defer common.PutGzipReader(zr)
 		reader = zr
 	}
 
-	lr := getLogRows(r)
-
-	tenantID, err := getTenantIDFromRequest(r)
+	cp, err := getCommonParams(r)
 	if err != nil {
-		httpserver.Errorf(w, r, "failed to get tenantID: %s", err)
+		httpserver.Errorf(w, r, "cannot parse request: %s", err)
 		return true
 	}
+	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
 
-	processLogMessage := getLogMessageHandler(r, tenantID, lr)
+	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := processJSONRequest(reader, processLogMessage)
 	if err != nil {
 		httpserver.Errorf(w, r, "cannot decode loki request: %s", err)
@@ -72,7 +72,7 @@ func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fie
 	}
 
 	rowsIngested := 0
-	for _, st := range v.GetArray("streams") {
+	for stIdx, st := range v.GetArray("streams") {
 		// `stream` contains labels for the stream.
 		// Labels are same for all entries in the stream.
 		logFields := st.GetObject("stream")
@@ -94,18 +94,17 @@ func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fie
 		msgFieldIdx := logFields.Len()
 		commonFields[msgFieldIdx].Name = msgField
 
-		for _, v := range st.GetArray("values") {
+		for idx, v := range st.GetArray("values") {
 			vs := v.GetArray()
 			if len(vs) != 2 {
-				logger.Warnf("unexpected number of values in %q; got %d; want %d", v, len(vs), 2)
-				continue
+				return rowsIngested, fmt.Errorf("unexpected number of values in stream %d line %d: %q; got %d; want %d", stIdx, idx, v, len(vs), 2)
 			}
+
 			tsString := bytesutil.ToUnsafeString(vs[0].GetStringBytes())
 			tsString = strings.Trim(tsString, `"`)
 			ts, err := parseLokiTimestamp(tsString)
 			if err != nil {
-				logger.Warnf("cannot parse timestamp %q: %s", vs, err)
-				continue
+				return rowsIngested, fmt.Errorf("cannot parse timestamp in stream %d line %d: %q: %s", stIdx, idx, vs, err)
 			}
 
 			commonFields[msgFieldIdx].Value = strings.Trim(vs[1].String(), `"`)

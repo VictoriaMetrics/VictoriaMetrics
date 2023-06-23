@@ -81,3 +81,19 @@ func TestParse(t *testing.T) {
 	fail(`{"streams":[{"stream":{"foo" = "bar"},"values":[["1577836800000000000","baz"]]}]}`)
 	fail(`{"streams":[{"stream":{"foo": "bar"}`)
 }
+
+func Test_parseLokiTimestamp(t *testing.T) {
+	f := func(s string, expected int64) {
+		t.Helper()
+		actual, err := parseLokiTimestamp(s)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if actual != expected {
+			t.Fatalf("unexpected timestamp; got %d; expecting %d", actual, expected)
+		}
+	}
+
+	f("1687510468000000000", 1687510468000000000)
+	f("1577836800000000000", 1577836800000000000)
+}
