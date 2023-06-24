@@ -21,7 +21,7 @@ Just download archive for the needed Operating system and architecture, unpack i
 For example, the following commands download VictoriaLogs archive for Linux/amd64, unpack and run it:
 
 ```bash
-curl https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.1.0-victorialogs/victoria-logs-linux-amd64-v0.1.0-victorialogs.tar.gz
+curl -L -O https://github.com/VictoriaMetrics/VictoriaMetrics/releases/download/v0.1.0-victorialogs/victoria-logs-linux-amd64-v0.1.0-victorialogs.tar.gz
 tar xzf victoria-logs-linux-amd64-v0.1.0-victorialogs.tar.gz
 ./victoria-logs-prod
 ```
