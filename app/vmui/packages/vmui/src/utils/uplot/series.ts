@@ -17,26 +17,34 @@ export interface SeriesItem extends Series {
   }
 }
 
-export const getSeriesItemContext = () => {
+export const getSeriesItemContext = (data: MetricResult[], hideSeries: string[], alias: string[]) => {
   const colorState: {[key: string]: string} = {};
-
-  return (d: MetricResult, hideSeries: string[], alias: string[]): SeriesItem => {
-    const label = getNameForMetric(d, alias[d.group - 1]);
-    const countSavedColors = Object.keys(colorState).length;
-    const hasBasicColors = countSavedColors < baseContrastColors.length;
-    if (hasBasicColors) colorState[label] = colorState[label] || baseContrastColors[countSavedColors];
-
+  const calculations = data.map(d => {
     const values = d.values.map(v => promValueToNumber(v[1]));
-    const min = getMinFromArray(values);
-    const max = getMaxFromArray(values);
-    const median = getMedianFromArray(values);
-    const last = getLastFromArray(values);
+    return {
+      min: getMinFromArray(values),
+      max: getMaxFromArray(values),
+      median: getMedianFromArray(values),
+      last: getLastFromArray(values),
+    };
+  });
+
+  const maxColors = Math.min(data.length, baseContrastColors.length);
+  for (let i = 0; i < maxColors; i++) {
+    const label = getNameForMetric(data[i], alias[data[i].group - 1]);
+    colorState[label] = baseContrastColors[i];
+  }
+
+  return (d: MetricResult, i: number): SeriesItem => {
+    const label = getNameForMetric(d, alias[d.group - 1]);
+    const color = colorState[label] || getColorFromString(label);
+    const { min, max, median, last } = calculations[i];
 
     return {
       label,
       freeFormFields: d.metric,
       width: 1.4,
-      stroke: colorState[label] || getColorFromString(label),
+      stroke: color,
       show: !includesHideSeries(label, hideSeries),
       scale: "1",
       points: {

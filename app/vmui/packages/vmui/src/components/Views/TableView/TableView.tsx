@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useMemo, useRef, useState } from "preact/compat";
 import { InstantMetricResult } from "../../../api/types";
 import { InstantDataSeries } from "../../../types";
 import { useSortedCategories } from "../../../hooks/useSortedCategories";
@@ -12,8 +12,6 @@ import { getNameForMetric } from "../../../utils/metric";
 import { useCustomPanelState } from "../../../state/customPanel/CustomPanelStateContext";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import useWindowSize from "../../../hooks/useWindowSize";
-import useEventListener from "../../../hooks/useEventListener";
 
 export interface GraphViewProps {
   data: InstantMetricResult[];
@@ -25,10 +23,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
   const { isMobile } = useDeviceDetect();
 
   const { tableCompact } = useCustomPanelState();
-  const windowSize = useWindowSize();
   const tableRef = useRef<HTMLTableElement>(null);
-  const [tableTop, setTableTop] = useState(0);
-  const [headTop, setHeadTop] = useState(0);
 
   const [orderBy, setOrderBy] = useState("");
   const [orderDir, setOrderDir] = useState<"asc" | "desc">("asc");
@@ -83,20 +78,6 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
     await copyToClipboard(copyValue, "Row has been copied");
   };
 
-  const handleScroll = useCallback(() => {
-    if (!tableRef.current) return;
-    const { top } = tableRef.current.getBoundingClientRect();
-    setHeadTop(top < 0 ? window.scrollY - tableTop : 0);
-  }, [tableRef, tableTop, windowSize]);
-
-  useEventListener("scroll", handleScroll);
-
-  useEffect(() => {
-    if (!tableRef.current) return;
-    const { top } = tableRef.current.getBoundingClientRect();
-    setTableTop(top + window.scrollY);
-  }, [tableRef, windowSize]);
-
   if (!rows.length) return <Alert variant="warning">No data to show</Alert>;
 
   return (
@@ -111,10 +92,7 @@ const TableView: FC<GraphViewProps> = ({ data, displayColumns }) => {
         ref={tableRef}
       >
         <thead className="vm-table-header">
-          <tr
-            className="vm-table__row vm-table__row_header"
-            style={{ transform: `translateY(${headTop}px)` }}
-          >
+          <tr className="vm-table__row vm-table__row_header">
             {sortedColumns.map((col, index) => (
               <td
                 className="vm-table-cell vm-table-cell_header vm-table-cell_sort"

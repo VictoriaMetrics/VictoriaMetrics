@@ -1065,7 +1065,7 @@ per each `job` over the last 5 minutes.
 
 `histogram_quantile(phi, buckets)` is a [transform function](#transform-functions), which calculates `phi`-[percentile](https://en.wikipedia.org/wiki/Percentile)
 over the given [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
-`phi` must be in the range `[0...1]`. For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m]) by (le))`
+`phi` must be in the range `[0...1]`. For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))`
 would return median request duration for all the requests during the last 5 minutes.
 
 The function accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile with the given `boundsLabel` label.

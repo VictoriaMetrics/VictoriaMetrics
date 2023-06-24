@@ -219,11 +219,13 @@ expr: <string>
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
 # Is applicable to alerting rules only.
+# Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1820
 [ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
 # Overrides `rule.updateEntriesLimit` value for this specific rule.
+# Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
@@ -803,7 +805,8 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 changed in time.
 
 vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert.html#alerting-rules)) 
-state updates for each rule. To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
+state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
+To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
 <img alt="vmalert state" src="vmalert_state.png">
@@ -815,8 +818,8 @@ moment when rule was evaluated.
 
 ### Debug mode
 
-vmalert allows configuring more detailed logging for specific alerting rule. Just set `debug: true` in rule's configuration
-and vmalert will start printing additional log messages:
+vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
+Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
 ```terminal
 2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
@@ -829,7 +832,8 @@ and vmalert will start printing additional log messages:
 
 ### Never-firing alerts
 
-vmalert can detect if alert's expression doesn't match any time series in runtime. This problem usually happens
+vmalert can detect if alert's expression doesn't match any time series in runtime 
+starting from [v1.91](https://docs.victoriametrics.com/CHANGELOG.html#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
 vmalerts UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric value will
@@ -842,6 +846,32 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
+
+### Series with the same labelset
+
+vmalert can produce the following error message during rules evaluation:
+```
+result contains metrics with the same labelset after applying rule labels
+```
+
+The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+after applying extra labels to result.
+
+For example, a rule with `expr: foo > 0` returns two distinct time series in response:
+```
+foo{bar="baz"} 1
+foo{bar="qux"} 2
+```
+
+If user configures `-external.label=bar=baz` cmd-line flag to enforce
+adding `bar="baz"` label-value pair, then time series won't be distinct anymore:
+```
+foo{bar="baz"} 1
+foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
+```
+
+The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
+To fix it one should avoid collisions by carefully picking label overrides in configuration.
 
 
 ## Profiling
@@ -1161,6 +1191,10 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -notifier.url.
+  -remoteWrite.retryMaxTime duration
+     The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval (default 30s)
+  -remoteWrite.retryMinInterval duration
+     The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval (default 1s)
   -remoteWrite.sendTimeout duration
      Timeout for sending data to the configured -remoteWrite.url. (default 30s)
   -remoteWrite.showURL

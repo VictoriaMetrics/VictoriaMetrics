@@ -1,9 +1,8 @@
-import React, { FC, useState, useMemo } from "preact/compat";
+import React, { FC, useMemo } from "preact/compat";
 import { MouseEvent } from "react";
 import { LegendItemType } from "../../../../../utils/uplot/types";
 import "./style.scss";
 import classNames from "classnames";
-import Tooltip from "../../../../Main/Tooltip/Tooltip";
 import { getFreeFields } from "./helpers";
 import useCopyToClipboard from "../../../../../hooks/useCopyToClipboard";
 
@@ -15,7 +14,6 @@ interface LegendItemProps {
 
 const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
   const copyToClipboard = useCopyToClipboard();
-  const [copiedValue, setCopiedValue] = useState("");
 
   const freeFormFields = useMemo(() => {
     const result = getFreeFields(legend);
@@ -25,20 +23,17 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
   const calculations = legend.calculations;
   const showCalculations = Object.values(calculations).some(v => v);
 
-  const handleClickFreeField = async (val: string, id: string) => {
-    const copied = await copyToClipboard(val);
-    if (!copied) return;
-    setCopiedValue(id);
-    setTimeout(() => setCopiedValue(""), 2000);
+  const handleClickFreeField = async (val: string) => {
+    await copyToClipboard(val, `${val} has been copied`);
   };
 
   const createHandlerClick = (legend: LegendItemType) => (e: MouseEvent<HTMLDivElement>) => {
     onChange && onChange(legend, e.ctrlKey || e.metaKey);
   };
 
-  const createHandlerCopy = (freeField: string, id: string) => (e: MouseEvent<HTMLDivElement>) => {
+  const createHandlerCopy = (freeField: string) => (e: MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
-    handleClickFreeField(freeField, id);
+    handleClickFreeField(freeField);
   };
 
   return (
@@ -62,21 +57,14 @@ const LegendItem: FC<LegendItemProps> = ({ legend, onChange, isHeatmap }) => {
           {legend.freeFormFields["__name__"]}
           {!!freeFormFields.length && <>&#123;</>}
           {freeFormFields.map((f, i) => (
-            <Tooltip
-              key={f.id}
-              open={copiedValue === f.id}
-              title={"copied!"}
-              placement="top-center"
+            <span
+              className="vm-legend-item-info__free-fields"
+              key={f.key}
+              onClick={createHandlerCopy(f.freeField)}
+              title="copy to clipboard"
             >
-              <span
-                className="vm-legend-item-info__free-fields"
-                key={f.key}
-                onClick={createHandlerCopy(f.freeField, f.id)}
-                title="copy to clipboard"
-              >
-                {f.freeField}{i + 1 < freeFormFields.length && ","}
-              </span>
-            </Tooltip>
+              {f.freeField}{i + 1 < freeFormFields.length && ","}
+            </span>
           ))}
           {!!freeFormFields.length && <>&#125;</>}
         </span>

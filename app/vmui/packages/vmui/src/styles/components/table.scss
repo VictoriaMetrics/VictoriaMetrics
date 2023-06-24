@@ -49,8 +49,8 @@
 
     &_header {
       font-weight: bold;
-      text-transform: capitalize;
       text-align: left;
+      overflow-wrap: normal;
     }
 
     &_gray {
@@ -72,6 +72,20 @@
 
     &_no-padding {
       padding: 0;
+    }
+
+    &_pre {
+      white-space: pre-wrap;
+    }
+
+    &_logs-time {
+      white-space: pre;
+      overflow-wrap: normal;
+    }
+
+    &_logs {
+      font-family: $font-family-monospace;
+      line-height: 1.2;
     }
   }
 

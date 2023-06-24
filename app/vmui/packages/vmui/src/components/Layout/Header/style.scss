@@ -47,9 +47,11 @@
     margin-bottom: 2px;
     overflow: hidden;
 
-    @media (max-width: 1200px) {
-      min-width: 14px;
-      max-width: 14px;
+    &:not(&_logs) {
+      @media (max-width: 1200px) {
+        min-width: 14px;
+        max-width: 14px;
+      }
     }
 
     svg {
@@ -61,6 +63,11 @@
       max-width: 65px;
       min-width: 65px;
       margin: 0 auto;
+    }
+
+    &_logs, &_logs svg {
+      max-width: 75px;
+      min-width: 75px;
     }
   }
 }

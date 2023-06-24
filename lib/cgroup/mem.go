@@ -34,6 +34,18 @@ func initGOGC() {
 	}
 }
 
+// SetGOGC sets GOGC to the given percent
+func SetGOGC(percent int) {
+	if percent <= 0 {
+		return
+	}
+	if percent > 100 {
+		percent = 100
+	}
+	gogc = percent
+	debug.SetGCPercent(gogc)
+}
+
 var gogc int
 
 // GetMemoryLimit returns cgroup memory limit
