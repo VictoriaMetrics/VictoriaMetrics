@@ -85,7 +85,7 @@ ip_filters:
   deny_list: [10.0.0.42]
 ```
 
-The following config allows requests for the user 'foobar' only from the ip `127.0.0.1`:
+The following config allows requests for the user 'foobar' only from the IP `127.0.0.1`:
 
 ```yml
 users:
@@ -95,6 +95,8 @@ users:
   ip_filters:
     allow_list: [127.0.0.1]
 ```
+
+See config example of using IP filters [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
 ## Auth config
 

@@ -89,8 +89,6 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
-    ip_filters:
-      deny_list: [127.0.0.1]
   default_url:
   - "http://default1:8888/unsupported_url_handler"
   - "http://default2:8888/unsupported_url_handler"
@@ -104,10 +102,3 @@ unauthorized_user:
     url_prefix:
     - http://vmselect1:8481/select/0/prometheus
     - http://vmselect2:8481/select/0/prometheus
-    ip_filters:
-      allow_list: [8.8.8.8]
-
-ip_filters:
-  allow_list: ["1.2.3.0/24", "127.0.0.1"]
-  deny_list:
-  - 10.1.0.1
