@@ -183,9 +183,14 @@ func (c *Client) run(ctx context.Context) {
 var (
 	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
 	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
+
+	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
+		return float64(*concurrency)
+	})
 )
 
 // flush is a blocking function that marshals WriteRequest and sends
@@ -211,6 +216,7 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		retryInterval = maxRetryInterval
 	}
 	timeStart := time.Now()
+	defer sendDuration.Add(time.Since(timeStart).Seconds())
 L:
 	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
