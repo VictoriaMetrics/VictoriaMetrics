@@ -17,7 +17,7 @@ window.addEventListener("load", function () {
         element = document.querySelector(selector(href));
     }
     if (element) {
-        element.scrollIntoView({ behavior: "smooth" });
+        element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     }
 });
 
