@@ -15,6 +15,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/graphite"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/influx"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/native"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentelemetryhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdb"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/opentsdbhttp"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vminsert/prometheusimport"
@@ -245,6 +246,15 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{}`)
 		return true
+	case "/opentelemetry/api/v1/push":
+		opentelemetryPushRequests.Inc()
+		if err := opentelemetryhttp.InsertHandler(r); err != nil {
+			opentelemetryPushErrors.Inc()
+			httpserver.Errorf(w, r, "%s", err)
+			return true
+		}
+		w.WriteHeader(http.StatusOK)
+		return true
 	case "/prometheus/targets", "/targets":
 		promscrapeTargetsRequests.Inc()
 		promscrape.WriteHumanReadableTargetsStatus(w, r)
@@ -343,6 +353,9 @@ var (
 	datadogCheckRunRequests = metrics.NewCounter(`vm_http_requests_total{path="/datadog/api/v1/check_run", protocol="datadog"}`)
 	datadogIntakeRequests   = metrics.NewCounter(`vm_http_requests_total{path="/datadog/intake", protocol="datadog"}`)
 	datadogMetadataRequests = metrics.NewCounter(`vm_http_requests_total{path="/datadog/api/v1/metadata", protocol="datadog"}`)
+
+	opentelemetryPushRequests = metrics.NewCounter(`vm_http_requests_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
+	opentelemetryPushErrors   = metrics.NewCounter(`vm_http_request_errors_total{path="/opentelemetry/api/v1/push", protocol="opentelemetry"}`)
 
 	promscrapeTargetsRequests          = metrics.NewCounter(`vm_http_requests_total{path="/targets"}`)
 	promscrapeServiceDiscoveryRequests = metrics.NewCounter(`vm_http_requests_total{path="/service-discovery"}`)
