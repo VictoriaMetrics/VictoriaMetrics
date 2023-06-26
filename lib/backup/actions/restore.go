@@ -10,7 +10,6 @@ import (
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/fs"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
@@ -56,13 +55,13 @@ func (r *Restore) Run() error {
 	dst := r.Dst
 
 	if !r.SkipBackupCompleteCheck {
-		ok, err := src.HasFile(fscommon.BackupCompleteFilename)
+		ok, err := src.HasFile(backupnames.BackupCompleteFilename)
 		if err != nil {
 			return err
 		}
 		if !ok {
 			return fmt.Errorf("cannot find %s file in %s; this means either incomplete backup or old backup; "+
-				"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", fscommon.BackupCompleteFilename, src)
+				"pass -skipBackupCompleteCheck command-line flag if you still need restoring from this backup", backupnames.BackupCompleteFilename, src)
 		}
 	}
 
