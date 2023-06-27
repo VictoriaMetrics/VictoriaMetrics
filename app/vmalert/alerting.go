@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"hash/fnv"
 	"sort"
@@ -293,7 +294,7 @@ func (ar *AlertingRule) ExecRange(ctx context.Context, start, end time.Time) ([]
 
 // resolvedRetention is the duration for which a resolved alert instance
 // is kept in memory state and consequently repeatedly sent to the AlertManager.
-const resolvedRetention = 15 * time.Minute
+var resolvedRetention = flag.Duration("alert.resolvedRetention", 15*time.Minute, "resolvedRetention is the duration for which a resolved alert instance is kept in memory state and consequently repeatedly sent to the AlertManager.")
 
 // Exec executes AlertingRule expression via the given Querier.
 // Based on the Querier results AlertingRule maintains notifier.Alerts
@@ -325,7 +326,7 @@ func (ar *AlertingRule) Exec(ctx context.Context, ts time.Time, limit int) ([]pr
 
 	for h, a := range ar.alerts {
 		// cleanup inactive alerts from previous Exec
-		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > resolvedRetention {
+		if a.State == notifier.StateInactive && ts.Sub(a.ResolvedAt) > *resolvedRetention {
 			ar.logDebugf(ts, a, "deleted as inactive")
 			delete(ar.alerts, h)
 		}
