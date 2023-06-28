@@ -180,7 +180,8 @@ func (r *Restore) Run() error {
 			return nil
 		}, func(elapsed time.Duration) {
 			n := atomic.LoadUint64(&bytesDownloaded)
-			logger.Infof("downloaded %d out of %d bytes from %s to %s in %s", n, downloadSize, src, dst, elapsed)
+			prc := 100 * float64(n) / float64(downloadSize)
+			logger.Infof("downloaded %d out of %d bytes (%.2f%%) from %s to %s in %s", n, downloadSize, prc, src, dst, elapsed)
 		})
 		if err != nil {
 			return err
