@@ -26,7 +26,7 @@
     "preact": "^10.7.1",
     "qs": "^6.10.3",
     "react-input-mask": "^2.0.4",
-    "react-router-dom": "^6.3.0",
+    "react-router-dom": "^6.12.0",
     "sass": "^1.56.0",
     "typescript": "~4.6.2",
     "uplot": "^1.6.19",
