@@ -205,7 +205,8 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			return nil
 		}, func(elapsed time.Duration) {
 			n := atomic.LoadUint64(&bytesUploaded)
-			logger.Infof("uploaded %d out of %d bytes from src %s to dst %s in %s", n, uploadSize, src, dst, elapsed)
+			prc := 100 * float64(n) / float64(uploadSize)
+			logger.Infof("uploaded %d out of %d bytes (%.2f%%) from src %s to dst %s in %s", n, uploadSize, prc, src, dst, elapsed)
 		})
 		atomic.AddUint64(&bytesUploadedTotal, bytesUploaded)
 		bytesUploadedTotalMetric.Set(bytesUploadedTotal)
