@@ -39,7 +39,10 @@ require (
 	gopkg.in/yaml.v2 v2.4.0
 )
 
-require github.com/bmatcuk/doublestar/v4 v4.6.0
+require (
+	github.com/bmatcuk/doublestar/v4 v4.6.0
+	golang.org/x/exp v0.0.0-20230626212559-97b1e661b5df
+)
 
 require (
 	cloud.google.com/go v0.110.6 // indirect

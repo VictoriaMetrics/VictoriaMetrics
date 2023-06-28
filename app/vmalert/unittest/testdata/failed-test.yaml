@@ -1,0 +1,38 @@
+rule_files:
+  - rules.yaml
+
+tests:
+  - interval: 1m
+    name: "Failing test"
+    input_series:
+      - series: test
+        values: "0"
+
+    metricsql_expr_test:
+      - expr: test
+        eval_time: 0m
+        exp_samples:
+          - value: 0
+            labels: test
+
+    # will failed in here cause there is no "Test" rule defined
+    alert_rule_test:
+      - eval_time: 0m
+        alertname: Test
+        exp_alerts:
+          - exp_labels: {}
+
+  - interval: 1m
+    name: Failing alert test
+    input_series:
+      - series: 'up{job="test"}'
+        values: 0x10
+
+    # will failed in here cause those rules are firing
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: InstanceDown
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: AlwaysFiring
+        exp_alerts: []

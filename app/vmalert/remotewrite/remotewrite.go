@@ -40,6 +40,9 @@ type Client struct {
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
+
+	flushWG      sync.WaitGroup
+	debugflushCh chan struct{}
 }
 
 // Config is config for remote write.
@@ -106,6 +109,7 @@ func NewClient(ctx context.Context, cfg Config) (*Client, error) {
 		maxQueueSize:  cfg.MaxQueueSize,
 		doneCh:        make(chan struct{}),
 		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
+		debugflushCh:  make(chan struct{}, 1),
 	}
 
 	for i := 0; i < cc; i++ {
@@ -141,6 +145,13 @@ func (c *Client) Close() error {
 	return nil
 }
 
+// DebugFlush will flush all the remained series in input and wr
+func (c *Client) DebugFlush() {
+	c.flushWG.Add(1)
+	c.debugflushCh <- struct{}{}
+	c.flushWG.Wait()
+}
+
 func (c *Client) run(ctx context.Context) {
 	ticker := time.NewTicker(c.flushInterval)
 	wr := &prompbmarshal.WriteRequest{}
@@ -165,6 +176,16 @@ func (c *Client) run(ctx context.Context) {
 			case <-ctx.Done():
 				shutdown()
 				return
+			case <-c.debugflushCh:
+				if len(c.input) == 0 {
+					lenInput := cap(c.input)
+					// close c.input for temporarily to unblock shutdown
+					// be careful with this, may panic if write to c.input during this
+					close(c.input)
+					shutdown()
+					c.input = make(chan prompbmarshal.TimeSeries, lenInput)
+				}
+				c.flushWG.Done()
 			case <-ticker.C:
 				c.flush(ctx, wr)
 			case ts, ok := <-c.input:

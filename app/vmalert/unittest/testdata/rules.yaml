@@ -1,0 +1,36 @@
+groups:
+  - name: alerts
+    rules:
+      - alert: InstanceDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: page
+        annotations:
+          summary: "Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 5 minutes."
+      - alert: AlwaysFiring
+        expr: 1
+      - alert: TestAbsent
+        expr: absent(test)
+        for: 1m
+
+  - name: rules1
+    rules:
+      - record: t1
+        expr: test
+      - record: job:test:count_over_time1m
+        expr: sum without(instance) (count_over_time(test[1m]))
+
+      - record: suquery_interval_test
+        expr: count_over_time(up[5m:])
+
+  - name: rules2
+    rules:
+      - record: t2
+        expr: t1
+
+  - name: rules3
+    rules:
+      - record: t3
+        expr: t1

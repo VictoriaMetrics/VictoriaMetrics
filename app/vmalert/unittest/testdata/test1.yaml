@@ -1,0 +1,104 @@
+rule_files:
+  - rules.yaml
+
+evaluation_interval: 1m
+group_eval_order: ["rules3", "rules1", "rules2"]
+
+tests:
+  - interval: 1m
+    name: "basic test"
+    input_series:
+      - series: 'test'
+        values: "_x5 1x5"
+
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: TestAbsent
+        exp_alerts:
+        - {}
+      - eval_time: 6m
+        alertname: TestAbsent
+        exp_alerts: []
+
+  - interval: 1m
+    name: "basic test"
+    input_series:
+      - series: 'up{job="prometheus1", instance="localhost:9090"}'
+        values: "0+0x1440"
+      - series: "test"
+        values: "0+1x1440"
+
+    metricsql_expr_test:
+      - expr: count(ALERTS) by (alertname, alertstate)
+        eval_time: 4m
+        exp_samples:
+          - labels: '{alertname="AlwaysFiring",alertstate="firing"}'
+            value: 1
+          - labels: '{alertname="InstanceDown",alertstate="pending"}'
+            value: 1
+      - expr: t1
+        eval_time: 4m
+        exp_samples:
+          - value: 4
+            labels: '{__name__="t1" }'
+      - expr: t2
+        eval_time: 4m
+        exp_samples:
+          - value: 4
+            labels: '{__name__="t2" }'
+      - expr: t3
+        eval_time: 4m
+        exp_samples:
+          # t3 is 3 instead of 4 cause it's rules3 is evaluated before rules1
+          - value: 3
+            labels: '{__name__="t3" }'
+
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: InstanceDown
+        exp_alerts:
+          - exp_labels:
+              job: prometheus1
+              severity: page
+              instance: localhost:9090
+            exp_annotations:
+              summary: "Instance localhost:9090 down"
+              description: "localhost:9090 of job prometheus1 has been down for more than 5 minutes."
+
+      - eval_time: 0
+        alertname: AlwaysFiring
+        exp_alerts:
+          - {}
+
+      - eval_time: 0
+        alertname: InstanceDown
+        exp_alerts: []
+
+  - interval: 1m
+    name: "external label test"
+    input_series:
+      - series: 'up{job="prometheus", instance="localhost:9090"}'
+        values: "0+0x1440"
+
+    metricsql_expr_test:
+      - expr: suquery_interval_test
+        eval_time: 4m
+        exp_samples:
+          - labels: '{__name__="suquery_interval_test",datacenter="dc-123", instance="localhost:9090", job="prometheus"}'
+            value: 1
+
+    alert_rule_test:
+      - eval_time: 2h
+        alertname: InstanceDown
+        exp_alerts:
+          - exp_labels:
+              job: prometheus
+              severity: page
+              instance: localhost:9090
+              datacenter: dc-123
+            exp_annotations:
+              summary: "Instance localhost:9090 down"
+              description: "localhost:9090 of job prometheus has been down for more than 5 minutes."
+
+    external_labels:
+      datacenter: dc-123
