@@ -16,7 +16,7 @@
     "@types/qs": "^6.9.7",
     "@types/react-input-mask": "^3.0.2",
     "@types/react-router-dom": "^5.3.3",
-    "@types/webpack-env": "^1.16.3",
+    "@types/webpack-env": "^1.18.1",
     "classnames": "^2.3.2",
     "dayjs": "^1.11.0",
     "lodash.debounce": "^4.0.8",
