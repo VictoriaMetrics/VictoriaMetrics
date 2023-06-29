@@ -1670,6 +1670,9 @@ Downsampling happens during [background merges](https://docs.victoriametrics.com
 and can't be performed if there is not enough of free disk space or if vmstorage 
 is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
+When setting multiple downsampling periods, it is required for the periods to be multiples of each other. For example,
+`-downsampling.period=30d:1m,60d:30m` is valid, but `-downsampling.period=30d:45s,60d:60s` is invalid.
+
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
 ## Multi-tenancy
@@ -2255,7 +2258,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
      Whether to check config files without running VictoriaMetrics. The following config files are checked: -promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
