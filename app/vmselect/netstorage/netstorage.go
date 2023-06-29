@@ -37,6 +37,9 @@ var (
 		"vmselect cancels responses from the slowest -replicationFactor-1 vmstorage nodes if -replicationFactor is set by assuming it already received complete data. "+
 		"It isn't recommended setting this flag to values other than 1 at vmselect nodes, since it may result in incomplete responses "+
 		"after adding new vmstorage nodes even if the replication is enabled at vminsert nodes")
+	skipSlowReplicas = flag.Bool("search.skipSlowReplicas", false, "Whether to skip waiting for all replicas to respond during search query. "+
+		"Enabling this setting may improve query speed by serving results from the fastest vmstorage replicas in the cluster. "+
+		"But could also lead to incomplete results if replicas contain data gaps. Consider enabling this setting only if all replicas contain identical data.")
 	maxSamplesPerSeries  = flag.Int("search.maxSamplesPerSeries", 30e6, "The maximum number of raw samples a single query can scan per each time series. See also -search.maxSamplesPerQuery")
 	maxSamplesPerQuery   = flag.Int("search.maxSamplesPerQuery", 1e9, "The maximum number of raw samples a single query can process across all time series. This protects from heavy queries, which select unexpectedly high number of raw samples. See also -search.maxSamplesPerSeries")
 	vmstorageDialTimeout = flag.Duration("vmstorageDialTimeout", 5*time.Second, "Timeout for establishing RPC connections from vmselect to vmstorage")
@@ -1726,6 +1729,18 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		result := <-snr.resultsCh
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
+			resultsCollected++
+			if *skipSlowReplicas && resultsCollected > len(sns)-*replicationFactor {
+				// There is no need in waiting for the remaining results,
+				// because the collected results contain all the data according to the given -replicationFactor.
+				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
+				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+				//
+				// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
+				snr.finishQueryTracers(fmt.Sprintf("cancel request because %d out of %d nodes already returned response according to -replicationFactor=%d",
+					resultsCollected, len(sns), *replicationFactor))
+				return false, nil
+			}
 			var er *errRemote
 			if errors.As(err, &er) {
 				// Immediately return the error reported by vmstorage to the caller,
@@ -1752,18 +1767,6 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			continue
 		}
 		snr.finishQueryTracer(result.qt, "")
-		resultsCollected++
-		if resultsCollected > len(sns)-*replicationFactor {
-			// There is no need in waiting for the remaining results,
-			// because the collected results contain all the data according to the given -replicationFactor.
-			// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
-			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
-			//
-			// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
-			snr.finishQueryTracers(fmt.Sprintf("cancel request because %d out of %d nodes already returned response according to -replicationFactor=%d",
-				resultsCollected, len(sns), *replicationFactor))
-			return false, nil
-		}
 	}
 	if len(errsPartial) < *replicationFactor {
 		// Assume that the result is full if the the number of failing vmstorage nodes
