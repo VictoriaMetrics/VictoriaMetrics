@@ -75,7 +75,7 @@ func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 			return 0, err
 		}
 		if y, _ := strconv.Atoi(s); y > maxValidYear || y < minValidYear {
-			return 0, fmt.Errorf("got invalid year %s, must between [%d, %d]", s, minValidYear, maxValidYear)
+			return 0, fmt.Errorf("got invalid partial RFC3339 time: %s, year must between [%d, %d]", s, minValidYear, maxValidYear)
 		}
 		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
