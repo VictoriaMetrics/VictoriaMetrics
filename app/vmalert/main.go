@@ -364,6 +364,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
 			logger.Errorf("cannot parse configuration file: %s", err)
+			m.groupsReloadErr = err
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
@@ -378,8 +379,10 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
 			logger.Errorf("error while reloading rules: %s", err)
+			m.groupsReloadErr = err
 			continue
 		}
+		m.groupsReloadErr = nil
 		templates.Reload()
 		groupsCfg = newGroupsCfg
 		configSuccess.Set(1)

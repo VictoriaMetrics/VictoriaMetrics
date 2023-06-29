@@ -38,7 +38,7 @@ btn-primary
     {% endif %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, originGroups []APIGroup) %}
+{% func ListGroups(r *http.Request, originGroups []APIGroup, groupsError error) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
     {%= tpl.Header(r, navItems, "Groups") %}
         {%code
@@ -75,6 +75,16 @@ btn-primary
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
          <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
          <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
+        {% if groupsError != nil %}
+            <a type="button" class="btn btn-danger" data-bs-toggle="collapse" href="#reload-groups-error">
+                Show Config reload error
+            </a>
+            <div class="collapse mt-2" id="reload-groups-error">
+                <div class="card card-body">
+                    {%s groupsError.Error() %}
+                </div>
+            </div>
+        {% endif %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups  %}
                   <div

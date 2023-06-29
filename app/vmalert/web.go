@@ -83,7 +83,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		WriteListGroups(w, r, rh.groups())
+		WriteListGroups(w, r, rh.groups(), rh.groupsReloadError())
 		return true
 	case "/vmalert/notifiers":
 		WriteListTargets(w, r, notifier.GetTargets())
@@ -94,7 +94,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		WriteListGroups(w, r, rh.groups())
+		WriteListGroups(w, r, rh.groups(), rh.groupsReloadError())
 		return true
 
 	case "/vmalert/api/v1/rules", "/api/v1/rules":
@@ -326,6 +326,10 @@ func (rh *requestHandler) alertByPath(path string) (*APIAlert, error) {
 		return nil, errResponse(err, http.StatusNotFound)
 	}
 	return resp, nil
+}
+
+func (rh *requestHandler) groupsReloadError() error {
+	return rh.m.groupsReloadErr
 }
 
 func uint64FromPath(path string) (uint64, error) {
