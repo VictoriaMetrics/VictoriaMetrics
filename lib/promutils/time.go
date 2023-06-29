@@ -2,9 +2,16 @@ package promutils
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"time"
+)
+
+var (
+	// Time.UnixNano can only store maxInt64, which is 2262
+	maxValidYear, _ = strconv.Atoi(time.Unix(0, int64(math.MaxInt64)).Format("2006"))
+	minValidYear, _ = strconv.Atoi(time.Unix(0, 0).Format("2006"))
 )
 
 // ParseTime parses time s in different formats.
@@ -66,6 +73,9 @@ func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 		t, err := time.Parse("2006", s)
 		if err != nil {
 			return 0, err
+		}
+		if y, _ := strconv.Atoi(s); y > maxValidYear || y < minValidYear {
+			return 0, fmt.Errorf("got invalid year %s, must between [%d, %d]", s, minValidYear, maxValidYear)
 		}
 		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
