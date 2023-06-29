@@ -212,19 +212,22 @@ two operators at the same time.
  By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's possible to use static targets
  or use standard k8s discovery mechanism with `Ingress`. 
   You have to configure blackbox exporter before you can use this feature. The second requirement is `VMAgent` selectors, 
-  it must match your `VMProbe` by label or namespace selector.
+  it must match your `VMProbe` by label or namespace selector. `VMAgent` probeSelector must match `VMProbe` labels.
+ See more details about selectors [here](https://docs.victoriametrics.com/operator/quick-start.html#object-selectors).
 
 ## VMNodeScrape
 
 The `VMNodeScrape` CRD provides discovery mechanism for scraping metrics kubernetes nodes.
 By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's useful for cadvisor scraping,
 node-exporter or other node-based exporters. `VMAgent` nodeScrapeSelector must match `VMNodeScrape` labels.
+ See more details about selectors [here](https://docs.victoriametrics.com/operator/quick-start.html#object-selectors).
 
 ## VMStaticScrape
 
 The `VMStaticScrape` CRD provides mechanism for scraping metrics from static targets, configured by CRD targets.
 By specifying configuration at CRD, operator generates config for `VMAgent` and syncs it. It's useful for external targets management,
 when service-discovery is not available. `VMAgent` staticScrapeSelector must match `VMStaticScrape` labels.
+See more details about selectors [here](https://docs.victoriametrics.com/operator/quick-start.html#object-selectors).
  
 ## VMAuth
 
