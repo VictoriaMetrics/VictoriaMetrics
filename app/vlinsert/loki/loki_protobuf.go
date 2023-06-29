@@ -11,6 +11,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 	"github.com/VictoriaMetrics/metricsql"
@@ -32,6 +33,7 @@ func handleProtobuf(r *http.Request, w http.ResponseWriter) bool {
 		return true
 	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
+	defer logstorage.PutLogRows(lr)
 
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := processProtobufRequest(wcr, processLogMessage)
@@ -68,11 +70,12 @@ func processProtobufRequest(r io.Reader, processLogMessage func(timestamp int64,
 		return 0, fmt.Errorf("cannot parse request body: %s", err)
 	}
 
+	var commonFields []logstorage.Field
 	rowsIngested := 0
 	for stIdx, st := range req.Streams {
 		// st.Labels contains labels for the stream.
 		// Labels are same for all entries in the stream.
-		commonFields, err := parseLogFields(st.Labels)
+		commonFields, err = parseLogFields(st.Labels, commonFields)
 		if err != nil {
 			return rowsIngested, fmt.Errorf("failed to unmarshal labels in stream %d: %q; %s", stIdx, st.Labels, err)
 		}
@@ -88,10 +91,13 @@ func processProtobufRequest(r io.Reader, processLogMessage func(timestamp int64,
 	return rowsIngested, nil
 }
 
-// Parses labels selector from s and returns the corresponding log fields.
+// Parses logs fields s and returns the corresponding log fields.
 // Cannot use searchutils.ParseMetricSelector here because its dependencies
 // bring flags which clashes with logstorage flags.
-func parseLogFields(s string) ([]logstorage.Field, error) {
+//
+// Loki encodes labels in the PromQL labels format.
+// See test data of promtail for examples: https://github.com/grafana/loki/blob/a24ef7b206e0ca63ee74ca6ecb0a09b745cd2258/pkg/push/types_test.go
+func parseLogFields(s string, dst []logstorage.Field) ([]logstorage.Field, error) {
 	expr, err := metricsql.Parse(s)
 	if err != nil {
 		return nil, err
@@ -104,13 +110,13 @@ func parseLogFields(s string) ([]logstorage.Field, error) {
 
 	// Allocate space for labels + msg field.
 	// Msg field is added by caller.
-	lf := make([]logstorage.Field, len(me.LabelFilters)+1)
+	dst = slicesutil.ResizeNoCopyMayOverallocate(dst, len(me.LabelFilters)+1)
 	for i, l := range me.LabelFilters {
-		lf[i].Name = l.Label
-		lf[i].Value = l.Value
+		dst[i].Name = l.Label
+		dst[i].Value = l.Value
 	}
 
-	return lf, nil
+	return dst, nil
 }
 
 func getPushReq() *PushRequest {

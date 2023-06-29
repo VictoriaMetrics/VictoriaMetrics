@@ -6,18 +6,18 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/valyala/fastjson"
+
+	"github.com/VictoriaMetrics/metrics"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
-
-	"github.com/VictoriaMetrics/metrics"
 )
 
 var (
@@ -44,6 +44,7 @@ func handleJSON(r *http.Request, w http.ResponseWriter) bool {
 		return true
 	}
 	lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
+	defer logstorage.PutLogRows(lr)
 
 	processLogMessage := cp.GetProcessLogMessageFunc(lr)
 	n, err := processJSONRequest(reader, processLogMessage)
@@ -71,6 +72,7 @@ func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fie
 		return 0, fmt.Errorf("cannot parse request body: %w", err)
 	}
 
+	var commonFields []logstorage.Field
 	rowsIngested := 0
 	for stIdx, st := range v.GetArray("streams") {
 		// `stream` contains labels for the stream.
@@ -80,15 +82,13 @@ func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fie
 			logger.Warnf("missing streams field from %q", st)
 			logFields = &fastjson.Object{}
 		}
-		commonFields := make([]logstorage.Field, logFields.Len()+1)
+		commonFields = slicesutil.ResizeNoCopyMayOverallocate(commonFields, logFields.Len()+1)
 		i := 0
 		logFields.Visit(func(k []byte, v *fastjson.Value) {
 			sfName := bytesutil.ToUnsafeString(k)
 			sfValue := bytesutil.ToUnsafeString(v.GetStringBytes())
-			commonFields[i] = logstorage.Field{
-				Name:  sfName,
-				Value: sfValue,
-			}
+			commonFields[i].Name = sfName
+			commonFields[i].Value = sfValue
 			i++
 		})
 		msgFieldIdx := logFields.Len()
@@ -101,13 +101,12 @@ func processJSONRequest(r io.Reader, processLogMessage func(timestamp int64, fie
 			}
 
 			tsString := bytesutil.ToUnsafeString(vs[0].GetStringBytes())
-			tsString = strings.Trim(tsString, `"`)
 			ts, err := parseLokiTimestamp(tsString)
 			if err != nil {
 				return rowsIngested, fmt.Errorf("cannot parse timestamp in stream %d line %d: %q: %s", stIdx, idx, vs, err)
 			}
 
-			commonFields[msgFieldIdx].Value = strings.Trim(vs[1].String(), `"`)
+			commonFields[msgFieldIdx].Value = bytesutil.ToUnsafeString(vs[1].GetStringBytes())
 			processLogMessage(ts, commonFields)
 
 			rowsIngested++
@@ -124,7 +123,7 @@ func parseLokiTimestamp(s string) (int64, error) {
 		return 0, fmt.Errorf("cannot parse timestamp in nanoseconds from %q: %w", s, err)
 	}
 	if n > int64(math.MaxInt64) {
-		return 0, fmt.Errorf("too big timestamp in nanoseconds: %d; mustn't exceed %d", n, int64(math.MaxInt64)/1e9)
+		return 0, fmt.Errorf("too big timestamp in nanoseconds: %d; mustn't exceed %d", n, math.MaxInt64)
 	}
 	if n < 0 {
 		return 0, fmt.Errorf("too small timestamp in nanoseconds: %d; must be bigger than %d", n, 0)

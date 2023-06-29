@@ -33,7 +33,8 @@ clients:
 
 By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
 If you need storing logs in other tenant, then It is possible to either use `tenant_id` provided by Loki configuration, or to use `headers` and provide
-`AccountID` and `ProjectID` headers. For example, the following config instructs VictoriaLogs to store logs in the `(AccountID=12, ProjectID=12)` tenant:
+`AccountID` and `ProjectID` headers. Format for `tenant_id` is `AccountID:ProjectID`. 
+For example, the following config instructs VictoriaLogs to store logs in the `(AccountID=12, ProjectID=12)` tenant:
 
 ```yaml
 clients:

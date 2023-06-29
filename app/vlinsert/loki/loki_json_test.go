@@ -8,7 +8,7 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
 )
 
-func TestParse(t *testing.T) {
+func TestProcessJSONRequest(t *testing.T) {
 	type item struct {
 		ts     int64
 		fields []logstorage.Field
