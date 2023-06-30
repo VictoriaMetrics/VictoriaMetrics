@@ -94,6 +94,7 @@ absolute path to all .tpl files in root.
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator
+var userError error
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -364,7 +365,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
 			logger.Errorf("cannot parse configuration file: %s", err)
-			m.groupsReloadErr = err
+			userError = err
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
@@ -379,10 +380,10 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			configReloadErrors.Inc()
 			configSuccess.Set(0)
 			logger.Errorf("error while reloading rules: %s", err)
-			m.groupsReloadErr = err
+			userError = err
 			continue
 		}
-		m.groupsReloadErr = nil
+		userError = nil
 		templates.Reload()
 		groupsCfg = newGroupsCfg
 		configSuccess.Set(1)

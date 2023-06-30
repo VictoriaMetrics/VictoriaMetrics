@@ -26,9 +26,8 @@ type manager struct {
 	wg     sync.WaitGroup
 	labels map[string]string
 
-	groupsMu        sync.RWMutex
-	groups          map[uint64]*Group
-	groupsReloadErr error
+	groupsMu sync.RWMutex
+	groups   map[uint64]*Group
 }
 
 // RuleAPI generates APIRule object from alert by its ID(hash)

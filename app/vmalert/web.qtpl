@@ -11,8 +11,10 @@
 ) %}
 
 
-{% func Welcome(r *http.Request) %}
-    {%= tpl.Header(r, navItems, "vmalert", nil) %}
+{% func Welcome(r *http.Request, userError error) %}
+    {% code userErr := tpl.NewUserError(userError) %}
+    {%= tpl.Header(r, navItems, "vmalert", userErr) %}
+    {%= userErr.RenderContent() %}
     <p>
         API:<br>
         {% for _, p := range apiLinks  %}
@@ -38,9 +40,12 @@ btn-primary
     {% endif %}
 {% endfunc %}
 
-{% func ListGroups(r *http.Request, originGroups []APIGroup, groupsError error) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "Groups", groupsError) %}
+{% func ListGroups(r *http.Request, originGroups []APIGroup, userError error) %}
+    {%code
+        prefix := utils.Prefix(r.URL.Path)
+        userErr := tpl.NewUserError(userError)
+    %}
+    {%= tpl.Header(r, navItems, "Groups", userErr) %}
         {%code
             filter := r.URL.Query().Get("filter")
             rOk := make(map[string]int)
@@ -70,13 +75,7 @@ btn-primary
                 }
             }
         %}
-        {% if groupsError != nil %}
-        <div class="collapse mt-2 mb-2" id="reload-groups-error">
-            <div class="card card-body">
-                {%s groupsError.Error() %}
-            </div>
-        </div>
-        {% endif %}
+         {%= userErr.RenderContent() %}
          <a class="btn {%= buttonActive(filter, "") %}" role="button" onclick="window.location = window.location.pathname">All</a>
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -169,9 +168,13 @@ btn-primary
 {% endfunc %}
 
 
-{% func ListAlerts(r *http.Request, groupAlerts []GroupAlerts) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "Alerts", nil) %}
+{% func ListAlerts(r *http.Request, groupAlerts []GroupAlerts, userError error) %}
+    {%code
+        prefix := utils.Prefix(r.URL.Path)
+        userErr := tpl.NewUserError(userError)
+    %}
+    {%= tpl.Header(r, navItems, "Alerts", userErr) %}
+    {%= userErr.RenderContent() %}
     {% if len(groupAlerts) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -256,8 +259,10 @@ btn-primary
 
 {% endfunc %}
 
-{% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
-    {%= tpl.Header(r, navItems, "Notifiers", nil) %}
+{% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target, userError error) %}
+    {%code userErr := tpl.NewUserError(userError) %}
+    {%= tpl.Header(r, navItems, "Notifiers", userErr) %}
+    {%= userErr.RenderContent() %}
     {% if len(targets) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -312,9 +317,13 @@ btn-primary
 
 {% endfunc %}
 
-{% func Alert(r *http.Request, alert *APIAlert) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "", nil) %}
+{% func Alert(r *http.Request, alert *APIAlert, userError error) %}
+    {%code
+        prefix := utils.Prefix(r.URL.Path)
+        userErr := tpl.NewUserError(userError)
+    %}
+    {%= tpl.Header(r, navItems, "", userErr) %}
+    {%= userErr.RenderContent() %}
     {%code
         var labelKeys []string
         for k := range alert.Labels {
@@ -399,9 +408,13 @@ btn-primary
 {% endfunc %}
 
 
-{% func RuleDetails(r *http.Request, rule APIRule) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "", nil) %}
+{% func RuleDetails(r *http.Request, rule APIRule, userError error) %}
+    {%code
+        prefix := utils.Prefix(r.URL.Path)
+        userErr := tpl.NewUserError(userError)
+    %}
+    {%= tpl.Header(r, navItems, "", userErr) %}
+    {%= userErr.RenderContent() %}
     {%code
         var labelKeys []string
         for k := range rule.Labels {
