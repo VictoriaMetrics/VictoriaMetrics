@@ -32,7 +32,7 @@ all: \
 clean:
 	rm -rf bin/*
 
-publish: docker-scan \
+publish: package-base \
 	publish-victoria-metrics \
 	publish-victoria-logs \
 	publish-vmagent \
