@@ -2,7 +2,9 @@ name: sandbox-release
 on:
   release:
     types: [published]
-  workflow_dispatch: {}
+  push:
+    branches:
+      - update-sandbox-job-fix
 permissions:
   contents: write
 jobs:
