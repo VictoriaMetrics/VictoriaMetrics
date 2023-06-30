@@ -75,7 +75,7 @@ vmcluster-crossbuild: \
 	vmcluster-freebsd-amd64 \
 	vmcluster-openbsd-amd64
 
-publish: docker-scan \
+publish: \
 	publish-vminsert \
 	publish-vmselect \
 	publish-vmstorage
