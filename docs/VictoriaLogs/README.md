@@ -127,7 +127,7 @@ via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#commu
 
 Pass `-help` to VictoriaLogs in order to see the list of supported command-line flags with their description:
 
-```shell
+```
   -cacheExpireDuration duration
     	Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
   -enableTCP6
