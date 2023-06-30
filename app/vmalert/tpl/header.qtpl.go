@@ -27,7 +27,7 @@ var (
 )
 
 //line app/vmalert/tpl/header.qtpl:9
-func StreamHeader(qw422016 *qt422016.Writer, r *http.Request, navItems []NavItem, title string) {
+func StreamHeader(qw422016 *qt422016.Writer, r *http.Request, navItems []NavItem, title string, groupsError error) {
 //line app/vmalert/tpl/header.qtpl:9
 	qw422016.N().S(`
     `)
@@ -114,7 +114,7 @@ func StreamHeader(qw422016 *qt422016.Writer, r *http.Request, navItems []NavItem
 <body>
     `)
 //line app/vmalert/tpl/header.qtpl:73
-	streamprintNavItems(qw422016, r, title, navItems)
+	streamprintNavItems(qw422016, r, title, navItems, groupsError)
 //line app/vmalert/tpl/header.qtpl:73
 	qw422016.N().S(`
     <main class="px-2">
@@ -123,22 +123,22 @@ func StreamHeader(qw422016 *qt422016.Writer, r *http.Request, navItems []NavItem
 }
 
 //line app/vmalert/tpl/header.qtpl:75
-func WriteHeader(qq422016 qtio422016.Writer, r *http.Request, navItems []NavItem, title string) {
+func WriteHeader(qq422016 qtio422016.Writer, r *http.Request, navItems []NavItem, title string, groupsError error) {
 //line app/vmalert/tpl/header.qtpl:75
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line app/vmalert/tpl/header.qtpl:75
-	StreamHeader(qw422016, r, navItems, title)
+	StreamHeader(qw422016, r, navItems, title, groupsError)
 //line app/vmalert/tpl/header.qtpl:75
 	qt422016.ReleaseWriter(qw422016)
 //line app/vmalert/tpl/header.qtpl:75
 }
 
 //line app/vmalert/tpl/header.qtpl:75
-func Header(r *http.Request, navItems []NavItem, title string) string {
+func Header(r *http.Request, navItems []NavItem, title string, groupsError error) string {
 //line app/vmalert/tpl/header.qtpl:75
 	qb422016 := qt422016.AcquireByteBuffer()
 //line app/vmalert/tpl/header.qtpl:75
-	WriteHeader(qb422016, r, navItems, title)
+	WriteHeader(qb422016, r, navItems, title, groupsError)
 //line app/vmalert/tpl/header.qtpl:75
 	qs422016 := string(qb422016.B)
 //line app/vmalert/tpl/header.qtpl:75
@@ -155,7 +155,7 @@ type NavItem struct {
 }
 
 //line app/vmalert/tpl/header.qtpl:85
-func streamprintNavItems(qw422016 *qt422016.Writer, r *http.Request, current string, items []NavItem) {
+func streamprintNavItems(qw422016 *qt422016.Writer, r *http.Request, current string, items []NavItem, groupsError error) {
 //line app/vmalert/tpl/header.qtpl:85
 	qw422016.N().S(`
 `)
@@ -216,33 +216,52 @@ func streamprintNavItems(qw422016 *qt422016.Writer, r *http.Request, current str
 	qw422016.N().S(`
         </ul>
   </div>
+      `)
+//line app/vmalert/tpl/header.qtpl:106
+	if groupsError != nil {
+//line app/vmalert/tpl/header.qtpl:106
+		qw422016.N().S(`
+      <div class="d-flex" data-bs-toggle="tooltip" data-bs-placement="left" title="Click to show config reload error">
+          <a type="button" data-bs-toggle="collapse" href="#reload-groups-error">
+              <span class="text-danger">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-triangle-fill" viewBox="0 0 16 16">
+                      <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+                  </svg>
+              </span>
+          </a>
+      </div>
+      `)
+//line app/vmalert/tpl/header.qtpl:116
+	}
+//line app/vmalert/tpl/header.qtpl:116
+	qw422016.N().S(`
 </nav>
 `)
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
 }
 
-//line app/vmalert/tpl/header.qtpl:107
-func writeprintNavItems(qq422016 qtio422016.Writer, r *http.Request, current string, items []NavItem) {
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
+func writeprintNavItems(qq422016 qtio422016.Writer, r *http.Request, current string, items []NavItem, groupsError error) {
+//line app/vmalert/tpl/header.qtpl:118
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line app/vmalert/tpl/header.qtpl:107
-	streamprintNavItems(qw422016, r, current, items)
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
+	streamprintNavItems(qw422016, r, current, items, groupsError)
+//line app/vmalert/tpl/header.qtpl:118
 	qt422016.ReleaseWriter(qw422016)
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
 }
 
-//line app/vmalert/tpl/header.qtpl:107
-func printNavItems(r *http.Request, current string, items []NavItem) string {
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
+func printNavItems(r *http.Request, current string, items []NavItem, groupsError error) string {
+//line app/vmalert/tpl/header.qtpl:118
 	qb422016 := qt422016.AcquireByteBuffer()
-//line app/vmalert/tpl/header.qtpl:107
-	writeprintNavItems(qb422016, r, current, items)
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
+	writeprintNavItems(qb422016, r, current, items, groupsError)
+//line app/vmalert/tpl/header.qtpl:118
 	qs422016 := string(qb422016.B)
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
 	qt422016.ReleaseByteBuffer(qb422016)
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
 	return qs422016
-//line app/vmalert/tpl/header.qtpl:107
+//line app/vmalert/tpl/header.qtpl:118
 }

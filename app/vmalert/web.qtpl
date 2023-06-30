@@ -12,7 +12,7 @@
 
 
 {% func Welcome(r *http.Request) %}
-    {%= tpl.Header(r, navItems, "vmalert") %}
+    {%= tpl.Header(r, navItems, "vmalert", nil) %}
     <p>
         API:<br>
         {% for _, p := range apiLinks  %}
@@ -40,7 +40,7 @@ btn-primary
 
 {% func ListGroups(r *http.Request, originGroups []APIGroup, groupsError error) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "Groups") %}
+    {%= tpl.Header(r, navItems, "Groups", groupsError) %}
         {%code
             filter := r.URL.Query().Get("filter")
             rOk := make(map[string]int)
@@ -70,21 +70,18 @@ btn-primary
                 }
             }
         %}
+        {% if groupsError != nil %}
+        <div class="collapse mt-2 mb-2" id="reload-groups-error">
+            <div class="card card-body">
+                {%s groupsError.Error() %}
+            </div>
+        </div>
+        {% endif %}
          <a class="btn {%= buttonActive(filter, "") %}" role="button" onclick="window.location = window.location.pathname">All</a>
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
          <a class="btn {%= buttonActive(filter, "unhealthy") %}" role="button" onclick="location.href='?filter=unhealthy'" title="Show only rules with errors">Unhealthy</a>
          <a class="btn {%= buttonActive(filter, "noMatch") %}" role="button" onclick="location.href='?filter=noMatch'" title="Show only rules matching no time series during last evaluation">NoMatch</a>
-        {% if groupsError != nil %}
-            <a type="button" class="btn btn-danger" data-bs-toggle="collapse" href="#reload-groups-error">
-                Show Config reload error
-            </a>
-            <div class="collapse mt-2" id="reload-groups-error">
-                <div class="card card-body">
-                    {%s groupsError.Error() %}
-                </div>
-            </div>
-        {% endif %}
         {%  if len(groups) > 0 %}
             {% for _, g := range groups  %}
                   <div
@@ -174,7 +171,7 @@ btn-primary
 
 {% func ListAlerts(r *http.Request, groupAlerts []GroupAlerts) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "Alerts") %}
+    {%= tpl.Header(r, navItems, "Alerts", nil) %}
     {% if len(groupAlerts) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -260,7 +257,7 @@ btn-primary
 {% endfunc %}
 
 {% func ListTargets(r *http.Request, targets map[notifier.TargetType][]notifier.Target) %}
-    {%= tpl.Header(r, navItems, "Notifiers") %}
+    {%= tpl.Header(r, navItems, "Notifiers", nil) %}
     {% if len(targets) > 0 %}
          <a class="btn btn-primary" role="button" onclick="collapseAll()">Collapse All</a>
          <a class="btn btn-primary" role="button" onclick="expandAll()">Expand All</a>
@@ -317,7 +314,7 @@ btn-primary
 
 {% func Alert(r *http.Request, alert *APIAlert) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "") %}
+    {%= tpl.Header(r, navItems, "", nil) %}
     {%code
         var labelKeys []string
         for k := range alert.Labels {
@@ -404,7 +401,7 @@ btn-primary
 
 {% func RuleDetails(r *http.Request, rule APIRule) %}
     {%code prefix := utils.Prefix(r.URL.Path) %}
-    {%= tpl.Header(r, navItems, "") %}
+    {%= tpl.Header(r, navItems, "", nil) %}
     {%code
         var labelKeys []string
         for k := range rule.Labels {
