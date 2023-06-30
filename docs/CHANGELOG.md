@@ -24,22 +24,40 @@ The following tip changes can be tested by building VictoriaMetrics components f
 
 ## tip
 
-* SECURITY: upgrade Go builder from Go1.20.4 to Go1.20.5. See [the list of issues addressed in Go1.20.5](https://github.com/golang/go/issues?q=milestone%3AGo1.20.5+label%3ACherryPickApproved).
-
 * FEATURE: [vmagent](https://docs.victoriametrics.com/vmagent.html): Adds `enable_http2` on scrape configuration level. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4283). Thanks to @Haleygo for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4295).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add verbose output for docker installations or when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4081).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt backoff retries when import process is cancelled. The change makes vmctl more responsive in case of errors during the import. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
-* FEATURE: vmstorage: suppress "broken pipe" errors for search queries on vmstorage side. See [this commit](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4418/commits/a6a7795b9e1f210d614a2c5f9a3016b97ded4792).
+* FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): update backoff policy on retries to reduce probability of overloading for `source` or `destination` databases. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
+* FEATURE: vmstorage: suppress "broken pipe" and "connection reset by peer" errors for search queries on vmstorage side. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4418/commits/a6a7795b9e1f210d614a2c5f9a3016b97ded4792) and [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4498/commits/830dac177f0f09032165c248943a5da0e10dfe90) commits.
 * FEATURE: [Official Grafana dashboards for VictoriaMetrics](https://grafana.com/orgs/victoriametrics): add panel for tracking rate of syscalls while writing or reading from disk via `process_io_(read|write)_syscalls_total` metrics.
+* FEATURE: accept timestamps in milliseconds at `start`, `end` and `time` query args in [Prometheus querying API](https://docs.victoriametrics.com/#prometheus-querying-api-usage). See [these docs](https://docs.victoriametrics.com/#timestamp-formats) and [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4459).
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): update retry policy for pushing data to `-remoteWrite.url`. By default, vmalert will make multiple retry attempts with exponential delay. The total time spent during retry attempts shouldn't exceed `-remoteWrite.retryMaxTime` (default is 30s). When retry time is exceeded vmalert drops the data dedicated for `-remoteWrite.url`. Before, vmalert dropped data after 5 retry attempts with 1s delay between attempts (not configurable). See `-remoteWrite.retryMinInterval` and `-remoteWrite.retryMaxTime` cmd-line flags.
+* FEATURE: [vmalert](https://docs.victoriametrics.com/vmalert.html): expose `vmalert_remotewrite_send_duration_seconds_total` counter, which can be used for determining high saturation of every connection to remote storage with an alerting query `sum(rate(vmalert_remotewrite_send_duration_seconds_total[5m])) by(job, instance) > 0.9 * max(vmalert_remotewrite_concurrency) by(job, instance)`. This query triggers when a connection is saturated by more than 90%. This usually means that `-remoteWrite.concurrency` command-line flag must be increased in order to increase the number of concurrent writings into remote endpoint. See [this feature request](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4516).
+* FEATURE: [vmauth](https://docs.victoriametrics.com/vmauth.html): expose `vmauth_user_request_duration_seconds` and `vmauth_unauthorized_user_request_duration_seconds` summary metrics for measuring requests latency per user.
+* FEATURE: [vmbackup](https://docs.victoriametrics.com/vmbackup.html): show backup progress percentage in log during backup uploading. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4460).
+* FEATURE: [vmrestore](https://docs.victoriametrics.com/vmrestore.html): show restoring progress percentage in log during backup downloading. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4460).
 
 * BUGFIX: add the following command-line flags, which can be used for limiting Graphite API calls: 
   `--search.maxGraphiteTagKeys` for limiting the number of tag keys returned from Graphite `/tags`, `/tags/autoComplete/*`, `/tags/findSeries` API. 
   `--search.maxGraphiteTagValues` for limiting the number of tag values returned Graphite `/tags/<tag_name>` API. 
   Remove redundant limit from [Prometheus api/v1/series](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4339).
+
+
+
+## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
+
+Released at 2023-06-30
+
+* SECURITY: upgrade Go builder from Go1.20.4 to Go1.20.5. See [the list of issues addressed in Go1.20.5](https://github.com/golang/go/issues?q=milestone%3AGo1.20.5+label%3ACherryPickApproved).
+
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic on vmagent shutdown which could lead to loosing aggregation results which were not flushed to remote yet. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fixed service name detection for [consulagent service discovery](https://docs.victoriametrics.com/sd_configs.html?highlight=consulagent#consulagent_sd_configs) in case of a difference in service name and service id. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4390) for details.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): retry all errors except 4XX status codes while pushing via remote-write to the remote storage. Previously, errors like broken connection could prevent vmalert from retrying the request.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly interrupt retry attempts on vmalert shutdown. Before, vmalert could have waited for all retries to finish for shutdown.
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix an issue with `vmbackupmanager` not being able to restore data from a backup stored in GCS. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4420) for details.
 * BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): Properly creates `parts.json` after migration from versions below `v1.90.0. It must fix errors on start-up after unclean shutdown. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336) for details.
+* BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a memory leak issue associated with chart updates. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4455).
+
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
 
