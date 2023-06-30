@@ -17,6 +17,7 @@ import useDeviceDetect from "../../../../hooks/useDeviceDetect";
 import DateTimeInput from "../../../Main/DatePicker/DateTimeInput/DateTimeInput";
 import useBoolean from "../../../../hooks/useBoolean";
 import useWindowSize from "../../../../hooks/useWindowSize";
+import usePrevious from "../../../../hooks/usePrevious";
 
 export const TimeSelector: FC = () => {
   const { isMobile } = useDeviceDetect();
@@ -31,6 +32,7 @@ export const TimeSelector: FC = () => {
   const { period: { end, start }, relativeTime, timezone, duration } = useTimeState();
   const dispatch = useTimeDispatch();
   const appModeEnable = getAppModeEnable();
+  const prevTimezone = usePrevious(timezone);
 
   const {
     value: openOptions,
@@ -95,8 +97,10 @@ export const TimeSelector: FC = () => {
       defaultDuration: duration,
       defaultEndInput: dateFromSeconds(end),
     });
-    setDuration({ id: value.relativeTimeId, duration: value.duration, until: value.endInput });
-  }, [timezone]);
+    if (prevTimezone && timezone !== prevTimezone) {
+      setDuration({ id: value.relativeTimeId, duration: value.duration, until: value.endInput });
+    }
+  }, [timezone, prevTimezone]);
 
   useClickOutside(wrapperRef, (e) => {
     if (isMobile) return;
