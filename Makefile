@@ -482,12 +482,12 @@ copy-docs:
 	@if [ ${ORDER} -ne 0 ]; then \
 		echo "sort: ${ORDER}" >> ${DST}; \
 		echo "weight: ${ORDER}" >> ${DST}; \
-		echo "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}" >> ${DST}; \
+		echo -e "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}" >> ${DST}; \
 	fi
 
 	echo "title: ${TITLE}" >> ${DST}
 	@if [ ${OLD_URL} ]; then \
-		echo "aliases:\n  - ${OLD_URL}" >> ${DST}; \
+		echo -e "aliases:\n  - ${OLD_URL}" >> ${DST}; \
 	fi
 	echo "---" >> ${DST}
 	cat ${SRC} >> ${DST}
