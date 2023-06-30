@@ -374,6 +374,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			// could have been unsuccessful
 			configSuccess.Set(1)
 			// config didn't change - skip it
+			userError = nil
 			continue
 		}
 		if err := m.update(ctx, newGroupsCfg, false); err != nil {
