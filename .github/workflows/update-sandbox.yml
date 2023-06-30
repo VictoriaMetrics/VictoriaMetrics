@@ -2,6 +2,7 @@ name: sandbox-release
 on:
   release:
     types: [published]
+  workflow_dispatch: {}
 permissions:
   contents: write
 jobs:
@@ -12,7 +13,6 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: VictoriaMetrics/ops
-          ref: master
           token: ${{ secrets.VM_BOT_GH_TOKEN }}
 
       - name: Import GPG key
