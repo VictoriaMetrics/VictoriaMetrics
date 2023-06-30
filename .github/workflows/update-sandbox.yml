@@ -2,9 +2,6 @@ name: sandbox-release
 on:
   release:
     types: [published]
-  push:
-    branches:
-      - update-sandbox-job-fix
 permissions:
   contents: write
 jobs:
