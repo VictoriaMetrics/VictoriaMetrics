@@ -1581,19 +1581,21 @@ See also [how to work with snapshots](#how-to-work-with-snapshots).
 
 ## Retention
 
-Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. The default retention period is one month. The minimum retention period is 24h or 1d.
+Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit 
+character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. 
+For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. 
+The default retention period is one month. The **minimum retention** period is 24h or 1d.
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
-Data partitions outside the configured retention are deleted on the first day of the new month.
-Each partition consists of one or more data parts. Data parts outside the configured retention are eventually deleted during
-[background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
-See more about partition and parts [here](#Storage).
+**Data partitions** outside the configured retention are deleted **on the first day of the new month**.
+Each partition consists of one or more **data parts**. Data parts outside the configured retention 
+are **eventually deleted** during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+The time range covered by data part is **not limited by retention period unit**. One data part can cover hours or days of 
+data. Hence, a data part can be deleted only **when fully outside the configured retention**.
+See more about partitions and parts [here](#Storage).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
-
-Please note, the time range covered by data part is not limited by retention period unit. Hence, data part may contain data
-for multiple days and will be deleted only when fully outside the configured retention.
 
 It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to a lower
 value than before, then data outside the configured period will be eventually deleted.
