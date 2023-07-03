@@ -478,16 +478,18 @@ check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
 copy-docs:
+# The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
+# For details, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4548#issue-1782796419 and https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
 	echo "---" > ${DST}
 	@if [ ${ORDER} -ne 0 ]; then \
 		echo "sort: ${ORDER}" >> ${DST}; \
 		echo "weight: ${ORDER}" >> ${DST}; \
-		echo -e "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}" >> ${DST}; \
+		printf "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}\n" >> ${DST}; \
 	fi
 
 	echo "title: ${TITLE}" >> ${DST}
 	@if [ ${OLD_URL} ]; then \
-		echo -e "aliases:\n  - ${OLD_URL}" >> ${DST}; \
+		printf "aliases:\n  - ${OLD_URL}\n" >> ${DST}; \
 	fi
 	echo "---" >> ${DST}
 	cat ${SRC} >> ${DST}
