@@ -29,7 +29,7 @@ import (
 //   - GetBucketMetricsConfiguration (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketMetricsConfiguration.html)
 //   - ListBucketMetricsConfigurations (https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBucketMetricsConfigurations.html)
 //
-// GetBucketLifecycle has the following special error:
+// PutBucketMetricsConfiguration has the following special error:
 //   - Error code: TooManyConfigurations
 //   - Description: You are attempting to create a new configuration but have
 //     already reached the 1,000-configuration limit.

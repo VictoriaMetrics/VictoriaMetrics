@@ -17,16 +17,18 @@ import (
 // Amazon S3 Bucket Keys for an existing bucket. By default, all buckets have a
 // default encryption configuration that uses server-side encryption with Amazon S3
 // managed keys (SSE-S3). You can optionally configure default encryption for a
-// bucket by using server-side encryption with an Amazon Web Services KMS key
-// (SSE-KMS) or a customer-provided key (SSE-C). If you specify default encryption
-// by using SSE-KMS, you can also configure Amazon S3 Bucket Keys. For information
-// about bucket default encryption, see Amazon S3 bucket default encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
+// bucket by using server-side encryption with Key Management Service (KMS) keys
+// (SSE-KMS), dual-layer server-side encryption with Amazon Web Services KMS keys
+// (DSSE-KMS), or server-side encryption with customer-provided keys (SSE-C). If
+// you specify default encryption by using SSE-KMS, you can also configure Amazon
+// S3 Bucket Keys. For information about bucket default encryption, see Amazon S3
+// bucket default encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-encryption.html)
 // in the Amazon S3 User Guide. For more information about S3 Bucket Keys, see
 // Amazon S3 Bucket Keys (https://docs.aws.amazon.com/AmazonS3/latest/dev/bucket-key.html)
 // in the Amazon S3 User Guide. This action requires Amazon Web Services Signature
 // Version 4. For more information, see Authenticating Requests (Amazon Web
 // Services Signature Version 4) (https://docs.aws.amazon.com/AmazonS3/latest/API/sig-v4-authenticating-requests.html)
-// . To use this operation, you must have permissions to perform the
+// . To use this operation, you must have permission to perform the
 // s3:PutEncryptionConfiguration action. The bucket owner has this permission by
 // default. The bucket owner can grant this permission to others. For more
 // information about permissions, see Permissions Related to Bucket Subresource

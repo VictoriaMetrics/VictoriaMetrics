@@ -41,14 +41,15 @@ import (
 //     about Amazon S3 Object Lock, see Amazon S3 Object Lock Overview (https://docs.aws.amazon.com/AmazonS3/latest/dev/object-lock-overview.html)
 //     in the Amazon S3 User Guide.
 //
-// You have three mutually exclusive options to protect data using server-side
+// You have four mutually exclusive options to protect data using server-side
 // encryption in Amazon S3, depending on how you choose to manage the encryption
 // keys. Specifically, the encryption key options are Amazon S3 managed keys
-// (SSE-S3), Amazon Web Services KMS keys (SSE-KMS), and customer-provided keys
-// (SSE-C). Amazon S3 encrypts data with server-side encryption by using Amazon S3
-// managed keys (SSE-S3) by default. You can optionally tell Amazon S3 to encrypt
-// data at by rest using server-side encryption with other key options. For more
-// information, see Using Server-Side Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
+// (SSE-S3), Amazon Web Services KMS keys (SSE-KMS or DSSE-KMS), and
+// customer-provided keys (SSE-C). Amazon S3 encrypts data with server-side
+// encryption by using Amazon S3 managed keys (SSE-S3) by default. You can
+// optionally tell Amazon S3 to encrypt data at rest by using server-side
+// encryption with other key options. For more information, see Using Server-Side
+// Encryption (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingServerSideEncryption.html)
 // . When adding a new object, you can use headers to grant ACL-based permissions
 // to individual Amazon Web Services accounts or to predefined groups defined by
 // Amazon S3. These permissions are then added to the ACL on the object. By
@@ -112,7 +113,7 @@ type PutObjectInput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
@@ -131,10 +132,10 @@ type PutObjectInput struct {
 	Body io.Reader
 
 	// Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption
-	// with server-side encryption using AWS KMS (SSE-KMS). Setting this header to true
-	// causes Amazon S3 to use an S3 Bucket Key for object encryption with SSE-KMS.
-	// Specifying this header with a PUT action doesn’t affect bucket-level settings
-	// for S3 Bucket Key.
+	// with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).
+	// Setting this header to true causes Amazon S3 to use an S3 Bucket Key for object
+	// encryption with SSE-KMS. Specifying this header with a PUT action doesn’t affect
+	// bucket-level settings for S3 Bucket Key.
 	BucketKeyEnabled bool
 
 	// Can be used to specify caching behavior along the request/reply chain. For more
@@ -286,17 +287,19 @@ type PutObjectInput struct {
 	// GetObject or CopyObject operations on this object.
 	SSEKMSEncryptionContext *string
 
-	// If x-amz-server-side-encryption has a valid value of aws:kms , this header
-	// specifies the ID of the Amazon Web Services Key Management Service (Amazon Web
-	// Services KMS) symmetric encryption customer managed key that was used for the
-	// object. If you specify x-amz-server-side-encryption:aws:kms , but do not provide
+	// If x-amz-server-side-encryption has a valid value of aws:kms or aws:kms:dsse ,
+	// this header specifies the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object. If you specify
+	// x-amz-server-side-encryption:aws:kms or
+	// x-amz-server-side-encryption:aws:kms:dsse , but do not provide
 	// x-amz-server-side-encryption-aws-kms-key-id , Amazon S3 uses the Amazon Web
-	// Services managed key to protect the data. If the KMS key does not exist in the
-	// same account issuing the command, you must use the full ARN and not just the ID.
+	// Services managed key ( aws/s3 ) to protect the data. If the KMS key does not
+	// exist in the same account that's issuing the command, you must use the full ARN
+	// and not just the ID.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms ).
+	// (for example, AES256 , aws:kms , aws:kms:dsse ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// By default, Amazon S3 uses the STANDARD Storage Class to store newly created
@@ -331,7 +334,7 @@ type PutObjectInput struct {
 type PutObjectOutput struct {
 
 	// Indicates whether the uploaded object uses an S3 Bucket Key for server-side
-	// encryption with Amazon Web Services KMS (SSE-KMS).
+	// encryption with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled bool
 
 	// The base64-encoded, 32-bit CRC32 checksum of the object. This will only be
@@ -393,14 +396,13 @@ type PutObjectOutput struct {
 	// for future GetObject or CopyObject operations on this object.
 	SSEKMSEncryptionContext *string
 
-	// If x-amz-server-side-encryption is has a valid value of aws:kms , this header
-	// specifies the ID of the Amazon Web Services Key Management Service (Amazon Web
-	// Services KMS) symmetric encryption customer managed key that was used for the
-	// object.
+	// If x-amz-server-side-encryption has a valid value of aws:kms or aws:kms:dsse ,
+	// this header specifies the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms ).
+	// (for example, AES256 , aws:kms , aws:kms:dsse ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Version of the object.

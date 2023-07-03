@@ -59,9 +59,12 @@ import (
 //     request (see SelectObjectContentRequest - ScanRange (https://docs.aws.amazon.com/AmazonS3/latest/API/API_SelectObjectContent.html#AmazonS3-SelectObjectContent-request-ScanRange)
 //     in the request parameters), you cannot specify the range of bytes of an object
 //     to return.
-//   - GLACIER, DEEP_ARCHIVE and REDUCED_REDUNDANCY storage classes: You cannot
-//     specify the GLACIER, DEEP_ARCHIVE, or REDUCED_REDUNDANCY storage classes. For
-//     more information, about storage classes see Storage Classes (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html#storage-class-intro)
+//   - The GLACIER , DEEP_ARCHIVE , and REDUCED_REDUNDANCY storage classes, or the
+//     ARCHIVE_ACCESS and DEEP_ARCHIVE_ACCESS access tiers of the INTELLIGENT_TIERING
+//     storage class: You cannot query objects in the GLACIER , DEEP_ARCHIVE , or
+//     REDUCED_REDUNDANCY storage classes, nor objects in the ARCHIVE_ACCESS or
+//     DEEP_ARCHIVE_ACCESS access tiers of the INTELLIGENT_TIERING storage class. For
+//     more information about storage classes, see Using Amazon S3 storage classes (https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html)
 //     in the Amazon S3 User Guide.
 //
 // Special Errors For a list of special errors for this operation, see List of
