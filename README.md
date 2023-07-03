@@ -1584,6 +1584,7 @@ Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big
 Data partitions outside the configured retention are deleted on the first day of the new month.
 Each partition consists of one or more data parts. Data parts outside the configured retention are eventually deleted during
 [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+See more about partition and parts [here](#Storage).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
