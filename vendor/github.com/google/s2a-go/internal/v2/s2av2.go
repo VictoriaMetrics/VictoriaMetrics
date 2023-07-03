@@ -24,8 +24,8 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
-	"flag"
 	"net"
+	"os"
 	"time"
 
 	"github.com/golang/protobuf/proto"
@@ -33,6 +33,7 @@ import (
 	"github.com/google/s2a-go/internal/handshaker/service"
 	"github.com/google/s2a-go/internal/tokenmanager"
 	"github.com/google/s2a-go/internal/v2/tlsconfigstore"
+	"github.com/google/s2a-go/stream"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/grpclog"
@@ -43,9 +44,11 @@ import (
 
 const (
 	s2aSecurityProtocol = "tls"
+	defaultS2ATimeout   = 3 * time.Second
 )
 
-var S2ATimeout = flag.Duration("s2a_timeout", 3*time.Second, "Timeout enforced on the connection to the S2A service for handshake.")
+// An environment variable, which sets the timeout enforced on the connection to the S2A service for handshake.
+const s2aTimeoutEnv = "S2A_TIMEOUT"
 
 type s2av2TransportCreds struct {
 	info         *credentials.ProtocolInfo
@@ -56,14 +59,16 @@ type s2av2TransportCreds struct {
 	// localIdentity should only be used by the client.
 	localIdentity *commonpbv1.Identity
 	// localIdentities should only be used by the server.
-	localIdentities         []*commonpbv1.Identity
-	verificationMode        s2av2pb.ValidatePeerCertificateChainReq_VerificationMode
-	fallbackClientHandshake fallback.ClientHandshake
+	localIdentities           []*commonpbv1.Identity
+	verificationMode          s2av2pb.ValidatePeerCertificateChainReq_VerificationMode
+	fallbackClientHandshake   fallback.ClientHandshake
+	getS2AStream              func(ctx context.Context, s2av2Address string) (stream.S2AStream, error)
+	serverAuthorizationPolicy []byte
 }
 
 // NewClientCreds returns a client-side transport credentials object that uses
 // the S2Av2 to establish a secure connection with a server.
-func NewClientCreds(s2av2Address string, localIdentity *commonpbv1.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, fallbackClientHandshakeFunc fallback.ClientHandshake) (credentials.TransportCredentials, error) {
+func NewClientCreds(s2av2Address string, localIdentity *commonpbv1.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, fallbackClientHandshakeFunc fallback.ClientHandshake, getS2AStream func(ctx context.Context, s2av2Address string) (stream.S2AStream, error), serverAuthorizationPolicy []byte) (credentials.TransportCredentials, error) {
 	// Create an AccessTokenManager instance to use to authenticate to S2Av2.
 	accessTokenManager, err := tokenmanager.NewSingleTokenAccessTokenManager()
 
@@ -71,12 +76,14 @@ func NewClientCreds(s2av2Address string, localIdentity *commonpbv1.Identity, ver
 		info: &credentials.ProtocolInfo{
 			SecurityProtocol: s2aSecurityProtocol,
 		},
-		isClient:                true,
-		serverName:              "",
-		s2av2Address:            s2av2Address,
-		localIdentity:           localIdentity,
-		verificationMode:        verificationMode,
-		fallbackClientHandshake: fallbackClientHandshakeFunc,
+		isClient:                  true,
+		serverName:                "",
+		s2av2Address:              s2av2Address,
+		localIdentity:             localIdentity,
+		verificationMode:          verificationMode,
+		fallbackClientHandshake:   fallbackClientHandshakeFunc,
+		getS2AStream:              getS2AStream,
+		serverAuthorizationPolicy: serverAuthorizationPolicy,
 	}
 	if err != nil {
 		creds.tokenManager = nil
@@ -91,7 +98,7 @@ func NewClientCreds(s2av2Address string, localIdentity *commonpbv1.Identity, ver
 
 // NewServerCreds returns a server-side transport credentials object that uses
 // the S2Av2 to establish a secure connection with a client.
-func NewServerCreds(s2av2Address string, localIdentities []*commonpbv1.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode) (credentials.TransportCredentials, error) {
+func NewServerCreds(s2av2Address string, localIdentities []*commonpbv1.Identity, verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode, getS2AStream func(ctx context.Context, s2av2Address string) (stream.S2AStream, error)) (credentials.TransportCredentials, error) {
 	// Create an AccessTokenManager instance to use to authenticate to S2Av2.
 	accessTokenManager, err := tokenmanager.NewSingleTokenAccessTokenManager()
 	creds := &s2av2TransportCreds{
@@ -102,6 +109,7 @@ func NewServerCreds(s2av2Address string, localIdentities []*commonpbv1.Identity,
 		s2av2Address:     s2av2Address,
 		localIdentities:  localIdentities,
 		verificationMode: verificationMode,
+		getS2AStream:     getS2AStream,
 	}
 	if err != nil {
 		creds.tokenManager = nil
@@ -121,9 +129,9 @@ func (c *s2av2TransportCreds) ClientHandshake(ctx context.Context, serverAuthori
 	}
 	// Remove the port from serverAuthority.
 	serverName := removeServerNamePort(serverAuthority)
-	timeoutCtx, cancel := context.WithTimeout(ctx, *S2ATimeout)
+	timeoutCtx, cancel := context.WithTimeout(ctx, GetS2ATimeout())
 	defer cancel()
-	cstream, err := createStream(timeoutCtx, c.s2av2Address)
+	s2AStream, err := createStream(timeoutCtx, c.s2av2Address, c.getS2AStream)
 	if err != nil {
 		grpclog.Infof("Failed to connect to S2Av2: %v", err)
 		if c.fallbackClientHandshake != nil {
@@ -131,7 +139,7 @@ func (c *s2av2TransportCreds) ClientHandshake(ctx context.Context, serverAuthori
 		}
 		return nil, nil, err
 	}
-	defer cstream.CloseSend()
+	defer s2AStream.CloseSend()
 	if grpclog.V(1) {
 		grpclog.Infof("Connected to S2Av2.")
 	}
@@ -145,7 +153,7 @@ func (c *s2av2TransportCreds) ClientHandshake(ctx context.Context, serverAuthori
 	}
 
 	if c.serverName == "" {
-		config, err = tlsconfigstore.GetTLSConfigurationForClient(serverName, cstream, tokenManager, c.localIdentity, c.verificationMode)
+		config, err = tlsconfigstore.GetTLSConfigurationForClient(serverName, s2AStream, tokenManager, c.localIdentity, c.verificationMode, c.serverAuthorizationPolicy)
 		if err != nil {
 			grpclog.Info("Failed to get client TLS config from S2Av2: %v", err)
 			if c.fallbackClientHandshake != nil {
@@ -154,7 +162,7 @@ func (c *s2av2TransportCreds) ClientHandshake(ctx context.Context, serverAuthori
 			return nil, nil, err
 		}
 	} else {
-		config, err = tlsconfigstore.GetTLSConfigurationForClient(c.serverName, cstream, tokenManager, c.localIdentity, c.verificationMode)
+		config, err = tlsconfigstore.GetTLSConfigurationForClient(c.serverName, s2AStream, tokenManager, c.localIdentity, c.verificationMode, c.serverAuthorizationPolicy)
 		if err != nil {
 			grpclog.Info("Failed to get client TLS config from S2Av2: %v", err)
 			if c.fallbackClientHandshake != nil {
@@ -186,14 +194,14 @@ func (c *s2av2TransportCreds) ServerHandshake(rawConn net.Conn) (net.Conn, crede
 	if c.isClient {
 		return nil, nil, errors.New("server handshake called using client transport credentials")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), *S2ATimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), GetS2ATimeout())
 	defer cancel()
-	cstream, err := createStream(ctx, c.s2av2Address)
+	s2AStream, err := createStream(ctx, c.s2av2Address, c.getS2AStream)
 	if err != nil {
 		grpclog.Infof("Failed to connect to S2Av2: %v", err)
 		return nil, nil, err
 	}
-	defer cstream.CloseSend()
+	defer s2AStream.CloseSend()
 	if grpclog.V(1) {
 		grpclog.Infof("Connected to S2Av2.")
 	}
@@ -205,7 +213,7 @@ func (c *s2av2TransportCreds) ServerHandshake(rawConn net.Conn) (net.Conn, crede
 		tokenManager = *c.tokenManager
 	}
 
-	config, err := tlsconfigstore.GetTLSConfigurationForServer(cstream, tokenManager, c.localIdentities, c.verificationMode)
+	config, err := tlsconfigstore.GetTLSConfigurationForServer(s2AStream, tokenManager, c.localIdentities, c.verificationMode)
 	if err != nil {
 		grpclog.Infof("Failed to get server TLS config from S2Av2: %v", err)
 		return nil, nil, err
@@ -272,14 +280,15 @@ func NewClientTLSConfig(
 	s2av2Address string,
 	tokenManager tokenmanager.AccessTokenManager,
 	verificationMode s2av2pb.ValidatePeerCertificateChainReq_VerificationMode,
-	serverName string) (*tls.Config, error) {
-	cstream, err := createStream(ctx, s2av2Address)
+	serverName string,
+	serverAuthorizationPolicy []byte) (*tls.Config, error) {
+	s2AStream, err := createStream(ctx, s2av2Address, nil)
 	if err != nil {
 		grpclog.Infof("Failed to connect to S2Av2: %v", err)
 		return nil, err
 	}
 
-	return tlsconfigstore.GetTLSConfigurationForClient(removeServerNamePort(serverName), cstream, tokenManager, nil, verificationMode)
+	return tlsconfigstore.GetTLSConfigurationForClient(removeServerNamePort(serverName), s2AStream, tokenManager, nil, verificationMode, serverAuthorizationPolicy)
 }
 
 // OverrideServerName sets the ServerName in the s2av2TransportCreds protocol
@@ -300,12 +309,46 @@ func removeServerNamePort(serverName string) string {
 	return name
 }
 
-func createStream(ctx context.Context, s2av2Address string) (s2av2pb.S2AService_SetUpSessionClient, error) {
+type s2AGrpcStream struct {
+	stream s2av2pb.S2AService_SetUpSessionClient
+}
+
+func (x s2AGrpcStream) Send(m *s2av2pb.SessionReq) error {
+	return x.stream.Send(m)
+}
+
+func (x s2AGrpcStream) Recv() (*s2av2pb.SessionResp, error) {
+	return x.stream.Recv()
+}
+
+func (x s2AGrpcStream) CloseSend() error {
+	return x.stream.CloseSend()
+}
+
+func createStream(ctx context.Context, s2av2Address string, getS2AStream func(ctx context.Context, s2av2Address string) (stream.S2AStream, error)) (stream.S2AStream, error) {
+	if getS2AStream != nil {
+		return getS2AStream(ctx, s2av2Address)
+	}
 	// TODO(rmehta19): Consider whether to close the connection to S2Av2.
 	conn, err := service.Dial(s2av2Address)
 	if err != nil {
 		return nil, err
 	}
 	client := s2av2pb.NewS2AServiceClient(conn)
-	return client.SetUpSession(ctx, []grpc.CallOption{}...)
+	gRPCStream, err := client.SetUpSession(ctx, []grpc.CallOption{}...)
+	if err != nil {
+		return nil, err
+	}
+	return &s2AGrpcStream{
+		stream: gRPCStream,
+	}, nil
+}
+
+// GetS2ATimeout returns the timeout enforced on the connection to the S2A service for handshake.
+func GetS2ATimeout() time.Duration {
+	timeout, err := time.ParseDuration(os.Getenv(s2aTimeoutEnv))
+	if err != nil {
+		return defaultS2ATimeout
+	}
+	return timeout
 }
