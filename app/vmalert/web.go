@@ -61,10 +61,10 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "path %q supports only GET method", r.URL.Path)
 			return false
 		}
-		WriteWelcome(w, r, userError)
+		WriteWelcome(w, r)
 		return true
 	case "/vmalert/alerts":
-		WriteListAlerts(w, r, rh.groupAlerts(), userError)
+		WriteListAlerts(w, r, rh.groupAlerts())
 		return true
 	case "/vmalert/alert":
 		alert, err := rh.getAlert(r)
@@ -72,7 +72,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		WriteAlert(w, r, alert, userError)
+		WriteAlert(w, r, alert)
 		return true
 	case "/vmalert/rule":
 		rule, err := rh.getRule(r)
@@ -80,13 +80,13 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-		WriteRuleDetails(w, r, rule, userError)
+		WriteRuleDetails(w, r, rule)
 		return true
 	case "/vmalert/groups":
-		WriteListGroups(w, r, rh.groups(), userError)
+		WriteListGroups(w, r, rh.groups())
 		return true
 	case "/vmalert/notifiers":
-		WriteListTargets(w, r, notifier.GetTargets(), userError)
+		WriteListTargets(w, r, notifier.GetTargets())
 		return true
 
 	// special cases for Grafana requests,
@@ -94,7 +94,7 @@ func (rh *requestHandler) handler(w http.ResponseWriter, r *http.Request) bool {
 	case "/rules":
 		// Grafana makes an extra request to `/rules`
 		// handler in addition to `/api/v1/rules` calls in alerts UI,
-		WriteListGroups(w, r, rh.groups(), userError)
+		WriteListGroups(w, r, rh.groups())
 		return true
 
 	case "/vmalert/api/v1/rules", "/api/v1/rules":

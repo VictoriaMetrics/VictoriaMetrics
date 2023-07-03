@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/VictoriaMetrics/metrics"
@@ -94,7 +95,6 @@ absolute path to all .tpl files in root.
 )
 
 var alertURLGeneratorFn notifier.AlertURLGenerator
-var userError error
 
 func main() {
 	// Write flags and help message to stdout, since it is easier to grep or pipe.
@@ -327,8 +327,7 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 	}
 
 	// init reload metrics with positive values to improve alerting conditions
-	configSuccess.Set(1)
-	configTimestamp.Set(fasttime.UnixTimestamp())
+	setConfigSuccess(fasttime.UnixTimestamp())
 	parseFn := config.Parse
 	for {
 		select {
@@ -348,24 +347,20 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			parseFn = config.ParseSilent
 		}
 		if err := notifier.Reload(); err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("failed to reload notifier config: %s", err)
 			continue
 		}
 		err := templates.Load(*ruleTemplatesPath, false)
 		if err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("failed to load new templates: %s", err)
 			continue
 		}
 		newGroupsCfg, err := parseFn(*rulePath, validateTplFn, *validateExpressions)
 		if err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("cannot parse configuration file: %s", err)
-			userError = err
 			continue
 		}
 		if configsEqual(newGroupsCfg, groupsCfg) {
@@ -373,22 +368,18 @@ func configReload(ctx context.Context, m *manager, groupsCfg []config.Group, sig
 			// set success to 1 since previous reload
 			// could have been unsuccessful
 			configSuccess.Set(1)
+			setConfigError(nil)
 			// config didn't change - skip it
-			userError = nil
 			continue
 		}
 		if err := m.update(ctx, newGroupsCfg, false); err != nil {
-			configReloadErrors.Inc()
-			configSuccess.Set(0)
+			setConfigError(err)
 			logger.Errorf("error while reloading rules: %s", err)
-			userError = err
 			continue
 		}
-		userError = nil
 		templates.Reload()
 		groupsCfg = newGroupsCfg
-		configSuccess.Set(1)
-		configTimestamp.Set(fasttime.UnixTimestamp())
+		setConfigSuccess(fasttime.UnixTimestamp())
 		logger.Infof("Rules reloaded successfully from %q", *rulePath)
 	}
 }
@@ -403,4 +394,41 @@ func configsEqual(a, b []config.Group) bool {
 		}
 	}
 	return true
+}
+
+// setConfigSuccess sets config reload status to 1.
+func setConfigSuccess(at uint64) {
+	configSuccess.Set(1)
+	configTimestamp.Set(fasttime.UnixTimestamp())
+	// reset the error if any
+	setConfigErr(nil)
+}
+
+// setConfigError sets config reload status to 0.
+func setConfigError(err error) {
+	configReloadErrors.Inc()
+	configSuccess.Set(0)
+	setConfigErr(err)
+}
+
+var (
+	configErrMu sync.RWMutex
+	// configErr represent the error message from the last
+	// config reload.
+	configErr error
+)
+
+func setConfigErr(err error) {
+	configErrMu.Lock()
+	configErr = err
+	configErrMu.Unlock()
+}
+
+func configError() error {
+	configErrMu.RLock()
+	defer configErrMu.RUnlock()
+	if configErr != nil {
+		return configErr
+	}
+	return nil
 }
