@@ -42,7 +42,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
   `--search.maxGraphiteTagValues` for limiting the number of tag values returned Graphite `/tags/<tag_name>` API. 
   Remove redundant limit from [Prometheus api/v1/series](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-usage). See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4339).
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix application routing issues and problems with manual URL changes. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4408).
-
+* BUGFIX: add validation for invalid [partial RFC3339 timestamp formats](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats) in query and export APIs.
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
 
