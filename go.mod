@@ -32,9 +32,9 @@ require (
 	github.com/valyala/gozstd v1.20.1
 	github.com/valyala/histogram v1.2.0
 	github.com/valyala/quicktemplate v1.7.0
-	golang.org/x/net v0.10.0
+	golang.org/x/net v0.11.0
 	golang.org/x/oauth2 v0.8.0
-	golang.org/x/sys v0.8.0
+	golang.org/x/sys v0.9.0
 	google.golang.org/api v0.123.0
 	gopkg.in/yaml.v2 v2.4.0
 )
@@ -109,10 +109,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.15.1 // indirect
 	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/goleak v1.2.1 // indirect
-	golang.org/x/crypto v0.9.0 // indirect
+	golang.org/x/crypto v0.10.0 // indirect
 	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc // indirect
 	golang.org/x/sync v0.2.0 // indirect
-	golang.org/x/text v0.9.0 // indirect
+	golang.org/x/text v0.10.0 // indirect
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/xerrors v0.0.0-20220907171357-04be3eba64a2 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
