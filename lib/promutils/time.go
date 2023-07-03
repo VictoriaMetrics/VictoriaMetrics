@@ -2,16 +2,9 @@ package promutils
 
 import (
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 	"time"
-)
-
-var (
-	// Time.UnixNano can only store maxInt64, which is 2262
-	maxValidYear, _ = strconv.Atoi(time.Unix(0, int64(math.MaxInt64)).Format("2006"))
-	minValidYear, _ = strconv.Atoi(time.Unix(0, 0).Format("2006"))
 )
 
 // ParseTime parses time s in different formats.
@@ -23,6 +16,12 @@ func ParseTime(s string) (float64, error) {
 	currentTimestamp := float64(time.Now().UnixNano()) / 1e9
 	return ParseTimeAt(s, currentTimestamp)
 }
+
+const (
+	// time.UnixNano can only store maxInt64, which is 2262
+	maxValidYear = 2262
+	minValidYear = 1970
+)
 
 // ParseTimeAt parses time s in different formats, assuming the given currentTimestamp.
 //
@@ -74,8 +73,9 @@ func ParseTimeAt(s string, currentTimestamp float64) (float64, error) {
 		if err != nil {
 			return 0, err
 		}
-		if y, _ := strconv.Atoi(s); y > maxValidYear || y < minValidYear {
-			return 0, fmt.Errorf("got invalid partial RFC3339 time: %s, year must between [%d, %d]", s, minValidYear, maxValidYear)
+		y := t.Year()
+		if y > maxValidYear || y < minValidYear {
+			return 0, fmt.Errorf("cannot parse year from %q: year must in range [%d, %d]", s, minValidYear, maxValidYear)
 		}
 		return tzOffset + float64(t.UnixNano())/1e9, nil
 	}
