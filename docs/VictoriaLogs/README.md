@@ -122,3 +122,127 @@ log management systems and comparing resource usage + query performance between 
 
 Please share benchmark results and ideas on how to improve benchmarks / VictoriaLogs
 via [VictoriaMetrics community channels](https://docs.victoriametrics.com/#community-and-contributions).
+
+## List of command-line flags
+
+Pass `-help` to VictoriaLogs in order to see the list of supported command-line flags with their description:
+
+```
+  -cacheExpireDuration duration
+    	Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
+  -enableTCP6
+    	Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
+  -envflag.enable
+    	Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
+  -envflag.prefix string
+    	Prefix for environment variables if -envflag.enable is set
+  -flagsAuthKey string
+    	Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -fs.disableMmap
+    	Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+  -futureRetention value
+    	Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; see https://docs.victoriametrics.com/VictoriaLogs/#retention
+    	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 2d)
+  -gogc int
+    	GOGC to use. See https://tip.golang.org/doc/gc-guide (default 100)
+  -http.connTimeout duration
+    	Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
+  -http.disableResponseCompression
+    	Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
+  -http.idleConnTimeout duration
+    	Timeout for incoming idle http connections (default 1m0s)
+  -http.maxGracefulShutdownDuration duration
+    	The maximum duration for a graceful shutdown of the HTTP server. A highly loaded server may require increased value for a graceful shutdown (default 7s)
+  -http.pathPrefix string
+    	An optional prefix to add to all the paths handled by http server. For example, if '-http.pathPrefix=/foo/bar' is set, then all the http requests will be handled on '/foo/bar/*' paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus
+  -http.shutdownDelay duration
+    	Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
+  -httpAuth.password string
+    	Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+  -httpAuth.username string
+    	Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+  -httpListenAddr string
+    	TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":9428")
+  -httpListenAddr.useProxyProtocol
+    	Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+  -inmemoryDataFlushInterval duration
+    	The interval for guaranteed saving of in-memory data to disk. The saved data survives unclean shutdown such as OOM crash, hardware reset, SIGKILL, etc. Bigger intervals may help increasing lifetime of flash storage with limited write cycles (e.g. Raspberry PI). Smaller intervals increase disk IO load. Minimum supported value is 1s (default 5s)
+  -insert.maxLineSizeBytes size
+    	The maximum size of a single line, which can be read by /insert/* handlers
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 262144)
+  -insert.maxQueueDuration duration
+    	The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+  -internStringCacheExpireDuration duration
+    	The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+    	Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
+  -internStringMaxLen int
+    	The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
+  -logIngestedRows
+    	Whether to log all the ingested log entries; this can be useful for debugging of data ingestion; see https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/ ; see also -logNewStreams
+  -logNewStreams
+    	Whether to log creation of new streams; this can be useful for debugging of high cardinality issues with log streams; see https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields ; see also -logIngestedRows
+  -loggerDisableTimestamps
+    	Whether to disable writing timestamps in logs
+  -loggerErrorsPerSecondLimit int
+    	Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, the remaining errors are suppressed. Zero values disable the rate limit
+  -loggerFormat string
+    	Format for logs. Possible values: default, json (default "default")
+  -loggerJSONFields string
+    	Allows renaming fields in JSON formatted logs. Example: "ts:timestamp,msg:message" renames "ts" to "timestamp" and "msg" to "message". Supported fields: ts, level, caller, msg
+  -loggerLevel string
+    	Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default "INFO")
+  -loggerOutput string
+    	Output for the logs. Supported values: stderr, stdout (default "stderr")
+  -loggerTimezone string
+    	Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
+  -loggerWarnsPerSecondLimit int
+    	Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
+  -maxConcurrentInserts int
+    	The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 12)
+  -memory.allowedBytes size
+    	Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
+  -memory.allowedPercent float
+    	Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low a value may increase cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache which will result in higher disk IO usage (default 60)
+  -metricsAuthKey string
+    	Auth key for /metrics endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -pprofAuthKey string
+    	Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
+  -prevCacheRemovalPercent float
+    	Items in the previous caches are removed when the percent of requests it serves becomes lower than this value. Higher values reduce memory usage at the cost of higher CPU usage. See also -cacheExpireDuration (default 0.1)
+  -pushmetrics.extraLabel array
+    	Optional labels to add to metrics pushed to -pushmetrics.url . For example, -pushmetrics.extraLabel='instance="foo"' adds instance="foo" label to all the metrics pushed to -pushmetrics.url
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -pushmetrics.interval duration
+    	Interval for pushing metrics to -pushmetrics.url (default 10s)
+  -pushmetrics.url array
+    	Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -retentionPeriod value
+    	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/VictoriaLogs/#retention
+    	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
+  -search.maxConcurrentRequests int
+    	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 6)
+  -search.maxQueryDuration duration
+    	The maximum duration for query execution (default 30s)
+  -search.maxQueueDuration duration
+    	The maximum time the search request waits for execution when -search.maxConcurrentRequests limit is reached; see also -search.maxQueryDuration (default 10s)
+  -select.maxSortBufferSize size
+    	Query results from /select/logsql/query are automatically sorted by _time if their summary size doesn't exceed this value; otherwise query results are streamed in the response without sorting; too big value for this flag may result in high memory usage, since the sorting is performed in memory
+    	Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 1048576)
+  -storageDataPath string
+    	Path to directory with the VictoriaLogs data; see https://docs.victoriametrics.com/VictoriaLogs/#storage (default "victoria-logs-data")
+  -tls
+    	Whether to enable TLS for incoming HTTP requests at -httpListenAddr (aka https). -tlsCertFile and -tlsKeyFile must be set if -tls is set
+  -tlsCertFile string
+    	Path to file with TLS certificate if -tls is set. Prefer ECDSA certs instead of RSA certs as RSA certs are slower. The provided certificate file is automatically re-read every second, so it can be dynamically updated
+  -tlsCipherSuites array
+    	Optional list of TLS cipher suites for incoming requests over HTTPS if -tls is set. See the list of supported cipher suites at https://pkg.go.dev/crypto/tls#pkg-constants
+    	Supports an array of values separated by comma or specified via multiple flags.
+  -tlsKeyFile string
+    	Path to file with TLS key if -tls is set. The provided key file is automatically re-read every second, so it can be dynamically updated
+  -tlsMinVersion string
+    	Optional minimum TLS version to use for incoming requests over HTTPS if -tls is set. Supported values: TLS10, TLS11, TLS12, TLS13
+  -version
+```
