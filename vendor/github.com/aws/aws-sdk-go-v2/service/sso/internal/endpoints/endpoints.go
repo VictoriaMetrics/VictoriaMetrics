@@ -90,6 +90,7 @@ var partitionRegexp = struct {
 	AwsIso   *regexp.Regexp
 	AwsIsoB  *regexp.Regexp
 	AwsIsoE  *regexp.Regexp
+	AwsIsoF  *regexp.Regexp
 	AwsUsGov *regexp.Regexp
 }{
 
@@ -98,6 +99,7 @@ var partitionRegexp = struct {
 	AwsIso:   regexp.MustCompile("^us\\-iso\\-\\w+\\-\\d+$"),
 	AwsIsoB:  regexp.MustCompile("^us\\-isob\\-\\w+\\-\\d+$"),
 	AwsIsoE:  regexp.MustCompile("^eu\\-isoe\\-\\w+\\-\\d+$"),
+	AwsIsoF:  regexp.MustCompile("^us\\-isof\\-\\w+\\-\\d+$"),
 	AwsUsGov: regexp.MustCompile("^us\\-gov\\-\\w+\\-\\d+$"),
 }
 
@@ -411,6 +413,27 @@ var defaultPartitions = endpoints.Partitions{
 			},
 		},
 		RegionRegex:    partitionRegexp.AwsIsoE,
+		IsRegionalized: true,
+	},
+	{
+		ID: "aws-iso-f",
+		Defaults: map[endpoints.DefaultKey]endpoints.Endpoint{
+			{
+				Variant: endpoints.FIPSVariant,
+			}: {
+				Hostname:          "portal.sso-fips.{region}.csp.hci.ic.gov",
+				Protocols:         []string{"https"},
+				SignatureVersions: []string{"v4"},
+			},
+			{
+				Variant: 0,
+			}: {
+				Hostname:          "portal.sso.{region}.csp.hci.ic.gov",
+				Protocols:         []string{"https"},
+				SignatureVersions: []string{"v4"},
+			},
+		},
+		RegionRegex:    partitionRegexp.AwsIsoF,
 		IsRegionalized: true,
 	},
 	{
