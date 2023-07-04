@@ -409,7 +409,11 @@ vet:
 	go vet ./lib/...
 	go vet ./app/...
 
-check-all: fmt vet golangci-lint govulncheck
+goimports:
+	goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w ./lib
+	goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w ./app
+
+check-all: fmt goimports vet golangci-lint govulncheck
 
 test:
 	go test ./lib/... ./app/...
