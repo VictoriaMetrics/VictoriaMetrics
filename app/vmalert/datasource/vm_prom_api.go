@@ -168,7 +168,7 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
 		timestamp = timestamp.Truncate(s.evaluationInterval)
 	}
-	q.Set("time", fmt.Sprintf("%s", timestamp.Format(time.RFC3339)))
+	q.Set("time", timestamp.Format(time.RFC3339))
 	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
