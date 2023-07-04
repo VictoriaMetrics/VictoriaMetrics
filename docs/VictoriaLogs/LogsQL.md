@@ -371,26 +371,27 @@ See also:
 
 Is you need to search for log messages with the specific phrase inside them, then just wrap the phrase in quotes.
 The phrase can contain any chars, including whitespace, punctuation, parens, etc. They are taken into account during the search.
-For example, the following query matches [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field) with `cannot open file` phrase inside them:
+For example, the following query matches [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field)
+with `ssh: login fail` phrase inside them:
 
 ```logsql
-"cannot open file"
+"ssh: login fail"
 ```
 
 This query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
 
-- `ERROR: cannot open file /foo/bar/baz`
-- `cannot open file: permission denied`
+- `ERROR: ssh: login fail for user "foobar"`
+- `ssh: login fail!`
 
 This query doesn't match the following log messages:
 
-- `cannot  open  file`, since the number of whitespace chars between words doesn't match the number of whitespace chars in the search phrase.
-  Use `seq("cannot", "open", "file")` query instead. See [these docs](#sequence-filter) for details.
-- `open file: cannot do this`, since the message doesn't contain the full phrase requested in the query. If you need matching a message
-  with all the [words](#word) listed in the query, then use `cannot AND open AND file` query. See [these docs](#logical-filter) for details.
-- `cannot open files`, since the message ends with `files` [word](#word) instead of `file` word. Use `"cannot open file"*` query for this case.
+- `ssh login fail`, since the message misses `:` char just after the `ssh`.
+  Use `seq("ssh", "login", "fail")` query if log messages with the sequence of these words must be found. See [these docs](#sequence-filter) for details.
+- `login fail: ssh error`, since the message doesn't contain the full phrase requested in the query. If you need matching a message
+  with all the [words](#word) listed in the query, then use `ssh AND login AND fail` query. See [these docs](#logical-filter) for details.
+- `ssh: login failed`, since the message ends with `failed` [word](#word) instead of `fail` word. Use `"ssh: login fail"*` query for this case.
   See [these docs](#prefix-filter) for details.
-- `Cannot open file: failure`, since the `Cannot` word starts with capital letter. Use `i("cannot open file")` for this case.
+- `SSH: login fail`, since the `SSH` word is in capital letters. Use `i("ssh: login fail")` for case-insensitive search.
   See [these docs](#case-insensitive-filter) for details.
 
 By default the given phrase is searched in the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
@@ -755,37 +756,45 @@ See also:
 ### Regexp filter
 
 LogsQL supports regular expression filter with [re2 syntax](https://github.com/google/re2/wiki/Syntax) via `re(...)` expression.
-For example, the following query returns all the log messages containing `error` or `warn` susbstrings:
+For example, the following query returns all the log messages containing `err` or `warn` susbstrings:
 
 ```logsql
-re("error|warn")
+re("err|warn")
 ```
 
-The query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field):
+The query matches the following [log messages](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field), which contain either `err` or `warn` substrings:
 
 - `error: cannot read data`
-- `A warning has been raised`
+- `2 warnings have been raised`
+- `data trasferring finished`
+
+The query doesn't match the following log messages:
+
+- `ERROR: cannot open file`, since the `ERROR` word is in uppercase letters. Use `re("(?i)(err|warn)")` query for case-insensitive regexp search.
+  See [these docs](https://github.com/google/re2/wiki/Syntax) for details. See also [case-insenstive filter docs](#case-insensitive-filter).
+- `it is warmer than usual`, since it doesn't contain neither `err` nor `warn` substrings.
 
 By default the `re()` filter is applied to the [`_msg` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field).
 Specify the needed [field name](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) in front of the filter
-in order to apply it to the given field. For example, the following query matches `event.original` field containing either `error` or `warn` substrings:
+in order to apply it to the given field. For example, the following query matches `event.original` field containing either `err` or `warn` substrings:
 
 ```logsql
-event.original:re("error|warn")
+event.original:re("err|warn")
 ```
 
 If the field name contains special chars, which may clash with the query syntax, then it may be put into quotes in the query.
-For example, the following query matches `event:original` field containing either `error` or `warn` substrings:
+For example, the following query matches `event:original` field containing either `err` or `warn` substrings:
 
 ```logsql
-"event:original":re("error|warn")
+"event:original":re("err|warn")
 ```
 
 Performance tips:
 
 - Prefer combining simple [word filter](#word-filter) with [logical filter](#logical-filter) instead of using regexp filter.
   For example, the `re("error|warning")` query can be substituted with `error OR warning` query, which usually works much faster.
-  See also [multi-exact filter](#multi-exact-filter).
+  Note that the `re("error|warning")` matches `errors` as well as `warnings` [words](#word), while `error OR warning` matches
+  only the specified [words](#word). See also [multi-exact filter](#multi-exact-filter).
 - Prefer moving the regexp filter to the end of the [logical filter](#logical-filter), so lightweighter filters are executed first.
 - Prefer using `exact_prefix("some prefix")` instead of `re("^some prefix")`, since the [exact_prefix()](#exact-prefix-filter) works much faster than the `re()` filter.
 - See [other performance tips](#performance-tips).
