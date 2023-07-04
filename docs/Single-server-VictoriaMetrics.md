@@ -1600,7 +1600,7 @@ Each partition consists of one or more **data parts**. Data parts outside the co
 are **eventually deleted** during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
 The time range covered by data part is **not limited by retention period unit**. One data part can cover hours or days of 
 data. Hence, a data part can be deleted only **when fully outside the configured retention**.
-See more about partitions and parts [here](#Storage).
+See more about partitions and parts [here](#storage).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
