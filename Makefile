@@ -409,7 +409,7 @@ vet:
 	go vet ./lib/...
 	go vet ./app/...
 
-goimports:
+goimports: install-goimports
 	goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w ./lib
 	goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w ./app
 
@@ -477,6 +477,9 @@ install-govulncheck:
 
 install-wwhrd:
 	which wwhrd || go install github.com/frapposelli/wwhrd@latest
+
+install-goimports:
+	which goimports || go install golang.org/x/tools/cmd/goimports@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
