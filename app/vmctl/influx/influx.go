@@ -153,6 +153,10 @@ func (c *Client) Explore() ([]*Series, error) {
 		return nil, fmt.Errorf("failed to get field keys: %s", err)
 	}
 
+	if len(mFields) < 1 {
+		return nil, fmt.Errorf("found no numeric fields for import in database %q", c.database)
+	}
+
 	series, err := c.getSeries()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get series: %s", err)
