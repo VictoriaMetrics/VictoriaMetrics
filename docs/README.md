@@ -121,6 +121,7 @@ Case studies:
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
 * [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
 * [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
