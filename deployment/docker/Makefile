@@ -2,10 +2,10 @@
 
 DOCKER_NAMESPACE ?= victoriametrics
 
-ROOT_IMAGE ?= alpine:3.18.0
+ROOT_IMAGE ?= alpine:3.18.2
 
-# Use alpine:3.17.3 instead of 3.18.0 for CERTS_IMAGE
-# because alpine:3.18.0 is broken for cross-platform builds
+# Use alpine:3.17.3 instead of 3.18.2 for CERTS_IMAGE
+# because alpine:3.18.2 is broken for cross-platform builds
 # TODO: sync it with ROOT_IMAGE when it will be fixed in the new alpine releases
 CERTS_IMAGE := alpine:3.17.3
 
