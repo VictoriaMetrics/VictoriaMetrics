@@ -163,7 +163,7 @@ func (ctx *streamAggrCtx) push(mrs []storage.MetricRow) {
 		ts.Labels = labels
 		ts.Samples = samples
 
-		sas.Push(tss)
+		sas.Push(tss, nil)
 	}
 }
 

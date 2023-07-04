@@ -183,7 +183,7 @@ func TestAggregatorsSuccess(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
-		a.Push(tssInput)
+		a.Push(tssInput, nil)
 		a.MustStop()
 
 		// Verify the tssOutput contains the expected metrics
@@ -703,7 +703,7 @@ func TestAggregatorsWithDedupInterval(t *testing.T) {
 
 		// Push the inputMetrics to Aggregators
 		tssInput := mustParsePromMetrics(inputMetrics)
-		a.Push(tssInput)
+		a.Push(tssInput, nil)
 		if a != nil {
 			for _, aggr := range a.as {
 				aggr.dedupFlush()

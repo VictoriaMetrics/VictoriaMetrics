@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
@@ -18,7 +20,6 @@ import (
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promrelabel"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
-	"gopkg.in/yaml.v2"
 )
 
 var supportedOutputs = []string{
@@ -190,12 +191,12 @@ func (a *Aggregators) Equal(b *Aggregators) bool {
 }
 
 // Push pushes tss to a.
-func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries) {
+func (a *Aggregators) Push(tss []prompbmarshal.TimeSeries, matched func(id int)) {
 	if a == nil {
 		return
 	}
 	for _, aggr := range a.as {
-		aggr.Push(tss)
+		aggr.Push(tss, matched)
 	}
 }
 
@@ -433,7 +434,7 @@ func (a *aggregator) dedupFlush() {
 		skipAggrSuffix: true,
 	}
 	a.dedupAggr.appendSeriesForFlush(ctx)
-	a.push(ctx.tss)
+	a.push(ctx.tss, nil)
 }
 
 func (a *aggregator) flush() {
@@ -482,9 +483,9 @@ func (a *aggregator) MustStop() {
 }
 
 // Push pushes tss to a.
-func (a *aggregator) Push(tss []prompbmarshal.TimeSeries) {
+func (a *aggregator) Push(tss []prompbmarshal.TimeSeries, matched func(id int)) {
 	if a.dedupAggr == nil {
-		a.push(tss)
+		a.push(tss, matched)
 		return
 	}
 
@@ -493,7 +494,13 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries) {
 	pushSample := a.dedupAggr.pushSample
 	inputKey := ""
 	bb := bbPool.Get()
-	for _, ts := range tss {
+	for idx, ts := range tss {
+		if !a.match.Match(ts.Labels) {
+			continue
+		}
+		if matched != nil {
+			matched(idx)
+		}
 		bb.B = marshalLabelsFast(bb.B[:0], ts.Labels)
 		outputKey := bytesutil.InternBytes(bb.B)
 		for _, sample := range ts.Samples {
@@ -503,15 +510,17 @@ func (a *aggregator) Push(tss []prompbmarshal.TimeSeries) {
 	bbPool.Put(bb)
 }
 
-func (a *aggregator) push(tss []prompbmarshal.TimeSeries) {
+func (a *aggregator) push(tss []prompbmarshal.TimeSeries, tracker func(id int)) {
 	labels := promutils.GetLabels()
 	tmpLabels := promutils.GetLabels()
 	bb := bbPool.Get()
-	for _, ts := range tss {
+	for idx, ts := range tss {
 		if !a.match.Match(ts.Labels) {
 			continue
 		}
-
+		if tracker != nil {
+			tracker(idx)
+		}
 		labels.Labels = append(labels.Labels[:0], ts.Labels...)
 		labels.Labels = a.inputRelabeling.Apply(labels.Labels, 0)
 		if len(labels.Labels) == 0 {
@@ -770,6 +779,33 @@ func sortAndRemoveDuplicates(a []string) []string {
 	for _, v := range a[1:] {
 		if v != dst[len(dst)-1] {
 			dst = append(dst, v)
+		}
+	}
+	return dst
+}
+
+// TssUsageTracker tracks used series for streaming aggregation.
+type TssUsageTracker struct {
+	usedSeries map[int]struct{}
+}
+
+// NewTssUsageTracker returns new TssUsageTracker.
+func NewTssUsageTracker(totalSeries int) *TssUsageTracker {
+	return &TssUsageTracker{usedSeries: make(map[int]struct{}, totalSeries)}
+}
+
+// Matched marks series with id as used.
+// Not safe for concurrent use. The caller must
+// ensure that there are no concurrent calls to Matched.
+func (tut *TssUsageTracker) Matched(id int) {
+	tut.usedSeries[id] = struct{}{}
+}
+
+// GetUnmatched returns unused series from tss.
+func (tut *TssUsageTracker) GetUnmatched(tss, dst []prompbmarshal.TimeSeries) []prompbmarshal.TimeSeries {
+	for k := range tss {
+		if _, ok := tut.usedSeries[k]; !ok {
+			dst = append(dst, tss[k])
 		}
 	}
 	return dst

@@ -620,7 +620,7 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 		// from affecting time series for other remoteWrite.url configs.
 		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/467
 		// and https://github.com/VictoriaMetrics/VictoriaMetrics/issues/599
-		v = tssRelabelPool.Get().(*[]prompbmarshal.TimeSeries)
+		v = tssPool.Get().(*[]prompbmarshal.TimeSeries)
 		tss = append(*v, tss...)
 		rowsCountBeforeRelabel := getRowsCount(tss)
 		tss = rctx.applyRelabeling(tss, nil, pcs)
@@ -630,20 +630,42 @@ func (rwctx *remoteWriteCtx) Push(tss []prompbmarshal.TimeSeries) {
 	rowsCount := getRowsCount(tss)
 	rwctx.rowsPushedAfterRelabel.Add(rowsCount)
 
-	// Apply stream aggregation if any
+	releaseTss := func() {
+		// Return back relabeling contexts to the pool
+		if rctx != nil {
+			*v = prompbmarshal.ResetTimeSeries(tss)
+			tssPool.Put(v)
+			putRelabelCtx(rctx)
+		}
+	}
+	defer releaseTss()
+
+	// Load stream aggregagation config
 	sas := rwctx.sas.Load()
-	sas.Push(tss)
+
+	// Fast path, no need to track used series
 	if sas == nil || rwctx.streamAggrKeepInput {
-		// Push samples to the remote storage
+		// Apply stream aggregation to the input samples
+		// it's safe to call sas.Push with sas == nil
+		sas.Push(tss, nil)
+
+		// Push all samples to the remote storage
 		rwctx.pushInternal(tss)
+
+		return
 	}
 
-	// Return back relabeling contexts to the pool
-	if rctx != nil {
-		*v = prompbmarshal.ResetTimeSeries(tss)
-		tssRelabelPool.Put(v)
-		putRelabelCtx(rctx)
-	}
+	// Track series which were used for stream aggregation.
+	ut := streamaggr.NewTssUsageTracker(len(tss))
+	sas.Push(tss, ut.Matched)
+
+	unmatchedSeries := tssPool.Get().(*[]prompbmarshal.TimeSeries)
+	// Push only unmatched series to the remote storage
+	*unmatchedSeries = ut.GetUnmatched(tss, *unmatchedSeries)
+	rwctx.pushInternal(*unmatchedSeries)
+
+	*unmatchedSeries = prompbmarshal.ResetTimeSeries(*unmatchedSeries)
+	tssPool.Put(unmatchedSeries)
 }
 
 func (rwctx *remoteWriteCtx) pushInternal(tss []prompbmarshal.TimeSeries) {
@@ -682,7 +704,7 @@ func (rwctx *remoteWriteCtx) reinitStreamAggr() {
 	metrics.GetOrCreateCounter(fmt.Sprintf(`vmagent_streamaggr_config_reload_success_timestamp_seconds{path=%q}`, sasFile)).Set(fasttime.UnixTimestamp())
 }
 
-var tssRelabelPool = &sync.Pool{
+var tssPool = &sync.Pool{
 	New: func() interface{} {
 		a := []prompbmarshal.TimeSeries{}
 		return &a
