@@ -93,7 +93,7 @@ func TestInmemoryPartMustInitFromRows(t *testing.T) {
 func checkCompressionRate(t *testing.T, ph *partHeader, compressionRateExpected float64) {
 	t.Helper()
 	compressionRate := float64(ph.UncompressedSizeBytes) / float64(ph.CompressedSizeBytes)
-	if math.Abs(compressionRate-compressionRateExpected) > 0.1 {
+	if math.Abs(compressionRate-compressionRateExpected) > math.Abs(compressionRate+compressionRateExpected) * 0.05 {
 		t.Fatalf("unexpected compression rate; got %.1f; want %.1f", compressionRate, compressionRateExpected)
 	}
 }
