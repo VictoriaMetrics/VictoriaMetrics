@@ -620,7 +620,7 @@ Additional information:
 
 ## /internal/resetRollupResultCache
 
-**Reset the query cache, which could contain incomplete data cached during the [backfilling](https://docs.victoriametrics.com/#backfilling)**
+**Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](https://docs.victoriametrics.com/#backfilling) procedure.**
 
 Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
