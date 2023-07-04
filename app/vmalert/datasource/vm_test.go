@@ -50,9 +50,6 @@ func TestVMInstantQuery(t *testing.T) {
 		if timeParam == "" {
 			t.Errorf("expected 'time' in query param, got nil instead")
 		}
-		if _, err := strconv.ParseInt(timeParam, 10, 64); err != nil {
-			t.Errorf("failed to parse 'time' query param: %s", err)
-		}
 		switch c {
 		case 0:
 			w.WriteHeader(500)
@@ -193,7 +190,6 @@ func TestVMInstantQuery(t *testing.T) {
 		},
 	}
 	metricsEqual(t, res.Data, exp)
-
 }
 
 func TestVMInstantQueryWithRetry(t *testing.T) {
@@ -455,8 +451,8 @@ func TestRequestParams(t *testing.T) {
 			false,
 			&VMStorage{},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -495,8 +491,8 @@ func TestRequestParams(t *testing.T) {
 				lookBack: time.Minute,
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&time=%d", query, timestamp.Add(-time.Minute).Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "time": {timestamp.Add(-time.Minute).Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -508,8 +504,8 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 15 * time.Second
 				tt := timestamp.Truncate(evalInterval)
-				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -523,8 +519,8 @@ func TestRequestParams(t *testing.T) {
 				evalInterval := 15 * time.Second
 				tt := timestamp.Add(-time.Minute)
 				tt = tt.Truncate(evalInterval)
-				exp := fmt.Sprintf("query=%s&step=%v&time=%d", query, evalInterval, tt.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "step": {evalInterval.String()}, "time": {tt.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -534,8 +530,8 @@ func TestRequestParams(t *testing.T) {
 				queryStep: time.Minute,
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&step=%ds&time=%d", query, int(time.Minute.Seconds()), timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(time.Minute.Seconds()))}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -547,8 +543,8 @@ func TestRequestParams(t *testing.T) {
 			func(t *testing.T, r *http.Request) {
 				evalInterval := 3 * time.Hour
 				tt := timestamp.Truncate(evalInterval)
-				exp := fmt.Sprintf("query=%s&step=%ds&time=%d", query, int(evalInterval.Seconds()), tt.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(evalInterval.Seconds()))}, "time": {tt.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -558,8 +554,8 @@ func TestRequestParams(t *testing.T) {
 				extraParams: url.Values{"round_digits": {"10"}},
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&round_digits=10&time=%d", query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "round_digits": {"10"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -584,8 +580,8 @@ func TestRequestParams(t *testing.T) {
 				QueryParams: url.Values{"round_digits": {"2"}},
 			}),
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("query=%s&round_digits=2&time=%d", query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{"query": {query}, "round_digits": {"2"}, "time": {timestamp.Format(time.RFC3339)}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -627,7 +623,7 @@ func TestRequestParams(t *testing.T) {
 }
 
 func TestHeaders(t *testing.T) {
-	var testCases = []struct {
+	testCases := []struct {
 		name    string
 		vmFn    func() *VMStorage
 		checkFn func(t *testing.T, r *http.Request)
@@ -692,7 +688,8 @@ func TestHeaders(t *testing.T) {
 					authCfg: cfg,
 					extraHeaders: []keyValue{
 						{key: "Authorization", value: "Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=="},
-					}}
+					},
+				}
 			},
 			checkFn: func(t *testing.T, r *http.Request) {
 				u, p, _ := r.BasicAuth()
