@@ -684,9 +684,11 @@ func (pts *packedTimeseries) unpackUpdateAddrs(tbfs []*tmpBlocksFile, tr storage
 	}
 
 	// Spread work among worker channels.
-	for i, upws := range upwss {
-		idx := i % len(workChs)
+	i := 0
+	for _, upws := range upwss {
 		for _, upw := range upws {
+			idx := i % len(workChs)
+			i++
 			workChs[idx] <- upw
 		}
 	}
