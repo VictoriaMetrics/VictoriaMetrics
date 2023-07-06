@@ -1,0 +1,1 @@
+{"metric":{"__name__":"promhttp_metric_handler_requests_total","job":"node_exporter-6","up":"true"},"values":[131],"timestamps":[1676050756785]}
