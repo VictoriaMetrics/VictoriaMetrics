@@ -409,9 +409,15 @@ vet:
 	go vet ./lib/...
 	go vet ./app/...
 
+# Set variables by using target specific variables to avoid running git diff for each make execution
+# See: https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
+goimports: GO_CHANGED_FILES+=$(shell git diff --cached --name-only --diff-filter=ACMR -- 'lib/*.go')
+goimports: GO_CHANGED_FILES+=$(shell git diff --cached --name-only --diff-filter=ACMR -- 'app/*.go')
 goimports: install-goimports
-	goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w ./lib
-	goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w ./app
+	# GO_CHANGED_FILES will contain a single space if there are no changed files
+	if [ "$(GO_CHANGED_FILES)" != " " ]; then \
+		goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w $(GO_CHANGED_FILES); \
+	fi
 
 check-all: fmt goimports vet golangci-lint govulncheck
 
