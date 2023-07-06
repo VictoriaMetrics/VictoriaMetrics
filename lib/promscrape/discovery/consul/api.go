@@ -80,7 +80,7 @@ func newAPIConfig(sdc *SDConfig, baseDir string) (*apiConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse proxy auth config: %w", err)
 	}
-	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, sdc.HTTPClientConfig)
+	client, err := discoveryutils.NewClient(apiServer, ac, sdc.ProxyURL, proxyAC, &sdc.HTTPClientConfig)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP client for %q: %w", apiServer, err)
 	}
