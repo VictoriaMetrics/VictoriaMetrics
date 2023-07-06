@@ -1644,29 +1644,44 @@ func (tbfw *tmpBlocksFileWrapper) RegisterAndWriteBlock(mb *storage.MetricBlock,
 	// Do not intern mb.MetricName, since it leads to increased memory usage.
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3692
 	metricName := mb.MetricName
+	var generationID int64
+
+	mn := storage.GetMetricName()
+	defer storage.PutMetricName(mn)
+	if err := mn.Unmarshal(metricName); err != nil {
+		return fmt.Errorf("cannot unmarshal metricName: %q %w", metricName, err)
+	}
+	generationIDTag := mn.RemoveTagWithResult(`__generation_id`)
+	if generationIDTag != nil {
+		generationID, err = strconv.ParseInt(string(generationIDTag.Value), 10, 64)
+		if err != nil {
+			return fmt.Errorf("cannot parse __generation_id label value: %s : %w", generationIDTag.Value, err)
+		}
+		metricName = mn.Marshal(metricName[:0])
+	}
+	// process data blocks with metric updates
+	// TODO profile it, probably it's better to replace mutex with per worker lock-free struct
+	if generationID > 0 {
+		tbfw.mu.Lock()
+		defer tbfw.mu.Unlock()
+		ups := tbfw.seriesUpdatesByMetricName[string(metricName)]
+		if ups == nil {
+			// fast path
+			tbfw.seriesUpdatesByMetricName[string(metricName)] = map[int64][]tmpBlockAddr{generationID: {addr}}
+			return nil
+		}
+		// todo memory optimization for metricNames, use interning?
+		addrs := tbfw.seriesUpdatesByMetricName[string(metricName)][generationID]
+		addrs = append(addrs, addr)
+		tbfw.seriesUpdatesByMetricName[string(metricName)][generationID] = addrs
+		return nil
+	}
 	m := tbfw.ms[workerID]
 	addrs := m[string(metricName)]
 	if addrs == nil {
 		addrs = newBlockAddrs()
 	}
 	addrs.addrs = append(addrs.addrs, addr)
-	// process data blocks with metric updates
-	// TODO profile it, probably it's better to replace mutex with per worker lock-free struct
-	if mb.GenerationID > 0 {
-		tbfw.mu.Lock()
-		defer tbfw.mu.Unlock()
-		ups := tbfw.seriesUpdatesByMetricName[string(metricName)]
-		if ups == nil {
-			// fast path
-			tbfw.seriesUpdatesByMetricName[string(metricName)] = map[int64][]tmpBlockAddr{mb.GenerationID: {addr}}
-			return nil
-		}
-		// todo memory optimization for metricNames, use interning?
-		addrs := tbfw.seriesUpdatesByMetricName[string(metricName)][mb.GenerationID]
-		addrs = append(addrs, addr)
-		tbfw.seriesUpdatesByMetricName[string(metricName)][mb.GenerationID] = addrs
-		return nil
-	}
 	if len(addrs.addrs) == 1 {
 		// An optimization for big number of time series with long names: store only a single copy of metricNameStr
 		// in both tbfw.orderedMetricNamess and tbfw.ms.
@@ -1735,11 +1750,6 @@ func ExportBlocks(qt *querytracer.Tracer, sq *storage.SearchQuery, deadline sear
 			return fmt.Errorf("cannot unmarshal metricName: %w", err)
 		}
 
-		// add generation id label
-		// it should help user migrate data between instance
-		if mb.GenerationID > 0 {
-			mn.AddTag("__generation_id", strconv.FormatInt(mb.GenerationID, 10))
-		}
 		if err := f(mn, &mb.Block, tr, workerID); err != nil {
 			return err
 		}
@@ -2333,7 +2343,7 @@ func (sn *storageNode) processSearchQuery(qt *querytracer.Tracer, requestData []
 		}
 		return nil
 	}
-	return sn.execOnConnWithPossibleRetry(qt, "search_v8", f, deadline)
+	return sn.execOnConnWithPossibleRetry(qt, "search_v7", f, deadline)
 }
 
 func (sn *storageNode) execOnConnWithPossibleRetry(qt *querytracer.Tracer, funcName string, f func(bc *handshake.BufferedConn) error, deadline searchutils.Deadline) error {
