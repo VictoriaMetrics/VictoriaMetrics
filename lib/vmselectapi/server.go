@@ -253,17 +253,7 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 	}
 	for {
 		if err := s.processRequest(ctx); err != nil {
-			if err == io.EOF {
-				// Remote client gracefully closed the connection.
-				return nil
-			}
-			if errors.Is(err, net.ErrClosed) ||
-				strings.Contains(err.Error(), "broken pipe") ||
-				strings.Contains(err.Error(), "connection reset by peer") {
-				// The connection has been interrupted abruptly.
-				// It could happen due to unexpected network glitch or because connection was
-				// interrupted by remote client. In both cases, remote client will notice
-				// connection breach and handle it on its own. No need in mirroring the error here.
+			if isExpectedError(err) {
 				return nil
 			}
 			if errors.Is(err, storage.ErrDeadlineExceeded) {
@@ -275,6 +265,25 @@ func (s *Server) processConn(bc *handshake.BufferedConn) error {
 			return fmt.Errorf("cannot flush compressed buffers: %w", err)
 		}
 	}
+}
+
+func isExpectedError(err error) bool {
+	if err == io.EOF {
+		// Remote client gracefully closed the connection.
+		return true
+	}
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	errStr := err.Error()
+	if strings.Contains(errStr, "broken pipe") || strings.Contains(errStr, "connection reset by peer") {
+		// The connection has been interrupted abruptly.
+		// It could happen due to unexpected network glitch or because connection was
+		// interrupted by remote client. In both cases, remote client will notice
+		// connection breach and handle it on its own. No need in mirroring the error here.
+		return true
+	}
+	return false
 }
 
 type vmselectRequestCtx struct {
