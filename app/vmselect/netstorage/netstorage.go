@@ -485,8 +485,10 @@ func (pts *packedTimeseries) unpackTo(dst []*sortBlock, tbfs []*tmpBlocksFile, t
 			samples += len(upw.sb.Timestamps)
 			if *maxSamplesPerSeries > 0 && samples > *maxSamplesPerSeries {
 				putSortBlock(upw.sb)
-				err = fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
-					"or reduce time range for the query", *maxSamplesPerSeries)
+				err = &limitExceededErr{
+					err: fmt.Errorf("cannot process more than %d samples per series; either increase -search.maxSamplesPerSeries "+
+						"or reduce time range for the query", *maxSamplesPerSeries),
+				}
 				break
 			}
 			dst = append(dst, upw.sb)
@@ -1532,9 +1534,11 @@ func ProcessSearchQuery(qt *querytracer.Tracer, denyPartialResponse bool, sq *st
 		blocksRead.Add(workerID, 1)
 		n := samples.Add(workerID, uint64(mb.Block.RowsCount()))
 		if *maxSamplesPerQuery > 0 && n > maxSamplesPerWorker && samples.GetTotal() > uint64(*maxSamplesPerQuery) {
-			return &limitExceededErr{err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
-				"to increase the -search.maxSamplesPerQuery; to reduce time range for the query; "+
-				"to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery)}
+			return &limitExceededErr{
+				err: fmt.Errorf("cannot select more than -search.maxSamplesPerQuery=%d samples; possible solutions: "+
+					"to increase the -search.maxSamplesPerQuery; to reduce time range for the query; "+
+					"to use more specific label filters in order to select lower number of series", *maxSamplesPerQuery),
+			}
 		}
 		if err := tbfw.RegisterAndWriteBlock(mb, workerID); err != nil {
 			return fmt.Errorf("cannot write MetricBlock to temporary blocks file: %w", err)
