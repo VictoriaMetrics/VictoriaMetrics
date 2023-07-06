@@ -55,7 +55,7 @@ Released at 2023-06-30
 
 * SECURITY: upgrade Go builder from Go1.20.4 to Go1.20.5. See [the list of issues addressed in Go1.20.5](https://github.com/golang/go/issues?q=milestone%3AGo1.20.5+label%3ACherryPickApproved).
 
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix panic on vmagent shutdown which could lead to loosing aggregation results which were not flushed to remote yet. See [this](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix possible panic at shutdown when [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) is enabled. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4407) for details.
 * BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fixed service name detection for [consulagent service discovery](https://docs.victoriametrics.com/sd_configs.html?highlight=consulagent#consulagent_sd_configs) in case of a difference in service name and service id. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4390) for details.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): retry all errors except 4XX status codes while pushing via remote-write to the remote storage. Previously, errors like broken connection could prevent vmalert from retrying the request.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly interrupt retry attempts on vmalert shutdown. Before, vmalert could have waited for all retries to finish for shutdown.
