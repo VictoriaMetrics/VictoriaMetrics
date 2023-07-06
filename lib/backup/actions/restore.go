@@ -22,7 +22,6 @@ import (
 // It works improperly on mutable files.
 type Restore struct {
 	// Concurrency is the number of concurrent workers to run during restore.
-	// Concurrency=1 is used by default.
 	Concurrency int
 
 	// Src is the source containing backed up data.

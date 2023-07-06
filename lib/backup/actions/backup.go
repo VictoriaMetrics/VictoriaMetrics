@@ -28,7 +28,6 @@ var (
 // made via `/snapshot/create`. It works improperly on mutable files.
 type Backup struct {
 	// Concurrency is the number of concurrent workers during the backup.
-	// Concurrency=1 by default.
 	Concurrency int
 
 	// Src is backup source
