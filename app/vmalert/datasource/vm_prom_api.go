@@ -14,7 +14,7 @@ var (
 		"to the configured -datasource.url and -remoteRead.url")
 	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param to the issued instant queries. "+
 		"This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. "+
-		"It is not recommended to enable this flag if you use vmalert to query VictoriaMetrics.")
+		"It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.")
 )
 
 type promResponse struct {
