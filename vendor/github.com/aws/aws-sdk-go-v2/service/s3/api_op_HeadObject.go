@@ -10,7 +10,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	s3cust "github.com/aws/aws-sdk-go-v2/service/s3/internal/customizations"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	smithy "github.com/aws/smithy-go"
 	"github.com/aws/smithy-go/middleware"
 	smithytime "github.com/aws/smithy-go/time"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -20,7 +19,7 @@ import (
 
 // The HEAD action retrieves metadata from an object without returning the object
 // itself. This action is useful if you're only interested in an object's metadata.
-// To use HEAD, you must have READ access to the object. A HEAD request has the
+// To use HEAD , you must have READ access to the object. A HEAD request has the
 // same options as a GET action on an object. The response is identical to the GET
 // response except that there is no response body. Because of this, if the HEAD
 // request generates an error, it returns a generic 400 Bad Request , 403 Forbidden
@@ -37,10 +36,11 @@ import (
 // Customer-Provided Encryption Keys) (https://docs.aws.amazon.com/AmazonS3/latest/dev/ServerSideEncryptionCustomerKeys.html)
 // .
 //   - Encryption request headers, like x-amz-server-side-encryption , should not
-//     be sent for GET requests if your object uses server-side encryption with KMS
-//     keys (SSE-KMS) or server-side encryption with Amazon S3–managed encryption keys
-//     (SSE-S3). If your object does use these types of keys, you’ll get an HTTP 400
-//     BadRequest error.
+//     be sent for GET requests if your object uses server-side encryption with Key
+//     Management Service (KMS) keys (SSE-KMS), dual-layer server-side encryption with
+//     Amazon Web Services KMS keys (DSSE-KMS), or server-side encryption with Amazon
+//     S3 managed encryption keys (SSE-S3). If your object does use these types of
+//     keys, you’ll get an HTTP 400 Bad Request error.
 //   - The last modified property in this case is the creation date of the object.
 //
 // Request headers are limited to 8 KB in size. For more information, see Common
@@ -61,12 +61,12 @@ import (
 // . Permissions You need the relevant read object (or version) permission for this
 // operation. For more information, see Actions, resources, and condition keys for
 // Amazon S3 (https://docs.aws.amazon.com/AmazonS3/latest/dev/list_amazons3.html) .
-// If the object you request does not exist, the error Amazon S3 returns depends on
-// whether you also have the s3:ListBucket permission.
+// If the object you request doesn't exist, the error that Amazon S3 returns
+// depends on whether you also have the s3:ListBucket permission.
 //   - If you have the s3:ListBucket permission on the bucket, Amazon S3 returns an
-//     HTTP status code 404 ("no such key") error.
+//     HTTP status code 404 error.
 //   - If you don’t have the s3:ListBucket permission, Amazon S3 returns an HTTP
-//     status code 403 ("access denied") error.
+//     status code 403 error.
 //
 // The following actions are related to HeadObject :
 //   - GetObject (https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html)
@@ -101,7 +101,7 @@ type HeadObjectInput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
@@ -188,7 +188,7 @@ type HeadObjectOutput struct {
 	ArchiveStatus types.ArchiveStatus
 
 	// Indicates whether the object uses an S3 Bucket Key for server-side encryption
-	// with Amazon Web Services KMS (SSE-KMS).
+	// with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled bool
 
 	// Specifies caching behavior along the request/reply chain.
@@ -346,13 +346,12 @@ type HeadObjectOutput struct {
 	// integrity verification of the customer-provided encryption key.
 	SSECustomerKeyMD5 *string
 
-	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
-	// used for the object.
+	// If present, specifies the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms ).
+	// (for example, AES256 , aws:kms , aws:kms:dsse ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// Provides storage class information of the object. Amazon S3 returns this header
@@ -604,13 +603,8 @@ func objectExistsStateRetryable(ctx context.Context, input *HeadObjectInput, out
 	}
 
 	if err != nil {
-		var apiErr smithy.APIError
-		ok := errors.As(err, &apiErr)
-		if !ok {
-			return false, fmt.Errorf("expected err to be of type smithy.APIError, got %w", err)
-		}
-
-		if "NotFound" == apiErr.ErrorCode() {
+		var errorType *types.NotFound
+		if errors.As(err, &errorType) {
 			return true, nil
 		}
 	}
@@ -759,13 +753,8 @@ func (w *ObjectNotExistsWaiter) WaitForOutput(ctx context.Context, params *HeadO
 func objectNotExistsStateRetryable(ctx context.Context, input *HeadObjectInput, output *HeadObjectOutput, err error) (bool, error) {
 
 	if err != nil {
-		var apiErr smithy.APIError
-		ok := errors.As(err, &apiErr)
-		if !ok {
-			return false, fmt.Errorf("expected err to be of type smithy.APIError, got %w", err)
-		}
-
-		if "NotFound" == apiErr.ErrorCode() {
+		var errorType *types.NotFound
+		if errors.As(err, &errorType) {
 			return false, nil
 		}
 	}

@@ -58,10 +58,21 @@ type GetBucketAccelerateConfigurationInput struct {
 	// (access denied).
 	ExpectedBucketOwner *string
 
+	// Confirms that the requester knows that they will be charged for the request.
+	// Bucket owners need not specify this parameter in their requests. For information
+	// about downloading objects from Requester Pays buckets, see Downloading Objects
+	// in Requester Pays Buckets (https://docs.aws.amazon.com/AmazonS3/latest/dev/ObjectsinRequesterPaysBuckets.html)
+	// in the Amazon S3 User Guide.
+	RequestPayer types.RequestPayer
+
 	noSmithyDocumentSerde
 }
 
 type GetBucketAccelerateConfigurationOutput struct {
+
+	// If present, indicates that the requester was successfully charged for the
+	// request.
+	RequestCharged types.RequestCharged
 
 	// The accelerate configuration of the bucket.
 	Status types.BucketAccelerateStatus

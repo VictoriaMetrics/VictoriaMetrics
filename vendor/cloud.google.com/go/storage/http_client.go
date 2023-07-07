@@ -49,7 +49,7 @@ import (
 type httpStorageClient struct {
 	creds    *google.Credentials
 	hc       *http.Client
-	readHost string
+	xmlHost  string
 	raw      *raw.Service
 	scheme   string
 	settings *settings
@@ -123,7 +123,7 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 	if err != nil {
 		return nil, fmt.Errorf("storage client: %w", err)
 	}
-	// Update readHost and scheme with the chosen endpoint.
+	// Update xmlHost and scheme with the chosen endpoint.
 	u, err := url.Parse(ep)
 	if err != nil {
 		return nil, fmt.Errorf("supplied endpoint %q is not valid: %w", ep, err)
@@ -132,7 +132,7 @@ func newHTTPStorageClient(ctx context.Context, opts ...storageOption) (storageCl
 	return &httpStorageClient{
 		creds:    creds,
 		hc:       hc,
-		readHost: u.Host,
+		xmlHost:  u.Host,
 		raw:      rawService,
 		scheme:   u.Scheme,
 		settings: s,
@@ -347,6 +347,7 @@ func (c *httpStorageClient) ListObjects(ctx context.Context, bucket string, q *Q
 		req.EndOffset(it.query.EndOffset)
 		req.Versions(it.query.Versions)
 		req.IncludeTrailingDelimiter(it.query.IncludeTrailingDelimiter)
+		req.MatchGlob(it.query.MatchGlob)
 		if selection := it.query.toFieldSelection(); selection != "" {
 			req.Fields("nextPageToken", googleapi.Field(selection))
 		}
@@ -790,9 +791,10 @@ func (c *httpStorageClient) NewRangeReader(ctx context.Context, params *newRange
 
 func (c *httpStorageClient) newRangeReaderXML(ctx context.Context, params *newRangeReaderParams, s *settings) (r *Reader, err error) {
 	u := &url.URL{
-		Scheme: c.scheme,
-		Host:   c.readHost,
-		Path:   fmt.Sprintf("/%s/%s", params.bucket, params.object),
+		Scheme:  c.scheme,
+		Host:    c.xmlHost,
+		Path:    fmt.Sprintf("/%s/%s", params.bucket, params.object),
+		RawPath: fmt.Sprintf("/%s/%s", params.bucket, url.PathEscape(params.object)),
 	}
 	verb := "GET"
 	if params.length == 0 {
@@ -1373,6 +1375,8 @@ func parseReadResponse(res *http.Response, params *newRangeReaderParams, reopen 
 
 	remain := res.ContentLength
 	body := res.Body
+	// If the user requested zero bytes, explicitly close and remove the request
+	// body.
 	if params.length == 0 {
 		remain = 0
 		body.Close()
