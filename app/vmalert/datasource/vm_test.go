@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"reflect"
 	"sort"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -49,6 +48,9 @@ func TestVMInstantQuery(t *testing.T) {
 		timeParam := r.URL.Query().Get("time")
 		if timeParam == "" {
 			t.Errorf("expected 'time' in query param, got nil instead")
+		}
+		if _, err := time.Parse(time.RFC3339, timeParam); err != nil {
+			t.Errorf("failed to parse 'time' query param %q: %s", timeParam, err)
 		}
 		switch c {
 		case 0:
@@ -305,14 +307,14 @@ func TestVMRangeQuery(t *testing.T) {
 		if startTS == "" {
 			t.Errorf("expected 'start' in query param, got nil instead")
 		}
-		if _, err := strconv.ParseInt(startTS, 10, 64); err != nil {
+		if _, err := time.Parse(time.RFC3339, startTS); err != nil {
 			t.Errorf("failed to parse 'start' query param: %s", err)
 		}
 		endTS := r.URL.Query().Get("end")
 		if endTS == "" {
 			t.Errorf("expected 'end' in query param, got nil instead")
 		}
-		if _, err := strconv.ParseInt(endTS, 10, 64); err != nil {
+		if _, err := time.Parse(time.RFC3339, endTS); err != nil {
 			t.Errorf("failed to parse 'end' query param: %s", err)
 		}
 		step := r.URL.Query().Get("step")
@@ -460,8 +462,9 @@ func TestRequestParams(t *testing.T) {
 			true,
 			&VMStorage{},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("end=%d&query=%s&start=%d", timestamp.Unix(), query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				ts := timestamp.Format(time.RFC3339)
+				exp := url.Values{"query": {query}, "start": {ts}, "end": {ts}}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{
@@ -530,7 +533,11 @@ func TestRequestParams(t *testing.T) {
 				queryStep: time.Minute,
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := url.Values{"query": {query}, "step": {fmt.Sprintf("%ds", int(time.Minute.Seconds()))}, "time": {timestamp.Format(time.RFC3339)}}
+				exp := url.Values{
+					"query": {query},
+					"step":  {fmt.Sprintf("%ds", int(time.Minute.Seconds()))},
+					"time":  {timestamp.Format(time.RFC3339)},
+				}
 				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
@@ -568,9 +575,14 @@ func TestRequestParams(t *testing.T) {
 				},
 			},
 			func(t *testing.T, r *http.Request) {
-				exp := fmt.Sprintf("end=%d&max_lookback=1h&nocache=1&query=%s&start=%d",
-					timestamp.Unix(), query, timestamp.Unix())
-				checkEqualString(t, exp, r.URL.RawQuery)
+				exp := url.Values{
+					"query":        {query},
+					"end":          {timestamp.Format(time.RFC3339)},
+					"start":        {timestamp.Format(time.RFC3339)},
+					"nocache":      {"1"},
+					"max_lookback": {"1h"},
+				}
+				checkEqualString(t, exp.Encode(), r.URL.RawQuery)
 			},
 		},
 		{

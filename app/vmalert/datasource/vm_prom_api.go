@@ -191,8 +191,8 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
-	q.Add("start", fmt.Sprintf("%d", start.Unix()))
-	q.Add("end", fmt.Sprintf("%d", end.Unix()))
+	q.Add("start", start.Format(time.RFC3339))
+	q.Add("end", end.Format(time.RFC3339))
 	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
