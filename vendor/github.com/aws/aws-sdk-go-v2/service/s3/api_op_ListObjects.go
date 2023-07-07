@@ -55,20 +55,20 @@ type ListObjectsInput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
 	Bucket *string
 
-	// A delimiter is a character you use to group keys.
+	// A delimiter is a character that you use to group keys.
 	Delimiter *string
 
 	// Requests Amazon S3 to encode the object keys in the response and specifies the
-	// encoding method to use. An object key may contain any Unicode character;
-	// however, XML 1.0 parser cannot parse some characters, such as characters with an
-	// ASCII value from 0 to 10. For characters that are not supported in XML 1.0, you
-	// can add this parameter to request that Amazon S3 encode the keys in the
+	// encoding method to use. An object key can contain any Unicode character;
+	// however, the XML 1.0 parser cannot parse some characters, such as characters
+	// with an ASCII value from 0 to 10. For characters that are not supported in XML
+	// 1.0, you can add this parameter to request that Amazon S3 encode the keys in the
 	// response.
 	EncodingType types.EncodingType
 
@@ -81,10 +81,14 @@ type ListObjectsInput struct {
 	// listing after this specified key. Marker can be any key in the bucket.
 	Marker *string
 
-	// Sets the maximum number of keys returned in the response. By default the action
-	// returns up to 1,000 key names. The response might contain fewer keys but will
-	// never contain more.
+	// Sets the maximum number of keys returned in the response. By default, the
+	// action returns up to 1,000 key names. The response might contain fewer keys but
+	// will never contain more.
 	MaxKeys int32
+
+	// Specifies the optional fields that you want returned in the response. Fields
+	// that you do not specify are not returned.
+	OptionalObjectAttributes []types.OptionalObjectAttributes
 
 	// Limits the response to keys that begin with the specified prefix.
 	Prefix *string
@@ -104,10 +108,10 @@ type ListObjectsOutput struct {
 	// CommonPrefixes only if you specify a delimiter. CommonPrefixes contains all (if
 	// there are any) keys between Prefix and the next occurrence of the string
 	// specified by the delimiter. CommonPrefixes lists keys that act like
-	// subdirectories in the directory specified by Prefix. For example, if the prefix
-	// is notes/ and the delimiter is a slash (/) as in notes/summer/july, the common
-	// prefix is notes/summer/. All of the keys that roll up into a common prefix count
-	// as a single return when calculating the number of returns.
+	// subdirectories in the directory specified by Prefix . For example, if the prefix
+	// is notes/ and the delimiter is a slash ( / ), as in notes/summer/july , the
+	// common prefix is notes/summer/ . All of the keys that roll up into a common
+	// prefix count as a single return when calculating the number of returns.
 	CommonPrefixes []types.CommonPrefix
 
 	// Metadata about each object returned.
@@ -137,17 +141,22 @@ type ListObjectsOutput struct {
 	// The bucket name.
 	Name *string
 
-	// When response is truncated (the IsTruncated element value in the response is
-	// true), you can use the key name in this field as marker in the subsequent
-	// request to get next set of objects. Amazon S3 lists objects in alphabetical
-	// order Note: This element is returned only if you have delimiter request
-	// parameter specified. If response does not include the NextMarker and it is
-	// truncated, you can use the value of the last Key in the response as the marker
-	// in the subsequent request to get the next set of object keys.
+	// When the response is truncated (the IsTruncated element value in the response
+	// is true ), you can use the key name in this field as the marker parameter in
+	// the subsequent request to get the next set of objects. Amazon S3 lists objects
+	// in alphabetical order. This element is returned only if you have the delimiter
+	// request parameter specified. If the response does not include the NextMarker
+	// element and it is truncated, you can use the value of the last Key element in
+	// the response as the marker parameter in the subsequent request to get the next
+	// set of object keys.
 	NextMarker *string
 
 	// Keys that begin with the indicated prefix.
 	Prefix *string
+
+	// If present, indicates that the requester was successfully charged for the
+	// request.
+	RequestCharged types.RequestCharged
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
