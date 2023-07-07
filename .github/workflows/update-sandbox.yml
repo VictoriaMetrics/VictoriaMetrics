@@ -8,11 +8,14 @@ jobs:
   deploy-sandbox:
     runs-on: ubuntu-latest
     steps:
+      - name: check inputs
+        if: github.event.release.tag_name == ''
+        run: exit 1
+    
       - name: Check out code
         uses: actions/checkout@v3
         with:
           repository: VictoriaMetrics/ops
-          ref: master
           token: ${{ secrets.VM_BOT_GH_TOKEN }}
 
       - name: Import GPG key
