@@ -1378,7 +1378,9 @@ func mustOpenParts(path string) []*partWrapper {
 	}
 	partNamesPath := filepath.Join(path, partsFilename)
 	if !fs.IsPathExist(partNamesPath) {
-		// create parts.json file on migration from previous versions before v1.90.0
+		// Create parts.json file if it doesn't exist yet.
+		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
 		mustWritePartNames(pws, path)
 	}
 
