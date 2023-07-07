@@ -216,6 +216,11 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 		retention = 24 * time.Hour
 	}
 
+	retentionWatchInterval := cfg.RetentionWatchInterval
+	if retentionWatchInterval == 0 {
+		retentionWatchInterval = 1
+	}
+
 	futureRetention := cfg.FutureRetention
 	if futureRetention < 24*time.Hour {
 		futureRetention = 24 * time.Hour
@@ -239,7 +244,7 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	s := &Storage{
 		path:                   path,
 		retention:              retention,
-		retentionWatchInterval: cfg.RetentionWatchInterval,
+		retentionWatchInterval: retentionWatchInterval,
 		flushInterval:          flushInterval,
 		futureRetention:        futureRetention,
 		logNewStreams:          cfg.LogNewStreams,
