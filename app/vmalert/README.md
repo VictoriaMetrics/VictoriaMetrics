@@ -1004,11 +1004,13 @@ The shortlist of configuration flags is the following:
   -httpListenAddr string
      Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-  -insert.maxQueueDuration duration
-     The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1025,8 +1027,6 @@ The shortlist of configuration flags is the following:
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
-  -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1213,12 +1213,12 @@ The shortlist of configuration flags is the following:
   -replay.timeTo string
      The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
-     Path to the files with alerting and/or recording rules.
+     Path to the files or http url with alerting and/or recording rules.
      Supports hierarchical patterns and regexpes.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules.
       -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
-      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
+      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
       -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
      
@@ -1237,12 +1237,13 @@ The shortlist of configuration flags is the following:
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array
      Path or glob pattern to location with go template definitions
-      for rules annotations templating. Flag can be specified multiple times.
+     	for rules annotations templating. Flag can be specified multiple times.
      Examples:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
       -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
+     
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.updateEntriesLimit int
      Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param. (default 20)
@@ -1250,6 +1251,10 @@ The shortlist of configuration flags is the following:
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
+  -s2a_enable_appengine_dialer
+     If true, opportunistically use AppEngine-specific dialer to call S2A.
+  -s2a_timeout duration
+     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3.configFilePath string
      Path to file with S3 configs. Configs are loaded from default location if not set.
      See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
