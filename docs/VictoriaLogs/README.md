@@ -222,6 +222,8 @@ Pass `-help` to VictoriaLogs in order to see the list of supported command-line 
   -retentionPeriod value
     	Log entries with timestamps older than now-retentionPeriod are automatically deleted; log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); see https://docs.victoriametrics.com/VictoriaLogs/#retention
     	The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 7d)
+  -retentionWatchInterval int
+        Specify the interval period for scanning expired data, in units of hours, the minimum supported value is 1 (default 1)  	
   -search.maxConcurrentRequests int
     	The maximum number of concurrent search requests. It shouldn't be high, since a single request can saturate all the CPU cores, while many concurrently executed requests may require high amounts of memory. See also -search.maxQueueDuration (default 6)
   -search.maxQueryDuration duration

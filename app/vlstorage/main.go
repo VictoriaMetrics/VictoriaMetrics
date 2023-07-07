@@ -17,7 +17,8 @@ var (
 	retentionPeriod = flagutil.NewDuration("retentionPeriod", "7d", "Log entries with timestamps older than now-retentionPeriod are automatically deleted; "+
 		"log entries with timestamps outside the retention are also rejected during data ingestion; the minimum supported retention is 1d (one day); "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/#retention")
-	futureRetention = flagutil.NewDuration("futureRetention", "2d", "Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; "+
+	retentionWatchInterval = flag.Int("retentionWatchInterval", 1, "Specify the interval period for scanning expired data, in units of hours, the minimum supported value is 1 (default 1)")
+	futureRetention        = flagutil.NewDuration("futureRetention", "2d", "Log entries with timestamps bigger than now+futureRetention are rejected during data ingestion; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/#retention")
 	storageDataPath = flag.String("storageDataPath", "victoria-logs-data", "Path to directory with the VictoriaLogs data; "+
 		"see https://docs.victoriametrics.com/VictoriaLogs/#storage")
@@ -42,12 +43,18 @@ func Init() {
 	if retentionPeriod.Msecs < 24*3600*1000 {
 		logger.Fatalf("-retentionPeriod cannot be smaller than a day; got %s", retentionPeriod)
 	}
+
+	if *retentionWatchInterval < 1 {
+		logger.Fatalf("-retentionWatchInterval cannot be smaller than 1 hour; got %d", *retentionWatchInterval)
+	}
+
 	cfg := &logstorage.StorageConfig{
-		Retention:       time.Millisecond * time.Duration(retentionPeriod.Msecs),
-		FlushInterval:   *inmemoryDataFlushInterval,
-		FutureRetention: time.Millisecond * time.Duration(futureRetention.Msecs),
-		LogNewStreams:   *logNewStreams,
-		LogIngestedRows: *logIngestedRows,
+		Retention:              time.Millisecond * time.Duration(retentionPeriod.Msecs),
+		RetentionWatchInterval: *retentionWatchInterval,
+		FlushInterval:          *inmemoryDataFlushInterval,
+		FutureRetention:        time.Millisecond * time.Duration(futureRetention.Msecs),
+		LogNewStreams:          *logNewStreams,
+		LogIngestedRows:        *logIngestedRows,
 	}
 	logger.Infof("opening storage at -storageDataPath=%s", *storageDataPath)
 	startTime := time.Now()

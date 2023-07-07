@@ -40,6 +40,9 @@ type StorageConfig struct {
 	// Older data is automatically deleted.
 	Retention time.Duration
 
+	// RetentionWatchInterval is the interval for scan expired data
+	RetentionWatchInterval int
+
 	// FlushInterval is the interval for flushing the in-memory data to disk at the Storage
 	FlushInterval time.Duration
 
@@ -72,6 +75,9 @@ type Storage struct {
 	//
 	// older data is automatically deleted
 	retention time.Duration
+
+	// retentionWatchInterval is the interval for scan expired data
+	retentionWatchInterval int
 
 	// flushInterval is the interval for flushing in-memory data to disk
 	flushInterval time.Duration
@@ -231,14 +237,15 @@ func MustOpenStorage(path string, cfg *StorageConfig) *Storage {
 	streamFilterCache := workingsetcache.New(mem / 10)
 
 	s := &Storage{
-		path:            path,
-		retention:       retention,
-		flushInterval:   flushInterval,
-		futureRetention: futureRetention,
-		logNewStreams:   cfg.LogNewStreams,
-		logIngestedRows: cfg.LogIngestedRows,
-		flockF:          flockF,
-		stopCh:          make(chan struct{}),
+		path:                   path,
+		retention:              retention,
+		retentionWatchInterval: cfg.RetentionWatchInterval,
+		flushInterval:          flushInterval,
+		futureRetention:        futureRetention,
+		logNewStreams:          cfg.LogNewStreams,
+		logIngestedRows:        cfg.LogIngestedRows,
+		flockF:                 flockF,
+		stopCh:                 make(chan struct{}),
 
 		streamIDCache:     streamIDCache,
 		streamTagsCache:   streamTagsCache,
@@ -302,7 +309,7 @@ func (s *Storage) runRetentionWatcher() {
 }
 
 func (s *Storage) watchRetention() {
-	ticker := time.NewTicker(time.Hour)
+	ticker := time.NewTicker(time.Duration(s.retentionWatchInterval) * time.Hour)
 	defer ticker.Stop()
 	for {
 		var ptwsToDelete []*partitionWrapper
