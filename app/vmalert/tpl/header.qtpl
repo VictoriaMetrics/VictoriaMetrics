@@ -1,5 +1,4 @@
 {% import (
-    "strings"
     "net/http"
     "path"
     "net/url"
@@ -7,8 +6,8 @@
     "github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 ) %}
 
-{% func Header(r *http.Request, navItems []NavItem, title string) %}
-    {%code prefix := utils.Prefix(r.URL.Path) %}
+{% func Header(r *http.Request, navItems []NavItem, title string, userErr error) %}
+{%code prefix := utils.Prefix(r.URL.Path) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -71,8 +70,9 @@
     </style>
 </head>
 <body>
-    {%= printNavItems(r, title, navItems) %}
+    {%= printNavItems(r, title, navItems, userErr) %}
     <main class="px-2">
+    {%= errorBody(userErr) %}
 {% endfunc %}
 
 
@@ -83,12 +83,9 @@ type NavItem struct {
 }
 %}
 
-{% func printNavItems(r *http.Request, current string, items []NavItem) %}
+{% func printNavItems(r *http.Request, current string, items []NavItem, userErr error) %}
 {%code
-    prefix := "/vmalert/"
-    if strings.HasPrefix(r.URL.Path, prefix) {
-        prefix = ""
-    }
+    prefix := utils.Prefix(r.URL.Path)
 %}
 <nav class="navbar navbar-expand-md navbar-dark fixed-top bg-dark">
   <div class="container-fluid">
@@ -107,5 +104,30 @@ type NavItem struct {
             {% endfor %}
         </ul>
   </div>
+  {%= errorIcon(userErr) %}
 </nav>
+{% endfunc %}
+
+{% func errorIcon(err error) %}
+{% if err != nil %}
+<div class="d-flex" data-bs-toggle="tooltip" data-bs-placement="left" title="Configuration file failed to reload! Click to see more details.">
+  <a type="button" data-bs-toggle="collapse" href="#reload-groups-error">
+      <span class="text-danger">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-triangle-fill" viewBox="0 0 16 16">
+              <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+          </svg>
+      </span>
+  </a>
+</div>
+{% endif %}
+{% endfunc %}
+
+{% func errorBody(err error) %}
+{% if err != nil %}
+<div class="collapse mt-2 mb-2" id="reload-groups-error">
+  <div class="card card-body">
+    {%s err.Error() %}
+  </div>
+</div>
+{% endif %}
 {% endfunc %}

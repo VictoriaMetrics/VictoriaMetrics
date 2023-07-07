@@ -363,8 +363,12 @@ The shortlist of configuration flags include the following:
      TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8431")
   -httpListenAddr.useProxyProtocol
      Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 300)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int

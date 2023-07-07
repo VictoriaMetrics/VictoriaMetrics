@@ -752,14 +752,18 @@ See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
 ## High availability
 
-It is possible to run multiple identically configured `vmagent` instances or `vmagent` [clusters](#scraping-big-number-of-targets),
-so they [scrape](#how-to-collect-metrics-in-prometheus-format) the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems.
+It is possible to run multiple **identically configured** `vmagent` instances or `vmagent` 
+[clusters](#scraping-big-number-of-targets), so they [scrape](#how-to-collect-metrics-in-prometheus-format) 
+the same set of targets and push the collected data to the same set of VictoriaMetrics remote storage systems. 
+Two **identically configured** vmagent instances or clusters is usually called an HA pair.
 
-In this case the deduplication must be configured at VictoriaMetrics in order to de-duplicate samples received from multiple identically configured `vmagent` instances or clusters.
+When running HA pairs, [deduplication](https://docs.victoriametrics.com/#deduplication) must be configured 
+at VictoriaMetrics side in order to de-duplicate received samples.
 See [these docs](https://docs.victoriametrics.com/#deduplication) for details.
 
-It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` instance or per each `vmagent` cluster in HA setup.
-This is needed for proper data de-duplication. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
+It is also recommended passing different values to `-promscrape.cluster.name` command-line flag per each `vmagent` 
+instance or per each `vmagent` cluster in HA setup. This is needed for proper data de-duplication. 
+See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/2679) for details.
 
 ## Scraping targets via a proxy
 
@@ -1174,6 +1178,10 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
 
   -cacheExpireDuration duration
      Items are removed from in-memory caches after they aren't accessed for this duration. Lower values may reduce memory usage at the cost of higher CPU usage. See also -prevCacheRemovalPercent (default 30m0s)
+  -clients.docker
+     Decides whether a docker container be brought up automatically
+  -clients.semaphore
+     Tells if the job is running on Semaphore
   -configAuthKey string
      Authorization key for accessing /config page. It must be passed via authKey query arg
   -csvTrimTimestamp duration
@@ -1224,7 +1232,7 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -httpListenAddr string
      TCP address to listen for http connections. Set this flag to empty value in order to disable listening on any port. This mode may be useful for running multiple vmagent instances on the same server. Note that /targets and /metrics pages aren't available if -httpListenAddr=''. See also -httpListenAddr.useProxyProtocol (default ":8429")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
@@ -1268,6 +1276,9 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -kafka.consumer.topic.brokers array
      List of brokers to connect for given topic, e.g. -kafka.consumer.topic.broker=host-1:9092;host-2:9092 . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
+  -kafka.consumer.topic.concurrency array
+     Configures consumer concurrency for topic specified via -kafka.consumer.topic flag.This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Supports array of values separated by comma or specified via multiple flags.
   -kafka.consumer.topic.defaultFormat string
      Expected data format in the topic if -kafka.consumer.topic.format is skipped. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html (default "promremotewrite")
   -kafka.consumer.topic.format array
@@ -1476,6 +1487,8 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
   -remoteWrite.headers array
      Optional HTTP headers to send with each request to the corresponding -remoteWrite.url. For example, -remoteWrite.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -remoteWrite.url. Multiple headers must be delimited by '^^': -remoteWrite.headers='header1:value1^^header2:value2'
      Supports an array of values separated by comma or specified via multiple flags.
+  -remoteWrite.keepDanglingQueues
+     Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.label array
      Optional label in the form 'name=value' to add to all the metrics before sending them to -remoteWrite.url. Pass multiple -remoteWrite.label flags in order to add multiple labels to metrics before sending them to remote storage
      Supports an array of values separated by comma or specified via multiple flags.
@@ -1520,8 +1533,6 @@ See the docs at https://docs.victoriametrics.com/vmagent.html .
      Supports array of values separated by comma or specified via multiple flags.
   -remoteWrite.relabelConfig string
      Optional path to file with relabeling configs, which are applied to all the metrics before sending them to -remoteWrite.url. See also -remoteWrite.urlRelabelConfig. The path can point either to local file or to http url. See https://docs.victoriametrics.com/vmagent.html#relabeling
-  -remoteWrite.keepDanglingQueues
-     Keep persistent queues contents at -remoteWrite.tmpDataPath in case there are no matching -remoteWrite.url. Useful when -remoteWrite.url is changed temporarily and persistent queue files will be needed later on.
   -remoteWrite.roundDigits array
      Round metric values to this number of decimal digits after the point before writing them to remote storage. Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. This option may be used for improving data compression for the stored metrics
      Supports array of values separated by comma or specified via multiple flags.

@@ -21,13 +21,42 @@ git remote add enterprise <url>
 2. Make sure you have singing key configured
 3. Make sure you have github token with at least `read:org, repo, write:packages` permissions exported under `GITHUB_TOKEN` env variable.
    You can create token [here](https://github.com/settings/tokens)
+4. Make sure you're [authorized](https://hub.docker.com/orgs/victoriametrics/settings/enforce-sign-in/windows) for pushing docker images 
+
+### For MacOS users
+
+Make sure you have GNU version of utilities `zip`, `tar`, `sha256sum`. To install them run the following commands:
+```bash
+brew install coreutils
+brew install gnu-tar
+export PATH="/usr/local/opt/coreutils/libexec/gnubin:$PATH"
+```
+
+Docker may need additional configuration changes:
+```bash 
+docker buildx create --use --name=qemu
+docker buildx inspect --bootstrap  
+```
+
+For ARM arch (M1/M2 processors) additionally configure docker with preferred platform:
+```
+export DOCKER_DEFAULT_PLATFORM=linux/amd64
+```
+
+By default, docker on MacOS has limited amount of resources (CPU, mem) to use. 
+Bumping the limits may significantly improve build speed.
 
 ## Release version and Docker images
 
 0. Make sure that the release commits have no security issues.
 1a. Document all the changes for new release in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) and update version if needed in [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/SECURITY.md)
 1b. Add `(available starting from v1.xx.y)` line to feature docs introduced in the upcoming release.
-2. Create the following release tags:
+1c. Cut new version in [CHANGELOG.md](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md)
+and make it merged. See example in this [commit](https://github.com/VictoriaMetrics/VictoriaMetrics/commit/b771152039d23b5ccd637a23ea748bc44a9511a7).
+1d. Cherry-pick all changes from `master` to `cluster` branch, and to ENT branches `enterprise-single-node`, `enterprise-cluster`.
+1e. Cherry-pick bug fixes relevant for LTS releases.
+2. Make sure you get all changes fetched `git fetch --all`.
+3. Create the following release tags:
    * `git tag -s v1.xx.y` in `master` branch
    * `git tag -s v1.xx.y-cluster` in `cluster` branch
    * `git tag -s v1.xx.y-enterprise` in `enterprise` branch
@@ -62,9 +91,9 @@ git remote add enterprise <url>
         and all the needed assets are re-uploaded to it.
 6. Go to <https://github.com/VictoriaMetrics/VictoriaMetrics/releases> and verify that draft release with the name `TAG` has been created
    and this release contains all the needed binaries and checksums.
-7. Update the release description with the [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
-8. Remove the `draft` checkbox for the `TAG` release and manually publish it.
-9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/sandbox/manifests/benchmark-vm/vmcluster.yaml)
+7. Update the release description with the content of [CHANGELOG](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/docs/CHANGELOG.md) for this release.
+8. Publish release by pressing "Publish release" green button in GitHub's UI.
+9. Bump version of the VictoriaMetrics cluster in the [sandbox environment](https://github.com/VictoriaMetrics/ops/blob/main/gcp-test/sandbox/manifests/benchmark-vm/vmcluster.yaml)
    by [opening and merging PR](https://github.com/VictoriaMetrics/ops/pull/58).
 10. Bump VictoriaMetrics version at `deployment/docker/docker-compose.yml` and at `deployment/docker/docker-compose-cluster.yml`.
 
@@ -97,6 +126,11 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 
 ### Bump the version of images
 
+Bump `tag` field in `values.yaml` with new release version.
+Bump `appVersion` field in `Chart.yaml` with new release version.
+Bump `version` field in `Chart.yaml` with incremental semver version.
+Do these updates to the following charts:
+
 1. Update `vmagent` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-agent/Chart.yaml) 
 2. Update `vmalert` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-alert/Chart.yaml)
 3. Update `vmauth` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-auth/Chart.yaml)
@@ -104,11 +138,14 @@ The helm chart repository [https://github.com/VictoriaMetrics/helm-charts/](http
 5. Update `k8s-stack` chart versions in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/values.yaml), bump version for `vmselect`, `vminsert`, `vmstorage`, `vmsingle`, `vmalert`, `vmagent` and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-k8s-stack/Chart.yaml)
 6. Update `single-node` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/values.yaml) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-single/Chart.yaml)
 7. Update `vmgateway` chart version in [`values.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/values.yamll) and [`Chart.yaml`](https://github.com/VictoriaMetrics/helm-charts/blob/master/charts/victoria-metrics-gateway/Chart.yaml)
-8. Run `make gen-docs`
-9. Run `make package` that creates or updates zip file with the packed chart
-10. Run `make merge`. It creates or updates metadata for charts in index.yaml
-11. Push changes to master. `master` is a source of truth
-12. Push the changes to `gh-pages` branch
+
+Once updated, run the following commands:
+
+1. Run `make gen-docs`
+2. Run `make package` that creates or updates zip file with the packed chart
+3. Run `make merge`. It creates or updates metadata for charts in index.yaml
+4. Push changes to master. `master` is a source of truth
+5. Push the same changes to `gh-pages` branch
 
 ## Ansible Roles 
 
@@ -126,7 +163,7 @@ Repository [https://github.com/VictoriaMetrics/ansible-playbooks](https://github
 
 ## RPM packages
 
-### Bump the version of components
+### Bump the version of components (for LTS releases only)
 
 Repository [https://github.com/VictoriaMetrics/victoriametrics-lts-rpm](https://github.com/VictoriaMetrics/victoriametrics-lts-rpm)
 

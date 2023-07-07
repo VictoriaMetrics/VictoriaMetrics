@@ -165,6 +165,7 @@ func newClient(ctx context.Context, sw *ScrapeWork) *client {
 			return http.ErrUseLastResponse
 		}
 	}
+
 	return &client{
 		hc:                      hc,
 		ctx:                     ctx,

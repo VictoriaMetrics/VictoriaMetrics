@@ -16,13 +16,15 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
-Just download [the latest version of VictoriaMetrics](https://docs.victoriametrics.com/CHANGELOG.html)
-and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
 The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
+
+There is also user-friendly database for logs - [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).
+
+If you have questions about VictoriaMetrics, then feel free asking them at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
 [Contact us](mailto:info@victoriametrics.com) if you need enterprise support for VictoriaMetrics. 
 See [features available in enterprise package](https://docs.victoriametrics.com/enterprise.html).
@@ -116,6 +118,7 @@ Case studies:
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
 * [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
 * [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
@@ -147,7 +150,7 @@ VictoriaMetrics can also be installed via these installation methods:
 The following command-line flags are used the most:
 
 * `-storageDataPath` - VictoriaMetrics stores all the data in this directory. Default path is `victoria-metrics-data` in the current working directory.
-* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. See [the Retention section](#retention) for more details.
+* `-retentionPeriod` - retention for stored data. Older data is automatically deleted. Default retention is 1 month. The minimum retention period is 24h or 1d. See [the Retention section](#retention) for more details.
 
 Other flags have good enough default values, so set them only if you really need this. Pass `-help` to see [all the available flags with description and default values](#list-of-command-line-flags).
 
@@ -528,8 +531,10 @@ and stream plain InfluxDB line protocol data to the configured TCP and/or UDP ad
 
 VictoriaMetrics performs the following transformations to the ingested InfluxDB data:
 
-* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` label value
-  unless `db` tag exists in the InfluxDB line. The `db` label name can be overridden via `-influxDBLabel` command-line flag.
+* [db query arg](https://docs.influxdata.com/influxdb/v1.7/tools/api/#write-http-endpoint) is mapped into `db` 
+  [label](https://docs.victoriametrics.com/keyConcepts.html#labels) value unless `db` tag exists in the InfluxDB line. 
+  The `db` label name can be overridden via `-influxDBLabel` command-line flag. If more strict data isolation is required,
+  read more about multi-tenancy [here](https://docs.victoriametrics.com/keyConcepts.html#multi-tenancy).
 * Field names are mapped to time series names prefixed with `{measurement}{separator}` value, where `{separator}` equals to `_` by default. It can be changed with `-influxMeasurementFieldSeparator` command-line flag. See also `-influxSkipSingleField` command-line flag. If `{measurement}` is empty or if `-influxSkipMeasurement` command-line flag is set, then time series names correspond to field names.
 * Field values are mapped to time series values.
 * Tags are mapped to Prometheus labels as-is.
@@ -821,6 +826,7 @@ in [query APIs](https://docs.victoriametrics.com/#prometheus-querying-api-usage)
 in [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
 - Unix timestamps in seconds with optional milliseconds after the point. For example, `1562529662.678`.
+- Unix timestamps in milliseconds. For example, `1562529662678`.
 - [RFC3339](https://www.ietf.org/rfc/rfc3339.txt). For example, `2022-03-29T01:02:03Z` or `2022-03-29T01:02:03+02:30`.
 - Partial RFC3339. Examples: `2022`, `2022-03`, `2022-03-29`, `2022-03-29T01`, `2022-03-29T01:02`, `2022-03-29T01:02:03`.
   The partial RFC3339 time is in UTC timezone by default. It is possible to specify timezone there by adding `+hh:mm` or `-hh:mm` suffix to partial time.
@@ -1039,7 +1045,7 @@ VictoriaMetrics provides the following handlers for exporting data:
 Send a request to `http://<victoriametrics-addr>:8428/api/v1/export?match[]=<timeseries_selector_for_export>`,
 where `<timeseries_selector_for_export>` may contain any [time series selector](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-series-selectors)
 for metrics to export. Use `{__name__!=""}` selector for fetching all the time series.
-The response would contain all the data for the selected time series in [JSON streaming format](https://en.wikipedia.org/wiki/JSON_streaming#Line-delimited_JSON).
+The response would contain all the data for the selected time series in [JSON streaming format](http://ndjson.org/).
 Each JSON line contains samples for a single time series. An example output:
 
 ```json
@@ -1158,6 +1164,13 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * `/api/v1/import/csv` for importing arbitrary CSV data. See [these docs](#how-to-import-csv-data) for details.
 * `/api/v1/import/prometheus` for importing data in Prometheus exposition format and in [Pushgateway format](https://github.com/prometheus/pushgateway#url).
   See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
+
+Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write))
+are optimized for performance and processes data in a streaming fashion.
+It means that client can transfer unlimited amount of data through the open connection. Because of this, import APIs
+may not return parsing errors to the client, as it is expected for data stream to be not interrupted. 
+Instead, look for parsing errors on the server side (VictoriaMetrics single-node or vminsert) or
+check for changes in `vm_rows_invalid_total` (exported by server side) metric.
 
 ### How to import data in JSON line format
 
@@ -1464,22 +1477,37 @@ with the enabled de-duplication. See [this section](#deduplication) for details.
 
 ## Deduplication
 
-VictoriaMetrics leaves a single raw sample with the biggest timestamp per each `-dedup.minScrapeInterval` discrete interval
-if `-dedup.minScrapeInterval` is set to positive duration. For example, `-dedup.minScrapeInterval=60s` would leave a single
-raw sample with the biggest timestamp per each discrete 60s interval.
+VictoriaMetrics leaves a single [raw sample](https://docs.victoriametrics.com/keyConcepts.html#raw-samples)
+with the biggest [timestamp](https://en.wikipedia.org/wiki/Unix_time) for each [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+per each `-dedup.minScrapeInterval` discrete interval if `-dedup.minScrapeInterval` is set to positive duration. 
+For example, `-dedup.minScrapeInterval=60s` would leave a single raw sample with the biggest timestamp per each discrete
+`60s` interval.
 This aligns with the [staleness rules in Prometheus](https://prometheus.io/docs/prometheus/latest/querying/basics/#staleness).
 
-If multiple raw samples have the same biggest timestamp on the given `-dedup.minScrapeInterval` discrete interval, then the sample with the biggest value is left.
+If multiple raw samples have **the same timestamp** on the given `-dedup.minScrapeInterval` discrete interval, 
+then the sample with **the biggest value** is kept.
 
-The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled. So it is safe to use deduplication and downsampling simultaneously.
+Please note, [labels](https://docs.victoriametrics.com/keyConcepts.html#labels) of raw samples should be identical
+in order to be deduplicated. For example, this is why [HA pair of vmagents](https://docs.victoriametrics.com/vmagent.html#high-availability)
+needs to be identically configured. 
 
-The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. It is recommended to have a single `scrape_interval` across all the scrape targets. See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
+The `-dedup.minScrapeInterval=D` is equivalent to `-downsampling.period=0s:D` if [downsampling](#downsampling) is enabled.
+So it is safe to use deduplication and downsampling simultaneously.
 
-The de-duplication reduces disk space usage if multiple identically configured [vmagent](https://docs.victoriametrics.com/vmagent.html) or Prometheus instances in HA pair
-write data to the same VictoriaMetrics instance. These vmagent or Prometheus instances must have identical
-`external_labels` section in their configs, so they write data to the same time series. See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+The recommended value for `-dedup.minScrapeInterval` must equal to `scrape_interval` config from Prometheus configs. 
+It is recommended to have a single `scrape_interval` across all the scrape targets. 
+See [this article](https://www.robustperception.io/keep-it-simple-scrape_interval-id) for details.
 
-It is recommended passing different `-promscrape.cluster.name` values to HA pairs of `vmagent` instances, so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples from other `vmagent` instances. See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
+The de-duplication reduces disk space usage if multiple **identically configured** [vmagent](https://docs.victoriametrics.com/vmagent.html)
+or Prometheus instances in HA pair write data to the same VictoriaMetrics instance. 
+These vmagent or Prometheus instances must have **identical** `external_labels` section in their configs, 
+so they write data to the same time series. 
+See also [how to set up multiple vmagent instances for scraping the same targets](https://docs.victoriametrics.com/vmagent.html#scraping-big-number-of-targets).
+
+It is recommended passing different `-promscrape.cluster.name` values to each distinct HA pair of `vmagent` instances, 
+so the de-duplication consistently leaves samples for one `vmagent` instance and removes duplicate samples 
+from other `vmagent` instances. 
+See [these docs](https://docs.victoriametrics.com/vmagent.html#high-availability) for details.
 
 ## Storage
 
@@ -1527,7 +1555,13 @@ occurs in the middle of writing the `part` to disk - such incompletely written `
 are automatically deleted on the next VictoriaMetrics start.
 
 The same applies to merge process — `parts` are either fully merged into a new `part` or fail to merge,
-leaving the source `parts` untouched.
+leaving the source `parts` untouched. However, due to hardware issues data on disk may be corrupted regardless of
+VictoriaMetrics process. VictoriaMetrics can detect corruption during decompressing, decoding or sanity checking
+of the data blocks. But **it cannot fix the corrupted data**. Data parts that fail to load on startup need to be deleted
+or restored from backups. This is why it is recommended performing
+[regular backups](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#backups).
+
+VictoriaMetrics doesn't use checksums for stored data blocks. See why [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3011).
 
 VictoriaMetrics doesn't merge parts if their summary size exceeds free disk space.
 This prevents from potential out of disk space errors during merge.
@@ -1546,18 +1580,21 @@ See also [how to work with snapshots](#how-to-work-with-snapshots).
 
 ## Retention
 
-Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. The default retention period is one month.
+Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit 
+character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. 
+For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. 
+The default retention period is one month. The **minimum retention** period is 24h or 1d.
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
-Data partitions outside the configured retention are deleted on the first day of the new month.
-Each partition consists of one or more data parts. Data parts outside the configured retention are eventually deleted during
-[background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+**Data partitions** outside the configured retention are deleted **on the first day of the new month**.
+Each partition consists of one or more **data parts**. Data parts outside the configured retention 
+are **eventually deleted** during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+The time range covered by data part is **not limited by retention period unit**. One data part can cover hours or days of 
+data. Hence, a data part can be deleted only **when fully outside the configured retention**.
+See more about partitions and parts [here](#storage).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
-
-Please note, the time range covered by data part is not limited by retention period unit. Hence, data part may contain data
-for multiple days and will be deleted only when fully outside the configured retention.
 
 It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to a lower
 value than before, then data outside the configured period will be eventually deleted.
@@ -1622,6 +1659,10 @@ Retention filters can be evaluated for free by downloading and using enterprise 
 * `-downsampling.period=30d:5m,180d:1h` instructs VictoriaMetrics to deduplicate samples older than 30 days with 5 minutes interval and to deduplicate samples older than 180 days with 1 hour interval.
 
 Downsampling is applied independently per each time series. It can reduce disk space usage and improve query performance if it is applied to time series with big number of samples per each series. The downsampling doesn't improve query performance if the database contains big number of time series with small number of samples per each series (aka [high churn rate](https://docs.victoriametrics.com/FAQ.html#what-is-high-churn-rate)), since downsampling doesn't reduce the number of time series. So the majority of time is spent on searching for the matching time series. It is possible to use recording rules in [vmalert](https://docs.victoriametrics.com/vmalert.html) in order to reduce the number of time series. See [these docs](https://docs.victoriametrics.com/vmalert.html#downsampling-and-aggregation-via-vmalert).
+
+Downsampling happens during [background merges](https://docs.victoriametrics.com/#storage) 
+and can't be performed if there is not enough of free disk space or if vmstorage 
+is in [read-only mode](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#readonly-mode).
 
 The downsampling can be evaluated for free by downloading and using enterprise binaries from [the releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases).
 
@@ -2020,8 +2061,7 @@ It is recommended disabling query cache with `-search.disableCache` command-line
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query `/internal/resetRollupResultCache` url after backfilling is complete. This will reset
-the query cache, which could contain incomplete data cached during the backfilling.
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetRollupResultCache) handler after the backfilling is complete. This will reset the query cache, which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
@@ -2128,7 +2168,6 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [articles and talks about VictoriaMetrics in Russian](https://github.com/denisgolius/victoriametrics-ru-links)
 * [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
@@ -2209,7 +2248,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
      Whether to check config files without running VictoriaMetrics. The following config files are checked: -promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
@@ -2256,7 +2295,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -httpListenAddr string
      TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8428")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
@@ -2367,6 +2406,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
      Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
+  -promscrape.consulagentSDCheckInterval duration
+     Interval for checking for changes in Consul Agent. This works only if consulagent_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consulagent_sd_configs for details (default 30s)
   -promscrape.digitaloceanSDCheckInterval duration
      Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details (default 1m0s)
   -promscrape.disableCompression
@@ -2446,7 +2487,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Retention filter in the format 'filter:retention'. For example, '{env="dev"}:3d' configures the retention for time series with env="dev" label to 3 days. See https://docs.victoriametrics.com/#retention-filters for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
-     Data with timestamps outside the retentionPeriod is automatically deleted. See also -retentionFilter
+     Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter
      The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
@@ -2477,6 +2518,10 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      The maximum number of time series, which can be returned from /federate. This option allows limiting memory usage (default 1000000)
   -search.maxGraphiteSeries int
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
+  -search.maxGraphiteTagKeys int
+     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
+  -search.maxGraphiteTagValues int
+     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size

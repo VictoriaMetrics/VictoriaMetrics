@@ -1,7 +1,14 @@
 ---
 sort: 7
+weight: 7
+menu:
+  docs:
+    parent: 'victoriametrics'
+    weight: 7
+title: vmrestore
+aliases:
+  - /vmrestore.html
 ---
-
 # vmrestore
 
 `vmrestore` restores data from backups created by [vmbackup](https://docs.victoriametrics.com/vmbackup.html).
@@ -127,6 +134,12 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
      Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      TCP address for exporting metrics at /metrics page (default ":8421")
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
+  -internStringMaxLen int
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -163,8 +176,15 @@ i.e. the end result would be similar to [rsync --delete](https://askubuntu.com/q
   -pushmetrics.url array
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
+  -s2a_enable_appengine_dialer
+     If true, opportunistically use AppEngine-specific dialer to call S2A.
+  -s2a_timeout duration
+     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3StorageClass string
+     The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
+     See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/
   -skipBackupCompleteCheck
      Whether to skip checking for 'backup complete' file in -src. This may be useful for restoring from old backups, which were created without 'backup complete' file
   -src string

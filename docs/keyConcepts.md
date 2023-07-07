@@ -34,6 +34,8 @@ You can be more specific here by saying `requests_success_total` (for only succe
 or `request_errors_total` (for requests which failed). Choosing a metric name is very important and supposed to clarify
 what is actually measured to every person who reads it, just like **variable names** in programming.
 
+#### Labels
+
 Every metric can contain additional meta-information in the form of label-value pairs:
 
 ```
@@ -52,6 +54,12 @@ Actually, the metric name is also a label with a special name `__name__`. So the
 requests_total{path="/", code="200"} 
 {__name__="requests_total", path="/", code="200"} 
 ```
+
+Labels can be automatically attached to the [time series](#time-series) 
+written via [vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) 
+or [Prometheus](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup).
+VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 
 #### Time series
 
@@ -344,6 +352,18 @@ It is very important to keep under control the number of unique label values, si
 leads to a new [time series](#time-series). Try to avoid using volatile label values such as session ID or query ID in order to
 avoid excessive resource usage and database slowdown.
 
+### Multi-tenancy
+
+[Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics 
+supports [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+for data isolation.
+
+Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) 
+version of VictoriaMetrics by adding [labels](#labels) on [write path](#write-data)
+and enforcing [labels filtering](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements) 
+on [read path](#query-data).
+
+
 ## Write data
 
 VictoriaMetrics supports both models used in modern monitoring applications: [push](#push-model) and [pull](#pull-model).
@@ -484,10 +504,13 @@ GET | POST /api/v1/query?query=...&time=...&step=...
 Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `time` - optional timestamp when to evaluate the `query`. If `time` is skipped, then the current timestamp is used.
+* `time` - optional, [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional max lookback window for searching for raw samples when executing the `query`.
-  If `step` is skipped, then it is set to `5m` (5 minutes) by default.
+* `step` - optional, the max [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+  for searching for raw samples in the past when executing the `query`. 
+  For example, request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for metric `up`
+  on interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
 
 To understand how instant queries work, let's begin with a data sample:
 
@@ -575,18 +598,18 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
 
 Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `start` - the starting timestamp of the time range for `query` evaluation.
-* `end` - the ending timestamp of the time range for `query` evaluation.
+* `start` - the starting [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
+* `end` - the ending [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
-* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) between datapoints,
-  which must be returned from the range query.
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
+  between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
 
-The `start` and `end` params can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-
-To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
-need to issue a range query:
+To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`
+in VictoriaMetrics we need to issue a range query:
 
 ```console
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"

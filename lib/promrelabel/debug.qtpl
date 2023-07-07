@@ -73,12 +73,12 @@ function submitRelabelDebugForm(e) {
 {% func relabelDebugFormInputs(metric, relabelConfigs string) %}
     <div>
         Relabel configs:<br/>
-        <textarea name="relabel_configs" style="width: 100%; height: 15em" class="m-1">{%s relabelConfigs %}</textarea>
+        <textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s relabelConfigs %}</textarea>
     </div>
 
     <div>
         Labels:<br/>
-        <textarea name="metric" style="width: 100%; height: 5em" class="m-1">{%s metric %}</textarea>
+        <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">{%s metric %}</textarea>
     </div>
 {% endfunc %}
 

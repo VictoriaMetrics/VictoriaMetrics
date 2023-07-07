@@ -21,6 +21,7 @@ include package/release/Makefile
 
 all: \
 	victoria-metrics-prod \
+	victoria-logs-prod \
 	vmagent-prod \
 	vmalert-prod \
 	vmauth-prod \
@@ -31,8 +32,9 @@ all: \
 clean:
 	rm -rf bin/*
 
-publish: docker-scan \
+publish: package-base \
 	publish-victoria-metrics \
+	publish-victoria-logs \
 	publish-vmagent \
 	publish-vmalert \
 	publish-vmauth \
@@ -42,6 +44,7 @@ publish: docker-scan \
 
 package: \
 	package-victoria-metrics \
+	package-victoria-logs \
 	package-vmagent \
 	package-vmalert \
 	package-vmauth \
@@ -178,6 +181,7 @@ publish-release:
 
 release: \
 	release-victoria-metrics \
+	release-victoria-logs \
 	release-vmutils
 
 release-victoria-metrics: \
@@ -191,7 +195,6 @@ release-victoria-metrics: \
 	release-victoria-metrics-openbsd-amd64 \
 	release-victoria-metrics-windows-amd64
 
-# adds i386 arch
 release-victoria-metrics-linux-386:
 	GOOS=linux GOARCH=386 $(MAKE) release-victoria-metrics-goos-goarch
 
@@ -237,6 +240,63 @@ release-victoria-metrics-windows-goarch: victoria-metrics-windows-$(GOARCH)-prod
 			> victoria-metrics-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
 	cd bin && rm -rf \
 		victoria-metrics-windows-$(GOARCH)-prod.exe
+
+release-victoria-logs: \
+	release-victoria-logs-linux-386 \
+	release-victoria-logs-linux-amd64 \
+	release-victoria-logs-linux-arm \
+	release-victoria-logs-linux-arm64 \
+	release-victoria-logs-darwin-amd64 \
+	release-victoria-logs-darwin-arm64 \
+	release-victoria-logs-freebsd-amd64 \
+	release-victoria-logs-openbsd-amd64 \
+	release-victoria-logs-windows-amd64
+
+release-victoria-logs-linux-386:
+	GOOS=linux GOARCH=386 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-linux-amd64:
+	GOOS=linux GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-linux-arm:
+	GOOS=linux GOARCH=arm $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-linux-arm64:
+	GOOS=linux GOARCH=arm64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-darwin-amd64:
+	GOOS=darwin GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-darwin-arm64:
+	GOOS=darwin GOARCH=arm64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-freebsd-amd64:
+	GOOS=freebsd GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-openbsd-amd64:
+	GOOS=openbsd GOARCH=amd64 $(MAKE) release-victoria-logs-goos-goarch
+
+release-victoria-logs-windows-amd64:
+	GOARCH=amd64 $(MAKE) release-victoria-logs-windows-goarch
+
+release-victoria-logs-goos-goarch: victoria-logs-$(GOOS)-$(GOARCH)-prod
+	cd bin && \
+		tar --transform="flags=r;s|-$(GOOS)-$(GOARCH)||" -czf victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-logs-$(GOOS)-$(GOARCH)-prod \
+		&& sha256sum victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG).tar.gz \
+			victoria-logs-$(GOOS)-$(GOARCH)-prod \
+			| sed s/-$(GOOS)-$(GOARCH)-prod/-prod/ > victoria-logs-$(GOOS)-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf victoria-logs-$(GOOS)-$(GOARCH)-prod
+
+release-victoria-logs-windows-goarch: victoria-logs-windows-$(GOARCH)-prod
+	cd bin && \
+		zip victoria-logs-windows-$(GOARCH)-$(PKG_TAG).zip \
+			victoria-logs-windows-$(GOARCH)-prod.exe \
+		&& sha256sum victoria-logs-windows-$(GOARCH)-$(PKG_TAG).zip \
+			victoria-logs-windows-$(GOARCH)-prod.exe \
+			> victoria-logs-windows-$(GOARCH)-$(PKG_TAG)_checksums.txt
+	cd bin && rm -rf \
+		victoria-logs-windows-$(GOARCH)-prod.exe
 
 release-vmutils: \
 	release-vmutils-linux-386 \
@@ -418,27 +478,39 @@ check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
 
 copy-docs:
-	echo '' > ${DST}
+# The 'printf' function is used instead of 'echo' or 'echo -e' to handle line breaks (e.g. '\n') in the same way on different operating systems (MacOS/Ubuntu Linux/Arch Linux) and their shells (bash/sh/zsh/fish).
+# For details, see https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4548#issue-1782796419 and https://stackoverflow.com/questions/8467424/echo-newline-in-bash-prints-literal-n
+	echo "---" > ${DST}
 	@if [ ${ORDER} -ne 0 ]; then \
-		echo "---\nsort: ${ORDER}\n---\n" > ${DST}; \
+		echo "sort: ${ORDER}" >> ${DST}; \
+		echo "weight: ${ORDER}" >> ${DST}; \
+		printf "menu:\n  docs:\n    parent: 'victoriametrics'\n    weight: ${ORDER}\n" >> ${DST}; \
 	fi
+
+	echo "title: ${TITLE}" >> ${DST}
+	@if [ ${OLD_URL} ]; then \
+		printf "aliases:\n  - ${OLD_URL}\n" >> ${DST}; \
+	fi
+	echo "---" >> ${DST}
 	cat ${SRC} >> ${DST}
 	sed -i='.tmp' 's/<img src=\"docs\//<img src=\"/' ${DST}
 	rm -rf docs/*.tmp
 
-# Copies docs for all components and adds the order tag.
-# For ORDER=0 it adds no order tag.
+# Copies docs for all components and adds the order/weight tag, title, menu position and alias with the backward compatible link for the old site.
+# For ORDER=0 it adds no order tag/weight tag.
+# FOR OLD_URL - relative link, used for backward compatibility with the link from documentation based on GitHub pages (old one)
+# FOR OLD_URL='' it adds no alias, it should be empty for every new page, don't change it for already existing links.
 # Images starting with <img src="docs/ are replaced with <img src="
-# Cluster docs are supposed to be ordered as 9th.
+# Cluster docs are supposed to be ordered as 2nd.
 # The rest of docs is ordered manually.
 docs-sync:
-	SRC=README.md DST=docs/README.md ORDER=0 $(MAKE) copy-docs
-	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md ORDER=1 $(MAKE) copy-docs
-	SRC=app/vmagent/README.md DST=docs/vmagent.md ORDER=3 $(MAKE) copy-docs
-	SRC=app/vmalert/README.md DST=docs/vmalert.md ORDER=4 $(MAKE) copy-docs
-	SRC=app/vmauth/README.md DST=docs/vmauth.md ORDER=5 $(MAKE) copy-docs
-	SRC=app/vmbackup/README.md DST=docs/vmbackup.md ORDER=6 $(MAKE) copy-docs
-	SRC=app/vmrestore/README.md DST=docs/vmrestore.md ORDER=7 $(MAKE) copy-docs
-	SRC=app/vmctl/README.md DST=docs/vmctl.md ORDER=8 $(MAKE) copy-docs
-	SRC=app/vmgateway/README.md DST=docs/vmgateway.md ORDER=9 $(MAKE) copy-docs
-	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md ORDER=10 $(MAKE) copy-docs
+	SRC=README.md DST=docs/README.md OLD_URL='' ORDER=0 TITLE=VictoriaMetrics $(MAKE) copy-docs
+	SRC=README.md DST=docs/Single-server-VictoriaMetrics.md OLD_URL='/Single-server-VictoriaMetrics.html' TITLE=VictoriaMetrics ORDER=1 $(MAKE) copy-docs
+	SRC=app/vmagent/README.md DST=docs/vmagent.md OLD_URL='/vmagent.html' ORDER=3 TITLE=vmagent $(MAKE) copy-docs
+	SRC=app/vmalert/README.md DST=docs/vmalert.md OLD_URL='/vmalert.html' ORDER=4 TITLE=vmalert $(MAKE) copy-docs
+	SRC=app/vmauth/README.md DST=docs/vmauth.md OLD_URL='/vmauth.html' ORDER=5 TITLE=vmauth $(MAKE) copy-docs
+	SRC=app/vmbackup/README.md DST=docs/vmbackup.md OLD_URL='/vmbackup.html' ORDER=6 TITLE=vmbackup $(MAKE) copy-docs
+	SRC=app/vmrestore/README.md DST=docs/vmrestore.md OLD_URL='/vmrestore.html' ORDER=7 TITLE=vmrestore $(MAKE) copy-docs
+	SRC=app/vmctl/README.md DST=docs/vmctl.md OLD_URL='/vmctl.html' ORDER=8 TITLE=vmctl $(MAKE) copy-docs
+	SRC=app/vmgateway/README.md DST=docs/vmgateway.md OLD_URL='/vmgateway.html' ORDER=9 TITLE=vmgateway $(MAKE) copy-docs
+	SRC=app/vmbackupmanager/README.md DST=docs/vmbackupmanager.md OLD_URL='/vmbackupmanager.html' ORDER=10 TITLE=vmbackupmanager $(MAKE) copy-docs

@@ -31,7 +31,7 @@ type Rule interface {
 	Close()
 }
 
-var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")
+var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels. See https://docs.victoriametrics.com/vmalert.html#series-with-the-same-labelset for details")
 
 type ruleState struct {
 	sync.RWMutex

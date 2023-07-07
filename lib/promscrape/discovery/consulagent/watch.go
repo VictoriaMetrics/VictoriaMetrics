@@ -206,7 +206,8 @@ func (cw *consulAgentWatcher) getServiceNames() ([]string, error) {
 		return nil, fmt.Errorf("cannot parse response from %q: %w; data=%q", path, err, data)
 	}
 	serviceNames := make([]string, 0, len(m))
-	for serviceName, service := range m {
+	for _, service := range m {
+		serviceName := service.Service
 		if service.Datacenter != cw.watchDatacenter {
 			continue
 		}

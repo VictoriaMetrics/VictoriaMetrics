@@ -1,4 +1,4 @@
-## vmbackupmanager
+# vmbackupmanager
 
 ***vmbackupmanager is a part of [enterprise package](https://docs.victoriametrics.com/enterprise.html). It is available for download and evaluation at [releases page](https://github.com/VictoriaMetrics/VictoriaMetrics/releases)***
 
@@ -104,11 +104,11 @@ The result on the GCS bucket
 
 * The root folder
 
-  ![root](vmbackupmanager_root_folder.png)
+  <img alt="root folder" src="vmbackupmanager_root_folder.png">
 
 * The latest folder
 
-  ![latest](vmbackupmanager_latest_folder.png)
+  <img alt="latest folder" src="vmbackupmanager_latest_folder.png">
 
 ## Backup Retention Policy
 
@@ -123,7 +123,7 @@ Backup retention policy is controlled by:
 
 Let’s assume we have a backup manager collecting daily backups for the past 10 days.
 
-![daily](vmbackupmanager_rp_daily_1.png)
+<img alt="retention policy daily before retention cycle" src="vmbackupmanager_rp_daily_1.png">
 
 We enable backup retention policy for backup manager by using following configuration:
 
@@ -148,7 +148,7 @@ info    app/vmbackupmanager/retention.go:106    daily backups to delete [daily/2
 
 The result on the GCS bucket. We see only 3 daily backups:
 
-![daily](vmbackupmanager_rp_daily_2.png)
+<img alt="retention policy daily after retention cycle" src="vmbackupmanager_rp_daily_2.png">
 
 ### Protection backups against deletion by retention policy
 
@@ -452,6 +452,12 @@ command-line flags:
      Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections (default ":8300")
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
+  -internStringMaxLen int
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -keepLastDaily int
      Keep last N daily backups. If 0 is specified next retention cycle removes all backups for given time period. (default -1)
   -keepLastHourly int
@@ -496,13 +502,20 @@ command-line flags:
      Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -runOnStart
-     Upload backups immediately after start of the service. Otherwise, the backup starts on new hour
+     Upload backups immediately after start of the service. Otherwise the backup starts on new hour
+  -s2a_enable_appengine_dialer
+     If true, opportunistically use AppEngine-specific dialer to call S2A.
+  -s2a_timeout duration
+     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3ForcePathStyle
      Prefixing endpoint with bucket name when set false, true by default. (default true)
+  -s3StorageClass string
+     The Storage Class applied to objects uploaded to AWS S3. Supported values are: GLACIER, DEEP_ARCHIVE, GLACIER_IR, INTELLIGENT_TIERING, ONEZONE_IA, OUTPOSTS, REDUCED_REDUNDANCY, STANDARD, STANDARD_IA.
+     See https://docs.aws.amazon.com/AmazonS3/latest/userguide/storage-class-intro.html/
   -snapshot.createURL string
      VictoriaMetrics create snapshot url. When this is given a snapshot will automatically be created during backup.Example: http://victoriametrics:8428/snapshot/create
   -snapshot.deleteURL string
-     VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snapshots will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
+     VictoriaMetrics delete snapshot url. Optional. Will be generated from snapshot.createURL if not provided. All created snaphosts will be automatically deleted.Example: http://victoriametrics:8428/snapshot/delete
   -storageDataPath string
      Path to VictoriaMetrics data. Must match -storageDataPath from VictoriaMetrics or vmstorage (default "victoria-metrics-data")
   -tls

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/backoff"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/barpool"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/limiter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/native"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/stepper"
@@ -32,6 +33,7 @@ type vmNativeProcessor struct {
 	interCluster   bool
 	cc             int
 	disableRetries bool
+	isSilent       bool
 }
 
 const (
@@ -41,7 +43,7 @@ const (
 	nativeSingleProcessTpl = `Total: {{counters . }} {{ cycle . "↖" "↗" "↘" "↙" }} Speed: {{speed . }} {{string . "suffix"}}`
 )
 
-func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
+func (p *vmNativeProcessor) run(ctx context.Context) error {
 	if p.cc == 0 {
 		p.cc = 1
 	}
@@ -78,13 +80,13 @@ func (p *vmNativeProcessor) run(ctx context.Context, silent bool) error {
 			return fmt.Errorf("failed to get tenants: %w", err)
 		}
 		question := fmt.Sprintf("The following tenants were discovered: %s.\n Continue?", tenants)
-		if !silent && !prompt(question) {
+		if !p.isSilent && !prompt(question) {
 			return nil
 		}
 	}
 
 	for _, tenantID := range tenants {
-		err := p.runBackfilling(ctx, tenantID, ranges, silent)
+		err := p.runBackfilling(ctx, tenantID, ranges, p.isSilent)
 		if err != nil {
 			return fmt.Errorf("migration failed: %s", err)
 		}
@@ -111,7 +113,6 @@ func (p *vmNativeProcessor) do(ctx context.Context, f native.Filter, srcURL, dst
 }
 
 func (p *vmNativeProcessor) runSingle(ctx context.Context, f native.Filter, srcURL, dstURL string, bar *pb.ProgressBar) error {
-
 	reader, err := p.src.ExportPipe(ctx, srcURL, f)
 	if err != nil {
 		return fmt.Errorf("failed to init export pipe: %w", err)
@@ -218,9 +219,9 @@ func (p *vmNativeProcessor) runBackfilling(ctx context.Context, tenantID string,
 
 	var bar *pb.ProgressBar
 	if !silent {
-		bar = pb.ProgressBarTemplate(fmt.Sprintf(nativeWithBackoffTpl, barPrefix)).New(len(metrics) * len(ranges))
+		bar = barpool.NewSingleProgress(fmt.Sprintf(nativeWithBackoffTpl, barPrefix), len(metrics)*len(ranges))
 		if p.disableRetries {
-			bar = pb.ProgressBarTemplate(nativeSingleProcessTpl).New(0)
+			bar = barpool.NewSingleProgress(nativeSingleProcessTpl, 0)
 		}
 		bar.Start()
 		defer bar.Finish()
