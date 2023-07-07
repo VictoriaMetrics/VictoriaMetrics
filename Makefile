@@ -411,8 +411,8 @@ vet:
 
 # Set variables by using target specific variables to avoid running git diff for each make execution
 # See: https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
-goimports: GO_CHANGED_FILES+=$(shell git diff --cached --name-only --diff-filter=ACMR -- 'lib/*.go')
-goimports: GO_CHANGED_FILES+=$(shell git diff --cached --name-only --diff-filter=ACMR -- 'app/*.go')
+goimports: GO_CHANGED_FILES+=$(shell git diff --name-only --diff-filter=ACMR HEAD -- 'lib/*.go')
+goimports: GO_CHANGED_FILES+=$(shell git diff --name-only --diff-filter=ACMR HEAD -- 'app/*.go')
 goimports: install-goimports
 	# GO_CHANGED_FILES will contain a single space if there are no changed files
 	if [ "$(GO_CHANGED_FILES)" != " " ]; then \
