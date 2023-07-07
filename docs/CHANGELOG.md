@@ -65,6 +65,7 @@ Released at 2023-06-30
 * BUGFIX: [storage](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html): prevent from possible crashloop after the migration from versions below `v1.90.0` to newer versions. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336) for details.
 * BUGFIX: [vmui](https://docs.victoriametrics.com/#vmui): fix a memory leak issue associated with chart updates. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4455).
 * BUGFIX: [vmbackupmanager](https://docs.victoriametrics.com/vmbackupmanager.html): fix removing storage data dir before restoring from backup.
+* BUGFIX: vmselect: wait for all vmstorage nodes to respond when the `-replicationFactor` flag is set bigger than > 1. Before, vmselect could have [skip waiting for the slowest replicas](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711) to respond. This could have resulted in issues illustrated [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1207). Now, this optimization is disabled by default and could be re-enabled by passing `-search.skipSlowReplicas` cmd-line flag to vmselect. See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4538). 
 
 
 ## [v1.91.2](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.2)
