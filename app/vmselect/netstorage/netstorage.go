@@ -1729,7 +1729,6 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		result := <-snr.resultsCh
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
-			resultsCollected++
 			if *skipSlowReplicas && resultsCollected > len(sns)-*replicationFactor {
 				// There is no need in waiting for the remaining results,
 				// because the collected results contain all the data according to the given -replicationFactor.
@@ -1767,6 +1766,7 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 			continue
 		}
 		snr.finishQueryTracer(result.qt, "")
+		resultsCollected++
 	}
 	if len(errsPartial) < *replicationFactor {
 		// Assume that the result is full if the the number of failing vmstorage nodes
