@@ -1729,17 +1729,6 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		result := <-snr.resultsCh
 		if err := f(result.data); err != nil {
 			snr.finishQueryTracer(result.qt, fmt.Sprintf("error: %s", err))
-			if *skipSlowReplicas && resultsCollected > len(sns)-*replicationFactor {
-				// There is no need in waiting for the remaining results,
-				// because the collected results contain all the data according to the given -replicationFactor.
-				// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
-				// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
-				//
-				// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
-				snr.finishQueryTracers(fmt.Sprintf("cancel request because %d out of %d nodes already returned response according to -replicationFactor=%d",
-					resultsCollected, len(sns), *replicationFactor))
-				return false, nil
-			}
 			var er *errRemote
 			if errors.As(err, &er) {
 				// Immediately return the error reported by vmstorage to the caller,
@@ -1767,6 +1756,17 @@ func (snr *storageNodesRequest) collectResults(partialResultsCounter *metrics.Co
 		}
 		snr.finishQueryTracer(result.qt, "")
 		resultsCollected++
+		if *skipSlowReplicas && resultsCollected > len(sns)-*replicationFactor {
+			// There is no need in waiting for the remaining results,
+			// because the collected results contain all the data according to the given -replicationFactor.
+			// This should speed up responses when a part of vmstorage nodes are slow and/or temporarily unavailable.
+			// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/711
+			//
+			// It is expected that cap(snr.resultsCh) == len(sns), otherwise goroutine leak is possible.
+			snr.finishQueryTracers(fmt.Sprintf("cancel request because %d out of %d nodes already returned response according to -replicationFactor=%d",
+				resultsCollected, len(sns), *replicationFactor))
+			return false, nil
+		}
 	}
 	if len(errsPartial) < *replicationFactor {
 		// Assume that the result is full if the the number of failing vmstorage nodes
