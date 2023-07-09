@@ -8,21 +8,22 @@ import { DATE_FORMAT } from "../../../constants/date";
 import DatePicker from "../../Main/DatePicker/DatePicker";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import { useSearchParams } from "react-router-dom";
+import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 
 const CardinalityDatePicker: FC = () => {
   const { isMobile } = useDeviceDetect();
   const appModeEnable = getAppModeEnable();
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const date = searchParams.get("date") || dayjs().tz().format(DATE_FORMAT);
 
   const dateFormatted = useMemo(() => dayjs.tz(date).format(DATE_FORMAT), [date]);
 
   const handleChangeDate = (val: string) => {
-    searchParams.set("date", val);
-    setSearchParams(searchParams);
+    setSearchParamsFromKeys({ date: val });
   };
 
   useEffect(() => {

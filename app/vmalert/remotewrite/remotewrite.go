@@ -23,6 +23,8 @@ import (
 var (
 	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
 	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
+	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
+	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
 )
 
 // Client is an asynchronous HTTP client for writing
@@ -147,6 +149,7 @@ func (c *Client) run(ctx context.Context) {
 			wr.Timeseries = append(wr.Timeseries, ts)
 		}
 		lastCtx, cancel := context.WithTimeout(context.Background(), defaultWriteTimeout)
+		logger.Infof("shutting down remote write client and flushing remained %d series", len(wr.Timeseries))
 		c.flush(lastCtx, wr)
 		cancel()
 	}
@@ -180,14 +183,14 @@ func (c *Client) run(ctx context.Context) {
 var (
 	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
 	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
+	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
 	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
 	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
 	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
-)
 
-var (
-	retryCount   = 5
-	retryBackoff = time.Second
+	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
+		return float64(*concurrency)
+	})
 )
 
 // flush is a blocking function that marshals WriteRequest and sends
@@ -207,7 +210,15 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	}
 
 	b := snappy.Encode(nil, data)
-	for attempts := 0; attempts < retryCount; attempts++ {
+
+	retryInterval, maxRetryInterval := *retryMinInterval, *retryMaxTime
+	if retryInterval > maxRetryInterval {
+		retryInterval = maxRetryInterval
+	}
+	timeStart := time.Now()
+	defer sendDuration.Add(time.Since(timeStart).Seconds())
+L:
+	for attempts := 0; ; attempts++ {
 		err := c.send(ctx, b)
 		if err == nil {
 			sentRows.Add(len(wr.Timeseries))
@@ -226,12 +237,24 @@ func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 		// check if request has been cancelled before backoff
 		select {
 		case <-ctx.Done():
-			break
+			logger.Errorf("interrupting retry attempt %d: context cancelled", attempts+1)
+			break L
 		default:
 		}
 
-		// sleeping to avoid remote db hammering
-		time.Sleep(retryBackoff)
+		timeLeftForRetries := maxRetryInterval - time.Since(timeStart)
+		if timeLeftForRetries < 0 {
+			// the max retry time has passed, so we give up
+			break
+		}
+
+		if retryInterval > timeLeftForRetries {
+			retryInterval = timeLeftForRetries
+		}
+		// sleeping to prevent remote db hammering
+		time.Sleep(retryInterval)
+		retryInterval *= 2
+
 	}
 
 	droppedRows.Add(len(wr.Timeseries))

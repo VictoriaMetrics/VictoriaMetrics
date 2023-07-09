@@ -61,11 +61,6 @@ Unarchived logs size per file for reference:
 
 ```shell
 make package-victoria-logs
-
-=> exporting to image                                                                                                                                                                                                                                                                                           0.5s
-=> => exporting layers                                                                                                                                                                                                                                                                                          0.5s
-=> => writing image sha256:3ef5d4d5dfc767353d897abba25314ae7820b6f4d8422b5b2a1342e7be5dd579                                                                                                                                                                                                                     0.0s
-=> => naming to docker.io/victoriametrics/victoria-logs:heads-logs-0-gcc3fa9cd3-dirty-cbfad271    
 ```
 
 Image name should be replaced at `vlogs` service in [docker-compose.yml](./docker-compose.yml).

@@ -25,18 +25,18 @@ import (
 // granted using policies. For more information, see Permissions for server access
 // log delivery (https://docs.aws.amazon.com/AmazonS3/latest/userguide/enable-server-access-logging.html#grant-log-delivery-permissions-general)
 // in the Amazon S3 User Guide. Grantee Values You can specify the person (grantee)
-// to whom you're assigning access rights (using request elements) in the following
-// ways:
+// to whom you're assigning access rights (by using request elements) in the
+// following ways:
 //   - By the person's ID: <>ID<><>GranteesEmail<> DisplayName is optional and
 //     ignored in the request.
 //   - By Email address: <>Grantees@email.com<> The grantee is resolved to the
-//     CanonicalUser and, in a response to a GET Object acl request, appears as the
+//     CanonicalUser and, in a response to a GETObjectAcl request, appears as the
 //     CanonicalUser.
 //   - By URI: <>http://acs.amazonaws.com/groups/global/AuthenticatedUsers<>
 //
 // To enable logging, you use LoggingEnabled and its children request elements. To
-// disable logging, you use an empty BucketLoggingStatus request element: For more
-// information about server access logging, see Server Access Logging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html)
+// disable logging, you use an empty BucketLoggingStatus request element:  For
+// more information about server access logging, see Server Access Logging (https://docs.aws.amazon.com/AmazonS3/latest/userguide/ServerLogs.html)
 // in the Amazon S3 User Guide. For more information about creating a bucket, see
 // CreateBucket (https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html)
 // . For more information about returning the logging status of a bucket, see

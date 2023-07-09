@@ -3,11 +3,17 @@
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can accept logs from the following log collectors:
 
 - Filebeat. See [how to setup Filebeat for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Filebeat.html).
+- Fluentbit. See [how to setup Fluentbit for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html).
 - Logstash. See [how to setup Logstash for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html).
+- Vector. See [how to setup Vector for sending logs to VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html).
 
 The ingested logs can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
 
-See also [data ingestion troubleshooting](#troubleshooting) docs.
+See also:
+
+- [Log collectors and data ingestion formats](#log-collectors-and-data-ingestion-formats).
+- [Data ingestion troubleshooting](#troubleshooting).
+
 
 ## HTTP APIs
 
@@ -21,9 +27,10 @@ VictoriaLogs accepts optional [HTTP parameters](#http-parameters) at data ingest
 ### Elasticsearch bulk API
 
 VictoriaLogs accepts logs in [Elasticsearch bulk API](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html)
-format at `http://localhost:9428/insert/elasticsearch/_bulk` endpoint.
+/ [OpenSearch Bulk API](http://opensearch.org/docs/1.2/opensearch/rest-api/document-apis/bulk/) format
+at `http://localhost:9428/insert/elasticsearch/_bulk` endpoint.
 
-The following command pushes a single log line to Elasticsearch bulk API at VictoriaLogs:
+The following command pushes a single log line to VictoriaLogs:
 
 ```bash
 echo '{"create":{}}
@@ -31,7 +38,14 @@ echo '{"create":{}}
 ' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:9428/insert/elasticsearch/_bulk
 ```
 
-The following command verifies that the data has been successfully pushed to VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
+It is possible to push thousands of log lines in a single request to this API.
+
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) for details on fields,
+which must be present in the ingested log messages.
+
+The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
+
+The following command verifies that the data has been successfully ingested to VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
 
 ```bash
 curl http://localhost:9428/select/logsql/query -d 'query=host.name:host123'
@@ -43,20 +57,57 @@ The command should return the following response:
 {"_msg":"cannot open file","_stream":"{}","_time":"2023-06-21T04:24:24Z","host.name":"host123"}
 ```
 
+See also:
+
+- [How to debug data ingestion](#troubleshooting).
+- [HTTP parameters, which can be passed to the API](#http-parameters).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
+
 ### JSON stream API
 
-VictoriaLogs supports HTTP API on `/insert/jsonline` endpoint for data ingestion where
-body contains a JSON object in each line (separated by `\n`).
+VictoriaLogs accepts JSON line stream aka [ndjson](http://ndjson.org/) at `http://localhost:9428/insert/jsonline` endpoint.
 
-Here is an example:
+The following command pushes multiple log lines to VictoriaLogs:
 
- ```http request
- POST http://localhost:9428/insert/jsonline/?_stream_fields=stream&_msg_field=log&_time_field=date
- Content-Type: application/jsonl
- { "log": { "level": "info", "message": "hello world" }, "date": "2023‐06‐20T15:31:23Z", "stream": "stream1" }
- { "log": { "level": "error", "message": "oh no!" }, "date": "2023‐06‐20T15:32:10Z", "stream": "stream1" }
- { "log": { "level": "info", "message": "hello world" }, "date": "2023‐06‐20T15:35:11Z", "stream": "stream2" }
- ```
+ ```bash
+echo '{ "log": { "level": "info", "message": "hello world" }, "date": "2023-06-20T15:31:23Z", "stream": "stream1" }
+{ "log": { "level": "error", "message": "oh no!" }, "date": "2023-06-20T15:32:10.567Z", "stream": "stream1" }
+{ "log": { "level": "info", "message": "hello world" }, "date": "2023-06-20T15:35:11.567890+02:00", "stream": "stream2" }
+' | curl -X POST -H 'Content-Type: application/stream+json' --data-binary @- \
+  'http://localhost:9428/insert/jsonline?_stream_fields=stream&_time_field=date&_msg_field=log.message'
+```
+
+It is possible to push unlimited number of log lines in a single request to this API.
+
+The [timestamp field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) must be
+in the [ISO8601](https://en.wikipedia.org/wiki/ISO_8601) format. For example, `2023-06-20T15:32:10Z`.
+Optional fractional part of seconds can be specified after the dot - `2023-06-20T15:32:10.123Z`.
+Timezone can be specified instead of `Z` suffix - `2023-06-20T15:32:10+02:00`.
+
+See [these docs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) for details on fields,
+which must be present in the ingested log messages.
+
+The API accepts various http parameters, which can change the data ingestion behavior - [these docs](#http-parameters) for details.
+
+The following command verifies that the data has been successfully ingested into VictoriaLogs by [querying](https://docs.victoriametrics.com/VictoriaLogs/querying/) it:
+
+```bash
+curl http://localhost:9428/select/logsql/query -d 'query=log.level:*'
+```
+
+The command should return the following response:
+
+```bash
+{"_msg":"hello world","_stream":"{stream=\"stream2\"}","_time":"2023-06-20T13:35:11.56789Z","log.level":"info"}
+{"_msg":"hello world","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:31:23Z","log.level":"info"}
+{"_msg":"oh no!","_stream":"{stream=\"stream1\"}","_time":"2023-06-20T15:32:10.567Z","log.level":"error"}
+```
+
+See also:
+
+- [How to debug data ingestion](#troubleshooting).
+- [HTTP parameters, which can be passed to the API](#http-parameters).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying.html).
 
 ### HTTP parameters
 
@@ -114,3 +165,14 @@ VictoriaLogs exposes various [metrics](https://docs.victoriametrics.com/Victoria
   since the last VictoriaLogs restart. If this metric grows rapidly during extended periods of time, then this may lead
   to [high cardinality issues](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#high-cardinality).
   The newly created log streams can be inspected in logs by passing `-logNewStreams` command-line flag to VictoriaLogs.
+
+## Log collectors and data ingestion formats
+
+Here is the list of log collectors and their ingestion formats supported by VictoriaLogs:
+
+| How to setup the collector                                                               | Format: Elasticsearch                                                                     | Format: JSON Stream                                            |
+|------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------|---------------------------------------------------------------|
+| [Filebeat](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Filebeat.html)   | [Yes](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html)    | No                                                            |
+| [Fluentbit](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Fluentbit.html) | No                                                                                         | [Yes](https://docs.fluentbit.io/manual/pipeline/outputs/http) |
+| [Logstash](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Logstash.html)   | [Yes](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html) | No                                                            |
+| [Vector](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/Vector.html)       | [Yes](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/)                | No                                                            |

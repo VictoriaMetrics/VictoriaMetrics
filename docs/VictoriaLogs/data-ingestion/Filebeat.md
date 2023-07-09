@@ -72,7 +72,7 @@ output.elasticsearch:
   compression_level: 1
 ```
 
-By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `headers` at `output.elasticsearch` section.
 For example, the following `filebeat.yml` config instructs Filebeat to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
@@ -88,6 +88,9 @@ output.elasticsearch:
     _stream_fields: "host.name,log.file.path"
 ```
 
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+See also:
 
-See also [data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting) docs.
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [Filebeat `output.elasticsearch` docs](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html).
+- [Docker-compose demo for Filebeat integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/filebeat-docker).

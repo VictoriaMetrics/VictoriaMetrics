@@ -78,7 +78,7 @@ func requestHandler(w http.ResponseWriter, r *http.Request) bool {
 		fmt.Fprintf(w, "See docs at <a href='https://docs.victoriametrics.com/VictoriaLogs/'>https://docs.victoriametrics.com/VictoriaLogs/</a></br>")
 		fmt.Fprintf(w, "Useful endpoints:</br>")
 		httpserver.WriteAPIHelp(w, [][2]string{
-			{"vmui", "Web UI for VictoriaLogs"},
+			{"select/vmui", "Web UI for VictoriaLogs"},
 			{"metrics", "available service metrics"},
 			{"flags", "command-line flags"},
 		})

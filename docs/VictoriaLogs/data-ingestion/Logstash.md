@@ -74,7 +74,7 @@ output {
 }
 ```
 
-By default the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
+By default, the ingested logs are stored in the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/VictoriaLogs/#multitenancy).
 If you need storing logs in other tenant, then specify the needed tenant via `custom_headers` at `output.elasticsearch` section.
 For example, the following `logstash.conf` config instructs Logstash to store the data to `(AccountID=12, ProjectID=34)` tenant:
 
@@ -95,6 +95,9 @@ output {
 }
 ```
 
-The ingested log entries can be queried according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+See also:
 
-See also [data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting) docs.
+- [Data ingestion troubleshooting](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/#troubleshooting).
+- [How to query VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/querying/).
+- [Logstash `output.elasticsearch` docs](https://www.elastic.co/guide/en/logstash/current/plugins-outputs-elasticsearch.html).
+- [Docker-compose demo for Logstash integration with VictoriaLogs](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/deployment/docker/victorialogs/logstash).

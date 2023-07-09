@@ -33,8 +33,8 @@ import (
 // configurations that you can create per bucket, see Amazon S3 service quotas (https://docs.aws.amazon.com/general/latest/gr/s3.html#limits_s3)
 // in Amazon Web Services General Reference. By default, only the bucket owner can
 // configure notifications on a bucket. However, bucket owners can use a bucket
-// policy to grant permission to other users to set this configuration with
-// s3:PutBucketNotification permission. The PUT notification is an atomic
+// policy to grant permission to other users to set this configuration with the
+// required s3:PutBucketNotification permission. The PUT notification is an atomic
 // operation. For example, suppose your notification configuration includes SNS
 // topic, SQS queue, and Lambda function configurations. When you send a PUT
 // request with this configuration, Amazon S3 sends test messages to your SNS

@@ -29,10 +29,10 @@ import (
 // Amazon S3 Lifecycle configuration can have up to 1,000 rules. This limit is not
 // adjustable. Each rule consists of the following:
 //
-//   - Filter identifying a subset of objects to which the rule applies. The
+//   - A filter identifying a subset of objects to which the rule applies. The
 //     filter can be based on a key name prefix, object tags, or a combination of both.
 //
-//   - Status whether the rule is in effect.
+//   - A status indicating whether the rule is in effect.
 //
 //   - One or more lifecycle transition and expiration actions that you want
 //     Amazon S3 to perform on the objects identified by the filter. If the state of
@@ -49,7 +49,7 @@ import (
 // Services account that created it) can access the resource. The resource owner
 // can optionally grant access permissions to others by writing an access policy.
 // For this operation, a user must get the s3:PutLifecycleConfiguration
-// permission. You can also explicitly deny permissions. Explicit deny also
+// permission. You can also explicitly deny permissions. An explicit deny also
 // supersedes any other permissions. If you want to block users or accounts from
 // removing or deleting objects from your bucket, you must deny them permissions
 // for the following actions:

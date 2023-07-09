@@ -1,15 +1,19 @@
-import { useEffect, useState } from "react";
 import { ErrorTypes } from "../../../types";
 import { useAppState } from "../../../state/common/StateContext";
-import { useMemo } from "preact/compat";
+import { useMemo, useState } from "preact/compat";
 import { getTopQueries } from "../../../api/top-queries";
 import { TopQueriesData } from "../../../types";
-import { useTopQueriesState } from "../../../state/topQueries/TopQueriesStateContext";
 import { getDurationFromMilliseconds } from "../../../utils/time";
+import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 
-export const useFetchTopQueries = () => {
+interface useFetchTopQueriesProps {
+  topN: number;
+  maxLifetime: string;
+}
+
+export const useFetchTopQueries = ({ topN, maxLifetime }: useFetchTopQueriesProps) => {
   const { serverUrl } = useAppState();
-  const { topN, maxLifetime, runQuery } = useTopQueriesState();
+  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const [data, setData] = useState<TopQueriesData | null>(null);
   const [loading, setLoading] = useState(false);
@@ -19,6 +23,7 @@ export const useFetchTopQueries = () => {
 
   const fetchData = async () => {
     setLoading(true);
+    setSearchParamsFromKeys({ topN, maxLifetime });
     try {
       const response = await fetch(fetchUrl);
       const resp = await response.json();
@@ -42,13 +47,10 @@ export const useFetchTopQueries = () => {
     setLoading(false);
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [runQuery]);
-
   return {
     data,
     error,
-    loading
+    loading,
+    fetch: fetchData
   };
 };

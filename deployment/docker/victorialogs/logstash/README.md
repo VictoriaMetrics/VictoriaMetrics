@@ -23,6 +23,11 @@ The docker compose file contains the following components:
 * logstash - logstash is configured to accept `syslog` on `5140` port, you can find configuration in the `pipeline.conf`. It writes data in VictoriaLogs
 * VictoriaLogs - the log database, it accepts the data from `logstash` by elastic protocol
 
+Querying the data
+
+* [vmui](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
+* for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
+
 
 Here is an example of logstash configuration(`pipeline.conf`):
 

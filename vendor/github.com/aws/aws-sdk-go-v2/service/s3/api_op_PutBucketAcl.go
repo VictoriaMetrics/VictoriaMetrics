@@ -30,7 +30,7 @@ import (
 // objects in it. Requests to set ACLs or update ACLs fail and return the
 // AccessControlListNotSupported error code. Requests to read ACLs are still
 // supported. For more information, see Controlling object ownership (https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html)
-// in the Amazon S3 User Guide. Permissions You can set access permissions using
+// in the Amazon S3 User Guide. Permissions You can set access permissions by using
 // one of the following methods:
 //   - Specify a canned ACL with the x-amz-acl request header. Amazon S3 supports a
 //     set of predefined ACLs, known as canned ACLs. Each canned ACL has a predefined

@@ -203,7 +203,7 @@ type CreateMultipartUploadInput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// This member is required.
@@ -219,10 +219,10 @@ type CreateMultipartUploadInput struct {
 	ACL types.ObjectCannedACL
 
 	// Specifies whether Amazon S3 should use an S3 Bucket Key for object encryption
-	// with server-side encryption using AWS KMS (SSE-KMS). Setting this header to true
-	// causes Amazon S3 to use an S3 Bucket Key for object encryption with SSE-KMS.
-	// Specifying this header with an object action doesn’t affect bucket-level
-	// settings for S3 Bucket Key.
+	// with server-side encryption using Key Management Service (KMS) keys (SSE-KMS).
+	// Setting this header to true causes Amazon S3 to use an S3 Bucket Key for object
+	// encryption with SSE-KMS. Specifying this header with an object action doesn’t
+	// affect bucket-level settings for S3 Bucket Key.
 	BucketKeyEnabled bool
 
 	// Specifies caching behavior along the request/reply chain.
@@ -312,16 +312,15 @@ type CreateMultipartUploadInput struct {
 	SSEKMSEncryptionContext *string
 
 	// Specifies the ID of the symmetric encryption customer managed key to use for
-	// object encryption. All GET and PUT requests for an object protected by Amazon
-	// Web Services KMS will fail if not made via SSL or using SigV4. For information
-	// about configuring using any of the officially supported Amazon Web Services SDKs
-	// and Amazon Web Services CLI, see Specifying the Signature Version in Request
-	// Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
+	// object encryption. All GET and PUT requests for an object protected by KMS will
+	// fail if they're not made via SSL or using SigV4. For information about
+	// configuring any of the officially supported Amazon Web Services SDKs and Amazon
+	// Web Services CLI, see Specifying the Signature Version in Request Authentication (https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingAWSSDK.html#specify-signature-version)
 	// in the Amazon S3 User Guide.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms ).
+	// (for example, AES256 , aws:kms ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// By default, Amazon S3 uses the STANDARD Storage Class to store newly created
@@ -374,12 +373,12 @@ type CreateMultipartUploadOutput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	Bucket *string
 
 	// Indicates whether the multipart upload uses an S3 Bucket Key for server-side
-	// encryption with Amazon Web Services KMS (SSE-KMS).
+	// encryption with Key Management Service (KMS) keys (SSE-KMS).
 	BucketKeyEnabled bool
 
 	// The algorithm that was used to create a checksum of the object.
@@ -407,13 +406,12 @@ type CreateMultipartUploadOutput struct {
 	// holding JSON with the encryption context key-value pairs.
 	SSEKMSEncryptionContext *string
 
-	// If present, specifies the ID of the Amazon Web Services Key Management Service
-	// (Amazon Web Services KMS) symmetric encryption customer managed key that was
-	// used for the object.
+	// If present, specifies the ID of the Key Management Service (KMS) symmetric
+	// encryption customer managed key that was used for the object.
 	SSEKMSKeyId *string
 
 	// The server-side encryption algorithm used when storing this object in Amazon S3
-	// (for example, AES256, aws:kms ).
+	// (for example, AES256 , aws:kms ).
 	ServerSideEncryption types.ServerSideEncryption
 
 	// ID for the initiated multipart upload.

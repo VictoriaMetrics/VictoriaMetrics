@@ -18,9 +18,13 @@ The docker compose file contains the following components:
 * filebeat - fileabeat is configured to collect logs from the `docker`, you can find configuration in the `filebeat.yml`. It writes data in VictoriaLogs
 * filebeat-exporter - it export metrics about the filebeat
 * VictoriaLogs - the log database, it accepts the data from `filebeat` by elastic protocol
-* VictoriaMetrics - collects metrics from `filebeat` via `filebeat-exporter`, `VictoriaLogs` and `VictoriaMetrics`(itself)
+* VictoriaMetrics - collects metrics from `filebeat` via `filebeat-exporter`, `VictoriaLogs` and `VictoriaMetrics`
 * grafana - it comes with two predefined dashboards for `VictoriaLogs` and `VictoriaMetrics`
 
+Querying the data 
+
+* [vmui](https://docs.victoriametrics.com/VictoriaLogs/querying/#vmui) - a web UI is accessible by `http://localhost:9428/select/vmui`
+* for querying the data via command-line please check [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line)
 
 the example of filebeat configuration(`filebeat.yml`)
 

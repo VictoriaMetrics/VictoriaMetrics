@@ -16,13 +16,13 @@ VictoriaMetrics is a fast, cost-effective and scalable monitoring solution and t
 VictoriaMetrics is available in [binary releases](https://github.com/VictoriaMetrics/VictoriaMetrics/releases),
 [Docker images](https://hub.docker.com/r/victoriametrics/victoria-metrics/), [Snap packages](https://snapcraft.io/victoriametrics)
 and [source code](https://github.com/VictoriaMetrics/VictoriaMetrics). 
-Just download [the latest version of VictoriaMetrics](https://docs.victoriametrics.com/CHANGELOG.html)
-and follow [these instructions](https://docs.victoriametrics.com/Quick-Start.html).
 
 The cluster version of VictoriaMetrics is available [here](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html).
 
 Learn more about [key concepts](https://docs.victoriametrics.com/keyConcepts.html) of VictoriaMetrics and follow the 
 [quick start guide](https://docs.victoriametrics.com/Quick-Start.html) for a better experience.
+
+There is also user-friendly database for logs - [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).
 
 If you have questions about VictoriaMetrics, then feel free asking them at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
@@ -118,6 +118,7 @@ Case studies:
 * [MHI Vestas Offshore Wind](https://docs.victoriametrics.com/CaseStudies.html#mhi-vestas-offshore-wind)
 * [Razorpay](https://docs.victoriametrics.com/CaseStudies.html#razorpay)
 * [Percona](https://docs.victoriametrics.com/CaseStudies.html#percona)
+* [Roblox](https://docs.victoriametrics.com/CaseStudies.html#roblox)
 * [Sensedia](https://docs.victoriametrics.com/CaseStudies.html#sensedia)
 * [Smarkets](https://docs.victoriametrics.com/CaseStudies.html#smarkets)
 * [Synthesio](https://docs.victoriametrics.com/CaseStudies.html#synthesio)
@@ -1164,13 +1165,14 @@ Additionally, VictoriaMetrics can accept metrics via the following popular data 
 * `/api/v1/import/prometheus` for importing data in Prometheus exposition format and in [Pushgateway format](https://github.com/prometheus/pushgateway#url).
   See [these docs](#how-to-import-data-in-prometheus-exposition-format) for details.
 
-### How to import data in JSON line format
-
-`/api/v1/import` is an API optimized for performance and processes data in a streaming fashion. 
-The client can transfer unlimited amount of data through one open connection. 
-`/api/v1/import` API doesn't return parsing errors to the client, as it is expected for data stream
-to be not interrupted. Instead, look for parsing errors on server side (VictoriaMetrics single-node or vminsert) or
+Please note, most of the ingestion APIs (except [Prometheus remote_write API](https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write))
+are optimized for performance and processes data in a streaming fashion.
+It means that client can transfer unlimited amount of data through the open connection. Because of this, import APIs
+may not return parsing errors to the client, as it is expected for data stream to be not interrupted. 
+Instead, look for parsing errors on the server side (VictoriaMetrics single-node or vminsert) or
 check for changes in `vm_rows_invalid_total` (exported by server side) metric.
+
+### How to import data in JSON line format
 
 Example for importing data obtained via [/api/v1/export](#how-to-export-data-in-json-line-format):
 
@@ -1578,18 +1580,21 @@ See also [how to work with snapshots](#how-to-work-with-snapshots).
 
 ## Retention
 
-Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. The default retention period is one month. The minimum retention period is 24h or 1d.
+Retention is configured with the `-retentionPeriod` command-line flag, which takes a number followed by a time unit 
+character - `h(ours)`, `d(ays)`, `w(eeks)`, `y(ears)`. If the time unit is not specified, a month is assumed. 
+For instance, `-retentionPeriod=3` means that the data will be stored for 3 months and then deleted. 
+The default retention period is one month. The **minimum retention** period is 24h or 1d.
 
 Data is split in per-month partitions inside `<-storageDataPath>/data/{small,big}` folders.
-Data partitions outside the configured retention are deleted on the first day of the new month.
-Each partition consists of one or more data parts. Data parts outside the configured retention are eventually deleted during
-[background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+**Data partitions** outside the configured retention are deleted **on the first day of the new month**.
+Each partition consists of one or more **data parts**. Data parts outside the configured retention 
+are **eventually deleted** during [background merge](https://medium.com/@valyala/how-victoriametrics-makes-instant-snapshots-for-multi-terabyte-time-series-data-e1f3fb0e0282).
+The time range covered by data part is **not limited by retention period unit**. One data part can cover hours or days of 
+data. Hence, a data part can be deleted only **when fully outside the configured retention**.
+See more about partitions and parts [here](#storage).
 
 The maximum disk space usage for a given `-retentionPeriod` is going to be (`-retentionPeriod` + 1) months.
 For example, if `-retentionPeriod` is set to 1, data for January is deleted on March 1st.
-
-Please note, the time range covered by data part is not limited by retention period unit. Hence, data part may contain data
-for multiple days and will be deleted only when fully outside the configured retention.
 
 It is safe to extend `-retentionPeriod` on existing data. If `-retentionPeriod` is set to a lower
 value than before, then data outside the configured period will be eventually deleted.
@@ -2056,8 +2061,7 @@ It is recommended disabling query cache with `-search.disableCache` command-line
 historical data with timestamps from the past, since the cache assumes that the data is written with
 the current timestamps. Query cache can be enabled after the backfilling is complete.
 
-An alternative solution is to query `/internal/resetRollupResultCache` url after backfilling is complete. This will reset
-the query cache, which could contain incomplete data cached during the backfilling.
+An alternative solution is to query [/internal/resetRollupResultCache](https://docs.victoriametrics.com/url-examples.html#internalresetRollupResultCache) handler after the backfilling is complete. This will reset the query cache, which could contain incomplete data cached during the backfilling.
 
 Yet another solution is to increase `-search.cacheTimestampOffset` flag value in order to disable caching
 for data with timestamps close to the current time. Single-node VictoriaMetrics automatically resets response
@@ -2164,7 +2168,6 @@ Feel free asking any questions regarding VictoriaMetrics:
 * [reddit](https://www.reddit.com/r/VictoriaMetrics/)
 * [telegram-en](https://t.me/VictoriaMetrics_en)
 * [telegram-ru](https://t.me/VictoriaMetrics_ru1)
-* [articles and talks about VictoriaMetrics in Russian](https://github.com/denisgolius/victoriametrics-ru-links)
 * [google groups](https://groups.google.com/forum/#!forum/victorametrics-users)
 
 If you like VictoriaMetrics and want to contribute, then we need the following:
@@ -2245,7 +2248,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -denyQueryTracing
      Whether to disable the ability to trace queries. See https://docs.victoriametrics.com/#query-tracing
   -downsampling.period array
-     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
+     Comma-separated downsampling periods in the format 'offset:period'. For example, '30d:10m' instructs to leave a single sample per 10 minutes for samples older than 30 days. When setting multiple downsampling periods, it is necessary for the periods to be multiples of each other. See https://docs.victoriametrics.com/#downsampling for details. This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html
      Supports an array of values separated by comma or specified via multiple flags.
   -dryRun
      Whether to check config files without running VictoriaMetrics. The following config files are checked: -promscrape.config, -relabelConfig and -streamAggr.config. Unknown config entries aren't allowed in -promscrape.config by default. This can be changed with -promscrape.config.strictParse=false command-line flag
@@ -2286,13 +2289,13 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8428")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
   -import.maxLineLen size
      The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with 'max_rows_per_line' query arg passed to /api/v1/export
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 104857600)
@@ -2403,6 +2406,8 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Wait time used by Consul service discovery. Default value is used if not set
   -promscrape.consulSDCheckInterval duration
      Interval for checking for changes in Consul. This works only if consul_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consul_sd_configs for details (default 30s)
+  -promscrape.consulagentSDCheckInterval duration
+     Interval for checking for changes in Consul Agent. This works only if consulagent_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#consulagent_sd_configs for details (default 30s)
   -promscrape.digitaloceanSDCheckInterval duration
      Interval for checking for changes in digital ocean. This works only if digitalocean_sd_configs is configured in '-promscrape.config' file. See https://docs.victoriametrics.com/sd_configs.html#digitalocean_sd_configs for details (default 1m0s)
   -promscrape.disableCompression
@@ -2483,7 +2488,7 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
      Supports an array of values separated by comma or specified via multiple flags.
   -retentionPeriod value
      Data with timestamps outside the retentionPeriod is automatically deleted. The minimum retentionPeriod is 24h or 1d. See also -retentionFilter
-     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1).
+     The following optional suffixes are supported: h (hour), d (day), w (week), y (year). If suffix isn't set, then the duration is counted in months (default 1)
   -retentionTimezoneOffset duration
      The offset for performing indexdb rotation. If set to 0, then the indexdb rotation is performed at 4am UTC time per each -retentionPeriod. If set to 2h, then the indexdb rotation is performed at 4am EET time (the timezone with +2h offset)
   -search.cacheTimestampOffset duration
@@ -2514,9 +2519,9 @@ Pass `-help` to VictoriaMetrics in order to see the list of supported command-li
   -search.maxGraphiteSeries int
      The maximum number of time series, which can be scanned during queries to Graphite Render API. See https://docs.victoriametrics.com/#graphite-render-api-usage (default 300000)
   -search.maxGraphiteTagKeys int
-     The maximum number of tag keys returned from Graphite /tags, /tags/autoComplete/*, /tags/findSeries API (default 100000)
+     The maximum number of tag keys returned from Graphite API, which returns tags. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxGraphiteTagValues int
-     The maximum number of tag values returned Graphite /tags/<tag_name> API (default 100000)
+     The maximum number of tag values returned from Graphite API, which returns tag values. See https://docs.victoriametrics.com/#graphite-tags-api-usage (default 100000)
   -search.maxLookback duration
      Synonym to -search.lookback-delta from Prometheus. The value is dynamically detected from interval between time series datapoints if not set. It can be overridden on per-query basis via max_lookback arg. See also '-search.maxStalenessInterval' flag, which has the same meaning due to historical reasons
   -search.maxMemoryPerQuery size

@@ -992,10 +992,6 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	if sc.HTTPClientConfig.FollowRedirects != nil {
 		denyRedirects = !*sc.HTTPClientConfig.FollowRedirects
 	}
-	enableHTTP2 := false
-	if sc.HTTPClientConfig.EnableHTTP2 != nil {
-		enableHTTP2 = !*sc.HTTPClientConfig.EnableHTTP2
-	}
 	metricsPath := sc.MetricsPath
 	if metricsPath == "" {
 		metricsPath = "/metrics"
@@ -1048,7 +1044,6 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 		honorLabels:          honorLabels,
 		honorTimestamps:      honorTimestamps,
 		denyRedirects:        denyRedirects,
-		enableHTTP2:          enableHTTP2,
 		externalLabels:       externalLabels,
 		relabelConfigs:       relabelConfigs,
 		metricRelabelConfigs: metricRelabelConfigs,
@@ -1079,7 +1074,6 @@ type scrapeWorkConfig struct {
 	honorLabels          bool
 	honorTimestamps      bool
 	denyRedirects        bool
-	enableHTTP2          bool
 	externalLabels       *promutils.Labels
 	relabelConfigs       *promrelabel.ParsedConfigs
 	metricRelabelConfigs *promrelabel.ParsedConfigs
@@ -1357,7 +1351,6 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		HonorLabels:          swc.honorLabels,
 		HonorTimestamps:      swc.honorTimestamps,
 		DenyRedirects:        swc.denyRedirects,
-		EnableHTTP2:          swc.enableHTTP2,
 		OriginalLabels:       originalLabels,
 		Labels:               labelsCopy,
 		ExternalLabels:       swc.externalLabels,

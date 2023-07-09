@@ -26,6 +26,7 @@ import GraphTips from "../../components/Chart/GraphTips/GraphTips";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
 import useBoolean from "../../hooks/useBoolean";
 import { getColumns } from "../../hooks/useSortedCategories";
+import useEventListener from "../../hooks/useEventListener";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -99,6 +100,9 @@ const CustomPanel: FC = () => {
   const toggleTableCompact = () => {
     customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
   };
+
+  const handleChangePopstate = () => window.location.reload();
+  useEventListener("popstate", handleChangePopstate);
 
   useEffect(() => {
     if (traces) {

@@ -11,16 +11,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlinsert/insertutils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/app/vlstorage"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bufferedwriter"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httpserver"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/httputils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logjson"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logstorage"
-	pc "github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/protoparser/common"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/writeconcurrencylimiter"
 	"github.com/VictoriaMetrics/metrics"
 )
@@ -84,54 +83,15 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 		startTime := time.Now()
 		bulkRequestsTotal.Inc()
 
-		// Extract tenantID
-		tenantID, err := logstorage.GetTenantIDFromRequest(r)
+		cp, err := insertutils.GetCommonParams(r)
 		if err != nil {
 			httpserver.Errorf(w, r, "%s", err)
 			return true
 		}
-
-		// Extract time field name from _time_field query arg
-		var timeField = "_time"
-		if tf := r.FormValue("_time_field"); tf != "" {
-			timeField = tf
-		}
-
-		// Extract message field name from _msg_field query arg
-		var msgField = ""
-		if msgf := r.FormValue("_msg_field"); msgf != "" {
-			msgField = msgf
-		}
-
-		streamFields := httputils.GetArray(r, "_stream_fields")
-		ignoreFields := httputils.GetArray(r, "ignore_fields")
-
-		isDebug := httputils.GetBool(r, "debug")
-		debugRequestURI := ""
-		debugRemoteAddr := ""
-		if isDebug {
-			debugRequestURI = httpserver.GetRequestURI(r)
-			debugRemoteAddr = httpserver.GetQuotedRemoteAddr(r)
-		}
-
-		lr := logstorage.GetLogRows(streamFields, ignoreFields)
-		processLogMessage := func(timestamp int64, fields []logstorage.Field) {
-			lr.MustAdd(tenantID, timestamp, fields)
-			if isDebug {
-				s := lr.GetRowString(0)
-				lr.ResetKeepSettings()
-				logger.Infof("remoteAddr=%s; requestURI=%s; ignoring log entry because of `debug` query arg: %s", debugRemoteAddr, debugRequestURI, s)
-				rowsDroppedTotal.Inc()
-				return
-			}
-			if lr.NeedFlush() {
-				vlstorage.MustAddRows(lr)
-				lr.ResetKeepSettings()
-			}
-		}
-
+		lr := logstorage.GetLogRows(cp.StreamFields, cp.IgnoreFields)
+		processLogMessage := cp.GetProcessLogMessageFunc(lr)
 		isGzip := r.Header.Get("Content-Encoding") == "gzip"
-		n, err := readBulkRequest(r.Body, isGzip, timeField, msgField, processLogMessage)
+		n, err := readBulkRequest(r.Body, isGzip, cp.TimeField, cp.MsgField, processLogMessage)
 		if err != nil {
 			logger.Warnf("cannot decode log message #%d in /_bulk request: %s", n, err)
 			return true
@@ -152,7 +112,6 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 
 var (
 	bulkRequestsTotal = metrics.NewCounter(`vl_http_requests_total{path="/insert/elasticsearch/_bulk"}`)
-	rowsDroppedTotal  = metrics.NewCounter(`vl_rows_dropped_total{path="/insert/elasticsearch/_bulk",reason="debug"}`)
 )
 
 func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
@@ -161,11 +120,11 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	// See https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
 
 	if isGzip {
-		zr, err := pc.GetGzipReader(r)
+		zr, err := common.GetGzipReader(r)
 		if err != nil {
 			return 0, fmt.Errorf("cannot read gzipped _bulk request: %w", err)
 		}
-		defer pc.PutGzipReader(zr)
+		defer common.PutGzipReader(zr)
 		r = zr
 	}
 
@@ -175,7 +134,7 @@ func readBulkRequest(r io.Reader, isGzip bool, timeField, msgField string,
 	lb := lineBufferPool.Get()
 	defer lineBufferPool.Put(lb)
 
-	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, common.MaxLineSizeBytes.IntN())
+	lb.B = bytesutil.ResizeNoCopyNoOverallocate(lb.B, insertutils.MaxLineSizeBytes.IntN())
 	sc := bufio.NewScanner(wcr)
 	sc.Buffer(lb.B, len(lb.B))
 
@@ -211,7 +170,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 			if err := sc.Err(); err != nil {
 				if errors.Is(err, bufio.ErrTooLong) {
 					return false, fmt.Errorf(`cannot read "create" or "index" command, since its size exceeds -insert.maxLineSizeBytes=%d`,
-						common.MaxLineSizeBytes.IntN())
+						insertutils.MaxLineSizeBytes.IntN())
 				}
 				return false, err
 			}
@@ -228,7 +187,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	if !sc.Scan() {
 		if err := sc.Err(); err != nil {
 			if errors.Is(err, bufio.ErrTooLong) {
-				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", common.MaxLineSizeBytes.IntN())
+				return false, fmt.Errorf("cannot read log message, since its size exceeds -insert.maxLineSizeBytes=%d", insertutils.MaxLineSizeBytes.IntN())
 			}
 			return false, err
 		}
@@ -244,7 +203,7 @@ func readBulkLine(sc *bufio.Scanner, timeField, msgField string,
 	if err != nil {
 		return false, fmt.Errorf("cannot parse timestamp: %w", err)
 	}
-	updateMessageFieldName(msgField, p.Fields)
+	p.RenameField(msgField, "_msg")
 	processLogMessage(timestamp, p.Fields)
 	logjson.PutParser(p)
 	return true, nil
@@ -264,19 +223,6 @@ func extractTimestampFromFields(timeField string, fields []logstorage.Field) (in
 		return timestamp, nil
 	}
 	return time.Now().UnixNano(), nil
-}
-
-func updateMessageFieldName(msgField string, fields []logstorage.Field) {
-	if msgField == "" {
-		return
-	}
-	for i := range fields {
-		f := &fields[i]
-		if f.Name == msgField {
-			f.Name = "_msg"
-			return
-		}
-	}
 }
 
 func parseElasticsearchTimestamp(s string) (int64, error) {

@@ -108,6 +108,19 @@ func initStorageMetrics(strg *logstorage.Storage) *metrics.Set {
 		return float64(fs.MustGetFreeSpace(*storageDataPath))
 	})
 
+	ms.NewGauge(`vl_active_merges{type="inmemory"}`, func() float64 {
+		return float64(m().InmemoryActiveMerges)
+	})
+	ms.NewGauge(`vl_merges_total{type="inmemory"}`, func() float64 {
+		return float64(m().InmemoryMergesTotal)
+	})
+	ms.NewGauge(`vl_active_merges{type="file"}`, func() float64 {
+		return float64(m().FileActiveMerges)
+	})
+	ms.NewGauge(`vl_merges_total{type="file"}`, func() float64 {
+		return float64(m().FileMergesTotal)
+	})
+
 	ms.NewGauge(`vl_rows{type="inmemory"}`, func() float64 {
 		return float64(m().InmemoryRowsCount)
 	})
