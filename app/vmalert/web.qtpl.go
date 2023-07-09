@@ -34,7 +34,7 @@ func StreamWelcome(qw422016 *qt422016.Writer, r *http.Request) {
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:15
-	tpl.StreamHeader(qw422016, r, navItems, "vmalert")
+	tpl.StreamHeader(qw422016, r, navItems, "vmalert", configError())
 //line app/vmalert/web.qtpl:15
 	qw422016.N().S(`
     <p>
@@ -207,7 +207,7 @@ func StreamListGroups(qw422016 *qt422016.Writer, r *http.Request, originGroups [
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:43
-	tpl.StreamHeader(qw422016, r, navItems, "Groups")
+	tpl.StreamHeader(qw422016, r, navItems, "Groups", configError())
 //line app/vmalert/web.qtpl:43
 	qw422016.N().S(`
         `)
@@ -619,7 +619,7 @@ func StreamListAlerts(qw422016 *qt422016.Writer, r *http.Request, groupAlerts []
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:167
-	tpl.StreamHeader(qw422016, r, navItems, "Alerts")
+	tpl.StreamHeader(qw422016, r, navItems, "Alerts", configError())
 //line app/vmalert/web.qtpl:167
 	qw422016.N().S(`
     `)
@@ -885,7 +885,7 @@ func StreamListTargets(qw422016 *qt422016.Writer, r *http.Request, targets map[n
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:253
-	tpl.StreamHeader(qw422016, r, navItems, "Notifiers")
+	tpl.StreamHeader(qw422016, r, navItems, "Notifiers", configError())
 //line app/vmalert/web.qtpl:253
 	qw422016.N().S(`
     `)
@@ -1065,7 +1065,7 @@ func StreamAlert(qw422016 *qt422016.Writer, r *http.Request, alert *APIAlert) {
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:310
-	tpl.StreamHeader(qw422016, r, navItems, "")
+	tpl.StreamHeader(qw422016, r, navItems, "", configError())
 //line app/vmalert/web.qtpl:310
 	qw422016.N().S(`
     `)
@@ -1274,7 +1274,7 @@ func StreamRuleDetails(qw422016 *qt422016.Writer, r *http.Request, rule APIRule)
 	qw422016.N().S(`
     `)
 //line app/vmalert/web.qtpl:397
-	tpl.StreamHeader(qw422016, r, navItems, "")
+	tpl.StreamHeader(qw422016, r, navItems, "", configError())
 //line app/vmalert/web.qtpl:397
 	qw422016.N().S(`
     `)

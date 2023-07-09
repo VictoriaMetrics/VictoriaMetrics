@@ -6,11 +6,12 @@ import Popper from "../../../Main/Popper/Popper";
 import NavItem from "./NavItem";
 import { useEffect } from "react";
 import useBoolean from "../../../../hooks/useBoolean";
+import { NavigationItem } from "../../../../constants/navigation";
 
 interface NavItemProps {
   activeMenu: string,
   label: string,
-  submenu: {label: string | undefined, value: string}[],
+  submenu: NavigationItem[],
   color?: string
   background?: string
   direction?: "row" | "column"
@@ -61,7 +62,7 @@ const NavSubItem: FC<NavItemProps> = ({
           <NavItem
             key={sm.value}
             activeMenu={activeMenu}
-            value={sm.value}
+            value={sm.value || ""}
             label={sm.label || ""}
           />
         ))}
@@ -102,7 +103,7 @@ const NavSubItem: FC<NavItemProps> = ({
             <NavItem
               key={sm.value}
               activeMenu={activeMenu}
-              value={sm.value}
+              value={sm.value || ""}
               label={sm.label || ""}
               color={color}
             />

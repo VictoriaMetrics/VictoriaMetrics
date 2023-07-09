@@ -227,9 +227,10 @@ func Test_vmNativeProcessor_run(t *testing.T) {
 				rateLimit:    tt.fields.rateLimit,
 				interCluster: tt.fields.interCluster,
 				cc:           tt.fields.cc,
+				isSilent:     tt.args.silent,
 			}
 
-			if err := p.run(tt.args.ctx, tt.args.silent); (err != nil) != tt.wantErr {
+			if err := p.run(tt.args.ctx); (err != nil) != tt.wantErr {
 				t.Errorf("run() error = %v, wantErr %v", err, tt.wantErr)
 			}
 			deleted, err := deleteSeries(tt.fields.matchName, tt.fields.matchValue)

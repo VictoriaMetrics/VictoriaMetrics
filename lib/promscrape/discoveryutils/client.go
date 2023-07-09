@@ -3,6 +3,7 @@ package discoveryutils
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -83,7 +84,7 @@ type HTTPClient struct {
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, followRedirects *bool) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg *promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
@@ -139,13 +140,12 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 			ac.SetHeaders(req, true)
 		}
 	}
-	if followRedirects != nil && !*followRedirects {
-		client.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
+		checkRedirect := func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		}
-		blockingClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
-			return http.ErrUseLastResponse
-		}
+		client.CheckRedirect = checkRedirect
+		blockingClient.CheckRedirect = checkRedirect
 	}
 	setHTTPProxyHeaders := func(req *http.Request) {}
 	if proxyAC != nil {
@@ -293,7 +293,7 @@ func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Respon
 			if statusCode != http.StatusTooManyRequests {
 				return true
 			}
-		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+		} else if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
 			return true
 		}
 		return false

@@ -61,7 +61,7 @@ type DeleteObjectInput struct {
 	// AccessPointName-AccountId.outpostID.s3-outposts.Region.amazonaws.com . When you
 	// use this action with S3 on Outposts through the Amazon Web Services SDKs, you
 	// provide the Outposts access point ARN in place of the bucket name. For more
-	// information about S3 on Outposts ARNs, see What is S3 on Outposts (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
+	// information about S3 on Outposts ARNs, see What is S3 on Outposts? (https://docs.aws.amazon.com/AmazonS3/latest/userguide/S3onOutposts.html)
 	// in the Amazon S3 User Guide.
 	//
 	// This member is required.

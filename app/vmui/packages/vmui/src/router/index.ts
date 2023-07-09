@@ -7,6 +7,7 @@ const router = {
   trace: "/trace",
   withTemplate: "/expand-with-exprs",
   relabel: "/relabeling",
+  logs: "/logs",
   icons: "/icons"
 };
 
@@ -24,12 +25,14 @@ export interface RouterOptions {
   header: RouterOptionsHeader
 }
 
+const { REACT_APP_LOGS } = process.env;
+
 const routerOptionsDefault = {
   header: {
     tenant: true,
-    stepControl: true,
-    timeSelector: true,
-    executionControls: true,
+    stepControl: !REACT_APP_LOGS,
+    timeSelector: !REACT_APP_LOGS,
+    executionControls: !REACT_APP_LOGS,
   }
 };
 
@@ -73,6 +76,10 @@ export const routerOptions: {[key: string]: RouterOptions} = {
   },
   [router.relabel]: {
     title: "Metric relabel debug",
+    header: {}
+  },
+  [router.logs]: {
+    title: "Logs Explorer",
     header: {}
   },
   [router.icons]: {

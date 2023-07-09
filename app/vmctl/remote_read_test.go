@@ -154,10 +154,12 @@ func TestRemoteRead(t *testing.T) {
 					timeEnd:   &end,
 					chunk:     tt.chunk,
 				},
-				cc: 1,
+				cc:        1,
+				isSilent:  true,
+				isVerbose: false,
 			}
 
-			err = rmp.run(ctx, true, false)
+			err = rmp.run(ctx)
 			if err != nil {
 				t.Fatalf("failed to run remote read processor: %s", err)
 			}
@@ -307,10 +309,12 @@ func TestSteamRemoteRead(t *testing.T) {
 					timeEnd:   &end,
 					chunk:     tt.chunk,
 				},
-				cc: 1,
+				cc:        1,
+				isSilent:  true,
+				isVerbose: false,
 			}
 
-			err = rmp.run(ctx, true, false)
+			err = rmp.run(ctx)
 			if err != nil {
 				t.Fatalf("failed to run remote read processor: %s", err)
 			}

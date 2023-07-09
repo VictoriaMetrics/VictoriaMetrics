@@ -126,6 +126,16 @@ type HTTPClientConfig struct {
 
 	// FollowRedirects specifies whether the client should follow HTTP 3xx redirects.
 	FollowRedirects *bool `yaml:"follow_redirects,omitempty"`
+
+	// Do not support enable_http2 option because of the following reasons:
+	//
+	// - http2 is used very rarely comparing to http for Prometheus metrics exposition and service discovery
+	// - http2 is much harder to debug than http
+	// - http2 has very bad security record because of its complexity - see https://portswigger.net/research/http2
+	//
+	// VictoriaMetrics components are compiled with nethttpomithttp2 tag because of these issues.
+	//
+	// EnableHTTP2 bool
 }
 
 // ProxyClientConfig represents proxy client config.

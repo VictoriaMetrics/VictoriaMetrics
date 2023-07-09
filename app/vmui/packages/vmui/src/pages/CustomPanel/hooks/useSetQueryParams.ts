@@ -6,7 +6,7 @@ import { useQueryState } from "../../../state/query/QueryStateContext";
 import { displayTypeTabs } from "../DisplayTypeSwitch";
 import { compactObject } from "../../../utils/object";
 import { useGraphState } from "../../../state/graph/GraphStateContext";
-import { useSearchParams } from "react-router-dom";
+import useSearchParamsFromObject from "../../../hooks/useSearchParamsFromObject";
 
 export const useSetQueryParams = () => {
   const { tenantId } = useAppState();
@@ -14,7 +14,7 @@ export const useSetQueryParams = () => {
   const { query } = useQueryState();
   const { duration, relativeTime, period: { date, step } } = useTimeState();
   const { customStep } = useGraphState();
-  const [, setSearchParams] = useSearchParams();
+  const { setSearchParamsFromKeys } = useSearchParamsFromObject();
 
   const setSearchParamsFromState = () => {
     const params: Record<string, unknown> = {};
@@ -30,7 +30,7 @@ export const useSetQueryParams = () => {
       if ((step !== customStep) && customStep) params[`${group}.step_input`] = customStep;
     });
 
-    setSearchParams(compactObject(params) as Record<string, string>);
+    setSearchParamsFromKeys(compactObject(params) as Record<string, string>);
   };
 
   useEffect(setSearchParamsFromState, [tenantId, displayType, query, duration, relativeTime, date, step, customStep]);

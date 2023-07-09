@@ -848,6 +848,22 @@ func (ObjectVersionStorageClass) Values() []ObjectVersionStorageClass {
 	}
 }
 
+type OptionalObjectAttributes string
+
+// Enum values for OptionalObjectAttributes
+const (
+	OptionalObjectAttributesRestoreStatus OptionalObjectAttributes = "RestoreStatus"
+)
+
+// Values returns all known values for OptionalObjectAttributes. Note that this
+// can be expanded in the future, and so it is only as up to date as the client.
+// The ordering of this slice is not guaranteed to be stable across updates.
+func (OptionalObjectAttributes) Values() []OptionalObjectAttributes {
+	return []OptionalObjectAttributes{
+		"RestoreStatus",
+	}
+}
+
 type OwnerOverride string
 
 // Enum values for OwnerOverride
@@ -1070,8 +1086,9 @@ type ServerSideEncryption string
 
 // Enum values for ServerSideEncryption
 const (
-	ServerSideEncryptionAes256 ServerSideEncryption = "AES256"
-	ServerSideEncryptionAwsKms ServerSideEncryption = "aws:kms"
+	ServerSideEncryptionAes256     ServerSideEncryption = "AES256"
+	ServerSideEncryptionAwsKms     ServerSideEncryption = "aws:kms"
+	ServerSideEncryptionAwsKmsDsse ServerSideEncryption = "aws:kms:dsse"
 )
 
 // Values returns all known values for ServerSideEncryption. Note that this can be
@@ -1081,6 +1098,7 @@ func (ServerSideEncryption) Values() []ServerSideEncryption {
 	return []ServerSideEncryption{
 		"AES256",
 		"aws:kms",
+		"aws:kms:dsse",
 	}
 }
 

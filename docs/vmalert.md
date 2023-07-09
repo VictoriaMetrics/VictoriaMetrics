@@ -219,11 +219,13 @@ expr: <string>
 # Please note, that if rule's query params contain sensitive
 # information - it will be printed to logs.
 # Is applicable to alerting rules only.
+# Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1820
 [ debug: <bool> | default = false ]
 
 # Defines the number of rule's updates entries stored in memory
 # and available for view on rule's Details page.
 # Overrides `rule.updateEntriesLimit` value for this specific rule.
+# Available starting from https://docs.victoriametrics.com/CHANGELOG.html#v1860
 [ update_entries_limit: <integer> | default 0 ]
 
 # Labels to add or overwrite for each alert.
@@ -537,6 +539,9 @@ Check how to replace it with [cluster VictoriaMetrics](#cluster-victoriametrics)
 
 #### Downsampling and aggregation via vmalert
 
+_Please note, [stream aggregation](https://docs.victoriametrics.com/stream-aggregation.html) might be more efficient
+for cases when downsampling or aggregation need to be applied **before data gets into the TSDB.**_
+
 `vmalert` can't modify existing data. But it can run arbitrary PromQL/MetricsQL queries
 via [recording rules](#recording-rules) and backfill results to the configured `-remoteWrite.url`.
 This ability allows to aggregate data. For example, the following rule will calculate the average value for
@@ -800,7 +805,8 @@ If `-remoteWrite.url` command-line flag is configured, vmalert will persist aler
 changed in time.
 
 vmalert stores last `-rule.updateEntriesLimit` (or `update_entries_limit` [per-rule config](https://docs.victoriametrics.com/vmalert.html#alerting-rules)) 
-state updates for each rule. To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
+state updates for each rule starting from [v1.86](https://docs.victoriametrics.com/CHANGELOG.html#v1860).
+To check updates, click on `Details` link next to rule's name on `/vmalert/groups` page 
 and check the `Last updates` section:
 
 <img alt="vmalert state" src="vmalert_state.png">
@@ -812,8 +818,8 @@ moment when rule was evaluated.
 
 ### Debug mode
 
-vmalert allows configuring more detailed logging for specific alerting rule. Just set `debug: true` in rule's configuration
-and vmalert will start printing additional log messages:
+vmalert allows configuring more detailed logging for specific alerting rule starting from [v1.82](https://docs.victoriametrics.com/CHANGELOG.html#v1820).
+Just set `debug: true` in rule's configuration and vmalert will start printing additional log messages:
 ```terminal
 2022-09-15T13:35:41.155Z  DEBUG rule "TestGroup":"Conns" (2601299393013563564) at 2022-09-15T15:35:41+02:00: query returned 0 samples (elapsed: 5.896041ms)
 2022-09-15T13:35:56.149Z  DEBUG datasource request: executing POST request with params "denyPartialResponse=true&query=sum%28vm_tcplistener_conns%7Binstance%3D%22localhost%3A8429%22%7D%29+by%28instance%29+%3E+0&step=15s&time=1663248945"
@@ -826,7 +832,8 @@ and vmalert will start printing additional log messages:
 
 ### Never-firing alerts
 
-vmalert can detect if alert's expression doesn't match any time series in runtime. This problem usually happens
+vmalert can detect if alert's expression doesn't match any time series in runtime 
+starting from [v1.91](https://docs.victoriametrics.com/CHANGELOG.html#v1910). This problem usually happens
 when alerting expression selects time series which aren't present in the datasource (i.e. wrong `job` label)
 or there is a typo in the series selector (i.e. `env=rpod`). Such alerting rules will be marked with special icon in 
 vmalerts UI and exposed via `vmalert_alerting_rules_last_evaluation_series_fetched` metric. The metric value will
@@ -839,6 +846,32 @@ max(vmalert_alerting_rules_last_evaluation_series_fetched) by(group, alertname) 
 
 See more details [here](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4039).
 This feature is available only if vmalert is using VictoriaMetrics v1.90 or higher as a datasource.
+
+### Series with the same labelset
+
+vmalert can produce the following error message during rules evaluation:
+```
+result contains metrics with the same labelset after applying rule labels
+```
+
+The error means there is a collision between [time series](https://docs.victoriametrics.com/keyConcepts.html#time-series)
+after applying extra labels to result.
+
+For example, a rule with `expr: foo > 0` returns two distinct time series in response:
+```
+foo{bar="baz"} 1
+foo{bar="qux"} 2
+```
+
+If user configures `-external.label=bar=baz` cmd-line flag to enforce
+adding `bar="baz"` label-value pair, then time series won't be distinct anymore:
+```
+foo{bar="baz"} 1
+foo{bar="baz"} 2 # 'bar' label was overriden by `-external.label=bar=baz
+```
+
+The same issue can be caused by collision of configured `labels` on [Group](#groups) or [Rule](#rules) levels.
+To fix it one should avoid collisions by carefully picking label overrides in configuration.
 
 
 ## Profiling
@@ -898,6 +931,8 @@ The shortlist of configuration flags is the following:
      Optional path to bearer token file to use for -datasource.url.
   -datasource.disableKeepAlive
      Whether to disable long-lived connections to the datasource. If true, disables HTTP keep-alives and will only use the connection to the server for a single HTTP request.
+  -datasource.disableStepParam
+     Whether to disable adding 'step' param to the issued instant queries. This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. It is not recommended to enable this flag if you use vmalert to query VictoriaMetrics.
   -datasource.headers string
      Optional HTTP extraHeaders to send with each request to the corresponding -datasource.url. For example, -datasource.headers='My-Auth:foobar' would send 'My-Auth: foobar' HTTP header with every request to the corresponding -datasource.url. Multiple headers must be delimited by '^^': -datasource.headers='header1:value1^^header2:value2'
   -datasource.lookback duration
@@ -976,17 +1011,19 @@ The shortlist of configuration flags is the following:
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      Address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8880")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
-  -insert.maxQueueDuration duration
-     The maximum duration to wait in the queue when -maxConcurrentInserts concurrent insert requests are executed (default 1m0s)
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -loggerDisableTimestamps
      Whether to disable writing timestamps in logs
   -loggerErrorsPerSecondLimit int
@@ -1003,8 +1040,6 @@ The shortlist of configuration flags is the following:
      Timezone to use for timestamps in logs. Timezone must be a valid IANA Time Zone. For example: America/New_York, Europe/Berlin, Etc/GMT+3 or Local (default "UTC")
   -loggerWarnsPerSecondLimit int
      Per-second limit on the number of WARN messages. If more than the given number of warns are emitted per second, then the remaining warns are suppressed. Zero values disable the rate limit
-  -maxConcurrentInserts int
-     The maximum number of concurrent insert requests. Default value should work for most cases, since it minimizes the memory usage. The default value can be increased when clients send data over slow networks. See also -insert.maxQueueDuration (default 8)
   -memory.allowedBytes size
      Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to a non-zero value. Too low a value may increase the cache miss rate usually resulting in higher CPU and disk IO usage. Too high a value may evict too much data from OS page cache resulting in higher disk IO usage
      Supports the following optional suffixes for size values: KB, MB, GB, TB, KiB, MiB, GiB, TiB (default 0)
@@ -1158,6 +1193,10 @@ The shortlist of configuration flags is the following:
      Optional OAuth2 scopes to use for -notifier.url. Scopes must be delimited by ';'.
   -remoteWrite.oauth2.tokenUrl string
      Optional OAuth2 tokenURL to use for -notifier.url.
+  -remoteWrite.retryMaxTime duration
+     The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval (default 30s)
+  -remoteWrite.retryMinInterval duration
+     The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval (default 1s)
   -remoteWrite.sendTimeout duration
      Timeout for sending data to the configured -remoteWrite.url. (default 30s)
   -remoteWrite.showURL
@@ -1187,12 +1226,12 @@ The shortlist of configuration flags is the following:
   -replay.timeTo string
      The time filter in RFC3339 format to select timeseries with timestamp equal or lower than provided value. E.g. '2020-01-01T20:07:00Z'
   -rule array
-     Path to the files with alerting and/or recording rules.
+     Path to the files or http url with alerting and/or recording rules.
      Supports hierarchical patterns and regexpes.
      Examples:
       -rule="/path/to/file". Path to a single file with alerting rules.
       -rule="http://<some-server-addr>/path/to/rules". HTTP URL to a page with alerting rules.
-      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod".
+      -rule="dir/*.yaml" -rule="/*.yaml" -rule="gcs://vmalert-rules/tenant_%{TENANT_ID}/prod". 
       -rule="dir/**/*.yaml". Includes all the .yaml files in "dir" subfolders recursively.
      Rule files may contain %{ENV_VAR} placeholders, which are substituted by the corresponding env vars.
      
@@ -1211,12 +1250,13 @@ The shortlist of configuration flags is the following:
      Minimum amount of time to wait before resending an alert to notifier
   -rule.templates array
      Path or glob pattern to location with go template definitions
-      for rules annotations templating. Flag can be specified multiple times.
+     	for rules annotations templating. Flag can be specified multiple times.
      Examples:
       -rule.templates="/path/to/file". Path to a single file with go templates
       -rule.templates="dir/*.tpl" -rule.templates="/*.tpl". Relative path to all .tpl files in "dir" folder,
      absolute path to all .tpl files in root.
       -rule.templates="dir/**/*.tpl". Includes all the .tpl files in "dir" subfolders recursively.
+     
      Supports an array of values separated by comma or specified via multiple flags.
   -rule.updateEntriesLimit int
      Defines the max number of rule's state updates stored in-memory. Rule's updates are available on rule's Details page and are used for debugging purposes. The number of stored updates can be overridden per rule via update_entries_limit param. (default 20)
@@ -1224,6 +1264,10 @@ The shortlist of configuration flags is the following:
      Whether to validate rules expressions via MetricsQL engine (default true)
   -rule.validateTemplates
      Whether to validate annotation and label templates (default true)
+  -s2a_enable_appengine_dialer
+     If true, opportunistically use AppEngine-specific dialer to call S2A.
+  -s2a_timeout duration
+     Timeout enforced on the connection to the S2A service for handshake. (default 3s)
   -s3.configFilePath string
      Path to file with S3 configs. Configs are loaded from default location if not set.
      See https://docs.aws.amazon.com/general/latest/gr/aws-security-credentials.html . This flag is available only in VictoriaMetrics enterprise. See https://docs.victoriametrics.com/enterprise.html

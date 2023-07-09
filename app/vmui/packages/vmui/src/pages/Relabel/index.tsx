@@ -1,6 +1,5 @@
 import React, { FC, useCallback, useEffect } from "preact/compat";
 import "./style.scss";
-import { useState } from "react";
 import Button from "../../components/Main/Button/Button";
 import { InfoIcon, PlayIcon, WikiIcon } from "../../components/Main/Icons";
 import "./style.scss";
@@ -8,6 +7,7 @@ import { useRelabelDebug } from "./hooks/useRelabelDebug";
 import Spinner from "../../components/Main/Spinner/Spinner";
 import Alert from "../../components/Main/Alert/Alert";
 import { useSearchParams } from "react-router-dom";
+import useStateSearchParams from "../../hooks/useStateSearchParams";
 import MonacoEditor from "../../components/MonacoEditor/MonacoEditor";
 
 const example = {
@@ -27,8 +27,8 @@ const Relabel: FC = () => {
 
   const { data, loading, error, fetchData } = useRelabelDebug();
 
-  const [config, setConfig] = useState("");
-  const [labels, setLabels] = useState("");
+  const [config, setConfig] = useStateSearchParams("", "config");
+  const [labels, setLabels] = useStateSearchParams("", "labels");
 
   const handleChangeConfig = (val?: string) => {
     setConfig(val || "");
