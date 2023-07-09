@@ -25,9 +25,6 @@ For example, the following query finds all the logs with `error` word:
 error
 ```
 
-This query matches logs with any [timestamp](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field),
-e.g. it may return logs from the previous year alongside recently ingested logs.
-
 If the queried [word](#word) clashes with LogsQL keywords, then just wrap it into quotes.
 For example, the following query finds all the log messages with `and` [word](#word):
 
@@ -47,6 +44,9 @@ finds log messages with the `error: cannot find file` phrase:
 ```logsql
 "error: cannot find file"
 ```
+
+Queries above match logs with any [timestamp](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field),
+e.g. they may return logs from the previous year alongside recently ingested logs.
 
 Usually logs from the previous year aren't so interesting comparing to the recently ingested logs.
 So it is recommended adding [time filter](#time-filter) to the query.
