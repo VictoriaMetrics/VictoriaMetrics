@@ -1,0 +1,27 @@
+@use "src/styles/variables" as *;
+
+.vm-container {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(($vh * 100) - var(--scrollbar-height));
+
+  &-body {
+    flex-grow: 1;
+    min-height: 100%;
+    padding: $padding-medium;
+    background-color: $color-background-body;
+
+    &_mobile {
+      padding: $padding-small 0 0;
+    }
+
+    @media (max-width: 768px) {
+      padding: $padding-small 0 0;
+    }
+
+    &_app {
+      padding: $padding-small 0;
+      background-color: transparent;
+    }
+  }
+}

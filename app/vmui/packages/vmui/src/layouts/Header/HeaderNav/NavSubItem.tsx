@@ -1,12 +1,12 @@
 import React, { FC, useRef, useState } from "preact/compat";
 import { useLocation } from "react-router-dom";
 import classNames from "classnames";
-import { ArrowDropDownIcon } from "../../../Main/Icons";
-import Popper from "../../../Main/Popper/Popper";
+import { ArrowDropDownIcon } from "../../../components/Main/Icons";
+import Popper from "../../../components/Main/Popper/Popper";
 import NavItem from "./NavItem";
 import { useEffect } from "react";
-import useBoolean from "../../../../hooks/useBoolean";
-import { NavigationItem } from "../../../../constants/navigation";
+import useBoolean from "../../../hooks/useBoolean";
+import { NavigationItem } from "../../../constants/navigation";
 
 interface NavItemProps {
   activeMenu: string,

@@ -21,6 +21,7 @@ import { getTenantIdFromUrl } from "../../../utils/tenants";
 const title = "Settings";
 
 const GlobalSettings: FC = () => {
+  const { REACT_APP_LOGS } = process.env;
   const { isMobile } = useDeviceDetect();
 
   const appModeEnable = getAppModeEnable();
@@ -74,6 +75,40 @@ const GlobalSettings: FC = () => {
     setServerUrl(stateServerUrl);
   }, [stateServerUrl]);
 
+  const controls = [
+    {
+      show: !appModeEnable && !REACT_APP_LOGS,
+      component: <ServerConfigurator
+        stateServerUrl={stateServerUrl}
+        serverUrl={serverUrl}
+        onChange={setServerUrl}
+        onEnter={handlerApply}
+      />
+    },
+    {
+      show: !REACT_APP_LOGS,
+      component: <LimitsConfigurator
+        limits={limits}
+        onChange={setLimits}
+        onEnter={handlerApply}
+      />
+    },
+    {
+      show: true,
+      component: <Timezones
+        timezoneState={timezone}
+        onChange={setTimezone}
+      />
+    },
+    {
+      show: !appModeEnable,
+      component: <ThemeControl
+        theme={theme}
+        onChange={handleChangeTheme}
+      />
+    }
+  ].filter(control => control.show);
+
   return <>
     {isMobile ? (
       <div
@@ -110,37 +145,14 @@ const GlobalSettings: FC = () => {
             "vm-server-configurator_mobile": isMobile
           })}
         >
-          {!appModeEnable && (
-            <div className="vm-server-configurator__input">
-              <ServerConfigurator
-                stateServerUrl={stateServerUrl}
-                serverUrl={serverUrl}
-                onChange={setServerUrl}
-                onEnter={handlerApply}
-              />
+          {controls.map((control, index) => (
+            <div
+              className="vm-server-configurator__input"
+              key={index}
+            >
+              {control.component}
             </div>
-          )}
-          <div className="vm-server-configurator__input">
-            <LimitsConfigurator
-              limits={limits}
-              onChange={setLimits}
-              onEnter={handlerApply}
-            />
-          </div>
-          <div className="vm-server-configurator__input">
-            <Timezones
-              timezoneState={timezone}
-              onChange={setTimezone}
-            />
-          </div>
-          {!appModeEnable && (
-            <div className="vm-server-configurator__input">
-              <ThemeControl
-                theme={theme}
-                onChange={handleChangeTheme}
-              />
-            </div>
-          )}
+          ))}
           <div className="vm-server-configurator-footer">
             <Button
               color="error"

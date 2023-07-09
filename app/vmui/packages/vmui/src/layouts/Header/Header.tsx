@@ -1,19 +1,24 @@
 import React, { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
-import router from "../../../router";
-import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
-import { LogoFullIcon, LogoLogsIcon } from "../../Main/Icons";
-import { getCssVariable } from "../../../utils/theme";
+import router from "../../router";
+import { getAppModeEnable, getAppModeParams } from "../../utils/app-mode";
+import { LogoIcon, LogoLogsIcon } from "../../components/Main/Icons";
+import { getCssVariable } from "../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
-import { useAppState } from "../../../state/common/StateContext";
+import { useAppState } from "../../state/common/StateContext";
 import HeaderNav from "./HeaderNav/HeaderNav";
 import SidebarHeader from "./SidebarNav/SidebarHeader";
-import HeaderControls from "./HeaderControls/HeaderControls";
-import useDeviceDetect from "../../../hooks/useDeviceDetect";
-import useWindowSize from "../../../hooks/useWindowSize";
+import HeaderControls, { ControlsProps } from "./HeaderControls/HeaderControls";
+import useDeviceDetect from "../../hooks/useDeviceDetect";
+import useWindowSize from "../../hooks/useWindowSize";
+import { ComponentType } from "react";
 
-const Header: FC = () => {
+export interface HeaderProps {
+  controlsComponent: ComponentType<ControlsProps>
+}
+
+const Header: FC<HeaderProps> = ({ controlsComponent }) => {
   const { REACT_APP_LOGS } = process.env;
   const { isMobile } = useDeviceDetect();
 
@@ -49,6 +54,7 @@ const Header: FC = () => {
       "vm-header": true,
       "vm-header_app": appModeEnable,
       "vm-header_dark": isDarkTheme,
+      "vm-header_sidebar": displaySidebar,
       "vm-header_mobile": isMobile
     })}
     style={{ background, color }}
@@ -69,7 +75,7 @@ const Header: FC = () => {
             onClick={onClickLogo}
             style={{ color }}
           >
-            {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoFullIcon/>}
+            {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoIcon/>}
           </div>
         )}
         <HeaderNav
@@ -78,7 +84,7 @@ const Header: FC = () => {
         />
       </>
     )}
-    {isMobile && (
+    {displaySidebar && (
       <div
         className={classNames({
           "vm-header-logo": true,
@@ -88,10 +94,11 @@ const Header: FC = () => {
         onClick={onClickLogo}
         style={{ color }}
       >
-        {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoFullIcon/>}
+        {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoIcon/>}
       </div>
     )}
     <HeaderControls
+      controlsComponent={controlsComponent}
       displaySidebar={displaySidebar}
       isMobile={isMobile}
     />

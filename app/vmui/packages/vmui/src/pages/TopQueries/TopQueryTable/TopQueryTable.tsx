@@ -1,6 +1,6 @@
 import React, { FC, useState, useMemo } from "react";
 import { TopQuery } from "../../../types";
-import { getComparator, stableSort } from "../../CardinalityPanel/Table/helpers";
+import { getComparator, stableSort } from "../../../components/Table/helpers";
 import { TopQueryPanelProps } from "../TopQueryPanel/TopQueryPanel";
 import classNames from "classnames";
 import { ArrowDropDownIcon, CopyIcon, PlayCircleOutlineIcon } from "../../../components/Main/Icons";

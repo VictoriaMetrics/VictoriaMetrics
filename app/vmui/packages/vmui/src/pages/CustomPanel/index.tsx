@@ -11,7 +11,7 @@ import Spinner from "../../components/Main/Spinner/Spinner";
 import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
-import TableSettings from "../CardinalityPanel/Table/TableSettings/TableSettings";
+import TableSettings from "../../components/Table/TableSettings/TableSettings";
 import { useCustomPanelState, useCustomPanelDispatch } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
