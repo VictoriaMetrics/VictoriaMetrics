@@ -638,7 +638,6 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-src-check-alive=false \
 --vm-addr=http://127.0.0.1:8428 \
 --vm-concurrency=6 
 ```
@@ -702,7 +701,6 @@ and single-node VictoriaMetrics(`http://localhost:8428`):
 --remote-read-src-addr=http://127.0.0.1:9009/prometheus \
 --remote-read-filter-time-start=2021-10-18T00:00:00Z \
 --remote-read-step-interval=hour \
---remote-read-src-check-alive=false \
 --remote-read-headers=X-Scope-OrgID:demo \
 --remote-read-use-stream=true \
 --vm-addr=http://127.0.0.1:8428 \
