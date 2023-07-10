@@ -78,7 +78,8 @@ The query returns the following [log fields](https://docs.victoriametrics.com/Vi
 - [`_time` field](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field)
 
 Logs may contain arbitrary number of other fields. If you need obtaining some of these fields in query results,
-then just refer them in the query with `field_name:*` [filter](#any-value-filter).
+then just refer them in the query with `field_name:*` [filter](#any-value-filter). See [these docs](#querying-specific-fields) for more details.
+
 For example, the following query returns `host.hostname` field additionally to `_msg`, `_stream` and `_time` fields:
 
 ```logsql
@@ -1086,6 +1087,27 @@ according to [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying
 LogsQL will support the ability to limit the number of returned results alongside the ability to page the returned results.
 Additionally, LogsQL will provide the ability to select fields, which must be returned in the response.
 
+See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
+
+## Querying specific fields
+
+By default VictoriaLogs query response contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+[`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
+[`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields.
+
+If you want selecting other fields from the ingested [structured logs](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model),
+then they must be mentioned in query filters. For example, if you want selecting `log.level` field, and this field isn't mentioned in the query yet, then add
+`log.level:*` [filter](#any-value-filter) filter to the end of the query.
+The `field_name:*` filter doesn't return log entries with empty or missing `field_name`. If you want returning log entries
+with and without the given field, then `(field_name:* OR field_name:"")` filter can be used.
+See the following docs for details:
+
+- [Any value filter](#any-value-filter)
+- [Empty value filter](#empty-value-filter)
+- [Logical filter](#logical-filter)
+
+In the future LogsQL will support `| fields field1, field2, ... fieldN` syntax for selecting the listed fields.
+It will also support the ability to select all the fields for the matching log entries with `| fields *` syntax.
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
 ## Performance tips
