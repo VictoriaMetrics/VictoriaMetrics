@@ -751,12 +751,12 @@ But this flag avoids non-consistent results due to the fact that only part of th
 
 Here is an illustration of a potential problem when `search.latencyOffset` is set to zero:
 
-<img src="keyConcepts_without_LatencyOffset.png">
+<img src="keyConcepts_without_latencyOffset.png" width="1000">
 
 When this flag is set, the VM will return the last metric value collected before the `search.latencyOffset`
 duration throughout the `search.latencyOffset` duration:
 
-<img src="keyConcepts_with_LatencyOffset.png">
+<img src="keyConcepts_with_latencyOffset.png" width="1000">
 
 It can be overridden on per-query basis via `latency_offset` arg.
 
