@@ -1370,6 +1370,7 @@ func (swc *scrapeWorkConfig) getScrapeWork(target string, extraLabels, metaLabel
 		AuthToken:            at,
 
 		jobNameOriginal: swc.jobName,
+		originalLabels:  labels.Clone(),
 	}
 	return sw, nil
 }

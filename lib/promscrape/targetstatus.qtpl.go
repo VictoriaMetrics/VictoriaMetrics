@@ -574,7 +574,7 @@ func streamscrapeJobTargets(qw422016 *qt422016.Writer, num int, jts *jobTargetsS
 //line lib/promscrape/targetstatus.qtpl:224
 		endpoint := ts.sw.Config.ScrapeURL
 		// The target is uniquely identified by a pointer to its original labels.
-		targetID := getLabelsID(ts.sw.Config.OriginalLabels)
+		targetID := getLabelsID(ts.sw.Config.originalLabels)
 		lastScrapeDuration := ts.getDurationFromLastScrape()
 
 //line lib/promscrape/targetstatus.qtpl:228

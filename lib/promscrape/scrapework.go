@@ -149,6 +149,12 @@ type ScrapeWork struct {
 
 	// The original 'job_name'
 	jobNameOriginal string
+
+	// These labels are needed for creating additional information at /target page
+	// Even if OriginalLabels would be dropped by --promscrape.dropOriginalLabels flag usage
+	// those original labels will be saved and used for building correct additional information
+	// at /target page
+	originalLabels *promutils.Labels
 }
 
 func (sw *ScrapeWork) canSwitchToStreamParseMode() bool {

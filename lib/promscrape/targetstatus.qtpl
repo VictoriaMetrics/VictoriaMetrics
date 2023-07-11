@@ -223,7 +223,7 @@
                     {% code
                         endpoint := ts.sw.Config.ScrapeURL
                         // The target is uniquely identified by a pointer to its original labels.
-                        targetID := getLabelsID(ts.sw.Config.OriginalLabels)
+                        targetID := getLabelsID(ts.sw.Config.originalLabels)
                         lastScrapeDuration := ts.getDurationFromLastScrape()
                     %}
                         <tr {% if !ts.up %}{%space%}class="alert alert-danger" role="alert" {% endif %}>
