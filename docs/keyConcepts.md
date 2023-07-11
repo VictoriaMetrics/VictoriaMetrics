@@ -744,8 +744,7 @@ If you need to export raw samples from VictoriaMetrics, then take a look at [exp
 
 ### Query latency
 
-By default, Victoria Metrics does not give back the just-written samples immediately, it returns last results,
-written before duration from `search.latencyOffset` flag (default value - `30s`).
+By default, Victoria Metrics does not immediately return the recently written samples. Instead, it retrieves the last results written prior to the time specified by the `search.latencyOffset` flag, which has a default offset of 30 seconds.
 This is true for both `query` and `query_range` and may give the impression that data is written to the VM with a 30-second delay.
 
 But this flag avoids non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
