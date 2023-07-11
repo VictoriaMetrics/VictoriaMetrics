@@ -42,7 +42,7 @@ export const routerOptions: {[key: string]: RouterOptions} = {
     ...routerOptionsDefault
   },
   [router.metrics]: {
-    title: "Explore metrics",
+    title: "Explore Prometheus metrics",
     header: {
       tenant: true,
       stepControl: true,
