@@ -51,7 +51,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt explore procedure in influx mode if vmctl found no numeric fields.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): use RFC3339 time format in query args instead of unix timestamp for all issued queries to Prometheus-like datasources.
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
-* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): fix creating target id at the `/target` page even if `--promscrape.dropOriginalLabels` flag was used when `vmagent` starts. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4597).
+* BUGFIX: [vmagent](https://docs.victoriametrics.com/vmagent.html): disable all links with target id at the `/targets` page when `--promscrape.dropOriginalLabels` flag was used for `vmagent`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4597).
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
 
