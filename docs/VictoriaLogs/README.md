@@ -27,7 +27,8 @@ VictoriaLogs is at Preview stage now. It is ready for evaluation in production a
 It isn't recommended migrating from existing logging solutions to VictoriaLogs Preview in general case yet.
 See the [Roadmap](https://docs.victoriametrics.com/VictoriaLogs/Roadmap.html) for details.
 
-If you have questions about VictoriaLogs, then feel free asking them at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
+If you have questions about VictoriaLogs, then read [this FAQ](https://docs.victoriametrics.com/VictoriaLogs/FAQ.html).
+Also feel free asking any questions at [VictoriaMetrics community Slack chat](https://slack.victoriametrics.com/).
 
 See [Quick start docs](https://docs.victoriametrics.com/VictoriaLogs/QuickStart.html) for start working with VictoriaLogs.
 
