@@ -1,8 +1,9 @@
 # VictoriaLogs
 
-VictoriaLogs is log management and log analytics system from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
+VictoriaLogs is [open source](https://github.com/VictoriaMetrics/VictoriaMetrics/tree/master/app/victoria-logs) user-friendly database for logs
+from [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics/).
 
-It provides the following key features:
+VictoriaLogs provides the following key features:
 
 - VictoriaLogs can accept logs from popular log collectors. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 - VictoriaLogs is much easier to setup and operate comparing to ElasticSearch and Grafana Loki.
@@ -16,6 +17,8 @@ It provides the following key features:
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
 - VictoriaLogs can handle much bigger data volumes than ElasticSearch and Grafana Loki when running on comparable hardware.
   See [these docs](#benchmarks).
+- VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
+  such as `trace_id`, `user_id` and `ip`.
 - VictoriaLogs supports multitenancy - see [these docs](#multitenancy).
 - VictoriaLogs supports out of order logs' ingestion aka backfilling.
 - VictoriaLogs provides simple web UI for querying logs - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#web-ui).
