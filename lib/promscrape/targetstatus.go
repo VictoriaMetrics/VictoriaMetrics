@@ -156,6 +156,11 @@ func (tsm *targetStatusMap) getScrapeWorkByTargetID(targetID string) *scrapeWork
 }
 
 func getLabelsID(labels *promutils.Labels) string {
+	// return empty string if OriginalLabels was dropped
+	// via flag --promscrape.dropOriginalLabels
+	if labels == nil {
+		return ""
+	}
 	return fmt.Sprintf("%016x", uintptr(unsafe.Pointer(labels)))
 }
 
