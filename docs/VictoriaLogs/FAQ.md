@@ -13,7 +13,7 @@ They aren't optimized specifically for logs. This results in the following issue
 - Non-trivial index setup
 - Inability to select more than 10K matching log lines in a single query
 
-VictoriaLogs is optimized specifically for logs. So it provides the following features useful for logs:
+VictoriaLogs is optimized specifically for logs. So it provides the following features useful for logs, which are missing in Elasticsearch:
 
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
   Just run VictoriaLogs on the most suitable hardware - and it automatically provides the best performance.
@@ -21,7 +21,7 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 - Up to 15x less disk space usage than ElasticSearch for the same amounts of stored logs.
 - Ability to work with hundreds of terabytes of logs on a single node.
 - Very easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
-- Fast full-text search over all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
+- Fast full-text search over all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) out of the box.
 - Good integration with traditional command-line tools for log analysis. See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line).
 
 
@@ -33,11 +33,11 @@ Both systems support [log stream](https://docs.victoriametrics.com/VictoriaLogs/
 VictoriaLogs and Grafana Loki have the following differences:
 
 - Grafana Loki doesn't support high-cardinality log fields (aka labels) such as `user_id`, `trace_id` or `ip`.
-  It starts consuming huge amounts of RAM and working very slowly when logs with high-cardinality fields are ingested into it.
+  It starts consuming huge amounts of RAM and working very slow when logs with high-cardinality fields are ingested into it.
   See [these docs](https://grafana.com/docs/loki/latest/best-practices/) for details.
 
   VictoriaMetrics supports high-cardinality [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model).
-  It automatically indexes all the ingested log fields and allows performing fast full-text search over any fields.
+  It automatically indexes all the ingested log fields and allows performing fast full-text search over any field.
 
 - Grafana Loki provides very inconvenient query language - [LogQL](https://grafana.com/docs/loki/latest/logql/).
   This query language is hard to use for typical log analysis tasks.
@@ -57,10 +57,10 @@ ClickHouse is an extremely fast and efficient analytical database. It can be use
 VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design ideas as ClickHouse](#how-does-victorialogs-work) for achieving high performance.
 
 - ClickHouse is good for logs if you know the set of [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) beforehand.
-  Then you can create a table with a column per each log field and achieve the maximum possible query performance in ClickHouse.
+  Then you can create a table with a column per each log field and achieve the maximum possible query performance.
 
   If the set of log fields isn't known beforehand, or if it can change at any time, then ClickHouse can still be used,
-  but its' efficiency may suffer significantly, depending on how you design the database schema for log storage.
+  but its' efficiency may suffer significantly depending on how you design the database schema for log storage.
 
   ClickHouse efficiency highly depends on the used database schema. It must be optimized for the particular workload
   for achieving high efficiency and query performance.
@@ -72,11 +72,12 @@ VictoriaLogs is designed solely for logs. VictoriaLogs uses [similar design idea
 - ClickHouse provides SQL dialect with additional analytical functionality. It allows performing arbitrary complex analytical queries
   over the stored logs.
 
-  VictoriaLogs provides easy to use query language with full-text search support specifically optimized
-  log analysis - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
-  LogsQL is usually much easier to use than SQL for typical log analysis tasks.
+  VictoriaLogs provides easy to use query language with full-text search specifically optimized
+  for log analysis - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
+  LogsQL is usually much easier to use than SQL for typical log analysis tasks, while some
+  non-trivial analytics may require SQL power.
 
-- VictoriaLogs accepts logs from popular log shippers - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
+- VictoriaLogs accepts logs from popular log shippers out of the box - see [these docs](https://docs.victoriametrics.com/VictoriaLogs/data-ingestion/).
 
   ClickHouse needs an intermediate applications for converting the ingested logs into `INSERT` SQL statements for the particular database schema.
   This may increase the complexity of the system and, subsequently, increase its' maintenance costs.
@@ -88,7 +89,7 @@ VictoriaLogs accepts logs as [JSON entries](https://docs.victoriametrics.com/Vic
 It then stores every field value into a distinct data block. E.g. values for the same field across multiple log entries
 are stored in a single data block. This allow reading data blocks only for the needed fields during querying.
 
-Data blocks are compressed before being stored on disk. This allows saving disk space and improving query performance
+Data blocks are compressed before being saved to persistent storage. This allows saving disk space and improving query performance
 when it is limited by disk read IO bandwidth.
 
 Smaller data blocks are merged into bigger blocks in background. Data blocks are limited in size. If the size of data block exceeds the limit,
