@@ -65,7 +65,7 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
 
-Currently, streamin aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ### Recording rules alternative
