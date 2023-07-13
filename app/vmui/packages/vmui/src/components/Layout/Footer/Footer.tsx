@@ -1,7 +1,7 @@
 import React, { FC } from "preact/compat";
 import dayjs from "dayjs";
 import "./style.scss";
-import { IssueIcon, LogoIcon, WikiIcon } from "../../Main/Icons";
+import { CodeIcon, IssueIcon, LogoIcon, WikiIcon } from "../../Main/Icons";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 
 const Footer: FC = () => {
@@ -17,6 +17,15 @@ const Footer: FC = () => {
     >
       <LogoIcon/>
       victoriametrics.com
+    </a>
+    <a
+      className="vm-link vm-footer__link"
+      target="_blank"
+      href="https://docs.victoriametrics.com/MetricsQL.html"
+      rel="help noreferrer"
+    >
+      <CodeIcon/>
+      MetricsQL
     </a>
     <a
       className="vm-link vm-footer__link"
