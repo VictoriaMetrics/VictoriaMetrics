@@ -11,7 +11,7 @@ for file in /tmp/dashboards/*.json; do sed -i 's/\"id\"\:\ \"prometheus\"/\"id\"
 for file in /tmp/dashboards/*.json; do sed -i  's/\"type\"\:\ \"prometheus\"/\"type\"\:\ \"victoriametrics-datasource\"/g' "$file"; done
 for file in /tmp/dashboards/*.json; do sed -i  's/\"name\"\:\ \"Prometheus\"/\"name\"\:\ \"VictoriaMetrics\"/g' "$file"; done
 
-# for file in /tmp/dashboards/*.json; do sed -i  's/\"query\"\:\ \"prometheus\"/\"query\"\:\ \"victoriametrics-datasource\"/g' "$file"; done
+for file in /tmp/dashboards/*.json; do sed -i  's/\"query\"\:\ \"prometheus\"/\"query\"\:\ \"victoriametrics-datasource\"/g' "$file"; done
 
 for file in /tmp/dashboards/*.json; do sed -i  's/\"uid\"\:\ \"wNf0q_kZk\"/\"uid\"\:\ \"VMwNf0q_k\"/g' "$file"; done
 for file in /tmp/dashboards/*.json; do sed -i  's/\"uid\"\:\ \"G7Z9GzMGz\"/\"uid\"\:\ \"VMZ9GzMGz\"/g' "$file"; done
