@@ -176,22 +176,21 @@ package-via-docker-386:
 remove-docker-images:
 	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f
 
-docker-single-up:
-	rm -rf deployment/docker/grafana-plugins/victoriametrics-datasource
-	wget -nc https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v$(VM_DATASOURCE_VERSION)/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz \
-	-O deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz
-	tar -xzvf deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz -C deployment/docker/grafana-plugins/
-	docker-compose -f deployment/docker/docker-compose.yml up -d
+add-vm-dashboards:
+	$(shell sh -c deployment/docker/add-vm-dashboards.sh)
+
+docker-single-up: add-vm-dashboards
+	@VM_DS_VER=$(VM_DS_VER) docker compose -f deployment/docker/docker-compose.yml up -d
+	docker compose -f deployment/docker/docker-compose.yml exec -u 0 grafana sh /var/lib/grafana/add-vm-dashboards.sh
+	docker compose -f deployment/docker/docker-compose.yml restart grafana
 
 docker-single-down:
 	docker-compose -f deployment/docker/docker-compose.yml down -v
 
-docker-cluster-up:
-	rm -rf deployment/docker/grafana-plugins/victoriametrics-datasource
-	wget -nc https://github.com/VictoriaMetrics/grafana-datasource/releases/download/v$(VM_DATASOURCE_VERSION)/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz \
-	-O deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz
-	tar -xzvf deployment/docker/grafana-plugins/victoriametrics-datasource-v$(VM_DATASOURCE_VERSION).tar.gz -C deployment/docker/grafana-plugins/
-	docker-compose -f deployment/docker/docker-compose-cluster.yml up -d
-
+docker-cluster-up: add-vm-dashboards
+	@VM_DS_VER=$(VM_DS_VER)  docker compose -f deployment/docker/docker-compose-cluster.yml up -d
+	docker compose -f deployment/docker/docker-compose-cluster.yml exec -u 0 grafana sh /var/lib/grafana/add-vm-dashboards.sh
+	docker compose -f deployment/docker/docker-compose-cluster.yml restart grafana
+	
 docker-cluster-down:
 	docker-compose -f deployment/docker/docker-compose-cluster.yml down -v
