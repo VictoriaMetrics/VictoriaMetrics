@@ -10,9 +10,6 @@ permissions:
   deployments: write
 jobs:
   build:
-    environment:
-      name: docs
-      url: https://docsnew.victoriametrics.com/
     name: Build
     runs-on: ubuntu-latest
     steps:
