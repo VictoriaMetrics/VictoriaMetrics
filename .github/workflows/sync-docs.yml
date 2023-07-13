@@ -4,6 +4,7 @@ on:
     branches:
       - 'master'
       - 'sync-docs'
+        
   workflow_dispatch: {}
 permissions:
   contents: read  # This is required for actions/checkout and to commit back image update
