@@ -34,7 +34,8 @@ jobs:
           passphrase: ${{ secrets.VM_BOT_PASSPHRASE }}
           git_user_signingkey: true
           git_commit_gpgsign: true
-
+          workdir: docs
+          
       - name: update code and commit
         run: |
           rm -rf content
