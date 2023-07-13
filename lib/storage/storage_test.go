@@ -823,9 +823,7 @@ func testStorageRegisterMetricNames(s *Storage) error {
 			}
 			mrs = append(mrs, mr)
 		}
-		if err := s.RegisterMetricNames(nil, mrs); err != nil {
-			return fmt.Errorf("unexpected error in RegisterMetricNames: %w", err)
-		}
+		s.RegisterMetricNames(nil, mrs)
 	}
 	var addIDsExpected []string
 	for k := range addIDsMap {
