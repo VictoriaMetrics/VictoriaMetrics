@@ -170,7 +170,17 @@ vet:
 	go vet ./lib/...
 	go vet ./app/...
 
-check-all: fmt vet golangci-lint govulncheck
+# Set variables by using target specific variables to avoid running git diff for each make execution
+# See: https://www.gnu.org/software/make/manual/html_node/Target_002dspecific.html
+goimports: GO_CHANGED_FILES+=$(shell git diff --name-only --diff-filter=ACMR HEAD -- 'lib/*.go')
+goimports: GO_CHANGED_FILES+=$(shell git diff --name-only --diff-filter=ACMR HEAD -- 'app/*.go')
+goimports: install-goimports
+	# GO_CHANGED_FILES will contain a single space if there are no changed files
+	if [ "$(GO_CHANGED_FILES)" != " " ]; then \
+		goimports -local github.com/VictoriaMetrics/VictoriaMetrics -w $(GO_CHANGED_FILES); \
+	fi
+
+check-all: fmt goimports vet golangci-lint govulncheck
 
 test:
 	go test ./lib/... ./app/...
@@ -234,6 +244,9 @@ install-govulncheck:
 
 install-wwhrd:
 	which wwhrd || go install github.com/frapposelli/wwhrd@latest
+
+install-goimports:
+	which goimports || go install golang.org/x/tools/cmd/goimports@latest
 
 check-licenses: install-wwhrd
 	wwhrd check -f .wwhrd.yml
