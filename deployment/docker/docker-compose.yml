@@ -51,7 +51,6 @@ services:
       /run.sh"
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./grafana-plugins:/var/lib/grafana/plugins
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json

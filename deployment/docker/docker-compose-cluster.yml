@@ -29,7 +29,6 @@ services:
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
-      - ./grafana-plugins:/var/lib/grafana/plugins
       - ./provisioning/:/etc/grafana/provisioning/
       - ./../../dashboards/victoriametrics-cluster.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
