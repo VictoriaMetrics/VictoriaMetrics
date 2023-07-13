@@ -52,6 +52,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: add validation for invalid [partial RFC3339 timestamp formats](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats) in query and export APIs.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt explore procedure in influx mode if vmctl found no numeric fields.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): use RFC3339 time format in query args instead of unix timestamp for all issued queries to Prometheus-like datasources.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly calculate evaluation time for rules. Before, there was a low probability for discrepancy between actual time and rules evaluation time if evaluation interval was lower than the execution time for rules within the group.
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
