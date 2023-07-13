@@ -744,21 +744,22 @@ If you need to export raw samples from VictoriaMetrics, then take a look at [exp
 
 ### Query latency
 
-By default, Victoria Metrics does not immediately return the recently written samples. Instead, it retrieves the last results written prior to the time specified by the `search.latencyOffset` flag, which has a default offset of 30 seconds.
+By default, Victoria Metrics does not immediately return the recently written samples. Instead, it retrieves the last results
+written prior to the time specified by the `-search.latencyOffset` command-line flag, which has a default offset of 30 seconds.
 This is true for both `query` and `query_range` and may give the impression that data is written to the VM with a 30-second delay.
 
-But this flag avoids non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
+This flag prevents from non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
 
-Here is an illustration of a potential problem when `search.latencyOffset` is set to zero:
+Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
 
-<img src="keyConcepts_without_LatencyOffset.png">
+<img src="keyConcepts_without_latencyOffset.png" width="1000">
 
-When this flag is set, the VM will return the last metric value collected before the `search.latencyOffset`
-duration throughout the `search.latencyOffset` duration:
+When this flag is set, the VM will return the last metric value collected before the `-search.latencyOffset`
+duration throughout the `-search.latencyOffset` duration:
 
-<img src="keyConcepts_with_LatencyOffset.png">
+<img src="keyConcepts_with_latencyOffset.png" width="1000">
 
-It can be overridden on per-query basis via `latency_offset` arg.
+It can be overridden on per-query basis via `latency_offset` query arg.
 
 ### MetricsQL
 
