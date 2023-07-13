@@ -35,11 +35,8 @@ jobs:
 
       - name: update code and commit
         run: |
-          ls -la ../
-          ls -la ./
-          pwd
           rm -rf content
-          cp -r /main/docs content
+          cp -r ../main/docs content
           make clean-after-copy
           git config --global user.name "${{ steps.import-gpg.outputs.email }}"
           git config --global user.email "${{ steps.import-gpg.outputs.email }}"
