@@ -37,6 +37,8 @@ jobs:
         run: |
           ls -la /
           ls -la /home
+          ls -la ../
+          ls -la ./
           rm -rf content
           cp -r /main/docs content
           make clean-after-copy
