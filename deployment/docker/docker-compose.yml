@@ -52,7 +52,10 @@ services:
       - ./../../dashboards/victoriametrics.json:/var/lib/grafana/dashboards/vm.json
       - ./../../dashboards/vmagent.json:/var/lib/grafana/dashboards/vmagent.json
       - ./../../dashboards/vmalert.json:/var/lib/grafana/dashboards/vmalert.json
+      - ./update-grafana-vm-ds.sh:/var/lib/grafana/update-grafana-vm-ds.sh
+      - ./add-vm-dashboards.sh:/var/lib/grafana/add-vm-dashboards.sh
     environment:
+      - "VM_DS_VER=${VM_DS_VER}"
       - "GF_ALLOW_LOADING_UNSIGNED_PLUGINS=victoriametrics-datasource"
       - "GF_DEFAULT_APP_MODE=development"
     networks:
