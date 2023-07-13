@@ -30,6 +30,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly set datasource query params. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4340). Thanks to @gsakun for [the pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4341).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): Properly form path to static assets in WEB UI if `http.pathPrefix` set. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4349).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly return empty slices instead of nil for `/api/v1/rules` for groups with present name but absent `rules`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4221).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix panic in case `--remote-read-filter-time-start` flag is not set for remote-read mode. This flag is now required to use remote-read mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4553).
 
 ## [v1.87.6](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.87.6)
 
