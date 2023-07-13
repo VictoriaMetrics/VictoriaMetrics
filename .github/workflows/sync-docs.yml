@@ -35,10 +35,9 @@ jobs:
 
       - name: update code and commit
         run: |
-          ls -la /
-          ls -la /home
           ls -la ../
           ls -la ./
+          pwd
           rm -rf content
           cp -r /main/docs content
           make clean-after-copy
