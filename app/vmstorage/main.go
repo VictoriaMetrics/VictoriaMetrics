@@ -467,12 +467,6 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(idbm().PartsRefCount)
 	})
 
-	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
-		return float64(idbm().NewTimeseriesCreated)
-	})
-	metrics.NewGauge(`vm_timeseries_repopulated_total`, func() float64 {
-		return float64(idbm().TimeseriesRepopulated)
-	})
 	metrics.NewGauge(`vm_missing_tsids_for_metric_id_total`, func() float64 {
 		return float64(idbm().MissingTSIDsForMetricID)
 	})
@@ -587,6 +581,12 @@ func registerStorageMetrics(strg *storage.Storage) {
 		return float64(m().TooSmallTimestampRows)
 	})
 
+	metrics.NewGauge(`vm_timeseries_repopulated_total`, func() float64 {
+		return float64(m().TimeseriesRepopulated)
+	})
+	metrics.NewGauge(`vm_new_timeseries_created_total`, func() float64 {
+		return float64(m().NewTimeseriesCreated)
+	})
 	metrics.NewGauge(`vm_slow_row_inserts_total`, func() float64 {
 		return float64(m().SlowRowInserts)
 	})
