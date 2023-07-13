@@ -25,6 +25,8 @@ The following tip changes can be tested by building VictoriaMetrics components f
 ## tip
 
 * SECURITY: upgrade base docker image (alpine) from 3.18.0 to 3.18.2. See [alpine 3.18.2 release notes](https://alpinelinux.org/posts/Alpine-3.15.9-3.16.6-3.17.4-3.18.2-released.html).
+* SECURITY: upgrade Go builder from Go1.20.5 to Go1.20.6. See [the list of issues addressed in Go1.20.6](https://github.com/golang/go/issues?q=milestone%3AGo1.20.6+label%3ACherryPickApproved).
+
 
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): add verbose output for docker installations or when TTY isn't available. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4081).
 * FEATURE: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt backoff retries when import process is cancelled. The change makes vmctl more responsive in case of errors during the import. See [this pull request](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4442).
@@ -50,7 +52,9 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: add validation for invalid [partial RFC3339 timestamp formats](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats) in query and export APIs.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): interrupt explore procedure in influx mode if vmctl found no numeric fields.
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix panic in case `--remote-read-filter-time-start` flag is not set for remote-read mode. This flag is now required to use remote-read mode. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4553).
+* BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix issue with adding additional character if length of the if the length of the string has become less than the previous length. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4555).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): use RFC3339 time format in query args instead of unix timestamp for all issued queries to Prometheus-like datasources.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly calculate evaluation time for rules. Before, there was a low probability for discrepancy between actual time and rules evaluation time if evaluation interval was lower than the execution time for rules within the group.
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)

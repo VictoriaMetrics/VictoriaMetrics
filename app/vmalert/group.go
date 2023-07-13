@@ -389,6 +389,11 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
 			missed := (time.Since(evalTS) / g.Interval) - 1
+			if missed < 0 {
+				// missed can become < 0 due to irregular delays during evaluation
+				// which can result in time.Since(evalTS) < g.Interval
+				missed = 0
+			}
 			if missed > 0 {
 				g.metrics.iterationMissed.Inc()
 			}
