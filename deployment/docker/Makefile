@@ -8,8 +8,7 @@ GO_BUILDER_IMAGE := golang:1.20.2-alpine
 BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __)-1
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 
-VM_DATASOURCE_VERSION := 0.1.3
-ARCH := $(shell uname -i)
+VM_DS_VER ?= 0.2.0
 
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
