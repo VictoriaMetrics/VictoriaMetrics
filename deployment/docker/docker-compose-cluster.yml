@@ -22,6 +22,10 @@ services:
       - "vmselect"
     ports:
       - 3000:3000
+    entrypoint: >
+      /bin/sh -c "
+      /var/lib/grafana/update-grafana-vm-ds.sh &&
+      /run.sh"
     restart: always
     volumes:
       - grafanadata:/var/lib/grafana
