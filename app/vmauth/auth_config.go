@@ -133,7 +133,7 @@ func (bu *backendURL) isBroken() bool {
 }
 
 func (bu *backendURL) setBroken() {
-	deadline := fasttime.UnixTimestamp() + uint64(*brokenBackendBackoff)
+	deadline := fasttime.UnixTimestamp() + uint64((*brokenBackendBackoff).Seconds())
 	atomic.StoreUint64(&bu.brokenDeadline, deadline)
 }
 
