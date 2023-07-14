@@ -1,3 +1,12 @@
+---
+weight: 4
+title: Vector setup
+menu:
+  docs:
+    parent: "victorialogs-data-ingestion"
+    weight: 4
+---
+
 # Vector setup
 
 Specify [Elasticsearch sink type](https://vector.dev/docs/reference/configuration/sinks/elasticsearch/) in the `vector.toml`

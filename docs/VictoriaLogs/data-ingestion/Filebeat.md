@@ -1,3 +1,12 @@
+---
+weight: 1
+title: Filebeat setup
+menu:
+  docs:
+    parent: "victorialogs-data-ingestion"
+    weight: 1
+---
+
 # Filebeat setup
 
 Specify [`output.elasicsearch`](https://www.elastic.co/guide/en/beats/filebeat/current/elasticsearch-output.html) section in the `filebeat.yml`
