@@ -19,7 +19,7 @@ var (
 
 	addrs = flagutil.NewArrayString("notifier.url", "Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. "+
 		"List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.")
-	blackHole = flag.Bool("notifier.blackhole", false, "Don't send any notifications. -notifier.url and -notifier.blackhole and -notifier.config are mutually exclusive")
+	blackHole = flag.Bool("notifier.blackhole", false, "Don't send any notifications to anywhere. -notifier.url and -notifier.blackhole and -notifier.config are mutually exclusive")
 
 	basicAuthUsername     = flagutil.NewArrayString("notifier.basicAuth.username", "Optional basic auth username for -notifier.url")
 	basicAuthPassword     = flagutil.NewArrayString("notifier.basicAuth.password", "Optional basic auth password for -notifier.url")
@@ -91,25 +91,18 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 
 	templates.UpdateWithFuncs(templates.FuncsWithExternalURL(eu))
 
-	var blackHoleNotifier *BlackHoleNotifier
-
 	if *blackHole {
 		if len(*addrs) > 0 || *configPath != "" {
 			return nil, fmt.Errorf("only one of -notifier.blackhole, -notifier.url and -notifier.config flags must be specified")
 		}
-	}
 
-	if *blackHole {
-		blackHoleNotifier = NewBlackHoleNotifier()
+		staticNotifiersFn = func() []Notifier {
+			return []Notifier{NewBlackHoleNotifier()}
+		}
+		return staticNotifiersFn, nil
 	}
 
 	if *configPath == "" && len(*addrs) == 0 {
-		if *blackHole {
-			staticNotifiersFn = func() []Notifier {
-				return []Notifier{blackHoleNotifier}
-			}
-			return staticNotifiersFn, nil
-		}
 		return nil, nil
 	}
 

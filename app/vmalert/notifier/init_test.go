@@ -38,6 +38,8 @@ func TestInit(t *testing.T) {
 }
 
 func TestInitBlackHole(t *testing.T) {
+	oldBlackHole := *blackHole
+	defer func() { *blackHole = oldBlackHole }()
 
 	*blackHole = true
 
@@ -66,33 +68,39 @@ func TestInitBlackHole(t *testing.T) {
 
 func TestInitBlackHoleWithNotifierUrl(t *testing.T) {
 	oldAddrs := *addrs
-	defer func() { *addrs = oldAddrs }()
+	oldBlackHole := *blackHole
+	defer func() {
+		*addrs = oldAddrs
+		*blackHole = oldBlackHole
+	}()
 
 	*addrs = flagutil.ArrayString{"127.0.0.1", "127.0.0.2"}
-
 	*blackHole = true
 
-	fn, err := Init(nil, nil, "")
+	_, err := Init(nil, nil, "")
 	if err == nil {
-		t.Fatalf("%s", err)
+		t.Fatalf("Expect Init to return error; instead got no error")
 	}
 
-	if fn != nil {
-		t.Fatalf("expected no notifiers to be returned;but returned")
-	}
 }
 
 func TestInitBlackHoleWithNotifierConfig(t *testing.T) {
+	oldConfigPath := *configPath
+	oldBlackHole := *blackHole
+	defer func() {
+		*configPath = oldConfigPath
+		*blackHole = oldBlackHole
+	}()
 
 	*configPath = "/dummy/path"
 	*blackHole = true
 
 	fn, err := Init(nil, nil, "")
 	if err == nil {
-		t.Fatalf("%s", err)
+		t.Fatalf("Expect Init to return error; instead got no error")
 	}
 
 	if fn != nil {
-		t.Fatalf("expected no notifiers to be returned;but returned")
+		t.Fatalf("expected no notifiers to be returned;but got %v instead", fn())
 	}
 }

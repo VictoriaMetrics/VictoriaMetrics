@@ -1,29 +1,14 @@
 package notifier
 
-import (
-	"context"
-	"fmt"
+import "context"
 
-	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
-)
-
-type blackHoleMetrics struct {
-	alertsSent *utils.Counter
-}
-
-func newBlackHoleMetrics(addr string) *blackHoleMetrics {
-	return &blackHoleMetrics{
-		alertsSent: utils.GetOrCreateCounter(fmt.Sprintf("vmalert_alerts_sent_total{addr=%q}", addr)),
-	}
-}
-
-// BlackHoleNotifier No op notifier which can be used when no notifications needs to be sent out
+// BlackHoleNotifier is can be used when no notifications needs to be sent
 type BlackHoleNotifier struct {
 	addr    string
-	metrics *blackHoleMetrics
+	metrics *metrics
 }
 
-// Send will not send any notifications. Just update the number of alert it needs to sent.
+// Send will not send any notifications. Only increase the alerts sent number.
 func (bh *BlackHoleNotifier) Send(_ context.Context, alerts []Alert, _ map[string]string) error { //nolint:revive
 	bh.metrics.alertsSent.Add(len(alerts))
 	return nil
@@ -37,6 +22,7 @@ func (bh BlackHoleNotifier) Addr() string {
 // Close unregister the metrics
 func (bh *BlackHoleNotifier) Close() {
 	bh.metrics.alertsSent.Unregister()
+	bh.metrics.alertsSendErrors.Unregister()
 }
 
 // NewBlackHoleNotifier Create a new BlackHoleNotifier
@@ -44,6 +30,6 @@ func NewBlackHoleNotifier() *BlackHoleNotifier {
 	address := "blackhole"
 	return &BlackHoleNotifier{
 		addr:    address,
-		metrics: newBlackHoleMetrics(address),
+		metrics: newMetrics(address),
 	}
 }
