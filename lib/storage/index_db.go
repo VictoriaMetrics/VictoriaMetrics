@@ -1951,7 +1951,7 @@ func (is *indexSearch) getTSIDByMetricNameNoExtDB(dst *TSID, metricName []byte, 
 	ts := &is.ts
 	kb := &is.kb
 	// Do not use marshalCommonPrefix() here, since mn already contains (AccountID, ProjectID)
-	kb.B = append(kb.B, nsPrefixDateMetricNameToTSID)
+	kb.B = append(kb.B[:0], nsPrefixDateMetricNameToTSID)
 	kb.B = encoding.MarshalUint64(kb.B, date)
 	kb.B = append(kb.B, metricName...)
 	kb.B = append(kb.B, kvSeparatorChar)
