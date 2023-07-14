@@ -41,7 +41,7 @@ var (
 	reloadAuthKey        = flag.String("reloadAuthKey", "", "Auth key for /-/reload http endpoint. It must be passed as authKey=...")
 	logInvalidAuthTokens = flag.Bool("logInvalidAuthTokens", false, "Whether to log requests with invalid auth tokens. "+
 		`Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page`)
-	brokenBeckendBackoff = flag.Duration("brokenBackendDeadline", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend. (defaults 3s)")
+	brokenBeckendBackoff = flag.Duration("brokenBeckendBackoff", 3*time.Second, "Sets a delay period for load balancing to skip a malfunctioning backend. (defaults 3s)")
 )
 
 func main() {
