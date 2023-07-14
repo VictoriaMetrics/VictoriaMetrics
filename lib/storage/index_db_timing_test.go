@@ -80,7 +80,6 @@ func BenchmarkIndexDBAddTSIDs(b *testing.B) {
 
 func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricName, startOffset, recordsPerLoop int) {
 	date := uint64(0)
-	var metricNameRaw []byte
 	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
 	for i := 0; i < recordsPerLoop; i++ {
@@ -90,10 +89,8 @@ func benchmarkIndexDBAddTSIDs(db *indexDB, genTSID *generationTSID, mn *MetricNa
 		}
 		mn.sortTags()
 
-		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
 		generateTSID(&genTSID.TSID, mn)
-		genTSID.generation = db.generation
-		db.s.createAllIndexesForMetricName(is, mn, metricNameRaw, genTSID, date)
+		createAllIndexesForMetricName(is, mn, &genTSID.TSID, date)
 	}
 }
 
@@ -110,7 +107,6 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	is := db.getIndexSearch(0, 0, noDeadline)
 	defer db.putIndexSearch(is)
 	var mn MetricName
-	var metricNameRaw []byte
 	var genTSID generationTSID
 	date := uint64(0)
 	addSeries := func(kvs ...string) {
@@ -121,10 +117,8 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 		mn.sortTags()
 		mn.AccountID = accountID
 		mn.ProjectID = projectID
-		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
 		generateTSID(&genTSID.TSID, &mn)
-		genTSID.generation = db.generation
-		db.s.createAllIndexesForMetricName(is, &mn, metricNameRaw, &genTSID, date)
+		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 	}
 	for n := 0; n < 10; n++ {
 		ns := strconv.Itoa(n)
@@ -294,7 +288,6 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	mn.sortTags()
 
 	var genTSID generationTSID
-	var metricNameRaw []byte
 	date := uint64(12345)
 
 	is := db.getIndexSearch(0, 0, noDeadline)
@@ -303,10 +296,8 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	for i := 0; i < recordsCount; i++ {
 		mn.AccountID = uint32(i % accountsCount)
 		mn.ProjectID = uint32(i % projectsCount)
-		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
 		generateTSID(&genTSID.TSID, &mn)
-		genTSID.generation = db.generation
-		db.s.createAllIndexesForMetricName(is, &mn, metricNameRaw, &genTSID, date)
+		createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 	}
 	db.s.DebugFlush()
 
