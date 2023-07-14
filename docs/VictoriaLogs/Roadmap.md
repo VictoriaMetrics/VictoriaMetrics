@@ -13,7 +13,7 @@ aliases:
 # VictoriaLogs roadmap
 
 The [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) Preview is ready for evaluation in production.
-It is recommended running it alongside the existing solutions such as ElasticSearch and Grafana Loki
+It is recommended running it alongside the existing solutions such as Elasticsearch and Grafana Loki
 and comparing their resource usage and usability.
 It isn't recommended migrating from existing solutions to VictoriaLogs Preview yet.
 

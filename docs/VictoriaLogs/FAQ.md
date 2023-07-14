@@ -29,8 +29,8 @@ VictoriaLogs is optimized specifically for logs. So it provides the following fe
 
 - Easy to setup and operate. There is no need in tuning configuration for optimal performance or in creating any indexes for various log types.
   Just run VictoriaLogs on the most suitable hardware - and it automatically provides the best performance.
-- Up to 30x less RAM usage than ElasticSearch for the same workload.
-- Up to 15x less disk space usage than ElasticSearch for the same amounts of stored logs.
+- Up to 30x less RAM usage than Elasticsearch for the same workload.
+- Up to 15x less disk space usage than Elasticsearch for the same amounts of stored logs.
 - Ability to work with hundreds of terabytes of logs on a single node.
 - Very easy to use query language optimized for typical log analysis tasks - [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html).
 - Fast full-text search over all the [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model) out of the box.
