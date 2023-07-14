@@ -580,7 +580,6 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 
 	var metricNameBuf []byte
-	var metricNameRawBuf []byte
 	for i := 0; i < 401; i++ {
 		var mn MetricName
 
@@ -596,14 +595,12 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, metricGroups int) ([]MetricNa
 		}
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
-		metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 
 		// Create tsid for the metricName.
 		var genTSID generationTSID
 		if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 			generateTSID(&genTSID.TSID, &mn)
-			genTSID.generation = db.generation
-			db.s.createAllIndexesForMetricName(is, &mn, metricNameRawBuf, &genTSID, date)
+			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 		}
 
 		mns = append(mns, mn)
@@ -1531,7 +1528,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	now := uint64(timestampFromTime(theDay))
 	baseDate := now / msecPerDay
 	var metricNameBuf []byte
-	var metricNameRawBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
 	labelNames := []string{
@@ -1566,12 +1562,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn.sortTags()
 
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
-			metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				genTSID.generation = db.generation
-				db.s.createAllIndexesForMetricName(is, &mn, metricNameRawBuf, &genTSID, date)
+				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 			}
 			metricIDs.Add(genTSID.TSID.MetricID)
 		}
