@@ -600,7 +600,6 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 	date := uint64(timestampFromTime(time.Now())) / msecPerDay
 
 	var metricNameBuf []byte
-	var metricNameRawBuf []byte
 	for i := 0; i < 401; i++ {
 		var mn MetricName
 		mn.AccountID = uint32((i + 2) % accountsCount)
@@ -620,14 +619,12 @@ func testIndexDBGetOrCreateTSIDByName(db *indexDB, accountsCount, projectsCount,
 		}
 		mn.sortTags()
 		metricNameBuf = mn.Marshal(metricNameBuf[:0])
-		metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 
 		// Create tsid for the metricName.
 		var genTSID generationTSID
 		if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 			generateTSID(&genTSID.TSID, &mn)
-			genTSID.generation = db.generation
-			db.s.createAllIndexesForMetricName(is, &mn, metricNameRawBuf, &genTSID, date)
+			createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 		}
 		if genTSID.TSID.AccountID != mn.AccountID {
 			return nil, nil, nil, fmt.Errorf("unexpected TSID.AccountID; got %d; want %d; mn:\n%s\ntsid:\n%+v", genTSID.TSID.AccountID, mn.AccountID, &mn, &genTSID.TSID)
@@ -1638,7 +1635,6 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 	now := uint64(timestampFromTime(theDay))
 	baseDate := now / msecPerDay
 	var metricNameBuf []byte
-	var metricNameRawBuf []byte
 	perDayMetricIDs := make(map[uint64]*uint64set.Set)
 	var allMetricIDs uint64set.Set
 	labelNames := []string{
@@ -1675,12 +1671,10 @@ func TestSearchTSIDWithTimeRange(t *testing.T) {
 			mn.sortTags()
 
 			metricNameBuf = mn.Marshal(metricNameBuf[:0])
-			metricNameRawBuf = mn.marshalRaw(metricNameRawBuf[:0])
 			var genTSID generationTSID
 			if !is.getTSIDByMetricName(&genTSID, metricNameBuf, date) {
 				generateTSID(&genTSID.TSID, &mn)
-				genTSID.generation = db.generation
-				db.s.createAllIndexesForMetricName(is, &mn, metricNameRawBuf, &genTSID, date)
+				createAllIndexesForMetricName(is, &mn, &genTSID.TSID, date)
 			}
 			if genTSID.TSID.AccountID != accountID {
 				t.Fatalf("unexpected accountID; got %d; want %d", genTSID.TSID.AccountID, accountID)
