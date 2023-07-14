@@ -1,6 +1,12 @@
 ---
 sort: 6
 title: Data ingestion
+weight: 6
+menu:
+  docs:
+    identifier: victorialogs-data-ingestion
+    parent: "victorialogs"
+    weight: 6
 ---
 
 # Data ingestion
