@@ -1,6 +1,12 @@
 ---
 sort: 7
 title: Querying
+weight: 7
+menu:
+  docs:
+    identifier: victorialogs-querying
+    parent: "victorialogs"
+    weight: 7
 ---
 
 # Querying
