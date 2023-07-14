@@ -1,10 +1,13 @@
 ---
 weight: 3
 title: Logstash setup
+disableToc: true
 menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 3
+aliases:
+  - /VictoriaLogs/data-ingestion/Logstash.html
 ---
 
 # Logstash setup

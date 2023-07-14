@@ -1,10 +1,13 @@
 ---
 weight: 2
 title: Fluentbit setup
+disableToc: true
 menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 2
+aliases:
+  - /VictoriaLogs/data-ingestion/Fluentbit.html
 ---
 
 # Fluentbit setup
