@@ -136,14 +136,15 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 	b.ResetTimer()
 
 	benchSearch := func(b *testing.B, tfs *TagFilters, expectedMetricIDs int) {
-		is := db.getIndexSearch(noDeadline)
 		tfss := []*TagFilters{tfs}
 		tr := TimeRange{
 			MinTimestamp: 0,
 			MaxTimestamp: timestampFromTime(time.Now()),
 		}
 		for i := 0; i < b.N; i++ {
+			is := db.getIndexSearch(noDeadline)
 			metricIDs, err := is.searchMetricIDs(nil, tfss, tr, 2e9)
+			db.putIndexSearch(is)
 			if err != nil {
 				b.Fatalf("unexpected error in searchMetricIDs: %s", err)
 			}
@@ -151,7 +152,6 @@ func BenchmarkHeadPostingForMatchers(b *testing.B) {
 				b.Fatalf("unexpected metricIDs found; got %d; want %d", len(metricIDs), expectedMetricIDs)
 			}
 		}
-		db.putIndexSearch(is)
 	}
 	addTagFilter := func(tfs *TagFilters, key, value string, isNegative, isRegexp bool) {
 		if err := tfs.Add([]byte(key), []byte(value), isNegative, isRegexp); err != nil {
@@ -281,15 +281,16 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 		value := fmt.Sprintf("value_%d", i)
 		mn.AddTag(key, value)
 	}
+	mn.sortTags()
+
 	var genTSID generationTSID
 	var metricNameRaw []byte
-	date := uint64(0)
+	date := uint64(12345)
 
 	is := db.getIndexSearch(noDeadline)
 	defer db.putIndexSearch(is)
 
 	for i := 0; i < recordsCount; i++ {
-		mn.sortTags()
 		metricNameRaw = mn.marshalRaw(metricNameRaw[:0])
 		generateTSID(&genTSID.TSID, &mn)
 		genTSID.generation = db.generation
@@ -303,18 +304,19 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var genTSIDLocal generationTSID
 		var metricNameLocal []byte
-		mnLocal := mn
-		is := db.getIndexSearch(noDeadline)
+		var mnLocal MetricName
+		mnLocal.CopyFrom(&mn)
+		mnLocal.sortTags()
 		for pb.Next() {
+			is := db.getIndexSearch(noDeadline)
 			for i := 0; i < recordsPerLoop; i++ {
-				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
 				if !is.getTSIDByMetricName(&genTSIDLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}
 			}
+			db.putIndexSearch(is)
 		}
-		db.putIndexSearch(is)
 	})
 	b.StopTimer()
 
