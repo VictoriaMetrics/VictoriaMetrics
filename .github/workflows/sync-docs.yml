@@ -33,6 +33,13 @@ jobs:
           git_user_signingkey: true
           git_commit_gpgsign: true
           workdir: docs
+      - name: Set short git commit SHA
+        id: vars
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "::set-output name=short_sha::$calculatedSha"
+        working-directory: main
+
       - name: update code and commit
         run: |
           rm -rf content
@@ -41,6 +48,6 @@ jobs:
           git config --global user.name "${{ steps.import-gpg.outputs.email }}"
           git config --global user.email "${{ steps.import-gpg.outputs.email }}"
           git add .
-          git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics"
+          git commit -S -m "sync docs with VictoriaMetrics/VictoriaMetrics commit: ${{ steps.vars.outputs.short_sha }}"
           git push
         working-directory: docs
