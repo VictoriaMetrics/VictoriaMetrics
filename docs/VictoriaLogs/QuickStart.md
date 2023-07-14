@@ -7,7 +7,7 @@ menu:
     parent: "victorialogs"
     weight: 3
 aliases:
-- /VictoriaLogs/LogsQL.html
+- /VictoriaLogs/QuickStart.html
 ---
 
 # VictoriaLogs Quick Start
