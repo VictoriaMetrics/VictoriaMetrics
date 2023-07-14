@@ -1088,6 +1088,9 @@ The shortlist of configuration flags is the following:
   -notifier.url array
      Prometheus Alertmanager URL, e.g. http://127.0.0.1:9093. List all Alertmanager URLs if it runs in the cluster mode to ensure high availability.
      Supports an array of values separated by comma or specified via multiple flags.
+  -notifier.blackhole bool
+      No op notifier to be used. `-notifier.url`, `-notifier.config` and `-notifier.blackhole` are mutually exclusive.
+      This is used when there is no need to send notification to external receivers(eg alertmanager etc..)
   -pprofAuthKey string
      Auth key for /debug/pprof/* endpoints. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -promscrape.consul.waitTime duration

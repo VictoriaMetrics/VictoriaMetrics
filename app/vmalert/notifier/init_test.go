@@ -1,8 +1,9 @@
 package notifier
 
 import (
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 	"testing"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/flagutil"
 )
 
 func TestInit(t *testing.T) {
@@ -33,5 +34,65 @@ func TestInit(t *testing.T) {
 	nf2 := targets[TargetStatic][1]
 	if nf2.Addr() != "127.0.0.2/api/v2/alerts" {
 		t.Fatalf("expected to get \"127.0.0.2/api/v2/alerts\"; got %q instead", nf2.Addr())
+	}
+}
+
+func TestInitBlackHole(t *testing.T) {
+
+	*blackHole = true
+
+	fn, err := Init(nil, nil, "")
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	nfs := fn()
+	if len(nfs) != 1 {
+		t.Fatalf("expected to get 1 notifiers; got %d", len(nfs))
+	}
+
+	targets := GetTargets()
+	if targets == nil || targets[TargetStatic] == nil {
+		t.Fatalf("expected to get static targets in response")
+	}
+	if len(targets[TargetStatic]) != 1 {
+		t.Fatalf("expected to get 1 static targets in response; but got %d", len(targets[TargetStatic]))
+	}
+	nf1 := targets[TargetStatic][0]
+	if nf1.Addr() != "blackhole" {
+		t.Fatalf("expected to get \"blackhole\"; got %q instead", nf1.Addr())
+	}
+}
+
+func TestInitBlackHoleWithNotifierUrl(t *testing.T) {
+	oldAddrs := *addrs
+	defer func() { *addrs = oldAddrs }()
+
+	*addrs = flagutil.ArrayString{"127.0.0.1", "127.0.0.2"}
+
+	*blackHole = true
+
+	fn, err := Init(nil, nil, "")
+	if err == nil {
+		t.Fatalf("%s", err)
+	}
+
+	if fn != nil {
+		t.Fatalf("expected no notifiers to be returned;but returned")
+	}
+}
+
+func TestInitBlackHoleWithNotifierConfig(t *testing.T) {
+
+	*configPath = "/dummy/path"
+	*blackHole = true
+
+	fn, err := Init(nil, nil, "")
+	if err == nil {
+		t.Fatalf("%s", err)
+	}
+
+	if fn != nil {
+		t.Fatalf("expected no notifiers to be returned;but returned")
 	}
 }
