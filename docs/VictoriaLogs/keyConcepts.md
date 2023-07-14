@@ -1,3 +1,15 @@
+---
+sort: 5
+weight: 5
+title: VictoriaLogs key concepts
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 5
+aliases:
+- /VictoriaLogs/Roadmap.html
+---
+
 # VictoriaLogs key concepts
 
 ## Data model

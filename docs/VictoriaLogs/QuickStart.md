@@ -1,3 +1,15 @@
+---
+sort: 3
+weight: 3
+title: VictoriaLogs Quick Start
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 3
+aliases:
+- /VictoriaLogs/LogsQL.html
+---
+
 # VictoriaLogs Quick Start
 
 It is recommended to read [README](https://docs.victoriametrics.com/VictoriaLogs/)

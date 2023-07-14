@@ -1,3 +1,15 @@
+---
+sort: 1
+weight: 1
+title: VictoriaLogs FAQ
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 1
+aliases:
+- /VictoriaLogs/FAQ.html
+---
+
 # VictoriaLogs FAQ
 
 ## What is the difference between VictoriaLogs and Elasticsearch (OpenSearch)?
