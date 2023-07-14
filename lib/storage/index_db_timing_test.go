@@ -303,14 +303,12 @@ func BenchmarkIndexDBGetTSIDs(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		var genTSIDLocal generationTSID
 		var metricNameLocal []byte
-		var metricNameLocalRaw []byte
 		mnLocal := mn
 		is := db.getIndexSearch(noDeadline)
 		for pb.Next() {
 			for i := 0; i < recordsPerLoop; i++ {
 				mnLocal.sortTags()
 				metricNameLocal = mnLocal.Marshal(metricNameLocal[:0])
-				metricNameLocalRaw = mnLocal.marshalRaw(metricNameLocalRaw[:0])
 				if !is.getTSIDByMetricName(&genTSIDLocal, metricNameLocal, date) {
 					panic(fmt.Errorf("cannot obtain tsid for row %d", i))
 				}

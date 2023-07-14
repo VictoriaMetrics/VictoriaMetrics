@@ -203,6 +203,7 @@ func testTableSearchEx(t *testing.T, rng *rand.Rand, trData, trSearch TimeRange,
 	tb = mustOpenTable("test-table", strg)
 	testTableSearch(t, tb, tsids, trSearch, rbsExpected, rowsCountExpected)
 	tb.MustClose()
+	stopTestStorage(strg)
 }
 
 func testTableSearch(t *testing.T, tb *table, tsids []TSID, tr TimeRange, rbsExpected []rawBlock, rowsCountExpected int64) {

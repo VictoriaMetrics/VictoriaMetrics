@@ -104,4 +104,5 @@ func benchmarkTableAddRows(b *testing.B, rowsPerInsert, tsidsCount int) {
 			b.Fatalf("cannot remove table %q: %s", tablePath, err)
 		}
 	}
+	stopTestStorage(strg)
 }

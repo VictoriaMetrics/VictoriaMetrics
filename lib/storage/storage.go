@@ -1845,7 +1845,7 @@ func SetLogNewSeries(ok bool) {
 
 var logNewSeries = false
 
-func (s *Storage) createAllIndexesForMetricName(is *indexSearch, mn *MetricName, metricNameRaw []byte, genTSID *generationTSID, date uint64) error {
+func (s *Storage) createAllIndexesForMetricName(is *indexSearch, mn *MetricName, metricNameRaw []byte, genTSID *generationTSID, date uint64) {
 	is.createGlobalIndexes(&genTSID.TSID, mn)
 	is.createPerDayIndexes(date, &genTSID.TSID, mn)
 
@@ -1856,8 +1856,6 @@ func (s *Storage) createAllIndexesForMetricName(is *indexSearch, mn *MetricName,
 	// Register the (date, metricID) entry in the cache,
 	// so next time the entry is found there instead of searching for it in the indexdb.
 	s.dateMetricIDCache.Set(date, genTSID.TSID.MetricID)
-
-	return nil
 }
 
 func (s *Storage) registerSeriesCardinality(metricID uint64, metricNameRaw []byte) bool {
