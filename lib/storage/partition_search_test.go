@@ -186,6 +186,7 @@ func testPartitionSearchEx(t *testing.T, ptt int64, tr TimeRange, partsCount, ma
 	pt = mustOpenPartition(smallPartsPath, bigPartsPath, strg)
 	testPartitionSearch(t, pt, tsids, tr, rbsExpected, rowsCountExpected)
 	pt.MustClose()
+	stopTestStorage(strg)
 
 	if err := os.RemoveAll("small-table"); err != nil {
 		t.Fatalf("cannot remove small parts directory: %s", err)
