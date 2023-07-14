@@ -15,7 +15,7 @@ VictoriaLogs provides the following key features:
   See [these docs](https://docs.victoriametrics.com/VictoriaLogs/querying/#command-line) for details.
 - VictoriaLogs capacity and performance scales linearly with the available resources (CPU, RAM, disk IO, disk space).
   It runs smoothly on both Raspberry PI and a server with hundreds of CPU cores and terabytes of RAM.
-- VictoriaLogs can handle much bigger data volumes than Elasticsearch and Grafana Loki when running on comparable hardware.
+- VictoriaLogs can handle up to 30x bigger data volumes than Elasticsearch and Grafana Loki when running on the same hardware.
   See [these docs](#benchmarks).
 - VictoriaLogs supports fast full-text search over high-cardinality [log fields](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#data-model)
   such as `trace_id`, `user_id` and `ip`.
