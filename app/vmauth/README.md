@@ -331,7 +331,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
 
   -auth.config string
      Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
-  -brokenBeckendBackoff duration
+  -brokenBackendBackoff duration
      Sets a delay period for load balancing to skip a malfunctioning backend. (defaults 3s)
   -configCheckInterval duration
      Interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.

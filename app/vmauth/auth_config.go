@@ -132,8 +132,8 @@ func (bu *backendURL) isBroken() bool {
 	return ct < atomic.LoadUint64(&bu.brokenDeadline)
 }
 
-func (bu *backendURL) setBroken(dlt time.Duration) {
-	deadline := fasttime.UnixTimestamp() + uint64(dlt.Seconds())
+func (bu *backendURL) setBroken() {
+	deadline := fasttime.UnixTimestamp() + uint64(*brokenBackendBackoff)
 	atomic.StoreUint64(&bu.brokenDeadline, deadline)
 }
 
