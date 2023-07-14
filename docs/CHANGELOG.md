@@ -55,6 +55,7 @@ The following tip changes can be tested by building VictoriaMetrics components f
 * BUGFIX: [vmctl](https://docs.victoriametrics.com/vmctl.html): fix formatting issue, which could add superflouos `s` characters at the end of `samples/s` output during data migration. For example, it could write `samples/ssssss`. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4555).
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): use RFC3339 time format in query args instead of unix timestamp for all issued queries to Prometheus-like datasources.
 * BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): correctly calculate evaluation time for rules. Before, there was a low probability for discrepancy between actual time and rules evaluation time if evaluation interval was lower than the execution time for rules within the group.
+* BUGFIX: [vmalert](https://docs.victoriametrics.com/vmalert.html): properly restart rule's group if evaluation interval has changed. See more details about reasoning [here](https://github.com/VictoriaMetrics/VictoriaMetrics/pull/4634).
 * BUGFIX: vmselect: fix timestamp alignment for Prometheus querying API if time argument is less than 10m from the beginning of Unix epoch.
 
 ## [v1.91.3](https://github.com/VictoriaMetrics/VictoriaMetrics/releases/tag/v1.91.3)
