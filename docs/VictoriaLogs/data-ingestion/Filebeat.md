@@ -1,10 +1,13 @@
 ---
 weight: 1
 title: Filebeat setup
+disableToc: true
 menu:
   docs:
     parent: "victorialogs-data-ingestion"
     weight: 1
+aliases:
+  - /VictoriaLogs/data-ingestion/Filebeat.html
 ---
 
 # Filebeat setup

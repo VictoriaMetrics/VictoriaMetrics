@@ -2,6 +2,7 @@
 sort: 4
 weight: 4
 title: VictoriaLogs roadmap
+disableToc: true
 menu:
   docs:
     parent: "victorialogs"
