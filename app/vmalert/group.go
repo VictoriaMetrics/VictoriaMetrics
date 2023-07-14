@@ -163,6 +163,7 @@ func (g *Group) ID() uint64 {
 	hash.Write([]byte("\xff"))
 	hash.Write([]byte(g.Name))
 	hash.Write([]byte(g.Type.Get()))
+	hash.Write([]byte(g.Interval.String()))
 	return hash.Sum64()
 }
 
@@ -379,12 +380,6 @@ func (g *Group) start(ctx context.Context, nts func() []notifier.Notifier, rw *r
 			e.purgeStaleSeries(g.Rules)
 
 			e.notifierHeaders = g.NotifierHeaders
-
-			if g.Interval != ng.Interval {
-				g.Interval = ng.Interval
-				t.Stop()
-				t = time.NewTicker(g.Interval)
-			}
 			g.mu.Unlock()
 			logger.Infof("group %q re-started; interval=%v; concurrency=%d", g.Name, g.Interval, g.Concurrency)
 		case <-t.C:
