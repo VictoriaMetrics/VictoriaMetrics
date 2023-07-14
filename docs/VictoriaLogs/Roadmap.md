@@ -1,3 +1,15 @@
+---
+sort: 4
+weight: 4
+title: VictoriaLogs roadmap
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 4
+aliases:
+- /VictoriaLogs/Roadmap.html
+---
+
 # VictoriaLogs roadmap
 
 The [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) Preview is ready for evaluation in production.

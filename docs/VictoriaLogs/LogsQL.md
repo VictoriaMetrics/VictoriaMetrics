@@ -1,3 +1,15 @@
+---
+sort: 2
+weight: 2
+title: LogsQL
+menu:
+  docs:
+    parent: "victorialogs"
+    weight: 2
+aliases:
+- /VictoriaLogs/LogsQL.html
+---
+
 # LogsQL
 
 LogsQL is a simple yet powerful query language for [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/).

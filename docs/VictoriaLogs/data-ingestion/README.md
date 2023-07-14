@@ -1,3 +1,8 @@
+---
+sort: 6
+title: Data ingestion
+---
+
 # Data ingestion
 
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can accept logs from the following log collectors:
