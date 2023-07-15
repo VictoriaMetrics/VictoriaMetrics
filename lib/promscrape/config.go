@@ -2,9 +2,11 @@ package promscrape
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -433,6 +435,11 @@ func loadScrapeConfigFiles(baseDir string, scrapeConfigFiles []string) ([]*Scrap
 // IsDryRun returns true if -promscrape.config.dryRun command-line flag is set
 func IsDryRun() bool {
 	return *dryRun
+}
+
+// SetDryRun sets the value of -promscrape.config.dryRun flag based on the parameter passed
+func SetDryRun(val bool) {
+	*dryRun = val
 }
 
 func (cfg *Config) parseData(data []byte, path string) ([]byte, error) {
@@ -1005,7 +1012,28 @@ func getScrapeWorkConfig(sc *ScrapeConfig, baseDir string, globalCfg *GlobalConf
 	}
 	params := sc.Params
 	ac, err := sc.HTTPClientConfig.NewConfig(baseDir)
-	if err != nil {
+	if err != nil && *dryRun && strings.Contains(err.Error(), "no such file or directory") {
+		tlsFileMissingFlag := func() bool {
+			if _, err := os.Stat(sc.HTTPClientConfig.TLSConfig.CAFile); errors.Is(err, os.ErrNotExist) && true {
+				logger.Warnf("Skipping dryRun check for `ca_file` due to file not found at %s", sc.HTTPClientConfig.TLSConfig.CAFile)
+				return true
+			}
+			if _, err := os.Stat(sc.HTTPClientConfig.TLSConfig.CertFile); errors.Is(err, os.ErrNotExist) && true {
+				logger.Warnf("Skipping dryRun check for `cert_file` due to file not found at %s", sc.HTTPClientConfig.TLSConfig.CertFile)
+				return true
+			}
+			if _, err := os.Stat(sc.HTTPClientConfig.TLSConfig.KeyFile); errors.Is(err, os.ErrNotExist) && true {
+				logger.Warnf("Skipping dryRun check for `key_file` due to file not found at %s", sc.HTTPClientConfig.TLSConfig.KeyFile)
+				return true
+			}
+			return false
+		}
+		if tlsFileMissingFlag() {
+			logger.Warnf("Skipping TLS config check as some of the files specified does not exist.")
+		} else {
+			return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
+		}
+	} else if err != nil {
 		return nil, fmt.Errorf("cannot parse auth config for `job_name` %q: %w", jobName, err)
 	}
 	proxyAC, err := sc.ProxyClientConfig.NewConfig(baseDir)

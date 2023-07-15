@@ -103,6 +103,7 @@ func main() {
 		return
 	}
 	if *dryRun {
+		promscrape.SetDryRun(true)
 		if err := promscrape.CheckConfig(); err != nil {
 			logger.Fatalf("error when checking -promscrape.config: %s", err)
 		}
