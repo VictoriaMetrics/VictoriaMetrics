@@ -15,9 +15,10 @@ tests:
           - value: 0
             labels: test
 
-    # will failed in here cause there is no "Test" rule defined
+    # will failed in here cause there is no "Test" group and rule defined
     alert_rule_test:
       - eval_time: 0m
+        groupname: Test
         alertname: Test
         exp_alerts:
           - exp_labels: {}
@@ -31,8 +32,10 @@ tests:
     # will failed in here cause those rules are firing
     alert_rule_test:
       - eval_time: 5m
+        groupname: group1
         alertname: InstanceDown
         exp_alerts: []
       - eval_time: 5m
+        groupname: group1
         alertname: AlwaysFiring
         exp_alerts: []

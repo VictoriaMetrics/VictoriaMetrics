@@ -3,7 +3,6 @@ package remotewrite
 import (
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,118 +13,69 @@ import (
 
 	"github.com/golang/snappy"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmalert/utils"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/promauth"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/prompbmarshal"
-	"github.com/VictoriaMetrics/metrics"
 )
 
-var (
-	disablePathAppend = flag.Bool("remoteWrite.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/write' path to the configured -remoteWrite.url.")
-	sendTimeout       = flag.Duration("remoteWrite.sendTimeout", 30*time.Second, "Timeout for sending data to the configured -remoteWrite.url.")
-	retryMinInterval  = flag.Duration("remoteWrite.retryMinInterval", time.Second, "The minimum delay between retry attempts. Every next retry attempt will double the delay to prevent hammering of remote database. See also -remoteWrite.retryMaxInterval")
-	retryMaxTime      = flag.Duration("remoteWrite.retryMaxTime", time.Second*30, "The max time spent on retry attempts for the failed remote-write request. Change this value if it is expected for remoteWrite.url to be unreachable for more than -remoteWrite.retryMaxTime. See also -remoteWrite.retryMinInterval")
-)
-
-// RWClient interface wraps methods for remote write client
-type RWClient interface {
-	Push(s prompbmarshal.TimeSeries) error
-	Close() error
-	run(ctx context.Context)
-	flush(ctx context.Context, wr *prompbmarshal.WriteRequest)
-	send(ctx context.Context, data []byte) error
-}
-
-// Client is an asynchronous HTTP client for writing
-// timeseries via remote write protocol.
-type Client struct {
-	addr          string
-	c             *http.Client
-	authCfg       *promauth.Config
-	input         chan prompbmarshal.TimeSeries
-	flushInterval time.Duration
-	maxBatchSize  int
-	maxQueueSize  int
+// DebugClient won't push series periodically, but have debug flush
+type DebugClient struct {
+	addr         string
+	c            *http.Client
+	authCfg      *promauth.Config
+	input        chan prompbmarshal.TimeSeries
+	maxBatchSize int
+	maxQueueSize int
 
 	wg     sync.WaitGroup
 	doneCh chan struct{}
+
+	debugflushWG sync.WaitGroup
+	debugflushCh chan struct{}
 }
 
-// Config is config for remote write.
-type Config struct {
-	// Addr of remote storage
-	Addr    string
-	AuthCfg *promauth.Config
+// NewDebugClient returns a debug remotewrite client
+func NewDebugClient(ctx context.Context) (*DebugClient, error) {
+	if *addr == "" {
+		return nil, nil
+	}
 
-	// Concurrency defines number of readers that
-	// concurrently read from the queue and flush data
-	Concurrency int
-	// MaxBatchSize defines max number of timeseries
-	// to be flushed at once
-	MaxBatchSize int
-	// MaxQueueSize defines max length of input queue
-	// populated by Push method.
-	// Push will be rejected once queue is full.
-	MaxQueueSize int
-	// FlushInterval defines time interval for flushing batches
-	FlushInterval time.Duration
-	// Transport will be used by the underlying http.Client
-	Transport *http.Transport
-}
+	t, err := utils.Transport(*addr, *tlsCertFile, *tlsKeyFile, *tlsCAFile, *tlsServerName, *tlsInsecureSkipVerify)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transport: %w", err)
+	}
 
-const (
-	defaultConcurrency   = 4
-	defaultMaxBatchSize  = 1e3
-	defaultMaxQueueSize  = 1e5
-	defaultFlushInterval = 5 * time.Second
-	defaultWriteTimeout  = 30 * time.Second
-)
-
-// NewClient returns asynchronous client for
-// writing timeseries via remotewrite protocol.
-func NewClient(ctx context.Context, cfg Config) (*Client, error) {
-	if cfg.Addr == "" {
-		return nil, fmt.Errorf("config.Addr can't be empty")
+	authCfg, err := utils.AuthConfig(
+		utils.WithBasicAuth(*basicAuthUsername, *basicAuthPassword, *basicAuthPasswordFile),
+		utils.WithBearer(*bearerToken, *bearerTokenFile),
+		utils.WithOAuth(*oauth2ClientID, *oauth2ClientSecret, *oauth2ClientSecretFile, *oauth2TokenURL, *oauth2Scopes),
+		utils.WithHeaders(*headers))
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure auth: %w", err)
 	}
-	if cfg.MaxBatchSize == 0 {
-		cfg.MaxBatchSize = defaultMaxBatchSize
-	}
-	if cfg.MaxQueueSize == 0 {
-		cfg.MaxQueueSize = defaultMaxQueueSize
-	}
-	if cfg.FlushInterval == 0 {
-		cfg.FlushInterval = defaultFlushInterval
-	}
-	if cfg.Transport == nil {
-		cfg.Transport = http.DefaultTransport.(*http.Transport).Clone()
-	}
-	cc := defaultConcurrency
-	if cfg.Concurrency > 0 {
-		cc = cfg.Concurrency
-	}
-	c := &Client{
+	c := &DebugClient{
 		c: &http.Client{
 			Timeout:   *sendTimeout,
-			Transport: cfg.Transport,
+			Transport: t,
 		},
-		addr:          strings.TrimSuffix(cfg.Addr, "/"),
-		authCfg:       cfg.AuthCfg,
-		flushInterval: cfg.FlushInterval,
-		maxBatchSize:  cfg.MaxBatchSize,
-		maxQueueSize:  cfg.MaxQueueSize,
-		doneCh:        make(chan struct{}),
-		input:         make(chan prompbmarshal.TimeSeries, cfg.MaxQueueSize),
-	}
+		addr:         strings.TrimSuffix(*addr, "/"),
+		authCfg:      authCfg,
+		input:        make(chan prompbmarshal.TimeSeries, defaultMaxQueueSize),
+		maxBatchSize: *maxQueueSize,
+		maxQueueSize: *maxQueueSize,
+		doneCh:       make(chan struct{}),
 
-	for i := 0; i < cc; i++ {
-		c.run(ctx)
+		debugflushCh: make(chan struct{}, 1),
 	}
+	c.run(ctx)
 	return c, nil
 }
 
 // Push adds timeseries into queue for writing into remote storage.
 // Push returns and error if client is stopped or if queue is full.
-func (c *Client) Push(s prompbmarshal.TimeSeries) error {
+func (c *DebugClient) Push(s prompbmarshal.TimeSeries) error {
 	select {
 	case <-c.doneCh:
 		return fmt.Errorf("client is closed")
@@ -140,7 +90,7 @@ func (c *Client) Push(s prompbmarshal.TimeSeries) error {
 
 // Close stops the client and waits for all goroutines
 // to exit.
-func (c *Client) Close() error {
+func (c *DebugClient) Close() error {
 	if c.doneCh == nil {
 		return fmt.Errorf("client is already closed")
 	}
@@ -150,8 +100,15 @@ func (c *Client) Close() error {
 	return nil
 }
 
-func (c *Client) run(ctx context.Context) {
-	ticker := time.NewTicker(c.flushInterval)
+// DebugFlush will flush all the series in wr
+func (c *DebugClient) DebugFlush() {
+	c.debugflushWG.Add(1)
+	c.debugflushCh <- struct{}{}
+	c.debugflushWG.Wait()
+}
+
+func (c *DebugClient) run(ctx context.Context) {
+	// ticker := time.NewTicker(c.flushInterval)
 	wr := &prompbmarshal.WriteRequest{}
 	shutdown := func() {
 		for ts := range c.input {
@@ -165,7 +122,7 @@ func (c *Client) run(ctx context.Context) {
 	c.wg.Add(1)
 	go func() {
 		defer c.wg.Done()
-		defer ticker.Stop()
+		// defer ticker.Stop()
 		for {
 			select {
 			case <-c.doneCh:
@@ -174,8 +131,9 @@ func (c *Client) run(ctx context.Context) {
 			case <-ctx.Done():
 				shutdown()
 				return
-			case <-ticker.C:
+			case <-c.debugflushCh:
 				c.flush(ctx, wr)
+				c.debugflushWG.Done()
 			case ts, ok := <-c.input:
 				if !ok {
 					continue
@@ -189,23 +147,10 @@ func (c *Client) run(ctx context.Context) {
 	}()
 }
 
-var (
-	sentRows            = metrics.NewCounter(`vmalert_remotewrite_sent_rows_total`)
-	sentBytes           = metrics.NewCounter(`vmalert_remotewrite_sent_bytes_total`)
-	sendDuration        = metrics.NewFloatCounter(`vmalert_remotewrite_send_duration_seconds_total`)
-	droppedRows         = metrics.NewCounter(`vmalert_remotewrite_dropped_rows_total`)
-	droppedBytes        = metrics.NewCounter(`vmalert_remotewrite_dropped_bytes_total`)
-	bufferFlushDuration = metrics.NewHistogram(`vmalert_remotewrite_flush_duration_seconds`)
-
-	_ = metrics.NewGauge(`vmalert_remotewrite_concurrency`, func() float64 {
-		return float64(*concurrency)
-	})
-)
-
 // flush is a blocking function that marshals WriteRequest and sends
 // it to remote-write endpoint. Flush performs limited amount of retries
 // if request fails.
-func (c *Client) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
+func (c *DebugClient) flush(ctx context.Context, wr *prompbmarshal.WriteRequest) {
 	if len(wr.Timeseries) < 1 {
 		return
 	}
@@ -272,7 +217,7 @@ L:
 		len(wr.Timeseries))
 }
 
-func (c *Client) send(ctx context.Context, data []byte) error {
+func (c *DebugClient) send(ctx context.Context, data []byte) error {
 	r := bytes.NewReader(data)
 	req, err := http.NewRequest(http.MethodPost, c.addr, r)
 	if err != nil {
@@ -318,12 +263,4 @@ func (c *Client) send(ctx context.Context, data []byte) error {
 		return fmt.Errorf("unexpected response code %d for %s. Response body %q",
 			resp.StatusCode, req.URL.Redacted(), body)
 	}
-}
-
-type nonRetriableError struct {
-	err error
-}
-
-func (e *nonRetriableError) Error() string {
-	return e.err.Error()
 }
