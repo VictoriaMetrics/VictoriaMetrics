@@ -105,7 +105,6 @@ func Init(gen AlertURLGenerator, extLabels map[string]string, extURL string) (fu
 	if *configPath == "" && len(*addrs) == 0 {
 		return nil, nil
 	}
-
 	if *configPath != "" && len(*addrs) > 0 {
 		return nil, fmt.Errorf("only one of -notifier.config or -notifier.url flags must be specified")
 	}
