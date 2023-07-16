@@ -3231,6 +3231,28 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r}
 		f(q, resultExpected)
 	})
+	t.Run(`vector * on(foo) scalar keep_metric_names`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(
+			(
+		          label_set(time(), "foo", "bar", "xx", "yy", "__name__", "q1"),
+			  label_set(10, "foo", "qwert", "__name__", "q2")
+		        ) * on(foo) (label_set(2, "foo","bar","aa","bb", "__name__", "q2")) keep_metric_names)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("q1")
+		r.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("foo"),
+				Value: []byte("bar"),
+			},
+		}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
 	t.Run(`vector * on(foo) group_left(additional_tag) duplicate_timeseries_differ_by_additional_tag`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort(label_set(time()/10, "foo", "bar", "xx", "yy", "__name__", "qwert") + on(foo) group_left(op) (
@@ -3452,6 +3474,26 @@ func TestExecSuccess(t *testing.T) {
 			Values:     []float64{1100, 1300, 1500, 1700, 1900, 2100},
 			Timestamps: timestampsExpected,
 		}
+		r.MetricName.Tags = []storage.Tag{{
+			Key:   []byte("t1"),
+			Value: []byte("v1"),
+		}}
+		resultExpected := []netstorage.Result{r}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector partial matching keep_metric_names`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(
+			(label_set(time(), "t1", "v1", "__name__", "q1") or label_set(10, "t2", "v2", "__name__", "q2"))
+			+
+			(label_set(100, "t1", "v1", "__name__", "q3") or label_set(time(), "t2", "v3")) keep_metric_names
+		)`
+		r := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1100, 1300, 1500, 1700, 1900, 2100},
+			Timestamps: timestampsExpected,
+		}
+		r.MetricName.MetricGroup = []byte("q1")
 		r.MetricName.Tags = []storage.Tag{{
 			Key:   []byte("t1"),
 			Value: []byte("v1"),
