@@ -2,7 +2,7 @@ package notifier
 
 import "context"
 
-// BlackHoleNotifier is can be used when no notifications needs to be sent
+// BlackHoleNotifier is used when no notifications needs to be sent
 type BlackHoleNotifier struct {
 	addr    string
 	metrics *metrics
