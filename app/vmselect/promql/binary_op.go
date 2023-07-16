@@ -157,6 +157,10 @@ func adjustBinaryOpTags(be *metricsql.BinaryOpExpr, left, right []*timeseries) (
 		groupOp = "ignoring"
 	}
 	groupTags := be.GroupModifier.Args
+	if be.KeepMetricNames && groupOp == "on" {
+		// Add __name__ to groupTags if metric name must be preserved.
+		groupTags = append(groupTags[:len(groupTags):len(groupTags)], "__name__")
+	}
 	for k, tssLeft := range mLeft {
 		tssRight := mRight[k]
 		if len(tssRight) == 0 {
@@ -315,6 +319,12 @@ func resetMetricGroupIfRequired(be *metricsql.BinaryOpExpr, ts *timeseries) {
 		// Do not reset MetricGroup for non-boolean `compare` binary ops like Prometheus does.
 		return
 	}
+	if be.KeepMetricNames {
+		// Do not reset MetricGroup if it is explicitly requested via `a op b keep_metric_names`
+		// See https://docs.victoriametrics.com/MetricsQL.html#keep_metric_names
+		return
+	}
+
 	ts.MetricName.ResetMetricGroup()
 }
 
