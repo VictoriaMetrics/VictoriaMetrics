@@ -67,6 +67,9 @@ The list of MetricsQL features:
   depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)).
   For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
   It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
+* [Series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
+  selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
+  See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters) for details.
 * [Aggregate functions](#aggregate-functions) accept arbitrary number of args.
   For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query.
