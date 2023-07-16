@@ -47,7 +47,7 @@ Outer:
 		}
 		var expSamples []parsedSample
 		for _, s := range mt.ExpSamples {
-			expLb := labels{}
+			expLb := datasource.Labels{}
 			if s.Labels != "" {
 				metricsqlExpr, err := metricsql.Parse(s.Labels)
 				if err != nil {
@@ -61,7 +61,7 @@ Outer:
 						mt.EvalTime.Duration().String(), fmt.Errorf("got unsupported metricsql type")))
 					continue Outer
 				}
-				for _, l := range metricsqlMetricExpr.LabelFilters {
+				for _, l := range metricsqlMetricExpr.LabelFilterss[0] {
 					expLb = append(expLb, datasource.Label{
 						Name:  l.Label,
 						Value: l.Value,
@@ -77,10 +77,10 @@ Outer:
 			})
 		}
 		sort.Slice(expSamples, func(i, j int) bool {
-			return labelCompare(expSamples[i].Labels, expSamples[j].Labels) <= 0
+			return datasource.LabelCompare(expSamples[i].Labels, expSamples[j].Labels) <= 0
 		})
 		sort.Slice(gotSamples, func(i, j int) bool {
-			return labelCompare(gotSamples[i].Labels, gotSamples[j].Labels) <= 0
+			return datasource.LabelCompare(gotSamples[i].Labels, gotSamples[j].Labels) <= 0
 		})
 		if !reflect.DeepEqual(expSamples, gotSamples) {
 			checkErrs = append(checkErrs, fmt.Errorf("\n    expr: %q, time: %s,\n        exp: %v\n        got: %v", mt.Expr,

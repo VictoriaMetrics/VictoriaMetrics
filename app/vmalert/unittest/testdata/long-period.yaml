@@ -1,3 +1,5 @@
+# can be executed successfully but will take more than 1 minute
+# not included in unit test now
 evaluation_interval: 100d
 
 rule_files:

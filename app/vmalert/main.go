@@ -414,7 +414,7 @@ func configsEqual(a, b []config.Group) bool {
 // setConfigSuccess sets config reload status to 1.
 func setConfigSuccess(at uint64) {
 	configSuccess.Set(1)
-	configTimestamp.Set(fasttime.UnixTimestamp())
+	configTimestamp.Set(at)
 	// reset the error if any
 	setConfigErr(nil)
 }

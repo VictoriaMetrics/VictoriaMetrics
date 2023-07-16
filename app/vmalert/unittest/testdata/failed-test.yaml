@@ -15,7 +15,7 @@ tests:
           - value: 0
             labels: test
 
-    # will failed in here cause there is no "Test" group and rule defined
+    # will failed cause there is no "Test" group and rule defined
     alert_rule_test:
       - eval_time: 0m
         groupname: Test
@@ -29,13 +29,13 @@ tests:
       - series: 'up{job="test"}'
         values: 0x10
 
-    # will failed in here cause those rules are firing
     alert_rule_test:
+      # will failed cause rule is firing
       - eval_time: 5m
         groupname: group1
         alertname: InstanceDown
         exp_alerts: []
+      # will failed cause missing groupname
       - eval_time: 5m
-        groupname: group1
         alertname: AlwaysFiring
         exp_alerts: []

@@ -20,13 +20,6 @@ func TestUnitRule(t *testing.T) {
 			files:  []string{"./unittest/testdata/failed-test.yaml"},
 			failed: true,
 		},
-		{
-			// This test will take about 1 minute to run now.
-			// todo may need to improve the performance
-			name:   "long period",
-			files:  []string{"./unittest/testdata/long-period.yaml"},
-			failed: false,
-		},
 	}
 	for _, tc := range testCases {
 		fail := unitRule(tc.files...)

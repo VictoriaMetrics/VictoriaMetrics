@@ -8,7 +8,7 @@ tests:
   - interval: 1m
     name: "basic test"
     input_series:
-      - series: 'test'
+      - series: "test"
         values: "_x5 1x5"
 
     alert_rule_test:
@@ -16,7 +16,7 @@ tests:
         groupname: group1
         alertname: SameAlertNameWithDifferentGroup
         exp_alerts:
-        - {}
+          - {}
       - eval_time: 1m
         groupname: group2
         alertname: SameAlertNameWithDifferentGroup
@@ -61,7 +61,7 @@ tests:
 
     alert_rule_test:
       - eval_time: 10m
-        groupname: group1 
+        groupname: group1
         alertname: InstanceDown
         exp_alerts:
           - exp_labels:
@@ -87,6 +87,3 @@ tests:
 
     external_labels:
       datacenter: dc-123
-
-
-

@@ -65,7 +65,7 @@ func WriteInputSeries(input []Series, interval *promutils.Duration, startStamp t
 			ts = ts.Add(interval.Duration())
 		}
 		var ls []testutil.Label
-		for _, filter := range metricExpr.LabelFilters {
+		for _, filter := range metricExpr.LabelFilterss[0] {
 			ls = append(ls, testutil.Label{Name: filter.Label, Value: filter.Value})
 		}
 		r.Timeseries = append(r.Timeseries, testutil.TimeSeries{Labels: ls, Samples: samples})
@@ -115,7 +115,7 @@ func parseInputValue(input string, origin bool) ([]sequenceValue, error) {
 				}
 				res = append(res, sequenceValue{Value: v1 + float64(v2)})
 			case 'x':
-				for i := 0; i <= int(v2); i++ {
+				for i := int64(0); i <= v2; i++ {
 					if p1 == "_" {
 						if i == 0 {
 							i = 1

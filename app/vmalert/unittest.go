@@ -40,10 +40,11 @@ var (
 	testPromWriteHTTPPath = "http://127.0.0.1" + *httpListenAddr + "/api/v1/write"
 	testDataSourcePath    = "http://127.0.0.1" + *httpListenAddr + "/prometheus"
 	testRemoteWritePath   = "http://127.0.0.1" + *httpListenAddr
+	testHealthHTTPPath    = "http://127.0.0.1" + *httpListenAddr + "/health"
 )
 
 const (
-	testStoragePath = "vm-test-storage"
+	testStoragePath = "vmalert-unittest"
 	testLogLevel    = "ERROR"
 )
 
@@ -150,6 +151,28 @@ func setUp() {
 		}
 		return false
 	})
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	readyCheckFunc := func() bool {
+		resp, err := http.Get(testHealthHTTPPath)
+		if err != nil {
+			return false
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode == 200
+	}
+checkCheck:
+	for {
+		select {
+		case <-ctx.Done():
+			logger.Fatalf("http server can't be ready in 30s")
+		default:
+			if readyCheckFunc() {
+				break checkCheck
+			}
+			time.Sleep(3 * time.Second)
+		}
+	}
 }
 
 func tearDown() {
@@ -207,7 +230,14 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 	alertExpResultMap := map[time.Duration]map[string]map[string][]unittest.ExpAlert{}
 	for _, at := range tg.AlertRuleTests {
 		if at.GroupName == "" || at.Alertname == "" {
-			logger.Errorf("missing groupname or alertname under alert_rule_test case, will skip")
+			var msg string
+			if at.GroupName != "" {
+				msg = fmt.Sprintf(" groupname: %s at %v, missing \"alertname\"", at.GroupName, at.EvalTime.Duration())
+			}
+			if at.Alertname != "" {
+				msg = fmt.Sprintf(" alertname: %s at %v, missing \"groupname\"", at.Alertname, at.EvalTime.Duration())
+			}
+			checkErrs = append(checkErrs, fmt.Errorf("\nfailed to check case%s", msg))
 			continue
 		}
 		alertEvalTimesMap[at.EvalTime.Duration()] = struct{}{}
@@ -256,7 +286,7 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 			errs := e.execConcurrently(context.Background(), g.Rules, ts, g.Concurrency, resolveDuration, g.Limit)
 			for err := range errs {
 				if err != nil {
-					checkErrs = append(checkErrs, fmt.Errorf("failed to exec group: %q, time: %s, err: %w", g.Name,
+					checkErrs = append(checkErrs, fmt.Errorf("\nfailed to exec group: %q, time: %s, err: %w", g.Name,
 						ts, err))
 				}
 			}
@@ -290,8 +320,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 								continue
 							}
 							gotAlertsMap[g.Name][ar.Name] = append(gotAlertsMap[g.Name][ar.Name], unittest.LabelAndAnnotation{
-								Labels:      unittest.ConvertToLabels(got.Labels),
-								Annotations: unittest.ConvertToLabels(got.Annotations),
+								Labels:      datasource.ConvertToLabels(got.Labels),
+								Annotations: datasource.ConvertToLabels(got.Annotations),
 							})
 						}
 					}
@@ -309,8 +339,8 @@ func (tg *testGroup) test(evalInterval time.Duration, groupOrderMap map[string]i
 						expAlert.ExpLabels[alertGroupNameLabel] = groupname
 						expAlert.ExpLabels[alertNameLabel] = alertname
 						expAlerts = append(expAlerts, unittest.LabelAndAnnotation{
-							Labels:      unittest.ConvertToLabels(expAlert.ExpLabels),
-							Annotations: unittest.ConvertToLabels(expAlert.ExpAnnotations),
+							Labels:      datasource.ConvertToLabels(expAlert.ExpLabels),
+							Annotations: datasource.ConvertToLabels(expAlert.ExpAnnotations),
 						})
 					}
 					sort.Sort(expAlerts)
