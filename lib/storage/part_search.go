@@ -84,7 +84,7 @@ func (ps *partSearch) Init(p *part, tsids []TSID, tr TimeRange) {
 //
 // Returns true on success.
 //
-// The blocks are sorted by (TDIS, MinTimestamp). Two subsequent blocks
+// The blocks are sorted by (TSID, MinTimestamp). Two subsequent blocks
 // for the same TSID may contain overlapped time ranges.
 func (ps *partSearch) NextBlock() bool {
 	for {
