@@ -12,6 +12,9 @@ import (
 var (
 	disablePathAppend = flag.Bool("remoteRead.disablePathAppend", false, "Whether to disable automatic appending of '/api/v1/query' path "+
 		"to the configured -datasource.url and -remoteRead.url")
+	disableStepParam = flag.Bool("datasource.disableStepParam", false, "Whether to disable adding 'step' param to the issued instant queries. "+
+		"This might be useful when using vmalert with datasources that do not support 'step' param for instant queries, like Google Managed Prometheus. "+
+		"It is not recommended to enable this flag if you use vmalert with VictoriaMetrics.")
 )
 
 type promResponse struct {
@@ -22,6 +25,10 @@ type promResponse struct {
 		ResultType string          `json:"resultType"`
 		Result     json.RawMessage `json:"result"`
 	} `json:"data"`
+	// Stats supported by VictoriaMetrics since v1.90
+	Stats struct {
+		SeriesFetched *string `json:"seriesFetched,omitempty"`
+	} `json:"stats,omitempty"`
 }
 
 type promInstant struct {
@@ -96,39 +103,54 @@ const (
 	rtVector, rtMatrix, rScalar = "vector", "matrix", "scalar"
 )
 
-func parsePrometheusResponse(req *http.Request, resp *http.Response) ([]Metric, error) {
+func parsePrometheusResponse(req *http.Request, resp *http.Response) (res Result, err error) {
 	r := &promResponse{}
-	if err := json.NewDecoder(resp.Body).Decode(r); err != nil {
-		return nil, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
+	if err = json.NewDecoder(resp.Body).Decode(r); err != nil {
+		return res, fmt.Errorf("error parsing prometheus metrics for %s: %w", req.URL.Redacted(), err)
 	}
 	if r.Status == statusError {
-		return nil, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
+		return res, fmt.Errorf("response error, query: %s, errorType: %s, error: %s", req.URL.Redacted(), r.ErrorType, r.Error)
 	}
 	if r.Status != statusSuccess {
-		return nil, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
+		return res, fmt.Errorf("unknown status: %s, Expected success or error ", r.Status)
 	}
+	var parseFn func() ([]Metric, error)
 	switch r.Data.ResultType {
 	case rtVector:
 		var pi promInstant
 		if err := json.Unmarshal(r.Data.Result, &pi.Result); err != nil {
-			return nil, fmt.Errorf("umarshal err %s; \n %#v", err, string(r.Data.Result))
+			return res, fmt.Errorf("umarshal err %s; \n %#v", err, string(r.Data.Result))
 		}
-		return pi.metrics()
+		parseFn = pi.metrics
 	case rtMatrix:
 		var pr promRange
 		if err := json.Unmarshal(r.Data.Result, &pr.Result); err != nil {
-			return nil, err
+			return res, err
 		}
-		return pr.metrics()
+		parseFn = pr.metrics
 	case rScalar:
 		var ps promScalar
 		if err := json.Unmarshal(r.Data.Result, &ps); err != nil {
-			return nil, err
+			return res, err
 		}
-		return ps.metrics()
+		parseFn = ps.metrics
 	default:
-		return nil, fmt.Errorf("unknown result type %q", r.Data.ResultType)
+		return res, fmt.Errorf("unknown result type %q", r.Data.ResultType)
 	}
+
+	ms, err := parseFn()
+	if err != nil {
+		return res, err
+	}
+	res = Result{Data: ms}
+	if r.Stats.SeriesFetched != nil {
+		intV, err := strconv.Atoi(*r.Stats.SeriesFetched)
+		if err != nil {
+			return res, fmt.Errorf("failed to convert stats.seriesFetched to int: %w", err)
+		}
+		res.SeriesFetched = &intV
+	}
+	return res, nil
 }
 
 func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string, timestamp time.Time) {
@@ -146,13 +168,13 @@ func (s *VMStorage) setPrometheusInstantReqParams(r *http.Request, query string,
 		// see https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1232
 		timestamp = timestamp.Truncate(s.evaluationInterval)
 	}
-	q.Set("time", fmt.Sprintf("%d", timestamp.Unix()))
-	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
+	q.Set("time", timestamp.Format(time.RFC3339))
+	if !*disableStepParam && s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
 		q.Set("step", fmt.Sprintf("%ds", int(s.evaluationInterval.Seconds())))
 	}
-	if s.queryStep > 0 { // override step with user-specified value
+	if !*disableStepParam && s.queryStep > 0 { // override step with user-specified value
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943
 		q.Set("step", fmt.Sprintf("%ds", int(s.queryStep.Seconds())))
@@ -169,8 +191,8 @@ func (s *VMStorage) setPrometheusRangeReqParams(r *http.Request, query string, s
 		r.URL.Path += "/api/v1/query_range"
 	}
 	q := r.URL.Query()
-	q.Add("start", fmt.Sprintf("%d", start.Unix()))
-	q.Add("end", fmt.Sprintf("%d", end.Unix()))
+	q.Add("start", start.Format(time.RFC3339))
+	q.Add("end", end.Format(time.RFC3339))
 	if s.evaluationInterval > 0 { // set step as evaluationInterval by default
 		// always convert to seconds to keep compatibility with older
 		// Prometheus versions. See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1943

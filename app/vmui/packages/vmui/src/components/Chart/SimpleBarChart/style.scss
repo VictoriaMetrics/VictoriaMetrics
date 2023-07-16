@@ -7,13 +7,13 @@ $color-bar-highest: #F79420;
   display: grid;
   grid-template-columns: auto 1fr;
   height: 100%;
-  padding-bottom: #{$font-size-small/2};
+  padding-bottom: calc($font-size-small/2);
   overflow: hidden;
 
   &-y-axis {
     position: relative;
     display: grid;
-    transform: translateY(#{$font-size-small});
+    transform: translateY($font-size-small);
 
     &__tick {
       position: relative;

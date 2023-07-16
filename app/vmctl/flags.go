@@ -113,7 +113,7 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on configured via '--vmAddr' destination.",
 		},
 		&cli.BoolFlag{
 			Name:  vmDisableProgressBar,
@@ -326,6 +326,7 @@ const (
 	vmNativeStepInterval    = "vm-native-step-interval"
 
 	vmNativeDisableHTTPKeepAlive = "vm-native-disable-http-keep-alive"
+	vmNativeDisableRetries       = "vm-native-disable-retries"
 
 	vmNativeSrcAddr        = "vm-native-src-addr"
 	vmNativeSrcUser        = "vm-native-src-user"
@@ -351,16 +352,17 @@ var (
 		},
 		&cli.StringFlag{
 			Name:     vmNativeFilterTimeStart,
-			Usage:    "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage:    "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 			Required: true,
 		},
 		&cli.StringFlag{
 			Name:  vmNativeFilterTimeEnd,
-			Usage: "The time filter may contain either unix timestamp in seconds or RFC3339 values. E.g. '2020-01-01T20:07:00Z'",
+			Usage: "The time filter may contain different timestamp formats. See more details here https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats",
 		},
 		&cli.StringFlag{
 			Name:  vmNativeStepInterval,
 			Usage: fmt.Sprintf("Split export data into chunks. Requires setting --%s. Valid values are '%s','%s','%s','%s'.", vmNativeFilterTimeStart, stepper.StepMonth, stepper.StepDay, stepper.StepHour, stepper.StepMinute),
+			Value: stepper.StepMonth,
 		},
 		&cli.BoolFlag{
 			Name:  vmNativeDisableHTTPKeepAlive,
@@ -430,7 +432,7 @@ var (
 		&cli.Int64Flag{
 			Name: vmRateLimit,
 			Usage: "Optional data transfer rate limit in bytes per second.\n" +
-				"By default the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
+				"By default, the rate limit is disabled. It can be useful for limiting load on source or destination databases.",
 		},
 		&cli.BoolFlag{
 			Name: vmInterCluster,
@@ -442,6 +444,11 @@ var (
 			Name:  vmConcurrency,
 			Usage: "Number of workers concurrently performing import requests to VM",
 			Value: 2,
+		},
+		&cli.BoolFlag{
+			Name:  vmNativeDisableRetries,
+			Usage: "Defines whether to disable retries with backoff policy for migration process",
+			Value: false,
 		},
 	}
 )
@@ -471,9 +478,10 @@ var (
 			Value: 1,
 		},
 		&cli.TimestampFlag{
-			Name:   remoteReadFilterTimeStart,
-			Usage:  "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
-			Layout: time.RFC3339,
+			Name:     remoteReadFilterTimeStart,
+			Usage:    "The time filter in RFC3339 format to select timeseries with timestamp equal or higher than provided value. E.g. '2020-01-01T20:07:00Z'",
+			Layout:   time.RFC3339,
+			Required: true,
 		},
 		&cli.TimestampFlag{
 			Name:   remoteReadFilterTimeEnd,
@@ -497,7 +505,7 @@ var (
 		},
 		&cli.BoolFlag{
 			Name:  remoteReadUseStream,
-			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
+			Usage: "Defines whether to use SAMPLES or STREAMED_XOR_CHUNKS mode. By default, is uses SAMPLES mode. See https://prometheus.io/docs/prometheus/latest/querying/remote_read_api/#streamed-chunks",
 			Value: false,
 		},
 		&cli.StringFlag{

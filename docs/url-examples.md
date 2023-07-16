@@ -1,5 +1,11 @@
 ---
 sort: 21
+weight: 21
+title: VictoriaMetrics API examples
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 21
 ---
 
 # VictoriaMetrics API examples
@@ -168,7 +174,7 @@ Single-node VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-curl --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://localhost:8428/api/v1/import
 ```
 
 </div>
@@ -177,7 +183,7 @@ Cluster version of VictoriaMetrics:
 <div class="with-copy" markdown="1">
 
 ```console
-curl --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
+curl -H 'Content-Type: application/json' --data-binary "@filename.json" -X POST http://<vminsert>:8480/insert/0/prometheus/api/v1/import
 ```
 
 </div>
@@ -291,7 +297,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/labels
 
 </div>
 
-By default VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -321,7 +327,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/label/job/values
 
 </div>
 
-By default VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns labels values seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -407,7 +413,7 @@ curl http://<vmselect>:8481/select/0/prometheus/api/v1/series -d 'match[]=vm_htt
 
 </div>
 
-By default VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
+By default, VictoriaMetrics returns time series seen during the last day starting at 00:00 UTC. An arbitrary time range can be set via `start` and `end` query args.
 The specified `start..end` time range is rounded to day granularity because of performance optimization concerns.
 
 Additional information:
@@ -491,7 +497,7 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- http://localhost:8428/datadog/api/v1/series
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- http://localhost:8428/datadog/api/v1/series
 ```
 
 </div>
@@ -518,7 +524,7 @@ echo '
     }
   ]
 }
-' | curl -X POST --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
+' | curl -X POST -H 'Content-Type: application/json' --data-binary @- 'http://<vminsert>:8480/insert/0/datadog/api/v1/series'
 ```
 
 </div>
@@ -611,6 +617,29 @@ Additional information:
 
 * [How to send Influx data to VictoriaMetrics](https://docs.victoriametrics.com/#how-to-send-data-from-influxdb-compatible-agents-such-as-telegraf)
 * [URL Format](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#url-format)
+
+## /internal/resetRollupResultCache
+
+**Resets the response cache for previously served queries. It is recommended to invoke after [backfilling](https://docs.victoriametrics.com/#backfilling) procedure.**
+
+Single-node VictoriaMetrics:
+<div class="with-copy" markdown="1">
+
+```console
+curl -Is http://localhost:8428/internal/resetRollupResultCache
+```
+
+</div>
+
+Cluster version of VictoriaMetrics::
+
+<div class="with-copy" markdown="1">
+
+```console
+curl -Is http://<vmselect>:8481/select/internal/resetRollupResultCache
+```
+
+</div>
 
 ## TCP and UDP
 

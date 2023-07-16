@@ -1,19 +1,14 @@
-import React, { FC, useCallback, useEffect, useMemo, useRef, useState } from "preact/compat";
+import React, { FC, useCallback, useEffect, useRef, useState } from "preact/compat";
 import uPlot, {
   AlignedData as uPlotData,
   Options as uPlotOptions,
   Series as uPlotSeries,
-  Range,
-  Scales,
-  Scale,
 } from "uplot";
 import { defaultOptions } from "../../../../utils/uplot/helpers";
 import { dragChart } from "../../../../utils/uplot/events";
-import { getAxes, getMinMaxBuffer } from "../../../../utils/uplot/axes";
+import { getAxes } from "../../../../utils/uplot/axes";
 import { MetricResult } from "../../../../api/types";
 import { dateFromSeconds, formatDateForNativeInput, limitsDurations } from "../../../../utils/time";
-import throttle from "lodash.throttle";
-import useResize from "../../../../hooks/useResize";
 import { TimeParams } from "../../../../types";
 import { YaxisState } from "../../../../state/graph/reducer";
 import "uplot/dist/uPlot.min.css";
@@ -23,6 +18,9 @@ import ChartTooltip, { ChartTooltipProps } from "../ChartTooltip/ChartTooltip";
 import dayjs from "dayjs";
 import { useAppState } from "../../../../state/common/StateContext";
 import { SeriesItem } from "../../../../utils/uplot/series";
+import { ElementSize } from "../../../../hooks/useElementSize";
+import useEventListener from "../../../../hooks/useEventListener";
+import { getRangeX, getRangeY, getScales } from "../../../../utils/uplot/scales";
 
 export interface LineChartProps {
   metrics: MetricResult[];
@@ -32,11 +30,9 @@ export interface LineChartProps {
   series: uPlotSeries[];
   unit?: string;
   setPeriod: ({ from, to }: {from: Date, to: Date}) => void;
-  container: HTMLDivElement | null;
+  layoutSize: ElementSize;
   height?: number;
 }
-
-enum typeChartUpdate {xRange = "xRange", yRange = "yRange"}
 
 const LineChart: FC<LineChartProps> = ({
   data,
@@ -46,7 +42,7 @@ const LineChart: FC<LineChartProps> = ({
   yaxis,
   unit,
   setPeriod,
-  container,
+  layoutSize,
   height
 }) => {
   const { isDarkTheme } = useAppState();
@@ -54,33 +50,25 @@ const LineChart: FC<LineChartProps> = ({
   const uPlotRef = useRef<HTMLDivElement>(null);
   const [isPanning, setPanning] = useState(false);
   const [xRange, setXRange] = useState({ min: period.start, max: period.end });
-  const [yRange, setYRange] = useState([0, 1]);
   const [uPlotInst, setUPlotInst] = useState<uPlot>();
   const [startTouchDistance, setStartTouchDistance] = useState(0);
-  const layoutSize = useResize(container);
 
   const [showTooltip, setShowTooltip] = useState(false);
   const [tooltipIdx, setTooltipIdx] = useState({ seriesIdx: -1, dataIdx: -1 });
   const [tooltipOffset, setTooltipOffset] = useState({ left: 0, top: 0 });
   const [stickyTooltips, setStickyToolTips] = useState<ChartTooltipProps[]>([]);
-  const tooltipId = useMemo(() => `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`, [tooltipIdx]);
 
-  const setScale = ({ min, max }: { min: number, max: number }): void => {
+  const setPlotScale = ({ min, max }: { min: number, max: number }) => {
+    const delta = (max - min) * 1000;
+    if ((delta < limitsDurations.min) || (delta > limitsDurations.max)) return;
+    setXRange({ min, max });
     setPeriod({
       from: dayjs(min * 1000).toDate(),
       to: dayjs(max * 1000).toDate()
     });
   };
-  const throttledSetScale = useCallback(throttle(setScale, 500), []);
-  const setPlotScale = ({ u, min, max }: { u: uPlot, min: number, max: number }) => {
-    const delta = (max - min) * 1000;
-    if ((delta < limitsDurations.min) || (delta > limitsDurations.max)) return;
-    u.setScale("x", { min, max });
-    setXRange({ min, max });
-    throttledSetScale({ min, max });
-  };
 
-  const onReadyChart = (u: uPlot) => {
+  const onReadyChart = (u: uPlot): void => {
     const factor = 0.9;
     setTooltipOffset({
       left: parseFloat(u.over.style.left),
@@ -111,11 +99,11 @@ const LineChart: FC<LineChartProps> = ({
       const nxRange = e.deltaY < 0 ? oxRange * factor : oxRange / factor;
       const min = xVal - (zoomPos / width) * nxRange;
       const max = min + nxRange;
-      u.batch(() => setPlotScale({ u, min, max }));
+      u.batch(() => setPlotScale({ min, max }));
     });
   };
 
-  const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
     const { target, ctrlKey, metaKey, key } = e;
     const isInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     if (!uPlotInst || isInput) return;
@@ -125,32 +113,41 @@ const LineChart: FC<LineChartProps> = ({
       e.preventDefault();
       const factor = (xRange.max - xRange.min) / 10 * (plus ? 1 : -1);
       setPlotScale({
-        u: uPlotInst,
         min: xRange.min + factor,
         max: xRange.max - factor
       });
     }
-  };
+  }, [uPlotInst, xRange]);
 
-  const handleClick = () => {
-    const id = `${tooltipIdx.seriesIdx}_${tooltipIdx.dataIdx}`;
-    const props = {
+  const getChartProps = useCallback(() => {
+    const { seriesIdx, dataIdx } = tooltipIdx;
+    const id = `${seriesIdx}_${dataIdx}`;
+    const metricItem = metrics[seriesIdx-1];
+    const seriesItem = series[seriesIdx] as SeriesItem;
+
+    const groups = new Set(metrics.map(m => m.group));
+    const showQueryNum = groups.size > 1;
+
+    return {
       id,
       unit,
-      series,
-      metrics,
-      yRange,
+      seriesItem,
+      metricItem,
       tooltipIdx,
       tooltipOffset,
+      showQueryNum,
     };
+  }, [uPlotInst, metrics, series, tooltipIdx, tooltipOffset, unit]);
 
-    if (!stickyTooltips.find(t => t.id === id)) {
-      const tooltipProps = JSON.parse(JSON.stringify(props));
-      setStickyToolTips(prev => [...prev, tooltipProps]);
+  const handleClick = useCallback(() => {
+    if (!showTooltip) return;
+    const props = getChartProps();
+    if (!stickyTooltips.find(t => t.id === props.id)) {
+      setStickyToolTips(prev => [...prev, props as ChartTooltipProps]);
     }
-  };
+  }, [getChartProps, stickyTooltips, showTooltip]);
 
-  const handleUnStick = (id:string) => {
+  const handleUnStick = (id: string) => {
     setStickyToolTips(prev => prev.filter(t => t.id !== id));
   };
 
@@ -164,23 +161,34 @@ const LineChart: FC<LineChartProps> = ({
     setTooltipIdx(prev => ({ ...prev, seriesIdx }));
   };
 
-  const getRangeX = (): Range.MinMax => [xRange.min, xRange.max];
-
-  const getRangeY = (u: uPlot, min = 0, max = 1, axis: string): Range.MinMax => {
-    if (axis == "1") {
-      setYRange([min, max]);
-    }
-    if (yaxis.limits.enable) return yaxis.limits.range[axis];
-    return getMinMaxBuffer(min, max);
+  const addSeries = (u: uPlot, series: uPlotSeries[]) => {
+    series.forEach((s) => {
+      u.addSeries(s);
+    });
   };
 
-  const getScales = (): Scales => {
-    const scales: { [key: string]: { range: Scale.Range } } = { x: { range: getRangeX } };
-    const ranges = Object.keys(yaxis.limits.range);
-    (ranges.length ? ranges : ["1"]).forEach(axis => {
-      scales[axis] = { range: (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis) };
+  const delSeries = (u: uPlot) => {
+    for (let i = u.series.length - 1; i >= 0; i--) {
+      u.delSeries(i);
+    }
+  };
+
+  const delHooks = (u: uPlot) => {
+    Object.keys(u.hooks).forEach(hook => {
+      u.hooks[hook as keyof uPlot.Hooks.Arrays] = [];
     });
-    return scales;
+  };
+
+  const handleDestroy = (u: uPlot) => {
+    delSeries(u);
+    delHooks(u);
+    u.setData([]);
+  };
+
+  const setSelect = (u: uPlot) => {
+    const min = u.posToVal(u.select.left, "x");
+    const max = u.posToVal(u.select.left + u.select.width, "x");
+    setPlotScale({ min, max });
   };
 
   const options: uPlotOptions = {
@@ -188,56 +196,17 @@ const LineChart: FC<LineChartProps> = ({
     tzDate: ts => dayjs(formatDateForNativeInput(dateFromSeconds(ts))).local().toDate(),
     series,
     axes: getAxes( [{}, { scale: "1" }], unit),
-    scales: { ...getScales() },
+    scales: getScales(yaxis, xRange),
     width: layoutSize.width || 400,
     height: height || 500,
-    plugins: [{ hooks: { ready: onReadyChart, setCursor, setSeries: seriesFocus } }],
     hooks: {
-      setSelect: [
-        (u) => {
-          const min = u.posToVal(u.select.left, "x");
-          const max = u.posToVal(u.select.left + u.select.width, "x");
-          setPlotScale({ u, min, max });
-        }
-      ]
-    }
+      ready: [onReadyChart],
+      setSeries: [seriesFocus],
+      setCursor: [setCursor],
+      setSelect: [setSelect],
+      destroy: [handleDestroy],
+    },
   };
-
-  const updateChart = (type: typeChartUpdate): void => {
-    if (!uPlotInst) return;
-    switch (type) {
-      case typeChartUpdate.xRange:
-        uPlotInst.scales.x.range = getRangeX;
-        break;
-      case typeChartUpdate.yRange:
-        Object.keys(yaxis.limits.range).forEach(axis => {
-          if (!uPlotInst.scales[axis]) return;
-          uPlotInst.scales[axis].range = (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis);
-        });
-        break;
-    }
-    if (!isPanning) uPlotInst.redraw();
-  };
-
-  useEffect(() => setXRange({ min: period.start, max: period.end }), [period]);
-
-  useEffect(() => {
-    setStickyToolTips([]);
-    setTooltipIdx({ seriesIdx: -1, dataIdx: -1 });
-    if (!uPlotRef.current) return;
-    const u = new uPlot(options, data, uPlotRef.current);
-    setUPlotInst(u);
-    setXRange({ min: period.start, max: period.end });
-    return u.destroy;
-  }, [uPlotRef.current, series, layoutSize, height, isDarkTheme]);
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [xRange]);
 
   const handleTouchStart = (e: TouchEvent) => {
     if (e.touches.length !== 2) return;
@@ -248,7 +217,7 @@ const LineChart: FC<LineChartProps> = ({
     setStartTouchDistance(Math.sqrt(dx * dx + dy * dy));
   };
 
-  const handleTouchMove = (e: TouchEvent) => {
+  const handleTouchMove = useCallback((e: TouchEvent) => {
     if (e.touches.length !== 2 || !uPlotInst) return;
     e.preventDefault();
 
@@ -264,35 +233,68 @@ const LineChart: FC<LineChartProps> = ({
 
     const zoomFactor = dur / 50 * dir;
     uPlotInst.batch(() => setPlotScale({
-      u: uPlotInst,
       min: min + zoomFactor,
       max: max - zoomFactor
     }));
-  };
+  }, [uPlotInst, startTouchDistance, xRange]);
 
   useEffect(() => {
-    window.addEventListener("touchmove", handleTouchMove);
-    window.addEventListener("touchstart", handleTouchStart);
-
-    return () => {
-      window.removeEventListener("touchmove", handleTouchMove);
-      window.removeEventListener("touchstart", handleTouchStart);
-    };
-  }, [uPlotInst, startTouchDistance]);
-
-  useEffect(() => updateChart(typeChartUpdate.xRange), [xRange]);
-  useEffect(() => updateChart(typeChartUpdate.yRange), [yaxis]);
+    setXRange({ min: period.start, max: period.end });
+  }, [period]);
 
   useEffect(() => {
-    const show = tooltipIdx.dataIdx !== -1 && tooltipIdx.seriesIdx !== -1;
-    setShowTooltip(show);
+    setStickyToolTips([]);
+    setTooltipIdx({ seriesIdx: -1, dataIdx: -1 });
+    if (!uPlotRef.current) return;
+    if (uPlotInst) uPlotInst.destroy();
+    const u = new uPlot(options, data, uPlotRef.current);
+    setUPlotInst(u);
+    setXRange({ min: period.start, max: period.end });
+    return u.destroy;
+  }, [uPlotRef, isDarkTheme]);
 
-    if (show) window.addEventListener("click", handleClick);
+  useEffect(() => {
+    if (!uPlotInst) return;
+    uPlotInst.setData(data);
+    uPlotInst.redraw();
+  }, [data]);
 
-    return () => {
-      window.removeEventListener("click", handleClick);
-    };
-  }, [tooltipIdx, stickyTooltips]);
+  useEffect(() => {
+    if (!uPlotInst) return;
+    delSeries(uPlotInst);
+    addSeries(uPlotInst, series);
+    uPlotInst.redraw();
+  }, [series]);
+
+  useEffect(() => {
+    if (!uPlotInst) return;
+    Object.keys(yaxis.limits.range).forEach(axis => {
+      if (!uPlotInst.scales[axis]) return;
+      uPlotInst.scales[axis].range = (u: uPlot, min = 0, max = 1) => getRangeY(u, min, max, axis, yaxis);
+    });
+    uPlotInst.redraw();
+  }, [yaxis]);
+
+  useEffect(() => {
+    if (!uPlotInst) return;
+    uPlotInst.scales.x.range = () => getRangeX(xRange);
+    uPlotInst.redraw();
+  }, [xRange]);
+
+  useEffect(() => {
+    if (!uPlotInst) return;
+    uPlotInst.setSize({ width: layoutSize.width || 400, height: height || 500 });
+    uPlotInst.redraw();
+  }, [height, layoutSize]);
+
+  useEffect(() => {
+    setShowTooltip(tooltipIdx.dataIdx !== -1 && tooltipIdx.seriesIdx !== -1);
+  }, [tooltipIdx]);
+
+  useEventListener("click", handleClick);
+  useEventListener("keydown", handleKeyDown);
+  useEventListener("touchmove", handleTouchMove);
+  useEventListener("touchstart", handleTouchStart);
 
   return (
     <div
@@ -311,14 +313,8 @@ const LineChart: FC<LineChartProps> = ({
       />
       {uPlotInst && showTooltip && (
         <ChartTooltip
-          unit={unit}
+          {...getChartProps()}
           u={uPlotInst}
-          series={series as SeriesItem[]}
-          metrics={metrics}
-          yRange={yRange}
-          tooltipIdx={tooltipIdx}
-          tooltipOffset={tooltipOffset}
-          id={tooltipId}
         />
       )}
 

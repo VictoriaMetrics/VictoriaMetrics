@@ -1,68 +1,61 @@
-import React, { FC, useEffect, useState, useRef, useMemo } from "preact/compat";
-import { useSortedCategories } from "../../../../hooks/useSortedCategories";
-import { InstantMetricResult } from "../../../../api/types";
+import React, { FC, useEffect, useRef, useMemo } from "preact/compat";
 import Button from "../../../../components/Main/Button/Button";
 import { RestartIcon, SettingsIcon } from "../../../../components/Main/Icons";
 import Popper from "../../../../components/Main/Popper/Popper";
 import "./style.scss";
 import Checkbox from "../../../../components/Main/Checkbox/Checkbox";
 import Tooltip from "../../../../components/Main/Tooltip/Tooltip";
-import { useCustomPanelDispatch, useCustomPanelState } from "../../../../state/customPanel/CustomPanelStateContext";
 import Switch from "../../../../components/Main/Switch/Switch";
 import { arrayEquals } from "../../../../utils/array";
 import classNames from "classnames";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useBoolean from "../../../../hooks/useBoolean";
 
 const title = "Table settings";
 
 interface TableSettingsProps {
-  data: InstantMetricResult[];
-  defaultColumns?: string[]
-  onChange: (arr: string[]) => void
+  columns: string[];
+  defaultColumns?: string[];
+  tableCompact: boolean;
+  toggleTableCompact: () => void;
+  onChangeColumns: (arr: string[]) => void
 }
 
-const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onChange }) => {
+const TableSettings: FC<TableSettingsProps> = ({
+  columns,
+  defaultColumns = [],
+  tableCompact,
+  onChangeColumns,
+  toggleTableCompact
+}) => {
   const { isMobile } = useDeviceDetect();
-
-  const { tableCompact } = useCustomPanelState();
-  const customPanelDispatch = useCustomPanelDispatch();
-  const columns = useSortedCategories(data);
 
   const buttonRef = useRef<HTMLDivElement>(null);
 
-  const [openSettings, setOpenSettings] = useState(false);
+  const {
+    value: openSettings,
+    toggle: toggleOpenSettings,
+    setFalse: handleClose,
+  } = useBoolean(false);
 
   const disabledButton = useMemo(() => !columns.length, [columns]);
 
   const handleChange = (key: string) => {
-    onChange(defaultColumns.includes(key) ? defaultColumns.filter(col => col !== key) : [...defaultColumns, key]);
-  };
-
-  const handleClose = () => {
-    setOpenSettings(false);
-  };
-
-  const toggleTableCompact = () => {
-    customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
+    onChangeColumns(defaultColumns.includes(key) ? defaultColumns.filter(col => col !== key) : [...defaultColumns, key]);
   };
 
   const handleResetColumns = () => {
-    setOpenSettings(false);
-    onChange(columns.map(col => col.key));
+    handleClose();
+    onChangeColumns(columns);
   };
 
   const createHandlerChange = (key: string) => () => {
     handleChange(key);
   };
 
-  const toggleOpenSettings = () => {
-    setOpenSettings(prev => !prev);
-  };
-
   useEffect(() => {
-    const values = columns.map(col => col.key);
-    if (arrayEquals(values, defaultColumns)) return;
-    onChange(values);
+    if (arrayEquals(columns, defaultColumns)) return;
+    onChangeColumns(columns);
   }, [columns]);
 
   return (
@@ -113,12 +106,12 @@ const TableSettings: FC<TableSettingsProps> = ({ data, defaultColumns = [], onCh
             {columns.map(col => (
               <div
                 className="vm-table-settings-popper-list__item"
-                key={col.key}
+                key={col}
               >
                 <Checkbox
-                  checked={defaultColumns.includes(col.key)}
-                  onChange={createHandlerChange(col.key)}
-                  label={col.key}
+                  checked={defaultColumns.includes(col)}
+                  onChange={createHandlerChange(col)}
+                  label={col}
                   disabled={tableCompact}
                 />
               </div>

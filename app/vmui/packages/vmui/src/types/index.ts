@@ -86,7 +86,7 @@ export interface TopQuery {
   query: string
   timeRangeSeconds: number
   sumDurationSeconds: number
-  timeRangeHours: number
+  timeRange: string
 }
 
 export interface TopQueryStats {
@@ -124,4 +124,17 @@ export enum Theme {
   system = "system",
   light = "light",
   dark = "dark",
+}
+
+export interface RelabelStep {
+  rule: string;
+  inLabels: string;
+  outLabels: string;
+}
+
+export interface RelabelData {
+  status: string;
+  originalLabels?: string;
+  resultingLabels?: string;
+  steps: RelabelStep[];
 }

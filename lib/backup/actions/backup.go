@@ -1,16 +1,19 @@
 package actions
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/backupnames"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/common"
-	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fscommon"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fslocal"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/backup/fsnil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/snapshot"
 	"github.com/VictoriaMetrics/metrics"
 )
 
@@ -25,7 +28,6 @@ var (
 // made via `/snapshot/create`. It works improperly on mutable files.
 type Backup struct {
 	// Concurrency is the number of concurrent workers during the backup.
-	// Concurrency=1 by default.
 	Concurrency int
 
 	// Src is backup source
@@ -46,6 +48,13 @@ type Backup struct {
 	Origin common.OriginFS
 }
 
+// BackupMetadata contains metadata about the backup.
+// Note that CreatedAt and CompletedAt are in RFC3339 format.
+type BackupMetadata struct {
+	CreatedAt   string `json:"created_at"`
+	CompletedAt string `json:"completed_at"`
+}
+
 // Run runs b with the provided settings.
 func (b *Backup) Run() error {
 	concurrency := b.Concurrency
@@ -60,15 +69,43 @@ func (b *Backup) Run() error {
 		origin = &fsnil.FS{}
 	}
 
-	if err := dst.DeleteFile(fscommon.BackupCompleteFilename); err != nil {
+	if err := dst.DeleteFile(backupnames.BackupCompleteFilename); err != nil {
 		return fmt.Errorf("cannot delete `backup complete` file at %s: %w", dst, err)
 	}
 	if err := runBackup(src, dst, origin, concurrency); err != nil {
 		return err
 	}
-	if err := dst.CreateFile(fscommon.BackupCompleteFilename, []byte("ok")); err != nil {
+	if err := storeMetadata(src, dst); err != nil {
+		return fmt.Errorf("cannot store backup metadata: %w", err)
+	}
+	if err := dst.CreateFile(backupnames.BackupCompleteFilename, []byte{}); err != nil {
 		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
 	}
+
+	return nil
+}
+
+func storeMetadata(src *fslocal.FS, dst common.RemoteFS) error {
+	snapshotName := filepath.Base(src.Dir)
+	snapshotTime, err := snapshot.Time(snapshotName)
+	if err != nil {
+		return fmt.Errorf("cannot decode snapshot name %q: %w", snapshotName, err)
+	}
+
+	d := BackupMetadata{
+		CreatedAt:   snapshotTime.Format(time.RFC3339),
+		CompletedAt: time.Now().Format(time.RFC3339),
+	}
+
+	metadata, err := json.Marshal(d)
+	if err != nil {
+		return fmt.Errorf("cannot marshal metadata: %w", err)
+	}
+
+	if err := dst.CreateFile(backupnames.BackupMetadataFilename, metadata); err != nil {
+		return fmt.Errorf("cannot create `backup complete` file at %s: %w", dst, err)
+	}
+
 	return nil
 }
 
@@ -167,7 +204,8 @@ func runBackup(src *fslocal.FS, dst common.RemoteFS, origin common.OriginFS, con
 			return nil
 		}, func(elapsed time.Duration) {
 			n := atomic.LoadUint64(&bytesUploaded)
-			logger.Infof("uploaded %d out of %d bytes from src %s to dst %s in %s", n, uploadSize, src, dst, elapsed)
+			prc := 100 * float64(n) / float64(uploadSize)
+			logger.Infof("uploaded %d out of %d bytes (%.2f%%) from src %s to dst %s in %s", n, uploadSize, prc, src, dst, elapsed)
 		})
 		atomic.AddUint64(&bytesUploadedTotal, bytesUploaded)
 		bytesUploadedTotalMetric.Set(bytesUploadedTotal)

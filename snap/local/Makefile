@@ -1,4 +1,4 @@
-GO_VERSION ?=1.20.3
+GO_VERSION ?=1.20.6
 SNAP_BUILDER_IMAGE := local/snap-builder:2.0.0-$(shell echo $(GO_VERSION) | tr :/ __)
 
 
@@ -18,7 +18,7 @@ build-snap: snap-builder-image
 		-w /builder \
 		--env PKG_TAG=$(SNAP_TAG) \
 		$(SNAP_BUILDER_IMAGE) \
-		bash -c 'snapcraft clean && snapcraft snap -o bin/'
+		bash -c 'snapcraft clean && snapcraft snap -o "bin/victoriametrics_$(SNAP_TAG)_multi.snap"'
 
 release-snap: snap-builder-image build-snap
 	docker run --rm \

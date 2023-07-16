@@ -1,3 +1,13 @@
+---
+weight: 5
+title: How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
+menu:
+  docs:
+    parent: "guides"
+    weight: 5
+aliases:
+- /guides/grafana-vmgateway-openid-configuration.html
+---
 # How to configure vmgateway for multi-tenant access using Grafana and OpenID Connect
 
 Using [Grafana](https://grafana.com/) with [vmgateway](https://docs.victoriametrics.com/vmgateway.html) is a great way to provide [multi-tenant](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy) access to your metrics.
@@ -83,9 +93,9 @@ name = keycloak
 client_id = {CLIENT_ID_FROM_IDENTITY_PROVIDER}
 client_secret = {SECRET_FROM_IDENTITY_PROVIDER}
 scopes = openid profile email
-auth_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/auth
-token_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/token
-api_url = http://localhost:3001/realms/{KEYCLOACK_REALM}/protocol/openid-connect/userinfo
+auth_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/auth
+token_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/token
+api_url = http://localhost:3001/realms/{KEYCLOAK_REALM}/protocol/openid-connect/userinfo
 ```
 
 After restarting Grafana with the new config you should be able to log in using your identity provider.
@@ -229,27 +239,27 @@ services:
       - grafana_data:/var/lib/grafana/
 
   vmsingle:
-    image: victoriametrics/victoria-metrics:v1.90.0
+    image: victoriametrics/victoria-metrics:v1.91.0
     command:
       - -httpListenAddr=0.0.0.0:8429
 
   vmstorage:
-    image: victoriametrics/vmstorage:v1.90.0-cluster
+    image: victoriametrics/vmstorage:v1.91.0-cluster
 
   vminsert:
-    image: victoriametrics/vminsert:v1.90.0-cluster
+    image: victoriametrics/vminsert:v1.91.0-cluster
     command:
       - -storageNode=vmstorage:8400
       - -httpListenAddr=0.0.0.0:8480
 
   vmselect:
-    image: victoriametrics/vmselect:v1.90.0-cluster
+    image: victoriametrics/vmselect:v1.91.0-cluster
     command:
       - -storageNode=vmstorage:8401
       - -httpListenAddr=0.0.0.0:8481
 
   vmagent:
-    image: victoriametrics/vmagent:v1.90.0
+    image: victoriametrics/vmagent:v1.91.0
     volumes:
       - ./scrape.yaml:/etc/vmagent/config.yaml
     command:
@@ -258,7 +268,7 @@ services:
       - -remoteWrite.url=http://vmsingle:8429/api/v1/write
 
   vmgateway-cluster:
-    image: victoriametrics/vmgateway:v1.90.0-enterprise
+    image: victoriametrics/vmgateway:v1.91.0-enterprise
     ports:
       - 8431:8431
     command:
@@ -271,7 +281,7 @@ services:
       - -auth.oidcDiscoveryEndpoints=http://keycloak:8080/realms/master/.well-known/openid-configuration
 
   vmgateway-single:
-    image: victoriametrics/vmgateway:v1.90.0-enterprise
+    image: victoriametrics/vmgateway:v1.91.0-enterprise
     ports:
       - 8432:8431
     command:

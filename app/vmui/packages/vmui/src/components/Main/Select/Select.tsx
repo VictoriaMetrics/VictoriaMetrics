@@ -7,6 +7,7 @@ import { useAppState } from "../../../state/common/StateContext";
 import "./style.scss";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import MultipleSelectedValue from "./MultipleSelectedValue/MultipleSelectedValue";
+import useEventListener from "../../../hooks/useEventListener";
 
 interface SelectProps {
   value: string | string[]
@@ -105,13 +106,7 @@ const Select: FC<SelectProps> = ({
     inputRef.current.focus();
   }, [autofocus, inputRef]);
 
-  useEffect(() => {
-    window.addEventListener("keyup", handleKeyUp);
-
-    return () => {
-      window.removeEventListener("keyup", handleKeyUp);
-    };
-  }, []);
+  useEventListener("keyup", handleKeyUp);
 
   return (
     <div

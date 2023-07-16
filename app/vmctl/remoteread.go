@@ -20,7 +20,9 @@ type remoteReadProcessor struct {
 	dst *vm.Importer
 	src *remoteread.Client
 
-	cc int
+	cc        int
+	isSilent  bool
+	isVerbose bool
 }
 
 type remoteReadFilter struct {
@@ -29,7 +31,7 @@ type remoteReadFilter struct {
 	chunk     string
 }
 
-func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) error {
+func (rrp *remoteReadProcessor) run(ctx context.Context) error {
 	rrp.dst.ResetStats()
 	if rrp.filter.timeEnd == nil {
 		t := time.Now().In(rrp.filter.timeStart.Location())
@@ -46,19 +48,19 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 
 	question := fmt.Sprintf("Selected time range %q - %q will be split into %d ranges according to %q step. Continue?",
 		rrp.filter.timeStart.String(), rrp.filter.timeEnd.String(), len(ranges), rrp.filter.chunk)
-	if !silent && !prompt(question) {
+	if !rrp.isSilent && !prompt(question) {
 		return nil
 	}
 
 	var bar *pb.ProgressBar
-	if !silent {
+	if !rrp.isSilent {
 		bar = barpool.AddWithTemplate(fmt.Sprintf(barTpl, "Processing ranges"), len(ranges))
 		if err := barpool.Start(); err != nil {
 			return err
 		}
 	}
 	defer func() {
-		if !silent {
+		if !rrp.isSilent {
 			barpool.Stop()
 		}
 		log.Println("Import finished!")
@@ -90,7 +92,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 		case infErr := <-errCh:
 			return fmt.Errorf("remote read error: %s", infErr)
 		case vmErr := <-rrp.dst.Errors():
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
 		case rangeC <- &remoteread.Filter{
 			StartTimestampMs: r[0].UnixMilli(),
 			EndTimestampMs:   r[1].UnixMilli(),
@@ -105,7 +107,7 @@ func (rrp *remoteReadProcessor) run(ctx context.Context, silent, verbose bool) e
 	// drain import errors channel
 	for vmErr := range rrp.dst.Errors() {
 		if vmErr.Err != nil {
-			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, verbose))
+			return fmt.Errorf("import process failed: %s", wrapErr(vmErr, rrp.isVerbose))
 		}
 	}
 	for err := range errCh {

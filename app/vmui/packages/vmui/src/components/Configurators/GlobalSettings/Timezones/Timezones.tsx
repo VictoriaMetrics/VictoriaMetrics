@@ -9,6 +9,7 @@ import TextField from "../../../Main/TextField/TextField";
 import { Timezone } from "../../../../types";
 import "./style.scss";
 import useDeviceDetect from "../../../../hooks/useDeviceDetect";
+import useBoolean from "../../../../hooks/useBoolean";
 
 interface TimezonesProps {
   timezoneState: string
@@ -19,9 +20,14 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
   const { isMobile } = useDeviceDetect();
   const timezones = getTimezoneList();
 
-  const [openList, setOpenList] = useState(false);
   const [search, setSearch] = useState("");
   const targetRef = useRef<HTMLDivElement>(null);
+
+  const {
+    value: openList,
+    toggle: toggleOpenList,
+    setFalse: handleCloseList,
+  } = useBoolean(false);
 
   const searchTimezones = useMemo(() => {
     if (!search) return timezones;
@@ -43,14 +49,6 @@ const Timezones: FC<TimezonesProps> = ({ timezoneState, onChange }) => {
     region: timezoneState,
     utc: getUTCByTimezone(timezoneState)
   }), [timezoneState]);
-
-  const toggleOpenList = () => {
-    setOpenList(prev => !prev);
-  };
-
-  const handleCloseList = () => {
-    setOpenList(false);
-  };
 
   const handleChangeSearch = (val: string) => {
     setSearch(val);

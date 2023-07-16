@@ -1,5 +1,14 @@
 ---
 sort: 14
+weight: 14
+title: MetricsQL
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 14
+aliases:
+- /ExtendedPromQL.html
+- /MetricsQL.html
 ---
 
 # MetricsQL
@@ -58,6 +67,9 @@ The list of MetricsQL features:
   depending on the current step used for building the graph (e.g. `step` query arg passed to [/api/v1/query_range](https://docs.victoriametrics.com/keyConcepts.html#range-query)).
   For instance, the following query is valid in VictoriaMetrics: `rate(node_network_receive_bytes_total)`.
   It is equivalent to `rate(node_network_receive_bytes_total[$__interval])` when used in Grafana.
+* [Series selectors](https://docs.victoriametrics.com/keyConcepts.html#filtering) accept multiple `or` filters. For example, `{env="prod",job="a" or env="dev",job="b"}`
+  selects series with either `{env="prod",job="a"}` or `{env="dev",job="b"}` labels.
+  See [these docs](https://docs.victoriametrics.com/keyConcepts.html#filtering-by-multiple-or-filters) for details.
 * [Aggregate functions](#aggregate-functions) accept arbitrary number of args.
   For example, `avg(q1, q2, q3)` would return the average values for every point across time series returned by `q1`, `q2` and `q3`.
 * [@ modifier](https://prometheus.io/docs/prometheus/latest/querying/basics/#modifier) can be put anywhere in the query.
@@ -73,7 +85,7 @@ The list of MetricsQL features:
 * The duration suffix is optional. The duration is in seconds if the suffix is missing.
   For example, `rate(m[300] offset 1800)` is equivalent to `rate(m[5m]) offset 30m`.
 * The duration can be placed anywhere in the query. For example, `sum_over_time(m[1h]) / 1h` is equivalent to `sum_over_time(m[1h]) / 3600`.
-* Numeric values can have `K`, `Ki`, `M`, `Mi`, `G`, `Gi`, `T` and `Ti` suffixes. For example, `8K` is equivalent to `8000`, while `1.2Mi` is equvalent to `1.2*1024*1024`.
+* Numeric values can have `K`, `Ki`, `M`, `Mi`, `G`, `Gi`, `T` and `Ti` suffixes. For example, `8K` is equivalent to `8000`, while `1.2Mi` is equivalent to `1.2*1024*1024`.
 * Trailing commas on all the lists are allowed - label filters, function args and with expressions.
   For instance, the following queries are valid: `m{foo="bar",}`, `f(a, b,)`, `WITH (x=y,) x`.
   This simplifies maintenance of multi-line queries.
@@ -101,8 +113,8 @@ The list of MetricsQL features:
 
 ## keep_metric_names
 
-By default, metric names are dropped after applying functions or [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators) 
-between [vector and scalar](https://prometheus.io/docs/prometheus/latest/querying/basics/#expression-language-data-types) values, which change the meaning of the original time series.
+By default, metric names are dropped after applying functions or [binary operators](https://prometheus.io/docs/prometheus/latest/querying/operators/#binary-operators),
+since they may change the meaning of the original time series.
 This may result in `duplicate time series` error when the function is applied to multiple time series with different names.
 This error can be fixed by applying `keep_metric_names` modifier to the function or binary operator.
 
@@ -140,7 +152,7 @@ Additional details:
   For example, `rate(http_requests_total)` is equivalent to `rate(http_requests_total[$__interval])` in Grafana.
   It is also equivalent to `rate(http_requests_total[1i])`.
 * Every [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) in MetricsQL must be wrapped into a rollup function.
-  Otherwise it is automatically wrapped into [default_rollup](#default_rollup). For example, `foo{bar="baz"}`
+  Otherwise, it is automatically wrapped into [default_rollup](#default_rollup). For example, `foo{bar="baz"}`
   is automatically converted to `default_rollup(foo{bar="baz"}[1i])` before performing the calculations.
 * If something other than [series selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) is passed to rollup function,
   then the inner arg is automatically converted to a [subquery](#subqueries).
@@ -154,7 +166,7 @@ The list of supported rollup functions:
 #### absent_over_time
 
 `absent_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns 1
-if the given lookbehind window `d` doesn't contain raw samples. Otherwise it returns an empty result.
+if the given lookbehind window `d` doesn't contain raw samples. Otherwise, it returns an empty result.
 
 This function is supported by PromQL. See also [present_over_time](#present_over_time).
 
@@ -348,7 +360,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 `duration_over_time(series_selector[d], max_interval)` is a [rollup function](#rollup-functions), which returns the duration in seconds
 when time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering) were present
 over the given lookbehind window `d`. It is expected that intervals between adjacent samples per each series don't exceed the `max_interval`.
-Otherwise such intervals are considered as gaps and aren't counted.
+Otherwise, such intervals are considered as gaps and aren't counted.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -429,7 +441,7 @@ See also [deriv](#deriv).
 per each time series returned from the given [series_selector](https://docs.victoriametrics.com/keyConcepts.html#filtering).
 It is expected that the `series_selector` returns time series of [counter type](https://docs.victoriametrics.com/keyConcepts.html#counter).
 
-Unlike Prometheus it takes into account the last sample before the given lookbehind window `d` when calculating the result.
+Unlike Prometheus, it takes into account the last sample before the given lookbehind window `d` when calculating the result.
 See [this article](https://medium.com/@romanhavronenko/victoriametrics-promql-compliance-d4318203f51e) for details.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
@@ -552,7 +564,7 @@ This function is supported by PromQL. See also [range_linear_regression](#range_
 #### present_over_time
 
 `present_over_time(series_selector[d])` is a [rollup function](#rollup-functions), which returns 1 if there is at least a single raw sample
-on the given lookbehind window `d`. Otherwise an empty result is returned.
+on the given lookbehind window `d`. Otherwise, an empty result is returned.
 
 Metric names are stripped from the resulting rollups. Add [keep_metric_names](#keep_metric_names) modifier in order to keep metric names.
 
@@ -670,7 +682,7 @@ Metric names are stripped from the resulting rollups. Add [keep_metric_names](#k
 on the given lookbehind window `d` and returns `min`, `max` and `avg` values for the calculated per-second change rates
 and returns them in time series with `rollup="min"`, `rollup="max"` and `rollup="avg"` additional labels.
 
-See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832) in order to undertand better
+See [this article](https://valyala.medium.com/why-irate-from-prometheus-doesnt-capture-spikes-45f9896d7832) in order to understand better
 when to use `rollup_rate()`.
 
 Optional 2nd argument `"min"`, `"max"` or `"avg"` can be passed to keep only one calculation result and without adding a label.
@@ -866,7 +878,7 @@ This function is supported by PromQL.
 
 #### absent
 
-`absent(q)` is a [transform function](#transform-functions), which returns 1 if `q` has no points. Otherwise returns an empty result.
+`absent(q)` is a [transform function](#transform-functions), which returns 1 if `q` has no points. Otherwise, returns an empty result.
 
 This function is supported by PromQL. See also [absent_over_time](#absent_over_time).
 
@@ -1059,7 +1071,7 @@ per each `job` over the last 5 minutes.
 
 `histogram_quantile(phi, buckets)` is a [transform function](#transform-functions), which calculates `phi`-[percentile](https://en.wikipedia.org/wiki/Percentile)
 over the given [histogram buckets](https://valyala.medium.com/improving-histogram-usability-for-prometheus-and-grafana-bc7e5df0e350).
-`phi` must be in the range `[0...1]`. For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m]) by (le))`
+`phi` must be in the range `[0...1]`. For example, `histogram_quantile(0.5, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))`
 would return median request duration for all the requests during the last 5 minutes.
 
 The function accepts optional third arg - `boundsLabel`. In this case it returns `lower` and `upper` bounds for the estimated percentile with the given `boundsLabel` label.
@@ -1067,7 +1079,7 @@ See [this issue for details](https://github.com/prometheus/prometheus/issues/570
 
 When the [percentile](https://en.wikipedia.org/wiki/Percentile) is calculated over multiple histograms,
 then all the input histograms **must** have buckets with identical boundaries, e.g. they must have the same set of `le` or `vmrange` labels.
-Otherwise the returned result may be invalid. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3231) for details.
+Otherwise, the returned result may be invalid. See [this issue](https://github.com/VictoriaMetrics/VictoriaMetrics/issues/3231) for details.
 
 This function is supported by PromQL (except of the `boundLabel` arg). See also [histogram_quantiles](#histogram_quantiles), [histogram_share](#histogram_share)
 and [quantile](#quantile).
@@ -1350,7 +1362,7 @@ For instance, `ru(node_memory_MemFree_bytes, node_memory_MemTotal_bytes)` return
 
 #### scalar
 
-`scalar(q)` is a [transform function](#transform-functions), which returns `q` if `q` contains only a single time series. Otherwise it returns nothing.
+`scalar(q)` is a [transform function](#transform-functions), which returns `q` if `q` contains only a single time series. Otherwise, it returns nothing.
 
 This function is supported by PromQL.
 
@@ -1464,7 +1476,7 @@ For instance, `ttf(node_filesystem_avail_byte)` returns the time to storage spac
 The `union` function name can be skipped - the following queries are equivalent: `union(q1, q2)` and `(q1, q2)`.
 
 It is expected that each `q*` query returns time series with unique sets of labels.
-Otherwise only the first time series out of series with identical set of labels is returned.
+Otherwise, only the first time series out of series with identical set of labels is returned.
 Use [alias](#alias) and [label_set](#label_set) functions for giving unique labelsets per each `q*` query:
 
 #### vector
@@ -1484,7 +1496,7 @@ This function is supported by PromQL.
 
 ### Label manipulation functions
 
-**Label manipulation functions** perform manipulations with lables on the selected [rollup results](#rollup-functions).
+**Label manipulation functions** perform manipulations with labels on the selected [rollup results](#rollup-functions).
 
 Additional details:
 
@@ -1653,7 +1665,7 @@ See also [sort_by_label_numeric](#sort_by_label_numeric) and [sort_by_label_desc
 
 Additional details:
 
-* By default a single group is used for aggregation. Multiple independent groups can be set up by specifying grouping labels
+* By default, a single group is used for aggregation. Multiple independent groups can be set up by specifying grouping labels
   in `by` and `without` modifiers. For example, `count(up) by (job)` would group [rollup results](#rollup-functions) by `job` label value
   and calculate the [count](#count) aggregate function independently per each group, while `count(up) without (instance)`
   would group [rollup results](#rollup-functions) by all the labels except `instance` before calculating [count](#count) aggregate function independently per each group.

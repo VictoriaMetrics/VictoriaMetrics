@@ -11,6 +11,7 @@ interface CalendarBodyProps {
 const weekday = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSelectDate }) => {
+  const format = "YYYY-MM-DD";
   const today = dayjs().tz().startOf("day");
 
   const days: (Dayjs|null)[] = useMemo(() => {
@@ -45,10 +46,10 @@ const CalendarBody: FC<CalendarBodyProps> = ({ viewDate, selectDate, onChangeSel
             "vm-calendar-body-cell": true,
             "vm-calendar-body-cell_day": true,
             "vm-calendar-body-cell_day_empty": !d,
-            "vm-calendar-body-cell_day_active": (d && d.toISOString()) === selectDate.startOf("day").toISOString(),
-            "vm-calendar-body-cell_day_today": (d && d.toISOString()) === today.toISOString()
+            "vm-calendar-body-cell_day_active": (d && d.format(format)) === selectDate.format(format),
+            "vm-calendar-body-cell_day_today": (d && d.format(format)) === today.format(format)
           })}
-          key={d ? d.toISOString() : i}
+          key={d ? d.format(format) : i}
           onClick={createHandlerSelectDate(d)}
         >
           {d && d.format("D")}

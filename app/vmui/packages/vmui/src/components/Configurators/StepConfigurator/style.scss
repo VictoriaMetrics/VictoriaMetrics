@@ -34,16 +34,15 @@
 
     &-info {
       font-size: $font-size-small;
-      line-height: 1.6;
+      line-height: 1.8;
 
       a {
-        margin: 0 0.2em;
+        margin: 0 0.4em;
       }
 
       code {
         padding: 0.2em 0.4em;
         margin: 0 0.2em;
-        font-size: 85%;
         background-color: $color-hover-black;
         border-radius: 6px;
       }

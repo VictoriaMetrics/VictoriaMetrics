@@ -2065,6 +2065,11 @@ func awsRestxml_serializeOpHttpBindingsGetBucketAccelerateConfigurationInput(v *
 		encoder.SetHeader(locationName).String(*v.ExpectedBucketOwner)
 	}
 
+	if len(v.RequestPayer) > 0 {
+		locationName := "X-Amz-Request-Payer"
+		encoder.SetHeader(locationName).String(string(v.RequestPayer))
+	}
+
 	return nil
 }
 
@@ -4658,6 +4663,11 @@ func awsRestxml_serializeOpHttpBindingsListMultipartUploadsInput(v *ListMultipar
 		encoder.SetQuery("prefix").String(*v.Prefix)
 	}
 
+	if len(v.RequestPayer) > 0 {
+		locationName := "X-Amz-Request-Payer"
+		encoder.SetHeader(locationName).String(string(v.RequestPayer))
+	}
+
 	if v.UploadIdMarker != nil {
 		encoder.SetQuery("upload-id-marker").String(*v.UploadIdMarker)
 	}
@@ -4739,6 +4749,20 @@ func awsRestxml_serializeOpHttpBindingsListObjectsInput(v *ListObjectsInput, enc
 
 	if v.MaxKeys != 0 {
 		encoder.SetQuery("max-keys").Integer(v.MaxKeys)
+	}
+
+	if v.OptionalObjectAttributes != nil {
+		locationName := "X-Amz-Optional-Object-Attributes"
+		for i := range v.OptionalObjectAttributes {
+			if len(v.OptionalObjectAttributes[i]) > 0 {
+				escaped := string(v.OptionalObjectAttributes[i])
+				if strings.Index(string(v.OptionalObjectAttributes[i]), `,`) != -1 || strings.Index(string(v.OptionalObjectAttributes[i]), `"`) != -1 {
+					escaped = strconv.Quote(string(v.OptionalObjectAttributes[i]))
+				}
+
+				encoder.AddHeader(locationName).String(string(escaped))
+			}
+		}
 	}
 
 	if v.Prefix != nil {
@@ -4833,6 +4857,20 @@ func awsRestxml_serializeOpHttpBindingsListObjectsV2Input(v *ListObjectsV2Input,
 		encoder.SetQuery("max-keys").Integer(v.MaxKeys)
 	}
 
+	if v.OptionalObjectAttributes != nil {
+		locationName := "X-Amz-Optional-Object-Attributes"
+		for i := range v.OptionalObjectAttributes {
+			if len(v.OptionalObjectAttributes[i]) > 0 {
+				escaped := string(v.OptionalObjectAttributes[i])
+				if strings.Index(string(v.OptionalObjectAttributes[i]), `,`) != -1 || strings.Index(string(v.OptionalObjectAttributes[i]), `"`) != -1 {
+					escaped = strconv.Quote(string(v.OptionalObjectAttributes[i]))
+				}
+
+				encoder.AddHeader(locationName).String(string(escaped))
+			}
+		}
+	}
+
 	if v.Prefix != nil {
 		encoder.SetQuery("prefix").String(*v.Prefix)
 	}
@@ -4925,8 +4963,27 @@ func awsRestxml_serializeOpHttpBindingsListObjectVersionsInput(v *ListObjectVers
 		encoder.SetQuery("max-keys").Integer(v.MaxKeys)
 	}
 
+	if v.OptionalObjectAttributes != nil {
+		locationName := "X-Amz-Optional-Object-Attributes"
+		for i := range v.OptionalObjectAttributes {
+			if len(v.OptionalObjectAttributes[i]) > 0 {
+				escaped := string(v.OptionalObjectAttributes[i])
+				if strings.Index(string(v.OptionalObjectAttributes[i]), `,`) != -1 || strings.Index(string(v.OptionalObjectAttributes[i]), `"`) != -1 {
+					escaped = strconv.Quote(string(v.OptionalObjectAttributes[i]))
+				}
+
+				encoder.AddHeader(locationName).String(string(escaped))
+			}
+		}
+	}
+
 	if v.Prefix != nil {
 		encoder.SetQuery("prefix").String(*v.Prefix)
+	}
+
+	if len(v.RequestPayer) > 0 {
+		locationName := "X-Amz-Request-Payer"
+		encoder.SetHeader(locationName).String(string(v.RequestPayer))
 	}
 
 	if v.VersionIdMarker != nil {

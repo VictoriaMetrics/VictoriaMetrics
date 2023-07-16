@@ -1,5 +1,13 @@
 ---
 sort: 24
+weight: 24
+title: Prometheus service discovery
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 24
+aliases:
+- /sd_configs.html
 ---
 
 # Prometheus service discovery
@@ -10,7 +18,8 @@ sort: 24
 
 * `azure_sd_configs` is for scraping the targets registered in [Azure Cloud](https://azure.microsoft.com/en-us/). See [these docs](#azure_sd_configs).
 * `consul_sd_configs` is for discovering and scraping targets registered in [Consul](https://www.consul.io/). See [these docs](#consul_sd_configs).
-* `digitalocean_sd_configs` is for discovering and scraping targerts registered in [DigitalOcean](https://www.digitalocean.com/). See [these docs](#digitalocean_sd_configs).
+* `consulagent_sd_configs` is for discovering and scraping targets registered in [Consul Agent](https://developer.hashicorp.com/consul/api-docs/agent/service). See [these docs](#consulagent_sd_configs).
+* `digitalocean_sd_configs` is for discovering and scraping targets registered in [DigitalOcean](https://www.digitalocean.com/). See [these docs](#digitalocean_sd_configs).
 * `dns_sd_configs` is for discovering and scraping targets from [DNS](https://it.wikipedia.org/wiki/Domain_Name_System) records (SRV, A and AAAA). See [these docs](#dns_sd_configs).
 * `docker_sd_configs` is for discovering and scraping [Docker](https://www.docker.com/) targets. See [these docs](#docker_sd_configs).
 * `dockerswarm_sd_configs` is for discovering and scraping [Docker Swarm](https://docs.docker.com/engine/swarm/) targets. See [these docs](#dockerswarm_sd_configs).
@@ -18,13 +27,13 @@ sort: 24
 * `eureka_sd_configs` is for discovering and scraping targets registered in [Netflix Eureka](https://github.com/Netflix/eureka). See [these docs](#eureka_sd_configs).
 * `file_sd_configs` is for scraping targets defined in external files (aka file-based service discovery). See [these docs](#file_sd_configs).
 * `gce_sd_configs` is for discovering and scraping [Google Compute Engine](https://cloud.google.com/compute) targets. See [these docs](#gce_sd_configs).
-* `http_sd_configs` is for discovering and scraping targerts provided by external http-based service discovery. See [these docs](#http_sd_configs).
+* `http_sd_configs` is for discovering and scraping targets provided by external http-based service discovery. See [these docs](#http_sd_configs).
 * `kubernetes_sd_configs` is for discovering and scraping [Kubernetes](https://kubernetes.io/) targets. See [these docs](#kubernetes_sd_configs).
 * `kuma_sd_configs` is for discovering and scraping [Kuma](https://kuma.io) targets. See [these docs](#kuma_sd_configs).
 * `nomad_sd_configs` is for discovering and scraping targets registered in [HashiCorp Nomad](https://www.nomadproject.io/). See [these docs](#nomad_sd_configs).
 * `openstack_sd_configs` is for discovering and scraping OpenStack targets. See [these docs](#openstack_sd_configs).
 * `static_configs` is for scraping statically defined targets. See [these docs](#static_configs).
-* `yandexcloud_sd_configs` is for discoverying and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
+* `yandexcloud_sd_configs` is for discovering and scraping [Yandex Cloud](https://cloud.yandex.com/en/) targets. See [these docs](#yandexcloud_sd_configs).
 
 Note that the `refresh_interval` option isn't supported for these scrape configs. Use the corresponding `-promscrape.*CheckInterval`
 command-line flag instead. For example, `-promscrape.consulSDCheckInterval=60s` sets `refresh_interval` for all the `consul_sd_configs`
@@ -107,7 +116,7 @@ scrape_configs:
 - job_name: consul
   consul_sd_configs:
 
-    # server is an optional Consul server to connect to. By default localhost:8500 is used
+    # server is an optional Consul server to connect to. By default, localhost:8500 is used
   - server: "localhost:8500"
 
     # token is an optional Consul API token.
@@ -131,7 +140,7 @@ scrape_configs:
     # partition: "..."
 
     # scheme is an optional scheme (http or https) to use for connecting to Consul server.
-    # By default http scheme is used.
+    # By default, http scheme is used.
     # scheme: "..."
 
     # services is an optional list of services for which targets are retrieved.
@@ -141,20 +150,29 @@ scrape_configs:
 
     # tags is an optional list of tags used to filter nodes for a given service.
     # Services must contain all tags in the list.
+    # Deprecated: use filter instead with ServiceTags selector.
     # tags: ["...", "..."]
 
     # node_meta is an optional node metadata key/value pairs to filter nodes for a given service.
+    # Deprecated: use filter instead with NodeMeta selector.
     # node_meta:
     #   "...": "..."
 
     # tag_separator is an optional string by which Consul tags are joined into the __meta_consul_tags label.
-    # By default "," is used as a tag separator.
+    # By default, "," is used as a tag separator.
     # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
     # tag_separator: "..."
 
+    # filter is an optional filter for service discovery.
+    # Replaces tags and node_meta options.
+    # Consul supports it since 1.14 version.
+    # See the list of supported filters at https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+    # See filter examples at https://developer.hashicorp.com/consul/api-docs/features/filtering
+    # filter: "..."
+
     # allow_stale is an optional config, which allows stale Consul results.
     # See https://www.consul.io/api/features/consistency.html
-    # Reduce load on Consul if set to true. By default is is set to true.
+    # Reduce load on Consul if set to true. By default, it is set to true.
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
@@ -186,6 +204,89 @@ The following meta labels are available on discovered targets during [relabeling
 
 The list of discovered Consul targets is refreshed at the interval, which can be configured via `-promscrape.consulSDCheckInterval` command-line flag.
 
+If you have performance issues with `consul_sd_configs` on a large cluster, then consider using [consulagent_sd_configs](#consulagent_sd_configs) instead.
+
+## consulagent_sd_configs
+
+Consul Agent SD configuration allows retrieving scrape targets from [Consul Agent API](https://developer.hashicorp.com/consul/api-docs/agent/service).
+When using the Agent API, only services registered in the locally running Consul Agent are discovered.
+It is suitable for huge clusters for which using the [Catalog API](https://developer.hashicorp.com/consul/api-docs/catalog#list-services) would be too slow or resource intensive,
+in other cases it is recommended to use [consul_sd_configs](#consul_sd_configs).
+
+Configuration example:
+
+```yaml
+scrape_configs:
+- job_name: consulagent
+  consulagent_sd_configs:
+
+    # server is an optional Consul Agent to connect to. By default, localhost:8500 is used
+  - server: "localhost:8500"
+
+    # token is an optional Consul API token.
+    # If the token isn't specified, then it is read from a file pointed by CONSUL_HTTP_TOKEN_FILE
+    # environment var or from the CONSUL_HTTP_TOKEN environment var.
+    # token: "..."
+
+    # datacenter is an optional Consul API datacenter.
+    # If the datacenter isn't specified, then it is read from Consul server.
+    # See https://www.consul.io/api-docs/agent#read-configuration
+    # datacenter: "..."
+
+    # namespace is an optional Consul namespace.
+    # See https://developer.hashicorp.com/consul/docs/enterprise/namespaces
+    # If the namespace isn't specified, then it is read from CONSUL_NAMESPACE environment var.
+    # namespace: "..."
+
+    # scheme is an optional scheme (http or https) to use for connecting to Consul server.
+    # By default, http scheme is used.
+    # scheme: "..."
+
+    # services is an optional list of services for which targets are retrieved.
+    # If omitted, all services are scraped.
+    # See https://www.consul.io/api-docs/catalog#list-nodes-for-service .
+    # services: ["...", "..."]
+
+    # tag_separator is an optional string by which Consul tags are joined into the __meta_consul_tags label.
+    # By default, "," is used as a tag separator.
+    # Individual tags are also available via __meta_consul_tag_<tagname> labels - see below.
+    # tag_separator: "..."
+
+    # filter is optional filter for service nodes discovery request.
+    # Replaces tags and node_metadata options.
+    # consul supports it since 1.14 version
+    # list of supported filters https://developer.hashicorp.com/consul/api-docs/catalog#filtering-1
+    # syntax examples https://developer.hashicorp.com/consul/api-docs/features/filtering
+    # filter: "..."
+
+    # Additional HTTP API client options can be specified here.
+    # See https://docs.victoriametrics.com/sd_configs.html#http-api-client-options
+```
+
+Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
+to `<service_or_node_addr>:<service_port>`, where `<service_or_node_addr>` is the service address. If the service address is empty,
+then the node address is used instead. The `<service_port>` is the service port.
+
+The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
+
+* `__meta_consulagent_address`: the address of the target
+* `__meta_consulagent_dc`: the datacenter name for the target
+* `__meta_consulagent_health`: the health status of the service
+* `__meta_consulagent_metadata_<key>`: each node metadata key value of the target
+* `__meta_consulagent_namespace`: namespace of the service - see [namespace docs](https://developer.hashicorp.com/consul/docs/enterprise/namespaces)
+* `__meta_consulagent_node`: the node name defined for the target
+* `__meta_consulagent_service_address`: the service address of the target
+* `__meta_consulagent_service_id`: the service ID of the target
+* `__meta_consulagent_service_metadata_<key>`: each service metadata key value of the target
+* `__meta_consulagent_service_port`: the service port of the target
+* `__meta_consulagent_service`: the name of the service the target belongs to
+* `__meta_consulagent_tagged_address_<key>`: each node tagged address key value of the target
+* `__meta_consulagent_tag_<tagname>`: the value for the given <tagname> tag of the target
+* `__meta_consulagent_tagpresent_<tagname>`: "true" for every <tagname> tag of the target
+* `__meta_consulagent_tags`: the list of tags of the target joined by the `tag_separator`
+
+The list of discovered Consul Agent targets is refreshed at the interval, which can be configured via `-promscrape.consulagentSDCheckInterval` command-line flag.
+
 ## digitalocean_sd_configs
 
 DigitalOcean SD configuration allows retrieving scrape targets from [DigitalOcean's Droplets API](https://docs.digitalocean.com/reference/api/api-reference/#tag/Droplets).
@@ -197,10 +298,10 @@ scrape_configs:
 - job_name: digitalocean
   digitalocean_sd_configs:
     # server is an optional DigitalOcean API server to query.
-    # By default https://api.digitalocean.com is used.
+    # By default, https://api.digitalocean.com is used.
   - server: "https://api.digitalocean.com"
 
-    # port is an optional port to scrape metrics from. By default port 80 is used.
+    # port is an optional port to scrape metrics from. By default, port 80 is used.
     # port: ...
 
     # Additional HTTP API client options can be specified here.
@@ -230,7 +331,7 @@ The list of discovered DigitalOcean targets is refreshed at the interval, which 
 
 ## dns_sd_configs
 
-DNS-based service discovery allows retrieving scrape tragets from the specified DNS domain names.
+DNS-based service discovery allows retrieving scrape targets from the specified DNS domain names.
 These specified names are periodically queried to discover a list of targets with the interval
 configured via `-promscrape.dnsSDCheckInterval` command-line flag.
 
@@ -245,7 +346,7 @@ scrape_configs:
 
     # type is an optional type of DNS query to perform.
     # Supported values are: SRV, A, AAAA or MX.
-    # By default SRV is used.
+    # By default, SRV is used.
     # type: ...
 
     # port is a port number to use if the query type is not SRV.
@@ -280,11 +381,11 @@ scrape_configs:
   - host: "..."
 
     # port is an optional port to scrape metrics from.
-    # By default port 80 is used.
+    # By default, port 80 is used.
     # port: ...
 
     # host_networking_host is an optional host to use if the container is in host networking mode.
-    # By default localhost is used.
+    # By default, localhost is used.
     # host_networking_host: "..."
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
@@ -340,7 +441,7 @@ scrape_configs:
 
     # port is an optional port to scrape metrics from, when `role` is nodes, and for discovered
     # tasks and services that don't have published ports.
-    # By default port 80 is used.
+    # By default, port 80 is used.
     # port: ...
 
     # filters is an optional filters to limit the discovery process to a subset of available resources.
@@ -364,7 +465,7 @@ One of the following roles can be configured to discover targets:
 
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is the endpoint's virtual IP, while the `<port>` is the published port of the service.
-  If the service has multiple pulbished ports, then multiple targets are generated - one per each port.
+  If the service has multiple published ports, then multiple targets are generated - one per each port.
   If the service has no published ports, then the `<port>` is set to the `port` value obtained from `dockerswarm_sd_configs`.
 
   Available meta labels for `role: services` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
@@ -373,7 +474,7 @@ One of the following roles can be configured to discover targets:
   * `__meta_dockerswarm_service_name`: the name of the service
   * `__meta_dockerswarm_service_mode`: the mode of the service
   * `__meta_dockerswarm_service_endpoint_port_name`: the name of the endpoint port, if available
-  * `__meta_dockerswarm_service_endpoint_port_publish_mode`: the publish mode of the endpoint port
+  * `__meta_dockerswarm_service_endpoint_port_publish_mode`: the publishing mode of the endpoint port
   * `__meta_dockerswarm_service_label_<labelname>`: each label of the service
   * `__meta_dockerswarm_service_task_container_hostname`: the container hostname of the target, if available
   * `__meta_dockerswarm_service_task_container_image`: the container image of the target
@@ -402,7 +503,7 @@ One of the following roles can be configured to discover targets:
   * `__meta_dockerswarm_task_desired_state`: the desired state of the task
   * `__meta_dockerswarm_task_slot`: the slot of the task
   * `__meta_dockerswarm_task_state`: the state of the task
-  * `__meta_dockerswarm_task_port_publish_mode`: the publish mode of the task port
+  * `__meta_dockerswarm_task_port_publish_mode`: the publishing mode of the task port
   * `__meta_dockerswarm_service_id`: the id of the service
   * `__meta_dockerswarm_service_name`: the name of the service
   * `__meta_dockerswarm_service_mode`: the mode of the service
@@ -462,30 +563,30 @@ scrape_configs:
 - job_name: ec2
   ec2_sd_configs:
     # region is an optional config for AWS region.
-    # By default the region from the instance metadata is used.
+    # By default, the region from the instance metadata is used.
   - region: "..."
 
     # endpoint is an optional custom AWS API endpoint to use.
-    # By default the standard endpoint for the given region is used.
+    # By default, the standard endpoint for the given region is used.
     # endpoint: "..."
 
     # sts_endpoint is an optional custom STS API endpoint to use.
-    # By default the standard endpoint for the given region is used.
+    # By default, the standard endpoint for the given region is used.
     # sts_endpoint: "..."
 
     # access_key is an optional AWS API access key.
-    # By default the access key is loaded from AWS_ACCESS_KEY_ID environment var.
+    # By default, the access key is loaded from AWS_ACCESS_KEY_ID environment var.
     # access_key: "..."
 
     # secret_key is an optional AWS API secret key.
-    # By default the secret key is loaded from AWS_SECRET_ACCESS_KEY environment var.
+    # By default, the secret key is loaded from AWS_SECRET_ACCESS_KEY environment var.
     # secret_key: "..."
 
     # role_arn is an optional AWS Role ARN, an alternative to using AWS API keys.
     # role_arn: "..."
 
     # port is an optional port to scrape metrics from.
-    # By default port 80 is used.
+    # By default, port 80 is used.
     # port: ...
 
     # filters is an optional filters for the instance list.
@@ -507,7 +608,7 @@ scrape_configs:
 
 Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
 to `<instance_ip>:<port>`, where `<instance_ip>` is the private IP of the instance, while the `<port>` is set to the `port` value
-obtaine from `ec2_sd_configs`.
+obtain from `ec2_sd_configs`.
 
 The following meta labels are available on discovered targets during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
@@ -545,7 +646,7 @@ scrape_configs:
 - job_name: eureka
   eureka_sd_configs:
     # server is an optional URL to connect to the Eureka server.
-    # By default The http://localhost:8080/eureka/v2 is used.
+    # By default, the http://localhost:8080/eureka/v2 is used.
   - server: "..."
 
     # Additional HTTP API client options can be specified here.
@@ -645,11 +746,11 @@ scrape_configs:
 - job_name: gce
   gce_sd_configs:
     # project is an optional GCE project where targets must be discovered.
-    # By default the local project is used.
+    # By default, the local project is used.
   - project: "..."
 
     # zone is an optional zone where targets must be discovered.
-    # By default the local zone is used.
+    # By default, the local zone is used.
     # If zone equals to '*', then targets in all the zones for the given project are discovered.
     # The zone may contain a list of zones: zone["us-east1-a", "us-east1-b"]
     # zone: "..."
@@ -659,11 +760,11 @@ scrape_configs:
     # filter: "..."
 
     # port is an optional port to scrape metrics from.
-    # By default port 80 is used.
+    # By default, port 80 is used.
     # port: ...
 
     # tag_separator is an optional separator for tags in `__meta_gce_tags` label.
-    # By default "," is used.
+    # By default, "," is used.
     # tag_separator: "..."
 ```
 
@@ -757,7 +858,7 @@ scrape_configs:
   - role: "..."
 
     # api_server is an optional url for Kubernetes API server.
-    # By default it is read from /var/run/secrets/kubernetes.io/serviceaccount/
+    # By default, it is read from /var/run/secrets/kubernetes.io/serviceaccount/
     # api_server: "..."
 
     # kubeconfig_file is an optional path to a kubeconfig file.
@@ -765,7 +866,7 @@ scrape_configs:
     # kubeconfig_file: "..."
 
     # namespaces is an optional namespace for service discovery.
-    # By default all namespaces are used.
+    # By default, all namespaces are used.
     # If own_namespace is set to true, then the current namespace is used for service discovery.
     # namespaces:
     #   own_namespace: <boolean>
@@ -801,7 +902,7 @@ One of the following `role` types can be configured to discover targets:
   Each discovered target has an [`__address__`](https://docs.victoriametrics.com/relabeling.html#how-to-modify-scrape-urls-in-targets) label set
   to `<ip>:<port>`, where `<ip>` is to the first existing address of the Kubernetes node object in the address type order
   of `NodeInternalIP`, `NodeExternalIP`, `NodeLegacyHostIP` and `NodeHostName`,
-  while `<port>` is the kubelet's port on the given node.
+  while `<port>` is the kubelet port on the given node.
 
   Available meta labels for `role: node` during [relabeling](https://docs.victoriametrics.com/vmagent.html#relabeling):
 
@@ -955,7 +1056,7 @@ One of the following `role` types can be configured to discover targets:
   * `__meta_kubernetes_ingress_scheme`: Protocol scheme of ingress, https if TLS config is set. Defaults to http.
   * `__meta_kubernetes_ingress_path`: Path from ingress spec. Defaults to `/`.
 
-The list of discovered Kuberntes targets is refreshed at the interval, which can be configured via `-promscrape.kubernetesSDCheckInterval` command-line flag.
+The list of discovered Kubernetes targets is refreshed at the interval, which can be configured via `-promscrape.kubernetesSDCheckInterval` command-line flag.
 
 ## kuma_sd_configs
 
@@ -1019,13 +1120,13 @@ scrape_configs:
     # region: "..."
 
     # tag_separator is an optional string by which Nomad tags are joined into the __meta_nomad_tags label.
-    # By default "," is used as a tag separator.
+    # By default, "," is used as a tag separator.
     # Individual tags are also available via __meta_nomad_tag_<tagname> labels - see below.
     # tag_separator: "..."
 
     # allow_stale is an optional config, which allows stale Nomad results.
     # See https://developer.hashicorp.com/nomad/api-docs#consistency-modes
-    # Reduces load on Nomad if set to true. By default is is set to true.
+    # Reduces load on Nomad if set to true. By default, it is set to true.
     # allow_stale: ...
 
     # Additional HTTP API client options can be specified here.
@@ -1074,39 +1175,39 @@ scrape_configs:
     region: "..."
 
     # identity_endpoint is an optional HTTP Identity API endpoint.
-    # By default it is read from OS_AUTH_URL environment variable.
+    # By default, it is read from OS_AUTH_URL environment variable.
     # identity_endpoint: "..."
 
     # username is an optional username to query Identity API.
-    # By default it is read from OS_USERNAME environment variable.
+    # By default, it is read from OS_USERNAME environment variable.
     # username: "..."
 
     # userid is an optional userid to query Identity API.
-    # By default it is read from OS_USERID environment variable.
+    # By default, it is read from OS_USERID environment variable.
     # userid: "..."
 
     # password is an optional password to query Identity API.
-    # By default it is read from OS_PASSWORD environment variable.
+    # By default, it is read from OS_PASSWORD environment variable.
     # password: "..."
 
     # At most one of domain_id and domain_name must be provided.
-    # By default they are read from OS_DOMAIN_NAME and OS_DOMAIN_ID environment variables.
+    # By default, they are read from OS_DOMAIN_NAME and OS_DOMAIN_ID environment variables.
     # domain_name: "..."
     # domain_id: "..."
 
     # project_name and project_id are optional project name and project id.
-    # By default is is read from OS_PROJECT_NAME and OS_PROJECT_ID environment variables.
-    # If these vars are emtpy, then the options are read
+    # By default, it is read from OS_PROJECT_NAME and OS_PROJECT_ID environment variables.
+    # If these vars are empty, then the options are read
     # from OS_TENANT_NAME and OS_TENANT_ID environment variables.
     # project_name: "..."
     # project_id: "..."
 
-    # By default these fields are read from OS_APPLICATION_CREDENTIAL_NAME
+    # By default, these fields are read from OS_APPLICATION_CREDENTIAL_NAME
     # and OS_APPLICATION_CREDENTIAL_ID environment variables
     # application_credential_name: "..."
     # application_credential_id: "..."
 
-    # By default this field is read from OS_APPLICATION_CREDENTIAL_SECRET
+    # By default, this field is read from OS_APPLICATION_CREDENTIAL_SECRET
     # application_credential_secret: "..."
 
     # all_tenants can be set to true if all instances in all projects must be discovered.
@@ -1119,7 +1220,7 @@ scrape_configs:
 
     # availability is the availability of the endpoint to connect to.
     # Must be one of public, admin or internal.
-    # By default it is set to public
+    # By default, it is set to public
     # availability: "..."
 
     # tls_config is an optional tls config.
@@ -1180,7 +1281,7 @@ scrape_configs:
   static_configs:
 
     # targets must contain a list of `host:port` targets to scrape.
-    # The `http://host:port/metrics` endpoint is scraped per each configured traget then.
+    # The `http://host:port/metrics` endpoint is scraped per each configured target then.
     # The `http` scheme can be changed to `https` by setting it via `scheme` field at `scrape_config` level.
     # The `/metrics` path can be changed to arbitrary path via `metrics_path` field at `scrape_config` level.
     # See https://docs.victoriametrics.com/sd_configs.html#scrape_configs .
@@ -1286,7 +1387,7 @@ scrape_configs:
 - job_name: "..."
 
   # scrape_interval is an optional interval to scrape targets.
-  # By default the scrape_interval sepcified in `global` section is used.
+  # By default, the scrape_interval specified in `global` section is used.
   # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file
   # If `global` section doesn't contain the `scrape_interval` option,
   # then one minute interval is used.
@@ -1299,7 +1400,7 @@ scrape_configs:
   # scrape_interval: <duration>
 
   # scrape_timeout is an optional timeout when scraping the targets.
-  # By default the scrape_timeout specified in `global` section is used.
+  # By default, the scrape_timeout specified in `global` section is used.
   # See https://prometheus.io/docs/prometheus/latest/configuration/configuration/#configuration-file
   # If `global` section doesn't contain the `scrape_timeout` option,
   # then 10 seconds interval is used.
@@ -1313,12 +1414,12 @@ scrape_configs:
   # scrape_timeout: <duration>
 
   # metrics_path is the path to fetch metrics from targets.
-  # By default metrics are fetched from "/metrics" path.
+  # By default, metrics are fetched from "/metrics" path.
   # metrics_path: "..."
 
   # honor_labels controls how to handle conflicts between labels that are
   # already present in scraped data and labels that would be attached
-  # server-side ("job" and "instance" labels, manually configured target
+  # server-side "job" and "instance" labels, manually configured target
   # labels, labels generated by service discovery, etc.
   #
   # If honor_labels is set to "true", label conflicts are resolved by keeping label
@@ -1333,7 +1434,7 @@ scrape_configs:
   # scraping the Pushgateway, where all labels specified in the target should be
   # preserved.
   #
-  # By default honor_labels is set to false for security and consistency reasons.
+  # By default, honor_labels is set to false for security and consistency reasons.
   # honor_labels: <boolean>
 
   # honor_timestamps controls whether to respect the timestamps present in scraped data.
@@ -1344,12 +1445,12 @@ scrape_configs:
   # If honor_timestamps is set to "false", the timestamps of the metrics exposed
   # by the target will be ignored.
   #
-  # By default honor_timestamps is set to true.
+  # By default, honor_timestamps is set to true.
   # honor_timestamps: <boolean>
 
   # scheme configures the protocol scheme used for requests.
   # Supported values: http and https.
-  # By default http is used.
+  # By default, http is used.
   # scheme: "..."
 
   # Optional query arg parameters to add to scrape url.
@@ -1374,23 +1475,23 @@ scrape_configs:
   # of scraped samples that will be accepted.
   # If more than this number of samples are present after metric relabeling
   # the entire scrape will be treated as failed.
-  # By default the limit is disabled.
+  # By default, the limit is disabled.
   # sample_limit: <int>
 
   # disable_compression allows disabling HTTP compression for responses received from scrape targets.
-  # By default scrape targets are queried with `Accept-Encoding: gzip` http request header,
+  # By default, scrape targets are queried with `Accept-Encoding: gzip` http request header,
   # so targets could send compressed responses in order to save network bandwidth.
   # See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements
   # disable_compression: <boolean>
 
   # disable_keepalive allows disabling HTTP keep-alive when scraping targets.
-  # By default HTTP keep-alive is enabled, so TCP connections to scrape targets
+  # By default, HTTP keep-alive is enabled, so TCP connections to scrape targets
   # could be re-used.
   # See https://docs.victoriametrics.com/vmagent.html#scrape_config-enhancements
   # disable_keepalive: <boolean>
 
   # stream_parse allows enabling stream parsing mode when scraping targets.
-  # By default stream parsing mode is disabled for targets which return up to a few thosands samples.
+  # By default, stream parsing mode is disabled for targets which return up to a few thousands samples.
   # See https://docs.victoriametrics.com/vmagent.html#stream-parsing-mode .
   # The stream_parse can be set on a per-target basis by specifying `__stream_parse__`
   # label during target relabeling phase.
@@ -1506,4 +1607,8 @@ and in the majority of [supported service discovery configs](#supported-service-
     # proxy_headers:
     # - "HeaderName1: HeaderValue"
     # - "HeaderNameN: HeaderValueN"
+
+    # follow_redirects can be used for disallowing HTTP redirects.
+    # By default HTTP redirects are followed.
+    # follow_redirects: false
 ```

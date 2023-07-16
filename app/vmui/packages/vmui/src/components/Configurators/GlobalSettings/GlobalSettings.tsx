@@ -15,6 +15,8 @@ import Timezones from "./Timezones/Timezones";
 import { useTimeDispatch, useTimeState } from "../../../state/time/TimeStateContext";
 import ThemeControl from "../ThemeControl/ThemeControl";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useBoolean from "../../../hooks/useBoolean";
+import { getTenantIdFromUrl } from "../../../utils/tenants";
 
 const title = "Settings";
 
@@ -40,15 +42,14 @@ const GlobalSettings: FC = () => {
     setTimezone(stateTimezone);
   };
 
-  const [open, setOpen] = useState(false);
-  const handleOpen = () => setOpen(true);
-  const handleClose = () => {
-    setOpen(false);
-    setDefaultsValues();
-  };
+  const {
+    value: open,
+    setTrue: handleOpen,
+    setFalse: handleClose,
+  } = useBoolean(false);
 
-  const handleCloseForce = () => {
-    setOpen(false);
+  const handleCloseAndReset = () => {
+    handleClose();
     setDefaultsValues();
   };
 
@@ -57,10 +58,14 @@ const GlobalSettings: FC = () => {
   };
 
   const handlerApply = () => {
+    const tenantIdFromUrl = getTenantIdFromUrl(serverUrl);
+    if (tenantIdFromUrl !== "") {
+      dispatch({ type: "SET_TENANT_ID", payload: tenantIdFromUrl });
+    }
     dispatch({ type: "SET_SERVER", payload: serverUrl });
     timeDispatch({ type: "SET_TIMEZONE", payload: timezone });
     customPanelDispatch({ type: "SET_SERIES_LIMITS", payload: limits });
-    setOpen(false);
+    handleClose();
   };
 
   useEffect(() => {
@@ -97,7 +102,7 @@ const GlobalSettings: FC = () => {
     {open && (
       <Modal
         title={title}
-        onClose={handleClose}
+        onClose={handleCloseAndReset}
       >
         <div
           className={classNames({
@@ -140,7 +145,7 @@ const GlobalSettings: FC = () => {
             <Button
               color="error"
               variant="outlined"
-              onClick={handleCloseForce}
+              onClick={handleCloseAndReset}
             >
               Cancel
             </Button>

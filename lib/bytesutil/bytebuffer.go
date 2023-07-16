@@ -1,6 +1,7 @@
 package bytesutil
 
 import (
+	"fmt"
 	"io"
 	"sync"
 
@@ -23,6 +24,11 @@ var (
 type ByteBuffer struct {
 	// B is the underlying byte slice.
 	B []byte
+}
+
+// Path returns an unique id for bb.
+func (bb *ByteBuffer) Path() string {
+	return fmt.Sprintf("ByteBuffer/%p/mem", bb)
 }
 
 // Reset resets bb.
@@ -90,6 +96,11 @@ type reader struct {
 
 	// readOffset is the offset in bb.B for read.
 	readOffset int
+}
+
+// Path returns an unique id for the underlying ByteBuffer.
+func (r *reader) Path() string {
+	return r.bb.Path()
 }
 
 // Read reads up to len(p) bytes from bb.

@@ -168,6 +168,8 @@ type partWrapper struct {
 	refCount uint32
 
 	// The flag, which is set when the part must be deleted after refCount reaches zero.
+	// This field should be updated only after partWrapper
+	// was removed from the list of active parts.
 	mustBeDeleted uint32
 
 	// The part itself.
@@ -212,20 +214,16 @@ func (pw *partWrapper) decRef() {
 	}
 }
 
-// createPartition creates new partition for the given timestamp and the given paths
+// mustCreatePartition creates new partition for the given timestamp and the given paths
 // to small and big partitions.
-func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) (*partition, error) {
+func mustCreatePartition(timestamp int64, smallPartitionsPath, bigPartitionsPath string, s *Storage) *partition {
 	name := timestampToPartitionName(timestamp)
 	smallPartsPath := filepath.Join(filepath.Clean(smallPartitionsPath), name)
 	bigPartsPath := filepath.Join(filepath.Clean(bigPartitionsPath), name)
 	logger.Infof("creating a partition %q with smallPartsPath=%q, bigPartsPath=%q", name, smallPartsPath, bigPartsPath)
 
-	if err := fs.MkdirAllFailIfExist(smallPartsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for small parts %q: %w", smallPartsPath, err)
-	}
-	if err := fs.MkdirAllFailIfExist(bigPartsPath); err != nil {
-		return nil, fmt.Errorf("cannot create directory for big parts %q: %w", bigPartsPath, err)
-	}
+	fs.MustMkdirFailIfExist(smallPartsPath)
+	fs.MustMkdirFailIfExist(bigPartsPath)
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.tr.fromPartitionTimestamp(timestamp)
@@ -233,7 +231,7 @@ func createPartition(timestamp int64, smallPartitionsPath, bigPartitionsPath str
 
 	logger.Infof("partition %q has been created", name)
 
-	return pt, nil
+	return pt
 }
 
 func (pt *partition) startBackgroundWorkers() {
@@ -254,40 +252,41 @@ func (pt *partition) Drop() {
 	logger.Infof("partition %q has been dropped", pt.name)
 }
 
-// openPartition opens the existing partition from the given paths.
-func openPartition(smallPartsPath, bigPartsPath string, s *Storage) (*partition, error) {
+// mustOpenPartition opens the existing partition from the given paths.
+func mustOpenPartition(smallPartsPath, bigPartsPath string, s *Storage) *partition {
 	smallPartsPath = filepath.Clean(smallPartsPath)
 	bigPartsPath = filepath.Clean(bigPartsPath)
 
 	name := filepath.Base(smallPartsPath)
 	if !strings.HasSuffix(bigPartsPath, name) {
-		return nil, fmt.Errorf("patititon name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
+		logger.Panicf("FATAL: patititon name in bigPartsPath %q doesn't match smallPartsPath %q; want %q", bigPartsPath, smallPartsPath, name)
 	}
 
 	partNamesSmall, partNamesBig := mustReadPartNames(smallPartsPath, bigPartsPath)
 
-	smallParts, err := openParts(smallPartsPath, partNamesSmall)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open small parts from %q: %w", smallPartsPath, err)
-	}
-	bigParts, err := openParts(bigPartsPath, partNamesBig)
-	if err != nil {
-		mustCloseParts(smallParts)
-		return nil, fmt.Errorf("cannot open big parts from %q: %w", bigPartsPath, err)
+	smallParts := mustOpenParts(smallPartsPath, partNamesSmall)
+	bigParts := mustOpenParts(bigPartsPath, partNamesBig)
+
+	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
+	if !fs.IsPathExist(partNamesPath) {
+		// Create parts.json file if it doesn't exist yet.
+		// This should protect from possible carshloops just after the migration from versions below v1.90.0
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4336
+		mustWritePartNames(smallParts, bigParts, smallPartsPath)
 	}
 
 	pt := newPartition(name, smallPartsPath, bigPartsPath, s)
 	pt.smallParts = smallParts
 	pt.bigParts = bigParts
 	if err := pt.tr.fromPartitionName(name); err != nil {
-		return nil, fmt.Errorf("cannot obtain partition time range from smallPartsPath %q: %w", smallPartsPath, err)
+		logger.Panicf("FATAL: cannot obtain partition time range from smallPartsPath %q: %s", smallPartsPath, err)
 	}
 	pt.startBackgroundWorkers()
 
 	// Wake up a single background merger, so it could start merging parts if needed.
 	pt.notifyBackgroundMergers()
 
-	return pt, nil
+	return pt
 }
 
 func newPartition(name, smallPartsPath, bigPartsPath string, s *Storage) *partition {
@@ -435,19 +434,23 @@ func (pt *partition) AddRows(rows []rawRow) {
 		return
 	}
 
-	// Validate all the rows.
-	for i := range rows {
-		r := &rows[i]
-		if !pt.HasTimestamp(r.Timestamp) {
-			logger.Panicf("BUG: row %+v has Timestamp outside partition %q range %+v", r, pt.smallPartsPath, &pt.tr)
-		}
-		if err := encoding.CheckPrecisionBits(r.PrecisionBits); err != nil {
-			logger.Panicf("BUG: row %+v has invalid PrecisionBits: %s", r, err)
+	if isDebug {
+		// Validate all the rows.
+		for i := range rows {
+			r := &rows[i]
+			if !pt.HasTimestamp(r.Timestamp) {
+				logger.Panicf("BUG: row %+v has Timestamp outside partition %q range %+v", r, pt.smallPartsPath, &pt.tr)
+			}
+			if err := encoding.CheckPrecisionBits(r.PrecisionBits); err != nil {
+				logger.Panicf("BUG: row %+v has invalid PrecisionBits: %s", r, err)
+			}
 		}
 	}
 
 	pt.rawRows.addRows(pt, rows)
 }
+
+var isDebug = false
 
 type rawRowsShards struct {
 	shardIdx uint32
@@ -727,10 +730,7 @@ func (pt *partition) createInmemoryPart(rows []rawRow) *partWrapper {
 }
 
 func newPartWrapperFromInmemoryPart(mp *inmemoryPart, flushToDiskDeadline time.Time) *partWrapper {
-	p, err := mp.NewPart()
-	if err != nil {
-		logger.Panicf("BUG: cannot create part from %q: %s", &mp.ph, err)
-	}
+	p := mp.NewPart()
 	pw := &partWrapper{
 		p:                   p,
 		mp:                  mp,
@@ -782,15 +782,10 @@ func incRefForParts(pws []*partWrapper) {
 func (pt *partition) MustClose() {
 	close(pt.stopCh)
 
-	logger.Infof("waiting for service workers to stop on %q...", pt.smallPartsPath)
-	startTime := time.Now()
+	// Waiting for service workers to stop
 	pt.wg.Wait()
-	logger.Infof("service workers stopped in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
-	logger.Infof("flushing inmemory parts to files on %q...", pt.smallPartsPath)
-	startTime = time.Now()
 	pt.flushInmemoryRows()
-	logger.Infof("inmemory parts have been flushed to files in %.3f seconds on %q", time.Since(startTime).Seconds(), pt.smallPartsPath)
 
 	// Remove references from inmemoryParts, smallParts and bigParts, so they may be eventually closed
 	// after all the searches are done.
@@ -1000,27 +995,14 @@ func hasActiveMerges(pws []*partWrapper) bool {
 	return false
 }
 
-var mergeWorkersLimitCh = make(chan struct{}, adjustMergeWorkersLimit(getDefaultMergeConcurrency(16)))
-
-var bigMergeWorkersLimitCh = make(chan struct{}, getDefaultMergeConcurrency(4))
+var mergeWorkersLimitCh = make(chan struct{}, getDefaultMergeConcurrency(16))
 
 func getDefaultMergeConcurrency(max int) int {
 	v := (cgroup.AvailableCPUs() + 1) / 2
 	if v > max {
 		v = max
 	}
-	return v
-}
-
-// SetBigMergeWorkersCount sets the maximum number of concurrent mergers for big blocks.
-//
-// The function must be called before opening or creating any storage.
-func SetBigMergeWorkersCount(n int) {
-	if n <= 0 {
-		// Do nothing
-		return
-	}
-	bigMergeWorkersLimitCh = make(chan struct{}, n)
+	return adjustMergeWorkersLimit(v)
 }
 
 // SetMergeWorkersCount sets the maximum number of concurrent mergers for parts.
@@ -1036,20 +1018,18 @@ func SetMergeWorkersCount(n int) {
 }
 
 func adjustMergeWorkersLimit(n int) int {
-	if n < 2 {
-		// Allow at least 2 merge workers on systems with a single CPU core
+	if n < 4 {
+		// Allow at least 4 merge workers on systems with small CPUs count
 		// in order to guarantee that background merges can be continued
-		// when a single worker is busy with the long merge of big parts.
-		return 2
+		// when multiple workers are busy with big merges.
+		n = 4
 	}
 	return n
 }
 
 func (pt *partition) startMergeWorkers() {
-	// Start a merge worker per available CPU core.
 	// The actual number of concurrent merges is limited inside mergeWorker() below.
-	workersCount := cgroup.AvailableCPUs()
-	for i := 0; i < workersCount; i++ {
+	for i := 0; i < cap(mergeWorkersLimitCh); i++ {
 		pt.wg.Add(1)
 		go func() {
 			pt.mergeWorker()
@@ -1143,7 +1123,8 @@ func (pt *partition) getMaxSmallPartSize() uint64 {
 }
 
 func (pt *partition) getMaxBigPartSize() uint64 {
-	return getMaxOutBytes(pt.bigPartsPath, cap(bigMergeWorkersLimitCh))
+	workersCount := getDefaultMergeConcurrency(4)
+	return getMaxOutBytes(pt.bigPartsPath, workersCount)
 }
 
 func getMaxOutBytes(path string, workersCount int) uint64 {
@@ -1268,7 +1249,6 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 		// Nothing to merge.
 		return errNothingToMerge
 	}
-	defer pt.releasePartsToMerge(pws)
 
 	startTime := time.Now()
 
@@ -1277,35 +1257,17 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	mergeIdx := pt.nextMergeIdx()
 	dstPartPath := pt.getDstPartPath(dstPartType, mergeIdx)
 
-	if dstPartType == partBig {
-		bigMergeWorkersLimitCh <- struct{}{}
-		defer func() {
-			<-bigMergeWorkersLimitCh
-		}()
-	}
-
 	if !isDedupEnabled() && isFinal && len(pws) == 1 && pws[0].mp != nil {
 		// Fast path: flush a single in-memory part to disk.
 		mp := pws[0].mp
-		if err := mp.StoreToDisk(dstPartPath); err != nil {
-			logger.Panicf("FATAL: cannot store in-memory part to %s: %s", dstPartPath, err)
-		}
+		mp.MustStoreToDisk(dstPartPath)
 		pwNew := pt.openCreatedPart(&mp.ph, pws, nil, dstPartPath)
 		pt.swapSrcWithDstParts(pws, pwNew, dstPartType)
 		return nil
 	}
 
 	// Prepare BlockStreamReaders for source parts.
-	bsrs, err := openBlockStreamReaders(pws)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open source parts for merging: %s", err)
-	}
-	closeBlockStreamReaders := func() {
-		for _, bsr := range bsrs {
-			putBlockStreamReader(bsr)
-		}
-		bsrs = nil
-	}
+	bsrs := mustOpenBlockStreamReaders(pws)
 
 	// Prepare BlockStreamWriter for destination part.
 	srcSize := uint64(0)
@@ -1322,27 +1284,31 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 	var mpNew *inmemoryPart
 	if dstPartType == partInmemory {
 		mpNew = getInmemoryPart()
-		bsw.InitFromInmemoryPart(mpNew, compressLevel)
+		bsw.MustInitFromInmemoryPart(mpNew, compressLevel)
 	} else {
 		if dstPartPath == "" {
 			logger.Panicf("BUG: dstPartPath must be non-empty")
 		}
 		nocache := dstPartType == partBig
-		if err := bsw.InitFromFilePart(dstPartPath, nocache, compressLevel); err != nil {
-			logger.Panicf("FATAL: cannot create destination part at %s: %s", dstPartPath, err)
-		}
+		bsw.MustInitFromFilePart(dstPartPath, nocache, compressLevel)
 	}
 
 	// Merge source parts to destination part.
 	ph, err := pt.mergePartsInternal(dstPartPath, bsw, bsrs, dstPartType, stopCh)
 	putBlockStreamWriter(bsw)
-	closeBlockStreamReaders()
+	for _, bsr := range bsrs {
+		putBlockStreamReader(bsr)
+	}
 	if err != nil {
+		pt.releasePartsToMerge(pws)
 		return err
 	}
 	if mpNew != nil {
 		// Update partHeader for destination inmemory part after the merge.
 		mpNew.ph = *ph
+	} else {
+		// Make sure the created part directory listing is synced.
+		fs.MustSyncPath(dstPartPath)
 	}
 
 	// Atomically swap the source parts with the newly created part.
@@ -1375,9 +1341,9 @@ func (pt *partition) mergeParts(pws []*partWrapper, stopCh <-chan struct{}, isFi
 }
 
 func getFlushToDiskDeadline(pws []*partWrapper) time.Time {
-	d := pws[0].flushToDiskDeadline
-	for _, pw := range pws[1:] {
-		if pw.flushToDiskDeadline.Before(d) {
+	d := time.Now().Add(dataFlushInterval)
+	for _, pw := range pws {
+		if pw.mp != nil && pw.flushToDiskDeadline.Before(d) {
 			d = pw.flushToDiskDeadline
 		}
 	}
@@ -1427,23 +1393,18 @@ func (pt *partition) getDstPartPath(dstPartType partType, mergeIdx uint64) strin
 	return dstPartPath
 }
 
-func openBlockStreamReaders(pws []*partWrapper) ([]*blockStreamReader, error) {
+func mustOpenBlockStreamReaders(pws []*partWrapper) []*blockStreamReader {
 	bsrs := make([]*blockStreamReader, 0, len(pws))
 	for _, pw := range pws {
 		bsr := getBlockStreamReader()
 		if pw.mp != nil {
-			bsr.InitFromInmemoryPart(pw.mp)
+			bsr.MustInitFromInmemoryPart(pw.mp)
 		} else {
-			if err := bsr.InitFromFilePart(pw.p.path); err != nil {
-				for _, bsr := range bsrs {
-					putBlockStreamReader(bsr)
-				}
-				return nil, fmt.Errorf("cannot open source part for merging: %w", err)
-			}
+			bsr.MustInitFromFilePart(pw.p.path)
 		}
 		bsrs = append(bsrs, bsr)
 	}
-	return bsrs, nil
+	return bsrs
 }
 
 func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWriter, bsrs []*blockStreamReader, dstPartType partType, stopCh <-chan struct{}) (*partHeader, error) {
@@ -1481,9 +1442,7 @@ func (pt *partition) mergePartsInternal(dstPartPath string, bsw *blockStreamWrit
 	}
 	if dstPartPath != "" {
 		ph.MinDedupInterval = GetDedupInterval()
-		if err := ph.WriteMetadata(dstPartPath); err != nil {
-			logger.Panicf("FATAL: cannot store metadata to %s: %s", dstPartPath, err)
-		}
+		ph.MustWriteMetadata(dstPartPath)
 	}
 	return &ph, nil
 }
@@ -1504,10 +1463,7 @@ func (pt *partition) openCreatedPart(ph *partHeader, pws []*partWrapper, mpNew *
 		return pwNew
 	}
 	// Open the created part from disk.
-	pNew, err := openFilePart(dstPartPath)
-	if err != nil {
-		logger.Panicf("FATAL: cannot open merged part %s: %s", dstPartPath, err)
-	}
+	pNew := mustOpenFilePart(dstPartPath)
 	pwNew := &partWrapper{
 		p:        pNew,
 		refCount: 1,
@@ -1812,11 +1768,9 @@ func getPartsSize(pws []*partWrapper) uint64 {
 	return n
 }
 
-func openParts(path string, partNames []string) ([]*partWrapper, error) {
+func mustOpenParts(path string, partNames []string) []*partWrapper {
 	// The path can be missing after restoring from backup, so create it if needed.
-	if err := fs.MkdirAllIfNotExist(path); err != nil {
-		return nil, err
-	}
+	fs.MustMkdirIfNotExist(path)
 	fs.MustRemoveTemporaryDirs(path)
 
 	// Remove txn and tmp directories, which may be left after the upgrade
@@ -1826,10 +1780,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 
 	// Remove dirs missing in partNames. These dirs may be left after unclean shutdown
 	// or after the update from versions prior to v1.90.0.
-	des, err := os.ReadDir(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read partition dir: %w", err)
-	}
+	des := fs.MustReadDir(path)
 	m := make(map[string]struct{}, len(partNames))
 	for _, partName := range partNames {
 		m[partName] = struct{}{}
@@ -1851,11 +1802,7 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 	var pws []*partWrapper
 	for _, partName := range partNames {
 		partPath := filepath.Join(path, partName)
-		p, err := openFilePart(partPath)
-		if err != nil {
-			mustCloseParts(pws)
-			return nil, fmt.Errorf("cannot open part %q: %w", partPath, err)
-		}
+		p := mustOpenFilePart(partPath)
 		pw := &partWrapper{
 			p:        p,
 			refCount: 1,
@@ -1863,22 +1810,13 @@ func openParts(path string, partNames []string) ([]*partWrapper, error) {
 		pws = append(pws, pw)
 	}
 
-	return pws, nil
+	return pws
 }
 
-func mustCloseParts(pws []*partWrapper) {
-	for _, pw := range pws {
-		if pw.refCount != 1 {
-			logger.Panicf("BUG: unexpected refCount when closing part %q: %d; want 1", &pw.p.ph, pw.refCount)
-		}
-		pw.p.MustClose()
-	}
-}
-
-// CreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
+// MustCreateSnapshotAt creates pt snapshot at the given smallPath and bigPath dirs.
 //
 // Snapshot is created using linux hard links, so it is usually created very quickly.
-func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
+func (pt *partition) MustCreateSnapshotAt(smallPath, bigPath string) {
 	logger.Infof("creating partition snapshot of %q and %q...", pt.smallPartsPath, pt.bigPartsPath)
 	startTime := time.Now()
 
@@ -1897,39 +1835,26 @@ func (pt *partition) CreateSnapshotAt(smallPath, bigPath string) error {
 		pt.PutParts(pwsBig)
 	}()
 
-	if err := fs.MkdirAllFailIfExist(smallPath); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %w", smallPath, err)
-	}
-	if err := fs.MkdirAllFailIfExist(bigPath); err != nil {
-		return fmt.Errorf("cannot create snapshot dir %q: %w", bigPath, err)
-	}
+	fs.MustMkdirFailIfExist(smallPath)
+	fs.MustMkdirFailIfExist(bigPath)
 
 	// Create a file with part names at smallPath
 	mustWritePartNames(pwsSmall, pwsBig, smallPath)
 
-	if err := pt.createSnapshot(pt.smallPartsPath, smallPath, pwsSmall); err != nil {
-		return fmt.Errorf("cannot create snapshot for %q: %w", pt.smallPartsPath, err)
-	}
-	if err := pt.createSnapshot(pt.bigPartsPath, bigPath, pwsBig); err != nil {
-		return fmt.Errorf("cannot create snapshot for %q: %w", pt.bigPartsPath, err)
-	}
+	pt.mustCreateSnapshot(pt.smallPartsPath, smallPath, pwsSmall)
+	pt.mustCreateSnapshot(pt.bigPartsPath, bigPath, pwsBig)
 
 	logger.Infof("created partition snapshot of %q and %q at %q and %q in %.3f seconds",
 		pt.smallPartsPath, pt.bigPartsPath, smallPath, bigPath, time.Since(startTime).Seconds())
-	return nil
 }
 
-// createSnapshot creates a snapshot from srcDir to dstDir.
-//
-// The caller is responsible for deleting dstDir if createSnapshot() returns error.
-func (pt *partition) createSnapshot(srcDir, dstDir string, pws []*partWrapper) error {
+// mustCreateSnapshot creates a snapshot from srcDir to dstDir.
+func (pt *partition) mustCreateSnapshot(srcDir, dstDir string, pws []*partWrapper) {
 	// Make hardlinks for pws at dstDir
 	for _, pw := range pws {
 		srcPartPath := pw.p.path
 		dstPartPath := filepath.Join(dstDir, filepath.Base(srcPartPath))
-		if err := fs.HardLinkFiles(srcPartPath, dstPartPath); err != nil {
-			return fmt.Errorf("cannot create hard links from %q to %q: %w", srcPartPath, dstPartPath, err)
-		}
+		fs.MustHardLinkFiles(srcPartPath, dstPartPath)
 	}
 
 	// Copy the appliedRetentionFilename to dstDir.
@@ -1939,16 +1864,12 @@ func (pt *partition) createSnapshot(srcDir, dstDir string, pws []*partWrapper) e
 	srcPath := filepath.Join(srcDir, appliedRetentionFilename)
 	if fs.IsPathExist(srcPath) {
 		dstPath := filepath.Join(dstDir, filepath.Base(srcPath))
-		if err := fs.CopyFile(srcPath, dstPath); err != nil {
-			return fmt.Errorf("cannot copy %q to %q: %w", srcPath, dstPath, err)
-		}
+		fs.MustCopyFile(srcPath, dstPath)
 	}
 
 	fs.MustSyncPath(dstDir)
 	parentDir := filepath.Dir(dstDir)
 	fs.MustSyncPath(parentDir)
-
-	return nil
 }
 
 type partNamesJSON struct {
@@ -1968,9 +1889,7 @@ func mustWritePartNames(pwsSmall, pwsBig []*partWrapper, dstDir string) {
 		logger.Panicf("BUG: cannot marshal partNames to JSON: %s", err)
 	}
 	partNamesPath := filepath.Join(dstDir, partsFilename)
-	if err := fs.WriteFileAtomically(partNamesPath, data, true); err != nil {
-		logger.Panicf("FATAL: cannot update %s: %s", partNamesPath, err)
-	}
+	fs.MustWriteAtomic(partNamesPath, data, true)
 }
 
 func getPartNames(pws []*partWrapper) []string {
@@ -1989,16 +1908,16 @@ func getPartNames(pws []*partWrapper) []string {
 
 func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string) {
 	partNamesPath := filepath.Join(smallPartsPath, partsFilename)
-	data, err := os.ReadFile(partNamesPath)
-	if err == nil {
+	if fs.IsPathExist(partNamesPath) {
+		data, err := os.ReadFile(partNamesPath)
+		if err != nil {
+			logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
+		}
 		var partNames partNamesJSON
 		if err := json.Unmarshal(data, &partNames); err != nil {
 			logger.Panicf("FATAL: cannot parse %s: %s", partNamesPath, err)
 		}
 		return partNames.Small, partNames.Big
-	}
-	if !os.IsNotExist(err) {
-		logger.Panicf("FATAL: cannot read %s file: %s", partsFilename, err)
 	}
 	// The partsFilename is missing. This is the upgrade from versions previous to v1.90.0.
 	// Read part names from smallPartsPath and bigPartsPath directories
@@ -2008,13 +1927,10 @@ func mustReadPartNames(smallPartsPath, bigPartsPath string) ([]string, []string)
 }
 
 func mustReadPartNamesFromDir(srcDir string) []string {
-	des, err := os.ReadDir(srcDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil
-		}
-		logger.Panicf("FATAL: cannot read partition dir: %s", err)
+	if !fs.IsPathExist(srcDir) {
+		return nil
 	}
+	des := fs.MustReadDir(srcDir)
 	var partNames []string
 	for _, de := range des {
 		if !fs.IsDirOrSymlink(de) {

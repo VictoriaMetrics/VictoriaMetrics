@@ -1,5 +1,13 @@
 ---
 sort: 13
+weight: 13
+title: Quick start
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 13
+aliases:
+- /Quick-Start.html
 ---
 
 # Quick start
@@ -66,7 +74,7 @@ file.
 <div class="with-copy" markdown="1">
 
 ```console
-git clone https://github.com/VictoriaMetrics/VictoriaMetrics && 
+git clone https://github.com/VictoriaMetrics/VictoriaMetrics && cd VictoriaMetrics
 make docker-cluster-up
 ```
 

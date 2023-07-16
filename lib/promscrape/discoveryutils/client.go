@@ -3,6 +3,7 @@ package discoveryutils
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -83,7 +84,7 @@ type HTTPClient struct {
 var defaultDialer = &net.Dialer{}
 
 // NewClient returns new Client for the given args.
-func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config) (*Client, error) {
+func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxyAC *promauth.Config, httpCfg *promauth.HTTPClientConfig) (*Client, error) {
 	u, err := url.Parse(apiServer)
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse apiServer=%q: %w", apiServer, err)
@@ -139,6 +140,13 @@ func NewClient(apiServer string, ac *promauth.Config, proxyURL *proxy.URL, proxy
 			ac.SetHeaders(req, true)
 		}
 	}
+	if httpCfg.FollowRedirects != nil && !*httpCfg.FollowRedirects {
+		checkRedirect := func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}
+		client.CheckRedirect = checkRedirect
+		blockingClient.CheckRedirect = checkRedirect
+	}
 	setHTTPProxyHeaders := func(req *http.Request) {}
 	if proxyAC != nil {
 		setHTTPProxyHeaders = func(req *http.Request) {
@@ -186,7 +194,8 @@ func (c *Client) GetAPIResponse(path string) ([]byte, error) {
 }
 
 func (c *Client) getAPIResponseWithConcurrencyLimit(ctx context.Context, client *HTTPClient, path string,
-	modifyRequest RequestCallback, inspectResponse ResponseCallback) ([]byte, error) {
+	modifyRequest RequestCallback, inspectResponse ResponseCallback,
+) ([]byte, error) {
 	// Limit the number of concurrent API requests.
 	concurrencyLimitChOnce.Do(concurrencyLimitChInit)
 	t := timerpool.Get(*maxWaitTime)
@@ -284,7 +293,7 @@ func doRequestWithPossibleRetry(hc *HTTPClient, req *http.Request) (*http.Respon
 			if statusCode != http.StatusTooManyRequests {
 				return true
 			}
-		} else if reqErr != net.ErrClosed && !strings.Contains(reqErr.Error(), "broken pipe") {
+		} else if !errors.Is(reqErr, net.ErrClosed) && !strings.Contains(reqErr.Error(), "broken pipe") {
 			return true
 		}
 		return false

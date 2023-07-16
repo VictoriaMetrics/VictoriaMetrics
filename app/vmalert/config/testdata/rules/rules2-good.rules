@@ -5,6 +5,8 @@ groups:
     limit: 1000
     headers:
       - "MyHeader: foo"
+    notifier_headers:
+      - "MyHeader: foo"
     params:
       denyPartialResponse: ["true"]
     rules:

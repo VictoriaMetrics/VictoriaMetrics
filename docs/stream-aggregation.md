@@ -1,11 +1,19 @@
 ---
 sort: 98
+weight: 98
+title: streaming aggregation
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 98
+aliases:
+- /stream-aggregation.html
 ---
 
 # streaming aggregation
 
 [vmagent](https://docs.victoriametrics.com/vmagent.html) and [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html)
-can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in streaming mode by time and by labels.
+can aggregate incoming [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples) in streaming mode by time and by labels before data is written to remote storage.
 The aggregation is applied to all the metrics received via any [supported data ingestion protocol](https://docs.victoriametrics.com/#how-to-import-time-series-data)
 and/or scraped from [Prometheus-compatible targets](https://docs.victoriametrics.com/#how-to-scrape-prometheus-exporters-such-as-node-exporter).
 
@@ -18,7 +26,7 @@ The stream aggregation is configured via the following command-line flags:
 
 These flags must point to a file containing [stream aggregation config](#stream-aggregation-config).
 
-By default only the aggregated data is written to the storage. If the original incoming samples must be written to the storage too,
+By default, only the aggregated data is written to the storage. If the original incoming samples must be written to the storage too,
 then the following command-line flags must be specified:
 
 - `-remoteWrite.streamAggr.keepInput` at [vmagent](https://docs.victoriametrics.com/vmagent.html).
@@ -29,7 +37,7 @@ then the following command-line flags must be specified:
 Stream aggregation ignores timestamps associated with the input [samples](https://docs.victoriametrics.com/keyConcepts.html#raw-samples).
 It expects that the ingested samples have timestamps close to the current time.
 
-By default all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
+By default, all the input samples are aggregated. Sometimes it is needed to de-duplicate samples before the aggregation.
 For example, if the samples are received from replicated sources.
 The following command-line flag can be used for enabling the [de-duplication](https://docs.victoriametrics.com/#deduplication)
 before aggregation in this case:
@@ -56,6 +64,9 @@ Stream aggregation can be used as [statsd](https://github.com/statsd/statsd) alt
 * [Summing input metrics](#summing-input-metrics)
 * [Quantiles over input metrics](#quantiles-over-input-metrics)
 * [Histograms over input metrics](#histograms-over-input-metrics)
+
+Currently, streaming aggregation is available only for [supported data ingestion protocols](https://docs.victoriametrics.com/#how-to-import-time-series-data)
+and not available for [Statsd metrics format](https://github.com/statsd/statsd/blob/master/docs/metric_types.md).
 
 ### Recording rules alternative
 
@@ -312,7 +323,7 @@ Output metric names for stream aggregation are constructed according to the foll
   If the `by` list is missing in the config, then the `_by_<by_labels>` part isn't included in the output metric name.
 - `<without_labels>` is an optional `_`-delimited sorted list of `without` labels specified in the [stream aggregation config](#stream-aggregation-config).
   If the `without` list is missing in the config, then the `_without_<without_labels>` part isn't included in the output metric name.
-- `<output>` is the aggregate used for constucting the output metric. The aggregate name is taken from the `outputs` list
+- `<output>` is the aggregate used for constructing the output metric. The aggregate name is taken from the `outputs` list
   at the corresponding [stream aggregation config](#stream-aggregation-config).
 
 Both input and output metric names can be modified if needed via relabeling according to [these docs](#relabeling).
@@ -354,6 +365,20 @@ The results of `total` is equal to the `sum(some_counter)` query.
 For example, see below time series produced by config with aggregation interval `1m` and `by: ["instance"]` and  the regular query:
 
 <img alt="total aggregation" src="stream-aggregation-check-total.png">
+
+`total` is not affected by [counter resets](https://docs.victoriametrics.com/keyConcepts.html#counter) - 
+it continues to increase monotonically with respect to the previous value.
+The counters are most often reset when the application is restarted.
+
+For example: 
+
+<img alt="total aggregation counter reset" src="stream-aggregation-check-total-reset.png">
+
+The same behavior will occur when creating or deleting new series in an aggregation group -
+`total` will increase monotonically considering the values of the series set. 
+
+An example of changing a set of series can be restarting a pod in the Kubernetes.
+This changes a label with pod's name in the series, but `total` account for such a scenario and do not reset the state of aggregated metric.
 
 ### increase
 
@@ -520,7 +545,7 @@ at [single-node VictoriaMetrics](https://docs.victoriametrics.com/Single-server-
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   without: [instance]
 
-  # by is an optioanl list of labels, which must be preserved in the output aggregation.
+  # by is an optional list of labels, which must be preserved in the output aggregation.
   # See https://docs.victoriametrics.com/stream-aggregation.html#aggregating-by-labels
   # by: [job, vmrange]
 

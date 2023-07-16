@@ -14,7 +14,7 @@
 
   &-list {
     display: grid;
-    gap: $padding-small;
+    gap: 12px;
     padding: $padding-global;
     max-height: 350px;
     overflow: auto;
@@ -38,7 +38,6 @@
 
     &__item {
       font-size: $font-size;
-      text-transform: capitalize;
     }
   }
 }

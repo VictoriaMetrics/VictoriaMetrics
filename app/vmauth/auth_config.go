@@ -31,7 +31,8 @@ var (
 
 // AuthConfig represents auth config.
 type AuthConfig struct {
-	Users []UserInfo `yaml:"users,omitempty"`
+	Users            []UserInfo `yaml:"users,omitempty"`
+	UnauthorizedUser *UserInfo  `yaml:"unauthorized_user,omitempty"`
 }
 
 // UserInfo is user information read from authConfigPath
@@ -44,11 +45,13 @@ type UserInfo struct {
 	URLMaps               []URLMap   `yaml:"url_map,omitempty"`
 	Headers               []Header   `yaml:"headers,omitempty"`
 	MaxConcurrentRequests int        `yaml:"max_concurrent_requests,omitempty"`
+	DefaultURL            *URLPrefix `yaml:"default_url,omitempty"`
 
 	concurrencyLimitCh      chan struct{}
 	concurrencyLimitReached *metrics.Counter
 
-	requests *metrics.Counter
+	requests         *metrics.Counter
+	requestsDuration *metrics.Summary
 }
 
 func (ui *UserInfo) beginConcurrencyLimit() error {
@@ -289,11 +292,11 @@ func initAuthConfig() {
 	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1240
 	sighupCh := procutil.NewSighupChan()
 
-	m, err := readAuthConfig(*authConfigPath)
+	err := loadAuthConfig()
 	if err != nil {
-		logger.Fatalf("cannot load auth config from `-auth.config=%s`: %s", *authConfigPath, err)
+		logger.Fatalf("cannot load auth config: %s", err)
 	}
-	authConfig.Store(m)
+
 	stopCh = make(chan struct{})
 	authConfigWG.Add(1)
 	go func() {
@@ -324,47 +327,75 @@ func authConfigReloader(sighupCh <-chan os.Signal) {
 			procutil.SelfSIGHUP()
 		case <-sighupCh:
 			logger.Infof("SIGHUP received; loading -auth.config=%q", *authConfigPath)
-			m, err := readAuthConfig(*authConfigPath)
+			err := loadAuthConfig()
 			if err != nil {
-				logger.Errorf("failed to load -auth.config=%q; using the last successfully loaded config; error: %s", *authConfigPath, err)
+				logger.Errorf("failed to load auth config; using the last successfully loaded config; error: %s", err)
 				continue
 			}
-			authConfig.Store(m)
-			logger.Infof("Successfully reloaded -auth.config=%q", *authConfigPath)
 		}
 	}
 }
 
-var authConfig atomic.Value
+var authConfig atomic.Pointer[AuthConfig]
+var authUsers atomic.Pointer[map[string]*UserInfo]
 var authConfigWG sync.WaitGroup
 var stopCh chan struct{}
 
-func readAuthConfig(path string) (map[string]*UserInfo, error) {
+func loadAuthConfig() error {
+	ac, err := readAuthConfig(*authConfigPath)
+	if err != nil {
+		return fmt.Errorf("failed to load -auth.config=%q: %s", *authConfigPath, err)
+	}
+
+	m, err := parseAuthConfigUsers(ac)
+	if err != nil {
+		return fmt.Errorf("failed to parse users from -auth.config=%q: %s", *authConfigPath, err)
+	}
+	logger.Infof("loaded information about %d users from -auth.config=%q", len(m), *authConfigPath)
+
+	authConfig.Store(ac)
+	authUsers.Store(&m)
+
+	return nil
+}
+
+func readAuthConfig(path string) (*AuthConfig, error) {
 	data, err := fs.ReadFileOrHTTP(path)
 	if err != nil {
 		return nil, err
 	}
-	m, err := parseAuthConfig(data)
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse %q: %w", path, err)
-	}
-	logger.Infof("Loaded information about %d users from %q", len(m), path)
-	return m, nil
+	return parseAuthConfig(data)
 }
 
-func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
-	var err error
-	data, err = envtemplate.ReplaceBytes(data)
+func parseAuthConfig(data []byte) (*AuthConfig, error) {
+	data, err := envtemplate.ReplaceBytes(data)
 	if err != nil {
 		return nil, fmt.Errorf("cannot expand environment vars: %w", err)
 	}
 	var ac AuthConfig
-	if err := yaml.UnmarshalStrict(data, &ac); err != nil {
+	if err = yaml.UnmarshalStrict(data, &ac); err != nil {
 		return nil, fmt.Errorf("cannot unmarshal AuthConfig data: %w", err)
 	}
+	ui := ac.UnauthorizedUser
+	if ui != nil {
+		ui.requests = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_requests_total`)
+		ui.requestsDuration = metrics.GetOrCreateSummary(`vmauth_unauthorized_user_request_duration_seconds`)
+		ui.concurrencyLimitCh = make(chan struct{}, ui.getMaxConcurrentRequests())
+		ui.concurrencyLimitReached = metrics.GetOrCreateCounter(`vmauth_unauthorized_user_concurrent_requests_limit_reached_total`)
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_capacity`, func() float64 {
+			return float64(cap(ui.concurrencyLimitCh))
+		})
+		_ = metrics.GetOrCreateGauge(`vmauth_unauthorized_user_concurrent_requests_current`, func() float64 {
+			return float64(len(ui.concurrencyLimitCh))
+		})
+	}
+	return &ac, nil
+}
+
+func parseAuthConfigUsers(ac *AuthConfig) (map[string]*UserInfo, error) {
 	uis := ac.Users
-	if len(uis) == 0 {
-		return nil, fmt.Errorf("`users` section cannot be empty in AuthConfig")
+	if len(uis) == 0 && ac.UnauthorizedUser == nil {
+		return nil, fmt.Errorf("Missing `users` or `unauthorized_user` sections")
 	}
 	byAuthToken := make(map[string]*UserInfo, len(uis))
 	for i := range uis {
@@ -384,6 +415,11 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 		}
 		if ui.URLPrefix != nil {
 			if err := ui.URLPrefix.sanitize(); err != nil {
+				return nil, err
+			}
+		}
+		if ui.DefaultURL != nil {
+			if err := ui.DefaultURL.sanitize(); err != nil {
 				return nil, err
 			}
 		}
@@ -407,9 +443,11 @@ func parseAuthConfig(data []byte) (map[string]*UserInfo, error) {
 				return nil, fmt.Errorf("password shouldn't be set for bearer_token %q", ui.BearerToken)
 			}
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
+			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
 		}
 		if ui.Username != "" {
 			ui.requests = metrics.GetOrCreateCounter(fmt.Sprintf(`vmauth_user_requests_total{username=%q}`, name))
+			ui.requestsDuration = metrics.GetOrCreateSummary(fmt.Sprintf(`vmauth_user_request_duration_seconds{username=%q}`, name))
 		}
 		mcr := ui.getMaxConcurrentRequests()
 		ui.concurrencyLimitCh = make(chan struct{}, mcr)

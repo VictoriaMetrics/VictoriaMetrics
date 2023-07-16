@@ -1,3 +1,13 @@
+---
+weight: 6
+title: Getting started with vmanomaly
+menu:
+  docs:
+    parent: "guides"
+    weight: 6
+aliases:
+- /guides/guide-vmanomaly-vmalert.html
+---
 # Getting started with vmanomaly
 
 **Prerequisites**
@@ -71,7 +81,7 @@ These modes are mutually exclusive. A high _iowait_ means that you are disk or n
 
 The metric `node_cpu_seconds_total` is a [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) type of metric. If we'd like to see how much time CPU spent in each of the nodes, we need to calculate the per-second values change via [rate function](https://docs.victoriametrics.com/MetricsQL.html#rate): `rate(node_cpu_seconds_total)`.
 Here is how this query may look like in Grafana:
-![node_cpu_rate_graph](guide-vmanomaly-node-cpu-rate-graph.png "node_cpu_rate_graph")
+<img alt="node_cpu_rate_graph" src="guide-vmanomaly-node-cpu-rate-graph.png">
 
 This query result will generate 8 time series per each cpu, and we will use them as an input for our VM Anomaly Detection. vmanomaly will start learning configured model type separately for each of the time series.
 
@@ -391,26 +401,29 @@ Each of these metrics will contain same labels our query `rate(node_cpu_seconds_
 ### Anomaly scores for each metric with its according labels. 
 
 Query: `anomaly_score`
-![Anomaly score graph](guide-vmanomaly-anomaly-score.png "Anomaly score graph1")
+<img alt="Anomaly score graph" src="guide-vmanomaly-anomaly-score.png">
 
 <br>Check out if the anomaly score is high for datapoints you think are anomalies. If not, you can try other parameters in the config file or try other model type.
 
 As you may notice a lot of data shows anomaly score greater than 1. It is expected as we just started to scrape and store data and there are not enough datapoints to train on. Just wait for some more time for gathering more data to see how well this particular model can find anomalies. In our configs we put 2 days of data required.
 ### Actual value from input query with predicted `yhat` metric. 
 Query: `yhat`
-![Yhat](guide-vmanomaly-yhat.png "yhat")
+<img alt="yhat" src="guide-vmanomaly-yhat.png">
 
 <br>Here we are using one particular set of metrics for visualization. Check out the difference between model prediction and actual values. If values are very different from prediction, it can be considered as anomalous.
+
 ### Lower and upper boundaries that model predicted. 
 Queries: `yhat_lower` and `yhat_upper`
-![Yhat_lower and upper](guide-vmanomaly-yhat-lower-upper.png "_lower and _upper")
+<img alt="yhat lower and yhat upper" src="guide-vmanomaly-yhat-lower-upper.png">
 Boundaries of 'normal' metric values according to model inference. 
+
 ### Alerting
 On the page `http://localhost:8880/vmalert/groups` you can find our configured Alerting rule:
 
-![alerting_rule](guide-vmanomaly-alert-rule.png "alert rule")
+<img alt="alert rule" src="guide-vmanomaly-alert-rule.png">
 
 According to the rule configured for vmalert we will see Alert when anomaly score exceed 1. You will see an alert on Alert tab. `http://localhost:8880/vmalert/alerts`
-![alerts](guide-vmanomaly-alerts-firing.png "alerts firing")
+<img alt="alerts firing" src="guide-vmanomaly-alerts-firing.png">
+
 ## 10. Conclusion
 Now we know how to set up Victoria Metric Anomaly Detection tool and use it together with vmalert. We also discovered core vmanomaly generated metrics and behaviour.

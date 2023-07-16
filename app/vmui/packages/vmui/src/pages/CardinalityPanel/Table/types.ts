@@ -28,6 +28,8 @@ export interface TableProps {
 export interface Data {
   name: string;
   value: number;
+  diff: number;
+  valuePrev: number;
   progressValue: number;
   actions: string;
 }

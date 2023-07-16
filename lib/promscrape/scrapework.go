@@ -66,6 +66,16 @@ type ScrapeWork struct {
 	// Whether to deny redirects during requests to scrape config.
 	DenyRedirects bool
 
+	// Do not support enable_http2 option because of the following reasons:
+	//
+	// - http2 is used very rarely comparing to http for Prometheus metrics exposition and service discovery
+	// - http2 is much harder to debug than http
+	// - http2 has very bad security record because of its complexity - see https://portswigger.net/research/http2
+	//
+	// VictoriaMetrics components are compiled with nethttpomithttp2 tag because of these issues.
+	//
+	// EnableHTTP2 bool
+
 	// OriginalLabels contains original labels before relabeling.
 	//
 	// These labels are needed for relabeling troubleshooting at /targets page.
@@ -399,6 +409,7 @@ func (sw *scrapeWork) mustSwitchToStreamParseMode(responseSize int) bool {
 
 // getTargetResponse() fetches response from sw target in the same way as when scraping the target.
 func (sw *scrapeWork) getTargetResponse() ([]byte, error) {
+	// use stream reader when stream mode enabled
 	if *streamParse || sw.Config.StreamParse || sw.mustSwitchToStreamParseMode(sw.prevBodyLen) {
 		// Read the response in stream mode.
 		sr, err := sw.GetStreamReader()

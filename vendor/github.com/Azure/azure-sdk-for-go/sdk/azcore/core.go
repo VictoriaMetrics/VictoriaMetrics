@@ -76,12 +76,13 @@ type Client struct {
 }
 
 // NewClient creates a new Client instance with the provided values.
-//   - clientName - the fully qualified name of the client ("package.Client"); this is used by the tracing provider when creating spans
+//   - clientName - the fully qualified name of the client ("module/package.Client"); this is used by the telemetry policy and tracing provider.
+//     if module and package are the same value, the "module/" prefix can be omitted.
 //   - moduleVersion - the semantic version of the containing module; used by the telemetry policy
 //   - plOpts - pipeline configuration options; can be the zero-value
 //   - options - optional client configurations; pass nil to accept the default values
 func NewClient(clientName, moduleVersion string, plOpts runtime.PipelineOptions, options *ClientOptions) (*Client, error) {
-	pkg, err := shared.ExtractPackageName(clientName)
+	mod, client, err := shared.ExtractModuleName(clientName)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +97,9 @@ func NewClient(clientName, moduleVersion string, plOpts runtime.PipelineOptions,
 		}
 	}
 
-	pl := runtime.NewPipeline(pkg, moduleVersion, plOpts, options)
+	pl := runtime.NewPipeline(mod, moduleVersion, plOpts, options)
 
-	tr := options.TracingProvider.NewTracer(clientName, moduleVersion)
+	tr := options.TracingProvider.NewTracer(client, moduleVersion)
 	return &Client{pl: pl, tr: tr}, nil
 }
 

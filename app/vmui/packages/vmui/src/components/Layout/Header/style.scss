@@ -47,9 +47,11 @@
     margin-bottom: 2px;
     overflow: hidden;
 
-    @media (max-width: 1200px) {
-      min-width: 14px;
-      max-width: 14px;
+    &:not(&_logs) {
+      @media (max-width: 1200px) {
+        min-width: 14px;
+        max-width: 14px;
+      }
     }
 
     svg {
@@ -62,10 +64,10 @@
       min-width: 65px;
       margin: 0 auto;
     }
-  }
 
-  &-nav {
-    font-size: $font-size-small;
-    font-weight: bold;
+    &_logs, &_logs svg {
+      max-width: 75px;
+      min-width: 75px;
+    }
   }
 }

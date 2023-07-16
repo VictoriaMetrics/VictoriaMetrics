@@ -1,4 +1,4 @@
-import React, { FC, useState, useEffect } from "preact/compat";
+import React, { FC, useState, useEffect, useMemo } from "preact/compat";
 import GraphView from "../../components/Views/GraphView/GraphView";
 import QueryConfigurator from "./QueryConfigurator/QueryConfigurator";
 import { useFetchQuery } from "../../hooks/useFetchQuery";
@@ -12,7 +12,7 @@ import { useFetchQueryOptions } from "../../hooks/useFetchQueryOptions";
 import TracingsView from "../../components/TraceQuery/TracingsView";
 import Trace from "../../components/TraceQuery/Trace";
 import TableSettings from "../CardinalityPanel/Table/TableSettings/TableSettings";
-import { useCustomPanelState } from "../../state/customPanel/CustomPanelStateContext";
+import { useCustomPanelState, useCustomPanelDispatch } from "../../state/customPanel/CustomPanelStateContext";
 import { useQueryState } from "../../state/query/QueryStateContext";
 import { useTimeDispatch, useTimeState } from "../../state/time/TimeStateContext";
 import { useSetQueryParams } from "./hooks/useSetQueryParams";
@@ -24,6 +24,9 @@ import classNames from "classnames";
 import useDeviceDetect from "../../hooks/useDeviceDetect";
 import GraphTips from "../../components/Chart/GraphTips/GraphTips";
 import InstantQueryTip from "./InstantQueryTip/InstantQueryTip";
+import useBoolean from "../../hooks/useBoolean";
+import { getColumns } from "../../hooks/useSortedCategories";
+import useEventListener from "../../hooks/useEventListener";
 
 const CustomPanel: FC = () => {
   const { displayType, isTracingEnabled } = useCustomPanelState();
@@ -36,15 +39,28 @@ const CustomPanel: FC = () => {
   const [displayColumns, setDisplayColumns] = useState<string[]>();
   const [tracesState, setTracesState] = useState<Trace[]>([]);
   const [hideQuery, setHideQuery] = useState<number[]>([]);
-  const [showAllSeries, setShowAllSeries] = useState(false);
   const [hideError, setHideError] = useState(!query[0]);
+
+  const {
+    value: showAllSeries,
+    setTrue: handleShowAll,
+    setFalse: handleHideSeries,
+  } = useBoolean(false);
 
   const { customStep, yaxis } = useGraphState();
   const graphDispatch = useGraphDispatch();
 
   const { queryOptions } = useFetchQueryOptions();
   const {
-    isLoading, liveData, graphData, error, queryErrors, warning, traces, isHistogram
+    isLoading,
+    liveData,
+    graphData,
+    error,
+    queryErrors,
+    queryStats,
+    warning,
+    traces,
+    isHistogram
   } = useFetchQuery({
     visible: true,
     customStep,
@@ -64,10 +80,6 @@ const CustomPanel: FC = () => {
     timeDispatch({ type: "SET_PERIOD", payload: { from, to } });
   };
 
-  const handleShowAll = () => {
-    setShowAllSeries(true);
-  };
-
   const handleTraceDelete = (trace: Trace) => {
     const updatedTraces = tracesState.filter((data) => data.idValue !== trace.idValue);
     setTracesState([...updatedTraces]);
@@ -81,6 +93,17 @@ const CustomPanel: FC = () => {
     setHideError(false);
   };
 
+  const columns = useMemo(() => getColumns(liveData || []).map(c => c.key), [liveData]);
+  const { tableCompact } = useCustomPanelState();
+  const customPanelDispatch = useCustomPanelDispatch();
+
+  const toggleTableCompact = () => {
+    customPanelDispatch({ type: "TOGGLE_TABLE_COMPACT" });
+  };
+
+  const handleChangePopstate = () => window.location.reload();
+  useEventListener("popstate", handleChangePopstate);
+
   useEffect(() => {
     if (traces) {
       setTracesState([...tracesState, ...traces]);
@@ -91,13 +114,11 @@ const CustomPanel: FC = () => {
     setTracesState([]);
   }, [displayType]);
 
-  useEffect(() => {
-    setShowAllSeries(false);
-  }, [query]);
+  useEffect(handleHideSeries, [query]);
 
   useEffect(() => {
     graphDispatch({ type: "SET_IS_HISTOGRAM", payload: isHistogram });
-  }, [isHistogram]);
+  }, [graphData]);
 
   return (
     <div
@@ -108,6 +129,7 @@ const CustomPanel: FC = () => {
     >
       <QueryConfigurator
         errors={!hideError ? queryErrors : []}
+        stats={queryStats}
         queryOptions={queryOptions}
         onHideQuery={handleHideQuery}
         onRunQuery={handleRunQuery}
@@ -162,9 +184,11 @@ const CustomPanel: FC = () => {
           )}
           {displayType === "table" && (
             <TableSettings
-              data={liveData || []}
+              columns={columns}
               defaultColumns={displayColumns}
-              onChange={setDisplayColumns}
+              onChangeColumns={setDisplayColumns}
+              tableCompact={tableCompact}
+              toggleTableCompact={toggleTableCompact}
             />
           )}
         </div>

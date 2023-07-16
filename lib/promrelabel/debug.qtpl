@@ -1,11 +1,20 @@
 {% import (
+        "fmt"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/htmlcomponents"
         "github.com/VictoriaMetrics/VictoriaMetrics/lib/promutils"
 ) %}
 
 {% stripspace %}
 
-{% func RelabelDebugSteps(targetURL string, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{% func RelabelDebugSteps(targetURL, targetID, format string, dss []DebugStep, metric, relabelConfigs  string, err error) %}
+  {% if format == "json" %}
+      {%= RelabelDebugStepsJSON(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+  {% else %}
+      {%= RelabelDebugStepsHTML(targetURL, targetID, dss, metric, relabelConfigs, err) %}
+  {% endif %}
+{% endfunc %}
+
+{% func RelabelDebugStepsHTML(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -64,12 +73,12 @@ function submitRelabelDebugForm(e) {
 {% func relabelDebugFormInputs(metric, relabelConfigs string) %}
     <div>
         Relabel configs:<br/>
-        <textarea name="relabel_configs" style="width: 100%; height: 15em" class="m-1">{%s relabelConfigs %}</textarea>
+        <textarea name="relabel_configs" style="width: 100%; height: 15em; font-family: monospace" class="m-1">{%s relabelConfigs %}</textarea>
     </div>
 
     <div>
         Labels:<br/>
-        <textarea name="metric" style="width: 100%; height: 5em" class="m-1">{%s metric %}</textarea>
+        <textarea name="metric" style="width: 100%; height: 5em; font-family: monospace" class="m-1">{%s metric %}</textarea>
     </div>
 {% endfunc %}
 
@@ -126,6 +135,36 @@ function submitRelabelDebugForm(e) {
     {% endif %}
 </div>
 {% endif %}
+{% endfunc %}
+
+{% func RelabelDebugStepsJSON(targetURL, targetID string, dss []DebugStep, metric, relabelConfigs string, err error) %}
+{
+    {% if err != nil %}
+        "status": "error",
+        "error": {%q= fmt.Sprintf("Error: %s", err) %}
+    {% else %}
+        "status": "success",
+        {% if len(dss) > 0 %}
+            "originalLabels": {%q= mustFormatLabels(dss[0].In) %},
+            "resultingLabels": {%q= mustFormatLabels(dss[len(dss)-1].Out) %},
+        {% endif %}
+        "steps": [
+            {% for i, ds := range dss %}
+                {% code
+                    inLabels := promutils.MustNewLabelsFromString(ds.In)
+                    outLabels := promutils.MustNewLabelsFromString(ds.Out)
+                    changedLabels := getChangedLabelNames(inLabels, outLabels)
+                %}
+                {
+                    "inLabels": {%q= labelsWithHighlight(inLabels, changedLabels, "red") %},
+                    "outLabels": {%q= labelsWithHighlight(outLabels, changedLabels, "blue") %},
+                    "rule": {%q= ds.Rule %}
+                }
+                {% if i != len(dss)-1 %},{% endif %}
+            {% endfor %}
+        ]
+    {% endif %}
+}
 {% endfunc %}
 
 {% func labelsWithHighlight(labels *promutils.Labels, highlight map[string]struct{}, color string) %}

@@ -2,21 +2,22 @@ import React, { FC, useMemo } from "preact/compat";
 import { useNavigate } from "react-router-dom";
 import router from "../../../router";
 import { getAppModeEnable, getAppModeParams } from "../../../utils/app-mode";
-import { LogoFullIcon } from "../../Main/Icons";
+import { LogoFullIcon, LogoLogsIcon } from "../../Main/Icons";
 import { getCssVariable } from "../../../utils/theme";
 import "./style.scss";
 import classNames from "classnames";
 import { useAppState } from "../../../state/common/StateContext";
 import HeaderNav from "./HeaderNav/HeaderNav";
-import useResize from "../../../hooks/useResize";
 import SidebarHeader from "./SidebarNav/SidebarHeader";
 import HeaderControls from "./HeaderControls/HeaderControls";
 import useDeviceDetect from "../../../hooks/useDeviceDetect";
+import useWindowSize from "../../../hooks/useWindowSize";
 
 const Header: FC = () => {
+  const { REACT_APP_LOGS } = process.env;
   const { isMobile } = useDeviceDetect();
 
-  const windowSize = useResize(document.body);
+  const windowSize = useWindowSize();
   const displaySidebar = useMemo(() => window.innerWidth < 1000, [windowSize]);
 
   const { isDarkTheme } = useAppState();
@@ -61,11 +62,14 @@ const Header: FC = () => {
       <>
         {!appModeEnable && (
           <div
-            className="vm-header-logo"
+            className={classNames({
+              "vm-header-logo": true,
+              "vm-header-logo_logs": REACT_APP_LOGS
+            })}
             onClick={onClickLogo}
             style={{ color }}
           >
-            <LogoFullIcon/>
+            {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoFullIcon/>}
           </div>
         )}
         <HeaderNav
@@ -76,17 +80,23 @@ const Header: FC = () => {
     )}
     {isMobile && (
       <div
-        className="vm-header-logo vm-header-logo_mobile"
+        className={classNames({
+          "vm-header-logo": true,
+          "vm-header-logo_mobile": true,
+          "vm-header-logo_logs": REACT_APP_LOGS
+        })}
         onClick={onClickLogo}
         style={{ color }}
       >
-        <LogoFullIcon/>
+        {REACT_APP_LOGS ? <LogoLogsIcon/> : <LogoFullIcon/>}
       </div>
     )}
-    <HeaderControls
-      displaySidebar={displaySidebar}
-      isMobile={isMobile}
-    />
+    {
+      REACT_APP_LOGS ? null : <HeaderControls
+        displaySidebar={displaySidebar}
+        isMobile={isMobile}
+      />
+    }
   </header>;
 };
 

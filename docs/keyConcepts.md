@@ -1,5 +1,13 @@
 ---
 sort: 22
+weight: 22
+title: Key concepts
+menu:
+  docs:
+    parent: "victoriametrics"
+    weight: 22
+aliases:
+- /keyConcepts.html
 ---
 
 # Key concepts
@@ -26,6 +34,8 @@ You can be more specific here by saying `requests_success_total` (for only succe
 or `request_errors_total` (for requests which failed). Choosing a metric name is very important and supposed to clarify
 what is actually measured to every person who reads it, just like **variable names** in programming.
 
+#### Labels
+
 Every metric can contain additional meta-information in the form of label-value pairs:
 
 ```
@@ -38,12 +48,18 @@ the `request` was served. Label-value pairs are always of a `string` type. Victo
 which means there is no need to define metric names or their labels in advance. User is free to add or change ingested
 metrics anytime.
 
-Actually, the metric's name is also a label with a special name `__name__`. So the following two series are identical:
+Actually, the metric name is also a label with a special name `__name__`. So the following two series are identical:
 
 ```
 requests_total{path="/", code="200"} 
 {__name__="requests_total", path="/", code="200"} 
 ```
+
+Labels can be automatically attached to the [time series](#time-series) 
+written via [vmagent](https://docs.victoriametrics.com/vmagent.html#adding-labels-to-metrics) 
+or [Prometheus](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-setup).
+VictoriaMetrics supports enforcing of label filters for [query API](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements)
+to emulate data isolation. However, the real data isolation can be achieved via [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy).
 
 #### Time series
 
@@ -126,7 +142,7 @@ was rapidly changing from 1:38 pm to 1:39 pm, then there were no changes until 1
 Counter is used for measuring the number of events, like the number of requests, errors, logs, messages, etc.
 The most common [MetricsQL](#metricsql) functions used with counters are:
 
-* [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) - calculates the average per-second speed of metric's change.
+* [rate](https://docs.victoriametrics.com/MetricsQL.html#rate) - calculates the average per-second speed of metric change.
   For example, `rate(requests_total)` shows how many requests are served per second on average;
 * [increase](https://docs.victoriametrics.com/MetricsQL.html#increase) - calculates the growth of a metric on the given
   time period specified in square brackets.
@@ -162,7 +178,7 @@ and [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-fu
 
 #### Histogram
 
-Historgram is a set of [counter](#counter) metrics with different `vmrange` or `le` labels.
+Histogram is a set of [counter](#counter) metrics with different `vmrange` or `le` labels.
 The `vmrange` or `le` labels define measurement boundaries of a particular bucket.
 When the observed measurement hits a particular bucket, then the corresponding counter is incremented.
 
@@ -330,11 +346,23 @@ This limit can be changed via `-maxLabelsPerTimeseries` command-line flag if nec
 Every label value can contain an arbitrary string value. The good practice is to use short and meaningful label values to
 describe the attribute of the metric, not to tell the story about it. For example, label-value pair
 `environment="prod"` is ok, but `log_message="long log message with a lot of details..."` is not ok. By default,
-VcitoriaMetrics limits label's value size with 16kB. This limit can be changed via `-maxLabelValueLen` command-line flag.
+VictoriaMetrics limits label's value size with 16kB. This limit can be changed via `-maxLabelValueLen` command-line flag.
 
 It is very important to keep under control the number of unique label values, since every unique label value
 leads to a new [time series](#time-series). Try to avoid using volatile label values such as session ID or query ID in order to
 avoid excessive resource usage and database slowdown.
+
+### Multi-tenancy
+
+[Cluster version](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html) of VictoriaMetrics 
+supports [multi-tenancy](https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html#multitenancy)
+for data isolation.
+
+Multi-tenancy can be emulated for [single-server](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html) 
+version of VictoriaMetrics by adding [labels](#labels) on [write path](#write-data)
+and enforcing [labels filtering](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#prometheus-querying-api-enhancements) 
+on [read path](#query-data).
+
 
 ## Write data
 
@@ -476,10 +504,13 @@ GET | POST /api/v1/query?query=...&time=...&step=...
 Params:
 
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `time` - optional timestamp when to evaluate the `query`. If `time` is skipped, then the current timestamp is used.
+* `time` - optional, [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  in second precision to evaluate the `query` at. If omitted, `time` is set to `now()` (current timestamp).
   The `time` param can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-* `step` - optional max lookback window for searching for raw samples when executing the `query`.
-  If `step` is skipped, then it is set to `5m` (5 minutes) by default.
+* `step` - optional, the max [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations)
+  for searching for raw samples in the past when executing the `query`. 
+  For example, request `/api/v1/query?query=up&step=1m` will look for the last written raw sample for metric `up`
+  on interval between `now()` and `now()-1m`. If omitted, `step` is set to `5m` (5 minutes).
 
 To understand how instant queries work, let's begin with a data sample:
 
@@ -567,18 +598,18 @@ GET | POST /api/v1/query_range?query=...&start=...&end=...&step=...
 
 Params:
 * `query` - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) expression.
-* `start` - the starting timestamp of the time range for `query` evaluation.
-* `end` - the ending timestamp of the time range for `query` evaluation.
+* `start` - the starting [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
+* `end` - the ending [timestamp](https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html#timestamp-formats)
+  of the time range for `query` evaluation.
   If the `end` isn't set, then the `end` is automatically set to the current time.
-* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) between datapoints,
-  which must be returned from the range query.
+* `step` - the [interval](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) 
+  between data points, which must be returned from the range query.
   The `query` is executed at `start`, `start+step`, `start+2*step`, ..., `end` timestamps.
   If the `step` isn't set, then it is automatically set to `5m` (5 minutes).
 
-The `start` and `end` params can be specified in [multiple allowed formats](https://docs.victoriametrics.com/#timestamp-formats).
-
-To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`, in VictoriaMetrics we
-need to issue a range query:
+To get the values of `foo_bar` on the time range from `2022-05-10 09:59:00` to `2022-05-10 10:17:00`
+in VictoriaMetrics we need to issue a range query:
 
 ```console
 curl "http://<victoria-metrics-addr>/api/v1/query_range?query=foo_bar&step=1m&start=2022-05-10T09:59:00.000Z&end=2022-05-10T10:17:00.000Z"
@@ -711,6 +742,25 @@ useful in the following scenarios:
 
 If you need to export raw samples from VictoriaMetrics, then take a look at [export APIs](https://docs.victoriametrics.com/#how-to-export-time-series).
 
+### Query latency
+
+By default, Victoria Metrics does not immediately return the recently written samples. Instead, it retrieves the last results
+written prior to the time specified by the `-search.latencyOffset` command-line flag, which has a default offset of 30 seconds.
+This is true for both `query` and `query_range` and may give the impression that data is written to the VM with a 30-second delay.
+
+This flag prevents from non-consistent results due to the fact that only part of the values are scraped in the last scrape interval.
+
+Here is an illustration of a potential problem when `-search.latencyOffset` is set to zero:
+
+<img src="keyConcepts_without_latencyOffset.png" width="1000">
+
+When this flag is set, the VM will return the last metric value collected before the `-search.latencyOffset`
+duration throughout the `-search.latencyOffset` duration:
+
+<img src="keyConcepts_with_latencyOffset.png" width="1000">
+
+It can be overridden on per-query basis via `latency_offset` query arg.
+
 ### MetricsQL
 
 VictoriaMetrics provide a special query language for executing read queries - [MetricsQL](https://docs.victoriametrics.com/MetricsQL.html).
@@ -735,15 +785,15 @@ requests_total{path="/", code="200"}
 requests_total{path="/", code="403"} 
 ```
 
-To select only time series with specific label value specify the matching condition in curly braces:
+To select only time series with specific label value specify the matching filter in curly braces:
 
 ```metricsql
 requests_total{code="200"} 
 ```
 
-The query above will return all time series with the name `requests_total` and `code="200"`. We use the operator `=` to
-match a label value. For negative match use `!=` operator. Filters also support regex matching `=~` for positive
-and `!~` for negative matching:
+The query above returns all time series with the name `requests_total` and label `code="200"`. We use the operator `=` to
+match label value. For negative match use `!=` operator. Filters also support positive regex matching via `=~`
+and negative regex matching via `!~`:
 
 ```metricsql
 requests_total{code=~"2.*"}
@@ -752,23 +802,45 @@ requests_total{code=~"2.*"}
 Filters can also be combined:
 
 ```metricsql
-requests_total{code=~"200|204", path="/home"}
+requests_total{code=~"200", path="/home"}
 ```
 
-The query above will return all time series with a name `requests_total`, status `code` `200` or `204`and `path="/home"`
-.
+The query above returns all time series with `requests_total` name, which simultaneously have labels `code="200"` and `path="/home"`.
 
 #### Filtering by name
 
 Sometimes it is required to return all the time series for multiple metric names. As was mentioned in
-the [data model section](#data-model), the metric name is just an ordinary label with a special name — `__name__`. So
+the [data model section](#data-model), the metric name is just an ordinary label with a special name - `__name__`. So
 filtering by multiple metric names may be performed by applying regexps on metric names:
 
 ```metricsql
 {__name__=~"requests_(error|success)_total"}
 ```
 
-The query above is supposed to return series for two metrics: `requests_error_total` and `requests_success_total`.
+The query above returns series for two metrics: `requests_error_total` and `requests_success_total`.
+
+#### Filtering by multiple "or" filters
+
+[MetricsQL](https://docs.victoriametrics.com/MetricsQL.html) supports selecting time series, which match at least one of multiple "or" filters.
+Such filters must be delimited by `or` inside curly braces. For example, the following query selects time series with
+either `{job="app1",env="prod"}` or `{job="app2",env="dev"}` labels:
+
+```metricsql
+{job="app1",env="prod" or job="app2",env="dev"}
+```
+
+The number of `or` filters can be arbitrary. This functionality allows passing the selected series
+to [rollup functions](https://docs.victoriametrics.com/MetricsQL.html#rollup-functions) such as [rate()](https://docs.victoriametrics.com/MetricsQL.html#rate)
+without the need to use [subqueries](https://docs.victoriametrics.com/MetricsQL.html#subqueries):
+
+```metricsql
+rate({job="app1",env="prod" or job="app2",env="dev"}[5m])
+
+```
+
+If you need to select series matching multiple filters for the same label, then it is better from performance PoV
+to use regexp filter `{label=~"value1|...|valueN"}` instead of `{label="value1" or ... or label="valueN"}`.
+
 
 #### Arithmetic operations
 
@@ -843,7 +915,7 @@ per each monitored `node_exporter` instance, which exposes the `node_network_rec
 rate(node_network_receive_bytes_total)
 ```
 
-By default VictoriaMetrics calculates the `rate` over [raw samples](#raw-samples) on the lookbehind window specified in the `step` param
+By default, VictoriaMetrics calculates the `rate` over [raw samples](#raw-samples) on the lookbehind window specified in the `step` param
 passed either to [instant query](#instant-query) or to [range query](#range-query).
 The interval on which `rate` needs to be calculated can be specified explicitly
 as [duration](https://prometheus.io/docs/prometheus/latest/querying/basics/#time-durations) in square brackets:

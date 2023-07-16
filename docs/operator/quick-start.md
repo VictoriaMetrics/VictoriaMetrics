@@ -39,7 +39,7 @@ kubectl apply -f release/crds
  
 Then you need RBAC for operator, relevant configuration for the release can be found at release/operator/rbac.yaml
 
-Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/vars.MD)
+Change configuration for operator at `release/operator/manager.yaml`, possible settings: [operator-settings](/operator/vars.html)
 and apply it:
 ```console
 kubectl apply -f release/operator/
@@ -485,7 +485,7 @@ EOF
 
  It generates part of `VMAgent` configuration with `Endpoint` kubernetes_sd role for service discovery targets
  by corresponding `Service` and it's `Endpoint`s.
- It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc).
+ It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc.).
 
 Let's make some demo, you have to deploy [VMAgent](#vmagent) and [VMSingle](#vmsingle) from previous step with match any selectors:
 
@@ -629,7 +629,7 @@ kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent --tail 100
 ## VMPodScrape
 
  It generates config part of `VMAgent` with  kubernetes_sd role  `pod`, that would match all `pods` having specific labels and ports. 
- It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc).
+ It has various options for scraping configuration of target (with basic auth,tls access, by specific port name etc.).
  
   Add `VMAgent` and Example app from step above and continue  this step.
   
@@ -708,7 +708,7 @@ spec:
 EOF
 ```  
 
- Lets check `VMAgent` logs:
+ Let's check `VMAgent` logs:
  ```console
 kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent --tail 100
 2020-08-03T08:51:13.582Z	info	VictoriaMetrics/app/vmagent/remotewrite/remotewrite.go:98	Successfully reloaded relabel configs
@@ -722,7 +722,7 @@ kubectl logs vmagent-example-vmagent-5777fdf7bf-tctcv vmagent --tail 100
 
 It generates `VMAlert` config with ruleset defined at `VMRule` spec.
 
-Lets create `VMAlert` with selector for `VMRule` with label project=devops.
+Let's create `VMAlert` with selector for `VMRule` with label project=devops.
   You also need datasource from previous step [VMSingle](#vmsingle) and [VMAgent](#vmagent) connected to it.
 
 ```yaml
@@ -994,7 +994,8 @@ vmsingle-example-vmsingle-persisted-8584486b68-mqg6b   1/1     Running   0      
 ```
 
 Now define some `VMProbe`, lets start with basic static target and probe `VMAgent` with its service address, for accessing
-blackbox exporter, you have to specify its url at `VMProbe` config. Lets get both services names:
+blackbox exporter, you have to specify its url at `VMProbe` config. Let's get both services names:
+
 ```console
 kubectl get svc
 NAME                                  TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)    AGE

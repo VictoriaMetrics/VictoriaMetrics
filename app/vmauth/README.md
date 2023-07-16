@@ -62,7 +62,41 @@ The following [metrics](#monitoring) related to concurrency limits are exposed b
 - `vmauth_user_concurrent_requests_current{username="..."}` - the current number of concurrent requests for the given `username`.
 - `vmauth_user_concurrent_requests_limit_reached_total{username="foo"}` - the number of requests rejected with `429 Too Many Requests` error
   because of the concurrency limit has been reached for the given `username`.
+- `vmauth_unauthorized_user_concurrent_requests_capacity` - the limit on the number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_current` - the current number of concurrent requests for unauthorized users (if `unauthorized_user` section is used).
+- `vmauth_unauthorized_user_concurrent_requests_limit_reached_total` - the number of requests rejected with `429 Too Many Requests` error
+  because of the concurrency limit has been reached for unauthorized users (if `unauthorized_user` section is used).
 
+
+## IP filters
+
+[Enterprise version](https://docs.victoriametrics.com/enterprise.html) of `vmauth` can be configured to allow / deny incoming requests via global and per-user IP filters.
+
+For example, the following config allows requests to `vmauth` from `10.0.0.0/24` network and from `1.2.3.4` IP address, while denying requests from `10.0.0.42` IP address:
+
+```yml
+users:
+# User configs here
+
+ip_filters:
+  allow_list:
+  - 10.0.0.0/24
+  - 1.2.3.4
+  deny_list: [10.0.0.42]
+```
+
+The following config allows requests for the user 'foobar' only from the IP `127.0.0.1`:
+
+```yml
+users:
+- username: "foobar"
+  password: "***"
+  url_prefix: "http://localhost:8428"
+  ip_filters:
+    allow_list: [127.0.0.1]
+```
+
+See config example of using IP filters [here](https://github.com/VictoriaMetrics/VictoriaMetrics/blob/master/app/vmauth/example_config_ent.yml).
 
 ## Auth config
 
@@ -131,14 +165,22 @@ users:
   - "http://vminsert2:8480/insert/42/prometheus"
 
   # A single user for querying and inserting data:
+  #
   # - Requests to http://vmauth:8427/api/v1/query, http://vmauth:8427/api/v1/query_range
   #   and http://vmauth:8427/api/v1/label/<label_name>/values are proxied to the following urls in a round-robin manner:
   #     - http://vmselect1:8481/select/42/prometheus
   #     - http://vmselect2:8481/select/42/prometheus
   #   For example, http://vmauth:8427/api/v1/query is proxied to http://vmselect1:8480/select/42/prometheus/api/v1/query
   #   or to http://vmselect2:8480/select/42/prometheus/api/v1/query .
+  #
   # - Requests to http://vmauth:8427/api/v1/write are proxied to http://vminsert:8480/insert/42/prometheus/api/v1/write .
   #   The "X-Scope-OrgID: abc" http header is added to these requests.
+  #
+  # Request which do not match `src_paths` from the `url_map` are proxied to the urls from `default_url`
+  # in a round-robin manner. The original request path is passed in `request_path` query arg.
+  # For example, request to http://vmauth:8427/non/existing/path are proxied:
+  #  - to http://default1:8888/unsupported_url_handler?request_path=/non/existing/path
+  #  - or http://default2:8888/unsupported_url_handler?request_path=/non/existing/path
 - username: "foobar"
   url_map:
   - src_paths:
@@ -152,6 +194,28 @@ users:
     url_prefix: "http://vminsert:8480/insert/42/prometheus"
     headers:
     - "X-Scope-OrgID: abc"
+    ip_filters:
+      deny_list: [127.0.0.1]
+  default_url:
+  - "http://default1:8888/unsupported_url_handler"
+  - "http://default2:8888/unsupported_url_handler"
+
+# Requests without Authorization header are routed according to `unauthorized_user` section.
+unauthorized_user:
+  url_map:
+  - src_paths:
+    - /api/v1/query
+    - /api/v1/query_range
+    url_prefix:
+    - http://vmselect1:8481/select/0/prometheus
+    - http://vmselect2:8481/select/0/prometheus
+    ip_filters:
+      allow_list: [8.8.8.8]
+
+ip_filters:
+  allow_list: ["1.2.3.0/24", "127.0.0.1"]
+  deny_list:
+  - 10.1.0.1
 ```
 
 The config may contain `%{ENV_VAR}` placeholders, which are substituted by the corresponding `ENV_VAR` environment variable values.
@@ -174,18 +238,25 @@ Do not transfer Basic Auth headers in plaintext over untrusted networks. Enable 
 
 Alternatively, [https termination proxy](https://en.wikipedia.org/wiki/TLS_termination_proxy) may be put in front of `vmauth`.
 
-It is recommended protecting  following endpoints with authKeys:
+It is recommended protecting the following endpoints with authKeys:
 * `/-/reload` with `-reloadAuthKey` command-line flag, so external users couldn't trigger config reload.
 * `/flags` with `-flagsAuthkey` command-line flag, so unauthorized users couldn't get application command-line flags.
 * `/metrics` with `metricsAuthkey` command-line flag, so unauthorized users couldn't get access to [vmauth metrics](#monitoring).
 * `/debug/pprof` with `pprofAuthKey` command-line flag, so unauthorized users couldn't get access to [profiling information](#profiling).
+
+`vmauth` also supports the ability to restict access by IP - see [these docs](#ip-filters). See also [concurrency limiting docs](#concurrency-limiting).
 
 ## Monitoring
 
 `vmauth` exports various metrics in Prometheus exposition format at `http://vmauth-host:8427/metrics` page. It is recommended setting up regular scraping of this page
 either via [vmagent](https://docs.victoriametrics.com/vmagent.html) or via Prometheus, so the exported metrics could be analyzed later.
 
-`vmauth` exports `vmauth_user_requests_total` metric with `username` label. The `username` label value equals to `username` field value set in the `-auth.config` file. It is possible to override or hide the value in the label by specifying `name` field. For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` instead of `vmauth_user_requests_total{username="secret_user"}`:
+`vmauth` exports `vmauth_user_requests_total` [counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric 
+and `vmauth_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary) metric 
+with `username` label. The `username` label value equals to `username` field value set in the `-auth.config` file.
+It is possible to override or hide the value in the label by specifying `name` field. 
+For example, the following config will result in `vmauth_user_requests_total{username="foobar"}` 
+instead of `vmauth_user_requests_total{username="secret_user"}`:
 
 ```yml
 users:
@@ -193,6 +264,11 @@ users:
   name: "foobar"
   # other config options here
 ```
+
+For unauthorized users `vmauth` exports `vmauth_unauthorized_user_requests_total` 
+[counter](https://docs.victoriametrics.com/keyConcepts.html#counter) metric and 
+`vmauth_unauthorized_user_request_duration_seconds_*` [summary](https://docs.victoriametrics.com/keyConcepts.html#summary)
+metric without label (if `unauthorized_user` section of config is used).
 
 ## How to build from sources
 
@@ -266,9 +342,9 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -auth.config string
      Path to auth config. It can point either to local file or to http url. See https://docs.victoriametrics.com/vmauth.html for details on the format of this auth config
   -configCheckInterval duration
-     Interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
+     interval for config file re-read. Zero value disables config re-reading. By default, refreshing is disabled, send SIGHUP for config refresh.
   -enableTCP6
-     Whether to enable IPv6 for listening and dialing. By default only IPv4 TCP and UDP is used
+     Whether to enable IPv6 for listening and dialing. By default, only IPv4 TCP and UDP is used
   -envflag.enable
      Whether to enable reading flags from environment variables additionally to command line. Command line flag values have priority over values from environment vars. Flags are read only from command line if this flag isn't set. See https://docs.victoriametrics.com/#environment-variables for more details
   -envflag.prefix string
@@ -278,11 +354,11 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -flagsAuthKey string
      Auth key for /flags endpoint. It must be passed via authKey query arg. It overrides httpAuth.* settings
   -fs.disableMmap
-     Whether to use pread() instead of mmap() for reading data files. By default mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
+     Whether to use pread() instead of mmap() for reading data files. By default, mmap() is used for 64-bit arches and pread() is used for 32-bit arches, since they cannot read data files bigger than 2^32 bytes in memory. mmap() is usually faster for reading small data chunks than pread()
   -http.connTimeout duration
      Incoming http connections are closed after the configured timeout. This may help to spread the incoming load among a cluster of services behind a load balancer. Please note that the real timeout may be bigger by up to 10% as a protection against the thundering herd problem (default 2m0s)
   -http.disableResponseCompression
-     Disable compression of HTTP responses to save CPU resources. By default compression is enabled to save network bandwidth
+     Disable compression of HTTP responses to save CPU resources. By default, compression is enabled to save network bandwidth
   -http.idleConnTimeout duration
      Timeout for incoming idle http connections (default 1m0s)
   -http.maxGracefulShutdownDuration duration
@@ -292,15 +368,19 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -http.shutdownDelay duration
      Optional delay before http server shutdown. During this delay, the server returns non-OK responses from /health page, so load balancers can route new requests to other servers
   -httpAuth.password string
-     Password for HTTP Basic Auth. The authentication is disabled if -httpAuth.username is empty
+     Password for HTTP server's Basic Auth. The authentication is disabled if -httpAuth.username is empty
   -httpAuth.username string
-     Username for HTTP Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
+     Username for HTTP server's Basic Auth. The authentication is disabled if empty. See also -httpAuth.password
   -httpListenAddr string
      TCP address to listen for http connections. See also -httpListenAddr.useProxyProtocol (default ":8427")
   -httpListenAddr.useProxyProtocol
-     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt
+     Whether to use proxy protocol for connections accepted at -httpListenAddr . See https://www.haproxy.org/download/1.8/doc/proxy-protocol.txt . With enabled proxy protocol http server cannot serve regular /metrics endpoint. Use -pushmetrics.url for metrics pushing
+  -internStringCacheExpireDuration duration
+     The expiry duration for caches for interned strings. See https://en.wikipedia.org/wiki/String_interning . See also -internStringMaxLen and -internStringDisableCache (default 6m0s)
+  -internStringDisableCache
+     Whether to disable caches for interned strings. This may reduce memory usage at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringCacheExpireDuration and -internStringMaxLen
   -internStringMaxLen int
-     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning (default 500)
+     The maximum length for strings to intern. Lower limit may save memory at the cost of higher CPU usage. See https://en.wikipedia.org/wiki/String_interning . See also -internStringDisableCache and -internStringCacheExpireDuration (default 500)
   -logInvalidAuthTokens
      Whether to log requests with invalid auth tokens. Such requests are always counted at vmauth_http_request_errors_total{reason="invalid_auth_token"} metric, which is exposed at /metrics page
   -loggerDisableTimestamps
@@ -340,7 +420,7 @@ See the docs at https://docs.victoriametrics.com/vmauth.html .
   -pushmetrics.interval duration
      Interval for pushing metrics to -pushmetrics.url (default 10s)
   -pushmetrics.url array
-     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default metrics exposed at /metrics page aren't pushed to any remote storage
+     Optional URL to push metrics exposed at /metrics page. See https://docs.victoriametrics.com/#push-metrics . By default, metrics exposed at /metrics page aren't pushed to any remote storage
      Supports an array of values separated by comma or specified via multiple flags.
   -reloadAuthKey string
      Auth key for /-/reload http endpoint. It must be passed as authKey=...

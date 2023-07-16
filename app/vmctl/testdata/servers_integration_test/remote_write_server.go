@@ -2,6 +2,7 @@ package remote_read_integration
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -10,6 +11,7 @@ import (
 	"reflect"
 	"sort"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,6 +31,11 @@ type Response struct {
 	Series []LabelValues `json:"data"`
 }
 
+type MetricNamesResponse struct {
+	Status string   `json:"status"`
+	Data   []string `json:"data"`
+}
+
 // RemoteWriteServer represents fake remote write server with database
 type RemoteWriteServer struct {
 	server         *httptest.Server
@@ -44,6 +51,7 @@ func NewRemoteWriteServer(t *testing.T) *RemoteWriteServer {
 	mux.Handle("/api/v1/import", rws.getWriteHandler(t))
 	mux.Handle("/health", rws.handlePing())
 	mux.Handle("/api/v1/series", rws.seriesHandler())
+	mux.Handle("/api/v1/label/__name__/values", rws.valuesHandler())
 	mux.Handle("/api/v1/export/native", rws.exportNativeHandler())
 	mux.Handle("/api/v1/import/native", rws.importNativeHandler(t))
 	rws.server = httptest.NewServer(mux)
@@ -145,6 +153,43 @@ func (rws *RemoteWriteServer) seriesHandler() http.Handler {
 	})
 }
 
+func (rws *RemoteWriteServer) valuesHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		labelNames := make(map[string]struct{})
+		for _, ser := range rws.series {
+			if ser.Name != "" {
+				labelNames[ser.Name] = struct{}{}
+			}
+		}
+
+		metricNames := make([]string, 0, len(labelNames))
+		for k := range labelNames {
+			metricNames = append(metricNames, k)
+		}
+		resp := MetricNamesResponse{
+			Status: "success",
+			Data:   metricNames,
+		}
+
+		buf := bytes.NewBuffer(nil)
+		err := json.NewEncoder(buf).Encode(resp)
+		if err != nil {
+			log.Printf("error send series: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, err = w.Write(buf.Bytes())
+		if err != nil {
+			log.Printf("error send series: %s", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		return
+	})
+}
+
 func (rws *RemoteWriteServer) exportNativeHandler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		now := time.Now()
@@ -155,7 +200,6 @@ func (rws *RemoteWriteServer) exportNativeHandler() http.Handler {
 			return
 		}
 
-		w.WriteHeader(http.StatusNoContent)
 		return
 	})
 }
@@ -166,6 +210,7 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 		defer common.StopUnmarshalWorkers()
 
 		var gotTimeSeries []vm.TimeSeries
+		var mx sync.RWMutex
 
 		err := stream.Parse(r.Body, false, func(block *stream.Block) error {
 			mn := &block.MetricName
@@ -182,7 +227,9 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 				})
 			}
 
+			mx.Lock()
 			gotTimeSeries = append(gotTimeSeries, timeseries)
+			mx.Unlock()
 
 			return nil
 		})
@@ -208,7 +255,8 @@ func (rws *RemoteWriteServer) importNativeHandler(t *testing.T) http.Handler {
 
 		if !reflect.DeepEqual(gotTimeSeries, rws.expectedSeries) {
 			w.WriteHeader(http.StatusInternalServerError)
-			t.Fatalf("datasets not equal, expected: %#v;\n got: %#v", rws.expectedSeries, gotTimeSeries)
+			t.Errorf("datasets not equal, expected: %#v;\n got: %#v", rws.expectedSeries, gotTimeSeries)
+			return
 		}
 
 		w.WriteHeader(http.StatusNoContent)

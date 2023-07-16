@@ -25,6 +25,7 @@ func TestAlertManager_Addr(t *testing.T) {
 
 func TestAlertManager_Send(t *testing.T) {
 	const baUser, baPass = "foo", "bar"
+	const headerKey, headerValue = "TenantID", "foo"
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(_ http.ResponseWriter, _ *http.Request) {
 		t.Errorf("should not be called")
@@ -73,6 +74,11 @@ func TestAlertManager_Send(t *testing.T) {
 			if a[0].EndAt.IsZero() {
 				t.Errorf("expected non-zero end time")
 			}
+		case 3:
+			if r.Header.Get(headerKey) != headerValue {
+				t.Errorf("expected header %q to be set to %q; got %q instead",
+					headerKey, headerValue, r.Header.Get(headerKey))
+			}
 		}
 	})
 	srv := httptest.NewServer(mux)
@@ -90,10 +96,10 @@ func TestAlertManager_Send(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
-	if err := am.Send(context.Background(), []Alert{{}, {}}); err == nil {
+	if err := am.Send(context.Background(), []Alert{{}, {}}, nil); err == nil {
 		t.Error("expected connection error got nil")
 	}
-	if err := am.Send(context.Background(), []Alert{}); err == nil {
+	if err := am.Send(context.Background(), []Alert{}, nil); err == nil {
 		t.Error("expected wrong http code error got nil")
 	}
 	if err := am.Send(context.Background(), []Alert{{
@@ -102,10 +108,13 @@ func TestAlertManager_Send(t *testing.T) {
 		Start:       time.Now().UTC(),
 		End:         time.Now().UTC(),
 		Annotations: map[string]string{"a": "b", "c": "d", "e": "f"},
-	}}); err != nil {
+	}}, nil); err != nil {
 		t.Errorf("unexpected error %s", err)
 	}
 	if c != 2 {
 		t.Errorf("expected 2 calls(count from zero) to server got %d", c)
+	}
+	if err := am.Send(context.Background(), nil, map[string]string{headerKey: headerValue}); err != nil {
+		t.Errorf("unexpected error %s", err)
 	}
 }

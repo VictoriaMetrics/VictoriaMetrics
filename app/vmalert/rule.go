@@ -31,7 +31,7 @@ type Rule interface {
 	Close()
 }
 
-var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels")
+var errDuplicate = errors.New("result contains metrics with the same labelset after applying rule labels. See https://docs.victoriametrics.com/vmalert.html#series-with-the-same-labelset for details")
 
 type ruleState struct {
 	sync.RWMutex
@@ -53,6 +53,12 @@ type ruleStateEntry struct {
 	// stores the number of samples returned during
 	// the last evaluation
 	samples int
+	// stores the number of time series fetched during
+	// the last evaluation.
+	// Is supported by VictoriaMetrics only, starting from v1.90.0
+	// If seriesFetched == nil, then this attribute was missing in
+	// datasource response (unsupported).
+	seriesFetched *int
 	// stores the curl command reflecting the HTTP request used during rule.Exec
 	curl string
 }

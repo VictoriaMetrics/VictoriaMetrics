@@ -3,7 +3,13 @@
 // altogether.
 package barpool
 
-import "github.com/cheggaaa/pb/v3"
+import (
+	"fmt"
+	"os"
+
+	"github.com/VictoriaMetrics/VictoriaMetrics/app/vmctl/terminal"
+	"github.com/cheggaaa/pb/v3"
+)
 
 var pool = pb.NewPool()
 
@@ -20,7 +26,22 @@ func Stop() { _ = pool.Stop() }
 // AddWithTemplate adds bar with the given template
 // to the global pool
 func AddWithTemplate(format string, total int) *pb.ProgressBar {
-	bar := pb.ProgressBarTemplate(format).New(total)
+	tpl := getTemplate(format)
+	bar := pb.ProgressBarTemplate(tpl).New(total)
 	Add(bar)
 	return bar
+}
+
+// NewSingleProgress returns progress bar with given template
+func NewSingleProgress(format string, total int) *pb.ProgressBar {
+	tpl := getTemplate(format)
+	return pb.ProgressBarTemplate(tpl).New(total)
+}
+
+func getTemplate(format string) string {
+	isTerminal := terminal.IsTerminal(int(os.Stdout.Fd()))
+	if !isTerminal {
+		format = fmt.Sprintf("%s\n", format)
+	}
+	return format
 }

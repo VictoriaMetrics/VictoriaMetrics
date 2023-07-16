@@ -1,9 +1,27 @@
 @use "src/styles/variables" as *;
 
 .vm-query-editor {
+  position: relative;
 
   &-autocomplete {
     max-height: 300px;
     overflow: auto;
+  }
+
+  &-warning {
+    position: absolute;
+    top: 50%;
+    right: $padding-global;
+    transform: translateY(-50%);
+    display: grid;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    color: $color-warning;
+
+    &__tooltip {
+      white-space: pre-line;
+    }
   }
 }

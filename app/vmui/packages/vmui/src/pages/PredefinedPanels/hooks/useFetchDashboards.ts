@@ -15,7 +15,7 @@ export const useFetchDashboards = (): {
   error?: ErrorTypes | string,
   dashboardsSettings: DashboardSettings[],
 } => {
-
+  const { REACT_APP_LOGS } = process.env;
   const appModeEnable = getAppModeEnable();
   const { serverUrl } = useAppState();
   const dispatch = useDashboardsDispatch();
@@ -35,7 +35,7 @@ export const useFetchDashboards = (): {
   };
 
   const fetchRemoteDashboards = async () => {
-    if (!serverUrl) return;
+    if (!serverUrl || REACT_APP_LOGS) return;
     setError("");
     setIsLoading(true);
 

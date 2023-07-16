@@ -178,6 +178,21 @@ func (p *Pod) appendContainerLabels(m *promutils.Labels, c Container, cp *Contai
 	}
 }
 
+func (p *Pod) appendEndpointLabels(m *promutils.Labels, eps *Endpoints) {
+	m.Add("__meta_kubernetes_endpoints_name", eps.Metadata.Name)
+	m.Add("__meta_kubernetes_endpoint_address_target_kind", "Pod")
+	m.Add("__meta_kubernetes_endpoint_address_target_name", p.Metadata.Name)
+	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpoints", m)
+}
+
+func (p *Pod) appendEndpointSliceLabels(m *promutils.Labels, eps *EndpointSlice) {
+	m.Add("__meta_kubernetes_endpointslice_name", eps.Metadata.Name)
+	m.Add("__meta_kubernetes_endpointslice_address_target_kind", "Pod")
+	m.Add("__meta_kubernetes_endpointslice_address_target_name", p.Metadata.Name)
+	m.Add("__meta_kubernetes_endpointslice_address_type", eps.AddressType)
+	eps.Metadata.registerLabelsAndAnnotations("__meta_kubernetes_endpointslice", m)
+}
+
 func (p *Pod) appendCommonLabels(m *promutils.Labels, gw *groupWatcher) {
 	if gw.attachNodeMetadata {
 		m.Add("__meta_kubernetes_node_name", p.Spec.NodeName)

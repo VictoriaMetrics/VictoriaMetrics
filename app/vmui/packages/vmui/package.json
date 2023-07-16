@@ -26,7 +26,7 @@
     "preact": "^10.7.1",
     "qs": "^6.10.3",
     "react-input-mask": "^2.0.4",
-    "react-router-dom": "^6.3.0",
+    "react-router-dom": "^6.10.0",
     "sass": "^1.56.0",
     "typescript": "~4.6.2",
     "uplot": "^1.6.19",
@@ -34,7 +34,9 @@
   },
   "scripts": {
     "start": "react-app-rewired start",
+    "start:logs": "cross-env REACT_APP_LOGS=true npm run start",
     "build": "GENERATE_SOURCEMAP=false react-app-rewired build",
+    "build:logs": "cross-env REACT_APP_LOGS=true npm run build",
     "test": "react-app-rewired test",
     "lint": "eslint src --ext tsx,ts",
     "lint:fix": "eslint src --ext tsx,ts --fix"
@@ -61,6 +63,7 @@
     "@babel/plugin-proposal-nullish-coalescing-operator": "^7.16.7",
     "@typescript-eslint/eslint-plugin": "^5.15.0",
     "@typescript-eslint/parser": "^5.15.0",
+    "cross-env": "^7.0.3",
     "customize-cra": "^1.0.0",
     "eslint-plugin-react": "^7.29.4",
     "react-app-rewired": "^2.2.1"

@@ -36,7 +36,8 @@ type Group struct {
 	Params url.Values `yaml:"params"`
 	// Headers contains optional HTTP headers added to each rule request
 	Headers []Header `yaml:"headers,omitempty"`
-
+	// NotifierHeaders contains optional HTTP headers sent to notifiers for generated notifications
+	NotifierHeaders []Header `yaml:"notifier_headers,omitempty"`
 	// Catches all undefined fields and must be empty after parsing.
 	XXX map[string]interface{} `yaml:",inline"`
 }

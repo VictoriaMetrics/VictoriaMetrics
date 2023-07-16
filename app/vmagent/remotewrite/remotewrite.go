@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
-	"os"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -48,14 +47,14 @@ var (
 		"It is hidden by default, since it can contain sensitive info such as auth key")
 	maxPendingBytesPerURL = flagutil.NewArrayBytes("remoteWrite.maxDiskUsagePerURL", "The maximum file-based buffer size in bytes at -remoteWrite.tmpDataPath "+
 		"for each -remoteWrite.url. When buffer size reaches the configured maximum, then old data is dropped when adding new data to the buffer. "+
-		"Buffered data is stored in ~500MB chunks, so the minimum practical value for this flag is 500MB. "+
+		"Buffered data is stored in ~500MB chunks. It is recommended to set the value for this flag to a multiple of the block size 500MB. "+
 		"Disk usage is unlimited if the value is set to 0")
 	significantFigures = flagutil.NewArrayInt("remoteWrite.significantFigures", "The number of significant figures to leave in metric values before writing them "+
 		"to remote storage. See https://en.wikipedia.org/wiki/Significant_figures . Zero value saves all the significant figures. "+
 		"This option may be used for improving data compression for the stored metrics. See also -remoteWrite.roundDigits")
 	roundDigits = flagutil.NewArrayInt("remoteWrite.roundDigits", "Round metric values to this number of decimal digits after the point before writing them to remote storage. "+
 		"Examples: -remoteWrite.roundDigits=2 would round 1.236 to 1.24, while -remoteWrite.roundDigits=-1 would round 126.78 to 130. "+
-		"By default digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
+		"By default, digits rounding is disabled. Set it to 100 for disabling it for a particular remote storage. "+
 		"This option may be used for improving data compression for the stored metrics")
 	sortLabels = flag.Bool("sortLabels", false, `Whether to sort labels for incoming samples before writing them to all the configured remote storage systems. `+
 		`This may be needed for reducing memory usage at remote storage when the order of labels in incoming samples is random. `+
@@ -70,7 +69,7 @@ var (
 		"See https://docs.victoriametrics.com/stream-aggregation.html . "+
 		"See also -remoteWrite.streamAggr.keepInput and -remoteWrite.streamAggr.dedupInterval")
 	streamAggrKeepInput = flagutil.NewArrayBool("remoteWrite.streamAggr.keepInput", "Whether to keep input samples after the aggregation with -remoteWrite.streamAggr.config. "+
-		"By default the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
+		"By default, the input is dropped after the aggregation, so only the aggregate data is sent to the -remoteWrite.url. "+
 		"See https://docs.victoriametrics.com/stream-aggregation.html")
 	streamAggrDedupInterval = flagutil.NewArrayDuration("remoteWrite.streamAggr.dedupInterval", "Input samples are de-duplicated with this interval before being aggregated. "+
 		"Only the last sample per each time series per each interval is aggregated if the interval is greater than zero")
@@ -265,10 +264,7 @@ func newRemoteWriteCtxs(at *auth.Token, urls []string) []*remoteWriteCtx {
 		}
 
 		queuesDir := filepath.Join(*tmpDataPath, persistentQueueDirname)
-		files, err := os.ReadDir(queuesDir)
-		if err != nil {
-			logger.Fatalf("cannot read queues dir %q: %s", queuesDir, err)
-		}
+		files := fs.MustReadDir(queuesDir)
 		removed := 0
 		for _, f := range files {
 			dirname := f.Name()
@@ -527,6 +523,11 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 	h := xxhash.Sum64([]byte(pqURL.String()))
 	queuePath := filepath.Join(*tmpDataPath, persistentQueueDirname, fmt.Sprintf("%d_%016X", argIdx+1, h))
 	maxPendingBytes := maxPendingBytesPerURL.GetOptionalArgOrDefault(argIdx, 0)
+	if maxPendingBytes != 0 && maxPendingBytes < persistentqueue.DefaultChunkFileSize {
+		// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/4195
+		logger.Warnf("rounding the -remoteWrite.maxDiskUsagePerURL=%d to the minimum supported value: %d", maxPendingBytes, persistentqueue.DefaultChunkFileSize)
+		maxPendingBytes = persistentqueue.DefaultChunkFileSize
+	}
 	fq := persistentqueue.MustOpenFastQueue(queuePath, sanitizedURL, maxInmemoryBlocks, maxPendingBytes)
 	_ = metrics.GetOrCreateGauge(fmt.Sprintf(`vmagent_remotewrite_pending_data_bytes{path=%q, url=%q}`, queuePath, sanitizedURL), func() float64 {
 		return float64(fq.GetPendingBytes())
@@ -586,6 +587,11 @@ func newRemoteWriteCtx(argIdx int, at *auth.Token, remoteWriteURL *url.URL, maxI
 }
 
 func (rwctx *remoteWriteCtx) MustStop() {
+	// sas must be stopped before rwctx is closed
+	// because sas can write pending series to rwctx.pss if there are any
+	sas := rwctx.sas.Swap(nil)
+	sas.MustStop()
+
 	for _, ps := range rwctx.pss {
 		ps.MustStop()
 	}
@@ -594,9 +600,6 @@ func (rwctx *remoteWriteCtx) MustStop() {
 	rwctx.fq.UnblockAllReaders()
 	rwctx.c.MustStop()
 	rwctx.c = nil
-
-	sas := rwctx.sas.Swap(nil)
-	sas.MustStop()
 
 	rwctx.fq.MustClose()
 	rwctx.fq = nil

@@ -33,8 +33,8 @@ func initOnce() {
 	}
 	memoryLimit = sysTotalMemory()
 	if allowedBytes.N <= 0 {
-		if *allowedPercent < 1 || *allowedPercent > 200 {
-			logger.Fatalf("FATAL: -memory.allowedPercent must be in the range [1...200]; got %g", *allowedPercent)
+		if *allowedPercent < 1 || *allowedPercent > 100 {
+			logger.Fatalf("FATAL: -memory.allowedPercent must be in the range [1...100]; got %g", *allowedPercent)
 		}
 		percent := *allowedPercent / 100
 		allowedMemory = int(float64(memoryLimit) * percent)

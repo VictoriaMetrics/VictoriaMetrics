@@ -7,6 +7,9 @@ import useDeviceDetect from "../../../hooks/useDeviceDetect";
 import Button from "../Button/Button";
 import { CloseIcon } from "../Icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import useBoolean from "../../../hooks/useBoolean";
+import useEventListener from "../../../hooks/useEventListener";
+import { useCallback } from "preact/compat";
 
 interface PopperProps {
   children: ReactNode
@@ -37,22 +40,15 @@ const Popper: FC<PopperProps> = ({
   const { isMobile } = useDeviceDetect();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isOpen, setIsOpen] = useState(false);
   const [popperSize, setPopperSize] = useState({ width: 0, height: 0 });
 
+  const {
+    value: isOpen,
+    setValue: setIsOpen,
+    setFalse: handleClose,
+  } = useBoolean(false);
+
   const popperRef = useRef<HTMLDivElement>(null);
-
-  const onScrollWindow = () => {
-    setIsOpen(false);
-  };
-
-  useEffect(() => {
-    window.addEventListener("scroll", onScrollWindow);
-
-    return () => {
-      window.removeEventListener("scroll", onScrollWindow);
-    };
-  }, []);
 
   useEffect(() => {
     setIsOpen(open);
@@ -137,32 +133,25 @@ const Popper: FC<PopperProps> = ({
     }
   }, [isOpen, popperRef]);
 
-  const handlePopstate = () => {
+  const handlePopstate = useCallback(() => {
     if (isOpen && isMobile && !disabledFullScreen) {
       navigate(location, { replace: true });
       onClose();
     }
-  };
+  }, [isOpen, isMobile, disabledFullScreen, location, onClose]);
 
-  useEffect(() => {
-    window.addEventListener("popstate", handlePopstate);
-
-    return () => {
-      window.removeEventListener("popstate", handlePopstate);
-    };
-  }, [isOpen, isMobile, disabledFullScreen, location]);
-
-  const popperClasses = classNames({
-    "vm-popper": true,
-    "vm-popper_mobile": isMobile && !disabledFullScreen,
-    "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
-  });
+  useEventListener("scroll", handleClose);
+  useEventListener("popstate", handlePopstate);
 
   return (
     <>
       {(isOpen || !popperSize.width) && ReactDOM.createPortal((
         <div
-          className={popperClasses}
+          className={classNames({
+            "vm-popper": true,
+            "vm-popper_mobile": isMobile && !disabledFullScreen,
+            "vm-popper_open": (isMobile || Object.keys(popperStyle).length) && isOpen,
+          })}
           ref={popperRef}
           style={(isMobile && !disabledFullScreen) ? {} : popperStyle}
         >
