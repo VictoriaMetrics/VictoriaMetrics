@@ -14,6 +14,8 @@ BUILDER_IMAGE := local/builder:2.0.0-$(shell echo $(GO_BUILDER_IMAGE) | tr :/ __
 BASE_IMAGE := local/base:1.1.4-$(shell echo $(ROOT_IMAGE) | tr :/ __)-$(shell echo $(CERTS_IMAGE) | tr :/ __)
 DOCKER_COMPOSE ?= docker compose
 
+VM_DS_VER ?= 0.2.0
+
 package-base:
 	(docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -q '$(BASE_IMAGE)$$') \
 		|| docker build \
@@ -173,13 +175,19 @@ remove-docker-images:
 	docker image ls --format '{{.Repository}}\t{{.ID}}' | awk '{print $$2}' | xargs docker image rm -f
 
 docker-single-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+	@VM_DS_VER=$(VM_DS_VER) $(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml up -d
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml stop grafana
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml run --entrypoint="/bin/sh" --rm -u 0 grafana /var/lib/grafana/add-vm-dashboards.sh
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml restart grafana
 
 docker-single-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose.yml down -v
 
 docker-cluster-up:
-	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+	@VM_DS_VER=$(VM_DS_VER) $(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml up -d
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml stop grafana
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml run --entrypoint="/bin/sh" --rm -u 0 grafana /var/lib/grafana/add-vm-dashboards.sh
+	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml restart grafana
 
 docker-cluster-down:
 	$(DOCKER_COMPOSE) -f deployment/docker/docker-compose-cluster.yml down -v
