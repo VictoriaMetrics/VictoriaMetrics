@@ -1,3 +1,14 @@
+---
+sort: 7
+title: Querying
+weight: 7
+menu:
+  docs:
+    identifier: victorialogs-querying
+    parent: "victorialogs"
+    weight: 7
+---
+
 # Querying
 
 [VictoriaLogs](https://docs.victoriametrics.com/VictoriaLogs/) can be queried with [LogsQL](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html)
@@ -17,7 +28,7 @@ For example, the following query returns all the log entries with the `error` wo
 curl http://localhost:9428/select/logsql/query -d 'query=error'
 ```
 
-Note that the response contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
+The response by default contains [`_msg`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#message-field),
 [`_stream`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#stream-fields) and
 [`_time`](https://docs.victoriametrics.com/VictoriaLogs/keyConcepts.html#time-field) fields plus the explicitly mentioned fields.
 See [these docs](https://docs.victoriametrics.com/VictoriaLogs/LogsQL.html#querying-specific-fields) for details.
