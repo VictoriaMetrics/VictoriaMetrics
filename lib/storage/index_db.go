@@ -96,14 +96,37 @@ type indexDB struct {
 	// and is used for syncing items from different indexDBs
 	generation uint64
 
-	// The unix timestamp in seconds for the indexDB rotation.
-	rotationTimestamp uint64
+	// The unix timestamp in seconds for the next indexDB rotation.
+	nextRotationTimestamp uint64
 
 	name string
 	tb   *mergeset.Table
 
 	extDB     *indexDB
 	extDBLock sync.Mutex
+
+	// dateMetricIDCache is (Date, MetricID) cache.
+	dateMetricIDCache *dateMetricIDCache
+
+	// Fast cache for MetricID values occurred during the current hour.
+	currHourMetricIDs atomic.Pointer[hourMetricIDs]
+
+	// Fast cache for MetricID values occurred during the previous hour.
+	prevHourMetricIDs atomic.Pointer[hourMetricIDs]
+
+	// Fast cache for pre-populating per-day inverted index for the next day.
+	// This is needed in order to remove CPU usage spikes at 00:00 UTC
+	// due to creation of per-day inverted index for active time series.
+	// See https://github.com/VictoriaMetrics/VictoriaMetrics/issues/430 for details.
+	nextDayMetricIDs atomic.Pointer[byDateMetricIDEntry]
+
+	// Pending MetricID values to be added to currHourMetricIDs.
+	pendingHourEntriesLock sync.Mutex
+	pendingHourEntries     *uint64set.Set
+
+	// Pending MetricIDs to be added to nextDayMetricIDs.
+	pendingNextDayMetricIDsLock sync.Mutex
+	pendingNextDayMetricIDs     *uint64set.Set
 
 	// Cache for fast TagFilters -> MetricIDs lookup.
 	tagFiltersToMetricIDsCache *workingsetcache.Cache
@@ -137,9 +160,9 @@ func getTagFiltersCacheSize() int {
 // The last segment of the path should contain unique hex value which
 // will be then used as indexDB.generation
 //
-// The rotationTimestamp must be set to the current unix timestamp when mustOpenIndexDB
+// The nextRetentionTimestamp must be set to the current unix timestamp when mustOpenIndexDB
 // is called when creating new indexdb during indexdb rotation.
-func mustOpenIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOnly *uint32) *indexDB {
+func mustOpenIndexDB(path string, s *Storage, isReadOnly *uint32) *indexDB {
 	if s == nil {
 		logger.Panicf("BUG: Storage must be nin-nil")
 	}
@@ -157,16 +180,22 @@ func mustOpenIndexDB(path string, s *Storage, rotationTimestamp uint64, isReadOn
 	tagFiltersCacheSize := getTagFiltersCacheSize()
 
 	db := &indexDB{
-		refCount:          1,
-		generation:        gen,
-		rotationTimestamp: rotationTimestamp,
-		tb:                tb,
-		name:              name,
+		refCount:   1,
+		generation: gen,
+		tb:         tb,
+		name:       name,
 
 		tagFiltersToMetricIDsCache: workingsetcache.New(tagFiltersCacheSize),
 		s:                          s,
 		loopsPerDateTagFilterCache: workingsetcache.New(mem / 128),
+		dateMetricIDCache:          newDateMetricIDCache(),
+		pendingHourEntries:         &uint64set.Set{},
+		pendingNextDayMetricIDs:    &uint64set.Set{},
 	}
+	db.currHourMetricIDs.Store(&hourMetricIDs{})
+	db.prevHourMetricIDs.Store(&hourMetricIDs{})
+	db.nextDayMetricIDs.Store(&byDateMetricIDEntry{})
+
 	return db
 }
 

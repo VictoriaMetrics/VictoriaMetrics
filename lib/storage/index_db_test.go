@@ -495,7 +495,7 @@ func TestIndexDBOpenClose(t *testing.T) {
 	tableName := nextIndexDBTableName()
 	for i := 0; i < 5; i++ {
 		var isReadOnly uint32
-		db := mustOpenIndexDB(tableName, &s, 0, &isReadOnly)
+		db := mustOpenIndexDB(tableName, &s, &isReadOnly)
 		db.MustClose()
 	}
 	if err := os.RemoveAll(tableName); err != nil {
@@ -1962,12 +1962,14 @@ func newTestStorage() *Storage {
 	s := &Storage{
 		cachePath: "test-storage-cache",
 
-		metricIDCache:     workingsetcache.New(1234),
-		metricNameCache:   workingsetcache.New(1234),
-		tsidCache:         workingsetcache.New(1234),
-		dateMetricIDCache: newDateMetricIDCache(),
-		retentionMsecs:    maxRetentionMsecs,
+		metricIDCache:   workingsetcache.New(1234),
+		metricNameCache: workingsetcache.New(1234),
+		tsidCache:       workingsetcache.New(1234),
+		retentionMsecs:  maxRetentionMsecs,
 	}
+	var idb indexDB
+	idb.dateMetricIDCache = newDateMetricIDCache()
+	s.idbCurr.Store(&idb)
 	s.setDeletedMetricIDs(&uint64set.Set{})
 	return s
 }
