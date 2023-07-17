@@ -3585,6 +3585,102 @@ func TestExecSuccess(t *testing.T) {
 		resultExpected := []netstorage.Result{r1, r2}
 		f(q, resultExpected)
 	})
+	t.Run(`vector + vector on group_left(*)`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(
+			(label_set(time(), "t1", "v123", "t2", "v3"), label_set(10, "t2", "v3", "xxx", "yy"))
+			+ on (foo, t2) group_left (*)
+			(label_set(100, "t1", "v1"), label_set(time(), "t2", "v3", "noxxx", "aa"))
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("noxxx"),
+				Value: []byte("aa"),
+			},
+			{
+				Key:   []byte("t1"),
+				Value: []byte("v123"),
+			},
+			{
+				Key:   []byte("t2"),
+				Value: []byte("v3"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1010, 1210, 1410, 1610, 1810, 2010},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("noxxx"),
+				Value: []byte("aa"),
+			},
+			{
+				Key:   []byte("t2"),
+				Value: []byte("v3"),
+			},
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
+	t.Run(`vector + vector on group_left(*) prefix`, func(t *testing.T) {
+		t.Parallel()
+		q := `sort_desc(
+			(label_set(time(), "t1", "v123", "t2", "v3"), label_set(10, "t2", "v3", "xxx", "yy"))
+			+ on (foo, t2) group_left (*) prefix "abc_"
+			(label_set(100, "t1", "v1"), label_set(time(), "t2", "v3", "noxxx", "aa"))
+		)`
+		r1 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{2000, 2400, 2800, 3200, 3600, 4000},
+			Timestamps: timestampsExpected,
+		}
+		r1.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("abc_noxxx"),
+				Value: []byte("aa"),
+			},
+			{
+				Key:   []byte("t1"),
+				Value: []byte("v123"),
+			},
+			{
+				Key:   []byte("t2"),
+				Value: []byte("v3"),
+			},
+		}
+		r2 := netstorage.Result{
+			MetricName: metricNameExpected,
+			Values:     []float64{1010, 1210, 1410, 1610, 1810, 2010},
+			Timestamps: timestampsExpected,
+		}
+		r2.MetricName.Tags = []storage.Tag{
+			{
+				Key:   []byte("abc_noxxx"),
+				Value: []byte("aa"),
+			},
+			{
+				Key:   []byte("t2"),
+				Value: []byte("v3"),
+			},
+			{
+				Key:   []byte("xxx"),
+				Value: []byte("yy"),
+			},
+		}
+		resultExpected := []netstorage.Result{r1, r2}
+		f(q, resultExpected)
+	})
 	t.Run(`vector + vector on group_left (__name__)`, func(t *testing.T) {
 		t.Parallel()
 		q := `sort_desc(
