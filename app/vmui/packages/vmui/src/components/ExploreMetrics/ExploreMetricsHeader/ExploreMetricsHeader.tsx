@@ -122,9 +122,11 @@ const ExploreMetricsHeader: FC<ExploreMetricsHeaderProps> = ({
           <div className="vm-explore-metrics-header-description">
             <p>
               Please note: this page is solely designed for exploring Prometheus metrics.
-              Prometheus metrics always carry <code>job</code> and <code>instance</code> labels,
-              which this page was initially created to handle.
-              Metrics without a <code>job</code> selection may mislead due to their diverse values.
+              Prometheus metrics always contain <code>job</code> and <code>instance</code> labels
+              (see <a
+                className="vm-link vm-link_colored"
+                href="https://prometheus.io/docs/concepts/jobs_instances/"
+              >these docs</a>), and this page relies on them as filters. <br/>
               Please use this page for Prometheus metrics only, in accordance with their naming conventions.
             </p>
             <Button
